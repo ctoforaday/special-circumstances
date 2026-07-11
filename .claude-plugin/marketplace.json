@@ -1,0 +1,24 @@
+{
+  "name": "special-circumstances",
+  "owner": {
+    "name": "Gregory Block"
+  },
+  "description": "An adversarial human/AI methodology suite — it argues with you on purpose, and researches its own rules while you sleep.",
+  "plugins": [
+    {
+      "name": "prosthetic-conscience",
+      "source": "./plugins/prosthetic-conscience",
+      "description": "Core adversarial + cowork behaviour: Design-by-Contract rules-as-skills, pair programming, spec-driven development + a plan-audit gate, project memory, proficiency skills, quality hooks, and environment preflight (/doctor)."
+    },
+    {
+      "name": "frank-exchange-of-views",
+      "source": "./plugins/frank-exchange-of-views",
+      "description": "The research debate engine: an additive blue team, a subtractive red team that owns the pass/fail gate, and a lead that runs mechanics and the final compromise — best-of-N, a Heilmeier Catechism, and the full adversarial record preserved."
+    },
+    {
+      "name": "sleeper-service",
+      "source": "./plugins/sleeper-service",
+      "description": "Autonomous learning: a daily self-improvement loop, a graduation pipeline, and a continuous-learning promotion ladder — always human-gated at promotion."
+    }
+  ]
+}

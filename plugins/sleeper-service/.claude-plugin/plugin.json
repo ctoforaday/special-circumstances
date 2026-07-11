@@ -1,0 +1,11 @@
+{
+  "name": "sleeper-service",
+  "displayName": "Sleeper Service",
+  "version": "0.1.0",
+  "description": "Autonomous learning for Special Circumstances: a daily self-improvement loop, a graduation pipeline, and a continuous-learning promotion ladder — always human-gated at promotion. Requires frank-exchange-of-views.",
+  "author": {
+    "name": "Gregory Block"
+  },
+  "license": "MIT",
+  "keywords": ["autonomous", "self-improvement", "continuous-learning", "scheduling"]
+}

@@ -1,0 +1,14 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.zed/
+.vscode/
+.idea/
+
+# qlty working dirs
+.qlty/out/
+.qlty/logs/
+
+# Claude Code local-only state
+.claude/settings.local.json
+.claude/checkpoints/

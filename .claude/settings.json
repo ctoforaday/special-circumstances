@@ -1,0 +1,15 @@
+{
+  "extraKnownMarketplaces": {
+    "special-circumstances": {
+      "source": {
+        "source": "github",
+        "repo": "ctoforaday/special-circumstances"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "prosthetic-conscience@special-circumstances": true,
+    "frank-exchange-of-views@special-circumstances": true,
+    "sleeper-service@special-circumstances": true
+  }
+}
