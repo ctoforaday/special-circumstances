@@ -18,3 +18,4 @@ Thumbs.db
 # Built hook binaries + release artifacts (produced by /prosthetic-conscience:doctor or CI, never committed)
 plugins/*/bin/
 plugins/*/tools/dist/
+trajectories/agent-transcripts.tar.gz
