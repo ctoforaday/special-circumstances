@@ -13,7 +13,14 @@ export const meta = {
 // The lead is a script: mechanics, round-keeping, termination. All file writes
 // belong to the agents (the filesystem is the blackboard; the script has no
 // filesystem access by design). Judgment calls go to lead-judge, never round-to-round.
-const { topic, runDir, lanes = 3, maxRounds = 12 } = args
+// Defensive arg handling: args may arrive JSON-encoded (resume path); a stringified
+// object destructures to undefined and every agent gets literal 'undefined' paths —
+// the exact harness defect red graded high/high/low in run 1. Parse, then guard.
+const a = typeof args === 'string' ? JSON.parse(args) : args
+const { topic, runDir, lanes = 3, maxRounds = 12 } = a
+if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
+  throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
+}
 
 const BLUE_ENVELOPE = {
   type: 'object',
