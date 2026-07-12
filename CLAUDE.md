@@ -1,6 +1,6 @@
 # Special Circumstances — repository guide
 
-This repo is a Claude Code marketplace of three plugins: **prosthetic-conscience** (core adversarial cowork), **frank-exchange-of-views** (the research debate engine), and **sleeper-service** (autonomous learning). See `README.md` for the story and `plans/` for the design under review.
+**Scope: this file governs work *on* this repo only.** It is not part of any plugin: behaviour delivered to consuming projects lives entirely under `plugins/`, and nothing in this file reaches an installing project. Dev concerns belong here; consumer behaviour belongs in the plugins.
 
 ## Identity
 
@@ -17,9 +17,18 @@ Always-on rules bind every session via the imports below; the rest load on deman
 @plugins/prosthetic-conscience/skills/context-efficiency/SKILL.md
 @plugins/prosthetic-conscience/skills/agent-guardrails/SKILL.md
 @plugins/prosthetic-conscience/skills/think-around-problem/SKILL.md
+@plugins/prosthetic-conscience/skills/validation-loop/SKILL.md
 
-## Working conventions
+## Repository structure
 
-- Planning artifacts under review live in `plans/` (each as a PR). "Real" documentation lives in `README.md` and each plugin's `README.md`.
-- The working-corpus dirs — `ideas/`, `research/`, `projects/` — start empty (clean start) and are seeded by `/research` and `/self-improve`.
-- Quality tooling (qlty) is recommended, not required; hooks degrade gracefully when it is absent. Run `/sc-doctor`.
+| Path | Role |
+|---|---|
+| `plugins/<name>/` | The product: everything a consumer installs (skills, agents, commands, hooks, tools) |
+| `.claude-plugin/marketplace.json` | Marketplace manifest listing the three plugins |
+| `plans/` | Design artifacts under review — each arrives as a PR; graduates into the plugins |
+| `README.md`, `plugins/*/README.md` | The shipped documentation |
+| `ideas/` `research/` `projects/` | Working corpus — starts empty, seeded by `/research` and `/self-improve` |
+
+## Developing this repo
+
+- Every PR that changes a plugin's content MUST bump that plugin's `version` in its `plugin.json` — `/plugin update` is version-gated and ships nothing without it. AFTER merging, run `/plugin update` + `/reload-plugins` to pull the change.
