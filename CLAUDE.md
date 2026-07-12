@@ -16,4 +16,4 @@ Rules ship as discrete skills under `plugins/prosthetic-conscience/skills/` and 
 
 - Planning artifacts under review live in `plans/` (each as a PR). "Real" documentation lives in `README.md` and each plugin's `README.md`.
 - The working-corpus dirs — `ideas/`, `research/`, `projects/` — start empty (clean start) and are seeded by `/research` and `/self-improve`.
-- Quality tooling (qlty) is recommended, not required; hooks degrade gracefully when it is absent. Run `/doctor`.
+- Quality tooling (qlty) is recommended, not required; hooks degrade gracefully when it is absent. Run `/sc-doctor`.

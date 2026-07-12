@@ -1,5 +1,5 @@
 ---
-description: Environment preflight — probe local tool dependencies, report READY / DEGRADED / BLOCKED. `/doctor --fix` builds or fetches the sc-quality-gate hook binary (with consent).
+description: Environment preflight — probe local tool dependencies, report READY / DEGRADED / BLOCKED. `/sc-doctor --fix` builds or fetches the sc-quality-gate hook binary (with consent).
 ---
 
 Run the Special Circumstances environment preflight. Model terse-communication: table + verdict, no filler.

@@ -6,7 +6,7 @@
 
 | Plugin | Named for | What it does |
 |---|---|---|
-| [**prosthetic-conscience**](plugins/prosthetic-conscience) | the drone that keeps you honest | Core adversarial + cowork behaviour: Design-by-Contract rules (shipped as skills), pair programming, spec-driven development + a plan-audit gate, project memory, proficiency skills, quality hooks, and an environment preflight (`/doctor`). |
+| [**prosthetic-conscience**](plugins/prosthetic-conscience) | the drone that keeps you honest | Core adversarial + cowork behaviour: Design-by-Contract rules (shipped as skills), pair programming, spec-driven development + a plan-audit gate, project memory, proficiency skills, quality hooks, and an environment preflight (`/sc-doctor`). |
 | [**frank-exchange-of-views**](plugins/frank-exchange-of-views) | a heated argument, diplomatically put | The research debate engine: an *additive* blue team builds, a *subtractive* red team audits and owns the pass/fail gate, a lead runs the mechanics and the final compromise. Best-of-N, a Heilmeier Catechism, and the full adversarial record preserved — union, never summary. |
 | [**sleeper-service**](plugins/sleeper-service) | the GSV quietly running vast hidden projects | Autonomous learning: a daily self-improvement loop, a graduation pipeline, and a continuous-learning promotion ladder. Always human-gated at promotion. |
 
@@ -23,7 +23,7 @@
 
 ## Dogfood tour
 
-- **`/doctor`** — check your environment is set up (qlty, git, gh) before anything assumes a toolchain.
+- **`/sc-doctor`** — check your environment is set up (qlty, git, gh) before anything assumes a toolchain.
 - **`/research <topic>`** — run the debate engine; watch `research/<date>_<slug>/debate.md` grow as blue and red argue and the lead adjudicates.
 - **`/plan-audit <file>`** — put an implementation plan through the spec-driven-development gate.
 - **`/self-improve`** — let the suite research how one of its own rules should evolve (writes only to `ideas/` and `research/`).
