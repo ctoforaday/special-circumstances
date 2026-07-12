@@ -210,6 +210,16 @@ stays `/sc-doctor`-driven (no committed script to rot) and self-verifying (re-pr
 Proven end to end on the Windows dev box in Phase 1: `sc-quality-gate` builds, `go test` green, and
 it degrades cleanly when qlty is absent.
 
+**Hook inventory — every hook the suite ships or plans, tracked here so none get lost in review
+threads.** All follow the Go-toolchain rules above (tested, capability-gated, degrade-never-fail):
+
+| Hook binary | Event / matcher | Purpose | Status |
+|---|---|---|---|
+| `sc-quality-gate` | `PostToolUse(Write\|Edit)` | qlty fmt + check on every write (fires in subagents too — verified); skip+warn when qlty absent | ✅ shipped (Phase 1) |
+| `sc-secrets-gate` | `PreToolUse(WebFetch\|WebSearch\|Bash)` | **privilege-boundary for data**: block outbound payloads matching secret/token/key patterns before they leave the box; deterministic layer of agent-guardrails (the rule stays as the semantic layer a regex can't cover) | Phase 2 |
+| `sc-toolchain-nudge` | `SessionStart` | one non-blocking line when a recommended tool is missing (runs the shared toolchain probe once) | Phase 2 |
+| checkpoint seal/restore | `PreCompact` + `SessionStart(compact\|resume)` | seal the agent-authored CHECKPOINT.md before compaction; re-inject a terse digest after | tracked in the Memento proposal (PR #3) — builds on this toolchain if adopted |
+
 ### 3b. frank-exchange-of-views (the debate engine)
 
 Given a topic, produce a **verified research deliverable with the full adversarial record
@@ -387,7 +397,7 @@ special-circumstances/
 |---|---|---|
 | **0. Bootstrap — ✅ DONE** | Private `ctoforaday/special-circumstances`; marketplace + three plugin manifests; dogfood `settings.json`; thin CLAUDE.md; README; MEMORY.md; MIT LICENSE; `.qlty`; empty clean-start dirs | ✅ **Verified live**: `/plugin marketplace add ctoforaday/special-circumstances` succeeded and all three plugins installed. (Plan artifacts kept as PRs under `plans/`.) |
 | **1. Harness spike — ✅ DONE (verified live on Windows)** | Seed skill (`critical-stance`) + communication model (`terse-communication`, `design-by-contract`) + `probe` agent (preloads them via `skills:`) + `/probe` + `/sc-doctor` + a **tested Go hook toolchain** (`sc-quality-gate` binary + shared toolchain probe + CI matrix + `/sc-doctor` build/fetch) — `go test` green (PR #5, merged) | ✅ **All five green:** `/sc-doctor` + rule-skills load; `skills:` preloads into the subagent (probe quoted `critical-stance` verbatim); the Go hook fires on **both main-agent AND subagent** writes; capability-gates (qlty absent → skip+warn, exit 0); `${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate` resolves on Windows. **Finding: plugin hooks DO fire in subagents** (overturned the docs-reading — see Part 1). |
-| **2. prosthetic-conscience** | Rule corpus → skills; pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **environment preflight (requirements.json + /sc-doctor + capability-gated hooks)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **on this box (qlty absent) edits still succeed — hook no-ops + warns — and /sc-doctor reports it with the Windows install command**; qlty clean where present |
+| **2. prosthetic-conscience** | Rule corpus → skills (chunk 1: PR #8); pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **hooks per the §3a′ inventory: `sc-secrets-gate` (PreToolUse outbound-secrets block) + `sc-toolchain-nudge` (SessionStart)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **sc-secrets-gate blocks a seeded fake token in an outbound payload (unit + live test)**; on a qlty-absent box edits still succeed (hook no-ops + warns, /sc-doctor reports the install command); qlty clean where present |
 | **3. frank-exchange-of-views** | Agents (blue/red/judge), templates (report/debate/Heilmeier), workflow, /research | **E2E dogfood** on a fresh real topic: run dir contains living blue+red reports, candidates, debate.md with 3-party rounds; final report embeds both team reports + Heilmeier; seed a bad citation → FAIL round → diff-based re-audit → resolution recorded in transcript |
 | **4. sleeper-service** | continuous-learning skill; /self-improve (daily default); /graduate; scheduling docs | Headless `claude -p "/self-improve"` produces a run dir + idea stub; touches only research/+ideas/ |
 | **5. Story + publish** | **Clean start — no corpus import.** README; empty ideas/research/projects scaffolding; PII/secret scrub of skills+docs; LICENSE; publish | Fresh clone → README install steps verbatim; `git grep -iE "jarvis|8070926388|0xDEADC0DE"` clean; final `/research` smoke populates the first real run |
