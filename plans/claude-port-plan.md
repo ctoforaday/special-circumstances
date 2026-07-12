@@ -43,7 +43,7 @@ auto-repair spawns that forgot their system prompts.
 | Project standing context | Main agent only | **Subagents inherit the full CLAUDE.md/memory hierarchy** (user + project + local). Exception: built-in Explore/Plan agents skip it for speed; our custom agents get it. |
 | Plugin rules → children | Nothing; hand-compiled per spawn | **No automatic propagation** (same gap) — but the native fix is the **`skills:` frontmatter field**: skills listed there have their full content injected into the subagent's context at startup. Rules become skills; each agent role *declares* its rules in one YAML line. `prompt_resolver.py` reborn as declared inheritance. |
 | Skills discovery in children | Not available | **Subagents can discover/invoke all skills** via the Skill tool (unless denied). |
-| Hooks on child tool calls | Did not fire | **Correction (verified 2026-07): plugin hooks are main-session-scoped and do NOT fire on a subagent's own tool calls** (plugin subagents can't even declare `hooks`). Whether the *parent's* PostToolUse fires during a subagent tool call is undocumented — **Phase 1 spike resolves it empirically.** So "the qlty gate holds on swarm writes" is NOT safe by default; fallback is a lead-run sweep or a main-session `SubagentStop` hook. Parent still sees `SubagentStart`/`SubagentStop`. |
+| Hooks on child tool calls | Did not fire | **Verified empirically (Phase 1 spike, 2026-07): the parent's plugin PostToolUse hook DOES fire on a subagent's own Write** — so "the qlty gate holds when a swarm agent writes" is valid, as originally designed. (This overturned a docs-*reading* that claimed otherwise; leaf-node testing won.) Confirmed for Task/Agent subagents; the Workflow-tool swarm is expected to match (direct test pending). A plugin *subagent* still can't declare its **own** `hooks:` frontmatter — but the parent's hooks apply to it. Parent also sees `SubagentStart`/`SubagentStop`. |
 | Nesting | Fragile, collision-prone | Subagents can spawn subagents to **depth 5**. |
 | Per-agent persistent memory | None | **`memory:` frontmatter field** (user/project/local) — an agent can remember across sessions. |
 
@@ -55,12 +55,12 @@ Design consequences, baked into every agent definition in this suite:
    mechanism replaces them).
 4. The red-team auditor gets `memory: project` so it accumulates knowledge of gap patterns it has
    caught before — continuous learning wired into the adversary itself.
-5. **A subagent inherits CLAUDE.md/memory + permissions only — NOT a plugin's skills, hooks, or
-   injected content** (verified 2026-07; true even for user-wide plugins — plugin scope is the main
-   session). Rule content reaches a child *only* via that child agent's `skills:` frontmatter. And
-   because plugin hooks don't fire in children, quality/verification on swarm-written artifacts is
-   the **workflow lead's** job (a post-write sweep / `SubagentStop`), not a per-write PostToolUse
-   inside the child.
+5. **A subagent does not auto-inherit a plugin's skills or injected content** — rule content reaches
+   a child *only* via that child agent's `skills:` frontmatter (verified 2026-07: the probe agent
+   carried exactly its declared rule-skills and quoted the `critical-stance` probe verbatim). **But
+   the parent's plugin hooks DO fire on the child's tool calls** (also verified live) — so the
+   quality/verification gate rides PostToolUse on swarm writes as originally designed; no lead-run
+   sweep is needed as a fallback. (A child still can't declare its *own* `hooks:`.)
 
 ### Rules / skills / discovery mapping (unchanged from prior draft, condensed)
 
@@ -386,7 +386,7 @@ special-circumstances/
 | Phase | Work | Verify |
 |---|---|---|
 | **0. Bootstrap — ✅ DONE** | Private `ctoforaday/special-circumstances`; marketplace + three plugin manifests; dogfood `settings.json`; thin CLAUDE.md; README; MEMORY.md; MIT LICENSE; `.qlty`; empty clean-start dirs | ✅ **Verified live**: `/plugin marketplace add ctoforaday/special-circumstances` succeeded and all three plugins installed. (Plan artifacts kept as PRs under `plans/`.) |
-| **1. Harness spike — 🚧 in progress** | Seed skill (`critical-stance`) + communication model (`terse-communication`, `design-by-contract`) + `probe` agent (preloads them via `skills:`) + `/probe` + `/sc-doctor` + a **tested Go hook toolchain** (`sc-quality-gate` binary + shared toolchain probe + CI matrix + `/sc-doctor` build/fetch) — built, `go test` green on this Windows box (PR #5) | Spawn `probe` agent → confirm preloaded probe sentence + hook-log entry for its write; confirm the Go hook fires and **capability-gates** (qlty absent → degrades, exit 0). **Pending merge of PR #5 to `main` + `/reload-plugins`.** Resolves whether plugin hooks fire in subagents at all (see Part 1 correction). |
+| **1. Harness spike — ✅ DONE (verified live on Windows)** | Seed skill (`critical-stance`) + communication model (`terse-communication`, `design-by-contract`) + `probe` agent (preloads them via `skills:`) + `/probe` + `/sc-doctor` + a **tested Go hook toolchain** (`sc-quality-gate` binary + shared toolchain probe + CI matrix + `/sc-doctor` build/fetch) — `go test` green (PR #5, merged) | ✅ **All five green:** `/sc-doctor` + rule-skills load; `skills:` preloads into the subagent (probe quoted `critical-stance` verbatim); the Go hook fires on **both main-agent AND subagent** writes; capability-gates (qlty absent → skip+warn, exit 0); `${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate` resolves on Windows. **Finding: plugin hooks DO fire in subagents** (overturned the docs-reading — see Part 1). |
 | **2. prosthetic-conscience** | Rule corpus → skills; pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **environment preflight (requirements.json + /sc-doctor + capability-gated hooks)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **on this box (qlty absent) edits still succeed — hook no-ops + warns — and /sc-doctor reports it with the Windows install command**; qlty clean where present |
 | **3. frank-exchange-of-views** | Agents (blue/red/judge), templates (report/debate/Heilmeier), workflow, /research | **E2E dogfood** on a fresh real topic: run dir contains living blue+red reports, candidates, debate.md with 3-party rounds; final report embeds both team reports + Heilmeier; seed a bad citation → FAIL round → diff-based re-audit → resolution recorded in transcript |
 | **4. sleeper-service** | continuous-learning skill; /self-improve (daily default); /graduate; scheduling docs | Headless `claude -p "/self-improve"` produces a run dir + idea stub; touches only research/+ideas/ |
@@ -396,10 +396,10 @@ special-circumstances/
 plugin mechanics for SessionStart injection and cross-plugin skill preloading — Phase 1 spike
 de-risks both; fallback for cross-plugin preloads is vendoring copies of needed rule-skills into
 FEOV/SS; (b) Workflow-agent CLAUDE.md inheritance is undocumented — spike verifies; fallback is
-explicit `skills:` preloads carrying everything the swarm needs (already the design). **(c) Verified:
-plugin hooks do NOT fire in subagents, so the qlty gate can't ride PostToolUse on swarm writes —
-fallback is a lead-run quality/verification sweep or a main-session `SubagentStop` hook; Phase 1
-spike confirms the exact firing behavior.**
+explicit `skills:` preloads carrying everything the swarm needs (already the design). **(c) RESOLVED
+(Phase 1 spike, verified live): plugin hooks DO fire on subagent writes — the qlty gate rides
+PostToolUse on swarm writes as designed. Verified for Task/Agent subagents; the Workflow-tool swarm
+is expected to match, a direct test pending.**
 
 ---
 
