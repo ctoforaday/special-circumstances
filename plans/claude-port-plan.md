@@ -61,6 +61,14 @@ Design consequences, baked into every agent definition in this suite:
    the parent's plugin hooks DO fire on the child's tool calls** (also verified live) — so the
    quality/verification gate rides PostToolUse on swarm writes as originally designed; no lead-run
    sweep is needed as a fallback. (A child still can't declare its *own* `hooks:`.)
+6. **Roles-as-mindsets, stated precisely (settled across two review rounds): mindsets live in
+   shared rule-skills; agents are per-plugin DUTY specialists.** The generic thing is the mindset
+   (critical-stance is the auditor base class, preloaded cross-plugin via namespaced `skills:`);
+   an agent file is that mindset's thin binding to one duty — tools + memory + envelope contracts.
+   One agent per duty, not per knowledge domain (plan-auditor = the stateless plan gate;
+   red-auditor = the debate participant with living findings and project memory — same inherited
+   mindset, different duties, deliberately not merged). Baking a standard into a single-duty agent
+   is fine; proliferating agents per knowledge domain is not.
 
 ### Rules / skills / discovery mapping (unchanged from prior draft, condensed)
 
