@@ -12,7 +12,7 @@ func TestGate(t *testing.T) {
 		file   string
 		expect []string
 	}{
-		{"absent warns and points to doctor", false, "a.go", []string{"skipped", "/doctor", "a.go"}},
+		{"absent warns and points to doctor", false, "a.go", []string{"skipped", "/sc-doctor", "a.go"}},
 		{"present indicates it would run qlty", true, "b.md", []string{"qlty fmt", "qlty check", "b.md"}},
 	}
 	for _, c := range cases {

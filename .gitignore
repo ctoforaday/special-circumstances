@@ -15,6 +15,6 @@ Thumbs.db
 .claude/spike/
 .claude/*.log
 
-# Built hook binaries + release artifacts (produced by /doctor or CI, never committed)
+# Built hook binaries + release artifacts (produced by /sc-doctor or CI, never committed)
 plugins/*/bin/
 plugins/*/tools/dist/

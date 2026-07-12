@@ -1,5 +1,5 @@
 {
-  "_comment": "Single source of truth for prosthetic-conscience's local tool dependencies. Consumed by the shared toolchain probe (tools/internal/toolchain), used by both the hook binaries and /doctor. See plans/claude-port-plan.md §3a'.",
+  "_comment": "Single source of truth for prosthetic-conscience's local tool dependencies. Consumed by the shared toolchain probe (tools/internal/toolchain), used by both the hook binaries and /sc-doctor. See plans/claude-port-plan.md §3a'.",
   "tools": [
     {
       "name": "git",
@@ -36,7 +36,7 @@
     }
   ],
   "_hook_binary": {
-    "_comment": "sc-quality-gate is OUR compiled hook, not an external dep. /doctor --fix builds it (go build, if Go is present) or fetches the prebuilt release asset for this GOOS/GOARCH into bin/. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate.",
+    "_comment": "sc-quality-gate is OUR compiled hook, not an external dep. /sc-doctor --fix builds it (go build, if Go is present) or fetches the prebuilt release asset for this GOOS/GOARCH into bin/. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate.",
     "name": "sc-quality-gate",
     "source": "tools/cmd/sc-quality-gate",
     "output": "bin/sc-quality-gate",
