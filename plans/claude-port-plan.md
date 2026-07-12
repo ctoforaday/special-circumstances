@@ -194,6 +194,22 @@ of concerns (per review):** graceful hook degradation is *core* and ships with t
 actual formatter installation and the `/doctor --fix` installer flow are a *separable* concern that
 can land as their own PR — the shared toolchain probe is the seam between them.
 
+**Hook implementation & install path — Go, tested, prebuilt.** Hooks fire constantly and *must not*
+break (the historical failure mode), so they are **compiled Go binaries**, not shell (untestable)
+or interpreted scripts (fragile, runtime-dependent). Each hook is a pure, table-driven-tested Go
+command that reuses the shared toolchain probe. A GitHub Actions matrix runs `go vet` / `go test` on
+Windows/macOS/Linux on every change — can't merge red, the guarantee shell can't give — and on a
+`{plugin}--v{version}` tag (the same tags that drive plugin `dependencies`) cross-compiles all
+platforms and publishes static binaries + SHA256s to the GitHub Release. **The target box never
+needs Go:** `/doctor --fix` builds via `go build` if Go is present, else fetches the prebuilt
+release asset for this GOOS/GOARCH (checksum-verified) into `${CLAUDE_PLUGIN_ROOT}/bin/`, which
+`hooks.json` invokes. Graduation: publish to scoop/winget/brew so the per-OS `install` string is a
+one-liner and PATH is handled for us. Until provisioned, the hook capability-gates and no-ops with a
+warning. The one non-Go seam — the installer (chicken-and-egg: it runs before any binary exists) —
+stays `/doctor`-driven (no committed script to rot) and self-verifying (re-probes after fetching).
+Proven end to end on the Windows dev box in Phase 1: `sc-quality-gate` builds, `go test` green, and
+it degrades cleanly when qlty is absent.
+
 ### 3b. frank-exchange-of-views (the debate engine)
 
 Given a topic, produce a **verified research deliverable with the full adversarial record
@@ -370,7 +386,7 @@ special-circumstances/
 | Phase | Work | Verify |
 |---|---|---|
 | **0. Bootstrap — ✅ DONE** | Private `ctoforaday/special-circumstances`; marketplace + three plugin manifests; dogfood `settings.json`; thin CLAUDE.md; README; MEMORY.md; MIT LICENSE; `.qlty`; empty clean-start dirs | ✅ **Verified live**: `/plugin marketplace add ctoforaday/special-circumstances` succeeded and all three plugins installed. (Plan artifacts kept as PRs under `plans/`.) |
-| **1. Harness spike — 🚧 in progress** | Real seed skill (`critical-stance`) + `probe` agent (preloads it via `skills:`) + `/probe` command + PostToolUse hook (node script) in prosthetic-conscience — built (PR #5) | Spawn `probe` agent → confirm preloaded probe sentence + hook-log entry for its write. **Pending merge of PR #5 to `main` + `/reload-plugins`.** This is the test that resolves whether plugin hooks fire in subagents at all (see Part 1 correction). |
+| **1. Harness spike — 🚧 in progress** | Seed skill (`critical-stance`) + communication model (`terse-communication`, `design-by-contract`) + `probe` agent (preloads them via `skills:`) + `/probe` + `/doctor` + a **tested Go hook toolchain** (`sc-quality-gate` binary + shared toolchain probe + CI matrix + `/doctor` build/fetch) — built, `go test` green on this Windows box (PR #5) | Spawn `probe` agent → confirm preloaded probe sentence + hook-log entry for its write; confirm the Go hook fires and **capability-gates** (qlty absent → degrades, exit 0). **Pending merge of PR #5 to `main` + `/reload-plugins`.** Resolves whether plugin hooks fire in subagents at all (see Part 1 correction). |
 | **2. prosthetic-conscience** | Rule corpus → skills; pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **environment preflight (requirements.json + /doctor + capability-gated hooks)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **on this box (qlty absent) edits still succeed — hook no-ops + warns — and /doctor reports it with the Windows install command**; qlty clean where present |
 | **3. frank-exchange-of-views** | Agents (blue/red/judge), templates (report/debate/Heilmeier), workflow, /research | **E2E dogfood** on a fresh real topic: run dir contains living blue+red reports, candidates, debate.md with 3-party rounds; final report embeds both team reports + Heilmeier; seed a bad citation → FAIL round → diff-based re-audit → resolution recorded in transcript |
 | **4. sleeper-service** | continuous-learning skill; /self-improve (daily default); /graduate; scheduling docs | Headless `claude -p "/self-improve"` produces a run dir + idea stub; touches only research/+ideas/ |
