@@ -12,3 +12,9 @@ Thumbs.db
 # Claude Code local-only state
 .claude/settings.local.json
 .claude/checkpoints/
+.claude/spike/
+.claude/*.log
+
+# Built hook binaries + release artifacts (produced by /doctor or CI, never committed)
+plugins/*/bin/
+plugins/*/tools/dist/

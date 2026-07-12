@@ -8,9 +8,9 @@ Special Circumstances is an *adversarial* methodology suite: it is not a yes-man
 
 ## Rules
 
-Rules ship as discrete skills under each plugin's `skills/rules/` and are loaded per agent via the `skills:` frontmatter — not inlined here. This file stays a **thin index**; as the base plugin's rule-skills land, the always-on subset will be `@`-imported below.
+Rules ship as discrete skills under `plugins/prosthetic-conscience/skills/` and load per agent via the `skills:` frontmatter. Always-on rules are `@`-imported here so they bind every session; `design-by-contract` is the authoring grammar for all of them (BEFORE / During / AFTER · YOU MUST). This file stays a **thin index** — rule content lives in the skills, never inline.
 
-<!-- @-imports for always-on rule-skills go here as prosthetic-conscience is built out -->
+@plugins/prosthetic-conscience/skills/terse-communication/SKILL.md
 
 ## Working conventions
 
