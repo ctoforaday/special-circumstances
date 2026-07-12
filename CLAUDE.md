@@ -24,3 +24,4 @@ Always-on rules bind every session via the imports below; the rest load on deman
 - Planning artifacts under review live in `plans/` (each as a PR). "Real" documentation lives in `README.md` and each plugin's `README.md`.
 - The working-corpus dirs — `ideas/`, `research/`, `projects/` — start empty (clean start) and are seeded by `/research` and `/self-improve`.
 - Quality tooling (qlty) is recommended, not required; hooks degrade gracefully when it is absent. Run `/sc-doctor`.
+- Every PR that changes a plugin's content MUST bump that plugin's `version` in its `plugin.json` — `/plugin update` is version-gated and ships nothing without it. AFTER merging, run `/plugin update` + `/reload-plugins` to pull the change.
