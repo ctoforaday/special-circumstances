@@ -1,13 +1,12 @@
 ---
 name: context-efficiency
-description: Always-on context-budget discipline — prune aggressively, snapshot rather than stream, and partition work into sequential phases.
+description: Always-on context-budget discipline — shield the context with subagents and files, peek instead of streaming, and phase work so artifacts survive compression.
 ---
 
 # context-efficiency
 
-Manage the context budget deliberately.
+Protect the context. Leave artifacts that survive compression.
 
-- BEFORE a new task phase, YOU MUST summarize and prune context no longer in use.
-- During a turn, YOU MUST NOT accumulate raw tool output — AFTER reading it, keep the conclusion and discard the dump.
-- During inspection, YOU MUST NOT stream (`tail -f`); take a discrete snapshot (`tail -n 50`, `ls -l`) and move on.
-- BEFORE a complex operation, YOU MUST break it into sequential phases; YOU MUST NOT design, implement, and verify in one undifferentiated pass.
+- BEFORE reading bulk output (test runs, logs, big files, wide sweeps), YOU MUST shield the context: run the noisy process in the background with output to a file, then peek with targeted reads (`Grep`, `tail -n 50`, offset reads) — or delegate the reading to a subagent whose context absorbs the bulk and whose return is only the conclusion plus pointers. YOU MUST NOT stream raw output into the conversation.
+- AFTER a large tool result, YOU MUST carry forward the conclusion, not the dump; if the data will be needed again, YOU MUST write it to a file rather than re-read it into context.
+- BEFORE a complex operation, YOU MUST break it into sequential phases — design, implement, verify — and AFTER each phase, YOU MUST leave a written artifact (plan, todo list, state file, validation loop). Phases exist to create **recoverable moments**: artifacts survive context compression when reasoning doesn't. Compressed mid-implementation, you work back from the written design; compressed mid-verification, you trust the written validation loop.

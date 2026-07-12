@@ -1,13 +1,13 @@
 ---
 name: scratch-policy
-description: Use when a task needs temporary reasoning files or large intermediate data — keep scratch out of the deliverable and clean it up.
+description: Use when a task needs working files or large intermediate data — scratch artifacts are compression insurance; keep them current, self-evident, and out of the repo.
 ---
 
 # scratch-policy
 
-Keep working mess out of deliverables.
+Scratch is what survives a context reset. Curate it.
 
-- BEFORE a complex reasoning task, YOU MUST open a scratch file for the working logic (use the session scratchpad, not the repo).
-- During research, YOU MUST park large raw data in scratch, not in context or the repo.
-- During synthesis, YOU MUST NOT leave final results in scratch.
-- AFTER synthesizing, YOU MUST move the result to its real destination and clear the scratch artifacts.
+- BEFORE a complex task, YOU MUST leave a durable working artifact (plan, todo list, state notes) in the session scratchpad — somewhere you would be forced to see it after a context reset. Not the repo.
+- During bulk work (log generation, format conversion, research dumps), YOU MUST park raw working data in scratch, not in context.
+- AFTER finishing a task, YOU MUST clear stale scratch: a compaction should encounter only artifacts whose intent is current and self-evident. YOU MUST NOT leave garbage a post-compression you would have to reverse-engineer.
+- During synthesis, YOU MUST NOT leave final results in scratch — deliverables move to their real destination.
