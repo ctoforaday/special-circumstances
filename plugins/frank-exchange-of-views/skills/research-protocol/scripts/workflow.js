@@ -24,6 +24,7 @@ const BLUE_ENVELOPE = {
     claim_count: { type: 'number' },
     saturation_reached: { type: 'boolean' },
     open_questions: { type: 'array', items: { type: 'string' } },
+    friction: { type: 'array', items: { type: 'string' } },
   },
 }
 
@@ -60,6 +61,7 @@ const RED_ENVELOPE = {
     },
     citations_checked: { type: 'number' },
     notes: { type: 'string' },
+    friction: { type: 'array', items: { type: 'string' } },
   },
 }
 
@@ -68,6 +70,7 @@ const JUDGE_ENVELOPE = {
   required: ['deadlock', 'resolutions'],
   properties: {
     deadlock: { type: 'boolean' },
+    friction: { type: 'array', items: { type: 'string' } },
     resolutions: {
       type: 'array',
       items: {
@@ -113,6 +116,8 @@ let redEnv = null
 let prevGapIds = new Set()
 let deadlocked = false
 const adjudicated = [] // judge-ruled gaps (closed / rebuttal_sustained / risk_accepted) — out of red's verdict
+const friction = [] // capability complaints from any agent, aggregated for /self-improve
+const takeFriction = (who, env) => { if (env && env.friction) for (const f of env.friction) friction.push(`${who}: ${f}`) }
 
 while (round < maxRounds) {
   round++
@@ -131,6 +136,7 @@ while (round < maxRounds) {
     `Red merge, round ${round}. Read the round-${round} lens passes in ${runDir}/red/candidates/ and consolidate into the LIVING ${runDir}/red/findings.md (cumulative across rounds: update prior gaps' status, add new ones, keep graded corroboration and likelihood/impact/complexity on every gap; every gap's location = section heading + quoted sentence). Gap ids are stable across rounds (R1-1 stays R1-1).${adjudicated.length ? ` Gaps already adjudicated by the lead-judge and EXCLUDED from your verdict: ${JSON.stringify(adjudicated.map(a => a.gap_id))}.` : ''} Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, evidence-rebutted, or risk-accepted. Append the round-${round} "### RED" section to ${runDir}/debate.md per the debate template. Return the red envelope.`,
     { label: `red-merge-r${round}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor', schema: RED_ENVELOPE })
 
+  takeFriction(`red-merge-r${round}`, redEnv)
   if (redEnv.verdict === 'PASS') break
 
   // Contested docket: gaps raised, rebutted, and re-raised go to the judge EARLY,
@@ -146,6 +152,7 @@ while (round < maxRounds) {
     for (const r of judge.resolutions) {
       if (r.resolution === 'closed' || r.resolution === 'rebuttal_sustained' || r.resolution === 'risk_accepted') adjudicated.push(r)
     }
+    takeFriction(`judge-r${round}`, judge)
     if (judge.deadlock) { deadlocked = true; break }
   }
   prevGapIds = gapIds
@@ -155,6 +162,7 @@ while (round < maxRounds) {
   blueEnv = await agent(
     `Blue response, round ${round}, topic "${topic}". Red's verdict: FAIL. Open gaps (adjudicated ones excluded): ${JSON.stringify(openGaps)}. Corroboration flags: ${JSON.stringify(redEnv.corroboration || [])}. Address every open gap ADDITIVELY in ${runDir}/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; never subtract substance. Log edits to ${runDir}/blue/CHANGELOG.md (Round ${round}); append your "### BLUE" section for round ${round} to ${runDir}/debate.md. Return the blue envelope.`,
     { label: `blue-respond-r${round}`, phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
+  takeFriction(`blue-respond-r${round}`, blueEnv)
 }
 
 const exhausted = round >= maxRounds && redEnv && redEnv.verdict !== 'PASS' && !deadlocked
@@ -174,4 +182,5 @@ return {
   deadlocked,
   gaps_outstanding: redEnv && redEnv.verdict !== 'PASS' ? redEnv.gaps.length : 0,
   blue_claims: blueEnv ? blueEnv.claim_count : null,
+  friction,
 }

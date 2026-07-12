@@ -9,3 +9,4 @@ Run a frank exchange of views on the topic in `$ARGUMENTS` (if no topic given, a
 2. Invoke the **Workflow** tool with `scriptPath` = `${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/workflow.js` and `args` = `{ "topic": "<topic>", "runDir": "<run directory path>", "lanes": N, "maxRounds": N }`.
 3. AFTER the workflow returns, relay its envelope verbatim (verdict, rounds, outstanding gaps) plus the run-directory path — YOU MUST NOT re-summarize the report's content; the report is the deliverable, and it is for the human.
 4. If the verdict is UNVERIFIED, say so plainly with the outstanding gap count — the gate never soft-passes, and neither does the relay.
+5. If the returned envelope carries `friction` entries, write them to `<run directory>/friction.md` (one line each, attributed) and say so — friction records are input to the self-improvement loop.

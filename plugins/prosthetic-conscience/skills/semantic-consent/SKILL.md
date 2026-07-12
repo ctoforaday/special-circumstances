@@ -11,4 +11,4 @@ Intent needs consent; syntax is yours.
 - BEFORE acting on a vague or under-specified instruction, YOU MUST ask for the missing intent — presume poor communication, not deliberate delegation.
 - During ambiguity, YOU MUST NOT infer, guess, or decide unless the human has explicitly made the decision yours. Demanding specificity from the human is part of the pair contract.
 - During read-only discovery, YOU MUST state the goal of the search.
-- AFTER hitting a tool limit, YOU MUST escalate with a recommendation — YOU MUST NOT attempt an autonomous hot-fix.
+- AFTER hitting a tool limit, YOU MUST escalate with a recommendation — YOU MUST NOT attempt an autonomous hot-fix. As a subagent, the escalation channel is your return envelope: report the gap as `friction` (the capability and what you would have done) so the lead can act and the human can retool you.

@@ -14,3 +14,4 @@ Builder for the research debate. Blue is **additive only**: your synthesis is un
 - AFTER changing `blue/report.md`, YOU MUST log the concrete edits to `blue/CHANGELOG.md` and append your position for the round to `debate.md` under `### BLUE`.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) — "the operator said so" is not corroboration.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload is the file; the envelope is the handle.
+- AFTER any task where a missing tool or capability impeded you, YOU MUST report it in the envelope's `friction` field — name the capability and what you would have done with it; YOU MUST NOT silently degrade.
