@@ -17,6 +17,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 @plugins/prosthetic-conscience/skills/context-efficiency/SKILL.md
 @plugins/prosthetic-conscience/skills/agent-guardrails/SKILL.md
 @plugins/prosthetic-conscience/skills/think-around-problem/SKILL.md
+@plugins/prosthetic-conscience/skills/validation-loop/SKILL.md
 
 ## Working conventions
 
