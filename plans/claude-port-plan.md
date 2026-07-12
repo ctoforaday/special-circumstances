@@ -139,7 +139,7 @@ plugins/prosthetic-conscience/
 │   ├── project-memory/               # 4-artifact projects/<name>/ workspace discipline
 │   └── proficiency/{git,markdown,qlty}/   # SKILL.md + agent-maintained CHEATSHEET.md
 ├── agents/plan-auditor.md            # SDD gate: Alignment/Completeness/Safety (JSON verdict)
-├── commands/{plan-audit, doctor}.md  # /plan-audit [file]; /doctor — environment preflight
+├── commands/{plan-audit, doctor}.md  # /plan-audit [file]; /sc-doctor — environment preflight
 ├── requirements.json                 # declared tool deps: name/purpose/required?/min-ver/per-OS install
 └── hooks/hooks.json                  # qlty fmt/check on Edit|Write — CAPABILITY-GATED (no-op + warn if qlty absent); SessionStart probe
 ```
@@ -171,27 +171,27 @@ the failure mode is graceful degradation, not a crash. Three layers, all in pros
    install: {windows, macos, linux} }` — the single source of truth. A small shared **toolchain
    probe** (one helper module, e.g. `lib/toolchain.*`) reads it and answers "is tool X present and
    version-OK?" — the *only* implementation of the presence check, imported by every tool-dependent
-   hook AND by `/doctor`. Knowledge of our local dependencies lives in exactly one place (per
+   hook AND by `/sc-doctor`. Knowledge of our local dependencies lives in exactly one place (per
    review: a central `toolchains` module, not a check hand-rolled into each hook).
-2. **`/doctor` command** (environment preflight, à la `flutter doctor`): aggregates every plugin's
+2. **`/sc-doctor` command** (environment preflight, à la `flutter doctor`): aggregates every plugin's
    manifest, probes each tool (presence + version), prints a per-tool ✓/✗ report with the exact
    install command for the current OS, and a summary verdict — **READY / DEGRADED / BLOCKED**.
    Read-only by default.
 3. **Capability-gated hooks + SessionStart nudge**: every tool-dependent hook calls the shared
    toolchain probe *first*; if the tool is absent it **no-ops with one intelligent warning** (names
-   the tool, why it was skipped, and `/doctor`) instead of erroring. This is a **hard blocker for
+   the tool, why it was skipped, and `/sc-doctor`) instead of erroring. This is a **hard blocker for
    porting the real qlty hook** — an ungated hook fails on *every* Edit/Write on a box without the
    formatter (exactly this box today) — so the gate ships **with** the hook, not later. A
    SessionStart hook runs the same probe once and surfaces a single non-blocking line if a
    recommended tool is missing. Fast, non-fatal.
 
-**Installation stays human-gated (Semantic Consent):** `/doctor` may *offer* to run the install
-command it printed (`/doctor --fix`, one tool at a time with confirmation), but installing mutates
+**Installation stays human-gated (Semantic Consent):** `/sc-doctor` may *offer* to run the install
+command it printed (`/sc-doctor --fix`, one tool at a time with confirmation), but installing mutates
 the machine — explicit go-ahead required, never auto-run at session start. This box (Windows) is
 the first test case: qlty ships a PowerShell installer; git/gh are already present. The manifest
 carries per-OS install strings so the report is actionable wherever the suite lands. **Separation
 of concerns (per review):** graceful hook degradation is *core* and ships with the hooks; the
-actual formatter installation and the `/doctor --fix` installer flow are a *separable* concern that
+actual formatter installation and the `/sc-doctor --fix` installer flow are a *separable* concern that
 can land as their own PR — the shared toolchain probe is the seam between them.
 
 **Hook implementation & install path — Go, tested, prebuilt.** Hooks fire constantly and *must not*
@@ -201,12 +201,12 @@ command that reuses the shared toolchain probe. A GitHub Actions matrix runs `go
 Windows/macOS/Linux on every change — can't merge red, the guarantee shell can't give — and on a
 `{plugin}--v{version}` tag (the same tags that drive plugin `dependencies`) cross-compiles all
 platforms and publishes static binaries + SHA256s to the GitHub Release. **The target box never
-needs Go:** `/doctor --fix` builds via `go build` if Go is present, else fetches the prebuilt
+needs Go:** `/sc-doctor --fix` builds via `go build` if Go is present, else fetches the prebuilt
 release asset for this GOOS/GOARCH (checksum-verified) into `${CLAUDE_PLUGIN_ROOT}/bin/`, which
 `hooks.json` invokes. Graduation: publish to scoop/winget/brew so the per-OS `install` string is a
 one-liner and PATH is handled for us. Until provisioned, the hook capability-gates and no-ops with a
 warning. The one non-Go seam — the installer (chicken-and-egg: it runs before any binary exists) —
-stays `/doctor`-driven (no committed script to rot) and self-verifying (re-probes after fetching).
+stays `/sc-doctor`-driven (no committed script to rot) and self-verifying (re-probes after fetching).
 Proven end to end on the Windows dev box in Phase 1: `sc-quality-gate` builds, `go test` green, and
 it degrades cleanly when qlty is absent.
 
@@ -350,7 +350,7 @@ Guardrail preserved: the loop writes only `research/` and `ideas/`; promotion in
 requires the human (Semantic Consent). **Depends on** frank-exchange-of-views (and on
 prosthetic-conscience for its rule-skills), declared structurally in `plugin.json`'s `dependencies`
 array (semver-pinned via `{plugin}--v{version}` git tags; enabling sleeper-service auto-enables its
-deps) — not left to `/doctor` to police.
+deps) — not left to `/sc-doctor` to police.
 
 ### Repo layout
 
@@ -386,8 +386,8 @@ special-circumstances/
 | Phase | Work | Verify |
 |---|---|---|
 | **0. Bootstrap — ✅ DONE** | Private `ctoforaday/special-circumstances`; marketplace + three plugin manifests; dogfood `settings.json`; thin CLAUDE.md; README; MEMORY.md; MIT LICENSE; `.qlty`; empty clean-start dirs | ✅ **Verified live**: `/plugin marketplace add ctoforaday/special-circumstances` succeeded and all three plugins installed. (Plan artifacts kept as PRs under `plans/`.) |
-| **1. Harness spike — 🚧 in progress** | Seed skill (`critical-stance`) + communication model (`terse-communication`, `design-by-contract`) + `probe` agent (preloads them via `skills:`) + `/probe` + `/doctor` + a **tested Go hook toolchain** (`sc-quality-gate` binary + shared toolchain probe + CI matrix + `/doctor` build/fetch) — built, `go test` green on this Windows box (PR #5) | Spawn `probe` agent → confirm preloaded probe sentence + hook-log entry for its write; confirm the Go hook fires and **capability-gates** (qlty absent → degrades, exit 0). **Pending merge of PR #5 to `main` + `/reload-plugins`.** Resolves whether plugin hooks fire in subagents at all (see Part 1 correction). |
-| **2. prosthetic-conscience** | Rule corpus → skills; pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **environment preflight (requirements.json + /doctor + capability-gated hooks)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **on this box (qlty absent) edits still succeed — hook no-ops + warns — and /doctor reports it with the Windows install command**; qlty clean where present |
+| **1. Harness spike — 🚧 in progress** | Seed skill (`critical-stance`) + communication model (`terse-communication`, `design-by-contract`) + `probe` agent (preloads them via `skills:`) + `/probe` + `/sc-doctor` + a **tested Go hook toolchain** (`sc-quality-gate` binary + shared toolchain probe + CI matrix + `/sc-doctor` build/fetch) — built, `go test` green on this Windows box (PR #5) | Spawn `probe` agent → confirm preloaded probe sentence + hook-log entry for its write; confirm the Go hook fires and **capability-gates** (qlty absent → degrades, exit 0). **Pending merge of PR #5 to `main` + `/reload-plugins`.** Resolves whether plugin hooks fire in subagents at all (see Part 1 correction). |
+| **2. prosthetic-conscience** | Rule corpus → skills; pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **environment preflight (requirements.json + /sc-doctor + capability-gated hooks)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **on this box (qlty absent) edits still succeed — hook no-ops + warns — and /sc-doctor reports it with the Windows install command**; qlty clean where present |
 | **3. frank-exchange-of-views** | Agents (blue/red/judge), templates (report/debate/Heilmeier), workflow, /research | **E2E dogfood** on a fresh real topic: run dir contains living blue+red reports, candidates, debate.md with 3-party rounds; final report embeds both team reports + Heilmeier; seed a bad citation → FAIL round → diff-based re-audit → resolution recorded in transcript |
 | **4. sleeper-service** | continuous-learning skill; /self-improve (daily default); /graduate; scheduling docs | Headless `claude -p "/self-improve"` produces a run dir + idea stub; touches only research/+ideas/ |
 | **5. Story + publish** | **Clean start — no corpus import.** README; empty ideas/research/projects scaffolding; PII/secret scrub of skills+docs; LICENSE; publish | Fresh clone → README install steps verbatim; `git grep -iE "jarvis|8070926388|0xDEADC0DE"` clean; final `/research` smoke populates the first real run |
