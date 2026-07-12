@@ -8,6 +8,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -116,7 +117,58 @@ func versionOf(checkCmd string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// fix builds every missing binary via go build; returns actions taken / instructions.
+// releaseRepo is where CI publishes the cross-compiled hook binaries.
+const releaseRepo = "ctoforaday/special-circumstances"
+
+// verifySHA256 checks that sums (the SHA256SUMS file content) records digest for asset.
+func verifySHA256(sums, asset, digest string) bool {
+	for _, line := range strings.Split(sums, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && strings.TrimPrefix(fields[1], "*") == asset {
+			return strings.EqualFold(fields[0], digest)
+		}
+	}
+	return false
+}
+
+// fetchRelease downloads the CI-built asset for this platform, verifies its
+// checksum against the release SHA256SUMS, and installs it into bin/.
+func fetchRelease(root, name string) error {
+	if !toolchain.Present("gh") {
+		return fmt.Errorf("gh not on PATH")
+	}
+	asset := fmt.Sprintf("%s_%s_%s%s", name, runtime.GOOS, runtime.GOARCH, exeSuffix())
+	tmp, err := os.MkdirTemp("", "sc-doctor-fetch-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+	dl := exec.Command("gh", "release", "download",
+		"--repo", releaseRepo, "--pattern", asset, "--pattern", "SHA256SUMS", "--dir", tmp)
+	if msg, err := dl.CombinedOutput(); err != nil {
+		return fmt.Errorf("release download failed: %s", strings.TrimSpace(string(msg)))
+	}
+	data, err := os.ReadFile(filepath.Join(tmp, asset))
+	if err != nil {
+		return err
+	}
+	sums, err := os.ReadFile(filepath.Join(tmp, "SHA256SUMS"))
+	if err != nil {
+		return err
+	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(data))
+	if !verifySHA256(string(sums), asset, digest) {
+		return fmt.Errorf("checksum mismatch for %s — refusing to install", asset)
+	}
+	dst := filepath.Join(root, "bin", name+exeSuffix())
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0o755)
+}
+
+// fix provisions every missing binary: CI-built release asset first (checksum-
+// verified); a from-source build is only the dev-convenience fallback.
 func fix(root string, bins []binStatus) []string {
 	var report []string
 	goPresent := toolchain.Present("go")
@@ -124,18 +176,22 @@ func fix(root string, bins []binStatus) []string {
 		if b.Built {
 			continue
 		}
+		fetchErr := fetchRelease(root, b.Name)
+		if fetchErr == nil {
+			report = append(report, fmt.Sprintf("%s: fetched CI-built release asset (checksum verified)", b.Name))
+			continue
+		}
 		if goPresent {
 			out := filepath.Join(root, "bin", b.Name+exeSuffix())
 			cmd := exec.Command("go", "build", "-C", filepath.Join(root, "tools"), "-o", out, "./cmd/"+b.Name)
 			if msg, err := cmd.CombinedOutput(); err != nil {
-				report = append(report, fmt.Sprintf("%s: BUILD FAILED: %s", b.Name, strings.TrimSpace(string(msg))))
+				report = append(report, fmt.Sprintf("%s: fetch failed (%v); BUILD FAILED: %s", b.Name, fetchErr, strings.TrimSpace(string(msg))))
 			} else {
-				report = append(report, fmt.Sprintf("%s: built", b.Name))
+				report = append(report, fmt.Sprintf("%s: fetch failed (%v); built from source (dev fallback)", b.Name, fetchErr))
 			}
 		} else {
-			report = append(report, fmt.Sprintf(
-				"%s: Go not found — fetch release asset %s_%s_%s%s from the latest ctoforaday/special-circumstances release (verify SHA256SUMS) into %s",
-				b.Name, b.Name, runtime.GOOS, runtime.GOARCH, exeSuffix(), filepath.Join(root, "bin")))
+			report = append(report, fmt.Sprintf("%s: fetch failed (%v) and Go not found — install gh or Go, or place %s_%s_%s%s into %s manually",
+				b.Name, fetchErr, b.Name, runtime.GOOS, runtime.GOARCH, exeSuffix(), filepath.Join(root, "bin")))
 		}
 	}
 	return report

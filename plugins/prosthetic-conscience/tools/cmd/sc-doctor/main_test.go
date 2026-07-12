@@ -42,3 +42,24 @@ func TestTableShowsInstallForMissing(t *testing.T) {
 		}
 	}
 }
+
+func TestVerifySHA256(t *testing.T) {
+	sums := "abc123  sc-quality-gate_windows_amd64.exe\ndef456  *sc-doctor_linux_arm64\n"
+	cases := []struct {
+		name, asset, digest string
+		want                bool
+	}{
+		{"match", "sc-quality-gate_windows_amd64.exe", "abc123", true},
+		{"match case-insensitive", "sc-quality-gate_windows_amd64.exe", "ABC123", true},
+		{"binary-mode star prefix", "sc-doctor_linux_arm64", "def456", true},
+		{"wrong digest refused", "sc-quality-gate_windows_amd64.exe", "def456", false},
+		{"unknown asset refused", "nope.exe", "abc123", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := verifySHA256(sums, c.asset, c.digest); got != c.want {
+				t.Fatalf("verifySHA256(%q,%q) = %v; want %v", c.asset, c.digest, got, c.want)
+			}
+		})
+	}
+}
