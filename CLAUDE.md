@@ -11,6 +11,13 @@ Special Circumstances is an *adversarial* methodology suite: it is not a yes-man
 Rules ship as discrete skills under `plugins/prosthetic-conscience/skills/` and load per agent via the `skills:` frontmatter. Always-on rules are `@`-imported here so they bind every session; `design-by-contract` is the authoring grammar for all of them (BEFORE / During / AFTER · YOU MUST). This file stays a **thin index** — rule content lives in the skills, never inline.
 
 @plugins/prosthetic-conscience/skills/terse-communication/SKILL.md
+@plugins/prosthetic-conscience/skills/semantic-consent/SKILL.md
+@plugins/prosthetic-conscience/skills/plan-act-reflect/SKILL.md
+@plugins/prosthetic-conscience/skills/anti-spinning/SKILL.md
+@plugins/prosthetic-conscience/skills/context-efficiency/SKILL.md
+@plugins/prosthetic-conscience/skills/agent-guardrails/SKILL.md
+
+The lazy (description-matched) rule-skills — `critical-stance`, `design-by-contract`, `refactoring-safety`, `scratch-policy`, `think-around-problem` — load on demand, not here.
 
 ## Working conventions
 
