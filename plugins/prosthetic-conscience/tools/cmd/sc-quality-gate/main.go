@@ -34,7 +34,7 @@ type hookInput struct {
 // file being written, return the line to record/emit. It never blocks the tool.
 func gate(qltyPresent bool, file string) string {
 	if !qltyPresent {
-		return "qlty not found — quality gate skipped (run /sc-doctor --fix). file=" + file
+		return "qlty not found — quality gate skipped (run /prosthetic-conscience:doctor --fix). file=" + file
 	}
 	return "qlty present — would run `qlty fmt` + `qlty check` on " + file
 }
