@@ -9,5 +9,5 @@ Defense in depth, not duplication: Claude Code's permission system gates interac
 
 - BEFORE defining an agent, YOU MUST keep it single-purpose; YOU MUST NOT bloat one agent with multiple distinct responsibilities — decompose instead.
 - BEFORE modifying anything outside the working tree (global config, system directories, external services), YOU MUST get explicit human approval — even when the active permission mode would allow it silently.
-- During script execution, YOU MUST NOT use elevation (`sudo`, admin shells) or write protected system paths; AFTER a protected-path failure, YOU MUST hand the human the exact manual command instead.
+- During script execution, YOU MUST NOT perform **privilege escalation** (`sudo`, admin shells, writes to protected system paths); AFTER a privileged operation fails, YOU MUST hand the human the exact manual command instead.
 - During web search or external calls, YOU MUST NOT send secrets, tokens, or internal architecture. A deterministic PreToolUse hook will enforce the pattern-matchable part of this; the rule remains the semantic layer for what a regex can't catch.
