@@ -18,8 +18,10 @@ The port target is **Special Circumstances**: a new GitHub repo hosting a Claude
 | **sleeper-service** | The GSV quietly running vast hidden projects | Autonomous learning: self-improvement loop, graduation pipeline, continuous-learning promotion ladder, scheduling |
 
 Install order: prosthetic-conscience is the base (the other two preload its rule-skills);
-frank-exchange-of-views is required by sleeper-service (which invokes it). One marketplace install
-gets all three; each remains individually useful.
+frank-exchange-of-views is required by sleeper-service (which invokes it). These are **structural
+dependencies**, not just prose — Claude Code plugins support a `dependencies` array in `plugin.json`
+(semver-pinned, auto-enabled when the dependent is enabled), so installing sleeper-service pulls in
+its deps. One marketplace install gets all three; each remains individually useful.
 
 ---
 
@@ -41,7 +43,7 @@ auto-repair spawns that forgot their system prompts.
 | Project standing context | Main agent only | **Subagents inherit the full CLAUDE.md/memory hierarchy** (user + project + local). Exception: built-in Explore/Plan agents skip it for speed; our custom agents get it. |
 | Plugin rules → children | Nothing; hand-compiled per spawn | **No automatic propagation** (same gap) — but the native fix is the **`skills:` frontmatter field**: skills listed there have their full content injected into the subagent's context at startup. Rules become skills; each agent role *declares* its rules in one YAML line. `prompt_resolver.py` reborn as declared inheritance. |
 | Skills discovery in children | Not available | **Subagents can discover/invoke all skills** via the Skill tool (unless denied). |
-| Hooks on child tool calls | Did not fire | **PreToolUse/PostToolUse fire within subagents** — the qlty gate holds when a swarm agent writes. Parent additionally sees `SubagentStart`/`SubagentStop`. |
+| Hooks on child tool calls | Did not fire | **Correction (verified 2026-07): plugin hooks are main-session-scoped and do NOT fire on a subagent's own tool calls** (plugin subagents can't even declare `hooks`). Whether the *parent's* PostToolUse fires during a subagent tool call is undocumented — **Phase 1 spike resolves it empirically.** So "the qlty gate holds on swarm writes" is NOT safe by default; fallback is a lead-run sweep or a main-session `SubagentStop` hook. Parent still sees `SubagentStart`/`SubagentStop`. |
 | Nesting | Fragile, collision-prone | Subagents can spawn subagents to **depth 5**. |
 | Per-agent persistent memory | None | **`memory:` frontmatter field** (user/project/local) — an agent can remember across sessions. |
 
@@ -53,6 +55,12 @@ Design consequences, baked into every agent definition in this suite:
    mechanism replaces them).
 4. The red-team auditor gets `memory: project` so it accumulates knowledge of gap patterns it has
    caught before — continuous learning wired into the adversary itself.
+5. **A subagent inherits CLAUDE.md/memory + permissions only — NOT a plugin's skills, hooks, or
+   injected content** (verified 2026-07; true even for user-wide plugins — plugin scope is the main
+   session). Rule content reaches a child *only* via that child agent's `skills:` frontmatter. And
+   because plugin hooks don't fire in children, quality/verification on swarm-written artifacts is
+   the **workflow lead's** job (a post-write sweep / `SubagentStop`), not a per-write PostToolUse
+   inside the child.
 
 ### Rules / skills / discovery mapping (unchanged from prior draft, condensed)
 
@@ -99,10 +107,12 @@ a shared working directory** (confirmed) — but the *contracts* must be explici
 - Lead → Red: the blackboard path to the **full living report** (red always re-reads it in
   context). A change-summary since the last audited snapshot MAY ride along as a *navigation hint*
   — never as a replacement for the document (diffs mislead on research prose).
-- Red → Lead: `{ verdict: PASS|FAIL, gaps: [{id, location, problem, required_fix, severity}],
-  citations_checked, notes }`
-- Lead-judge → transcript: `{ gap_id, resolution: closed|rebuttal_sustained|carried|unresolved,
-  rationale }`
+- Red → Lead: `{ verdict: PASS|FAIL, gaps: [{id, location, problem, required_fix, severity,
+  likelihood, impact, complexity_cost}], corroboration: [{claim, reference, confidence}],
+  citations_checked, notes }` — findings are graded, not binary (see "Red-team judgement" in §3b).
+- Lead-judge → transcript: `{ gap_id, resolution: closed|rebuttal_sustained|risk_accepted|carried|unresolved,
+  rationale }` — `risk_accepted` = a valid finding blue rejects on a likelihood/impact/complexity
+  tradeoff; recorded in the report, never silently dropped.
 
 ---
 
@@ -156,23 +166,33 @@ than no hook. The suite must **detect, report, and degrade — never assume.** T
 Contract at the environment boundary: *BEFORE a tool-dependent hook runs, its binary MUST exist*;
 the failure mode is graceful degradation, not a crash. Three layers, all in prosthetic-conscience:
 
-1. **Requirements manifest** (`requirements.json`, one per plugin): each tool declares
-   `{ name, purpose, tier: required|recommended|optional, min_version, check_cmd,
-   install: {windows, macos, linux} }`. Single source of truth for both the doctor and the hooks.
+1. **Requirements manifest + shared checker** (`requirements.json`, one per plugin): each tool
+   declares `{ name, purpose, tier: required|recommended|optional, min_version, check_cmd,
+   install: {windows, macos, linux} }` — the single source of truth. A small shared **toolchain
+   probe** (one helper module, e.g. `lib/toolchain.*`) reads it and answers "is tool X present and
+   version-OK?" — the *only* implementation of the presence check, imported by every tool-dependent
+   hook AND by `/doctor`. Knowledge of our local dependencies lives in exactly one place (per
+   review: a central `toolchains` module, not a check hand-rolled into each hook).
 2. **`/doctor` command** (environment preflight, à la `flutter doctor`): aggregates every plugin's
    manifest, probes each tool (presence + version), prints a per-tool ✓/✗ report with the exact
    install command for the current OS, and a summary verdict — **READY / DEGRADED / BLOCKED**.
    Read-only by default.
-3. **Capability-gated hooks + SessionStart nudge**: the qlty hook checks `Get-Command qlty`
-   (PowerShell) / `command -v qlty` (POSIX) before running; if absent it **no-ops with one warning
-   line** pointing at `/doctor`, instead of erroring. A SessionStart hook runs the same probe once
-   and surfaces a single non-blocking line if a recommended tool is missing. Fast, non-fatal.
+3. **Capability-gated hooks + SessionStart nudge**: every tool-dependent hook calls the shared
+   toolchain probe *first*; if the tool is absent it **no-ops with one intelligent warning** (names
+   the tool, why it was skipped, and `/doctor`) instead of erroring. This is a **hard blocker for
+   porting the real qlty hook** — an ungated hook fails on *every* Edit/Write on a box without the
+   formatter (exactly this box today) — so the gate ships **with** the hook, not later. A
+   SessionStart hook runs the same probe once and surfaces a single non-blocking line if a
+   recommended tool is missing. Fast, non-fatal.
 
 **Installation stays human-gated (Semantic Consent):** `/doctor` may *offer* to run the install
 command it printed (`/doctor --fix`, one tool at a time with confirmation), but installing mutates
 the machine — explicit go-ahead required, never auto-run at session start. This box (Windows) is
 the first test case: qlty ships a PowerShell installer; git/gh are already present. The manifest
-carries per-OS install strings so the report is actionable wherever the suite lands.
+carries per-OS install strings so the report is actionable wherever the suite lands. **Separation
+of concerns (per review):** graceful hook degradation is *core* and ships with the hooks; the
+actual formatter installation and the `/doctor --fix` installer flow are a *separable* concern that
+can land as their own PR — the shared toolchain probe is the seam between them.
 
 ### 3b. frank-exchange-of-views (the debate engine)
 
@@ -196,6 +216,25 @@ preserved**. This is the deepest redesign, per review feedback.
   keeping, and termination; a small **lead-judge** agent is invoked **only at the end** to build
   the compromise across residual red/blue disagreement (rebuttals blue sustains but red still
   contests). The lead does *not* adjudicate round-to-round — passing is red's call.
+
+**Red-team judgement — trust and risk are *graded*, not binary (review directive):** two
+dimensions run underneath every finding, and they change what "resolved" means.
+- **Corroboration confidence.** Red doesn't just mark a claim true/false — for each
+  *statement ↔ reference* pair it assigns a **confidence** that the source actually corroborates the
+  statement (facts are rarely black and white). Low confidence → "needs more evidence, blue digs
+  further," not an automatic fail. **The human is an untrusted source too:** a claim asserted only
+  because the operator said so in a comment is *not proven* — if blue leans on "because you told
+  me," red flags it and demands independent corroboration.
+- **Likelihood × impact × complexity-cost.** Every gap/risk carries an estimated **probability** of
+  being hit, an **impact** if it is, and the **complexity** mitigating it would add. This gates the
+  anti-edge-case rule: *interesting ≠ of interest.* Auditors surface low-probability / low-impact
+  findings but **must not force** blue to absorb complexity that makes the design strictly worse to
+  satisfy them. Security is always a tradeoff (usability, performance, and human-maintainability all
+  trade against it); the pair's job is to **elevate** the risk, reason about the tradeoff, and
+  propose mitigations — even partial ones — then make a call. **Blue may legitimately reject a valid
+  finding** on tradeoff grounds; the risk is still *documented* with its likelihood/impact and the
+  rejection rationale, never silently dropped. Complexity has a price, and keeping the code the best
+  documentation of the system is itself a goal worth protecting.
 
 **Artifact layout — nothing is summarized away** (one directory per run, all git-tracked):
 
@@ -255,7 +294,10 @@ the summary is not the deliverable. Sections:
    trying to do (no jargon)? How is it done today and what are the limits? What is new here and
    why will it succeed? Who cares? If it succeeds, what difference does it make? What are the
    risks? What does it cost? How long? What are the mid-term and final checks for success?
-3. **Technical Foundations / Analysis / Risk Matrix** (the meat, per the Gold Standard template)
+3. **Technical Foundations / Analysis / Risk Matrix** — the meat (per the Gold Standard template);
+   the Risk Matrix grades each risk by **likelihood × impact × complexity-to-mitigate**, records
+   mitigations (even partial ones), and lists tradeoff-**rejected** risks with rationale (elevated
+   and documented, not dropped)
 4. **Blue Team report** — included in full detail
 5. **Red Team findings** — included in full detail, final verdict and gap dispositions
 6. **Debate record** — round summaries + pointer to `debate.md`
@@ -289,7 +331,10 @@ plugins/sleeper-service/
 ```
 
 Guardrail preserved: the loop writes only `research/` and `ideas/`; promotion into rules/skills
-requires the human (Semantic Consent). Requires frank-exchange-of-views.
+requires the human (Semantic Consent). **Depends on** frank-exchange-of-views (and on
+prosthetic-conscience for its rule-skills), declared structurally in `plugin.json`'s `dependencies`
+array (semver-pinned via `{plugin}--v{version}` git tags; enabling sleeper-service auto-enables its
+deps) — not left to `/doctor` to police.
 
 ### Repo layout
 
@@ -324,8 +369,8 @@ special-circumstances/
 
 | Phase | Work | Verify |
 |---|---|---|
-| **0. Bootstrap** | New `special-circumstances` repo; marketplace + three plugin manifests; .qlty; LICENSE | Skeleton installs from git URL into a scratch project; all three plugins listed |
-| **1. Harness spike** | One trivial skill+agent+command+hook in prosthetic-conscience; verify `skills:` preloading reaches a subagent; verify PostToolUse fires on subagent Write; SessionStart rule injection | Spawn test agent → confirm preloaded rule text ("not a yes-man" probe) + hook firing on its file write |
+| **0. Bootstrap — ✅ DONE** | Private `ctoforaday/special-circumstances`; marketplace + three plugin manifests; dogfood `settings.json`; thin CLAUDE.md; README; MEMORY.md; MIT LICENSE; `.qlty`; empty clean-start dirs | ✅ **Verified live**: `/plugin marketplace add ctoforaday/special-circumstances` succeeded and all three plugins installed. (Plan artifacts kept as PRs under `plans/`.) |
+| **1. Harness spike — 🚧 in progress** | Real seed skill (`critical-stance`) + `probe` agent (preloads it via `skills:`) + `/probe` command + PostToolUse hook (node script) in prosthetic-conscience — built (PR #5) | Spawn `probe` agent → confirm preloaded probe sentence + hook-log entry for its write. **Pending merge of PR #5 to `main` + `/reload-plugins`.** This is the test that resolves whether plugin hooks fire in subagents at all (see Part 1 correction). |
 | **2. prosthetic-conscience** | Rule corpus → skills; pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **environment preflight (requirements.json + /doctor + capability-gated hooks)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **on this box (qlty absent) edits still succeed — hook no-ops + warns — and /doctor reports it with the Windows install command**; qlty clean where present |
 | **3. frank-exchange-of-views** | Agents (blue/red/judge), templates (report/debate/Heilmeier), workflow, /research | **E2E dogfood** on a fresh real topic: run dir contains living blue+red reports, candidates, debate.md with 3-party rounds; final report embeds both team reports + Heilmeier; seed a bad citation → FAIL round → diff-based re-audit → resolution recorded in transcript |
 | **4. sleeper-service** | continuous-learning skill; /self-improve (daily default); /graduate; scheduling docs | Headless `claude -p "/self-improve"` produces a run dir + idea stub; touches only research/+ideas/ |
@@ -335,7 +380,10 @@ special-circumstances/
 plugin mechanics for SessionStart injection and cross-plugin skill preloading — Phase 1 spike
 de-risks both; fallback for cross-plugin preloads is vendoring copies of needed rule-skills into
 FEOV/SS; (b) Workflow-agent CLAUDE.md inheritance is undocumented — spike verifies; fallback is
-explicit `skills:` preloads carrying everything the swarm needs (already the design).
+explicit `skills:` preloads carrying everything the swarm needs (already the design). **(c) Verified:
+plugin hooks do NOT fire in subagents, so the qlty gate can't ride PostToolUse on swarm writes —
+fallback is a lead-run quality/verification sweep or a main-session `SubagentStop` hook; Phase 1
+spike confirms the exact firing behavior.**
 
 ---
 
@@ -358,4 +406,6 @@ explicit `skills:` preloads carrying everything the swarm needs (already the des
 
 ## Open decisions
 
-None — all resolved. Ready to move from plan to **Phase 0 (Bootstrap)**.
+None — all resolved. **Phase 0 is complete** (repo bootstrapped; marketplace + all three plugins
+install verified). **Phase 1** (harness spike) is in flight as PR #5, pending merge + `/reload-plugins`
+to verify live — and to settle the one open harness question (do plugin hooks fire in subagents?).
