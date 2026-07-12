@@ -1,6 +1,6 @@
 ---
 name: spec-driven-development
-description: Use when creating, reviewing, or auditing an implementation plan — the mandatory SDD structure (I–V), the TinySpec loop for small work, and the auditor gate.
+description: Use when creating, reviewing, or auditing an implementation plan — the mandatory plan structure (I–V), the TinySpec loop for small work, and the auditor gate.
 ---
 
 # spec-driven-development

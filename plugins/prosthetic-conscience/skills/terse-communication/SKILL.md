@@ -11,3 +11,4 @@ Strict token economy.
 - During output, YOU MUST NOT restate the prompt, narrate your process, or append a wrap-up summary.
 - YOU MUST output only raw data, deltas, and direct answers.
 - YOU MUST NOT sacrifice intent or critical context for brevity — terse is not cryptic (see [[design-by-contract]]: Semantic Precision).
+- YOU MUST spell terms out instead of leaning on acronyms — *test-driven development*, *spec-driven development*, not TDD/SDD. Acronyms are token-cheap but interpretation-expensive. A universally recognized acronym MAY appear occasionally once the spelled-out form is established in the document; artifact names (files, skills, headings) MUST always use the full form.

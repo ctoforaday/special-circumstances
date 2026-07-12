@@ -39,11 +39,14 @@ jobs:
       - name: Cross-compile
         run: |
           mkdir -p dist
-          for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
-            os="${pair%/*}"; arch="${pair#*/}"; ext=""
-            [ "$os" = "windows" ] && ext=".exe"
-            GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" \
-              -o "dist/sc-quality-gate_${os}_${arch}${ext}" ./cmd/sc-quality-gate
+          for cmd in cmd/*/; do
+            name="$(basename "$cmd")"
+            for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+              os="${pair%/*}"; arch="${pair#*/}"; ext=""
+              [ "$os" = "windows" ] && ext=".exe"
+              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" \
+                -o "dist/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+            done
           done
           cd dist && sha256sum * > SHA256SUMS
       - name: Release

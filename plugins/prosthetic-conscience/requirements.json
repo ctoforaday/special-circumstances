@@ -35,11 +35,12 @@
       }
     }
   ],
-  "_hook_binary": {
-    "_comment": "sc-quality-gate is OUR compiled hook, not an external dep. /sc-doctor --fix builds it (go build, if Go is present) or fetches the prebuilt release asset for this GOOS/GOARCH into bin/. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate.",
-    "name": "sc-quality-gate",
-    "source": "tools/cmd/sc-quality-gate",
-    "output": "bin/sc-quality-gate",
-    "release_asset": "sc-quality-gate_{goos}_{goarch}{exe}"
+  "_hook_binaries": {
+    "_comment": "OUR compiled hooks, not external deps — one per directory under tools/cmd/. /sc-doctor --fix builds each (go build, if Go is present) or fetches the prebuilt release asset <name>_{goos}_{goarch}{exe} for this GOOS/GOARCH into bin/. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
+    "binaries": [
+      { "name": "sc-quality-gate", "event": "PostToolUse(Write|Edit)", "purpose": "qlty fmt/check gate, capability-gated" },
+      { "name": "sc-secrets-gate", "event": "PreToolUse(WebFetch|WebSearch|Bash)", "purpose": "deny outbound payloads matching secret patterns" },
+      { "name": "sc-toolchain-nudge", "event": "SessionStart", "purpose": "one-line warning when a recommended tool is missing" }
+    ]
   }
 }

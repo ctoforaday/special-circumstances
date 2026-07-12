@@ -10,7 +10,7 @@ Long work lives in artifacts, not in context. One directory per workstream: `pro
 ## The four living artifacts
 
 1. **`AGENTS.md`** — the context bootstrap: mission + success criteria, "how we got here" (key discoveries and decisions, chronological), and the **operational verification suite** (exact commands to test, lint, and run end-to-end).
-2. **`implementation_plan.md`** — the approved SDD spec (see [[spec-driven-development]]).
+2. **`implementation_plan.md`** — the approved implementation plan (see [[spec-driven-development]]).
 3. **`task.md`** — the living TODO list (`[ ]` open, `[/]` in progress, `[x]` done).
 4. **`walkthrough.md`** — verification outcomes: commands run, results observed.
 
