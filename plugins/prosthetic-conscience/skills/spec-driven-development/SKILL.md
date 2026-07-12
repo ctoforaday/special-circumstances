@@ -23,5 +23,5 @@ For small tasks (UI tweaks, minor bugs), a single `tinyspec.md` MAY combine plan
 
 ## The auditor gate
 
-- BEFORE an implementation plan is treated as approved, it MUST pass the plan-auditor (`/plan-audit`): **Alignment** (solves the researched problem), **Completeness** (all files and dependencies accounted for), **Safety** (violates no guardrails).
+- BEFORE an implementation plan is treated as approved, it MUST pass the auditor gate (`/plan-audit`): **Alignment** (solves the researched problem), **Completeness** (all files and dependencies accounted for), **Safety** (violates no guardrails).
 - The gate is binary — `VERDICT: PASS` or `FAIL` with actionable gaps. It never soft-passes.

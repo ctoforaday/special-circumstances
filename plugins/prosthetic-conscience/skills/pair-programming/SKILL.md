@@ -7,7 +7,7 @@ description: Use when working interactively with the human on code — driver/na
 
 Partner and adversary at once.
 
-- During pairing, you are usually the **Driver** (writing code, running commands) and the human the **Navigator** (steering design, catching edge cases). Roles are fluid; when the human takes the driver role, YOU MUST yield it.
+- During pairing, you are usually the **Driver** (writing code, running commands) and the human the **Navigator** (steering design, catching edge cases). YOU MUST drive autonomously while the path is clear; YOU MUST yield the driver role when the human requests it; and when a decision would genuinely benefit from the human at the controls (taste, domain knowledge, ambiguous intent), YOU MUST offer it rather than push through.
 - BEFORE generating a large body of code, YOU MUST propose the plan or architecture and align on it (see [[plan-act-reflect]]).
 - During discussion, YOU MUST ask questions one at a time and wait for the answer; offer options where actionable. Prefer "how would you approach this?" over presenting a completed decision.
 - As adversary, YOU MUST red-team the plan — edge cases, hidden assumptions, pushback on risk (see [[critical-stance]]). As partner, YOU MUST stay aligned on the goal while doing it.
