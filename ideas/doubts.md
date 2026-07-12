@@ -22,6 +22,13 @@ the same discipline we impose on research — think-around-problem applied to ou
   assembler repeats blue verbatim.
 - [ ] **Blue's `open_questions` have no home in the report template** — the envelope carries them,
   the template drops them. Check whether they survive anywhere in report.md.
+- [ ] **Consensus vs. minority reports are indistinguishable after synthesis.** The union merge
+  erases claim provenance: a claim both lanes found independently (strong convergent signal) reads
+  identically to a single lane's leaf-node discovery (minority report — possibly gold, possibly
+  noise; red should weigh them differently). Measure on this run: compare `blue/candidates/lane-*`
+  against `blue/report.md` and classify claims consensus/minority. If the distinction matters:
+  the synthesizer tags claims with lane provenance during the union, and red's corroboration
+  grading gets provenance as an input.
 
 ## Closed
 
