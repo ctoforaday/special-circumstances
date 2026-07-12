@@ -32,4 +32,11 @@ the same discipline we impose on research — think-around-problem applied to ou
 
 ## Closed
 
+- [x] **Cross-plugin `skills:` preloading reaches workflow agents** — CONFIRMED (run-1 forensics):
+  all 16 transcripts carry the literal injected content of `frank-exchange-of-views:research-protocol`
+  AND `prosthetic-conscience:critical-stance`. The mindset-inheritance mechanism is real.
+- [x] **Plugin hooks + agent memory in workflow agents** — CONFIRMED (hook log + agent-memory file):
+  sc-quality-gate fired on workflow-agent writes; red-auditor wrote its `memory: project` gap-pattern
+  file. Every harness mechanism the suite depends on is now empirically verified.
+
 (none yet)
