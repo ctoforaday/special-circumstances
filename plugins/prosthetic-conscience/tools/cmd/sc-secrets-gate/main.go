@@ -6,6 +6,8 @@
 //   When a secret pattern matches, the call is DENIED with a reason; otherwise allow.
 //   This is the deterministic layer of the agent-guardrails rule — the rule itself
 //   remains the semantic layer for what a pattern can't catch.
+//
+// Pattern definitions live in internal/secrets — shared, defined once.
 package main
 
 import (
@@ -13,40 +15,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secrets"
 )
 
 const version = "0.1.0"
-
-// pattern pairs a human-readable class name with a high-precision regex.
-// Precision beats recall here: a false block on legitimate work is a bug.
-type pattern struct {
-	Class string
-	Re    *regexp.Regexp
-}
-
-var patterns = []pattern{
-	{"AWS access key id", regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`)},
-	{"GitHub personal access token", regexp.MustCompile(`\bghp_[A-Za-z0-9]{36}\b`)},
-	{"GitHub fine-grained token", regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{22,}\b`)},
-	{"GitHub app/oauth token", regexp.MustCompile(`\bgh[osur]_[A-Za-z0-9]{36}\b`)},
-	{"Slack token", regexp.MustCompile(`\bxox[baprs]-[A-Za-z0-9-]{10,}\b`)},
-	{"private key block", regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)},
-	{"Anthropic api key", regexp.MustCompile(`\bsk-ant-[A-Za-z0-9-]{20,}\b`)},
-	{"OpenAI api key", regexp.MustCompile(`\bsk-proj-[A-Za-z0-9_-]{20,}\b`)},
-}
-
-// scan returns the classes of every secret pattern found in text.
-func scan(text string) []string {
-	var found []string
-	for _, p := range patterns {
-		if p.Re.MatchString(text) {
-			found = append(found, p.Class)
-		}
-	}
-	return found
-}
 
 type hookInput struct {
 	ToolName  string          `json:"tool_name"`
@@ -83,7 +57,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	found := scan(string(in.ToolInput))
+	found := secrets.Scan(string(in.ToolInput))
 	if len(found) == 0 {
 		os.Exit(0) // allow
 	}

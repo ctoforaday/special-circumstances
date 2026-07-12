@@ -2,6 +2,6 @@
 #
 # qlty is a RECOMMENDED tool, not required: prosthetic-conscience's quality hooks are
 # capability-gated and degrade gracefully when qlty is absent (see plans/claude-port-plan.md
-# §3a' Environment preflight, and the `/sc-doctor` command). Once qlty is installed, run
+# §3a' Environment preflight, and the `/prosthetic-conscience:doctor` command). Once qlty is installed, run
 # `qlty init` to populate language plugins (prettier, markdownlint, etc.) and formatting rules.
 config_version = "0"

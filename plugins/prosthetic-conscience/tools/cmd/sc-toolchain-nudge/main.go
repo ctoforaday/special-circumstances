@@ -34,7 +34,7 @@ func nudge(statuses []toolchain.Status) string {
 	if len(missing) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("prosthetic-conscience: missing tool(s): %s — quality hooks degrade until installed; run /sc-doctor for install commands.",
+	return fmt.Sprintf("prosthetic-conscience: missing tool(s): %s — quality hooks degrade until installed; run /prosthetic-conscience:doctor for install commands.",
 		strings.Join(missing, ", "))
 }
 

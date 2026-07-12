@@ -7,6 +7,6 @@ description: Use when producing documentation, reports, or structured artifacts 
 
 Advanced Markdown for documents that carry weight.
 
-- BEFORE producing a substantial document, YOU MUST consult this skill's `CHEATSHEET.md` for the advanced constructs (collapsible sections, alerts, diff blocks, Mermaid diagrams, tables).
+- BEFORE producing a substantial document, YOU MUST consult this skill's `references/CHEATSHEET.md` for the advanced constructs (collapsible sections, alerts, diff blocks, Mermaid diagrams, tables).
 - During citation, YOU MUST use semantic word-based footnotes (`[^WordLabel]` with title/source/access-date), not bare numbers — labels stay meaningful while drafts move.
-- AFTER discovering a new useful construct, YOU MUST record it in `CHEATSHEET.md`.
+- AFTER discovering a new useful construct, YOU MUST record it in `references/CHEATSHEET.md`.

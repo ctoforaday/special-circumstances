@@ -18,7 +18,7 @@ func TestNudge(t *testing.T) {
 		want     []string // substrings; empty slice = expect silence
 	}{
 		{"all present is silent", []toolchain.Status{status("git", "required", true), status("qlty", "recommended", true)}, nil},
-		{"missing recommended named", []toolchain.Status{status("git", "required", true), status("qlty", "recommended", false)}, []string{"qlty", "/sc-doctor"}},
+		{"missing recommended named", []toolchain.Status{status("git", "required", true), status("qlty", "recommended", false)}, []string{"qlty", "doctor"}},
 		{"missing optional is silent", []toolchain.Status{status("jq", "optional", false)}, nil},
 		{"multiple missing listed", []toolchain.Status{status("gh", "recommended", false), status("qlty", "recommended", false)}, []string{"gh", "qlty"}},
 	}

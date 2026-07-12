@@ -1,5 +1,5 @@
 {
-  "_comment": "Single source of truth for prosthetic-conscience's local tool dependencies. Consumed by the shared toolchain probe (tools/internal/toolchain), used by both the hook binaries and /sc-doctor. See plans/claude-port-plan.md §3a'.",
+  "_comment": "Single source of truth for prosthetic-conscience's local tool dependencies. Consumed by the shared toolchain probe (tools/internal/toolchain), used by both the hook binaries and /prosthetic-conscience:doctor. See plans/claude-port-plan.md §3a'.",
   "tools": [
     {
       "name": "git",
@@ -36,7 +36,7 @@
     }
   ],
   "_hook_binaries": {
-    "_comment": "OUR compiled hooks, not external deps — one per directory under tools/cmd/. /sc-doctor --fix builds each (go build, if Go is present) or fetches the prebuilt release asset <name>_{goos}_{goarch}{exe} for this GOOS/GOARCH into bin/. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
+    "_comment": "OUR compiled hooks, not external deps — one per directory under tools/cmd/. /prosthetic-conscience:doctor --fix builds each (go build, if Go is present) or fetches the prebuilt release asset <name>_{goos}_{goarch}{exe} for this GOOS/GOARCH into bin/. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
     "binaries": [
       { "name": "sc-quality-gate", "event": "PostToolUse(Write|Edit)", "purpose": "qlty fmt/check gate, capability-gated" },
       { "name": "sc-secrets-gate", "event": "PreToolUse(WebFetch|WebSearch|Bash)", "purpose": "deny outbound payloads matching secret patterns" },

@@ -1,5 +1,5 @@
 // Package toolchain is the single source of truth for "is a required local tool
-// present?". Both the hook binaries and the /sc-doctor command consult it, so
+// present?". Both the hook binaries and the doctor command consult it, so
 // knowledge of our local dependencies lives in exactly one place.
 //
 // See plans/claude-port-plan.md §3a' (Environment preflight).
