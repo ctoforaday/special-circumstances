@@ -1,0 +1,45 @@
+{
+  "_comment": "Single source of truth for prosthetic-conscience's local tool dependencies. Consumed by the shared toolchain probe (tools/internal/toolchain), used by both the hook binaries and /doctor. See plans/claude-port-plan.md §3a'.",
+  "tools": [
+    {
+      "name": "git",
+      "purpose": "version control; the blackboard is git-tracked",
+      "tier": "required",
+      "check_cmd": "git --version",
+      "install": {
+        "windows": "winget install --id Git.Git -e",
+        "darwin": "brew install git",
+        "linux": "sudo apt-get install -y git"
+      }
+    },
+    {
+      "name": "gh",
+      "purpose": "GitHub PR / review flow",
+      "tier": "recommended",
+      "check_cmd": "gh --version",
+      "install": {
+        "windows": "winget install --id GitHub.cli -e",
+        "darwin": "brew install gh",
+        "linux": "see https://github.com/cli/cli#installation"
+      }
+    },
+    {
+      "name": "qlty",
+      "purpose": "format + lint quality gate (sc-quality-gate runs it)",
+      "tier": "recommended",
+      "check_cmd": "qlty --version",
+      "install": {
+        "windows": "powershell -c \"iwr https://qlty.sh | iex\"",
+        "darwin": "brew install qltysh/tap/qlty",
+        "linux": "curl -fsSL https://qlty.sh | bash"
+      }
+    }
+  ],
+  "_hook_binary": {
+    "_comment": "sc-quality-gate is OUR compiled hook, not an external dep. /doctor --fix builds it (go build, if Go is present) or fetches the prebuilt release asset for this GOOS/GOARCH into bin/. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate.",
+    "name": "sc-quality-gate",
+    "source": "tools/cmd/sc-quality-gate",
+    "output": "bin/sc-quality-gate",
+    "release_asset": "sc-quality-gate_{goos}_{goarch}{exe}"
+  }
+}
