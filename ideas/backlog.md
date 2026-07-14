@@ -17,3 +17,7 @@ whichever PR next touches its plugin; bigger items get promoted to `plans/` prop
   (b) SMOKE MODE: /research --smoke = 1 lane, 1 round, 1 citation pass, model=haiku, trivial topic — full-pipeline integration for ~50k tokens; pre-merge check for debate-script changes.
   (c) ASSEMBLE-ON-FAILURE: a dead round (agent null / quota wall) should break the loop and assemble UNVERIFIED from existing material, never throw away paid-for rounds (run 2 has 3 real debate rounds and no report).
   (d) COST LEVER: red's full-report re-read × scaled lens instances × round is the dominant burn; consider narrowing later-round audit scope (changed sections + contested gaps + spot checks) as a graded-integrity middle path — needs the human's call, it trades against the full-re-read principle.
+- [ ] **frank-exchange-of-views — efficiency levers** (approved direction: cheapen redundancy, never judgment):
+  (1) PER-ROLE MODELS: `model` (bulk: lanes, lens passes) + `judgmentModel` (red-merge, lead-judge, blue-synthesize, assemble). Retrospective plan: bulk=sonnet, judgment=strong.
+  (2) CITATION LEDGER: red/verified-citations.md — round N verifies only new/changed citations; verified ones don't un-verify; citation-instance scaling collapses in later rounds.
+  (3) ROUND-SCOPED AUDIT (human-gated — trades against the full-re-read principle): round 1 full leaf-node; rounds 2+ = changed sections in full context + contested gaps + random spot-checks. Hold unless 1+2 insufficient.
