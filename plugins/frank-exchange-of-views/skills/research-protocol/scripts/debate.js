@@ -10,6 +10,15 @@ export const meta = {
   ],
 }
 
+// TESTING & MODEL-SELECTION STRATEGY (learned from runs 1-2, ~3.5M tokens of tuition):
+//   Logic bugs are unit-testable for zero tokens: a Node harness stubs agent() with canned
+//   envelopes and drives every branch (args parsing, round loop, contested docket, deadlock,
+//   ceiling, null returns). Founding regressions: stringified args -> undefined paths (run 1);
+//   missing null-guard on agent() returns (run 2). Behavior needs live agents — but --smoke
+//   (1 lane, 1 round, model=haiku) exercises the pipeline for ~50k tokens.
+//   Model ladder: omit `model` for keeper runs (inherits session model); sonnet for development;
+//   haiku for smoke. NEVER change `model` on a resume — it changes agent() opts, busts the
+//   cache keys, and re-runs completed rounds at full price.
 // The lead is a script: mechanics, round-keeping, termination. All file writes
 // belong to the agents (the filesystem is the blackboard; the script has no
 // filesystem access by design). Judgment calls go to lead-judge, never round-to-round.
