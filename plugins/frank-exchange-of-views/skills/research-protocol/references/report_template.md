@@ -3,9 +3,9 @@
 **Verdict:** VERIFIED | UNVERIFIED (after <N> debate rounds) · **Run:** `research/<date>_<slug>/`
 **TL;DR:** <3–6 sentences: the answer, the confidence, the sharpest caveat.>
 
-## Heilmeier Catechism
+## The Catechism
 
-<The agreed answers — see heilmeier_template.md. After the summary, before the meat.>
+<The agreed answers — see catechism_template.md (the worth-our-time decision: the case against, of-interest-vs-interesting, cost and stopping points). After the summary, before the meat.>
 
 ## Technical foundations
 

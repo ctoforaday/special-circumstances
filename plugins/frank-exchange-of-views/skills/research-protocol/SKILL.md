@@ -27,6 +27,7 @@ research/<date>_<slug>/
 │   └── candidates/    # best-of-N lane drafts, preserved
 ├── red/
 │   ├── findings.md    # red's LIVING audit — cumulative verdict + graded gaps
+│   ├── citation-ledger.md  # verified citations don't un-verify: claim | reference | confidence | round
 │   └── candidates/    # per-lens audit passes, preserved
 └── debate.md          # the FULL three-party transcript — every round: ### RED / ### BLUE / ### LEAD
 ```
@@ -35,12 +36,13 @@ All artifacts are git-tracked; nothing is summarized away. The payload is the fi
 
 ## Report structure
 
-The final `report.md` (see `references/report_template.md`): verdict stamp (VERIFIED/UNVERIFIED + rounds) → **Heilmeier Catechism** (`references/heilmeier_template.md`) → analytical core (foundations / analysis / risk matrix graded likelihood × impact × complexity, including risk-accepted items with rationale) → **blue's report in full** → **red's findings in full** → debate record → footnotes.
+The final `report.md` (see `references/report_template.md`): verdict stamp (VERIFIED/UNVERIFIED + rounds) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision, adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded likelihood × impact × complexity, including risk-accepted items with rationale) → **blue's report in full** → **red's findings in full** → debate record → footnotes.
 
 ## Friction (the complaint channel)
 
 A subagent's only voice is its return value — so capability complaints travel in the envelope.
 
 - AFTER any task where a missing tool, denied permission, or capability gap impeded you, YOU MUST report it in the envelope's `friction` field: name the capability and what you would have done with it.
+- AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
 - YOU MUST NOT silently work around a capability gap — the workaround destroys the signal that would get you retooled.
 - The lead aggregates friction into the run record (`friction.md`); the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

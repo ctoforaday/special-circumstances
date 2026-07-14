@@ -11,10 +11,6 @@ the same discipline we impose on research — think-around-problem applied to ou
   overlap. Prediction to test: significant convergence between `blue/candidates/lane-*.md`
   (same sources, same structure, same conclusions). If confirmed: lanes need engineered diversity
   (distinct lenses/methods/source-classes per lane), not just different starting hypotheses.
-- [ ] **The Heilmeier is DARPA-shaped.** Cost/duration/milestone questions fit proposals and
-  programs; they map awkwardly onto explainer or survey questions. Watch how the catechism reads
-  for an architecture-evaluation topic. If strained: template variants by question type
-  (decision / feasibility / survey), or applicability-marked sections.
 - [ ] **The risk matrix presumes a design under evaluation.** Same variant concern as Heilmeier.
 - [ ] **Duplication between "the meat" and blue-in-full.** The analytical core derives from blue's
   report; union-not-summary doesn't tell the assembler what belongs where. Intended division:
@@ -32,11 +28,14 @@ the same discipline we impose on research — think-around-problem applied to ou
 
 ## Closed
 
+- [x] **The Heilmeier is DARPA-shaped** — confirmed by design discussion before run 1 even
+  finished; evolved into `catechism_template.md`: a worth-our-time decision (the case against at
+  full strength; of-interest vs merely interesting; cost and stopping points) instead of a funding
+  pitch. The survey/explainer-variant question stays open implicitly — revisit if the new shape
+  strains on a non-decision topic.
 - [x] **Cross-plugin `skills:` preloading reaches workflow agents** — CONFIRMED (run-1 forensics):
   all 16 transcripts carry the literal injected content of `frank-exchange-of-views:research-protocol`
   AND `prosthetic-conscience:critical-stance`. The mindset-inheritance mechanism is real.
 - [x] **Plugin hooks + agent memory in workflow agents** — CONFIRMED (hook log + agent-memory file):
   sc-quality-gate fired on workflow-agent writes; red-auditor wrote its `memory: project` gap-pattern
   file. Every harness mechanism the suite depends on is now empirically verified.
-
-(none yet)

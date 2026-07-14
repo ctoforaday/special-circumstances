@@ -24,6 +24,20 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
 
+  debate-sim:
+    # Zero-token regression suite for the FEOV debate engine: the simulator stubs the
+    # Workflow runtime's agent() contract and drives every branch of debate.js.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs
+
   release:
     # Cross-compile + publish binaries when a plugin version tag is pushed (e.g. prosthetic-conscience--v0.1.0).
     if: startsWith(github.ref, 'refs/tags/') && contains(github.ref, '--v')
