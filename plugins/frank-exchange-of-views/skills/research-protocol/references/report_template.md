@@ -35,6 +35,15 @@ Risk-accepted items are recorded here with their rejection rationale — elevate
 
 <Per-round one-line synopsis + pointer to debate.md for the literal transcript.>
 
+## Open questions carried past this run
+
+<Blue's final open_questions, verbatim — the envelope carries them every round and this is
+their home; a question nobody could answer inside the debate is a finding, not noise. Feed
+candidates back to /research or /self-improve.>
+
 ## Footnotes
 
-<Semantic word-based footnotes: [^WordLabel]: Title — Source URL — Accessed date.>
+<Semantic word-based footnotes: [^WordLabel]: Title — Source URL — Accessed date. For living
+sources (issue trackers, READMEs, other runs' findings files), also note volatility and the
+round last verified — access-date deltas are how drift is caught (a source can move while the
+citing prose stands still).>
