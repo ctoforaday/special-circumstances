@@ -46,6 +46,17 @@
       }
     },
     {
+      "name": "qmd",
+      "purpose": "research-corpus recall index (BM25 + semantic) — sc-recall-index keeps FTS fresh on markdown writes; FEOV agents search instead of re-reading",
+      "tier": "optional",
+      "check_cmd": "qmd --version",
+      "install": {
+        "windows": "npm install -g @tobilu/qmd@2.5.3",
+        "darwin": "npm install -g @tobilu/qmd@2.5.3",
+        "linux": "npm install -g @tobilu/qmd@2.5.3"
+      }
+    },
+    {
       "name": "uv",
       "purpose": "Python tool runner — uvx launches the arxiv-latex MCP server (FEOV document extraction)",
       "tier": "recommended",
@@ -62,7 +73,8 @@
     "binaries": [
       { "name": "sc-quality-gate", "event": "PostToolUse(Write|Edit)", "purpose": "qlty fmt/check gate, capability-gated" },
       { "name": "sc-secrets-gate", "event": "PreToolUse(WebFetch|WebSearch|Bash)", "purpose": "deny outbound payloads matching secret patterns" },
-      { "name": "sc-toolchain-nudge", "event": "SessionStart", "purpose": "one-line warning when a recommended tool is missing" }
+      { "name": "sc-toolchain-nudge", "event": "SessionStart", "purpose": "one-line warning when a recommended tool is missing" },
+      { "name": "sc-recall-index", "event": "PostToolUse(Write|Edit)", "purpose": "qmd FTS update on markdown writes — deterministic recall freshness, capability-gated" }
     ]
   }
 }

@@ -39,6 +39,29 @@ research/<date>_<slug>/
 
 All artifacts are git-tracked; nothing is summarized away. The payload is the file; the envelope is the handle — no large content travels through agent return values.
 
+## Recall (qmd) — three access modes, never confused
+
+When `qmd` is installed (optional tier; `/prosthetic-conscience:doctor` reports it), the corpus
+is searchable instead of only re-readable. The discipline:
+
+1. **Retrieval for evidence and context** — finding what the corpus says about a question.
+   Swarm seats use the CLI: `qmd search "<terms>" -c <collection>` (BM25 — sub-second, zero
+   models, line-anchored `qmd://` URIs citable as locations). YOU MUST NOT invoke bare-CLI
+   `qmd query`/`vsearch` from a seat: each invocation reloads ~1–2GB of models (36s measured);
+   model-backed search belongs to the resident MCP server (`qmd` in `.mcp.json`, via ToolSearch).
+   Over MCP, YOU author the `searches` array (lex/vec/hyde sub-queries) yourself — you know the
+   domain vocabulary; there is no auto-expander to mangle it.
+2. **Full read for the document under audit** — red reads blue's living report whole, in
+   context, every round. Retrieval NEVER substitutes: a decontextualized snippet is how audits
+   go blind. This clause outranks any token saving.
+3. **Leaf-node fetch for verification** — a citation is checked against its source (WebFetch,
+   PDF MCPs, `qmd get <path>` for corpus-internal references), never against a search snippet.
+
+Freshness is deterministic, not remembered: the `sc-recall-index` hook runs a fast FTS update
+on every markdown write (measured ~0.7s), so BM25 is never stale. Semantic embeddings refresh
+at phase tops (`qmd embed`, incremental) — at worst one phase stale; grade accordingly or
+re-run `search` (lexical, always current) to confirm.
+
 ## Report structure
 
 The final `report.md` (see `references/report_template.md`): verdict stamp (VERIFIED/UNVERIFIED + rounds) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision, adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded likelihood × impact × complexity, including risk-accepted items with rationale) → **blue's report in full** → **red's findings in full** → debate record → **open questions carried past this run** (blue's final envelope, verbatim) → footnotes (with access dates; volatility noted for living sources).
