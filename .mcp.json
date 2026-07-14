@@ -9,8 +9,8 @@
       "args": ["-y", "@sylphx/pdf-reader-mcp@3.0.14"]
     },
     "qmd": {
-      "command": "npx",
-      "args": ["-y", "@tobilu/qmd@2.5.3", "mcp"]
+      "command": "qmd",
+      "args": ["mcp"]
     }
   }
 }

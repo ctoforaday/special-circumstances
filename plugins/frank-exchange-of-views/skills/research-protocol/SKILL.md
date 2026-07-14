@@ -41,11 +41,14 @@ All artifacts are git-tracked; nothing is summarized away. The payload is the fi
 
 ## Recall (qmd) — three access modes, never confused
 
-When the project's `.mcp.json` declares the `qmd` server (the pin is the opt-in), the corpus is
-searchable instead of only re-readable. ALL seat access goes through the MCP server (tools
-`query`/`get`/`multi_get`/`status`, discoverable via ToolSearch) — the resident process loads
-models once; the bare CLI reloads ~1–2GB per invocation (36s measured) and MUST NOT be used
-for search from any seat. The discipline:
+When qmd is installed (`/prosthetic-conscience:doctor` installs the pinned version on consent)
+and the project's `.mcp.json` declares the `qmd` server, the corpus is searchable instead of
+only re-readable. Exactly ONE qmd exists — the installed binary; the MCP server and the
+`sc-recall-index` hook both run it, so read and write paths can never skew on index schema.
+ALL seat access goes through the MCP server (tools `query`/`get`/`multi_get`/`status`,
+discoverable via ToolSearch) — the resident process loads models once; the bare CLI reloads
+~1–2GB per invocation (36s measured) and MUST NOT be used for search from any seat. The
+discipline:
 
 1. **Retrieval for evidence and context** — finding what the corpus says about a question.
    Use the MCP `query` tool and author the `searches` array yourself — you know the domain
