@@ -7,6 +7,10 @@
     "pdf-reader": {
       "command": "npx",
       "args": ["-y", "@sylphx/pdf-reader-mcp@3.0.14"]
+    },
+    "qmd": {
+      "command": "qmd",
+      "args": ["mcp"]
     }
   }
 }

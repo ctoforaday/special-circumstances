@@ -39,6 +39,35 @@ research/<date>_<slug>/
 
 All artifacts are git-tracked; nothing is summarized away. The payload is the file; the envelope is the handle — no large content travels through agent return values.
 
+## Recall (qmd) — three access modes, never confused
+
+When qmd is installed (`/prosthetic-conscience:doctor` installs the pinned version on consent)
+and the project's `.mcp.json` declares the `qmd` server, the corpus is searchable instead of
+only re-readable. Exactly ONE qmd exists — the installed binary; the MCP server and the
+`sc-recall-index` hook both run it, so read and write paths can never skew on index schema.
+ALL seat access goes through the MCP server (tools `query`/`get`/`multi_get`/`status`,
+discoverable via ToolSearch) — the resident process loads models once; the bare CLI reloads
+~1–2GB per invocation (36s measured) and MUST NOT be used for search from any seat. The
+discipline:
+
+1. **Retrieval for evidence and context** — finding what the corpus says about a question.
+   Use the MCP `query` tool and author the `searches` array yourself — you know the domain
+   vocabulary; there is no auto-expander to mangle it. Cheap and lexical: a single
+   `{type: "lex", query: "<terms>"}` sub-query (BM25, line-anchored `qmd://` URIs citable as
+   locations). Semantic, when phrasing won't match wording: add `vec` (rephrasings) and `hyde`
+   (a hypothetical passage that would answer you) sub-queries.
+2. **Full read for the document under audit** — red reads blue's living report whole, in
+   context, every round. Retrieval NEVER substitutes: a decontextualized snippet is how audits
+   go blind. This clause outranks any token saving.
+3. **Leaf-node fetch for verification** — a citation is checked against its source (WebFetch,
+   PDF MCPs, MCP `get` for corpus-internal references), never against a search snippet.
+
+Freshness is deterministic, not remembered: the `sc-recall-index` hook runs a fast FTS update
+on every markdown write (measured ~0.7s), so lexical results are never stale. Semantic
+embeddings refresh at phase tops (incremental) — at worst one phase stale; grade accordingly
+or confirm with a lex-only query (always current). Index maintenance (collections, update,
+embed) is lead/hook mechanics, never seat work.
+
 ## Report structure
 
 The final `report.md` (see `references/report_template.md`): verdict stamp (VERIFIED/UNVERIFIED + rounds) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision, adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded likelihood × impact × complexity, including risk-accepted items with rationale) → **blue's report in full** → **red's findings in full** → debate record → **open questions carried past this run** (blue's final envelope, verbatim) → footnotes (with access dates; volatility noted for living sources).
