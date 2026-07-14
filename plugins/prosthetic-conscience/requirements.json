@@ -33,6 +33,28 @@
         "darwin": "brew install qltysh/tap/qlty",
         "linux": "curl -fsSL https://qlty.sh | bash"
       }
+    },
+    {
+      "name": "node",
+      "purpose": "JavaScript runtime — FEOV workflow simulator + cost-audit, and npx-launched MCP servers (pdf-reader)",
+      "tier": "recommended",
+      "check_cmd": "node --version",
+      "install": {
+        "windows": "winget install --id OpenJS.NodeJS.LTS -e",
+        "darwin": "brew install node",
+        "linux": "see https://nodejs.org/en/download"
+      }
+    },
+    {
+      "name": "uv",
+      "purpose": "Python tool runner — uvx launches the arxiv-latex MCP server (FEOV document extraction)",
+      "tier": "recommended",
+      "check_cmd": "uv --version",
+      "install": {
+        "windows": "winget install --id astral-sh.uv -e",
+        "darwin": "brew install uv",
+        "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh"
+      }
     }
   ],
   "_hook_binaries": {

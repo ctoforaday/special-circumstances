@@ -1,11 +1,12 @@
 // sc-secrets-gate is a prosthetic-conscience PreToolUse hook (Go binary).
 //
 // Contract (Design by Contract):
-//   BEFORE an outbound-capable tool call (WebFetch, WebSearch, Bash) runs, its input
-//   MUST NOT contain matchable secrets (keys, tokens, private-key material).
-//   When a secret pattern matches, the call is DENIED with a reason; otherwise allow.
-//   This is the deterministic layer of the agent-guardrails rule — the rule itself
-//   remains the semantic layer for what a pattern can't catch.
+//
+//	BEFORE an outbound-capable tool call (WebFetch, WebSearch, Bash) runs, its input
+//	MUST NOT contain matchable secrets (keys, tokens, private-key material).
+//	When a secret pattern matches, the call is DENIED with a reason; otherwise allow.
+//	This is the deterministic layer of the agent-guardrails rule — the rule itself
+//	remains the semantic layer for what a pattern can't catch.
 //
 // Pattern definitions live in internal/secrets — shared, defined once.
 package main
