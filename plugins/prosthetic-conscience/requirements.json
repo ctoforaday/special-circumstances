@@ -36,24 +36,13 @@
     },
     {
       "name": "node",
-      "purpose": "JavaScript runtime — FEOV workflow simulator + cost-audit, and npx-launched MCP servers (pdf-reader)",
+      "purpose": "JavaScript runtime — FEOV workflow simulator + cost-audit, and npx-launched MCP servers (pdf-reader, qmd recall layer incl. the sc-recall-index hook's npx fallback)",
       "tier": "recommended",
       "check_cmd": "node --version",
       "install": {
         "windows": "winget install --id OpenJS.NodeJS.LTS -e",
         "darwin": "brew install node",
         "linux": "see https://nodejs.org/en/download"
-      }
-    },
-    {
-      "name": "qmd",
-      "purpose": "research-corpus recall index (BM25 + semantic) — sc-recall-index keeps FTS fresh on markdown writes; FEOV agents search instead of re-reading",
-      "tier": "optional",
-      "check_cmd": "qmd --version",
-      "install": {
-        "windows": "npm install -g @tobilu/qmd@2.5.3",
-        "darwin": "npm install -g @tobilu/qmd@2.5.3",
-        "linux": "npm install -g @tobilu/qmd@2.5.3"
       }
     },
     {
@@ -74,7 +63,7 @@
       { "name": "sc-quality-gate", "event": "PostToolUse(Write|Edit)", "purpose": "qlty fmt/check gate, capability-gated" },
       { "name": "sc-secrets-gate", "event": "PreToolUse(WebFetch|WebSearch|Bash)", "purpose": "deny outbound payloads matching secret patterns" },
       { "name": "sc-toolchain-nudge", "event": "SessionStart", "purpose": "one-line warning when a recommended tool is missing" },
-      { "name": "sc-recall-index", "event": "PostToolUse(Write|Edit)", "purpose": "qmd FTS update on markdown writes — deterministic recall freshness, capability-gated" }
+      { "name": "sc-recall-index", "event": "PostToolUse(Write|Edit)", "purpose": "qmd FTS update on markdown writes — deterministic recall freshness; no separate install: global qmd is a fast path, else npx runs the .mcp.json-pinned package (the pin is the opt-in)" }
     ]
   }
 }

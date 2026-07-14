@@ -2,14 +2,20 @@
 //
 // Contract (Design by Contract):
 //
-//	BEFORE indexing, it MUST confirm qmd is present; absent means silent no-op.
+//	BEFORE indexing, it MUST resolve a runner; none resolvable means silent no-op.
 //	It MUST only react to markdown writes — code writes never pay the index cost.
 //	It MUST NOT fail the Write/Edit, whatever `qmd update` does.
 //
 // Purpose: deterministic recall freshness. Agents forget to re-index; a hook
 // cannot. Every markdown write triggers a fast FTS `qmd update` (~0.7s measured)
-// so BM25 search is never stale. Semantic embeddings refresh separately
+// so lexical search is never stale. Semantic embeddings refresh separately
 // (phase-top `qmd embed`) — this hook keeps the cheap layer current.
+//
+// Runner resolution (no separate install required): a global `qmd` binary is a
+// pure fast path; otherwise the hook runs the SAME package the project's MCP
+// server pins — `npx -y <pkg from .mcp.json>` — so `.mcp.json` stays the single
+// source of truth for the qmd version and the hook activates exactly where the
+// project declares the recall layer.
 package main
 
 import (
@@ -27,9 +33,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
-const updateTimeout = 30 * time.Second
+const updateTimeout = 60 * time.Second
 
 type hookInput struct {
 	ToolName  string `json:"tool_name"`
@@ -39,16 +45,55 @@ type hookInput struct {
 	} `json:"tool_input"`
 }
 
-// decide is the pure, unit-tested gate: index only when qmd exists and the
-// write touched markdown. The returned reason is for the hook log.
-func decide(qmdPresent bool, file string) (run bool, reason string) {
-	if !qmdPresent {
-		return false, "qmd not found — recall index skipped. file=" + file
+type mcpConfig struct {
+	McpServers map[string]struct {
+		Command string   `json:"command"`
+		Args    []string `json:"args"`
+	} `json:"mcpServers"`
+}
+
+// qmdPackageFrom extracts the pinned qmd package spec (e.g. "@tobilu/qmd@2.5.3")
+// from a .mcp.json payload. Empty means the project has not declared qmd.
+func qmdPackageFrom(raw []byte) string {
+	var cfg mcpConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return ""
+	}
+	srv, ok := cfg.McpServers["qmd"]
+	if !ok {
+		return ""
+	}
+	for _, a := range srv.Args {
+		if strings.HasPrefix(a, "-") || a == "mcp" {
+			continue
+		}
+		return a
+	}
+	return ""
+}
+
+// resolveRunner is the pure, unit-tested ladder: global binary first (fast),
+// else npx with the project's pinned package, else nothing.
+func resolveRunner(qmdPresent, npxPresent bool, pkg string) []string {
+	if qmdPresent {
+		return []string{"qmd"}
+	}
+	if npxPresent && pkg != "" {
+		return []string{"npx", "-y", pkg}
+	}
+	return nil
+}
+
+// decide is the pure, unit-tested gate: index only when a runner resolved and
+// the write touched markdown. The returned reason is for the hook log.
+func decide(runner []string, file string) (run bool, reason string) {
+	if len(runner) == 0 {
+		return false, "no qmd runner (binary or npx+.mcp.json pin) — recall index skipped. file=" + file
 	}
 	if !strings.EqualFold(filepath.Ext(file), ".md") {
 		return false, "not markdown — recall index skipped. file=" + file
 	}
-	return true, "markdown write — running qmd update. file=" + file
+	return true, "markdown write — running " + strings.Join(runner, " ") + " update. file=" + file
 }
 
 func fileFrom(in hookInput) string {
@@ -61,10 +106,22 @@ func fileFrom(in hookInput) string {
 	return "unknown"
 }
 
-func runUpdate() string {
+func projectPackage(projectDir string) string {
+	if projectDir == "" {
+		return ""
+	}
+	raw, err := os.ReadFile(filepath.Join(projectDir, ".mcp.json"))
+	if err != nil {
+		return ""
+	}
+	return qmdPackageFrom(raw)
+}
+
+func runUpdate(runner []string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
 	defer cancel()
-	if err := exec.CommandContext(ctx, "qmd", "update").Run(); err != nil {
+	args := append(runner[1:], "update")
+	if err := exec.CommandContext(ctx, runner[0], args...).Run(); err != nil {
 		return "qmd update failed: " + err.Error()
 	}
 	return "qmd update ok"
@@ -82,15 +139,17 @@ func main() {
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 	file := fileFrom(in)
+	projectDir := os.Getenv("CLAUDE_PROJECT_DIR")
 
-	run, reason := decide(toolchain.Present("qmd"), file)
+	runner := resolveRunner(toolchain.Present("qmd"), toolchain.Present("npx"), projectPackage(projectDir))
+	run, reason := decide(runner, file)
 	outcome := ""
 	if run {
-		outcome = " | " + runUpdate()
+		outcome = " | " + runUpdate(runner)
 	}
 
-	if dir := os.Getenv("CLAUDE_PROJECT_DIR"); dir != "" {
-		logDir := filepath.Join(dir, ".claude")
+	if projectDir != "" {
+		logDir := filepath.Join(projectDir, ".claude")
 		if err := os.MkdirAll(logDir, 0o755); err == nil {
 			line := fmt.Sprintf("%s sc-recall-index %s -> %s | %s%s\n",
 				time.Now().UTC().Format(time.RFC3339), in.ToolName, file, reason, outcome)
@@ -103,6 +162,6 @@ func main() {
 	}
 
 	// Recall is an optional capability: absence is never worth a per-write nag
-	// (sc-toolchain-nudge covers discovery at SessionStart). Never block the tool.
+	// (the .mcp.json pin is the opt-in). Never block the tool.
 	os.Exit(0)
 }
