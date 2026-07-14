@@ -1,8 +1,9 @@
 // sc-quality-gate is a prosthetic-conscience PostToolUse hook (Go binary).
 //
 // Contract (Design by Contract):
-//   BEFORE running the quality tool, it MUST confirm the tool is present.
-//   When the tool is absent, it MUST no-op with one warning — it MUST NOT fail the Edit/Write.
+//
+//	BEFORE running the quality tool, it MUST confirm the tool is present.
+//	When the tool is absent, it MUST no-op with one warning — it MUST NOT fail the Edit/Write.
 //
 // It reads the PostToolUse hook JSON on stdin, records that it fired (which proves
 // the hook reaches here — including inside a subagent), and gates on `qlty`.

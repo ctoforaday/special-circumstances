@@ -1,9 +1,10 @@
 // sc-toolchain-nudge is a prosthetic-conscience SessionStart hook (Go binary).
 //
 // Contract (Design by Contract):
-//   AFTER a session starts, the operator MUST see ONE non-blocking line when a
-//   recommended tool is missing — and nothing at all when the toolchain is healthy.
-//   It never blocks, never errors the session, and prints at most one line.
+//
+//	AFTER a session starts, the operator MUST see ONE non-blocking line when a
+//	recommended tool is missing — and nothing at all when the toolchain is healthy.
+//	It never blocks, never errors the session, and prints at most one line.
 package main
 
 import (

@@ -1,10 +1,11 @@
 // sc-doctor is the prosthetic-conscience environment preflight (Go binary).
 //
 // Contract (Design by Contract):
-//   It MUST produce a deterministic table + verdict (READY / DEGRADED / BLOCKED).
-//   Plain run is read-only. `-fix` rebuilds missing hook binaries (go build) when Go
-//   is present, else prints the release-asset fetch instructions — it MUST NOT
-//   install external tools (that stays consent-gated at the agent layer).
+//
+//	It MUST produce a deterministic table + verdict (READY / DEGRADED / BLOCKED).
+//	Plain run is read-only. `-fix` rebuilds missing hook binaries (go build) when Go
+//	is present, else prints the release-asset fetch instructions — it MUST NOT
+//	install external tools (that stays consent-gated at the agent layer).
 package main
 
 import (
