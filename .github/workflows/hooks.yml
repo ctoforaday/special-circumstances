@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs
+      - run: node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs plugins/frank-exchange-of-views/tests/simulator/cost-audit.test.mjs
 
   release:
     # Cross-compile + publish binaries when a plugin version tag is pushed (e.g. prosthetic-conscience--v0.1.0).
