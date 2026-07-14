@@ -4,29 +4,21 @@ Running list. Each doubt gets checked against real run artifacts; confirmed doub
 the backlog or a plan; refuted ones get closed with the evidence. (Doubting our own design is
 the same discipline we impose on research — think-around-problem applied to ourselves.)
 
-## Open — check against run 2026-07-12_memory-architecture
+## Open
 
-- [ ] **Blue lane diversity is unenforced.** The only differentiation is "lane N takes hypothesis N
-  first, then breadth" — no distinct search strategies, no assigned perspectives, no forbidden
-  overlap. Prediction to test: significant convergence between `blue/candidates/lane-*.md`
-  (same sources, same structure, same conclusions). If confirmed: lanes need engineered diversity
-  (distinct lenses/methods/source-classes per lane), not just different starting hypotheses.
-- [ ] **The risk matrix presumes a design under evaluation.** Same variant concern as Heilmeier.
-- [ ] **Duplication between "the meat" and blue-in-full.** The analytical core derives from blue's
-  report; union-not-summary doesn't tell the assembler what belongs where. Intended division:
-  meat = the agreed post-debate answers; blue = the evidentiary record. Check whether the
-  assembler repeats blue verbatim.
-- [ ] **Blue's `open_questions` have no home in the report template** — the envelope carries them,
-  the template drops them. Check whether they survive anywhere in report.md.
-- [ ] **Consensus vs. minority reports are indistinguishable after synthesis.** The union merge
-  erases claim provenance: a claim both lanes found independently (strong convergent signal) reads
-  identically to a single lane's leaf-node discovery (minority report — possibly gold, possibly
-  noise; red should weigh them differently). Measure on this run: compare `blue/candidates/lane-*`
-  against `blue/report.md` and classify claims consensus/minority. If the distinction matters:
-  the synthesizer tags claims with lane provenance during the union, and red's corroboration
-  grading gets provenance as an input.
+(none — all five founding doubts were adjudicated by run 3, the FEOV retrospective; new doubts
+accumulate here as they arise)
 
 ## Closed
+
+- [x] **ALL FIVE founding doubts — CONFIRMED by run 3** (`research/2026-07-12_feov-retrospective/report.md`,
+  5 rounds, 52 gaps raised / 46 closed, UNVERIFIED at the safety ceiling): blue lanes converge in the
+  breadth phase (run 2 measured directly); consensus-vs-minority provenance is destroyed at synthesis
+  BY SCHEMA (no provenance field in the envelopes); the risk-matrix/Catechism shape strain, meat-vs-blue
+  duplication, and homeless `open_questions` all confirmed. Fixes graded in the report's §3 pre-run-4
+  docket (24 rows, likelihood x impact x complexity). Biggest off-frontier finding: the docket detector
+  is lineage-blind by construction — the judge fired ZERO times across the entire corpus; convergence
+  was a property of the actors' good faith, not the machine.
 
 - [x] **The Heilmeier is DARPA-shaped** — confirmed by design discussion before run 1 even
   finished; evolved into `catechism_template.md`: a worth-our-time decision (the case against at
