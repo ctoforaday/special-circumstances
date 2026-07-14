@@ -27,6 +27,7 @@ research/<date>_<slug>/
 │   └── candidates/    # best-of-N lane drafts, preserved
 ├── red/
 │   ├── findings.md    # red's LIVING audit — cumulative verdict + graded gaps
+│   ├── citation-ledger.md  # verified citations don't un-verify: claim | reference | confidence | round
 │   └── candidates/    # per-lens audit passes, preserved
 └── debate.md          # the FULL three-party transcript — every round: ### RED / ### BLUE / ### LEAD
 ```
