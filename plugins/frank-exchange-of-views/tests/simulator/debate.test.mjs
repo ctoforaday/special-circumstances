@@ -303,3 +303,166 @@ test('friction aggregates from every seat with attribution', async () => {
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('no PDF extraction'), 'assembly receives the collated friction')
 })
+
+// ---- Efficiency phase (run-4 ratified levers; plans/efficiency-phase.md PR-A) ----
+
+test('telemetry: red-merge prompt carries the board-telemetry append with the pinned v1 mapping', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  assert.ok(merge.prompt.includes('trajectories/board-telemetry.jsonl'), 'telemetry sink named')
+  assert.ok(merge.prompt.includes('"mapping_version": "v1"'), 'mapping version pinned in the line spec')
+  assert.ok(merge.prompt.includes('"realized":0'), 'realized pinned to 0 in the mapping (excluded from mass)')
+  assert.ok(merge.prompt.includes('"trivial":0.5'), 'trivial assigned, not left to seat convention')
+})
+
+test('batching: merge concatenates lens passes to an absolute scratchpad path, never under the run dir', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  assert.ok(merge.prompt.includes('FIRST ACTION'), 'batching is the first action')
+  assert.ok(merge.prompt.includes('session scratchpad'), 'output path is the seat scratchpad')
+  assert.ok(merge.prompt.includes('never under research/2026-01-01_test'), 'run dir explicitly excluded')
+})
+
+test('sharding: ledger+archive replace findings.md in every seat prompt', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 2 })
+  for (const c of world.calls) assert.ok(!c.prompt.includes('red/findings.md'), `findings.md leaked into: ${c.opts.label}`)
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  assert.ok(merge.prompt.includes('red/ledger.md') && merge.prompt.includes('red/archive.md'), 'merge maintains both shards')
+  assert.ok(merge.prompt.includes('NEAR-MATCH RULE'), 'near-match forces the archive read before a fresh id (§4.5 cond 3)')
+  assert.ok(merge.prompt.includes('drift triggers'), 'volatile-source closures inherit drift re-checks (§4.5 cond 4)')
+  const judge = world.calls.find(c => c.opts.label.startsWith('judge'))
+  assert.ok(judge.prompt.includes('red/ledger.md') && judge.prompt.includes('DEMANDED READS'), 'judge reads ledger + demanded ancestor archive reads')
+})
+
+test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] }),
+          redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] })],
+  }))
+  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 3 }), /no archive spot-checks/)
+})
+
+test('shard counts: closure-index lines != archive blocks is a self-inconsistent self-report and aborts', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ verdict: 'PASS', ledger_closure_lines: 3, archive_blocks: 2 })],
+  }))
+  await assert.rejects(world.run(script, ARGS), /self-inconsistent shard self-report/)
+})
+
+test('dispute routing: an UNADDRESSED dispute auto-dockets (default-to-docket punishes silence)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 2 })
+  const merge2 = world.calls.find(c => c.opts.label.startsWith('red-merge-r2'))
+  assert.ok(merge2.prompt.includes("BLUE'S GRADE DISPUTES"), 'red is shown the pending disputes')
+  const judge = world.calls.find(c => c.opts.label.startsWith('judge-r2'))
+  assert.ok(judge, 'judge dispatched for the unaddressed dispute')
+  assert.ok(judge.prompt.includes('grade_dispute_unaddressed'), 'dispute traffic class named')
+})
+
+test('dispute routing: an explicit rejection is HELD (no docket) and dockets only on re-dispute', async () => {
+  const d = { gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }),
+          redEnv({ gaps: [gap('R2-1')], dispute_responses: [{ ...d, response: 'rejected', rationale: 'no' }] }),
+          redEnv({ gaps: [gap('R3-1')] })],
+    blueRespond: [blueEnv({ grade_disputes: [d] }), blueEnv({ grade_disputes: [d] }), blueEnv()],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 3 })
+  assert.ok(!world.calls.some(c => c.opts.label.startsWith('judge-r2')), 'explicit rejection does NOT docket in its round')
+  const judge3 = world.calls.find(c => c.opts.label.startsWith('judge-r3'))
+  assert.ok(judge3 && judge3.prompt.includes('grade_dispute_re_raised'), 're-dispute reaches the judge')
+})
+
+test('accepted deltas: cumulative magnitude over the threshold batch-dockets for judge review', async () => {
+  const d = { gap_id: 'R1-1', dimension: 'impact', proposed: 'certain', evidence: 'e' }
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }),
+          redEnv({ gaps: [gap('R1-1', { impact: 'low' })], dispute_responses: [{ gap_id: 'R1-1', dimension: 'impact', response: 'accepted', rationale: 'ok' }] })],
+    blueRespond: [blueEnv({ grade_disputes: [d] }), blueEnv()],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 2 })
+  const judge2 = world.calls.find(c => c.opts.label.startsWith('judge-r2'))
+  assert.ok(judge2 && judge2.prompt.includes('accepted_delta_overflow'), 'overflow deltas reviewed before they stand')
+})
+
+test('carried persistence: a carried gap with unchanged grades never re-dockets; a grade change re-dockets it', async () => {
+  const carriedJudge = judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'owe more research' }] })
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }),
+          redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1', { severity: 'high' })] })],
+    judge: [carriedJudge, carriedJudge],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 4 })
+  const judgeRounds = world.calls.filter(c => c.opts.label.startsWith('judge-r')).map(c => c.opts.label)
+  assert.ok(judgeRounds.some(l => l.startsWith('judge-r2')), 'first re-raise dockets')
+  assert.ok(!judgeRounds.some(l => l.startsWith('judge-r3')), 'carried ruling absorbs the unchanged re-raise (no repeat sitting)')
+  assert.ok(judgeRounds.some(l => l.startsWith('judge-r4')), 'a script-visible grade change re-dockets')
+})
+
+test('terminal disputes: pending disputes at the ceiling dispatch the terminal judge BEFORE assembly, carried excluded', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'severity', proposed: 'low', evidence: 'e' }] })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 1 })
+  const terminal = world.calls.find(c => c.opts.label.startsWith('judge-terminal'))
+  const assemble = world.calls.find(c => c.opts.label.startsWith('assemble'))
+  assert.ok(terminal, 'terminal dispute docket fires at the exit boundary')
+  assert.ok(terminal.prompt.includes('EXCLUDES carried'), 'no carrying into a round that does not exist')
+  assert.ok(terminal.n < assemble.n, 'disposition precedes assembly')
+})
+
+test('dispute cap: disputes beyond the per-round cap batch-docket as one overflow item', async () => {
+  const many = Array.from({ length: 7 }, (_, i) => ({ gap_id: `R1-${i + 1}`, dimension: 'impact', proposed: 'low', evidence: 'e' }))
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: many.map(d => gap(d.gap_id)) }), redEnv({ gaps: [gap('R2-1')] })],
+    blueRespond: [blueEnv({ grade_disputes: many }), blueEnv()],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 2 })
+  const judge2 = world.calls.find(c => c.opts.label.startsWith('judge-r2'))
+  assert.ok(judge2 && judge2.prompt.includes('grade_dispute_over_cap'), 'overflow rides the docket as a batch')
+})
+
+test('grade_adjusted: a judge grade ruling reaches the next red-merge as an instruction to apply', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'grade_adjusted', rationale: 'impact is low: evidence X' }] })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 3 })
+  const merge3 = world.calls.find(c => c.opts.label.startsWith('red-merge-r3'))
+  assert.ok(merge3 && merge3.prompt.includes('GRADE ADJUSTMENTS'), 'adjustment applied by the seat that owns the ledger')
+})
+
+test('traffic classes: regression successors are marked first-raise; re-raised ids keep the full resolution set', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1'), gap('R1-2')] }),
+          redEnv({
+            gaps: [gap('R1-2'), gap('R2-1', { supersedes: ['R1-1'] })],
+            closures: [{ id: 'R1-1', class: 'closed_with_regression' }],
+          })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 2 })
+  const judge2 = world.calls.find(c => c.opts.label.startsWith('judge-r2'))
+  assert.ok(judge2.prompt.includes('"first_raise_successor"'), 'successor marked as first-raise traffic')
+  assert.ok(judge2.prompt.includes('"re_raised"'), 're-raised id marked with full resolution set')
+  assert.ok(judge2.prompt.includes('structurally unavailable'), 'judge told which options are dead for first-raise traffic')
+})
+
+test('lane footnote namespaces: every lane prompt assigns a lane-prefixed label convention', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const lanes = world.calls.filter(c => c.opts.label.startsWith('blue-lane'))
+  assert.equal(lanes.length, 3)
+  for (const [i, c] of lanes.entries()) {
+    assert.ok(c.prompt.includes('FOOTNOTE NAMESPACE') && c.prompt.includes(`[^L${i + 1}`), `lane ${i + 1} prefix`)
+  }
+})
