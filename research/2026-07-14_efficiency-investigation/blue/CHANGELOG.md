@@ -317,3 +317,87 @@ $5–15 band / landing INSIDE / pinned or version-stamped / ~$10/firing / × 3 r
 Round-4-bar compliance: every table-summary sentence in §4.2/§2.1 recomputed from the printed
 table this round; every new design clause names its executor and a channel verified to carry
 it (condition 7 writer audit; §3.3(v) operator surface; (vi) terminal set).
+
+## Round 4 (2026-07-16) — responding to red round 4 (FAIL, 10 open gaps, all regression-chain successors) + the lead's round-4 rulings (all 10 CARRIED)
+
+All 10 addressed; zero rebuttals, zero risk-accepts (seven certain-likelihood, every fix
+trivial-to-low below blue's absorb threshold; the two touching registered runs-4/5 evidence —
+R4-1, R4-7 — must not settle wrong, per the lead). New first-hand work this round: the
+committed instrument re-run at this seat (SEVENTH reproduction — strict series and raw table
+reproduce; lens-candidate line $0.70/0.77/0.61/0.88/0.86 measured); a NEW companion instrument
+`trajectories/batch-collapse.mjs` measuring the read-batching turn-collapse term from the
+pinned transcripts' own usage records ($0.42/0.41/0.36/0.49/0.54 across rounds 1-5, sum
+$2.21/run); leaf re-verification of fed2449 tracking (git ls-files), GRADE enum (debate.js
+ll.60/88), lens read surface (l.212), .gitignore l.21, ledger l.192.
+
+- **R4-1** (MEDIUM, supersedes R3-1) — provenance of the old dollar series corrected at all
+  four sites (§4.2, §6.1 item 1, §8 Q2, [^MergeDecomposition]) + the §4.2 bullet-3 "$5-15
+  band" clause and §4.6 confidence: the "byte→token conversion dropped" diagnosis WITHDRAWN
+  (strict×4 = $1.04/2.12/3.56/4.64 misses the printed series 12-35%/round); reproducible
+  provenance stated — cache-weighted share × WHOLE-MERGE dollars (shares 10.7/20.9/39.2/30.5%
+  vs printed÷merge$ 10.6/20.6/38.7/30.2%, ≤0.5pt), proportional attribution of TOTAL merge
+  cost, not cache-read attribution, not comparable to cost.md's cache-read ceiling; lens-3
+  characterization corrected to the ledgered method (l.192 "share × merge $" — the round-3
+  narrative misattributed bytes-as-tokens to red against the ledger). No figure changes
+  ($2.8 floor, ≈$6 ceiling, ≈4× ratio re-confirmed at this seat).
+- **R4-2** (supersedes R3-1) — "committed" anchored to the object-store fact at §4.2, §8 Q2,
+  [^MergeDecomposition]: tracked at commit `fed2449` (the run-4 abort-record commit; verified
+  git ls-files this round); present-but-untracked interval stated; abort-as-mechanism named
+  (convention, not mechanism); capture-manifest recommendation added (trajectories/*.mjs named
+  alongside journal.jsonl + tarball). New instrument's status stated per the same discipline
+  (written at a git-tracked path; enters the object store with the run-record commit). Round
+  3's CHANGELOG wording above is superseded by this entry, not rewritten.
+- **R4-3** (supersedes R3-3, 4th generation) — §3.3(v): (i) reader set restated from the
+  pinned prompts (blue every round, judge when dispatched, operator; LENSES DO NOT read
+  debate.md — debate.js l.212) and the lens pruned from the docket-rights list ("every seat"
+  universal withdrawn; lens-surface prompt change preserved as a priced option); (ii)
+  "unlisted delta never enters mass" restated as POLICY with its enforcement named at §6.2's
+  post-hoc tier — actuation review MUST diff round-over-round findings grades against listed
+  deltas; unlisted accepted delta DISQUALIFIES affected rounds; (iii) cumulative-threshold
+  executor named: the SCRIPT, over envelope-resident values (accepted dispute_responses
+  joined to grade_disputes proposals + current envelope grade) under the pinned Q6 mapping;
+  "(vii)'s 5/round cap" → "stated cap", "5 × threshold" → "cap × threshold".
+- **R4-4** (supersedes R3-1) — batching figure RE-DERIVED as measured, one unit: §4.6 item 2
+  now states $0.3-0.5/round, sum $2.2/run measured turn-collapse (batch-collapse.mjs; round-5
+  includes ~$0.18 late re-read batching might not avoid; old "$1-2/round" modeled avoided
+  turns at end-of-transcript prefix sizes, 2-4× high — correction STRENGTHENS the collator
+  kill); §6.1 item 1 comparison restated per-run/per-run with both derivation statuses
+  (sharding ≈$2-4/run modeled-over-measured-shares vs batching ≈$2.2/run measured — same
+  order, neither dominant); §4.6 confidence adds MEDIUM-HIGH measured-single-run grade.
+- **R4-5** (supersedes R3-8) — §8 Q6 mapping made TOTAL over the 8-member GRADE enum:
+  trivial=0.5 assigned; certain/realized rule pinned at the SEMANTICS (already-realized
+  likelihood excluded whichever token carries it; bare certain = projected = 3.5) with the
+  cliff's validation-bias and incentive consequences priced; conditional cells pinned to the
+  CURRENT-RUN branch; realized_open count + excluded-mass memo added to the telemetry line at
+  §2.5 item 1 AND §1.5 item 1; §2.5 mapping-stability condition and carried-design note
+  updated.
+- **R4-6** (supersedes R3-11) — §4.5 condition 6: creator reconciled to ONE seat (red-merge
+  Writes both shards on the first sharded run; skeleton pre-creates everything else but NOT
+  these two); §4.3(c) "skeleton-born" restated to match; preflight RESCHEDULED before the PR
+  (red-merge-class seat test-writes the shard names as a run-4 CLOSING act, two Write calls,
+  logged; PR cites it) with the verify-seat-independence branch promoted to required default
+  if run 4 closes without it; red's vector honesty on "opening act" carried.
+- **R4-7** (supersedes R3-10) — §2.4: throttle-input timing stated (round N gated by
+  post-round-(N-1) board; post-round-2 ~65 is the run's second-highest, 66% of peak; only
+  rounds 4-5 clearly throttle); saving restated $12-18/run (~7-10%), $18 a ceiling
+  conditional on a mass-65-admitting threshold; the coincidental return to the round-1 $12
+  floor flagged so the figure's lineage stays auditable.
+- **R4-8** (supersedes R3-6) — §1.5 prediction (ii): "unadjudicated" qualifier restored with
+  the one-line scope parenthesis red drafted.
+- **R4-9** (supersedes R3-3/R3-7) — §2.5 item 1: window-reconciliation rule added (pending-
+  window delta = EXPECTED divergence; telemetry line + delta record correct as logged;
+  discrepancy flagged only where divergence matches no listed delta; neither artifact
+  overwrites the other).
+- **R4-10** (supersedes R3-1) — [^MergeDecomposition]: "the only .gitignore entry" narrowed
+  to "the only .gitignore entry touching run trajectories" (l.21; re-read at this seat).
+
+Propagation sweep run (grep over: bytes as tokens / dropped at the pricing / pricing-step /
+$18/run / $1-2/round / skeleton-born / every seat and the human operator / low-mass rounds
+3-5 / only .gitignore entry / 5 × threshold / 5/round cap / now committed): every surviving
+hit is inside a correction record quoting the withdrawn text. Claim count ≈174 (§7 echo;
+ceil(174/40)=5 → capped at 4, red-lens shape stays 6 seats). Round-5-bar compliance
+(adopted from the lead): every past-tense work-done verb this round is anchored to a hash,
+an instrument re-run, or a stated not-yet-tracked status; the one error-mechanism claim
+(R4-1's replacement provenance) ships with the recompute that reproduces it (shares vs
+printed÷merge$, ≤0.5pt, seventh reproduction); every comparative restated with both operands
+in one unit and derivation status named.

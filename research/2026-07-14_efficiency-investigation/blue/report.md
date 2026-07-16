@@ -138,7 +138,8 @@ autopilot for the call the judge exists to make [minority: lane-3/local-repo for
 framing]. **RATIFY instead (convergent, lanes 1 and 3):**
 
 1. A per-round board-profile record — open count, max severity, new-mint count and severity
-   profile, computed mass (§2), accepted-dispute grade deltas (§3.3(v)) — so the stop decision
+   profile, computed mass (§2), accepted-dispute grade deltas (§3.3(v)), realized-open count
+   + excluded-mass memo (§8 Q6, round 4) — so the stop decision
    is made by a judge (human or lead) with the numbers in front of them. **Durable sink
    (corrected round 2 per red R2-1 — the round-1 "`log()` into journal.jsonl" sink is
    contradicted by the measured record):** harness `log()` is console-ephemeral — verified
@@ -184,7 +185,11 @@ R1-12-hardened double-confirmation arm never fired and saved $0; sibling repairs
 faithful in isolation did not compose, and the round-2 closure ledger records both as closed
 WITH REGRESSION; the prediction now tests the arm AS HARDENED): if a run-4/5 record shows
 (i) **two consecutive rounds minting zero new gaps above the floor immediately preceding the
-final round**, (ii) a pre-final open board all-≤-MEDIUM with low/trivial fix cost, and
+final round**, (ii) a pre-final open board whose UNADJUDICATED gaps are all ≤ MEDIUM with
+low/trivial fix cost (adjudicated-open gaps sit outside the arm's scope by its own condition
+(a) — qualifier restored round 4 per red R4-8: the round-3 restatement dropped it, making
+the prediction stricter than the arm and silently under-counting the arm's firings in the
+§2.5-item-3 build-trigger record), and
 (iii) the red-health term held in both zero-mint rounds, then the armed floor would have
 substituted a ~$10 judge-disposition round for the ~$25–30 final round — ≈ **$15–20 net** —
 **provided the judge disposed rather than carried** (a carried board continues the run:
@@ -358,10 +363,18 @@ shape** (the shipped citationPasses recompute — `min(4, max(1, ceil(claim_coun
 the two always-on lenses yields **6 lens seats/round** at report-scale claim counts; this run's
 rounds 1 and 2 both demonstrably ran 6, and the round-1 recompose priced the dead 5-lens
 shape): cutting 4→1 citation instances removes ~3 agents/round ≈ ~$6/round at run-3 per-lens
-rates × **3 throttled rounds (the low-mass rounds 3–5 of §2.1's series — the rounds a
-mass-scaled throttle would have throttled; basis stated round 3 per red R3-10, having ridden
-silently from the round-0 construction through the round-2 recompute)** = **~$18/run (~10% of
-the rescaled run-4 baseline)**, not the $12 registered round 1. Direction noted for honesty: the live-code figure *strengthens* the throttle case
+rates × **2–3 throttled rounds (throttle-input timing stated round 4 per red R4-7 — a
+throttle sets round N's spend from the post-round-(N−1) board, so "throttling rounds 3–5"
+requires thresholds tripping on the post-round-2/3/4 boards at ~65/~44/~30; the round-3
+basis, "the low-mass rounds 3–5," read each round's OWN post-merge mass as its throttle
+input — a lookahead the mechanism cannot perform, and post-round-2 at ~65 is the run's
+SECOND-HIGHEST board, 66% of peak. Only rounds 4–5 clearly throttle under a mid-band
+threshold; round 3 throttles only under a threshold that admits mass 65)** =
+**$12–18/run (~7–10% of the rescaled run-4 baseline), the $18 ceiling conditional on the
+mass-65-admitting threshold** — not a $18 point estimate, and not the $12 registered round 1
+(whose defect was the dead 5-lens shape, a different error; that the honest band's floor
+returns to $12 by another route is coincidence, recorded so the figure's lineage stays
+auditable). Direction noted for honesty: the live-code figure *strengthens* the throttle case
 blue rejects — corrected anyway, because registered figures settle mechanically; §2's REJECT
 rests on §2.1's correlation failure and §2.3's doctrine analysis, not on dollar size. The
 round-0 "$12–18" upper bound bundled an unsized cheaper-merge second-order term (fewer lens
@@ -388,8 +401,10 @@ distinct lenses). **RATIFY the instrumentation half (3/3):**
    `agent-*.jsonl` token records only (read first-hand, l.28).[^JournalCheck] Harness `log()`
    is operator-console-ephemeral; nothing a script logs persists. **The sink that works:** a
    **merge-seat telemetry append** — red-merge writes one JSON line per round (round, open
-   count, max severity, new-mint profile, mass, accepted-dispute deltas per §3.3(v), `found_by`
-   summary) to the git-tracked, name-preflighted `trajectories/board-telemetry.jsonl`
+   count, max severity, new-mint profile, mass, accepted-dispute deltas per §3.3(v),
+   `realized_open` count + excluded-mass memo per §8 Q6 — column added round 4 per red
+   R4-5, so an exclusion-heavy board is visible in the series it is absent from — and
+   `found_by` summary) to the git-tracked, name-preflighted `trajectories/board-telemetry.jsonl`
    (neutral name; the append route is the four-rounds-proven ledger `cat` path,[^FrictionTen]
    and the preflight is §4.5 condition 6's, live-seat rule included). **Named consumers,
    stated per the lead's ruling:** (i) the retrospective / next-run docket — the demonstrated
@@ -407,7 +422,16 @@ distinct lenses). **RATIFY the instrumentation half (3/3):**
    recompute the mass/board columns for a sample of rounds directly from the git-tracked
    findings record at a seat other than red-merge and cite the recomputation (cheap: mass is
    arithmetic over git-persisted grades); the telemetry lines are the convenience copy, never
-   the evidence of record. **Mapping stability condition (same gap, part b; restated round 3
+   the evidence of record. **Window-reconciliation rule (added round 4 per red R4-9 — this
+   recompute and §3.3(v)'s contest window diverge BY CONSTRUCTION on an accepted dispute:
+   findings carries the new grade immediately while a correct telemetry line holds the old
+   grade until the window closes):** the recompute reconciles via the line's own delta record
+   and the `### RED` listing — a pending-window delta is EXPECTED divergence and the
+   telemetry line with its delta record is correct as logged; the recompute flags a
+   transcription discrepancy only where a divergence matches no listed delta. Neither
+   artifact "wins" by overwriting the other: the findings record is the grade of record, the
+   telemetry line is the mass-input of record during the window, and the delta record is the
+   join between them. **Mapping stability condition (same gap, part b; restated round 3
    per red R3-8 — "pinned or version-stamped" was a false equivalence: a version stamp makes a
    mid-series break VISIBLE, only pinning PREVENTS it, and offering both licenses the weak
    branch):** the enum→numeric mapping is **pinned before the first logged round**, and each
@@ -415,8 +439,12 @@ distinct lenses). **RATIFY the instrumentation half (3/3):**
    stamped lines are not comparable across mapping versions, and no cross-version comparison
    enters an actuation case. The mapping question itself is **decided this round** rather than
    left as an owner-less deadline (per the lead's R3-8 ruling — this run is the owner of
-   record): `realized` is excluded from open-gap mass; see §8 Q6, now
-   DECIDED.[^EngineSource]
+   record): `realized` is excluded from open-gap mass; see §8 Q6, now DECIDED — and made
+   **TOTAL over the schema's 8-member GRADE enum** round 4 per red R4-5 (the round-3 pin
+   mapped 7 tokens and left `trivial` — schema-legal for likelihood and impact, debate.js
+   ll.60/88 — to resolve by seat convention, the thing the pin exists to remove; Q6 now
+   assigns it, pins the certain/realized rule at the semantics rather than the token, and
+   pins the conditional-cell reading).[^EngineSource]
 2. Record **lens overlap per merged gap** [minority: lane-1/disconfirming-first]: a `found_by`
    envelope field (e.g. `['L1','L2','L4']`) — red-merge already states convergence in prose;
    this is the capture-recapture input, mechanical to collect, converting "was that round
@@ -447,7 +475,8 @@ spot-check floor; mass NEVER narrows audit scope and never touches red-merge or 
 Design detail flagged [minority: lane-2/primary-literature] and **resolved round 3** (per red
 R3-8 / the lead's ruling): `realized` is excluded from open-gap mass — realized risk is no
 longer a probability; a realized-but-open gap counts in the board profile and contributes 0 to
-mass. Decision recorded at §8 Q6; the mapping pin of §2.5 item 1 carries it into run 4's first
+mass (exclusion semantics-keyed and the mapping made total round 4 per red R4-5 — §8 Q6).
+Decision recorded at §8 Q6; the mapping pin of §2.5 item 1 carries it into run 4's first
 logged round. (§2.1's retrospective series, computed with realized=3.5 under its own disclosed
 mapping, stands as a historical computation — the pin governs the runs-4–5 telemetry series,
 and the two are not comparable, by the new-series rule.)
@@ -556,16 +585,36 @@ branch):**
   absorber. Vector honesty, mirrored from red's own log: the window phrasing was red's R2-6
   fix text — the hole was still a hole). The operator mechanism is a read-surface change:
   **pending-entry deltas are LISTED in the round's `### RED` debate entry** — a git-tracked
-  surface every seat and the human operator already read — and any seat (blue, a lens, the
-  lead, the operator) may docket a listed delta to the judge within the window; an unlisted
-  delta never enters mass (the listing is the precondition, checkable against the telemetry
-  line's delta record). **And, as a second guard — NOT equivalent (the round-2 "or,
-  equivalently" equated a mechanism-bearing branch with a mechanism-free one; dropped per red
-  R3-3(b)):** accepted deltas auto-docket to the judge before actuating when the round's
-  **cumulative** accepted-delta magnitude crosses a stated threshold — cumulative per round,
-  not per-delta (per red R3-3(c): a per-delta threshold under clause (vii)'s 5/round cap makes
-  salami-slicing in-spec, compounded deflation bounded only by 5 × threshold × rounds) — with
-  overflow batch-docketed as a single judge item, mirroring clause (vii)'s overflow rule.
+  surface whose ACTUAL reader set, restated round 4 from the pinned prompts per red R4-3(a)
+  (the round-3 "every seat already read" universal is withdrawn — it was contract-false for
+  lens seats): **blue every round, the judge when dispatched, and the human operator; lenses
+  do NOT read debate.md** (the pinned lens dispatch names blue/report.md + CHANGELOG only
+  and forbids lens writes to debate.md — verified at debate.js l.212 this round and
+  live-corroborated by this run's own dispatches). The docket right therefore belongs to the
+  seats with a read path — blue, the lead/judge, the operator — and the lens is pruned from
+  the round-3 list (a docket right without a read path was decorative; adding the latest
+  `### RED` to the lens read surface remains available as a priced prompt change — one
+  prompt line, one small read per lens-round — if runs 4–5 show the three remaining watchers
+  missing listed deltas). Any listed delta may be docketed to the judge within the window.
+  "An unlisted delta never enters mass" is the POLICY; its enforcement is named at §6.2's
+  post-hoc tier, per red R4-3(b) — in-run, mass is red-merge arithmetic over findings grades,
+  so an unlisted delta enters by default and the telemetry line's delta record is same-writer
+  consistency, not an independent check: **any actuation review MUST diff round-over-round
+  grade values in the git-tracked findings record against the deltas listed in `### RED`
+  entries, and an unlisted accepted delta DISQUALIFIES the affected rounds from the actuation
+  series** (cheap: grades are git-persisted; the diff is mechanical). **And, as a second
+  guard — NOT equivalent (the round-2 "or, equivalently" equated a mechanism-bearing branch
+  with a mechanism-free one; dropped per red R3-3(b)):** accepted deltas auto-docket to the
+  judge before actuating when the round's **cumulative** accepted-delta magnitude crosses a
+  stated threshold — cumulative per round, not per-delta (per red R3-3(c): a per-delta
+  threshold under clause (vii)'s stated cap makes salami-slicing in-spec, compounded
+  deflation bounded only by cap × threshold × rounds) — **computed by the SCRIPT** (executor
+  named round 4 per red R4-3(c): the sum runs over envelope-resident values — each accepted
+  `dispute_responses` entry joined to its `grade_disputes` proposal and the gap's current
+  envelope grade, magnitudes under the pinned §8 Q6 mapping — and the script is the one seat
+  that sees every envelope every round and needs no filesystem) —
+  with overflow batch-docketed as a single judge item, mirroring clause (vii)'s overflow
+  rule.
   Stated honestly: the judge is the absorber of contested deltas only on the contested branch;
   the accepted branch's absorbers are the OPERATED window in-run and the post-hoc audit
   after — blue's deflation incentive and red's inflation incentive are symmetric, and the
@@ -760,9 +809,18 @@ report.)
   instrument):** the round-2 parser ran from a session scratchpad and was not retained —
   under this report's own §6.2 attestation ceiling, that made the dollar attribution an
   unreproducible work-done claim whose audit artifacts were exactly the ones not git-tracked.
-  The instrument is now **committed as `trajectories/decompose-merge.mjs`** in this run's
-  directory (tarball-retention assumption stated in the footnote) and was re-run at round 3
-  against the pinned tarball. Three results, separated by derivation status:
+  The instrument is **committed as `trajectories/decompose-merge.mjs`** in this run's
+  directory — tracked in the object store at commit **`fed2449`** (verified `git ls-files`
+  at this seat, round 4). **Status honesty, restated round 4 per red R4-2:** between round
+  3's write and that commit the file was PRESENT but UNTRACKED — round 3's "committed" was a
+  work-done verb ahead of its object-store fact (the exact present ≠ committed distinction
+  R3-1 turned on), and the tracking happened as a side effect of the spend-limit abort
+  forcing a run-record commit: convention, not mechanism. One sentence of mechanism, per the
+  lead's ruling: **the run-record capture manifest should name instrument-class files
+  (`trajectories/*.mjs`) alongside journal.jsonl and the tarball**, so the next instrument
+  enters the object store by mechanism rather than by abort. The instrument was re-run at
+  round 3 against the pinned tarball (tarball-retention assumption stated in the footnote)
+  and again at round 4 at this seat. Three results, separated by derivation status:
 
   - **The raw decomposition table above REPRODUCES exactly** — all five rounds within ±1
     point, round-5 blue/report.md ingest 145.7KB, per-round totals 173/246/249/188/317KB.
@@ -770,10 +828,25 @@ report.)
   - **The round-2 cache-weighted dollar series does NOT reproduce under the method's own
     stated 4-bytes/token conversion.** Strict application prices findings.md at ≈$0.26 (r2) /
     $0.53 (r3) / $0.89 (r4) / $1.16 (r5) — Σ≈**$2.8/run** findings-attributable, not the
-    round-2 ≈$12. The printed ~$1.40/2.60/4.10/4.10 series — and lens 3's independent
-    recompute (Σ$12.4) — reproduces only if cache-weighted BYTES are priced as tokens: the
-    byte→token conversion dropped at the pricing step. Two implementations agreeing was
-    consistency of convention, not correctness. Cross-check against the measured ceiling:
+    round-2 ≈$12. **Provenance of the old series, corrected round 4 per red R4-1 (the
+    round-3 diagnosis — "the byte→token conversion dropped at the pricing step" — is
+    WITHDRAWN, refuted by this report's own instrument: bytes-priced-as-tokens is strict×4
+    = $1.04/2.12/3.56/4.64, missing the printed series by 12–35% per round):** the printed
+    ~$1.40/2.60/4.10/4.10 series — and lens 3's independent recompute (Σ$12.4) — reproduces
+    (≤3% per round, shares ≤0.5pt) as **cache-weighted share × WHOLE-MERGE dollars**:
+    findings' cache-weighted share of merge ingest (10.7/20.9/39.2/30.5% from this
+    instrument's output) multiplied by each round's TOTAL merge cost from cost.md
+    ($13.22/12.64/10.60/13.56 → printed ÷ merge dollars = 10.6/20.6/38.7/30.2%). That is a
+    proportional attribution of total merge cost — cache-write, output tokens, and seat
+    overhead included — NOT a cache-read attribution, and not comparable to cost.md's
+    cache-read ceiling. The round-3 narrative also misattributed a bytes-as-tokens method to
+    red against red's own ledger: ledger l.192 records lens 3's method as "share × merge $",
+    exactly the reproducible one — corrected here. Two implementations agreeing was agreement
+    on an attribution convention that answers a different question (whole-merge attribution)
+    than the strict series (cache-read attribution). No figure changes: the $2.8 floor, the
+    ≈$6 proportional ceiling, and the ≈4× ratio all survive (re-confirmed at the round-4
+    judge seat — the run's sixth reproduction — and again at this seat, the seventh).
+    Cross-check against the measured ceiling:
     round 5's entire cache-read spend was $7.87 (7.87M cache-read tokens, cost.md); a $4.10
     findings share would be 52% of it while findings was 28.8% of file ingest — impossible
     once the system prompt and harness overhead (in no file bucket) are added; the corrected
@@ -790,7 +863,8 @@ report.)
     sharding — and earlier-round file states carry progressively smaller archive shares,
     since the archive is what accumulates. Sharding-addressable ≈ archive share ×
     findings-attributable ≈ **$2–4/run at run-3 scale** — replacing the round-2 "$7–10,
-    squarely in lane 1's $5–15 band," which inherited the 4× pricing overstatement. The
+    squarely in lane 1's $5–15 band," which rode the whole-merge attribution ≈4× above the
+    strict cache-read series (provenance per R4-1 above). The
     corrected figure falls BELOW lane 1's dollar band.[^MergeDecomposition]
 
   Comparison to lane 1's token estimate, restated like-with-like (round 3 per red R3-5 — the
@@ -853,8 +927,9 @@ near-match to a candidate gap forces a targeted archive read BEFORE a fresh id i
 mode-3 demanded read, mirroring condition 2 — so the index is a *screen*, never the final
 comparator.
 
-**(c) The write path is safe if the shards are skeleton-born and neutrally named** (all three
-lanes): run 3's accidental controlled experiment isolated the write-block guard as
+**(c) The write path is safe if the shards are created at the writing seat class and neutrally
+named** (all three lanes; "skeleton-born" restated round 4 per red R4-6 — the creator is
+red-merge, one seat, §4.5 condition 6, so the guard probe and the creation are the same Write): run 3's accidental controlled experiment isolated the write-block guard as
 filename-keyed and path-independent (`findings.md` refused even in a scratchpad; a neutral
 filename succeeded);[^FrictionFour] Edit on pre-created files worked every round, and the
 citation ledger was appended via `cat` across four rounds with zero
@@ -916,9 +991,17 @@ historical blocks.[^R5OneDetail]
 5. **Archive spot-check floor** — N sampled closed cases re-verified per round, never zero
    (replacing round-4's full 41-closure sweep, which caught nothing that round but is the class
    of check the floor must keep alive) (lanes 2 and 3).
-6. **Skeleton-born, neutrally named shards, git-tracked** — both files pre-created in the
-   blackboard skeleton (PR #14 pattern) with non-report-semantic names (e.g. `red/ledger.md`,
-   `red/archive.md`); the archive stays readable on demand — this is a read-default change, not
+6. **Red-merge-born, neutrally named shards, git-tracked** — creator reconciled round 4 per
+   red R4-6(a): the round-3 text named TWO creators for the same files (skeleton
+   pre-creation in the headline vs red-merge opening-act in the addition — both cannot
+   create them; a skeleton pre-creation makes the opening-act Write either skipped — a
+   vacuous preflight — or an overwrite that abandons the provenance §4.3(c) rests on). One
+   seat, named: **red-merge Writes both shard files on the first sharded run** — the seat
+   class that writes them for the rest of the run, so creation doubles as the live-seat
+   guard probe; the blackboard skeleton (PR #14 pattern) pre-creates everything else but NOT
+   these two files, and §4.3(c)'s "skeleton-born" is updated to match. Non-report-semantic
+   names (e.g. `red/ledger.md`, `red/archive.md`); the archive stays readable on demand —
+   this is a read-default change, not
    a retention change; blue-additive doctrine intact (all lanes). **Two additions round 1 per
    red R1-14:** (i) a **name preflight** — the write-guard's key set is unenumerated and
    demonstrably wider than `findings.md` (it refused `blue/report.md` at this run's own
@@ -931,9 +1014,17 @@ historical blocks.[^R5OneDetail]
    at a SUBAGENT seat, nothing in the corpus has read the guard's seat-(in)dependence
    first-hand, and if the guard is seat-class-scoped a lead-seat preflight passes while the
    first red-merge shard write still blocks mid-merge — the vacuous-preflight failure one
-   level up. Concretely: the first sharded run's red-merge writes both skeleton shards as its
-   opening act; alternatively, verify the guard's seat-independence first-hand and cite the
-   verification in the PR). Hardened round 2 per red R2-17, simulator internals verified at
+   level up). **Preflight rescheduled BEFORE the PR it gates (round 4, per red R4-6(b) — as
+   scheduled at round 3, the "opening act" could fire only INSIDE the first sharded run,
+   after the PR had shipped the renamed prompts and retired the monolith: a guard firing
+   after the decision it gates is a smoke alarm wired to the ashes):** a red-merge-class
+   seat test-writes the proposed shard names as a CLOSING act of run 4 — two Write calls,
+   results logged in that round's `### RED` entry or the run record — and the PR cites the
+   test; if run 4 closes without it, the verify-seat-independence branch is PROMOTED from
+   alternative to required default (first-hand verification of the guard's
+   seat-(in)dependence, cited in the PR). Vector honesty, carried from red's own log:
+   "opening act" was red's R3-11 fix phrasing — the contradiction and the timing hole are
+   still holes. Hardened round 2 per red R2-17, simulator internals verified at
    the judge seat and re-read first-hand at this one: the PR-#14 simulator is "a stub world"
    running "canned envelopes and no live agents" (tests/simulator/harness.mjs) — the
    write-block guard lives in the live-seat harness/permission layer, so a simulator-only
@@ -1006,8 +1097,21 @@ Independent kills, any one sufficient:
    a seat whose dispatch overhead is the same order as its plausible saving.
 2. **The arithmetic does not support a seat** (lanes 2 and 3): collapsing 6–8 read turns
    (6 lens files minimum at live-code claim counts — swept round 2 per red R2-2; measured
-   lens-candidate ingest at the merge: 52–80KB/round, §4.2) saves
-   roughly $1–2/round at round-5 merge rates, against which the collator costs its own agent
+   lens-candidate ingest at the merge: 52–80KB/round, §4.2) saves a **measured
+   ≈$0.3–0.5/round, Σ≈$2.2/run at run-3 scale** — re-derived round 4 per red R4-4 from the
+   pinned transcripts' own usage records (`trajectories/batch-collapse.mjs`, same
+   tool_result pairing as the committed decomposition instrument): the avoided
+   candidate-ingestion calls billed $0.42/0.41/0.36/0.49/0.54 across rounds 1–5, with round
+   5's figure including a ~$0.18 late re-read call that batching might not avoid. This
+   measures the full turn-collapse term — the billed prefix at each avoided call, system
+   prompt included — per the lead's ruling that red's candidate-line-bytes inference
+   ($0.61–0.88/round strict, confirmed by this round's instrument re-run) was a bound
+   argument, not the answer. The round-2/3 "$1–2/round" figure modeled avoided turns at
+   end-of-transcript prefix sizes — a 2–4× overstatement of the same family as R3-1's
+   pricing correction (candidate reads happen EARLY, when the prefix runs ~16–64K tokens,
+   not the round-5 average) — and its correction STRENGTHENS this kill: the collator seat's
+   dispatch overhead now stands against an even smaller saving, against which the collator
+   costs its own agent
    run — a bulk dispatch that itself reads all five files, roughly the spend it saves, to
    produce a lossier input — plus a null-return failure surface (the class that crashed run 2)
    [minority: lane-2/primary-literature for the null-return point] and another write-blocked
@@ -1046,8 +1150,12 @@ decomposition table (reproduced at round 3 from the committed instrument, all fi
 round-2 "now MEASURED" claim overstated its own derivation status: the raw ingest shares are
 measured; the dollar attribution is MODELED — bytes→tokens 4:1, remaining-turns weighting —
 and was corrected ≈4× downward at round 3 when the committed parser applied the model's own
-stated conversion, §4.2; the archive fraction is derived from one pinned file-state; run 4
-re-measures from its own transcripts before the PR).
+stated conversion, §4.2, with the OLD series' provenance corrected round 4 per red R4-1: it
+was whole-merge proportional attribution, not a dropped conversion; the archive fraction is
+derived from one pinned file-state; run 4 re-measures from its own transcripts before the
+PR); **MEDIUM-HIGH** on the batching turn-collapse saving (MEASURED round 4 from the pinned
+transcripts' own usage records — `trajectories/batch-collapse.mjs`, §4.6 item 2 — but a
+single run, and the collapsed-call model assumes one retained ingestion call).
 
 ---
 
@@ -1225,9 +1333,15 @@ Levers ranked by measured target × confidence:
 1. **Sharding (4a)** — targets the biggest line at the highest rate premium. Dollar sizing
    corrected round 3 per red R3-1 (§4.2): ≈**$3–6/run** findings-attributable
    (direct-attribution $2.8 from the committed parser; proportional-share ceiling ≈$6 — the
-   round-2 "≈$12 measured" priced cache-weighted bytes as tokens), archive fraction **72.6%**
+   round-2 "≈$12 measured" was whole-merge proportional attribution mislabeled as cache-read
+   measurement: provenance corrected round 4 per red R4-1, §4.2), archive fraction **72.6%**
    derived from the pinned file's structure → **sharding-addressable ≈$2–4/run at run-3
-   scale**, comparable to item 2's batching saving rather than dollar-dominant. The #1 rank
+   scale (modeled dollar attribution over measured shares)**, against item 2's batching
+   saving of **≈$2.2/run (measured turn-collapse, §4.6 item 2)** — one unit, both derivation
+   statuses stated (restated round 4 per red R4-4: the round-3 sentence compared $/RUN
+   against an un-recomputed $/ROUND sibling — as printed, batching would have
+   dollar-dominated 2–3×; re-derived, the two are the same order and neither dominates). The
+   #1 rank
    now rests on what the dollars never carried alone: the unpriced judge-read benefit (the
    open ledger replaces the judge's full findings read — §6.1 above), the quality argument
    (the merge operates in the measured long-context degradation regime, and shrinking the
@@ -1398,10 +1512,11 @@ worth less than one that names the case.
   corroboration of the EMSE replication (ACM primary 403 — §4.6 item 5). All graded MEDIUM in
   the footnotes where applicable.
 - Frontier misattributions found during lane work are corrected here, not inherited (§6.4.3).
-- **Claim count, echoed into a tracked artifact (per red R2-2 / friction):** ~166 declared
-  this round (round 0 ≈132, round 1 ≈148, round 2 ≈160; round-3 growth is the R3-1
-  instrument-correction record and the §3.3/§4.5 design clauses). This is the input to the
-  live `citationPasses` recompute — `ceil(166/40) = 5`, capped at 4 by the shipped
+- **Claim count, echoed into a tracked artifact (per red R2-2 / friction):** ~174 declared
+  this round (round 0 ≈132, round 1 ≈148, round 2 ≈160, round 3 ≈166; round-4 growth is the
+  R4-1 provenance-correction record, the Q6 total-mapping pins, and the measured batching
+  re-derivation). This is the input to the
+  live `citationPasses` recompute — `ceil(174/40) = 5`, capped at 4 by the shipped
   `min(4, …)`, so citation instances stay 4 + 2 fixed lenses = the 6-seat red-lens shape
   §2.4/§6.1 price — recorded here and in `blue/CHANGELOG.md` so the rescale is auditable
   against something other than the envelope.
@@ -1416,10 +1531,12 @@ worth less than one that names the case.
    (§4.2's table — findings share grows 0.1%→~30%; blue/report.md the largest merge component
    in rounds 2, 3, and 5, with round 4's lens candidates (33%) and findings.md (32%) both
    exceeding it (20%) — restated round 3 per red R3-4; dollar sizing ≈$3–6/run
-   findings-attributable and ≈$2–4/run sharding-addressable — the round-2 $7–10 inherited a
-   pricing-step 4× overstatement, §4.2). The instrument is now committed
-   (`trajectories/decompose-merge.mjs`), so run 4's re-measurement is one command against its
-   own tarball. Remaining open: does run 4's decomposition reproduce the shape, and should
+   findings-attributable and ≈$2–4/run sharding-addressable — the round-2 $7–10 rode a
+   whole-merge proportional attribution mislabeled as cache-read measurement, ≈4× above the
+   strict cache-read series (provenance corrected round 4 per red R4-1, §4.2). The
+   instrument is committed (`trajectories/decompose-merge.mjs`, tracked at `fed2449` —
+   status corrected round 4 per red R4-2), so run 4's re-measurement is one command against
+   its own tarball. Remaining open: does run 4's decomposition reproduce the shape, and should
    `scripts/cost-audit.mjs` grow the per-agent timeline (backlog 28(d)) so the measurement is
    standard run output instead of a separate parse? (All three lanes; measurement round 2;
    correction round 3.)
@@ -1437,16 +1554,33 @@ worth less than one that names the case.
 5. **Generalization:** does an ordinary (non-self-referential) topic show the same late-round
    high-severity discovery pattern, or was run 3's tail an artifact of auditing the engine with
    the engine? (Lanes 1–3.)
-6. **Enum→numeric mapping for compound grades — DECIDED round 3** (per red R3-8 and the
-   lead's ruling; an owner-less deadline was the defect, and this run is the owner of
-   record): `realized` is EXCLUDED from open-gap mass — realized risk is no longer a
-   probability; a realized-but-open gap counts in the board profile's open/severity columns
-   and contributes 0 to mass. The pinned mapping for runs 4–5's telemetry series: low=1,
-   low-medium=1.5, medium=2, medium-high=2.5, high=3, certain=3.5, realized=excluded —
-   version-stamped into each logged line; a changed mapping starts a new series (§2.5
+6. **Enum→numeric mapping for compound grades — DECIDED round 3; made TOTAL round 4** (per
+   red R3-8/R4-5 and the leads' rulings; an owner-less deadline was the round-3 defect, a
+   non-total pin the round-4 one — this run is the owner of record): `realized` is EXCLUDED
+   from open-gap mass — realized risk is no longer a probability; a realized-but-open gap
+   counts in the board profile's open/severity columns and contributes 0 to mass. **The
+   exclusion is pinned at the SEMANTICS, not the token (round 4, per red R4-5(b)):** an
+   already-realized likelihood contributes 0 whichever token carries it — a `certain`
+   annotated "already realized in this corpus" (the corpus's own modal usage, e.g. run-3
+   R4-1) is excluded exactly like `realized`; bare `certain` reads as projected (will
+   certainly fire if unaddressed) and maps 3.5. This closes the 3.5-point cliff between
+   near-synonym tokens, and its two consequences are priced rather than left implicit:
+   validation bias (an exclusion-heavy board reads artificially low in the §2.5-item-3
+   series) and incentive (re-grading certain→already-realized cuts red's own mass under any
+   future throttle) — both are why each telemetry line carries the `realized_open` count and
+   excluded-mass memo (§2.5 item 1), so the excluded mass is visible in the series it is
+   absent from, and why the §2.5-item-1 sampled recompute covers the exclusion calls.
+   **The pinned mapping for runs 4–5's telemetry series, total over the schema's 8-member
+   GRADE enum (round 4, per red R4-5(a) — `trivial` is schema-legal for likelihood and
+   impact, debate.js ll.60/88, and was unmapped):** trivial=0.5, low=1, low-medium=1.5,
+   medium=2, medium-high=2.5, high=3, certain=3.5, realized (or annotated
+   already-realized)=excluded-with-memo. **Conditional cells — the board's modal shape —
+   read at the CURRENT-RUN branch (pinned round 4 per red R4-5(c)):** the branch conditioned
+   on this run's own state enters the series; the counterfactual branch stays prose.
+   Version-stamped into each logged line; a changed mapping starts a new series (§2.5
    item 1). §2.1's run-3 retrospective series (computed with realized=3.5 under its own
    disclosed mapping) stands as historical and is not comparable to the new series. (Lane 2;
-   decided round 3.)
+   decided round 3; made total round 4.)
 7. **Is a cross-model-family grader reachable from this harness at all** (the best-of-N
    precondition)? If structurally impossible, the backlog's revisit clause should say so.
    (Lane 2.)
@@ -1501,7 +1635,7 @@ Corpus sources (all pinned per `inputs/PINNED.md`):
 [^FrontierH3]: `blue/frontier.md` (this run), H3 — plus the frontier's three misattributions corrected in §4.1/§5.1/§6.4.3: H4/H5's (friction #15 referent; R4-3 specimen) and H1's stale pre-temper grades (R5-5 "HIGH," R4-1 "High likelihood × High impact" — vs pinned MEDIUM-HIGH and certain × high; third item added round 1 per red R1-19). Accessed 2026-07-14.
 
 [^JournalCheck]: Harness `log()` persistence, determined first-hand at the blue seat, round 2 (per red R2-1 / the lead's ruling): (a) this run's own LIVE workflow journal (`~/.claude/projects/.../subagents/workflows/wf_5cefd2a4-35f/journal.jsonl`, 43 lines mid-run) contains only `{"type":"started"}` (22) and `{"type":"result"}` (21) lifecycle events — grep "researching" (debate.js l.52's `log()` string) returns 0; (b) run 3's copied journal @ `bfa8a3b` shows the same shape (87 lines = 46 started + 41 result, zero `log()` output — red's finding, reproduced); (c) `scripts/cost-audit.mjs` read in full first-hand — input glob `agent-*.jsonl` (l.28), zero journal.jsonl references. Conclusion: harness `log()` is operator-console-ephemeral; the journal is the harness's lifecycle log, not a script sink. Accessed 2026-07-14.
-[^MergeDecomposition]: Run-3 red-merge context decomposition. Round-2 measurement: `agent-transcripts.tar.gz` @ the pinned run's working tree (7,040,514 bytes, 46 members) extracted to a session scratchpad; each red-merge transcript (identified by cost-audit.mjs's own "Red merge, round N" head match) parsed with a ~70-line node script — tool_result bytes attributed to source files via their tool_use `file_path`/command, cache-weighting = bytes × remaining assistant turns (approximates prefix re-billing at cache-read rate; ignores system prompt and harness overhead). **Instrument correction record (round 3, per red R3-1):** the round-2 script lived in the session scratchpad and was NOT retained — an unreproducible work-done claim under §6.2's own attestation ceiling. The method is now committed as **`trajectories/decompose-merge.mjs`** (this run's directory) and was re-run 2026-07-14 against the pinned tarball: the raw table reproduces exactly (±1 point, all five rounds; per-round totals 173/246/249/188/317KB; round-5 blue ingest 145.7KB; parser validation: 61 assistant turns found for round 5, matching cost.md's 61 turns); the round-2 dollar series does NOT reproduce under the stated 4-bytes/token conversion — it, and lens 3's independent round-3 recompute (Σ$12.4), priced cache-weighted BYTES as tokens, a ≈4× overstatement corrected in §4.2 (strict series ≈$0.26/0.53/0.89/1.16, Σ≈$2.8/run; ceiling cross-check against cost.md's measured per-round cache-read tokens in §4.2). **Archive-fraction derivation (round 3):** pinned findings.md's superseded-preserved blocks (l.340 "Verdict (round 4): FAIL — superseded by round 5, preserved" through EOF l.1364) = 76,356 of 105,223 LF-normalized body bytes = 72.6%, via `awk 'NR<340{a+=length($0)+1} NR>=340{b+=length($0)+1} END{print a, b}' red/findings.md` @ `bfa8a3b`; conservative — closure-status records above the boundary would also archive under sharding. **Retention assumption, stated:** the tarball is gitignored (`**/trajectories/agent-transcripts.tar.gz` — the only .gitignore entry, lens-6 leaf read) and exists only in a run's working tree, never in the git object store; the parser reproduces only where a tarball survives, so each run's decomposition OUTPUT must be committed to the git-tracked record (this footnote + §4.2) at measurement time. Measured 2026-07-14 (round 2); re-derived from the committed instrument 2026-07-14 (round 3).
+[^MergeDecomposition]: Run-3 red-merge context decomposition. Round-2 measurement: `agent-transcripts.tar.gz` @ the pinned run's working tree (7,040,514 bytes, 46 members) extracted to a session scratchpad; each red-merge transcript (identified by cost-audit.mjs's own "Red merge, round N" head match) parsed with a ~70-line node script — tool_result bytes attributed to source files via their tool_use `file_path`/command, cache-weighting = bytes × remaining assistant turns (approximates prefix re-billing at cache-read rate; ignores system prompt and harness overhead). **Instrument correction record (round 3, per red R3-1):** the round-2 script lived in the session scratchpad and was NOT retained — an unreproducible work-done claim under §6.2's own attestation ceiling. The method is committed as **`trajectories/decompose-merge.mjs`** — tracked in the git object store at commit **`fed2449`** (status corrected round 4 per red R4-2: between round 3's write and that commit the file was present but UNTRACKED, and round 3's "committed" overstated the object-store fact; the tracking arrived via the spend-limit abort's forced run-record commit — convention, not mechanism, hence the capture-manifest recommendation in §4.2) — and was re-run 2026-07-14 against the pinned tarball (round 3), and again 2026-07-15/16 at the round-4 judge seat and this seat (sixth and seventh reproductions): the raw table reproduces exactly (±1 point, all five rounds; per-round totals 173/246/249/188/317KB; round-5 blue ingest 145.7KB; parser validation: 61 assistant turns found for round 5, matching cost.md's 61 turns); the round-2 dollar series does NOT reproduce under the stated 4-bytes/token conversion (strict series ≈$0.26/0.53/0.89/1.16, Σ≈$2.8/run; ceiling cross-check against cost.md's measured per-round cache-read tokens in §4.2). **Provenance correction (round 4, per red R4-1):** the round-3 diagnosis — bytes priced as tokens, conversion dropped at the pricing step — is withdrawn: strict×4 misses the printed series by 12–35%/round; what reproduces both the printed ~$1.40/2.60/4.10/4.10 and lens 3's Σ$12.4 (≤3%) is **cache-weighted share × whole-merge dollars** — proportional attribution of TOTAL merge cost, the method red's ledger l.192 actually records for lens 3 ("share × merge $"); the round-3 text misattributed the bytes-as-tokens method to red against that ledger. ≈4× above the strict cache-read series and answering a different question; figures unchanged (§4.2). **Companion instrument (round 4, per red R4-4):** `trajectories/batch-collapse.mjs` measures the read-batching turn-collapse term from the same transcripts (avoided candidate-ingestion calls billed $0.36–0.54/round, Σ$2.21/run) — written into the run directory at a git-tracked path; it enters the object store with the run-record commit, and the §4.2 capture-manifest recommendation exists so that happens by mechanism. **Archive-fraction derivation (round 3):** pinned findings.md's superseded-preserved blocks (l.340 "Verdict (round 4): FAIL — superseded by round 5, preserved" through EOF l.1364) = 76,356 of 105,223 LF-normalized body bytes = 72.6%, via `awk 'NR<340{a+=length($0)+1} NR>=340{b+=length($0)+1} END{print a, b}' red/findings.md` @ `bfa8a3b`; conservative — closure-status records above the boundary would also archive under sharding. **Retention assumption, stated:** the tarball is gitignored (`**/trajectories/agent-transcripts.tar.gz`, l.21 — the only .gitignore entry touching run trajectories; universal narrowed round 4 per red R4-10: the file holds other entries, this is the only trajectories-scoped one, re-read at this seat) and exists only in a run's working tree, never in the git object store; the parser reproduces only where a tarball survives, so each run's decomposition OUTPUT must be committed to the git-tracked record (this footnote + §4.2) at measurement time. Measured 2026-07-14 (round 2); re-derived from the committed instrument 2026-07-14 (round 3); provenance corrected and turn-collapse measured 2026-07-16 (round 4).
 
 External sources:
 

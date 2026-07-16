@@ -753,3 +753,190 @@ around verified substance (round 4). The residual defect class is now "the story
 verified work," which suggests the bar's next form: no past-tense work-done verb ("committed,"
 "measured," "re-run") and no error-mechanism claim ships without the one command that would
 make it true or the one recompute that reproduces it.
+
+### LEAD
+
+Adjudication, round 4 (resumed dispatch — the original judge-r4 died on the account spend
+limit after red's merge completed; the abort-record commit that resumption required changes
+one gap's facts, noted at R4-2). Docket: all 10 gaps, every one a regression-chain successor.
+Independent verification performed at the judge seat before ruling — including the run's
+sixth independent reproduction of the instrument: `decompose-merge.mjs` re-run at THIS seat
+against a fresh extraction of the pinned tarball (46 members, 7,040,514 bytes). From my own
+run's output: strict series $0.26/0.53/0.89/1.16 Σ$2.84 exact; cache-weighted findings
+shares computed per round = 0.26/2.44 = 10.7%, 0.53/2.54 = 20.9%, 0.89/2.27 = 39.2%,
+1.16/3.80 = 30.5%, against printed-series ÷ cost.md merge dollars (1.40/13.22,
+2.60/12.64, 4.10/10.60, 4.10/13.56) = 10.6/20.6/38.7/30.2% — match ≤0.5pt, while
+bytes-priced-as-tokens (strict × 4) = $1.04/2.12/3.56/4.64 misses the printed series by
+12–35% per round: red's R4-1 mechanism claim reproduces and the report's dropped-conversion
+diagnosis is refuted by its own committed instrument (R4-1). Ledger l.192 re-read: lens 3's
+method is recorded as "bytes × remaining turns, share × merge $" — the four-site narrative
+does misattribute the ledgered method (R4-1). Pinned debate.js re-read: GRADE enum, 8
+members including `trivial`, likelihood/impact both typed GRADE (R4-5); the lens dispatch
+names blue/report.md + CHANGELOG (+ ledger for citation instances) and forbids writing
+debate.md — no debate.md read; judge dispatch conditional on a contested docket (R4-3).
+Repo .gitignore read: 14 entries, the l.21 tarball pattern the only trajectories-scoped one
+(R4-10). Report quotes re-read at every cited site: §3.3(v)'s three residuals — including
+the same clause saying "lenses do not read that surface" five lines before claiming "every
+seat ... already read" (R4-3); §6.1's $2–4/RUN vs §4.6's $1–2/ROUND (R4-4); §8 Q6's
+seven-token pin with no `trivial`, no certain/realized semantics rule, no conditional-cell
+convention (R4-5); §4.5 condition 6's two creators for the same files (R4-6); §2.4's
+"low-mass rounds 3–5" against §2.1's series where the round-3 throttle input is the
+post-round-2 board at ~65, the run's second-highest (R4-7); §1.5's dropped "unadjudicated"
+(R4-8); §2.5 item 1 vs §3.3(v) by construction (R4-9). Red's board is accurate at the leaf
+on all 10.
+
+Structural note, third consecutive round: all 10 are first-raise successors — blue has not
+spoken to any of them, so `closed` and `rebuttal_sustained` are unavailable by construction
+and the live question per gap is carried vs risk_accepted. Seven are certain-likelihood;
+every fix is trivial-to-low complexity below its likelihood × impact — blue's own absorb
+threshold — and the two that touch registered runs-4/5 evidence (R4-1's forensic narrative,
+R4-7's throttle figure) would settle wrong into the actuation record if risk-accepted.
+Same calculus as rounds 2 and 3: risk-accepting certain-likelihood defects with
+one-sentence fixes in a report whose figures feed actuation decisions would be recording
+error, not managing risk. All 10 carried.
+
+Rulings:
+
+- **R4-1 — CARRIED.** Verified by this seat's own instrument run (arithmetic above). Blue
+  owes: at all four sites (§4.2, §6.1 item 1, §8 Q2, [^MergeDecomposition]) replace the
+  dropped-conversion claim with the reproducible provenance — both the printed series and
+  lens 3's Σ$12.4 match cache-weighted share × whole-merge dollars, a proportional
+  attribution of TOTAL merge cost (cache-write, output, seat overhead included), not a
+  cache-read attribution and not comparable to cost.md's cache-read ceiling — and correct
+  the lens-3 characterization to the ledgered method. No figure changes: the $2.8 floor,
+  the $5.4–6.3 ceiling, and the ≈4× ratio all survive (re-confirmed at this seat). Red's
+  ledger annotation of the round-3 HIGH is accepted as recorded.
+- **R4-2 — CARRIED, with the facts updated.** Red's board was accurate when merged
+  (untracked at every seat's read). It is no longer: the abort-record commit `fed2449`
+  now tracks `trajectories/decompose-merge.mjs`, so the required fix's preferred branch
+  (commit) is satisfied — by accident. A spend-limit abort forcing a record commit is not
+  a preservation mechanism; it is red's "convention, not mechanism" point demonstrated by
+  the run's own history. Blue owes: (a) cite the commit hash at [^MergeDecomposition] (or
+  §4.2) so "committed" is anchored to an object-store fact — one clause; (b) one sentence
+  recommending instrument-class files (`trajectories/*.mjs`) be named in the run-record
+  capture manifest, so the next instrument survives by mechanism rather than by abort.
+- **R4-3 — CARRIED.** Fourth generation of the clause-(v) chain; verified against the
+  pinned lens prompt and live-corroborated by this dispatch (this seat reads debate.md
+  because the JUDGE dispatch names it — the lens dispatch does not). Blue owes all three
+  of red's fixes: (i) restate the reader set from the pinned prompts (blue every round,
+  judge when dispatched, operator; lenses do not) or add the latest `### RED` to the lens
+  read surface as a stated, priced prompt change — and prune the docket-rights list to
+  seats with a read path; (ii) name the independent reconciliation: any actuation review
+  MUST diff round-over-round grade values in the git-tracked findings record against the
+  listed deltas, an unlisted accepted delta disqualifies the affected rounds from the
+  actuation series, stated as §6.2's post-hoc tier; (iii) name the cumulative-threshold
+  executor (the script, from envelope-resident values under the pinned mapping) and cite
+  clause (vii)'s cap as "the stated cap," not the worked-example "5."
+- **R4-4 — CARRIED.** Unit mismatch verified at both sites. Blue owes: re-derive the
+  batching saving from the committed instrument's output under the strict conversion and
+  state it per-run in the §6.1 comparison — noting the derivation must model the
+  turn-collapse effect honestly (batching saves re-billed PREFIX turns, not just the
+  candidate-line bytes, so red's $0.3–0.5/round inference is a floor argument, not the
+  answer) — or mark the batching figure modeled-not-measured with the same status
+  discipline R3-1 imposed on its sibling. Either branch satisfies; an un-recomputed figure
+  may not keep "comparable" in the sentence ranking the run's top two items.
+- **R4-5 — CARRIED.** Enum totality verified at the pin. Blue owes the three pin sentences
+  plus the telemetry column: assign or exclude `trivial` explicitly; state the
+  certain/realized rule at the semantics, not the token (an already-realized likelihood is
+  excluded whichever token carries it, or collapse the tokens and say so); pin the
+  conditional-cell convention (current-run branch enters the series); add the
+  `realized_open` count or excluded-mass memo to the §2.5-item-1 telemetry line.
+- **R4-6 — CARRIED.** Both creator clauses re-read side by side at this seat; the
+  contradiction is real and the preflight as scheduled fires after the decision it gates.
+  Blue owes: (i) reconcile the creator — one seat, named, with "skeleton-born" updated to
+  match; (ii) reschedule the preflight BEFORE the PR (a red-merge-class seat test-writes
+  the proposed shard names as a closing act of run 4 — two Write calls — with the PR citing
+  it), or promote the verify-seat-independence branch from alternative to default. Red's
+  vector honesty on "opening act" is noted and correct practice; the hole is still a hole.
+- **R4-7 — CARRIED.** Verified against §2.1's own series: the throttle input for round 3
+  is the post-round-2 board (~65, second-highest of the run). Blue owes the one sentence
+  stating throttle-input timing (boards after rounds 2–4 gate rounds 3–5's spend) and the
+  restated saving — $12–18/run with the $18 branch conditional on a threshold that admits
+  mass 65 — or a concrete threshold with the rounds it fires on shown. The registered
+  figure feeds §6.1's baseline framing; it may not settle as a point estimate.
+- **R4-8 — CARRIED.** Both clauses re-read side by side. Blue owes the one word plus
+  parenthesis exactly as red drafted it. Conservative direction noted — which is why this
+  is carried rather than risk-accepted: the registered prediction exists to test the arm,
+  and a prediction stricter than its arm silently under-counts the §2.5-item-3
+  build-trigger record.
+- **R4-9 — CARRIED.** Divergence by construction, verified. Blue owes the one sentence in
+  §2.5 item 1: the recompute reconciles via the line's own delta record and the `### RED`
+  listing — a pending-window delta is EXPECTED divergence, and the telemetry line with its
+  delta record is correct as logged.
+- **R4-10 — CARRIED.** Fourteen entries read at this seat. Blue owes the four words:
+  "the only .gitignore entry touching run trajectories."
+
+**Deadlock: FALSE.** Ten gaps carried; no new gaps were raised this round — the anti-spinning
+signal is armed but not tripped, because every carried item has stated owed work and the
+trajectory still converges (35 → 18 → 14 → 10; the board's one MEDIUM is a narrative defect
+around figures now six-times reproduced). Blue's round-5 bar, adopting red's own proposal
+from the round-4 merge: no past-tense work-done verb ("committed," "measured," "re-run") and
+no error-mechanism claim ships without the one command that would make it true or the one
+recompute that reproduces it — and, added by this seat: no comparative ("comparable,"
+"dominant," "largest") ships without both operands in the same unit from the same
+derivation status. The fix surface is ten text edits, one re-derivation, and one citation
+of a commit hash that already exists; a clean sweep here closes the board.
+
+### BLUE
+
+Round 4 response: all 10 carried gaps absorbed — zero rebuttals, zero risk-accepts. Seven of
+ten were certain-likelihood with trivial-to-low fixes; the lead's calculus (risk-accepting
+certain defects with one-sentence fixes in a report feeding actuation decisions is recording
+error, not managing risk) is blue's own absorb threshold applied honestly, and the two gaps
+touching registered runs-4/5 evidence (R4-1, R4-7) were exactly the ones that must not settle
+wrong. Edit log in blue/CHANGELOG.md Round 4; the substance:
+
+1. **R4-1, the board's one MEDIUM, is repaired with the recompute that reproduces it — and
+   the run's SEVENTH reproduction of the instrument.** The round-3 "byte→token conversion
+   dropped" diagnosis is withdrawn at all four sites plus two adjacent clauses: re-run at
+   this seat, strict×4 gives $1.04/2.12/3.56/4.64 (misses the printed series 12–35%/round),
+   while cache-weighted share × WHOLE-MERGE dollars reproduces both the printed series and
+   lens 3's Σ$12.4 to ≤0.5pt on shares (10.7/20.9/39.2/30.5 vs 10.6/20.6/38.7/30.2). The
+   lens-3 characterization is corrected to the ledgered method (l.192, "share × merge $") —
+   blue mis-stated red's method against red's own ledger, and the correction record now says
+   so. No figure changed: $2.8 floor, ≈$6 ceiling, ≈4× ratio re-confirmed first-hand.
+2. **R4-4 took the stronger branch: the batching figure is now MEASURED, not re-marked.** A
+   companion instrument (`trajectories/batch-collapse.mjs`, same tool_result pairing as the
+   committed parser) measures the turn-collapse term from the pinned transcripts' own usage
+   records: avoided candidate-ingestion calls billed $0.42/0.41/0.36/0.49/0.54 across rounds
+   1–5, Σ$2.21/run — squarely in red's inferred band, and measured ABOVE red's floor
+   reasoning exactly as the lead predicted (the billed prefix at the avoided calls, system
+   prompt included, is the operative term; candidate reads happen early, at 16–64K-token
+   prefixes, which is why the old end-of-transcript model ran 2–4× high). §6.1's top-two
+   ranking now compares $2–4/run (modeled) against $2.2/run (measured), one unit, statuses
+   named — and the correction strengthens the §4.6 collator kill it lives in.
+3. **R4-2's facts moved under red mid-round and the report says so:** `fed2449` tracks the
+   instrument (verified `git ls-files` at this seat), so "committed" is now anchored to a
+   hash at every site — with the present-but-untracked interval stated, the abort-as-
+   mechanism irony recorded (a spend-limit abort forcing a record commit is red's
+   "convention, not mechanism" point demonstrated by the run's own history), and the
+   capture-manifest recommendation (`trajectories/*.mjs`) added so the next instrument
+   survives by mechanism. The new instrument's status is stated under the same discipline:
+   at a git-tracked path, enters the object store with the run-record commit.
+4. **The clause-(v) chain (R4-3, generation four) is closed by pruning, naming, and
+   executing:** the reader set is restated from the pinned prompts (lenses do NOT read
+   debate.md — the lens docket right was decorative and is withdrawn, kept only as a priced
+   prompt-change option); "never enters mass" is now policy WITH its enforcement at §6.2's
+   post-hoc tier (actuation review diffs git-tracked findings grades against listed deltas;
+   an unlisted accepted delta disqualifies the affected rounds); the cumulative threshold's
+   executor is the SCRIPT over envelope-resident values under the pinned mapping, and
+   clause (vii)'s cap is cited as stated, not as its worked example.
+5. **The Q6 mapping is total (R4-5):** trivial=0.5; the certain/realized rule pinned at the
+   semantics (already-realized excluded whichever token carries it; bare certain = projected
+   = 3.5) with the cliff's validation-bias and incentive consequences priced into a
+   realized_open/excluded-mass telemetry column at both field-list sites; conditional cells
+   read at the current-run branch. R4-6: one creator (red-merge Writes both shards), with
+   the preflight rescheduled BEFORE the PR as a run-4 closing act and the
+   verify-independence branch promoted to default if run 4 closes without it. R4-7: throttle
+   timing stated (post-round-2 ~65 gates round 3 — second-highest board of the run), saving
+   restated $12–18/run with $18 as a conditional ceiling. R4-8/R4-9/R4-10: the word, the
+   sentence, and the four words, as drafted.
+
+Round-5-bar note, adopted in advance: every work-done verb this round carries a hash, a
+re-run, or an explicit not-yet-tracked status; the one error-mechanism claim ships with its
+reproducing arithmetic; every comparative has both operands in one unit with derivation
+status named. The board red graded was 10 textual-and-composition defects around six-times-
+verified substance; blue's position is that this round leaves the substance seven-times
+verified and the story told about it matching the ledger, the object store, and the
+instruments' own output.
+

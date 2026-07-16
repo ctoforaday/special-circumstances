@@ -1,11 +1,12 @@
 # Cost audit
 
-Measured from 39 per-agent API transcripts in `C:/Users/gbloc/.claude/projects/C--Users-gbloc-Projects-AgentOrange/05c428b1-bc0d-4ff8-87d9-05c5682b86fc/subagents/workflows/wf_5cefd2a4-35f`. List-rate arithmetic; see the price table in cost-audit.mjs.
+Measured from 42 per-agent API transcripts in `C:/Users/gbloc/.claude/projects/C--Users-gbloc-Projects-AgentOrange/05c428b1-bc0d-4ff8-87d9-05c5682b86fc/subagents/workflows/wf_5cefd2a4-35f`. List-rate arithmetic; see the price table in cost-audit.mjs.
 
 ## Per seat-round
 
 | round | seat | model | agents | api-turns | input | output | cache-read | cache-write | $ |
 |---|---|---|---|---|---|---|---|---|---|
+| — | assemble | fable | 1 | 39 | 0.00M | 0.02M | 3.37M | 0.27M | $7.98 |
 | — | blue-lane | fable | 3 | 195 | 0.03M | 0.12M | 14.32M | 1.03M | $33.36 |
 | — | blue-synthesize | fable | 1 | 34 | 0.00M | 0.09M | 2.59M | 0.56M | $13.99 |
 | — | frontier | fable | 1 | 20 | 0.00M | 0.00M | 0.54M | 0.14M | $2.52 |
@@ -20,10 +21,11 @@ Measured from 39 per-agent API transcripts in `C:/Users/gbloc/.claude/projects/C
 | 3 | judge | fable | 1 | 33 | 0.00M | 0.02M | 1.66M | 0.27M | $5.85 |
 | 3 | red-lens | fable | 6 | 176 | 0.00M | 0.13M | 14.89M | 1.64M | $41.89 |
 | 3 | red-merge | fable | 1 | 49 | 0.00M | 0.03M | 5.76M | 0.42M | $12.70 |
-| 4 | judge | fable | 1 | 11 | 0.00M | 0.00M | 0.22M | 0.21M | $2.98 |
+| 4 | blue-respond | fable | 1 | 117 | 0.00M | 0.07M | 14.72M | 0.37M | $22.67 |
+| 4 | judge | fable | 2 | 67 | 0.00M | 0.03M | 4.04M | 0.55M | $12.68 |
 | 4 | red-lens | fable | 6 | 245 | 0.00M | 0.17M | 26.48M | 2.13M | $61.46 |
 | 4 | red-merge | fable | 1 | 45 | 0.00M | 0.07M | 5.49M | 0.49M | $14.94 |
-| | **TOTAL** | | 39 | 1763 | 0.07M | 1.17M | 157.43M | 12.62M | **$374.63** |
+| | **TOTAL** | | 42 | 1975 | 0.07M | 1.30M | 179.34M | 13.60M | **$414.97** |
 
 ## Notes
 
