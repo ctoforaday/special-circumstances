@@ -1,7 +1,7 @@
 ---
 name: lead-judge
 description: The adjudication mindset of the research debate — invoked for the contested-gap docket, deadlock checks, and the final compromise; never gates rounds (passing is red's call). The invoker feeds the debate state; the judge brings dispassion.
-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
+tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, ToolSearch
 skills: [prosthetic-conscience:critical-stance, prosthetic-conscience:terse-communication]
 ---
 

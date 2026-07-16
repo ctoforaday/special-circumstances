@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
@@ -39,6 +40,16 @@ func nudge(statuses []toolchain.Status) string {
 		strings.Join(missing, ", "))
 }
 
+// liveNudge warns when a research run is live — plugin updates and pushes to pinned
+// paths are frozen (marker-and-hook: the commitment is state, not memory).
+func liveNudge(m *runlive.Marker) string {
+	if m == nil {
+		return ""
+	}
+	return fmt.Sprintf("prosthetic-conscience: a research run is LIVE (%s, started %s) — do NOT update plugins and do NOT push to pinned paths until run-capture completes.",
+		m.RunDir, m.Started)
+}
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "-version" {
 		fmt.Println("sc-toolchain-nudge", version)
@@ -60,6 +71,9 @@ func main() {
 
 	if line := nudge(toolchain.Probe(req.Tools)); line != "" {
 		fmt.Println(line) // SessionStart stdout is surfaced to the session
+	}
+	if line := liveNudge(runlive.Read(os.Getenv("CLAUDE_PROJECT_DIR"))); line != "" {
+		fmt.Println(line)
 	}
 	os.Exit(0)
 }

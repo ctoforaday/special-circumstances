@@ -1,4 +1,5 @@
 {
+  "_comment": "Every command is wrapped in the bootstrap guard: a fresh plugin-cache version ships from git WITHOUT binaries (they arrive via doctor --fix), and an unguarded hook crash-storms every tool call in that window (measured, 0.7.0 dance). The guard degrades to ONE stderr line pointing at the fix. Guard shell is Git Bash on every platform (verified live: the 0.7.0 failures came from /usr/bin/bash).",
   "hooks": {
     "PreToolUse": [
       {
@@ -6,7 +7,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/sc-secrets-gate\""
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-secrets-gate\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-push-freeze-guard\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -17,11 +27,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate\""
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/sc-recall-index\""
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-recall-index\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -31,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/sc-toolchain-nudge\""
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-toolchain-nudge\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

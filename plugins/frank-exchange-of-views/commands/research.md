@@ -17,15 +17,15 @@ is two script invocations.
 2. **Set up the blackboard** (mechanics — the script is idempotent, keeps anything pre-staged,
    writes the `.run-live` marker for the hook guards, and does NOT create the red-merge-born
    artifacts):
-   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/run-setup.mjs <run directory> --topic "<topic>" --cite <path>[@pin] ... `
+   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/setup-research-run.mjs <run directory> --topic "<topic>" --cite <path>[@pin] ... `
    Relay its summary. If qmd is reported missing, that is fine (optional tier — the doctor
    installs it; NEVER install it here and NEVER run it via npx).
 3. Invoke the **Workflow** tool with `scriptPath` = `${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/debate.js` and `args` = `{ "topic": "<topic>", "runDir": "<run directory path>", "lanes": N, "maxRounds": N, "model": "<model>", "judgmentModel": "<model>", "laneFloorOverride": "<reason, only if lanes < 3>" }` (omit models unless given). Note the **Transcript dir** path the tool prints — step 5 needs it. **Model guidance:** `model` drives the bulk seats (lanes, lenses, responses); `judgmentModel` drives the judgment seats (blue-synthesize, red-merge, judge, assemble) and defaults to inheriting the session model — NOT to `model` — so a cheap dev run keeps full-strength judgment. **For keeper runs, omit `model` entirely: red's lenses ride the bulk tier, and a cheap bulk model silently discounts the leaf-node verification that is load-bearing (retrospective §3 row 16b) — treat lens-sourced grades from cheap-bulk runs with a confidence discount.** `model: sonnet` for development; `--smoke` for smoke tests. On a RESUME, keep the original run's models — changing either busts the agent cache and re-runs completed rounds; a REDUCED `maxRounds` is the cache-safe stop-and-resume terminator (the standing practice — read the board telemetry, judge the stop yourself).
 4. AFTER the workflow returns, relay its envelope verbatim (verdict, rounds, lanes, outstanding gaps) plus the run-directory path — YOU MUST NOT re-summarize the report's content; the report is the deliverable, and it is for the human. If the verdict is UNVERIFIED, say so plainly with the outstanding gap count — the gate never soft-passes, and neither does the relay.
 5. **Capture the run record** (mechanics — journal copy, transcript tarball, cost.md with the
    telemetry join, the mechanized post-hoc audits, and `.run-live` marker removal):
-   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/run-capture.mjs <run directory> <transcript dir>`
-   Relay `capture-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
+   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/capture-research-run.mjs <run directory> <transcript dir>`
+   Relay `run-record-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
    finding (missing telemetry line, shard self-report diverging from disk, envelope friction
    missing from friction.md) — report it like an UNVERIFIED: plainly, never smoothed over.
    Your judgment half: read the envelope's friction entries against friction.md and dedupe

@@ -41,6 +41,24 @@ jobs:
       - run: node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs plugins/frank-exchange-of-views/tests/simulator/cost-audit.test.mjs plugins/frank-exchange-of-views/tests/simulator/run-scripts.test.mjs
       - name: Validate all tracked JSON (manifests break silently)
         run: node .github/validate-json.mjs
+      - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
+        run: |
+          EMPTY="$(mktemp -d)"
+          node -e "
+            const h = require('./plugins/prosthetic-conscience/hooks/hooks.json');
+            const cmds = [];
+            for (const evs of Object.values(h.hooks)) for (const e of evs) for (const k of e.hooks) cmds.push(k.command);
+            require('fs').writeFileSync('/tmp/hook-cmds.txt', cmds.join('\n') + '\n');
+            console.log(cmds.length + ' hook command(s) extracted');
+          "
+          while IFS= read -r cmd; do
+            [ -z "$cmd" ] && continue
+            if ! CLAUDE_PLUGIN_ROOT="$EMPTY" bash -c "$cmd" </dev/null >/dev/null 2>/tmp/hook-stderr.txt; then
+              echo "GUARD FAILED (non-zero exit) for: $cmd"; exit 1
+            fi
+            grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing for: $cmd"; exit 1; }
+          done < /tmp/hook-cmds.txt
+          echo "all hook commands exit 0 with the guard warning on an empty plugin root"
 
   release:
     # Cross-compile + publish binaries when a plugin version tag is pushed (e.g. prosthetic-conscience--v0.1.0).

@@ -118,6 +118,104 @@ func versionOf(checkCmd string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// ---- Cross-plugin aggregation + dance-state (efficiency phase PR-C) ----
+
+// pluginReq is one sibling plugin's requirements, tagged with its origin.
+type pluginReq struct {
+	Plugin string
+	Tools  []toolchain.Tool
+}
+
+// semverLess compares dotted numeric versions (missing parts = 0).
+func semverLess(a, b string) bool {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < 3; i++ {
+		x, y := 0, 0
+		if i < len(pa) {
+			fmt.Sscanf(pa[i], "%d", &x)
+		}
+		if i < len(pb) {
+			fmt.Sscanf(pb[i], "%d", &y)
+		}
+		if x != y {
+			return x < y
+		}
+	}
+	return false
+}
+
+// newestVersionDir returns the highest-semver subdirectory name, "" if none.
+func newestVersionDir(pluginDir string) string {
+	entries, err := os.ReadDir(pluginDir)
+	if err != nil {
+		return ""
+	}
+	best := ""
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if best == "" || semverLess(best, e.Name()) {
+			best = e.Name()
+		}
+	}
+	return best
+}
+
+// siblingRequirements walks the marketplace cache (root/../..) and aggregates every OTHER
+// installed SC plugin's newest requirements.json — each plugin owns its manifest; the
+// doctor reports the whole suite (backlog: doctor cross-plugin aggregation).
+func siblingRequirements(root string) []pluginReq {
+	marketDir := filepath.Dir(filepath.Dir(root)) // <plugin>/<version> -> cache root
+	selfPlugin := filepath.Base(filepath.Dir(root))
+	entries, err := os.ReadDir(marketDir)
+	if err != nil {
+		return nil
+	}
+	var out []pluginReq
+	for _, e := range entries {
+		if !e.IsDir() || e.Name() == selfPlugin {
+			continue
+		}
+		v := newestVersionDir(filepath.Join(marketDir, e.Name()))
+		if v == "" {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(marketDir, e.Name(), v, "requirements.json"))
+		if err != nil {
+			continue
+		}
+		var req requirements
+		if err := json.Unmarshal(raw, &req); err != nil {
+			continue
+		}
+		out = append(out, pluginReq{Plugin: e.Name(), Tools: req.Tools})
+	}
+	return out
+}
+
+// danceWarnings computes update-dance state from observable cache facts: a newer version
+// dir than the one running means the dance is mid-flight; a newest dir with an empty bin/
+// is the empty-bin window (the 0.7.0 crash-storm class). Deterministic verdicts, not
+// remembered rituals.
+func danceWarnings(root string) []string {
+	pluginDir := filepath.Dir(root)
+	current := filepath.Base(root)
+	newest := newestVersionDir(pluginDir)
+	var out []string
+	if newest != "" && semverLess(current, newest) {
+		out = append(out, fmt.Sprintf("DANCE INCOMPLETE: this doctor runs from %s but the cache holds %s — finish the dance (/plugin update -> /reload-plugins -> /reload-skills -> doctor --fix).", current, newest))
+	}
+	if newest != "" {
+		binDir := filepath.Join(pluginDir, newest, "bin")
+		entries, err := os.ReadDir(binDir)
+		if err != nil || len(entries) == 0 {
+			out = append(out, fmt.Sprintf("EMPTY-BIN WINDOW: cache %s has no hook binaries — hooks degrade to guard warnings until doctor --fix runs there.", newest))
+		}
+	}
+	return out
+}
+
 // releaseRepo is where CI publishes the cross-compiled hook binaries.
 const releaseRepo = "ctoforaday/special-circumstances"
 
@@ -240,5 +338,21 @@ func main() {
 	}
 
 	fmt.Print(table(tools, bins))
-	fmt.Println("VERDICT:", verdict(tools, bins))
+
+	// Cross-plugin aggregation: every installed SC plugin's own requirements.json,
+	// probed and reported here — one preflight for the whole suite.
+	for _, pr := range siblingRequirements(root) {
+		fmt.Printf("-- %s --\n", pr.Plugin)
+		fmt.Print(table(toolchain.Probe(pr.Tools), nil))
+	}
+
+	warnings := danceWarnings(root)
+	for _, w := range warnings {
+		fmt.Println(w)
+	}
+	v := verdict(tools, bins)
+	if v == "READY" && len(warnings) > 0 {
+		v = "DEGRADED"
+	}
+	fmt.Println("VERDICT:", v)
 }

@@ -5,8 +5,8 @@
 // did not do. This script IS that named auditor for the mechanical checks: it recomputes
 // counts from the FILES and diffs them against the envelopes' self-reports.
 //
-// Usage: node run-capture.mjs <runDir> <workflow-transcript-dir>
-// Writes <runDir>/capture-audit.md, <runDir>/cost.md, trajectories/journal.jsonl (copy),
+// Usage: node capture-research-run.mjs <runDir> <workflow-transcript-dir>
+// Writes <runDir>/run-record-audit.md, <runDir>/cost.md, trajectories/journal.jsonl (copy),
 // trajectories/agent-transcripts.tar.gz; removes the .run-live marker.
 import { existsSync, readFileSync, writeFileSync, copyFileSync, readdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -108,7 +108,7 @@ export function capture(runDir, transcriptDir) {
   if (existsSync(marker)) { rmSync(marker); lines.push('run-live marker: removed') }
 
   const report = [
-    '# capture-audit — mechanized post-hoc checks (run-capture.mjs)',
+    '# capture-audit — mechanized post-hoc checks (capture-research-run.mjs)',
     '',
     'Presence/consistency tier only: these checks catch a missing line and a self-inconsistent',
     'self-report; a plausible-but-wrong value is vacuity, whose auditor is the next run/',
@@ -119,13 +119,13 @@ export function capture(runDir, transcriptDir) {
     ...lines.map((l) => `- ${l}`),
     '',
   ].join('\n')
-  writeFileSync(join(runDir, 'capture-audit.md'), report)
+  writeFileSync(join(runDir, 'run-record-audit.md'), report)
   return { audits, report }
 }
 
 function main() {
   const [runDir, transcriptDir] = process.argv.slice(2)
-  if (!runDir || !transcriptDir) { console.error('usage: node run-capture.mjs <runDir> <workflow-transcript-dir>'); process.exit(1) }
+  if (!runDir || !transcriptDir) { console.error('usage: node capture-research-run.mjs <runDir> <workflow-transcript-dir>'); process.exit(1) }
   const { audits, report } = capture(runDir, transcriptDir)
   console.log(report)
   process.exitCode = audits.some((a) => a.verdict === 'FAIL') ? 2 : 0

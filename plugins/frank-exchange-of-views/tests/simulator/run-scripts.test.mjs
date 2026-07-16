@@ -1,4 +1,4 @@
-// node --test — run-setup.mjs / run-capture.mjs against temp-dir fixtures. Zero tokens,
+// node --test — setup-research-run.mjs / capture-research-run.mjs against temp-dir fixtures. Zero tokens,
 // zero network; the automation-doctrine counterpart of the debate simulator: mechanics
 // that moved from prose to scripts get tests the prose never had.
 import { test } from 'node:test'
@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildSkeleton, buildPinned, mirrorGapPatterns, writeRunLiveMarker } from '../../skills/research-protocol/scripts/run-setup.mjs'
-import { readJournal, telemetryAudit, shardAudit, frictionAudit } from '../../skills/research-protocol/scripts/run-capture.mjs'
+import { buildSkeleton, buildPinned, mirrorGapPatterns, writeRunLiveMarker } from '../../skills/research-protocol/scripts/setup-research-run.mjs'
+import { readJournal, telemetryAudit, shardAudit, frictionAudit } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'feov-runscripts-'))
 
@@ -129,8 +129,8 @@ test('shard audit: pre-sharding run (no ledger/archive) is SKIP, not FAIL', () =
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
-import { qmdRefresh } from '../../skills/research-protocol/scripts/run-setup.mjs'
-import { capture } from '../../skills/research-protocol/scripts/run-capture.mjs'
+import { qmdRefresh } from '../../skills/research-protocol/scripts/setup-research-run.mjs'
+import { capture } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
 
 const SCRIPTS = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills', 'research-protocol', 'scripts')
 
@@ -161,7 +161,7 @@ test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with te
   assert.ok(cost.includes('# Cost audit'), 'cost.md written via cost-audit.mjs')
   assert.ok(cost.includes('## Board telemetry'), 'telemetry join section present')
   assert.ok(cost.includes('CUMULATIVE ARCHIVE'), 'corrected physics finding in notes')
-  const audit = readFileSync(join(runDir, 'capture-audit.md'), 'utf8')
+  const audit = readFileSync(join(runDir, 'run-record-audit.md'), 'utf8')
   assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: FAIL'),
     'audit verdicts rendered (fixture has envelope friction not present in friction.md)')
   assert.ok(!existsSync(marker), 'run-live marker removed')
@@ -171,7 +171,7 @@ test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with te
 test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are never smoothed over)', () => {
   const runDir = fixtureRun({ ledgerLines: 1, archiveBlocks: 1, frictionInFile: false })
   const transcriptDir = fixtureTranscript()
-  const r = spawnSync(process.execPath, [join(SCRIPTS, 'run-capture.mjs'), runDir, transcriptDir])
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'capture-research-run.mjs'), runDir, transcriptDir])
   assert.equal(r.status, 2, `expected exit 2, got ${r.status}: ${r.stderr}`)
   assert.ok(r.stdout.toString().includes('friction-parity: FAIL'))
 })
@@ -179,7 +179,7 @@ test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are nev
 test('run-setup CLI: arg parsing end-to-end — topic header, multi-cite pins, --no-qmd, summary lines', () => {
   const cwd = tmp()
   const runDir = join(cwd, 'research', '2026-01-01_cli-test')
-  const r = spawnSync(process.execPath, [join(SCRIPTS, 'run-setup.mjs'), runDir,
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'setup-research-run.mjs'), runDir,
     '--topic', 'cli parse topic', '--cite', 'a/path@abc1234', '--cite', 'b/path', '--no-qmd'], { cwd })
   assert.equal(r.status, 0, r.stderr.toString())
   const out = r.stdout.toString()
@@ -191,7 +191,7 @@ test('run-setup CLI: arg parsing end-to-end — topic header, multi-cite pins, -
 })
 
 test('run-setup CLI: refuses to run without a runDir', () => {
-  const r = spawnSync(process.execPath, [join(SCRIPTS, 'run-setup.mjs'), '--topic', 'x'])
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'setup-research-run.mjs'), '--topic', 'x'])
   assert.equal(r.status, 1)
   assert.ok(r.stderr.toString().includes('usage:'))
 })
@@ -219,7 +219,7 @@ test('batch-collapse CLI: pairs candidate-read ingestions and reports per-round 
   const ingest = { message: { role: 'assistant', model: 'claude-fable-5', usage: { input_tokens: 20, output_tokens: 5, cache_read_input_tokens: 50000, cache_creation_input_tokens: 1000 }, content: [] } }
   writeFileSync(join(dir, 'agent-merge1.jsonl'),
     [JSON.stringify({ message: { role: 'user', content: 'Red merge, round 1. ...' } }), JSON.stringify(toolUse), JSON.stringify(toolResult), JSON.stringify(ingest)].map(String).join('\n') + '\n')
-  const r = spawnSync(process.execPath, [join(SCRIPTS, 'batch-collapse.mjs'), dir])
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'measure-read-batching.mjs'), dir])
   assert.equal(r.status, 0, r.stderr.toString())
   assert.ok(/round 1/.test(r.stdout.toString()), `expected a round-1 row, got: ${r.stdout}`)
 })
