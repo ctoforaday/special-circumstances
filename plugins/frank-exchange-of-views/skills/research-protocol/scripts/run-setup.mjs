@@ -91,11 +91,11 @@ export function writeRunLiveMarker(projectDir, runDir, pinnedPaths) {
   return p
 }
 
-export function qmdRefresh() {
-  const probe = spawnSync('qmd', ['--version'], { shell: process.platform === 'win32' })
+export function qmdRefresh(bin = 'qmd') {
+  const probe = spawnSync(bin, ['--version'], { shell: process.platform === 'win32' })
   if (probe.error || probe.status !== 0) return { ran: false, reason: 'qmd not installed (optional — doctor installs it)' }
-  const upd = spawnSync('qmd', ['update'], { shell: process.platform === 'win32' })
-  const emb = spawnSync('qmd', ['embed'], { shell: process.platform === 'win32' })
+  const upd = spawnSync(bin, ['update'], { shell: process.platform === 'win32' })
+  const emb = spawnSync(bin, ['embed'], { shell: process.platform === 'win32' })
   return { ran: true, update: upd.status === 0, embed: emb.status === 0 }
 }
 

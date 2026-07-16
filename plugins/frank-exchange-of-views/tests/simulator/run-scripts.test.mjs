@@ -123,3 +123,103 @@ test('shard audit: pre-sharding run (no ledger/archive) is SKIP, not FAIL', () =
   mkdirSync(join(dir, 'trajectories'), { recursive: true })
   assert.equal(shardAudit(dir, []).verdict, 'SKIP')
 })
+
+// ---- Integration tier (the glue the pure-function tests skipped) ----
+
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
+import { qmdRefresh } from '../../skills/research-protocol/scripts/run-setup.mjs'
+import { capture } from '../../skills/research-protocol/scripts/run-capture.mjs'
+
+const SCRIPTS = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills', 'research-protocol', 'scripts')
+
+function fixtureTranscript() {
+  const dir = tmp()
+  writeFileSync(join(dir, 'journal.jsonl'), [
+    JSON.stringify({ type: 'result', result: { verdict: 'FAIL', ledger_closure_lines: 1, archive_blocks: 1, friction: ['red-merge-r1: probe friction entry'] } }),
+  ].join('\n') + '\n')
+  // One minimal agent transcript with a usage record so cost-audit produces a row.
+  writeFileSync(join(dir, 'agent-abc123.jsonl'), [
+    JSON.stringify({ message: { role: 'assistant', model: 'claude-fable-5', usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 1000, cache_creation_input_tokens: 200 }, content: [] } }),
+  ].join('\n') + '\n')
+  return dir
+}
+
+test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with telemetry join, audit report, marker removal', () => {
+  const runDir = fixtureRun({ ledgerLines: 1, archiveBlocks: 1 })
+  const transcriptDir = fixtureTranscript()
+  // A live marker in cwd/.claude — capture must remove it.
+  const marker = join(process.cwd(), '.claude', 'run-live.json')
+  const hadMarker = existsSync(marker)
+  const priorMarker = hadMarker ? readFileSync(marker, 'utf8') : null
+  writeFileSync(marker, JSON.stringify({ runDir, test: true }))
+  const { audits } = capture(runDir, transcriptDir)
+  assert.ok(existsSync(join(runDir, 'trajectories', 'journal.jsonl')), 'journal copied')
+  assert.ok(existsSync(join(runDir, 'trajectories', 'agent-transcripts.tar.gz')), 'tarball built')
+  const cost = readFileSync(join(runDir, 'cost.md'), 'utf8')
+  assert.ok(cost.includes('# Cost audit'), 'cost.md written via cost-audit.mjs')
+  assert.ok(cost.includes('## Board telemetry'), 'telemetry join section present')
+  assert.ok(cost.includes('CUMULATIVE ARCHIVE'), 'corrected physics finding in notes')
+  const audit = readFileSync(join(runDir, 'capture-audit.md'), 'utf8')
+  assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: FAIL'),
+    'audit verdicts rendered (fixture has envelope friction not present in friction.md)')
+  assert.ok(!existsSync(marker), 'run-live marker removed')
+  if (hadMarker) writeFileSync(marker, priorMarker) // restore whatever the session had
+})
+
+test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are never smoothed over)', () => {
+  const runDir = fixtureRun({ ledgerLines: 1, archiveBlocks: 1, frictionInFile: false })
+  const transcriptDir = fixtureTranscript()
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'run-capture.mjs'), runDir, transcriptDir])
+  assert.equal(r.status, 2, `expected exit 2, got ${r.status}: ${r.stderr}`)
+  assert.ok(r.stdout.toString().includes('friction-parity: FAIL'))
+})
+
+test('run-setup CLI: arg parsing end-to-end — topic header, multi-cite pins, --no-qmd, summary lines', () => {
+  const cwd = tmp()
+  const runDir = join(cwd, 'research', '2026-01-01_cli-test')
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'run-setup.mjs'), runDir,
+    '--topic', 'cli parse topic', '--cite', 'a/path@abc1234', '--cite', 'b/path', '--no-qmd'], { cwd })
+  assert.equal(r.status, 0, r.stderr.toString())
+  const out = r.stdout.toString()
+  assert.ok(out.includes('skeleton: 7 created') && out.includes('skipped (--no-qmd)'), out)
+  assert.ok(readFileSync(join(runDir, 'blue', 'report.md'), 'utf8').includes('cli parse topic'))
+  const pinned = readFileSync(join(runDir, 'inputs', 'PINNED.md'), 'utf8')
+  assert.ok(pinned.includes('`abc1234`') && pinned.includes('b/path'), 'both cites pinned, explicit pin honored')
+  assert.ok(existsSync(join(cwd, '.claude', 'run-live.json')), 'marker written under the invoking cwd')
+})
+
+test('run-setup CLI: refuses to run without a runDir', () => {
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'run-setup.mjs'), '--topic', 'x'])
+  assert.equal(r.status, 1)
+  assert.ok(r.stderr.toString().includes('usage:'))
+})
+
+test('qmdRefresh: not-installed branch is a stated no-op (injected missing binary)', () => {
+  const r = qmdRefresh('definitely-not-a-real-binary-xyz')
+  assert.equal(r.ran, false)
+  assert.ok(r.reason.includes('not installed'))
+})
+
+test('cost-audit CLI: without runDir no telemetry section; with runDir but no telemetry file, the absent-file note names capture-audit', () => {
+  const transcriptDir = fixtureTranscript()
+  const bare = spawnSync(process.execPath, [join(SCRIPTS, 'cost-audit.mjs'), transcriptDir])
+  assert.equal(bare.status, 0)
+  assert.ok(!bare.stdout.toString().includes('## Board telemetry'), 'no join without runDir arg')
+  const runDir = tmp()
+  const withRun = spawnSync(process.execPath, [join(SCRIPTS, 'cost-audit.mjs'), transcriptDir, runDir])
+  assert.ok(withRun.stdout.toString().includes('no board-telemetry.jsonl'), 'absent-file branch stated, not silent')
+})
+
+test('batch-collapse CLI: pairs candidate-read ingestions and reports per-round collapse dollars', () => {
+  const dir = tmp()
+  const toolUse = { message: { role: 'assistant', model: 'claude-fable-5', usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 100, cache_creation_input_tokens: 10 }, content: [{ type: 'tool_use', id: 'tu1', name: 'Read', input: { file_path: 'red/candidates/round-1-lens-1.md' } }] } }
+  const toolResult = { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu1' }] } }
+  const ingest = { message: { role: 'assistant', model: 'claude-fable-5', usage: { input_tokens: 20, output_tokens: 5, cache_read_input_tokens: 50000, cache_creation_input_tokens: 1000 }, content: [] } }
+  writeFileSync(join(dir, 'agent-merge1.jsonl'),
+    [JSON.stringify({ message: { role: 'user', content: 'Red merge, round 1. ...' } }), JSON.stringify(toolUse), JSON.stringify(toolResult), JSON.stringify(ingest)].map(String).join('\n') + '\n')
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'batch-collapse.mjs'), dir])
+  assert.equal(r.status, 0, r.stderr.toString())
+  assert.ok(/round 1/.test(r.stdout.toString()), `expected a round-1 row, got: ${r.stdout}`)
+})

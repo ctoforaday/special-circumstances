@@ -86,7 +86,14 @@ export function capture(runDir, transcriptDir) {
   // Mechanics: journal copy, transcript tarball, cost.md (with telemetry join).
   copyFileSync(join(transcriptDir, 'journal.jsonl'), join(runDir, 'trajectories', 'journal.jsonl'))
   const agentFiles = readdirSync(transcriptDir).filter((f) => f.startsWith('agent-') && f.endsWith('.jsonl'))
-  const tar = spawnSync('tar', ['czf', join(runDir, 'trajectories', 'agent-transcripts.tar.gz'), ...agentFiles], { cwd: transcriptDir })
+  // tar with a RELATIVE -f target, then move: GNU tar reads "C:" in an absolute Windows
+  // path as a remote host ("Cannot connect to C:") — measured, not theoretical.
+  const tmpTar = 'agent-transcripts.tar.gz'
+  const tar = spawnSync('tar', ['czf', tmpTar, ...agentFiles], { cwd: transcriptDir })
+  if (tar.status === 0) {
+    copyFileSync(join(transcriptDir, tmpTar), join(runDir, 'trajectories', tmpTar))
+    rmSync(join(transcriptDir, tmpTar))
+  }
   lines.push(`tarball: ${tar.status === 0 ? `${agentFiles.length} transcript(s)` : 'FAILED — ' + (tar.stderr || '').toString().slice(0, 200)}`)
   const cost = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'cost-audit.mjs'), transcriptDir, runDir])
   if (cost.status === 0) { writeFileSync(join(runDir, 'cost.md'), cost.stdout); lines.push('cost.md: written (telemetry join included)') }
