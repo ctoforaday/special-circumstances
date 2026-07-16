@@ -1,5 +1,5 @@
 // node --test — the debate engine's regression suite. Run:
-//   node --test plugins/frank-exchange-of-views/tests/simulator/
+//   node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs (directory form fails on Windows node — list files explicitly)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { loadDebateScript, makeWorld, makeResponder, blueEnv, redEnv, gap, judgeEnv } from './harness.mjs'
@@ -344,7 +344,7 @@ test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 
     red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] }),
           redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] })],
   }))
-  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 3 }), /no archive spot-checks/)
+  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 3 }), /round 2 reported no archive spot-checks/)
 })
 
 test('shard counts: closure-index lines != archive blocks is a self-inconsistent self-report and aborts', async () => {
@@ -465,4 +465,86 @@ test('lane footnote namespaces: every lane prompt assigns a lane-prefixed label 
   for (const [i, c] of lanes.entries()) {
     assert.ok(c.prompt.includes('FOOTNOTE NAMESPACE') && c.prompt.includes(`[^L${i + 1}`), `lane ${i + 1} prefix`)
   }
+})
+
+// ---- Coverage-audit gap closures (2026-07-16 audit vs runs 1-4 problem classes) ----
+
+test('lens prompts carry harness notes: windowed full read, Grep counts lines, no heredocs (3 live recurrences)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  for (const c of world.calls.filter(c => c.opts.label.startsWith('red-lens'))) {
+    assert.ok(c.prompt.includes('read it whole in consecutive windows'), 'windowed full-read clause missing')
+    assert.ok(c.prompt.includes('counts LINES, not occurrences'), 'Grep footgun note missing')
+    assert.ok(c.prompt.includes('prefer the Write tool over quoted heredocs'), 'heredoc note missing')
+  }
+})
+
+test('multi-instance citation slices are assigned footnote-block ownership', async () => {
+  const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: 200 })], red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const citation = world.calls.filter(c => c.opts.label.startsWith('red-lens')).slice(0, 4)
+  assert.equal(citation.length, 4, 'claim_count 200 scales to 4 citation instances')
+  for (const c of citation) assert.ok(c.prompt.includes('footnote-block ownership follows the slice'))
+})
+
+test('claim_count is echoed to the tracked CHANGELOG at synthesis and every blue response', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  assert.ok(world.calls.find(c => c.opts.label.startsWith('blue-synthesize')).prompt.includes('stating claim_count'))
+  assert.ok(world.calls.find(c => c.opts.label.startsWith('blue-respond-r1')).prompt.includes('including claim_count'))
+})
+
+test('lanes=5: the full roster deploys and disconfirming-first holds its redundancy-floor second seat', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, { ...ARGS, lanes: 5 })
+  const prompts = world.calls.filter(c => c.opts.label.startsWith('blue-lane')).map(c => c.prompt)
+  assert.equal(prompts.length, 5)
+  assert.ok(prompts[3].includes('practitioner-production'))
+  assert.ok(prompts[4].includes('adversarial-disconfirming-first, second seat'), 'redundancy floor seat missing')
+})
+
+test('GRADE enum carries compound grades and the pinned mass mapping is total over it (R4-5)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  const en = merge.opts.schema.properties.gaps.items.properties.likelihood.enum
+  assert.deepEqual(en, ['low', 'low-medium', 'medium', 'medium-high', 'high', 'certain', 'realized', 'trivial'])
+  const mapping = JSON.parse(merge.prompt.match(/pinned mapping (\{.*?\})/)[1])
+  for (const g of en) assert.ok(g in mapping, `mass mapping not total: ${g} unmapped`)
+})
+
+test('shard creator: round-1 merge creates both shards; round 2 updates, never recreates (R4-6 one-creator)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  assert.ok(world.calls.find(c => c.opts.label.startsWith('red-merge-r1')).prompt.includes('ROUND 1: create BOTH files'))
+  const m2 = world.calls.find(c => c.opts.label.startsWith('red-merge-r2'))
+  assert.ok(m2.prompt.includes('Update the ledger in place') && !m2.prompt.includes('ROUND 1: create BOTH'), 'round 2 must not recreate')
+})
+
+test('gap-pattern memory: all three blue seat classes are pointed at the staged inventory (GAP-33)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  for (const seat of ['blue-lane-1', 'blue-synthesize', 'blue-respond-r1']) {
+    const c = world.calls.find(x => x.opts.label.startsWith(seat))
+    assert.ok(c.prompt.includes('red-gap-patterns.md'), `${seat} missing the gap-pattern pre-flight path`)
+  }
+})
+
+test('moot: a predicate-expired ruling adjudicates the gap out of red verdict scope (GAP-35, live in run 4)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'moot', rationale: 'predicate expired — the claim it attached to left the report' }] })],
+  }))
+  const out = await world.run(script, { ...ARGS, maxRounds: 3 })
+  const m3 = world.calls.find(c => c.opts.label.startsWith('red-merge-r3'))
+  assert.ok(m3.prompt.includes('EXCLUDED from your verdict: ["R1-1"]'), 'moot gap leaves red scope')
+  assert.equal(out.verdict, 'VERIFIED')
+})
+
+test('MUST-try observable: graded-down citations require an attempt-or-impossibility line (false-paywall class)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const citation = world.calls.find(c => c.opts.label.startsWith('red-lens-1'))
+  assert.ok(citation.prompt.includes('attempt-or-impossibility line'), 'observable missing from ledger clause')
+  assert.ok(citation.prompt.includes('an untried "unable to corroborate" is an incomplete audit'))
 })
