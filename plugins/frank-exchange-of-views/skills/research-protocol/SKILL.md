@@ -28,14 +28,28 @@ research/<date>_<slug>/
 │   ├── CHANGELOG.md   # what blue changed each round (keeps debate.md argument-focused)
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved
 ├── red/
-│   ├── findings.md    # red's LIVING audit — cumulative verdict + graded gaps + lineage (supersedes)
+│   ├── ledger.md      # SINGLE SOURCE OF TRUTH for status: open gaps (full grading) + compact
+│   │                  #   closure index (id | class | one-line summary | supersedes) — red-merge-born
+│   │                  #   round 1 (write-guard-verified names), NOT skeleton-born
+│   ├── archive.md     # immutable closed prose, append-only; read on demand (near-match, chain
+│   │                  #   rulings, spot-checks) — never resident in the default merge/judge read
 │   ├── citation-ledger.md  # verified citations don't un-verify: claim | reference | confidence | round | access-date
 │   └── candidates/    # per-lens audit passes (lens-scoped labels L1-F1...), preserved
 ├── debate.md          # the FULL three-party transcript — every round: ### RED / ### BLUE / ### LEAD (only red-merge writes ### RED)
 ├── friction.md        # capability/protocol complaints — seats append DURING the run (survives aborts)
 ├── cost.md            # measured tokens + dollars per seat-round (scripts/cost-audit.mjs)
-└── trajectories/      # journal.jsonl (tracked) + agent-transcripts.tar.gz (gitignored)
+└── trajectories/      # journal.jsonl (tracked) + board-telemetry.jsonl (one JSON line per round:
+                       #   board profile, mass under the pinned mapping, accepted-dispute deltas —
+                       #   the SIGNAL the stopping judgment reads; convenience copy, never the
+                       #   evidence of record) + agent-transcripts.tar.gz (gitignored)
 ```
+
+**Termination is judged, and the standing practice is stop-and-resume**: `maxRounds` is a cost
+ceiling, never the terminator of record. The operator reads the board telemetry (open count,
+max severity, new-mint profile, mass trend), stops a run past its value, and resumes with a
+reduced `maxRounds` for the honest UNVERIFIED assembly — cache replay makes the stop ~$0
+(measured). Automatic severity-floor termination was evaluated and REJECTED (run-4 report §1):
+it automates the one call that belongs to judgment. NEVER change models on the resume.
 
 All artifacts are git-tracked; nothing is summarized away. The payload is the file; the envelope is the handle — no large content travels through agent return values.
 

@@ -29,7 +29,7 @@ Risk-accepted items are recorded here with their rejection rationale — elevate
 
 ## Red team findings (in full)
 
-<red/findings.md embedded verbatim — final verdict and every gap's disposition.>
+<red/ledger.md then red/archive.md embedded verbatim — final verdict, every open gap, and the full closure record.>
 
 ## Debate record
 
