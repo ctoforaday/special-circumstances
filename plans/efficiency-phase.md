@@ -271,3 +271,21 @@ Manual / live:
 
 Auditor gate: `/plan-audit plans/efficiency-phase.md` must return PASS before implementation
 begins.
+
+## Appendix — write-guard preflight record (PR-A.4 precondition: SATISFIED)
+
+Executed 2026-07-16 from a live red-auditor-class subagent in the production harness
+(§4.5 cond 6's promoted branch), four real Write calls in a scratch run layout:
+
+| Write | Result |
+|---|---|
+| `red/ledger.md` | ALLOWED (file created) |
+| `red/archive.md` | ALLOWED (file created) |
+| `red/findings.md` (known-blocked control) | BLOCKED — "Subagents should return findings as text, not write report files." |
+| `report.md` (known-blocked control) | BLOCKED — identical error text |
+
+Measurement: the guard keys on the filename token set, not path/directory/content (controls
+blocked even in scratchpad — replicating run 3's experiment at this seat class); the guard was
+demonstrably LIVE at the measuring seat (controls fired), so the shard-name pass is not
+vacuous. The proposed names are clean; red-merge creates both files on the first sharded run
+as specified; the skeleton+`cat` fallback is not needed.
