@@ -5,22 +5,28 @@ argument-hint: <topic> [--lanes N] [--max-rounds N] [--model sonnet|haiku|opus] 
 
 Run a frank exchange of views on the topic in `$ARGUMENTS` (if no topic given, ask — do not guess). Parse optional flags: `--lanes` (blue candidate drafts, default 3; the engine enforces a floor of 3 unless `laneFloorOverride` gives a reason), `--max-rounds` (safety ceiling only — the real terminator is red-PASS or judged deadlock; default 12), and `--smoke` (pipeline exercise for ~50k tokens: sets `lanes: 1`, `maxRounds: 1`, `model: "haiku"`, `laneFloorOverride: "smoke run — pipeline exercise only"`; use before merging debate-script changes).
 
-1. Create the run directory: `research/<yyyy-mm-dd>_<short-slug>/` in the current project, and PRE-CREATE the blackboard skeleton so agents only ever append to existing artifacts (the harness write-blocks subagents creating report-like files from scratch — the guard is filename-keyed and path-independent, per run 3's controlled experiment): `blue/candidates/`, `red/candidates/`, and `trajectories/` directories, plus stub files `debate.md`, `report.md`, `friction.md`, `blue/frontier.md`, `blue/report.md`, `blue/CHANGELOG.md`, `red/citation-ledger.md` — each seeded with a one-line `# <name> — <topic>` header. Do NOT pre-create `red/ledger.md` or `red/archive.md`: red-merge creates both on round 1 (the names are write-guard-verified — probe record in plans/efficiency-phase.md — and single-creator provenance is a ratification condition), nor `trajectories/board-telemetry.jsonl` (red-merge appends it).
-2. **Pin the corpus.** Record the evidence base's state in `<run directory>/inputs/PINNED.md`: the repo HEAD commit at launch, plus the paths (and, for other run directories, the round number) of every corpus the topic cites. Instruct via the topic text that agents cite the pinned commit/round for repo and cross-corpus references — run 3's red audited commits made *mid-run* and cross-corpus citations drifted (R5-2 class); the evidence base must not move under the report. Freeze your own pushes to cited paths while the run is live.
-3. **Refresh recall** (skip silently if qmd is not installed — installation is
-   /prosthetic-conscience:doctor's consent-gated job; YOU MUST NOT install it here, and MUST
-   NOT run it via npx — only the ONE installed binary ever touches the index). Ensure the
-   corpus roots the topic cites are indexed collections (`qmd collection list`; add missing
-   ones with `qmd collection add <path> --name sc-<root>` — one collection per corpus root,
-   e.g. `research/`, `ideas/`, never per run, so collections stay bounded), then run
-   `qmd update` and `qmd embed` so both lexical and semantic layers start the run fresh.
-   During the run the `sc-recall-index` hook keeps FTS current on every write; re-run
-   `qmd embed` only between rounds if you are relaying anyway (it is incremental). Seats
-   never touch the CLI — their access is the MCP server (see research-protocol → Recall).
-4. Invoke the **Workflow** tool with `scriptPath` = `${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/debate.js` and `args` = `{ "topic": "<topic>", "runDir": "<run directory path>", "lanes": N, "maxRounds": N, "model": "<model>", "judgmentModel": "<model>", "laneFloorOverride": "<reason, only if lanes < 3>" }` (omit models unless given). Note the **Transcript dir** path the tool prints — step 7 needs it. **Model guidance:** `model` drives the bulk seats (lanes, lenses, responses); `judgmentModel` drives the judgment seats (blue-synthesize, red-merge, judge, assemble) and defaults to inheriting the session model — NOT to `model` — so a cheap dev run keeps full-strength judgment. **For keeper runs, omit `model` entirely: red's lenses ride the bulk tier, and a cheap bulk model silently discounts the leaf-node verification that is load-bearing (retrospective §3 row 16b) — treat lens-sourced grades from cheap-bulk runs with a confidence discount.** `model: sonnet` for development; `--smoke` for smoke tests. On a RESUME, keep the original run's models — changing either busts the agent cache and re-runs completed rounds.
-5. AFTER the workflow returns, relay its envelope verbatim (verdict, rounds, lanes, outstanding gaps) plus the run-directory path — YOU MUST NOT re-summarize the report's content; the report is the deliverable, and it is for the human.
-6. If the verdict is UNVERIFIED, say so plainly with the outstanding gap count — the gate never soft-passes, and neither does the relay.
-7. **Capture the run record** (the retrospective could not be written for runs whose trails evaporated — §3 row 11):
-   - Merge the envelope's `friction` entries into `<run directory>/friction.md` (one line each, attributed; seats also append there directly during the run — deduplicate, don't drop) and say so — friction records are input to the self-improvement loop.
-   - Copy the workflow transcript dir's `journal.jsonl` into `<run directory>/trajectories/` (git-tracked) and gzip the `agent-*.jsonl` transcripts alongside as `trajectories/agent-transcripts.tar.gz` (gitignored).
-   - Run the cost audit: `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/cost-audit.mjs <transcript dir> > <run directory>/cost.md` — the run's measured tokens and dollars belong in the record next to its friction.
+Prose here is for DECISIONS; the mechanics are scripted (design-by-contract: an LLM executing
+mechanics is an unenforced good-faith contract). Your judgment calls: the topic, which corpora
+it cites, the lane/round/model parameters, the launch, and the honest relay. Everything else
+is two script invocations.
+
+1. **Decide the run**: slug (`research/<yyyy-mm-dd>_<short-slug>/`), the cited corpora (each
+   becomes a pin — for another run directory, cite its final round's commit), and whether any
+   evidence needs manual staging into `inputs/` (e.g. a winnow list) — stage it BEFORE setup so
+   the script keeps it.
+2. **Set up the blackboard** (mechanics — the script is idempotent, keeps anything pre-staged,
+   writes the `.run-live` marker for the hook guards, and does NOT create the red-merge-born
+   artifacts):
+   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/run-setup.mjs <run directory> --topic "<topic>" --cite <path>[@pin] ... `
+   Relay its summary. If qmd is reported missing, that is fine (optional tier — the doctor
+   installs it; NEVER install it here and NEVER run it via npx).
+3. Invoke the **Workflow** tool with `scriptPath` = `${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/debate.js` and `args` = `{ "topic": "<topic>", "runDir": "<run directory path>", "lanes": N, "maxRounds": N, "model": "<model>", "judgmentModel": "<model>", "laneFloorOverride": "<reason, only if lanes < 3>" }` (omit models unless given). Note the **Transcript dir** path the tool prints — step 5 needs it. **Model guidance:** `model` drives the bulk seats (lanes, lenses, responses); `judgmentModel` drives the judgment seats (blue-synthesize, red-merge, judge, assemble) and defaults to inheriting the session model — NOT to `model` — so a cheap dev run keeps full-strength judgment. **For keeper runs, omit `model` entirely: red's lenses ride the bulk tier, and a cheap bulk model silently discounts the leaf-node verification that is load-bearing (retrospective §3 row 16b) — treat lens-sourced grades from cheap-bulk runs with a confidence discount.** `model: sonnet` for development; `--smoke` for smoke tests. On a RESUME, keep the original run's models — changing either busts the agent cache and re-runs completed rounds; a REDUCED `maxRounds` is the cache-safe stop-and-resume terminator (the standing practice — read the board telemetry, judge the stop yourself).
+4. AFTER the workflow returns, relay its envelope verbatim (verdict, rounds, lanes, outstanding gaps) plus the run-directory path — YOU MUST NOT re-summarize the report's content; the report is the deliverable, and it is for the human. If the verdict is UNVERIFIED, say so plainly with the outstanding gap count — the gate never soft-passes, and neither does the relay.
+5. **Capture the run record** (mechanics — journal copy, transcript tarball, cost.md with the
+   telemetry join, the mechanized post-hoc audits, and `.run-live` marker removal):
+   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/run-capture.mjs <run directory> <transcript dir>`
+   Relay `capture-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
+   finding (missing telemetry line, shard self-report diverging from disk, envelope friction
+   missing from friction.md) — report it like an UNVERIFIED: plainly, never smoothed over.
+   Your judgment half: read the envelope's friction entries against friction.md and dedupe
+   attributed near-duplicates the parity check can't (same complaint, different wording).

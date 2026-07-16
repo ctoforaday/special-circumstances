@@ -82,6 +82,18 @@ embeddings refresh at phase tops (incremental) — at worst one phase stale; gra
 or confirm with a lex-only query (always current). Index maintenance (collections, update,
 embed) is lead/hook mechanics, never seat work.
 
+## Harness contract (one referenceable paragraph — three seats re-derived this at token cost)
+
+The Workflow script's `log()` is operator-console-EPHEMERAL: it persists nowhere. The
+transcript directory's `journal.jsonl` is the HARNESS's lifecycle record — `started`/`result`
+events only, never script logs. Per-agent API transcripts are `agent-*.jsonl` (the cost
+audit's input). Durable in-run state lives ONLY on the blackboard (git-tracked run files) or
+in envelopes; anything else evaporates with the session. Tool footguns with live recurrences:
+Grep's count mode counts LINES, not occurrences (anchor patterns when counting); quoted
+heredocs can eat backslashes (prefer the Write tool for scripts); the Read tool caps ~25k
+tokens — a full-document read over that cap is consecutive whole windows, which satisfies the
+full-re-read MUST without a confidence discount.
+
 ## Report structure
 
 The final `report.md` (see `references/report_template.md`): verdict stamp (VERIFIED/UNVERIFIED + rounds) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision, adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded likelihood × impact × complexity, including risk-accepted items with rationale) → **blue's report in full** → **red's findings in full** → debate record → **open questions carried past this run** (blue's final envelope, verbatim) → footnotes (with access dates; volatility noted for living sources).

@@ -4,8 +4,10 @@
 // record. Part of the run's standard output, next to friction.md (retrospective backlog:
 // "a tool, not a diet" — measurement first, never a silent judgment discount).
 //
-// Usage: node cost-audit.mjs <workflow-transcript-dir> > <runDir>/cost.md
+// Usage: node cost-audit.mjs <workflow-transcript-dir> [<runDir>] > <runDir>/cost.md
 // The transcript dir is printed by the Workflow tool at launch ("Transcript dir: ...").
+// With <runDir>, joins the per-round board telemetry (trajectories/board-telemetry.jsonl)
+// into the report — the named-consumer extension from run-4 report §2.5 item 1.
 //
 // Pricing is LIST-RATE arithmetic ($/MTok below) — plan meters typically observe less.
 // Run 3 calibration: the meter drew ~0.6x of these figures.
@@ -76,4 +78,32 @@ console.log(`| | **TOTAL** | | ${T.n} | ${T.turns} | ${M(T.inp)} | ${M(T.out)} |
 const cachePct = Math.round((100 * (T.cr + T.cw)) / (T.inp + T.out + T.cr + T.cw || 1))
 console.log('\n## Notes\n')
 console.log(`- Cache traffic is ${cachePct}% of all tokens; harness panel counters (input+output only) understate real flow accordingly.`)
-console.log('- Known physics (run-3 baseline): lens cost tracks CORPUS size (full re-read x additive growth); merge cost tracks DISPUTE size; judgment-seat premium is cache-RATE-driven, not volume-driven; burn is spiky at the judgment seats.')
+// Findings text corrected per run-4 report §6.4 item 1: (a) merge cost tracks the CUMULATIVE
+// ARCHIVE, not dispute size — run 3's own table contradicted the old claim (r5 merge > r2 on
+// the second-smallest board); sharding (ledger/archive split) is the countermeasure. (b) The
+// judgment-tier cache-write premium is a ~5x RATE multiplier over sonnet-intro (12.5 is the
+// absolute $/MTok, not the multiplier).
+console.log('- Known physics (runs 3-4 baseline): lens cost tracks CORPUS size (full re-read x additive growth); merge cost tracks the CUMULATIVE ARCHIVE of closed cases (countermeasure: the ledger/archive shard split); judgment-seat premium is cache-RATE-driven (~5x sonnet-intro cache rates at the session tier), not volume-driven; burn is spiky at the judgment seats.')
+
+// Board-telemetry join (optional second arg): the per-round mass/board series next to the
+// per-round dollars — the evidence base every deferred actuation decision needs.
+const runDir = process.argv[3]
+if (runDir) {
+  try {
+    const lines = readFileSync(join(runDir, 'trajectories', 'board-telemetry.jsonl'), 'utf8')
+      .split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
+    if (lines.length) {
+      console.log('\n## Board telemetry (per round)\n')
+      console.log('| round | open | max severity | new mints | mass | realized_open | accepted deltas | mapping |')
+      console.log('|---|---|---|---|---|---|---|---|')
+      for (const t of lines) {
+        console.log(`| ${t.round} | ${t.open_count ?? '?'} | ${t.max_severity ?? '?'} | ${(t.new_mint && t.new_mint.count) ?? '?'} | ${t.mass ?? '?'} | ${t.realized_open ?? '?'} | ${(t.accepted_deltas || []).length} | ${t.mapping_version ?? '?'} |`)
+      }
+      console.log('\nTelemetry is the convenience copy, never the evidence of record — actuation reviews recompute from the git-tracked ledger.')
+    } else {
+      console.log('\n## Board telemetry\n\n(board-telemetry.jsonl present but empty)')
+    }
+  } catch {
+    console.log('\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never appended: check capture-audit.md)')
+  }
+}
