@@ -91,11 +91,15 @@ export function writeRunLiveMarker(projectDir, runDir, pinnedPaths) {
   return p
 }
 
+// Single command string with shell (not args + shell): Windows needs the shell for the
+// npm .cmd shim, and node deprecates args-array-with-shell (DEP0190, smoke finding #3).
+// bin is caller-controlled ('qmd' or an injected test double), never user input.
 export function qmdRefresh(bin = 'qmd') {
-  const probe = spawnSync(bin, ['--version'], { shell: process.platform === 'win32' })
+  const sh = { shell: true }
+  const probe = spawnSync(`${bin} --version`, sh)
   if (probe.error || probe.status !== 0) return { ran: false, reason: 'qmd not installed (optional — doctor installs it)' }
-  const upd = spawnSync(bin, ['update'], { shell: process.platform === 'win32' })
-  const emb = spawnSync(bin, ['embed'], { shell: process.platform === 'win32' })
+  const upd = spawnSync(`${bin} update`, sh)
+  const emb = spawnSync(`${bin} embed`, sh)
   return { ran: true, update: upd.status === 0, embed: emb.status === 0 }
 }
 
@@ -112,7 +116,11 @@ function main() {
 
   const skel = buildSkeleton(runDir, topic)
   const pinned = buildPinned(runDir, head, cites)
-  const memDir = arg('--memory-dir') || join(process.cwd(), '.claude', 'agent-memory', 'frank-exchange-of-views-red-auditor')
+  // Red's agent memory accrues under the LAUNCHING session's project (smoke finding #2):
+  // CLAUDE_PROJECT_DIR names it when set; cwd is the repo-local fallback; --memory-dir wins.
+  const memHome = (d) => join(d, '.claude', 'agent-memory', 'frank-exchange-of-views-red-auditor')
+  const memDir = arg('--memory-dir') ||
+    [process.env.CLAUDE_PROJECT_DIR, process.cwd()].filter(Boolean).map(memHome).find(existsSync)
   const mirror = mirrorGapPatterns(memDir, runDir)
   const marker = writeRunLiveMarker(process.cwd(), runDir, cites.map((c) => c.split('@')[0]))
   const qmd = rest.includes('--no-qmd') ? { ran: false, reason: 'skipped (--no-qmd)' } : qmdRefresh()
