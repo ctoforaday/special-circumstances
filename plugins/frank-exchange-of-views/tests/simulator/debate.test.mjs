@@ -548,3 +548,14 @@ test('MUST-try observable: graded-down citations require an attempt-or-impossibi
   assert.ok(citation.prompt.includes('attempt-or-impossibility line'), 'observable missing from ledger clause')
   assert.ok(citation.prompt.includes('an untried "unable to corroborate" is an incomplete audit'))
 })
+
+test('speed doctrine: every seat prompt carries the batching + native-peek clause (run-4 forensics)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 2 })
+  for (const c of world.calls) {
+    assert.ok(c.prompt.includes('SPEED:'), `seat missing speed clause: ${c.opts.label}`)
+    assert.ok(c.prompt.includes('batch INDEPENDENT tool calls'), `batching directive missing: ${c.opts.label}`)
+  }
+})

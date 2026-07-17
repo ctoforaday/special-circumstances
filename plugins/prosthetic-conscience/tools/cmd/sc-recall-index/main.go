@@ -7,9 +7,14 @@
 //	It MUST NOT fail the Write/Edit, whatever `qmd update` does.
 //
 // Purpose: deterministic recall freshness. Agents forget to re-index; a hook
-// cannot. Every markdown write triggers a fast FTS `qmd update` (~0.7s measured)
-// so lexical search is never stale. Semantic embeddings refresh separately
-// (phase-top `qmd embed`) — this hook keeps the cheap layer current.
+// cannot. Markdown writes trigger a fast FTS `qmd update` so lexical search is
+// never stale. Semantic embeddings refresh separately (phase-top `qmd embed`).
+//
+// DEBOUNCED (run-4 wall-clock forensics, 2026-07-17): the synchronous update cost a
+// measured ~3.9s x 219 markdown writes = 14 agent-minutes per run, against ZERO in-run
+// retrieval that needed per-write freshness. The hook now runs the update at most once
+// per debounce interval (timestamp file); writes inside the window are skipped — the
+// index is at worst debounceInterval stale, which every retrieval mode tolerates.
 //
 // Version-skew rule: exactly ONE qmd touches the index — the installed binary.
 // The doctor installs it (requirements.json pins the version, consent-gated) and
@@ -33,9 +38,34 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
-const version = "0.2.0"
+const version = "0.3.0"
 
 const updateTimeout = 30 * time.Second
+
+// debounceInterval bounds index staleness; stampName is the observable state
+// (commitment-as-state again — the debounce survives across hook processes).
+const debounceInterval = 60 * time.Second
+const stampName = "recall-index-stamp"
+
+// shouldUpdate is the pure, unit-tested debounce gate.
+func shouldUpdate(now, stamp time.Time, interval time.Duration) bool {
+	return stamp.IsZero() || now.Sub(stamp) >= interval
+}
+
+func readStamp(dir string) time.Time {
+	fi, err := os.Stat(filepath.Join(dir, stampName))
+	if err != nil {
+		return time.Time{}
+	}
+	return fi.ModTime()
+}
+
+func writeStamp(dir string) {
+	_ = os.MkdirAll(dir, 0o755)
+	_ = os.WriteFile(filepath.Join(dir, stampName), []byte{}, 0o644)
+	now := time.Now()
+	_ = os.Chtimes(filepath.Join(dir, stampName), now, now)
+}
 
 type hookInput struct {
 	ToolName  string `json:"tool_name"`
@@ -92,7 +122,13 @@ func main() {
 	run, reason := decide(toolchain.Present("qmd"), file)
 	outcome := ""
 	if run {
-		outcome = " | " + runUpdate()
+		stampDir := filepath.Join(os.Getenv("CLAUDE_PROJECT_DIR"), ".claude")
+		if shouldUpdate(time.Now(), readStamp(stampDir), debounceInterval) {
+			outcome = " | " + runUpdate()
+			writeStamp(stampDir)
+		} else {
+			outcome = " | debounced (index at most " + debounceInterval.String() + " stale)"
+		}
 	}
 
 	if dir := os.Getenv("CLAUDE_PROJECT_DIR"); dir != "" {
