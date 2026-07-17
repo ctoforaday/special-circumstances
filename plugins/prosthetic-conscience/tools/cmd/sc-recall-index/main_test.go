@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDecide(t *testing.T) {
@@ -47,5 +48,18 @@ func TestFileFrom(t *testing.T) {
 	in.ToolInput.FilePath = "f.md"
 	if got := fileFrom(in); got != "f.md" {
 		t.Fatalf("file_path should win over path: %q", got)
+	}
+}
+
+func TestShouldUpdate(t *testing.T) {
+	now := time.Now()
+	if !shouldUpdate(now, time.Time{}, time.Minute) {
+		t.Fatal("zero stamp (first write ever) must update")
+	}
+	if shouldUpdate(now, now.Add(-30*time.Second), time.Minute) {
+		t.Fatal("stamp inside the window must debounce")
+	}
+	if !shouldUpdate(now, now.Add(-90*time.Second), time.Minute) {
+		t.Fatal("stamp past the window must update")
 	}
 }
