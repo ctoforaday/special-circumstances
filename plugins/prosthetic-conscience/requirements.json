@@ -74,6 +74,7 @@
       { "name": "sc-quality-gate", "event": "PostToolUse(Write|Edit)", "purpose": "qlty fmt/check gate, capability-gated" },
       { "name": "sc-secrets-gate", "event": "PreToolUse(WebFetch|WebSearch|Bash)", "purpose": "deny outbound payloads matching secret patterns" },
       { "name": "sc-toolchain-nudge", "event": "SessionStart", "purpose": "one-line warning when a recommended tool is missing" },
+      { "name": "sc-push-freeze-guard", "event": "PreToolUse(Bash)", "purpose": "warns on git push while a research run is live (.run-live marker) — the pinned-path freeze made unforgettable, never blocking" },
       { "name": "sc-recall-index", "event": "PostToolUse(Write|Edit)", "purpose": "qmd FTS update on markdown writes — deterministic recall freshness; runs ONLY the doctor-installed qmd (no npx fallback — a second resolution path is a second version), silent no-op when absent" }
     ]
   }

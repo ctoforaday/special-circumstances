@@ -3,7 +3,7 @@
 // run-4 friction: "run 5 should get this as standard cost-audit output, not seat
 // improvisation"). Measures the read-batching saving: what the merge seat paid to ingest
 // lens candidates turn-by-turn, i.e. what the batching sentence collapses.
-// Usage: node batch-collapse.mjs <workflow-transcript-dir>
+// Usage: node measure-read-batching.mjs <workflow-transcript-dir>
 // R4-4 turn-collapse measurement, tool_result-paired (same pairing as decompose-merge.mjs):
 // a candidate-read tool_result's ingesting call is the next assistant turn with usage;
 // prompt-level read batching collapses k candidate-read ingestions into ~1, avoiding the

@@ -5,7 +5,7 @@
 // unenforced good-faith contract — the exact failure class red keeps catching in the engine.
 //
 // Usage:
-//   node run-setup.mjs <runDir> --topic "<topic>" [--cite <path>[@<pin>]]... [--memory-dir <dir>] [--no-qmd]
+//   node setup-research-run.mjs <runDir> --topic "<topic>" [--cite <path>[@<pin>]]... [--memory-dir <dir>] [--no-qmd]
 //
 // Idempotent: existing files are never overwritten (pre-staged inputs survive). Creates the
 // blackboard skeleton (NOT red/ledger.md, red/archive.md, or board-telemetry.jsonl — those
@@ -102,7 +102,7 @@ export function qmdRefresh(bin = 'qmd') {
 function main() {
   const [runDir, ...rest] = process.argv.slice(2)
   if (!runDir || runDir.startsWith('--')) {
-    console.error('usage: node run-setup.mjs <runDir> --topic "<topic>" [--cite <path>[@pin]]... [--memory-dir <dir>] [--no-qmd]')
+    console.error('usage: node setup-research-run.mjs <runDir> --topic "<topic>" [--cite <path>[@pin]]... [--memory-dir <dir>] [--no-qmd]')
     process.exit(1)
   }
   const arg = (name) => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : null }

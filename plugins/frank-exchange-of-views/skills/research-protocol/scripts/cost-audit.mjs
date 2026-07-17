@@ -104,6 +104,6 @@ if (runDir) {
       console.log('\n## Board telemetry\n\n(board-telemetry.jsonl present but empty)')
     }
   } catch {
-    console.log('\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never appended: check capture-audit.md)')
+    console.log('\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never appended: check run-record-audit.md)')
   }
 }

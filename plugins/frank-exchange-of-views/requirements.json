@@ -1,0 +1,27 @@
+{
+  "_comment": "frank-exchange-of-views's own tool dependencies — aggregated by /prosthetic-conscience:doctor (each plugin owns its manifest; the doctor reports the whole suite).",
+  "tools": [
+    {
+      "name": "node",
+      "purpose": "runs the debate engine's orchestration scripts (setup-research-run, capture-research-run, cost-audit) and the zero-token simulator",
+      "tier": "required",
+      "check_cmd": "node --version",
+      "install": {
+        "windows": "winget install --id OpenJS.NodeJS.LTS -e",
+        "darwin": "brew install node",
+        "linux": "see https://nodejs.org/en/download"
+      }
+    },
+    {
+      "name": "tar",
+      "purpose": "capture-research-run packs agent transcripts into the run record",
+      "tier": "recommended",
+      "check_cmd": "tar --version",
+      "install": {
+        "windows": "ships with Windows 10+; also in Git for Windows",
+        "darwin": "ships with macOS",
+        "linux": "sudo apt-get install -y tar"
+      }
+    }
+  ]
+}
