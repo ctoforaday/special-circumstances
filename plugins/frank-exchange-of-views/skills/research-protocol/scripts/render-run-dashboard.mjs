@@ -19,19 +19,45 @@ const jsonl = (p) => existsSync(p)
 // Same list-rate arithmetic as cost-audit.mjs (kept tiny here: fable-tier default).
 const RATE = { in: 10, out: 50, cr: 1.0, cw: 12.5 }
 
+// Seat classification from the transcript's first user message — the journal carries only
+// {type, key, agentId} (no labels; labels are a panel affordance the harness does not
+// persist), so seat identity is recovered exactly the way cost-audit.mjs recovers it. A
+// flat-files lesson in miniature: structured state living in prose, parsed by regex.
+export function classifySeat(head) {
+  let m
+  if ((m = head.match(/Red audit, round (\d+)/))) return { seat: 'red-lens', round: +m[1] }
+  if ((m = head.match(/Red merge, round (\d+)/))) return { seat: 'red-merge', round: +m[1] }
+  if ((m = head.match(/Blue response, round (\d+)/))) return { seat: 'blue-respond', round: +m[1] }
+  if ((m = head.match(/Adjudication, round (\d+)/))) return { seat: 'judge', round: +m[1] }
+  if (head.includes('Terminal dispute disposition')) return { seat: 'judge-terminal', round: 0 }
+  if (head.includes('Blue synthesis')) return { seat: 'blue-synthesize', round: 0 }
+  if (head.includes('Blue lane')) return { seat: 'blue-lane', round: 0 }
+  if (head.includes('frontier hypotheses')) return { seat: 'frontier', round: 0 }
+  if (head.includes('Final assembly')) return { seat: 'assemble', round: 0 }
+  return { seat: 'other', round: 0 }
+}
+
 export function buildModel(runDir, transcriptDir) {
   const telemetry = jsonl(join(runDir, 'trajectories', 'board-telemetry.jsonl'))
   const journal = jsonl(join(transcriptDir, 'journal.jsonl'))
 
-  // Seat lifecycle: started without a matching result = live.
-  const seats = new Map()
+  // Lifecycle by agentId from the journal; identity by prompt classification from the
+  // agent's own transcript head. started-without-result = live.
+  const byId = new Map()
   for (const j of journal) {
-    const label = j.label || (j.result !== undefined ? '(unlabeled)' : null)
-    if (!label) continue
-    const s = seats.get(label) || { label, started: null, done: false }
-    if (j.type === 'started' || (j.result === undefined && !s.started)) s.started = j.timestamp || s.started
+    if (!j.agentId) continue
+    const s = byId.get(j.agentId) || { agentId: j.agentId, done: false }
     if (j.result !== undefined) { s.done = true; s.result = typeof j.result === 'string' ? j.result.slice(0, 100) : JSON.stringify(j.result).slice(0, 100) }
-    seats.set(label, s)
+    byId.set(j.agentId, s)
+  }
+  const seats = new Map()
+  for (const [id, s] of byId) {
+    const tp = join(transcriptDir, `agent-${id}.jsonl`)
+    let head = ''
+    try { head = readFileSync(tp, 'utf8').slice(0, 3000) } catch {}
+    const c = classifySeat(head)
+    const label = c.round ? `${c.seat}-r${c.round}` : c.seat
+    seats.set(id, { ...s, label, seat: c.seat, round: c.round })
   }
 
   // Cost so far from transcripts (usage records).
@@ -90,16 +116,17 @@ export function buildModel(runDir, transcriptDir) {
   // The ceiling divides the bar; judged termination may end it early — stated on the bar.
   const MAX_ROUNDS_CEILING = 8
   const seatList = [...seats.values()]
-  const seen = (prefix) => seatList.some((s) => s.label.startsWith(prefix))
-  const doneSeat = (prefix) => seatList.some((s) => s.label.startsWith(prefix) && s.done)
+  const seen = (seat, round = null) => seatList.some((s) => s.seat === seat && (round === null || s.round === round))
+  const doneSeat = (seat, round = null) => seatList.some((s) => s.seat === seat && (round === null || s.round === round) && s.done)
+  const allDone = (seat, round = null) => { const xs = seatList.filter((s) => s.seat === seat && (round === null || s.round === round)); return xs.length > 0 && xs.every((s) => s.done) }
   const steps = []
   steps.push({ name: 'frontier', state: doneSeat('frontier') ? 'done' : seen('frontier') ? 'live' : 'todo' })
-  steps.push({ name: 'blue lanes', state: seatList.filter((s) => s.label.startsWith('blue-lane')).every((s) => s.done) && seen('blue-lane') ? 'done' : seen('blue-lane') ? 'live' : 'todo' })
+  steps.push({ name: 'blue lanes', state: allDone('blue-lane') ? 'done' : seen('blue-lane') ? 'live' : 'todo' })
   steps.push({ name: 'synthesis', state: doneSeat('blue-synthesize') ? 'done' : seen('blue-synthesize') ? 'live' : 'todo' })
   for (let r = 1; r <= MAX_ROUNDS_CEILING; r++) {
-    const respondDone = doneSeat(`blue-respond-r${r}`)
-    const anySeen = seen(`red-lens-1-r${r}`) || seen(`red-merge-r${r}`) || seen(`blue-respond-r${r}`) || seen(`judge-r${r}`)
-    steps.push({ name: `round ${r}`, state: respondDone ? 'done' : anySeen ? 'live' : 'todo' })
+    const roundDone = doneSeat('blue-respond', r)
+    const anySeen = seen('red-lens', r) || seen('red-merge', r) || seen('blue-respond', r) || seen('judge', r)
+    steps.push({ name: `round ${r}`, state: roundDone ? 'done' : anySeen ? 'live' : 'todo' })
   }
   steps.push({ name: 'assembly', state: doneSeat('assemble') ? 'done' : seen('assemble') ? 'live' : 'todo' })
 
