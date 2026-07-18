@@ -139,7 +139,20 @@ function main() {
   if (!runDir || !transcriptDir) { console.error('usage: node render-run-dashboard.mjs <runDir> <workflow-transcript-dir> [--watch]'); process.exit(1) }
   const out = generate(runDir, transcriptDir)
   console.log('dashboard:', out, flag === '--watch' ? '(watching — regenerates every 15s, Ctrl-C to stop)' : '(static snapshot — re-run or use --watch to refresh)')
-  if (flag === '--watch') setInterval(() => { try { generate(runDir, transcriptDir) } catch (e) { console.error('regen failed:', String(e).slice(0, 120)) } }, 15000)
+  if (flag === '--watch') {
+    // Marker-keyed lifetime: the watcher lives exactly as long as the run does. run-setup
+    // writes .claude/run-live.json; run-capture removes it — when it goes, one final render
+    // and exit. The dashboard becomes innate to the run without touching the workflow.
+    const marker = join(process.cwd(), '.claude', 'run-live.json')
+    const timer = setInterval(() => {
+      try { generate(runDir, transcriptDir) } catch (e) { console.error('regen failed:', String(e).slice(0, 120)) }
+      if (!existsSync(marker)) {
+        try { generate(runDir, transcriptDir) } catch {}
+        console.log('run-live marker gone — final render written, watcher exiting')
+        clearInterval(timer)
+      }
+    }, 15000)
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()
