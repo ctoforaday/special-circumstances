@@ -412,6 +412,7 @@ let pendingDisputes = []
 let overflowDisputes = [] // clause (vii): beyond the cap, batch-docketed as ONE judge item
 const heldDisputes = new Map() // `${gap_id}|${dimension}` -> dispute
 let gradeAdjustments = [] // judge grade_adjusted rulings for red to apply next round
+let prevClaimCount = 0 // W2i: rounds 2+ size citation dispatch on the DELTA, not the corpus
 takeFriction('blue-synthesize', blueEnv)
 
 while (!halted && round < maxRounds) {
@@ -422,12 +423,26 @@ while (!halted && round < maxRounds) {
   // about to write. prev round's self-reported count is the script-visible proxy.
   const prevArchiveBlocks = redEnv ? (redEnv.archive_blocks || 0) : 0
   const prevGaps = redEnv ? redEnv.gaps : []
-  log(`round ${round}: dispatching ${Math.min(4, Math.max(1, Math.ceil((blueEnv.claim_count || 20) / 40))) + 2} red lenses over ${blueEnv.claim_count || '?'} claims`)
 
-  // Citation verification scales with the CURRENT report size — recomputed every round
-  // (retrospective §3 row 2b: computed once, later rounds were systematically under-scaled
-  // exactly when the report was largest).
-  const citationPasses = Math.min(4, Math.max(1, Math.ceil((blueEnv.claim_count || 20) / 40)))
+  // Citation verification is SIZED TO ITS INPUT, and the input changes shape after round 1
+  // (W2i, from E0.5c's measured economics). Round 1's input is the whole corpus:
+  // ceil(claims/40), cap 4 — recomputed every round, never once (retrospective §3 row 2b:
+  // computed once, later rounds were systematically under-scaled exactly when the report was
+  // largest). From round 2 the citation ledger means verified claims stay verified, so the
+  // input is the NEW surface plus the stale set, not the corpus again: size on the claim-count
+  // DELTA, floor 1, cap 2. E0.5c measured citation yield collapsing 70-80% after round 1
+  // while L5/L6 hold flat, so the cap is where the economics stop paying (~$2.65-5.60 per
+  // surviving citation find vs ~$1 at L5/L6); the floor keeps the coverage duty staffed.
+  // From round 3 the ">2 rounds elapsed" staleness trigger fires and the sweep is O(corpus)
+  // again rather than O(delta), so both seats come back regardless of how little blue added.
+  // ASSUMPTION UNDER TEST: that post-round-1 collapse is re-measured every run via the W2h
+  // citation-yield-by-role scorecard row — if later rounds stop collapsing, the cap comes off.
+  const claimCount = blueEnv.claim_count || 20
+  const citationPasses = round === 1
+    ? Math.min(4, Math.max(1, Math.ceil(claimCount / 40)))
+    : Math.max(round >= 3 ? 2 : 1, Math.min(2, Math.ceil(Math.max(0, claimCount - prevClaimCount) / 40)))
+  prevClaimCount = claimCount
+  log(`round ${round}: dispatching ${citationPasses + 2} red lenses (${citationPasses} citation) over ${blueEnv.claim_count || '?'} claims`)
 
   const lensPasses = []
   // Citation ledger: verified citations don't un-verify. Each citation pass reads the
@@ -435,14 +450,28 @@ while (!halted && round < maxRounds) {
   // skip-trigger covers SOURCE drift as well as prose drift (retrospective §3 row 10: the
   // prose-only trigger suppressed exactly the re-check that catches a source moving).
   const ledgerClause = ` CITATION LEDGER: read ${runDir}/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS ${runDir}/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats). Append every claim you verify to the ledger (one line: claim | reference | confidence | round | access-date). MUST-TRY OBSERVABLE: every citation you grade DOWN (below high) MUST carry an attempt-or-impossibility line in your pass — which extraction tool or path you tried, or why none was triable; an untried "unable to corroborate" is an incomplete audit (run 4 caught a false "paywalled" on an open-access paper this clause would have exposed at round 0). LARGE SOURCES (W1.12): a truncated fetch is NOT a read — for GitHub issues/PRs default to \`gh issue view <n> --comments\` via Bash (WebFetch is lossy on threads, run-5 friction); if a source exceeds one fetch, fetch it in sections and say so; never grade from a truncated body without stating the truncation in your pass.`
-  for (let c = 0; c < citationPasses; c++) {
-    lensPasses.push(`${RED_LENSES[0]}${citationPasses > 1 ? ` — instance ${c + 1} of ${citationPasses}: divide the report's sections evenly among instances and take slice ${c + 1}; footnote-block ownership follows the slice (instance ${c + 1} owns the footnote definitions its sections reference)` : ''}.${ledgerClause}`)
-  }
-  lensPasses.push(RED_LENSES[1], RED_LENSES[2])
+  // The consolidated citation duty (W2i, rounds 2+): fewer seats must not silently become
+  // less coverage. E0.5c's honest limit is that a finding-rate metric cannot price
+  // VERIFICATION COVERAGE — the 65-86 pair/round ledger IS the PASS bar's evidence grade, and
+  // it is most of what the citation seats do. So the saving is bought from re-verification
+  // the ledger already says is unnecessary, never from the sweep itself, and what went
+  // unexamined is stated rather than assumed.
+  const consolidatedClause = round === 1 ? '' : ` CONSOLIDATED CITATION SEAT (W2i): from round 2 the citation seats are deliberately fewer, because the ledger means a claim verified HIGH does not un-verify — your round's work is the NEW and the STALE surface, not the whole corpus again. Your duty is three things, in order: (1) verify every claim in your slice that is NEW or whose section CHANGED this round (blue's CHANGELOG names them); (2) re-fetch everything in your slice the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of your slice's already-verified pairs — your discretion which, and reopen any that has drifted. COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep, and the consolidation is only sound while the gap is visible.`
 
-  await parallel(lensPasses.map((lens, i) => () => agent(
-    `Red audit, round ${round}, lens: ${lens}. Re-read the FULL living report ${runDir}/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows)${round > 1 ? `; blue's change log ${runDir}/blue/CHANGELOG.md is a navigation hint only` : ''}. Anchor every finding to a section heading plus a quoted sentence. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence). Label your findings with LENS-SCOPED ids (L${i + 1}-F1, L${i + 1}-F2, ...) — stable R${round}-N ids are assigned by the merge, never by a lens. Write your pass to ${runDir}/red/candidates/round-${round}-lens-${i + 1}.md. You MUST NOT write to ${runDir}/debate.md — only red-merge writes the round's "### RED" section.${speedClause}${recordClause(`red-lens-r${round}-L${i + 1}`, 'red-lens')} Return a 3-line synopsis.`,
-    { ...bulk, label: `red-lens-${i + 1}-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor' })))
+  // ROLE-STABLE LENS IDENTITY (W2i): the lens number is now a ROLE, not a dispatch position.
+  // Citation slices are L1-L4, logic/completeness is ALWAYS L5, dark-side/risk is ALWAYS L6 —
+  // regardless of how many citation seats a round dispatches. Positional numbering silently
+  // slid L5/L6 down to L3/L4 whenever fewer than 4 citation passes ran (already true on
+  // low-claim rounds, and the common case once W2i graduates the count), which breaks the
+  // found_by role map that every cross-round lens-economics measurement is computed from.
+  for (let c = 0; c < citationPasses; c++) {
+    lensPasses.push({ role: c + 1, lens: `${RED_LENSES[0]}${citationPasses > 1 ? ` — instance ${c + 1} of ${citationPasses}: divide the report's sections evenly among instances and take slice ${c + 1}; footnote-block ownership follows the slice (instance ${c + 1} owns the footnote definitions its sections reference). The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context` : ''}.${ledgerClause}${consolidatedClause}` })
+  }
+  lensPasses.push({ role: 5, lens: RED_LENSES[1] }, { role: 6, lens: RED_LENSES[2] })
+
+  await parallel(lensPasses.map(({ role, lens }) => () => agent(
+    `Red audit, round ${round}, lens: ${lens}. Re-read the FULL living report ${runDir}/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows)${round > 1 ? `; blue's change log ${runDir}/blue/CHANGELOG.md is a navigation hint only` : ''}. Anchor every finding to a section heading plus a quoted sentence. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence). Label your findings with LENS-SCOPED ids (L${role}-F1, L${role}-F2, ...) — your lens number is your ROLE and is stable across rounds (L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk), so found_by stays comparable run-wide; stable R${round}-N ids are assigned by the merge, never by a lens. Write your pass to ${runDir}/red/candidates/round-${round}-lens-${role}.md. You MUST NOT write to ${runDir}/debate.md — only red-merge writes the round's "### RED" section.${speedClause}${recordClause(`red-lens-r${round}-L${role}`, 'red-lens')} Return a 3-line synopsis.`,
+    { ...bulk, label: `red-lens-${role}-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor' })))
 
   redEnv = await agent(
     `Red merge, round ${round}. FIRST ACTION (read batching — run-4 §4.6): concatenate this round's lens passes with a single bash call, \`cat ${runDir}/red/candidates/round-${round}-lens-*.md > <your session scratchpad>/round-${round}-all.md\` — the output path MUST be the ABSOLUTE path of your own session scratchpad directory, never under ${runDir} (a stray file in red/candidates/ corrupts every downstream glob and convergence count) — then read that one file instead of ${lensPasses.length} separate reads.
