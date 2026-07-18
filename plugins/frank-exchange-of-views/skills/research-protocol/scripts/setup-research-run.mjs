@@ -81,6 +81,23 @@ export function buildPinned(runDir, head, cites) {
   return { written: true, path: p }
 }
 
+// W2e — the law corpus, mirrored read-only into the run (statute > precedent >
+// argument; precedent is argument never evidence; persuasive-until-affirmed —
+// see law/README.md). The bench reads inputs/law/ at every sitting.
+export function mirrorLaw(repoLawDir, runDir) {
+  const outDir = join(runDir, 'inputs', 'law')
+  if (existsSync(outDir)) return { written: false, reason: 'already staged' }
+  if (!repoLawDir || !existsSync(repoLawDir)) return { written: false, reason: 'no law dir' }
+  mkdirSync(outDir, { recursive: true })
+  let files = 0
+  for (const f of readdirSync(repoLawDir).filter((x) => x.endsWith('.md'))) {
+    writeFileSync(join(outDir, f), '<!-- mirrored from law/ at run setup — read-only copy -->
+' + readFileSync(join(repoLawDir, f), 'utf8'))
+    files++
+  }
+  return { written: files > 0, files }
+}
+
 // Red's gap-pattern memory, mirrored to a path every seat can read (run-4 friction: the
 // pre-flight MUST was unsatisfiable at four seat classes). Source of truth stays the agent
 // memory; this is a read-only staged copy.
@@ -166,6 +183,7 @@ function main() {
   const memDir = arg('--memory-dir') ||
     [process.env.CLAUDE_PROJECT_DIR, process.cwd()].filter(Boolean).map(memHome).find(existsSync)
   const mirror = mirrorGapPatterns(memDir, runDir)
+  const law = mirrorLaw(join(process.cwd(), 'law'), runDir)
   const marker = writeRunLiveMarker(process.cwd(), runDir, cites.map((c) => c.split('@')[0]))
   const qmd = rest.includes('--no-qmd') ? { ran: false, reason: 'skipped (--no-qmd)' } : qmdRefresh()
 
@@ -175,6 +193,7 @@ function main() {
   console.log(`  pinned: ${pinned.written ? `HEAD ${head} + ${cites.length} cited path(s)` : 'inputs/PINNED.md pre-staged (kept)'}`)
   console.log(`  pin validation: ${pv.skipped ? pv.skipped : `${pv.checked} cite(s) verified at their pins`}`)
   console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} memory file(s) mirrored` : mirror.reason}`)
+  console.log(`  law: ${law.written ? `${law.files} file(s) mirrored (statute > precedent > argument)` : law.reason}`)
   console.log(`  run-live marker: ${marker}`)
   console.log(`  qmd refresh: ${qmd.ran ? `update ${qmd.update ? 'ok' : 'FAILED'}, embed ${qmd.embed ? 'ok' : 'FAILED'}` : qmd.reason}`)
 }

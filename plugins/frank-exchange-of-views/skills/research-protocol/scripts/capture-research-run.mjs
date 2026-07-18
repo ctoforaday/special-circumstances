@@ -235,6 +235,41 @@ export function recordJoinAudit(runDir, transcriptDir, agentFiles) {
 // Event types map 1:1 to CLI verbs except mint-adjacent internals.
 const verbOf = (type) => (type === 'class-new' ? 'mint' : type)
 
+// W2e — precedent harvest: the run's judicial rulings become PERSUASIVE
+// proposals in law/proposed/<slug>.md (repo-side, committed with the run
+// record) for human promotion per law/README.md. The bench proposes; the
+// human enacts. Derivation is mechanical from journal envelopes (resolutions
+// + petition rulings); facts/scope stay stubs the reviewer fills from the
+// cited record — the harvest never invents.
+export function harvestPrecedents(runDir, results, lawDir) {
+  const slug = String(runDir).replace(/[\/]+$/, '').split(/[\/]/).pop()
+  const rulings = []
+  for (const r of results) {
+    if (Array.isArray(r.resolutions)) for (const x of r.resolutions) rulings.push({ kind: 'docket', gap_id: x.gap_id, disposition: x.resolution, rationale: x.rationale })
+    if (Array.isArray(r.rulings)) for (const x of r.rulings) rulings.push({ kind: 'petition', petitioner: x.petitioner, disposition: x.ruling, rationale: x.opinion })
+  }
+  if (!rulings.length) return { written: false, count: 0 }
+  if (!existsSync(lawDir)) return { written: false, count: rulings.length, reason: 'no law/ dir at repo root' }
+  mkdirSync(join(lawDir, 'proposed'), { recursive: true })
+  const out = join(lawDir, 'proposed', slug + '.md')
+  const body = ['# proposed holdings — ' + slug + ' [ALL PERSUASIVE — awaiting human review per law/README.md]', '',
+    ...rulings.map((r, i) => [
+      '## ' + slug + '-' + (i + 1) + ' [PERSUASIVE]',
+      'facts: <reviewer: fill from the cited record — the harvest never invents>',
+      'question: ' + (r.kind === 'docket' ? 'disposition of ' + r.gap_id : 'petition by ' + r.petitioner),
+      'holding: ' + r.disposition,
+      'rationale: ' + String(r.rationale || '').slice(0, 600),
+      'scope-limits: <reviewer: state what this assumed>',
+      'source: ' + slug + ', ' + (r.kind === 'docket' ? r.gap_id : 'petition:' + r.petitioner),
+      '',
+    ].join('
+')),
+  ].join('
+')
+  writeFileSync(out, body)
+  return { written: true, count: rulings.length, path: out }
+}
+
 export function capture(runDir, transcriptDir) {
   const lines = []
   // Mechanics: journal copy, transcript tarball, cost.md (with telemetry join).
@@ -272,6 +307,9 @@ export function capture(runDir, transcriptDir) {
     const parity = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'record-parity-check.mjs'), runDir])
     audits.push({ check: 'record-parity-r25', verdict: parity.status === 0 ? 'PASS' : 'FAIL', detail: (parity.stdout || '').toString().trim().split('\n').slice(0, 12).join('\n  ') })
   }
+
+  const precedents = harvestPrecedents(runDir, results, join(process.cwd(), 'law'))
+  lines.push(`precedent harvest: ${precedents.written ? `${precedents.count} ruling(s) -> ${precedents.path} (PERSUASIVE, awaiting review)` : precedents.count ? `${precedents.count} ruling(s), ${precedents.reason}` : 'no rulings this run'}`)
 
   // Marker removal: the run is no longer live; hook guards stand down.
   const marker = join(process.cwd(), '.claude', 'run-live.json')
