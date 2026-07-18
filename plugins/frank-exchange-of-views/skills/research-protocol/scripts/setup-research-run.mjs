@@ -104,14 +104,24 @@ export function mirrorLaw(repoLawDir, runDir) {
 export function mirrorGapPatterns(memoryDir, runDir) {
   const out = join(runDir, 'inputs', 'red-gap-patterns.md')
   if (existsSync(out)) return { written: false, reason: 'already staged' }
-  if (!memoryDir || !existsSync(memoryDir)) return { written: false, reason: 'no memory dir' }
+  const dirs = (Array.isArray(memoryDir) ? memoryDir : [memoryDir]).filter((d) => d && existsSync(d))
+  if (!dirs.length) return { written: false, reason: 'no memory dir' }
   const parts = []
-  for (const f of readdirSync(memoryDir).filter((f) => f.endsWith('.md'))) {
-    parts.push(`\n<!-- mirrored from agent memory: ${f} -->\n` + readFileSync(join(memoryDir, f), 'utf8'))
+  const seen = new Set()
+  for (const dir of dirs) {
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md')) {
+      // First source wins: the PROMOTED corpus is authoritative, and raw accrual
+      // only contributes patterns that have not been promoted yet. A file present
+      // in both must not be staged twice — red would read the same pattern under
+      // two headings and could not tell which one the run is holding it to.
+      if (seen.has(f)) continue
+      seen.add(f)
+      parts.push(`\n<!-- mirrored from ${dir}: ${f} -->\n` + readFileSync(join(dir, f), 'utf8'))
+    }
   }
   if (!parts.length) return { written: false, reason: 'memory dir empty' }
   writeFileSync(out, '# red gap-pattern inventory (mirrored at run setup — read-only copy)\n' + parts.join('\n'))
-  return { written: true, files: parts.length }
+  return { written: true, files: parts.length, sources: dirs.length }
 }
 
 // W1.1 — pin validation (R1-7, judge-r2 ruling: "setup tooling must validate every pinned
@@ -237,10 +247,16 @@ function main() {
   const pinned = buildPinned(runDir, head, cites)
   // Red's agent memory accrues under the LAUNCHING session's project (smoke finding #2):
   // CLAUDE_PROJECT_DIR names it when set; cwd is the repo-local fallback; --memory-dir wins.
+  // TWO TIERS, promoted first. feov-memory/ is the tracked, reviewed corpus that
+  // binds seats; .claude/agent-memory/ is the harness's raw accrual path, which is
+  // machine-local and gitignored. Sourcing only from the latter is what nearly
+  // started red amnesiac at the 2026-07-18 cwd move — a corpus that survives on
+  // one disk is not a corpus. Clone the repo, get the memory.
   const memHome = (d) => join(d, '.claude', 'agent-memory', 'frank-exchange-of-views-red-auditor')
-  const memDir = arg('--memory-dir') ||
-    [process.env.CLAUDE_PROJECT_DIR, process.cwd()].filter(Boolean).map(memHome).find(existsSync)
-  const mirror = mirrorGapPatterns(memDir, runDir)
+  const promoted = join(process.cwd(), 'feov-memory', 'red-gap-patterns')
+  const raw = [process.env.CLAUDE_PROJECT_DIR, process.cwd()].filter(Boolean).map(memHome).find(existsSync)
+  const memDirs = arg('--memory-dir') ? [arg('--memory-dir')] : [promoted, raw]
+  const mirror = mirrorGapPatterns(memDirs, runDir)
   const law = mirrorLaw(join(process.cwd(), 'law'), runDir)
   const marker = writeRunLiveMarker(process.cwd(), runDir, cites.map((c) => c.split('@')[0]))
   const qmd = rest.includes('--no-qmd') ? { ran: false, reason: 'skipped (--no-qmd)' } : qmdRefresh()
@@ -250,7 +266,7 @@ function main() {
   console.log(`  NOT created (red-merge-born): red/ledger.md, red/archive.md, trajectories/board-telemetry.jsonl`)
   console.log(`  pinned: ${pinned.written ? `HEAD ${head} + ${cites.length} cited path(s)` : 'inputs/PINNED.md pre-staged (kept)'}`)
   console.log(`  pin validation: ${pv.skipped ? pv.skipped : `${pv.checked} cite(s) verified at their pins`}`)
-  console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} memory file(s) mirrored` : mirror.reason}`)
+  console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} pattern(s) mirrored from ${mirror.sources} source(s) (promoted corpus first)` : mirror.reason}`)
   console.log(`  law: ${law.written ? `${law.files} file(s) mirrored (statute > precedent > argument)` : law.reason}`)
   console.log(`  record binary: ${pre.ok ? `${recordBin} ${pre.version || '(version unreported)'}` : `NOT AVAILABLE — ${pre.reason} (this run will not record through the tool; pass --bin-dir to require it)`}`)
   console.log(`  run-live marker: ${marker}`)

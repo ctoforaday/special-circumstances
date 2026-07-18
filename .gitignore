@@ -19,3 +19,9 @@ Thumbs.db
 plugins/*/bin/
 plugins/*/tools/dist/
 **/trajectories/agent-transcripts.tar.gz
+
+# Agent memory is the harness's RAW ACCRUAL path (machine-local, resolved through
+# CLAUDE_PROJECT_DIR). The reviewed corpus that actually binds seats lives in
+# feov-memory/ and is tracked; promotion between them is a deliberate review step.
+# See feov-memory/red-gap-patterns/README.md.
+.claude/agent-memory/

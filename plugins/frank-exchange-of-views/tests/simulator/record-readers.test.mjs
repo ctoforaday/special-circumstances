@@ -15,7 +15,7 @@
 // distinguish "the reader is correct" from "both sides share a bug".
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync, existsSync, utimesSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync, utimesSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -158,4 +158,23 @@ test('setup preflight binds to INTENT: fatal with --bin-dir, reported without it
   assert.equal(absent.ok, false, 'absence is detected either way — the difference is what setup DOES about it')
   assert.ok(absent.reason.includes('not runnable'))
   assert.equal(typeof runSetupCli, 'undefined')
+})
+
+test('gap-pattern mirror: promoted corpus wins, raw accrual fills gaps, duplicates never double-stage', async () => {
+  const { mirrorGapPatterns } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+  const run = tmp(); mkdirSync(join(run, 'inputs'), { recursive: true })
+  const promoted = tmp(); const raw = tmp()
+  writeFileSync(join(promoted, 'shared.md'), 'PROMOTED VERSION')
+  writeFileSync(join(promoted, 'README.md'), 'not a pattern — the corpus doc')
+  writeFileSync(join(raw, 'shared.md'), 'RAW VERSION')
+  writeFileSync(join(raw, 'only-raw.md'), 'not yet promoted')
+
+  const r = mirrorGapPatterns([promoted, raw], run)
+  assert.equal(r.written, true)
+  const staged = readFileSync(join(run, 'inputs', 'red-gap-patterns.md'), 'utf8')
+  assert.ok(staged.includes('PROMOTED VERSION'), 'the reviewed corpus is authoritative')
+  assert.ok(!staged.includes('RAW VERSION'), 'a promoted pattern is never re-staged from raw accrual')
+  assert.ok(staged.includes('not yet promoted'), 'un-promoted accrual still reaches the run')
+  assert.ok(!staged.includes('the corpus doc'), 'the README is documentation, not a pattern')
+  assert.equal(r.files, 2)
 })
