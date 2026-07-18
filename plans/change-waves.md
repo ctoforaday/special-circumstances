@@ -160,3 +160,8 @@ E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3
 
 RUNS RESUME only after E0.5 is exhausted: first run under the new constitution
 = its shakedown + the reform A/B (E2), then the E-queue in order.
+- [ ] W2h. Scorecards (plans/scorecards.md): every constitutional clause mapped to an
+      instrumented number with a Goodhart class (benchmark/diagnostic/detector);
+      capture computes -> feov-memory STATS -> setup mirrors -> seat prompts carry
+      headline numbers -> dashboard per-chair scoreboard. The visibility loop that
+      keeps the telos from becoming the next "confidence self-graded" dead letter.
