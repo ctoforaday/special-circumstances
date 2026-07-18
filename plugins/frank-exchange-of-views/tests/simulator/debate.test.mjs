@@ -53,19 +53,80 @@ test('null judge aborts cleanly instead of TypeError on judge.resolutions', asyn
   await assert.rejects(world.run(script, ARGS), /judge round 2 returned null/)
 })
 
-// ---- Run-3 docket row 2b: citation passes rescale every round ----
+// ---- Run-3 docket row 2b + W2i: citation passes rescale every round, on the round's input ----
 
-test('citationPasses recompute: lens count follows the CURRENT claim_count, round by round', async () => {
+const lensesByRound = (world, r) => world.calls.filter((c) => c.opts.label.match(new RegExp(`^red-lens-\\d+-r${r} `)))
+const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => c.prompt.includes('CITATION LEDGER'))
+
+test('citationPasses recompute: round 1 sizes on the corpus, round 2 on the DELTA (W2i)', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 10 })],           // round 1: 1 citation pass + 2 -> 3 lenses
-    blueRespond: [blueEnv({ claim_count: 200 })],        // report grew: round 2 must rescale
+    blueRespond: [blueEnv({ claim_count: 200 })],        // +190 claims: a big delta, but capped at 2
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
     judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
   }))
   await world.run(script, ARGS)
-  const lensesByRound = (r) => world.calls.filter((c) => c.opts.label.match(new RegExp(`^red-lens-\\d+-r${r} `))).length
-  assert.equal(lensesByRound(1), 3, 'round 1: 1 citation pass + logic + risk')
-  assert.equal(lensesByRound(2), 6, 'round 2 rescales to 4 citation passes + logic + risk')
+  assert.equal(lensesByRound(world, 1).length, 3, 'round 1: 1 citation pass + logic + risk')
+  assert.equal(lensesByRound(world, 2).length, 4, 'round 2: delta of 190 rescales to the cap of 2 citation + logic + risk')
+})
+
+test('W2i: a small round-2 delta drops to ONE citation seat — sized to input, not halved by rule', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ claim_count: 200 })],          // round 1: the cap, 4 citation passes
+    blueRespond: [blueEnv({ claim_count: 210 })],        // +10 claims: one seat's worth of new surface
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
+  }))
+  await world.run(script, ARGS)
+  assert.equal(citationSeats(world, 1).length, 4, 'round 1 coverage is untouched by W2i')
+  assert.equal(citationSeats(world, 2).length, 1, 'round 2 sizes on the 10-claim delta, not the 210-claim corpus')
+  assert.equal(lensesByRound(world, 2).length, 3, 'L5 + L6 dispatch every round regardless')
+})
+
+test('W2i: round 3 restores both citation seats — the staleness sweep is O(corpus), not O(delta)', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ claim_count: 200 })],
+    blueRespond: [blueEnv({ claim_count: 202 }), blueEnv({ claim_count: 203 })], // near-zero deltas throughout
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [
+      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] }),
+      judgeEnv({ resolutions: [{ gap_id: 'R2-1', resolution: 'carried', rationale: 'still owed' }] }),
+    ],
+  }))
+  await world.run(script, ARGS)
+  assert.equal(citationSeats(world, 2).length, 1, 'round 2: delta of 2 buys one seat')
+  assert.equal(citationSeats(world, 3).length, 2, 'round 3: the >2-rounds staleness trigger re-staffs the second seat')
+})
+
+test('W2i: lens numbers are ROLES — logic is always L5, dark-side always L6, whatever the citation count', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ claim_count: 10 })],           // ONE citation pass: positionally L5/L6 would slide to L2/L3
+    red: [redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const labels = lensesByRound(world, 1).map((c) => c.opts.label.match(/^red-lens-(\d+)-/)[1])
+  assert.deepEqual(labels.sort(), ['1', '5', '6'], 'citation slice L1, logic L5, dark-side L6 — no positional slide')
+  const logic = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-5-'))
+  assert.ok(logic.prompt.includes('logic and completeness'), 'L5 is the logic seat')
+  assert.ok(logic.prompt.includes('L5-F1'), 'finding labels carry the ROLE number')
+  assert.ok(logic.prompt.includes('round-1-lens-5.md'), 'the candidate filename carries the role number')
+})
+
+test('W2i: the consolidated-citation duty binds rounds 2+ citation seats only, and keeps coverage observable', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ claim_count: 200 })],
+    blueRespond: [blueEnv({ claim_count: 210 })],
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
+  }))
+  await world.run(script, ARGS)
+  for (const c of citationSeats(world, 1)) assert.ok(!c.prompt.includes('CONSOLIDATED CITATION SEAT'), 'round 1 is not consolidated')
+  const r2 = citationSeats(world, 2)[0]
+  assert.ok(r2.prompt.includes('CONSOLIDATED CITATION SEAT'), 'round 2 citation seat carries the consolidated duty')
+  assert.ok(r2.prompt.includes('SPOT-CHECK'), 'the duty keeps a spot-check of already-verified pairs')
+  assert.ok(r2.prompt.includes('COVERAGE IS AN OBSERVABLE'), 'what went unexamined must be stated, not assumed')
+  const dark = lensesByRound(world, 2).find((c) => c.opts.label.startsWith('red-lens-6-'))
+  assert.ok(!dark.prompt.includes('CONSOLIDATED CITATION SEAT'), 'L6 is untouched by citation consolidation')
 })
 
 // ---- Run-3 docket row 20: degenerate FAIL-with-empty-gaps throws, never loops ----

@@ -1,7 +1,7 @@
 {
   "name": "frank-exchange-of-views",
   "displayName": "Frank Exchange of Views",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "description": "The research debate engine for Special Circumstances: an additive blue team builds, a subtractive red team audits and owns the pass/fail gate, and a lead runs mechanics + final compromise. Best-of-N, the Catechism (a worth-our-time decision), and the full adversarial record preserved.",
   "author": {
     "name": "Gregory Block"
