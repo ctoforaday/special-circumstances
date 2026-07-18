@@ -2,6 +2,7 @@
 name: pattern-self-defeating-mitigation
 description: A control added to close a prior-round gap introduces its own failure mode — audit every new mitigation as a fresh attack surface, not a closed ticket
 metadata:
+  classes: [unverified-composition, partial-control-coverage, cross-section-contradiction]
   type: feedback
 ---
 

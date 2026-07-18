@@ -2,6 +2,7 @@
 name: pattern-stale-baseline-pricing
 description: Cost/efficiency lever analysis priced against a historical run's cost distribution that already-shipped mechanics have made unreachable; the report may even DESCRIBE the shipped mechanic correctly in one section without propagating its consequences into the sections it invalidates
 metadata:
+  classes: [pricing-basis-drift, incomplete-repair-propagation]
   type: feedback
 ---
 

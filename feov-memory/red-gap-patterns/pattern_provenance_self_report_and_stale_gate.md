@@ -2,6 +2,7 @@
 name: pattern-provenance-self-report-and-stale-gate
 description: Round-3 logic-lens patterns — a fix that trusts metadata self-reported by a compromised component, and a point-in-time gate that re-opens the very conflict its fallback closed
 metadata:
+  classes: [self-attestation, unhandled-degenerate-case, cross-section-contradiction]
   type: feedback
 ---
 

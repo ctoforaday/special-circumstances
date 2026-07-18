@@ -2,6 +2,7 @@
 name: pattern-identity-keyed-detector-lineage-blind
 description: An escalation/convergence detector keyed on stable identifiers never fires when the process's own bookkeeping convention renames the tracked object every cycle — check who mints the ids against what the detector matches on
 metadata:
+  classes: [recurrence-detector-keying, name-keying-vs-marker, spec-underspecification]
   type: feedback
 ---
 

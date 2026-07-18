@@ -2,6 +2,7 @@
 name: pattern-pinned-mapping-not-total
 description: a convention pinned for series stability (enum→numeric mapping, reading rule) is never checked for totality over its actual input domain — unmapped tokens, synonym tokens at opposite extremes, unpinned compound-cell handling
 metadata:
+  classes: [enumeration-non-exhaustive, unhandled-degenerate-case, spec-underspecification]
   type: feedback
 ---
 

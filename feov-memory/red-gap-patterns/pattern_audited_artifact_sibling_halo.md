@@ -2,6 +2,7 @@
 name: pattern-audited-artifact-sibling-halo
 description: Blue audits ONE finding of a pinned artifact as defective, then transcribes a SIBLING finding's own error from the same artifact unchecked — the partial audit confers unearned trust on the rest of the source
 metadata:
+  classes: [audited-artifact-sibling-halo, figure-miscomposition]
   type: feedback
 ---
 

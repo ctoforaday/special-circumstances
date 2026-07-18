@@ -2,6 +2,7 @@
 name: pattern-postmortem-misdiagnosis
 description: "Corrected figures verify clean while the repair's forensic story of HOW the old number went wrong is itself false — test the claimed error mechanism by reproducing the OLD number under it"
 metadata:
+  classes: [causal-narrative-fails-reproduction, audited-artifact-sibling-halo]
   type: feedback
 ---
 

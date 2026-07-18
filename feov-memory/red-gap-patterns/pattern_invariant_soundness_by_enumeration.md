@@ -2,6 +2,7 @@
 name: pattern-invariant-soundness-by-enumeration
 description: A keystone invariant sold as "sound/mechanical" whose soundness actually rests on an under-inclusive channel denylist — provably incomplete when the system's own symmetric defense already treats an omitted channel as I/O
 metadata:
+  classes: [enumeration-non-exhaustive, derivation-status-overclaim, false-universal]
   type: feedback
 ---
 

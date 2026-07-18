@@ -2,6 +2,7 @@
 name: pattern-repair-premise-foreclosed-by-own-profile
 description: A guard added to tag/bound a threat write rests on a premise the same document's allow/deny profile already forecloses — the guard is dead where aimed, and the foreclosed write was a REQUIRED behavior of a subsystem, now silently denied
 metadata:
+  classes: [cross-section-contradiction, risk-coverage-omission]
   type: feedback
 ---
 

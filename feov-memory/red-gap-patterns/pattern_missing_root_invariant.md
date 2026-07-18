@@ -2,6 +2,7 @@
 name: pattern-missing-root-invariant
 description: When successive rounds each patch one security gate and each patch spawns a next-order gap, the root cause is a missing stated invariant — surface the invariant, not just the Nth instance
 metadata:
+  classes: [missing-root-invariant]
   type: feedback
 ---
 

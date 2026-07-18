@@ -2,6 +2,7 @@
 name: citation-status-and-misattribution-patterns
 description: Recurring blue citation defects — closed GitHub issues cited as "open", and real figures miscited to the wrong source
 metadata:
+  classes: [citation-figure-misattribution, citation-status-drift, figure-recount-fails]
   type: feedback
 ---
 

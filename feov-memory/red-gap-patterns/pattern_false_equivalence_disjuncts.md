@@ -2,6 +2,7 @@
 name: pattern-false-equivalence-disjuncts
 description: Spec/repair text offers two branches as "equivalently" or "X or Y" where only one has an operator or prevents the stated harm — the weak branch becomes the build path
 metadata:
+  classes: [undecided-disjunction, policy-without-mechanism]
   type: feedback
 ---
 

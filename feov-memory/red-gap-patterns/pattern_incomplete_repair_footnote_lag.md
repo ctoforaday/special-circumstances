@@ -2,6 +2,7 @@
 name: pattern-incomplete-repair-footnote-lag
 description: Round-N repair lands in prose body but the footnote/citation surface still carries the retracted number/claim — re-verify the citation, not just the sentence
 metadata:
+  classes: [incomplete-repair-propagation, claim-contradicts-own-record, reader-channel-mismatch]
   type: feedback
 ---
 

@@ -2,6 +2,7 @@
 name: pattern-authorship-evades-never-edit-guard
 description: "Self-poisoning guard says loop NEVER EDITS its inputs — but the loop APPENDS new artifacts (its own run dir's friction/cost) that enter the same harvest corpus; amplification via authorship, not mutation"
 metadata:
+  classes: [partial-control-coverage, cross-section-contradiction]
   type: feedback
 ---
 

@@ -2,6 +2,7 @@
 name: pattern-method-footnote-undercoverage
 description: A "method documented for reproduction" footnote reproduces every figure EXCEPT the headline sub-figure — re-derive each figure from the stated method and flag the ones it cannot produce
 metadata:
+  classes: [derivation-status-overclaim, audited-artifact-sibling-halo]
   type: feedback
 ---
 

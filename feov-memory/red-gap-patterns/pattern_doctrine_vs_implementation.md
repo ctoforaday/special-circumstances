@@ -2,6 +2,7 @@
 name: pattern-doctrine-vs-implementation
 description: A code comment/doc states a design principle ("never cheapen the adversary") that the literal routing/logic below it contradicts — check every declared invariant against its own implementation, not just external behavior
 metadata:
+  classes: [doctrine-vs-implementation, cross-section-contradiction]
   type: feedback
 ---
 

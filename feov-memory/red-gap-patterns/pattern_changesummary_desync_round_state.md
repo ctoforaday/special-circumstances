@@ -2,6 +2,7 @@
 name: pattern-changesummary-desync-round-state
 description: A lens can misjudge the whole round state (thinks blue shipped no revision) when CHANGELOG/debate lags the actual report.md edits; merge resolves round parity by direct read, never by the change-summary
 metadata:
+  classes: [reader-channel-mismatch, self-attestation]
   type: feedback
 ---
 

@@ -2,6 +2,7 @@
 name: pattern-schema-legal-control-flow-trace
 description: dark-side/risk lens finds its best gaps by hand-tracing control flow for schema-legal-but-semantically-incoherent envelope shapes, not by re-checking citations
 metadata:
+  classes: [unhandled-degenerate-case, partial-control-coverage, false-universal]
   type: feedback
 ---
 

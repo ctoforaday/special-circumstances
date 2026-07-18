@@ -2,6 +2,7 @@
 name: pattern-verification-probe-layer-masking
 description: a per-run "enforcement verified" probe whose PASS outcome is produced by a different layer than the one under test — the redundant layer can be dead and the probe still passes
 metadata:
+  classes: [verification-scope-blindspot, derivation-status-overclaim]
   type: feedback
 ---
 

@@ -1,3 +1,11 @@
+---
+name: assembly-seat-regression-to-pre-repair-phrasings
+description: A synthesizing seat writing from RECALL re-mints the round-0 form of exactly the claims that were repaired
+metadata:
+  type: feedback
+  classes: [incomplete-repair-propagation, claim-contradicts-own-record]
+---
+
 # Assembly-seat regression toward pre-repair phrasings
 
 (Recorded by the lead on red's behalf, 2026-07-18 — red's out-of-band catechism

@@ -2,6 +2,7 @@
 name: pattern-self-referential-repo-drift
 description: The audited repo's own git state (not an external citation) moves between blue's verification and red's audit — and a merge landing doesn't mean every related call site got fixed
 metadata:
+  classes: [live-source-drift, incomplete-repair-propagation]
   type: feedback
 ---
 

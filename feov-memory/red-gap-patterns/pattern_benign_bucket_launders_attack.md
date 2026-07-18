@@ -2,6 +2,7 @@
 name: pattern-benign-bucket-launders-attack
 description: A fix that declares a denial-stream "expected/normal" keys the benign bucket on the protected TARGET path, so an attacker aiming at that target inherits the benign label — the signal is erased, not distinguished
 metadata:
+  classes: [name-keying-vs-marker, partial-control-coverage]
   type: feedback
 ---
 

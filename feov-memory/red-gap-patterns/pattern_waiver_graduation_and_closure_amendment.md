@@ -2,6 +2,7 @@
 name: pattern-waiver-graduation-and-closure-amendment
 description: checked-not-raised waivers are class-conditional (promote when the class becomes established); prior CLEAN closures can need amendment when a composition defect between two verified repairs surfaces a round later
 metadata:
+  classes: [incomplete-repair-propagation, unverified-composition]
   type: feedback
 ---
 

@@ -178,6 +178,7 @@ export function mirrorScorecards(memoryDir, runDir) {
 export function buildPatternIndex(dirs) {
   const byClass = {}
   const unclassified = []
+  const harnessLimit = []
   for (const dir of (Array.isArray(dirs) ? dirs : [dirs]).filter((d) => d && existsSync(d))) {
     for (const f of readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md' && f !== 'MEMORY.md')) {
       const body = readFileSync(join(dir, f), 'utf8')
@@ -186,11 +187,19 @@ export function buildPatternIndex(dirs) {
       const desc = fm ? (/^description:\s*(.+)$/m.exec(fm[1]) || [, ''])[1].replace(/^["']|["']$/g, '') : ''
       const classLine = fm ? /^\s*classes:\s*\[([^\]]*)\]/m.exec(fm[1]) : null
       const classes = classLine ? classLine[1].split(',').map((c) => c.trim().replace(/^["']|["']$/g, '')).filter(Boolean) : []
-      if (!classes.length) { unclassified.push(f); continue }
+      // A harness-limit pattern is DELIBERATELY classless: it records a tooling
+      // constraint, not a kind of research defect, so it has no gap class to join
+      // against and must not be reported as unfinished classification work. The
+      // two are different states and conflating them would make the honest
+      // backlog number lie.
+      if (!classes.length) {
+        (/^\s*class_note:\s*harness-limit/m.test(fm ? fm[1] : '') ? harnessLimit : unclassified).push(f)
+        continue
+      }
       for (const c of classes) (byClass[c] ||= []).push({ file: f, title, hook: desc })
     }
   }
-  return { byClass, unclassified }
+  return { byClass, unclassified, harnessLimit }
 }
 
 export function validatePins(cites, head, git = (args) => spawnSync('git', args)) {
@@ -336,7 +345,7 @@ function main() {
   console.log(`  pin validation: ${pv.skipped ? pv.skipped : `${pv.checked} cite(s) verified at their pins`}`)
   console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} pattern(s) mirrored from ${mirror.sources} source(s) (promoted corpus first)` : mirror.reason}`)
   console.log(`  law: ${law.written ? `${law.files} file(s) mirrored (statute > precedent > argument)` : law.reason}`)
-  console.log(`  gap-pattern index: ${Object.keys(patternIndex.byClass).length} class(es) -> inputs/gap-patterns-by-class.json${patternIndex.unclassified.length ? ` (${patternIndex.unclassified.length} UNCLASSIFIED, not delivered — classify them to make them bind)` : ''}`)
+  console.log(`  gap-pattern index: ${Object.keys(patternIndex.byClass).length} class(es) -> inputs/gap-patterns-by-class.json${patternIndex.unclassified.length ? ` (${patternIndex.unclassified.length} UNCLASSIFIED, not delivered — classify them to make them bind)` : ''}${patternIndex.harnessLimit.length ? ` (${patternIndex.harnessLimit.length} harness-limit, classless by design)` : ''}`)
   console.log(`  scorecards: ${cards.written ? `${cards.chairs.join(', ')} staged into inputs/` : cards.reason}`)
   if (Object.keys(cards.headlines).length) {
     // Printed as a ready-to-pass workflow arg: debate.js is SANDBOXED (zero

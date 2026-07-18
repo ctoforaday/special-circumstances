@@ -2,6 +2,7 @@
 name: pattern-acceptance-test-polarity-lag
 description: A repair inverts a mechanism's polarity but the standing acceptance test still asserts the OLD behavior — the gate becomes unsatisfiable and its cheapest pass is undoing the repair
 metadata:
+  classes: [incomplete-repair-propagation, cross-section-contradiction]
   type: feedback
 ---
 

@@ -2,6 +2,7 @@
 name: pattern-repair-regression-citation
 description: A repair that softens an unpinnable figure by attributing it to a NEW specific source can regress — the new source may report a materially different (contradicting) number, or the accurate number lives in an uncited paper
 metadata:
+  classes: [citation-figure-misattribution, incomplete-repair-propagation, undecided-disjunction]
   type: feedback
 ---
 

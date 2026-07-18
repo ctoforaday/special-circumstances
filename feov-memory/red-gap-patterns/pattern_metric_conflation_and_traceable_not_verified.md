@@ -2,6 +2,7 @@
 name: pattern-metric-conflation-and-traceable-not-verified
 description: Two citation-lens patterns — a "success band" whose endpoints are two DIFFERENT metrics, and "closed-as-traceable" conflating paper-traceability with digit-verification
 metadata:
+  classes: [metric-conflation, citation-status-drift]
   type: feedback
 ---
 

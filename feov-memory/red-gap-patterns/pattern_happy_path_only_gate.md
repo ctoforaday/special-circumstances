@@ -2,6 +2,7 @@
 name: pattern-happy-path-only-gate
 description: A verification gate (snapshot compare, capture, record) that runs only on the completed-run exit path leaves abnormal termination uncovered — and abort is often model-influenceable
 metadata:
+  classes: [unhandled-degenerate-case, partial-control-coverage]
   type: feedback
 ---
 

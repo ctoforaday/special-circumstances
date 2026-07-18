@@ -2,6 +2,7 @@
 name: pattern-adjacent-defect-count-bleed
 description: A repair re-grades defect A's recurrence count using an event that actually belongs to structurally-adjacent defect B — check the cited section literally contains the claimed event, not just that a plausible-sounding event exists somewhere nearby
 metadata:
+  classes: [citation-figure-misattribution, figure-recount-fails]
   type: feedback
 ---
 

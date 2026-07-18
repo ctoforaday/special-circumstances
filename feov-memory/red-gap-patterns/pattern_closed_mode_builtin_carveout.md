@@ -2,6 +2,7 @@
 name: pattern-closed-mode-builtin-carveout
 description: A design's "default-closed / allowlist-inverted" premise built on a platform mode is defeated by the mode's own documented built-in auto-approve carve-out
 metadata:
+  classes: [false-universal, enumeration-non-exhaustive]
   type: feedback
 ---
 

@@ -2,6 +2,7 @@
 name: pattern-wildcard-allow-write-gadget
 description: A wildcard allow rule characterized as "read-only" hides a write gadget via the tool's own output flag; run the leaf to find it
 metadata:
+  classes: [false-universal, enumeration-non-exhaustive]
   type: feedback
 ---
 
