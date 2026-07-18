@@ -153,7 +153,7 @@ E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3
       materialized in the same area.
 - [ ] f. Retroactive assembly screens on runs 3-4 (is assembly-seat regression
       general or run-5-specific?).
-- [ ] g. Retroactive class vocabulary: classify all ~180 gaps across runs into
+- [x] g. Retroactive class vocabulary: classify all ~180 gaps across runs into
       a seed registry (calibrates W2d before it ships).
 - [ ] h. Claim survival trace: blue claims attacked-and-held vs attacked-and-
       repaired vs never-attacked (coverage + calibration prior).
