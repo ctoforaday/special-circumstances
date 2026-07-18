@@ -1,6 +1,8 @@
 # The record tool: a record-management library + bespoke per-seat CLIs
 
-Rev 3 (2026-07-18) — post plan-audit FAIL #1; all eight gaps addressed. Origin:
+Rev 4 (2026-07-18) — post plan-audit FAIL #2 (six gaps, two empirically grounded
+in the run-5 corpus: 8 duplicate seat dispatches in 58 starts; transcripts carry
+no seat label). Rev 3 was post FAIL #1 (eight gaps). Origin:
 the E0.5 convergence (four audits acquitted the seats, indicted the record) +
 the operator's proposal (tooling for lossless records, automatic metrics,
 structured tagging, constitutional deletion) + the per-seat refinement (verb
@@ -20,27 +22,45 @@ DELETION of record mechanics — judgment stays, procedure leaves. Non-goals:
 verifying claim truth (vacuity remains post-hoc behavior audit); replacing
 prose payloads (the tool structures envelopes, never arguments).
 
-## II. Design
+## II. Technical Context & Design
 
-STORAGE — per-seat shards, contention-free by construction: each seat appends
-ONLY to `<runDir>/records/events-<seatId>.jsonl` (O_APPEND, one JSON line per
-event, line at most atomic-write size; prose payloads over 2KB go via
-`--file <path>` or stdin — never inline shell args, per the documented
-heredoc-mangling recurrence, which bit AGAIN while writing this very plan).
-seq is PER-SHARD monotonic; global order is a render-time merge by
-(round, seat, seq) — deterministic, no locks, 6 parallel lenses cannot race.
-Every mint-class verb takes `--idempotency-key` (seat + stable local label); a
-duplicate key returns the existing id instead of double-minting — crash-retry
-safe. A torn round (mint without close) renders as open state; nothing is lost,
-nothing blocks.
+SEAT IDENTITY (audit-2 gaps 1-3, grounded in the measured duplicate-dispatch
+anomaly — 8 of run 5's 50 cache keys dispatched twice): the ENGINE assigns and
+the PROMPT carries an explicit `SEAT_ID` — `<seat>-r<round>[-L<lens>]` (e.g.
+`red-lens-r4-L3`, `blue-respond-r2`) — one line added to every seat prompt.
+Every CLI invocation requires `--seat-id`; the tool suffixes the SHARD FILE with
+a per-process nonce generated at first invocation
+(`events-<seatId>-<nonce>.jsonl`), so a re-dispatched duplicate of the same seat
+writes its OWN shard — uniqueness holds by process, not by name. Side benefit:
+transcripts become self-identifying (the SEAT_ID is in the first user message
+AND in every tool command), retiring the dashboard's regex classification.
+
+STORAGE — per-process shards, contention-free by construction: O_APPEND, one
+JSON line per event, line at most atomic-write size; prose payloads over 2KB go
+via `--file <path>` or stdin — never inline shell args, per the documented
+heredoc-mangling recurrence (which bit AGAIN while authoring this plan). seq is
+PER-SHARD monotonic (re-read tail on append). Global order is a render-time
+merge by (round, seatId, nonce, seq) — deterministic, no locks. EVERY verb
+(not just mint-class) derives an idempotency key — `seatId + round + verb +
+local label-or-content-hash` — so duplicate events from a re-dispatched seat
+dedup at RENDER time by key (first-nonce-wins, the duplicate flagged in the
+render's anomaly footer). Lens labels restart each round; keys are
+round-qualified through seatId by construction, with an explicit
+same-label-next-round collision test in R1's suite. A torn round (mint without
+close) renders as open state; nothing is lost, nothing blocks.
 
 LOSS DISCIPLINE — the log lives on the untracked live blackboard, so the W1.13
 incident classes (add -A / checkout / stash) threaten it: (a) `red-merge.mjs
-verdict` runs an automatic `checkpoint` — mirrors `records/` to an out-of-repo
-session location (OS temp keyed by runDir hash) every round; recovery = copy
-back; (b) capture commits `records/` with the run record (git-tracked from then
-on); (c) the freeze-guard warning classes stand. Window: at most one round's
-events — the same exposure as today, now with a stated recovery procedure.
+verdict` runs an automatic `checkpoint` — mirrors `records/` to
+`~/.cache/feov/run-mirror/<runDirHash>/` (user cache, NOT OS temp — temp purge
+must not void the sole recovery path) every round; recovery = copy back.
+MIRROR LIFECYCLE: created at first checkpoint, refreshed each round, DELETED by
+capture after `records/` is committed; mirrors older than 30 days are purged by
+the next setup run (orphan cleanup for crashed runs). (b) capture commits
+`records/` with the run record — git-tracked from then on; a post-capture
+copy-back is impossible by construction (the mirror is gone). (c) the
+freeze-guard warning classes stand. Window: at most one round's events —
+BETTER than today, where a sweep loses every untracked round at once.
 
 VERB SETS (complete against everything the engine currently records — audit gap
 3 closed):
@@ -53,24 +73,39 @@ VERB SETS (complete against everything the engine currently records — audit ga
   review, two-tier like law), close (anchors required; --carried-from for
   re-attestations), dispose (every lens observation demands one), regrade
   (--basis), DISPUTE-RESPOND (accepted/rejected + rationale), SPOT-CHECK (the
-  W1.8 duty — moved here from lens; lenses report, the merge records), verdict
-  (renders boards + telemetry, then runs checkpoint), friction, PETITION.
+  W1.8 duty — moved here from lens; lenses report, the merge records), POSITION
+  (the round's ### RED section) and CLOSING (### RED CLOSING entries — prose via
+  --file), verdict (renders boards + telemetry, then runs checkpoint), friction,
+  PETITION.
 - blue.mjs: revision (the round-record event), manifest-row, dispute,
-  confidence, friction, PETITION.
+  confidence, POSITION (### BLUE) and CLOSING (### BLUE CLOSING), friction,
+  PETITION.
+- DEBATE.MD IS A PROJECTION (audit-2 gap 5): round sections assemble from
+  position/closing/opinion events at render — otherwise it remains the central
+  hand-maintained record the plan claims to replace. The judge's confined
+  ruling basis is unchanged in content (closings + transcript + artifacts);
+  only the transcript's write path changes. Any seat may invoke read-only
+  `render` on demand; blue's `revision` triggers one automatically so
+  projections are current for the next reader mid-round (audit-2 gap 4's
+  render-locus requirement).
 - bench.mjs: opinion (disposition/principle/tension/review-flag as required
   args), petition-rule, halt, certify. No mint — the bench rules, never
   originates.
 - Capture + dashboard consume the library read-only. `--help` on each CLI is the
   seat's record contract (prompt prose retires to it).
 
-ENFORCEMENT — stated at its true tier (audit gap 7): INTERFACE (no sanctioned
+ENFORCEMENT — stated at its true tier (audit-1 gap 7): INTERFACE (no sanctioned
 path to out-of-role verbs) + DETERRENCE + POST-HOC JOIN AUDIT, per the
-attestation ceiling. The join audit is specified: capture check `record-join` —
-for every event, find the emitting seat's transcript tool_use whose Bash command
-invokes the event's CLI verb with the event's id or idempotency-key (payloads
-via --file match on key, not text); events with no matching invocation, or
-invocations from a transcript whose seat differs from the event's claimed seat,
-are FLAGGED. Bulk back-fill (hand-writing boards then transcribing at round
+attestation ceiling. The join audit's DATA SOURCE is the SEAT_ID itself
+(audit-2 gap 3 — transcripts carry no label field, verified): every tool
+command embeds `--seat-id`, so each transcript self-identifies through its own
+Bash calls, and each shard names the seatId+nonce that wrote it. The join:
+for every event, find a transcript whose commands carry that shard's seatId and
+the event's verb + idempotency key (payloads via --file match on key, not
+text). Events with no matching invocation anywhere, or one seatId claimed by
+commands in two transcripts with distinct nonces both ACTIVE in the same round
+(beyond the known duplicate-dispatch pattern, which dedups at render), are
+FLAGGED. Bulk back-fill (hand-writing boards then transcribing at round
 end) is visible as a tail-clustered invocation pattern and flagged as a
 parity-vacuity WARN for human review. Hand-appended well-formed lines are
 caught by the same join. "Physically impossible" applies only to the sanctioned
@@ -106,13 +141,15 @@ R2.5 PARITY RUN (the one-run parallel period, scheduled here — audit gap 2):
    divergence in gap ids, grades, closure classes, dispositions, counts, or
    telemetry fields; prose bodies compare presence-not-text. Verdict lines land
    in run-record-audit.md. Zero-FAIL is the gate to R3.
-R3 [MODIFY] debate.js: prompts shrink to tool contracts; RETIRE
-   round_record_appended (superseded by revision events), the empty-manifest
-   throw (superseded by a manifest-row event check), the count-consistency
-   throw at the merge (counts are renders), and the ledger/archive/telemetry
-   prompt paragraphs; KEEP the spot-check floor (now reading spot-check events
-   via the envelope summary), the null-guards, the lane floor, the dispute
-   machinery. [MODIFY] capture: RETIRE the shards audit, friction-parity +
+R3 [MODIFY] debate.js: prompts shrink to tool contracts; RETIRE the
+   count-consistency throw at the merge (counts are renders) and the
+   ledger/archive/telemetry prompt paragraphs; KEEP — corrected per audit-2
+   gap 4 — the round_record_appended and manifest envelope attestations AS
+   IN-RUN GATES (the engine has no filesystem and events are post-hoc to it;
+   these envelope throws are the only mid-round desync brakes and they are
+   cheap — the events ADD the mechanical recount at capture, they do not
+   replace the brake), plus the spot-check floor, the null-guards, the lane
+   floor, and the dispute machinery. [MODIFY] capture: RETIRE the shards audit, friction-parity +
    harvest (friction is events), and the W1.7-form record-parity; KEEP
    telemetry-presence (as render-match), context-use, assembly-screen, and
    record-join. [MODIFY] the three constitutions: the deletion list minus the
@@ -161,3 +198,19 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
 - The R3 constitutional-deletion PR diff IS the review surface: every deleted
   paragraph must show its replacing tool clause in the same diff (reviewer
   checklist in the PR body).
+
+## Appendix: directory tree (formal-deviation fix)
+
+    plugins/frank-exchange-of-views/skills/research-protocol/scripts/
+      lib/record.mjs            [NEW R1]  append/validate/mint/replay/merge/render
+      tools/red-lens.mjs        [NEW R1]
+      tools/red-merge.mjs       [NEW R1]
+      tools/blue.mjs            [NEW R2]
+      tools/bench.mjs           [NEW R2]
+      record-parity-check.mjs   [NEW R2]
+      debate.js                 [MODIFY R2 dual-mode; R3 shrink]
+      capture-research-run.mjs  [MODIFY R2 +join/parity; R3 audit collapse]
+    plugins/frank-exchange-of-views/tests/simulator/record.test.mjs  [NEW R1]
+    <runDir>/records/events-<seatId>-<nonce>.jsonl   (per-process shards)
+    <runDir>/records/registry-extensions.jsonl        (run-local --class-new)
+    ~/.cache/feov/run-mirror/<runDirHash>/            (checkpoint mirror, capture-deleted)
