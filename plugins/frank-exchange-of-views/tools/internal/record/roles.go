@@ -47,7 +47,8 @@ func roleOfSeat(seatID string) string {
 	return ""
 }
 
-func checkSeatRole(role, seatID string) error {
+// CheckSeatRole enforces the binding at the CLI boundary.
+func CheckSeatRole(role, seatID string) error {
 	prefixes, known := roleSeats[role]
 	if !known {
 		return nil
