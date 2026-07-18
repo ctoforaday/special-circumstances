@@ -185,6 +185,56 @@ export function recordParityAudit(runDir) {
   }
 }
 
+// W2/record-tool — the record-join audit (plan §II ENFORCEMENT, behavioral tier):
+// every event must trace to a tool invocation in the emitting seat's transcript.
+// Transcripts self-identify via --seat-id in their own Bash commands; events with
+// no matching (seatId, verb) invocation anywhere are FLAGGED (hand-appended
+// lines, back-filled records). Back-fill vacuity: a seat whose record commands
+// all cluster at its transcript tail gets a WARN for human review.
+export function recordJoinAudit(runDir, transcriptDir, agentFiles) {
+  const recDir = join(runDir, 'records')
+  if (!existsSync(recDir)) return { check: 'record-join', verdict: 'SKIP', detail: 'no records/ (pre-record-tool run)' }
+  const events = []
+  for (const f of readdirSync(recDir).filter((x) => x.startsWith('events-') && x.endsWith('.jsonl'))) {
+    for (const l of readFileSync(join(recDir, f), 'utf8').split('\n').filter(Boolean)) {
+      try { const e = JSON.parse(l); if (e.type !== 'register') events.push(e) } catch {}
+    }
+  }
+  if (!events.length) return { check: 'record-join', verdict: 'SKIP', detail: 'records/ empty' }
+  // Per-transcript: the seatIds it claims and the verbs it invoked, plus tail clustering.
+  const invocations = new Set() // `${seatId}::${verb}`
+  const tailWarns = []
+  for (const f of agentFiles) {
+    const cmds = []
+    let toolCallCount = 0
+    for (const l of readFileSync(join(transcriptDir, f), 'utf8').split('\n')) {
+      if (!l.includes('tool_use')) continue
+      let j; try { j = JSON.parse(l) } catch { continue }
+      const content = j.message && j.message.content
+      if (!Array.isArray(content)) continue
+      for (const c of content) {
+        if (c.type !== 'tool_use') continue
+        toolCallCount++
+        const cmd = c.input && c.input.command ? String(c.input.command) : ''
+        const m = cmd.match(/(red-lens|red-merge|blue|bench)\.mjs\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)/)
+        if (m) { invocations.add(`${m[3]}::${m[2]}`); cmds.push(toolCallCount) }
+      }
+    }
+    if (cmds.length > 5 && cmds[0] > toolCallCount - cmds.length - 2) {
+      tailWarns.push(`${f}: ${cmds.length} record invocations all tail-clustered (back-fill pattern — parity may be vacuous for this seat)`)
+    }
+  }
+  const orphans = events.filter((e) => !invocations.has(`${e.seatId}::${verbOf(e.type)}`))
+  const detail = [
+    `${events.length} event(s) across shards; ${invocations.size} distinct (seat, verb) invocations in transcripts`,
+    orphans.length ? `FLAGGED ${orphans.length} event(s) with no matching transcript invocation:\n${orphans.slice(0, 10).map((e) => `    - ${e.seatId} ${e.type} (${e.key})`).join('\n')}` : 'every event traces to a transcript invocation',
+    ...tailWarns.map((w) => `WARN ${w}`),
+  ].join('\n  ')
+  return { check: 'record-join', verdict: orphans.length ? 'FAIL' : tailWarns.length ? 'WARN' : 'PASS', detail }
+}
+// Event types map 1:1 to CLI verbs except mint-adjacent internals.
+const verbOf = (type) => (type === 'class-new' ? 'mint' : type)
+
 export function capture(runDir, transcriptDir) {
   const lines = []
   // Mechanics: journal copy, transcript tarball, cost.md (with telemetry join).
@@ -214,7 +264,14 @@ export function capture(runDir, transcriptDir) {
     contextUse(transcriptDir, agentFiles),
     assemblyScreen(runDir),
     recordParityAudit(runDir),
+    recordJoinAudit(runDir, transcriptDir, agentFiles),
   ]
+  // R2.5 parity gate: when the run carried the record tool (records/ exists),
+  // run the hand-vs-shadow fact comparison and relay its verdict.
+  if (existsSync(join(runDir, 'records'))) {
+    const parity = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'record-parity-check.mjs'), runDir])
+    audits.push({ check: 'record-parity-r25', verdict: parity.status === 0 ? 'PASS' : 'FAIL', detail: (parity.stdout || '').toString().trim().split('\n').slice(0, 12).join('\n  ') })
+  }
 
   // Marker removal: the run is no longer live; hook guards stand down.
   const marker = join(process.cwd(), '.claude', 'run-live.json')

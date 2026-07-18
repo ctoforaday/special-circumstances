@@ -10,7 +10,7 @@
 // winner selection under nonce multiplicity = terminal-event nonce, then
 // latest-mtime; every multi-nonce seatId is reported in the render anomaly
 // footer — duplicate dispatch is dedup'd AND visible, never silently normal.
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 
@@ -38,7 +38,8 @@ export function registerSeat(runDir, seatId) {
   if (!seatId || !/^[a-z][a-z0-9-]*$/i.test(seatId)) throw new Error(`record: invalid --seat-id ${JSON.stringify(seatId)}`)
   mkdirSync(recordsDir(runDir), { recursive: true })
   const nonce = randomBytes(4).toString('hex')
-  writeFileSync(pointerPath(runDir, seatId), nonce)
+  // Pointer write is a shared surface (two racing registers): lock per seatId.
+  withLock(runDir, `ptr-${seatId}`, () => writeFileSync(pointerPath(runDir, seatId), nonce))
   const line = { seq: 0, seatId, nonce, round: roundOf(seatId), type: 'register', key: `${seatId}:register:${nonce}`, payload: {} }
   appendFileSync(shardPath(runDir, seatId, nonce), JSON.stringify(line) + '\n')
   return { nonce, shard: shardPath(runDir, seatId, nonce) }
@@ -221,15 +222,56 @@ export function boardState(runDir) {
 
 const pickGrades = (p) => Object.fromEntries(Object.entries(p).filter(([k]) => ['severity', 'likelihood', 'impact', 'complexity_cost'].includes(k)))
 
+// ---- Locking (dependency-free): the shards are single-writer by design, but
+// the seat POINTER and the shared PROJECTIONS are not — six lens processes
+// mutating concurrently means six renders racing onto one ledger.md, and on
+// Windows rename-over-existing under contention throws rather than
+// last-writer-wins. mkdir is the atomic primitive every lockfile package wraps:
+// acquire = mkdirSync (EEXIST → wait); stale locks (a crashed holder) are
+// stolen after STALE_MS by mtime. Bounded wait, then proceed-with-retry rather
+// than deadlock a seat — a lost render self-heals on the next mutation. ----
+
+const STALE_MS = 10_000
+const WAIT_MS = 5_000
+const sleep = (ms) => { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms) } catch { const end = Date.now() + ms; while (Date.now() < end) { /* spin */ } } }
+
+function withLock(runDir, name, fn) {
+  const lockDir = join(recordsDir(runDir), `.lock-${name}`)
+  mkdirSync(recordsDir(runDir), { recursive: true })
+  const deadline = Date.now() + WAIT_MS
+  let held = false
+  while (!held) {
+    try { mkdirSync(lockDir); held = true } catch (e) {
+      if (e.code !== 'EEXIST') throw e
+      try { if (Date.now() - statSync(lockDir).mtimeMs > STALE_MS) { rmdirSync(lockDir); continue } } catch { continue }
+      if (Date.now() > deadline) break // bounded wait: proceed unlocked rather than deadlock; renders self-heal
+      sleep(50 + Math.floor(Math.random() * 100))
+    }
+  }
+  try { return fn() } finally { if (held) { try { rmdirSync(lockDir) } catch {} } }
+}
+
 // ---- Projections (atomic writes: temp + rename — sitting-4 note 1) ----
 
 function writeAtomic(path, content) {
   const tmp = path + '.tmp-' + randomBytes(3).toString('hex')
   writeFileSync(tmp, content)
-  renameSync(tmp, path)
+  // Windows: rename-over-existing can throw EPERM under a concurrent reader or
+  // racer even inside the lock (antivirus, indexer); brief retry, then give up
+  // this render — full-state projections self-heal on the next mutation.
+  for (let i = 0; i < 5; i++) {
+    try { renameSync(tmp, path); return } catch (e) {
+      if (!['EPERM', 'EBUSY', 'EACCES', 'EEXIST'].includes(e.code) || i === 4) { try { rmSync(tmp) } catch {}; if (i === 4) return; throw e }
+      sleep(20 * (i + 1))
+    }
+  }
 }
 
 export function render(runDir, { outDir = null } = {}) {
+  return withLock(runDir, 'render', () => renderUnlocked(runDir, { outDir }))
+}
+
+function renderUnlocked(runDir, { outDir = null } = {}) {
   // Shadow by default during dual-mode (plan R2); real paths are opt-in at R3.
   const out = outDir || join(recordsDir(runDir), 'render-shadow')
   mkdirSync(out, { recursive: true })
@@ -289,6 +331,36 @@ export function render(runDir, { outDir = null } = {}) {
     }))
   }
   writeAtomic(join(out, 'board-telemetry.jsonl'), lines.join('\n') + (lines.length ? '\n' : ''))
+
+  // R2 projections: debate.md, CHANGELOG.md, citation-ledger.md — the remaining
+  // hand-maintained records become renders (nothing cuts over unvalidated: all
+  // three are in the R2.5 parity set).
+  const evs = boardState(runDir).events
+  const byRound = new Map()
+  for (const e of evs) { const arr = byRound.get(e.round) || []; arr.push(e); byRound.set(e.round, arr) }
+  const debateParts = [`# debate.md — RENDERED PROJECTION (source of truth: records/ event log)`]
+  for (const r of [...byRound.keys()].sort((a, b) => a - b)) {
+    const re = byRound.get(r)
+    const sec = (type, seatPrefix) => re.filter((e) => e.type === type && e.seatId.startsWith(seatPrefix))
+    const parts = [`\n## Round ${r}`]
+    for (const p of sec('position', 'red-merge')) parts.push(`### RED\n${p.payload.text || ''}`)
+    for (const c of sec('closing', 'red-merge')) parts.push(`### RED CLOSING (round ${r}) — ${c.payload.gap_id}\n${c.payload.text || ''}`)
+    for (const p of sec('position', 'blue')) parts.push(`### BLUE\n${p.payload.text || ''}`)
+    for (const c of sec('closing', 'blue')) parts.push(`### BLUE CLOSING (round ${r}) — ${c.payload.gap_id}\n${c.payload.text || ''}`)
+    const ops = re.filter((e) => e.type === 'opinion')
+    if (ops.length) parts.push(`### LEAD\n${ops.map((o) => `- ${o.payload.gap_id}: ${o.payload.disposition} — principle: ${o.payload.principle}; tension: ${o.payload.tension}; review: ${o.payload.review_flag}\n${o.payload.rationale || ''}`).join('\n')}`)
+    if (parts.length > 1) debateParts.push(parts.join('\n\n'))
+  }
+  writeAtomic(join(out, 'debate.md'), debateParts.join('\n') + '\n')
+
+  const revisions = evs.filter((e) => e.type === 'revision')
+  writeAtomic(join(out, 'CHANGELOG.md'), [`# blue CHANGELOG — RENDERED PROJECTION`,
+    ...revisions.map((e) => `\n## Round ${e.round}${e.payload.claim_count !== undefined ? ` (claim_count ${e.payload.claim_count})` : ''}\n${e.payload.text || ''}`)].join('\n') + '\n')
+
+  const cites = evs.filter((e) => e.type === 'cite')
+  writeAtomic(join(out, 'citation-ledger.md'), [`# red citation-ledger — RENDERED PROJECTION`,
+    ...cites.map((e) => `${e.payload.claim} | ${e.payload.reference} | ${e.payload.confidence} | r${e.round} | ${e.payload.access_date}`)].join('\n') + '\n')
+
   return { out, anomalies: anomalies.length, open: open.length, closed: closed.length }
 }
 

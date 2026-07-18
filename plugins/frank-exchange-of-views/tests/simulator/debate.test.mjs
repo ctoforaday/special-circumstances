@@ -705,3 +705,20 @@ test('W2b: telemetry spec and gap records carry the new fields in the merge prom
   const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1'))
   assert.ok(respond.prompt.includes('THE MANIFEST') && respond.prompt.includes('manifest array'), 'manifest demanded at respond')
 })
+
+test('R2 dual-mode: toolsDir arms SEAT_ID + record clauses on every seat; omitting it leaves prompts untouched (resume-safe)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, { ...ARGS, toolsDir: '/plug/tools' })
+  const seats = ['blue-synthesize', 'red-lens', 'red-merge-r1', 'blue-respond-r1', 'assemble']
+  for (const s of seats) {
+    const c = world.calls.find((x) => x.opts.label.startsWith(s))
+    assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/plug/tools'), `${s} missing record clause`)
+  }
+  const lens = world.calls.find((x) => x.opts.label.startsWith('red-lens'))
+  assert.ok(lens.prompt.includes('red-lens-r1-L') && lens.prompt.includes('red-lens.mjs'), 'lens seat id + tool mapped')
+  const legacy = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await legacy.run(script, ARGS)
+  assert.ok(!legacy.calls.some((c) => c.prompt.includes('SEAT_ID:')), 'no toolsDir -> no clause, old resumes untouched')
+})

@@ -13,7 +13,8 @@
 // pins the evidence base, mirrors red's gap-pattern memory into inputs/, writes the
 // .run-live marker (consumed by hook guards; removed by run-capture), and refreshes the
 // qmd recall index when installed.
-import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
@@ -28,7 +29,22 @@ const STUBS = [
   ['blue/CHANGELOG.md', 'blue CHANGELOG'],
   ['red/citation-ledger.md', 'red citation-ledger'],
 ]
-const DIRS = ['blue/candidates', 'red/candidates', 'trajectories', 'inputs']
+const DIRS = ['blue/candidates', 'red/candidates', 'trajectories', 'inputs', 'records']
+
+// Record-tool housekeeping (plan §III R2): stale checkpoint mirrors from crashed
+// runs are purged after 30 days — the ONLY deletion anywhere in the record
+// system, and it touches recovery copies of runs long since captured or dead.
+export function purgeStaleMirrors(mirrorRoot, now = Date.now(), maxAgeDays = 30) {
+  if (!existsSync(mirrorRoot)) return { purged: 0 }
+  let purged = 0
+  for (const d of readdirSync(mirrorRoot)) {
+    const p = join(mirrorRoot, d)
+    try {
+      if (now - statSync(p).mtimeMs > maxAgeDays * 86400e3) { rmSync(p, { recursive: true, force: true }); purged++ }
+    } catch {}
+  }
+  return { purged }
+}
 
 export function buildSkeleton(runDir, topic) {
   const created = [], skipped = []
@@ -141,6 +157,8 @@ function main() {
   }
 
   const skel = buildSkeleton(runDir, topic)
+  const mirrors = purgeStaleMirrors(join(homedir(), '.cache', 'feov', 'run-mirror'))
+  if (mirrors.purged) console.log(`  mirror purge: ${mirrors.purged} stale checkpoint mirror(s) removed`)
   const pinned = buildPinned(runDir, head, cites)
   // Red's agent memory accrues under the LAUNCHING session's project (smoke finding #2):
   // CLAUDE_PROJECT_DIR names it when set; cwd is the repo-local fallback; --memory-dir wins.

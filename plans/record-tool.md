@@ -264,6 +264,20 @@ two grounded empirically in the run-5 corpus). Sitting 4: PASS. Notes, binding o
    render-run-dashboard.mjs and cost-audit.mjs are not in the modify inventory);
    scheduled instead as a small follow-up once SEAT_ID ships in transcripts.
 
+## Amendment (operator, 2026-07-18): lock-file defense on shared surfaces
+
+The shards are single-writer, but two surfaces are shared and now LOCKED
+(dependency-free — mkdir as the atomic primitive every lockfile package wraps):
+the per-seat pointer (racing registers) and the PROJECTIONS (concurrent
+render-on-mutation from parallel lenses; Windows rename-over-existing throws
+under contention rather than last-writer-wins). Lock: mkdir-acquire, 10s
+stale-steal by mtime (crashed holders never deadlock a seat), 5s bounded wait
+then proceed-unlocked (a lost render self-heals on the next mutation — full-
+state projections make this safe), retry-wrapped renames for the antivirus/
+indexer EPERM class. Tested: 6 truly parallel lens processes with per-verb
+renders (all events land, no lock or temp leaks, final render complete) and
+stale-lock stealing inside the wait bound.
+
 ## Amendment (operator challenge, 2026-07-18): Go for seat-side runtime; markdown never parsed
 
 Two foundational reversals, both conceded on the merits:
