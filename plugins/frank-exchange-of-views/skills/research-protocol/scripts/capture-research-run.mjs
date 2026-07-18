@@ -68,16 +68,99 @@ export function shardAudit(runDir, results) {
   }
 }
 
-// AUDIT 3 — friction parity: every envelope friction entry must also live in friction.md
-// (seats are instructed to append as they go; the file copy survives aborts — D24).
-export function frictionAudit(runDir, envelopeFriction) {
+// W1.2 — friction harvest THEN parity. Lens seats have no friction.md write path (their
+// envelope friction survived only in candidates until the merge relayed it by hand —
+// red-merge-r1 friction, run 5), and abort-killed seats lose the file append entirely. The
+// loss class is closed mechanically: capture appends any envelope entry missing from the
+// file, clearly labeled as capture-authored. Parity then reports REPAIRED (visible, never
+// exit-failing — the record is whole) instead of FAIL; FAIL remains for a missing/unwritable
+// file. Full fix (seats write friction.jsonl records directly) is the record layer (W3.4).
+export function harvestFriction(runDir, envelopeFriction) {
   const p = join(runDir, 'friction.md')
   const file = existsSync(p) ? readFileSync(p, 'utf8') : ''
   const missing = envelopeFriction.filter((f) => !file.includes(String(f).slice(0, 60)))
+  if (missing.length) {
+    writeFileSync(p, file +
+      `\n## auto-harvested at capture (envelope entries absent from the file — lens/abort loss class)\n\n` +
+      missing.map((m) => `- ${String(m)}`).join('\n') + '\n')
+  }
+  return { harvested: missing.length }
+}
+
+export function frictionAudit(runDir, envelopeFriction, harvested = 0) {
+  const p = join(runDir, 'friction.md')
+  const file = existsSync(p) ? readFileSync(p, 'utf8') : ''
+  const missing = envelopeFriction.filter((f) => !file.includes(String(f).slice(0, 60)))
+  const verdict = missing.length ? 'FAIL' : harvested ? 'REPAIRED' : 'PASS'
   return {
     check: 'friction-parity',
-    verdict: missing.length === 0 ? 'PASS' : 'FAIL',
-    detail: missing.length ? `${missing.length} envelope entr${missing.length === 1 ? 'y' : 'ies'} missing from friction.md:\n${missing.map((m) => `    - ${String(m).slice(0, 120)}`).join('\n')}` : `${envelopeFriction.length} envelope entries all present in friction.md`,
+    verdict,
+    detail: missing.length
+      ? `${missing.length} envelope entr${missing.length === 1 ? 'y' : 'ies'} STILL missing after harvest (friction.md unwritable?):\n${missing.map((m) => `    - ${String(m).slice(0, 120)}`).join('\n')}`
+      : harvested
+        ? `${harvested} envelope entr${harvested === 1 ? 'y' : 'ies'} auto-harvested into friction.md (labeled); ${envelopeFriction.length} total now present`
+        : `${envelopeFriction.length} envelope entries all present in friction.md`,
+  }
+}
+
+// W1.3 — context-use telemetry: per-seat peak prompt size vs the model's window. Baseline
+// (146-transcript scan, runs 3-5): zero compaction ever, peak 27% of the 1M window. The 50%
+// flag is the tripwire that says within-seat checkpointing has become a real need; the
+// 200k-window constraint is why judgment seats must never ride a haiku-tier model.
+export function contextUse(transcriptDir, agentFiles) {
+  const peaks = []
+  for (const f of agentFiles) {
+    let peak = 0, model = ''
+    for (const line of readFileSync(join(transcriptDir, f), 'utf8').split('\n')) {
+      if (!line.trim()) continue
+      let j; try { j = JSON.parse(line) } catch { continue }
+      const m = j.message
+      if (m && m.usage) {
+        const u = m.usage
+        const ctx = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0)
+        if (ctx > peak) { peak = ctx; if (m.model) model = m.model }
+      }
+    }
+    if (peak) peaks.push({ agent: f.replace(/^agent-|\.jsonl$/g, ''), peak, window: /haiku/.test(model) ? 200_000 : 1_000_000 })
+  }
+  if (!peaks.length) return { check: 'context-use', verdict: 'SKIP', detail: 'no usage records found' }
+  peaks.sort((a, b) => b.peak / b.window - a.peak / a.window)
+  const top = peaks[0]
+  const flagged = peaks.filter((p) => p.peak / p.window > 0.5)
+  return {
+    check: 'context-use',
+    verdict: flagged.length ? 'WARN' : 'PASS',
+    detail: `peak ${(top.peak / 1000).toFixed(0)}k = ${(top.peak / top.window * 100).toFixed(0)}% of its ${top.window / 1000}k window (agent ${top.agent}); ${peaks.length} seats measured; ${flagged.length} over the 50% tripwire${flagged.length ? ':\n' + flagged.map((p) => `    - ${p.agent}: ${(p.peak / 1000).toFixed(0)}k / ${p.window / 1000}k`).join('\n') : ''}`,
+  }
+}
+
+// W1.4 — assembly regression screen (v1). The catechism audit (post-capture, run 5) found the
+// assembly seat re-minting REFUTED round-0 phrasings from recall. Mechanical v1: harvest
+// distinctive tokens (issue numbers, arXiv ids) from citation-ledger rows graded REFUTED and
+// grep the ASSEMBLY-OWNED text (report.md above the embedded blue report) for them — a hit is
+// a candidate regression flagged WARN for human eyes, never auto-judged (the assembly may
+// carry the corrected form). The full screen (propagation-list grep) arrives with the record
+// layer, which is where repaired-phrasing lists become structured.
+export function assemblyScreen(runDir) {
+  const reportP = join(runDir, 'report.md')
+  const ledgerP = join(runDir, 'red', 'citation-ledger.md')
+  if (!existsSync(reportP) || !existsSync(ledgerP)) return { check: 'assembly-screen', verdict: 'SKIP', detail: 'report.md or citation-ledger.md absent' }
+  const report = readFileSync(reportP, 'utf8')
+  const cut = report.search(/^## Blue team report/m)
+  const assembly = cut > 0 ? report.slice(0, cut) : report
+  const tokens = new Set()
+  for (const row of readFileSync(ledgerP, 'utf8').split('\n')) {
+    if (!/REFUTED|ABSENT/i.test(row)) continue
+    for (const t of row.match(/#\d{4,6}/g) || []) tokens.add(t)
+    for (const t of row.match(/arXiv:\d{4}\.\d{4,5}/gi) || []) tokens.add(t)
+  }
+  const hits = [...tokens].filter((t) => assembly.includes(t))
+  return {
+    check: 'assembly-screen',
+    verdict: hits.length ? 'WARN' : 'PASS',
+    detail: hits.length
+      ? `${hits.length} REFUTED-row token(s) appear in assembly-owned text — verify each carries the CORRECTED form, not the round-0 one: ${hits.join(', ')}`
+      : `${tokens.size} REFUTED-row token(s) screened against assembly-owned text; no hits`,
   }
 }
 
@@ -100,8 +183,16 @@ export function capture(runDir, transcriptDir) {
   else lines.push(`cost.md: FAILED — ${(cost.stderr || '').toString().slice(0, 200)}`)
 
   // The audits (journal read from the copy just made — the git-tracked artifact).
+  // Harvest BEFORE parity: the lens/abort friction-loss class is repaired mechanically.
   const { results, friction } = readJournal(join(runDir, 'trajectories'))
-  const audits = [telemetryAudit(runDir), shardAudit(runDir, results), frictionAudit(runDir, friction)]
+  const { harvested } = harvestFriction(runDir, friction)
+  const audits = [
+    telemetryAudit(runDir),
+    shardAudit(runDir, results),
+    frictionAudit(runDir, friction, harvested),
+    contextUse(transcriptDir, agentFiles),
+    assemblyScreen(runDir),
+  ]
 
   // Marker removal: the run is no longer live; hook guards stand down.
   const marker = join(process.cwd(), '.claude', 'run-live.json')

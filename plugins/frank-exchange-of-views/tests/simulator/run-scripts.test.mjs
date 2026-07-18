@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildSkeleton, buildPinned, mirrorGapPatterns, writeRunLiveMarker } from '../../skills/research-protocol/scripts/setup-research-run.mjs'
-import { readJournal, telemetryAudit, shardAudit, frictionAudit } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
+import { buildSkeleton, buildPinned, mirrorGapPatterns, writeRunLiveMarker, validatePins } from '../../skills/research-protocol/scripts/setup-research-run.mjs'
+import { readJournal, telemetryAudit, shardAudit, frictionAudit, harvestFriction, contextUse, assemblyScreen } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'feov-runscripts-'))
 
@@ -67,6 +67,22 @@ test('run-live marker: commitment-as-state with the pinned paths for hook guards
   assert.deepEqual(j.pinnedPaths, ['research/old-run', 'ideas/backlog.md'])
 })
 
+test('pin validation (W1.1): missing path at pin is named; explicit pin honored; non-git context is a stated skip', () => {
+  const calls = []
+  const gitOk = (args) => { calls.push(args.join(' ')); return { status: 0 } }
+  const ok = validatePins(['plans/x.md@abc1234', 'ideas/y.md'], 'headddd', gitOk)
+  assert.equal(ok.missing.length, 0)
+  assert.equal(ok.checked, 2)
+  assert.ok(calls[0].includes('abc1234:plans/x.md'), 'explicit pin used')
+  assert.ok(calls[1].includes('headddd:ideas/y.md'), 'HEAD default used')
+  const gitMiss = (args) => ({ status: args.join(' ').includes('plans/gone.md') ? 128 : 0 })
+  const bad = validatePins(['plans/gone.md@abc1234', 'ideas/y.md'], 'headddd', gitMiss)
+  assert.equal(bad.missing.length, 1)
+  assert.equal(bad.missing[0].path, 'plans/gone.md')
+  const skip = validatePins(['a@b'], 'unknown')
+  assert.ok(skip.skipped && skip.skipped.includes('UNVALIDATED'), 'no git repo -> stated skip, never a silent pass')
+})
+
 // ---- run-capture audits ----
 
 function fixtureRun({ telemetryRounds = 2, redRounds = 2, ledgerLines = 2, archiveBlocks = 2, frictionInFile = true } = {}) {
@@ -118,6 +134,47 @@ test('friction parity: an envelope entry missing from friction.md is named in th
   assert.ok(r.detail.includes('needed a PDF extractor'))
 })
 
+test('friction harvest (W1.2): missing entries are appended labeled; parity then reports REPAIRED, not FAIL', () => {
+  const dir = fixtureRun({ frictionInFile: false })
+  const friction = readJournal(join(dir, 'trajectories')).friction
+  const { harvested } = harvestFriction(dir, friction)
+  assert.equal(harvested, 1)
+  const file = readFileSync(join(dir, 'friction.md'), 'utf8')
+  assert.ok(file.includes('auto-harvested at capture'), 'harvest is labeled capture-authored')
+  assert.ok(file.includes('needed a PDF extractor'), 'the lost entry now lives in the file')
+  const r = frictionAudit(dir, friction, harvested)
+  assert.equal(r.verdict, 'REPAIRED', 'visible, never exit-failing — the record is whole')
+  assert.equal(harvestFriction(dir, friction).harvested, 0, 'idempotent — second harvest finds nothing missing')
+})
+
+test('context-use (W1.3): haiku seat over 50% of its 200k window trips the WARN tripwire', () => {
+  const dir = tmp()
+  writeFileSync(join(dir, 'agent-big.jsonl'),
+    JSON.stringify({ message: { role: 'assistant', model: 'claude-haiku-4-5', usage: { input_tokens: 1000, cache_read_input_tokens: 150000, cache_creation_input_tokens: 0, output_tokens: 10 }, content: [] } }) + '\n')
+  writeFileSync(join(dir, 'agent-small.jsonl'),
+    JSON.stringify({ message: { role: 'assistant', model: 'claude-fable-5', usage: { input_tokens: 1000, cache_read_input_tokens: 150000, cache_creation_input_tokens: 0, output_tokens: 10 }, content: [] } }) + '\n')
+  const r = contextUse(dir, ['agent-big.jsonl', 'agent-small.jsonl'])
+  assert.equal(r.verdict, 'WARN')
+  assert.ok(r.detail.includes('big') && r.detail.includes('50% tripwire'), 'the breaching seat is named')
+  const calm = contextUse(dir, ['agent-small.jsonl'])
+  assert.equal(calm.verdict, 'PASS', 'same tokens on a 1M window is 15% — no flag')
+})
+
+test('assembly screen (W1.4): a REFUTED-row token in assembly-owned text WARNs with the token named', () => {
+  const dir = tmp()
+  mkdirSync(join(dir, 'red'), { recursive: true })
+  writeFileSync(join(dir, 'red', 'citation-ledger.md'),
+    '"#32191 open / leaf-checked OPEN" | live fetch | LOW — REFUTED: Closed as duplicate | r1 | 2026-07-17\n' +
+    '"solid claim" | source | high | r1 | 2026-07-17\n')
+  writeFileSync(join(dir, 'report.md'),
+    '# assembled report\nThe open MCP-headless bug trio (#76239, #68375, #32191) blocks headless runs.\n\n## Blue team report (in full)\naudited body text\n')
+  const r = assemblyScreen(dir)
+  assert.equal(r.verdict, 'WARN')
+  assert.ok(r.detail.includes('#32191'), 'the candidate regression token is named for human eyes')
+  writeFileSync(join(dir, 'report.md'), '# assembled report\nTwo open bugs (#76239).\n\n## Blue team report (in full)\n#32191 appears only in the audited body, where red already re-reads it.\n')
+  assert.equal(assemblyScreen(dir).verdict, 'PASS', 'tokens below the cut line are the audited body — not screened')
+})
+
 test('shard audit: pre-sharding run (no ledger/archive) is SKIP, not FAIL', () => {
   const dir = tmp()
   mkdirSync(join(dir, 'trajectories'), { recursive: true })
@@ -167,17 +224,42 @@ test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with te
   assert.ok(cost.includes('## Board telemetry'), 'telemetry join section present')
   assert.ok(cost.includes('CUMULATIVE ARCHIVE'), 'corrected physics finding in notes')
   const audit = readFileSync(join(runDir, 'run-record-audit.md'), 'utf8')
-  assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: FAIL'),
-    'audit verdicts rendered (fixture has envelope friction not present in friction.md)')
+  assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: REPAIRED'),
+    'audit verdicts rendered (fixture envelope friction was missing from friction.md — harvested, REPAIRED)')
+  assert.ok(audit.includes('context-use: PASS'), 'context-use telemetry in the audit report (W1.3)')
+  assert.ok(readFileSync(join(runDir, 'friction.md'), 'utf8').includes('auto-harvested at capture'), 'harvest landed in the record (W1.2)')
   assert.ok(!existsSync(marker), 'run-live marker removed')
 })
 
 test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are never smoothed over)', () => {
-  const runDir = fixtureRun({ ledgerLines: 1, archiveBlocks: 1, frictionInFile: false })
+  // Friction loss no longer FAILs (it is REPAIRED by harvest) — the FAIL source here is a
+  // shard self-report diverging from disk, the vacuity-adjacent class that stays fatal.
+  const runDir = fixtureRun({ ledgerLines: 3, archiveBlocks: 1, frictionInFile: false })
   const transcriptDir = fixtureTranscript()
   const r = spawnSync(process.execPath, [join(SCRIPTS, 'capture-research-run.mjs'), runDir, transcriptDir], { cwd: tmp() }) // cwd MUST be a temp dir: capture removes cwd/.claude/run-live.json, and an inherited repo cwd would delete a LIVE session marker (happened 2026-07-17 — killed the run-5 watcher)
   assert.equal(r.status, 2, `expected exit 2, got ${r.status}: ${r.stderr}`)
-  assert.ok(r.stdout.toString().includes('friction-parity: FAIL'))
+  assert.ok(r.stdout.toString().includes('shards: FAIL'))
+  assert.ok(r.stdout.toString().includes('friction-parity: REPAIRED'), 'harvest ran even in a failing capture')
+})
+
+test('run-setup CLI (W1.1): a cite whose path does not exist at its pin fails setup loudly, creating nothing', () => {
+  const cwd = tmp()
+  const g = (args) => spawnSync('git', args, { cwd })
+  g(['init', '-q'])
+  g(['config', 'user.email', 't@t']); g(['config', 'user.name', 't'])
+  writeFileSync(join(cwd, 'real.md'), 'exists\n')
+  g(['add', 'real.md']); g(['commit', '-q', '-m', 'fixture'])
+  const runDir = join(cwd, 'research', 'pin-test')
+  const bad = spawnSync(process.execPath, [join(SCRIPTS, 'setup-research-run.mjs'), runDir,
+    '--topic', 't', '--cite', 'plans/does-not-exist.md', '--no-qmd'], { cwd })
+  assert.equal(bad.status, 2, `expected exit 2, got ${bad.status}: ${bad.stderr}`)
+  assert.ok(bad.stderr.toString().includes('PIN VALIDATION FAILED') && bad.stderr.toString().includes('does-not-exist.md'))
+  assert.ok(bad.stderr.toString().includes('inputs/'), 'the staging remedy is stated')
+  assert.ok(!existsSync(join(runDir, 'blue')), 'nothing was created — validation runs before the skeleton')
+  const good = spawnSync(process.execPath, [join(SCRIPTS, 'setup-research-run.mjs'), runDir,
+    '--topic', 't', '--cite', 'real.md', '--no-qmd'], { cwd })
+  assert.equal(good.status, 0, good.stderr.toString())
+  assert.ok(good.stdout.toString().includes('1 cite(s) verified at their pins'))
 })
 
 test('run-setup CLI: arg parsing end-to-end — topic header, multi-cite pins, --no-qmd, summary lines', () => {
