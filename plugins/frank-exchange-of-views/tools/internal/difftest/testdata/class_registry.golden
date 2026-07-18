@@ -6,17 +6,17 @@ registered red-merge-r1 (shard nonce NONCE001)
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class invented-class --check x --problem p
 exit 2
 stderr:
-{TOOL}: record: unknown class invented-class — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or mint the class with --class-new (definition + neighbor + distinguisher required)
+feov-record: merge: record: unknown class invented-class — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or mint the class with --class-new (definition + neighbor + distinguisher required)
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --check x --problem p
 exit 2
 stderr:
-{TOOL}: record: --class-new requires --definition, --neighbor <existing-slug>, and --distinguisher (the tie-break question)
+feov-record: merge: record: --class-new requires --definition, --neighbor <existing-slug>, and --distinguisher (the tie-break question)
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor not-a-real-neighbor --distinguisher was the act repeated? --check x --problem p
 exit 2
 stderr:
-{TOOL}: record: --neighbor not-a-real-neighbor is not a known class
+feov-record: merge: record: --neighbor not-a-real-neighbor is not a known class
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor citation-drift --distinguisher was the act repeated? --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
 exit 0

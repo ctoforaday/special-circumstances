@@ -1,83 +1,123 @@
 $ lens mint --run {RUN} --seat-id red-lens-r1-L1 --class x
 exit 2
 stderr:
-{TOOL}: verb 'mint' is outside this seat's role (available: register, finding, observe, cite, friction, petition, render)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, petition, render)
 
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-{TOOL}: verb 'mint' is outside this seat's role (available: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "mint" is outside this seat's role (available: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-{TOOL}: verb 'close' is outside this seat's role (available: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "close" is outside this seat's role (available: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
 stderr:
-{TOOL}: verb 'mint' is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render)
+feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render)
 
 $ lens help
 exit 0
 stdout:
-{TOOL} — record contract (the verb set IS the role boundary)
-verbs: register, finding, observe, cite, friction, petition, render, help
-  register: FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
-  finding: a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--text "..."|--file f] [--location "..."]
-  observe: a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file
-  cite: citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
-  friction: attributed friction (survives aborts as an event): --text|--file
-  petition: petition the bench (never sanctioned; does not pause your duties): --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
-  render: read-only projection refresh (any seat may invoke)
+red lens seats — findings, observations, citations. Cannot mint or close.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  cite        citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
+  finding     a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--text "..."|--file f] [--location "..."]
+  friction    attributed friction (survives aborts as an event): --text|--file
+  observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file
+  petition    petition the bench (never sanctioned; does not pause your duties): --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
+  register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  render      read-only projection refresh (any seat may invoke)
+
+Flags:
+  -h, --help   help for lens
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 $ merge help
 exit 0
 stdout:
-{TOOL} — record contract (the verb set IS the role boundary)
-verbs: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render, help
-  register: FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
-  mint: mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
-  close: close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--prose-file f]
-  dispose: every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
-  regrade: same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."
-  dispute-respond: red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --rationale "..."
-  spot-check: the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."]
-  position: the round's ### RED section (prose via --file)
-  closing: a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>
-  verdict: the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror
-  friction: attributed friction: --text|--file
-  petition: petition the bench: --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
-  render: read-only projection refresh (any seat may invoke)
+the red merge seat — the board's only writer.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--prose-file f]
+  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>
+  dispose         every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
+  dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --rationale "..."
+  friction        attributed friction: --text|--file
+  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  petition        petition the bench: --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
+  position        the round's ### RED section (prose via --file)
+  register        FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
+  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."
+  render          read-only projection refresh (any seat may invoke)
+  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."]
+  verdict         the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror
+
+Flags:
+  -h, --help   help for merge
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 $ blue help
 exit 0
 stdout:
-{TOOL} — record contract (the verb set IS the role boundary)
-verbs: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render, help
-  register: FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
-  revision: the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land
-  manifest-row: one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  dispute: contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."
-  confidence: per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low
-  position: the round's ### BLUE section (prose via --file)
-  closing: a ### BLUE CLOSING entry per docketed gap: --id <gap> --file <prose>
-  friction: attributed friction (survives aborts as an event): --text|--file
-  petition: petition the bench (never sanctioned; does not pause your duties): --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
-  render: read-only projection refresh (any seat may invoke)
+blue seats — revisions, manifest rows, disputes. No board verbs at all.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --file <prose>
+  confidence   per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low
+  dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."
+  friction     attributed friction (survives aborts as an event): --text|--file
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  petition     petition the bench (never sanctioned; does not pause your duties): --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
+  position     the round's ### BLUE section (prose via --file)
+  register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  render       read-only projection refresh (any seat may invoke)
+  revision     the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land
+
+Flags:
+  -h, --help   help for blue
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 $ bench help
 exit 0
 stdout:
-{TOOL} — record contract (the verb set IS the role boundary)
-verbs: register, opinion, petition-rule, halt, certify, friction, render, help
-  register: FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
-  opinion: a ruling as an OPINION: --gap-id R3-2 --disposition carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]
-  petition-rule: rule on a petition: --petitioner <seatId> --class <class> --as granted|denied --file <opinion> (a halt is its own verb)
-  halt: the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>
-  certify: the run-end certification statement ("what I would want a human to re-examine"): --file <statement>
-  friction: attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file
-  render: read-only projection refresh (any seat may invoke)
+the bench — opinions, petition rulings, halt, certification. Never originates.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  certify       the run-end certification statement ("what I would want a human to re-examine"): --file <statement>
+  friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file
+  halt          the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>
+  opinion       a ruling as an OPINION: --gap-id R3-2 --disposition carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]
+  petition-rule rule on a petition: --petitioner <seatId> --class <class> --as granted|denied --file <opinion> (a halt is its own verb)
+  register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  render        read-only projection refresh (any seat may invoke)
+
+Flags:
+  -h, --help   help for bench
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
 

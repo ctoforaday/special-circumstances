@@ -31,7 +31,7 @@ disposed N-missing: banked
 $ merge dispose --run {RUN} --seat-id red-merge-r1 --observation N2
 exit 2
 stderr:
-{TOOL}: record: dispose requires --as minted-as|folded-into|declined|banked
+feov-record: merge: record: dispose requires --as minted-as|folded-into|declined|banked
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L5-NONCE001.jsonl

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // TestConcurrentSeatsRace is what the port buys that the oracle could not have:
@@ -80,8 +81,14 @@ func TestConcurrentSeatsRace(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), ".lock-") || strings.Contains(e.Name(), ".tmp-") {
-			t.Errorf("leaked artifact: %s", e.Name())
+		// A leftover .lock- FILE is expected and harmless under flock: the lock
+		// lives in the kernel, released when the holder exits, and the file is
+		// only a handle to lock ON. Under the old mkdir scheme a leftover
+		// .lock- DIRECTORY *was* the lock, so its presence blocked the next seat
+		// for the full bounded wait — which is why this assertion existed and why
+		// it now only guards temp files.
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Errorf("leaked temp artifact: %s", e.Name())
 		}
 	}
 	shadow, err := os.ReadDir(filepath.Join(runDir, "records", "render-shadow"))
@@ -95,34 +102,31 @@ func TestConcurrentSeatsRace(t *testing.T) {
 	}
 }
 
-// TestStaleLockIsStolen: a crashed holder must not deadlock the run. The lock is
-// stolen after staleMS by mtime, and the bounded wait then proceeds rather than
-// blocking a seat forever.
-func TestStaleLockIsStolen(t *testing.T) {
+// TestAbandonedLockFileDoesNotBlock: with flock, the lock is the kernel's, not
+// the file's. A lock FILE left on disk by a dead holder carries no lock, so the
+// next seat acquires immediately — the case the old mkdir implementation had to
+// guess about with a ten-second staleness timeout, and could get wrong in both
+// directions.
+func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 	runDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	lock := filepath.Join(runDir, "records", ".lock-render")
-	if err := os.Mkdir(lock, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	old := timeNowMinus(staleMS * 2)
-	if err := os.Chtimes(lock, old, old); err != nil {
+	// An empty lock file, as a crashed holder would leave behind.
+	if err := os.WriteFile(filepath.Join(runDir, "records", ".lock-render"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
 		t.Fatal(err)
 	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		if _, err := Render(runDir, ""); err != nil {
-			t.Errorf("render under stale lock: %v", err)
-		}
-	}()
-	<-done
+	start := time.Now()
+	if _, err := Render(runDir, ""); err != nil {
+		t.Fatalf("render over an abandoned lock file: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > lockWait {
+		t.Errorf("render waited %v on an unheld lock — the bounded wait was served instead of acquiring", elapsed)
+	}
 	if _, err := os.Stat(filepath.Join(runDir, "records", "render-shadow", "ledger.md")); err != nil {
-		t.Errorf("render did not complete through a stale lock: %v", err)
+		t.Errorf("render did not complete: %v", err)
 	}
 }

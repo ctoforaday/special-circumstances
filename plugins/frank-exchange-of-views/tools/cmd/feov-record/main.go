@@ -28,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -36,49 +38,37 @@ func main() {
 	// must lose an event, never leave a torn one or a stuck lock.
 	defer record.InstallSignalGuard()()
 
-	argv := os.Args[1:]
-	if len(argv) == 0 || argv[0] == "--help" || argv[0] == "help" || argv[0] == "-h" {
-		usage()
-		return
+	root := &cobra.Command{
+		Use:   "feov-record",
+		Short: "the seat-side record runtime (the verb set IS the role boundary)",
+		Long: `feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.`,
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
-	if argv[0] == "--version" || argv[0] == "version" {
-		fmt.Println(version)
-		return
-	}
-	role := argv[0]
-	verbs, ok := roles[role]
-	if !ok {
-		fmt.Fprintf(os.Stderr, "feov-record: unknown role %q (roles: lens, merge, blue, bench)\n", role)
+	root.AddCommand(
+		record.RoleCommand("lens", "red lens seats — findings, observations, citations. Cannot mint or close.", lensVerbs()),
+		record.RoleCommand("merge", "the red merge seat — the board's only writer.", mergeVerbs()),
+		record.RoleCommand("blue", "blue seats — revisions, manifest rows, disputes. No board verbs at all.", blueVerbs()),
+		record.RoleCommand("bench", "the bench — opinions, petition rulings, halt, certification. Never originates.", benchVerbs()),
+	)
+
+	if err := root.Execute(); err != nil {
+		// Errors are printed bare, without cobra's usage dump: a validation
+		// refusal here is a TEACHING message a seat reads and acts on, and
+		// burying it under a flag listing is how it stops being read.
+		fmt.Fprintf(os.Stderr, "feov-record: %v\n", err)
 		os.Exit(2)
 	}
-	os.Exit(record.RunVerb("feov-record "+role, verbs(), argv[1:]))
 }
 
 // version is stamped on register events at R2g.2; kept here so --version works
 // for the setup preflight that fails a skewed binary BEFORE the run-live marker
 // is written (a mid-round failure is the one that costs a seat).
 const version = "0.1.0"
-
-var roles = map[string]func() []record.Verb{
-	"lens":  lensVerbs,
-	"merge": mergeVerbs,
-	"blue":  blueVerbs,
-	"bench": benchVerbs,
-}
-
-func usage() {
-	fmt.Println(`feov-record — the seat-side record runtime (the verb set IS the role boundary)
-
-  feov-record <role> <verb> --run <runDir> --seat-id <SEAT_ID> [flags]
-  feov-record <role> help          the role's full verb contract
-  feov-record <role> render        read-only projection refresh (any seat may invoke)
-
-roles:
-  lens    red lens seats — findings, observations, citations. Cannot mint or close.
-  merge   the red merge seat — the board's only writer.
-  blue    blue seats — revisions, manifest rows, disputes. No board verbs at all.
-  bench   the bench — opinions, petition rulings, halt, certification. Never originates.`)
-}
 
 func register(runDir, seatID string, _ *record.Args) (string, error) {
 	nonce, _, err := record.RegisterSeat(runDir, seatID)
@@ -100,8 +90,9 @@ func lensVerbs() []record.Verb {
 	return []record.Verb{
 		registerVerb,
 		{
-			Name: "finding",
-			Help: `a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--text "..."|--file f] [--location "..."]`,
+			Name:  "finding",
+			Help:  `a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--text "..."|--file f] [--location "..."]`,
+			Flags: []string{"label", "severity", "likelihood", "impact", "location"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				text, err := record.PayloadText(a)
 				if err != nil {
@@ -116,8 +107,9 @@ func lensVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "observe",
-			Help: "a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file",
+			Name:  "observe",
+			Help:  "a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file",
+			Flags: []string{"kind", "label"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				text, err := record.PayloadText(a)
 				if err != nil {
@@ -137,8 +129,9 @@ func lensVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "cite",
-			Help: `citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD`,
+			Name:  "cite",
+			Help:  `citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD`,
+			Flags: []string{"claim", "reference", "confidence", "access-date"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				p := a.Copy(record.NewPayload(), "claim", "reference", "confidence", "access_date:access-date")
 				if _, err := record.Append(runDir, seatID, "cite", p); err != nil {
@@ -159,8 +152,9 @@ func mergeVerbs() []record.Verb {
 	return []record.Verb{
 		{Name: "register", Help: "FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>", Fn: register},
 		{
-			Name: "mint",
-			Help: `mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
+			Name:  "mint",
+			Help:  `mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
+			Flags: []string{"key", "class", "class-new", "definition", "neighbor", "distinguisher", "location", "problem", "fix", "check", "severity", "likelihood", "impact", "cx", "supersedes", "found-by"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				// Crash-retry idempotency: --key (the stable local label, e.g. the source
 				// lens finding) makes a retried mint return the EXISTING id.
@@ -209,8 +203,9 @@ func mergeVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "close",
-			Help: `close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--prose-file f]`,
+			Name:  "close",
+			Help:  `close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--prose-file f]`,
+			Flags: []string{"id", "as", "anchor-seat", "anchor-tool", "anchor-target", "carried-from", "successor", "prose-file"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				class := a.Str("as")
 				if class == "" {
@@ -234,8 +229,9 @@ func mergeVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "dispose",
-			Help: `every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]`,
+			Name:  "dispose",
+			Help:  `every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]`,
+			Flags: []string{"observation", "as", "into", "reason"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				p := a.Copy(record.NewPayload(), "observation", "disposition:as", "into", "reason")
 				if _, err := record.Append(runDir, seatID, "dispose", p); err != nil {
@@ -245,8 +241,9 @@ func mergeVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "regrade",
-			Help: `same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."`,
+			Name:  "regrade",
+			Help:  `same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."`,
+			Flags: []string{"id", "severity", "likelihood", "impact", "cx", "basis"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				p := a.Copy(record.NewPayload(), "gap_id:id", "severity", "likelihood", "impact", "complexity_cost:cx", "basis")
 				if _, err := record.Append(runDir, seatID, "regrade", p); err != nil {
@@ -256,8 +253,9 @@ func mergeVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "dispute-respond",
-			Help: `red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --rationale "..."`,
+			Name:  "dispute-respond",
+			Help:  `red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --rationale "..."`,
+			Flags: []string{"id", "as", "rationale"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				p := a.Copy(record.NewPayload(), "gap_id:id", "response:as", "rationale")
 				if _, err := record.Append(runDir, seatID, "dispute-respond", p); err != nil {
@@ -267,8 +265,9 @@ func mergeVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "spot-check",
-			Help: `the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."]`,
+			Name:  "spot-check",
+			Help:  `the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."]`,
+			Flags: []string{"ids", "notes"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				ids := record.List(a.Str("ids"))
 				p := a.Copy(record.NewPayload().Set("ids", ids), "notes")
@@ -281,8 +280,9 @@ func mergeVerbs() []record.Verb {
 		positionVerb("the round's ### RED section (prose via --file)"),
 		closingVerb("a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>"),
 		{
-			Name: "verdict",
-			Help: "the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror",
+			Name:  "verdict",
+			Help:  "the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror",
+			Flags: []string{"as"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				p := a.Copy(record.NewPayload(), "verdict:as")
 				if _, err := record.Append(runDir, seatID, "verdict", p); err != nil {
@@ -311,8 +311,9 @@ func blueVerbs() []record.Verb {
 	return []record.Verb{
 		registerVerb,
 		{
-			Name: "revision",
-			Help: "the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land",
+			Name:  "revision",
+			Help:  "the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land",
+			Flags: []string{"claim-count"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				text, err := record.PayloadText(a)
 				if err != nil {
@@ -330,8 +331,9 @@ func blueVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "manifest-row",
-			Help: `one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"`,
+			Name:  "manifest-row",
+			Help:  `one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"`,
+			Flags: []string{"id", "row"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				text, err := record.PayloadText(a)
 				if err != nil {
@@ -350,8 +352,9 @@ func blueVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "dispute",
-			Help: `contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."`,
+			Name:  "dispute",
+			Help:  `contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."`,
+			Flags: []string{"id", "dimension", "proposed", "evidence"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				p := a.Copy(record.NewPayload(), "gap_id:id", "dimension", "proposed", "evidence")
 				if _, err := record.Append(runDir, seatID, "dispute", p); err != nil {
@@ -361,8 +364,9 @@ func blueVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "confidence",
-			Help: "per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low",
+			Name:  "confidence",
+			Help:  "per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low",
+			Flags: []string{"label", "grade"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				p := a.Copy(record.NewPayload(), "label", "grade")
 				if _, err := record.Append(runDir, seatID, "confidence", p); err != nil {
@@ -384,8 +388,9 @@ func benchVerbs() []record.Verb {
 	return []record.Verb{
 		{Name: "register", Help: "FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>", Fn: register},
 		{
-			Name: "opinion",
-			Help: `a ruling as an OPINION: --gap-id R3-2 --disposition carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]`,
+			Name:  "opinion",
+			Help:  `a ruling as an OPINION: --gap-id R3-2 --disposition carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]`,
+			Flags: []string{"gap-id", "disposition", "principle", "tension", "review-flag"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				text, err := record.PayloadText(a)
 				if err != nil {
@@ -400,8 +405,9 @@ func benchVerbs() []record.Verb {
 			},
 		},
 		{
-			Name: "petition-rule",
-			Help: "rule on a petition: --petitioner <seatId> --class <class> --as granted|denied --file <opinion> (a halt is its own verb)",
+			Name:  "petition-rule",
+			Help:  "rule on a petition: --petitioner <seatId> --class <class> --as granted|denied --file <opinion> (a halt is its own verb)",
+			Flags: []string{"petitioner", "class", "as"},
 			Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 				text, err := record.PayloadText(a)
 				if err != nil {
@@ -463,7 +469,7 @@ func positionVerb(help string) record.Verb {
 }
 
 func closingVerb(help string) record.Verb {
-	return record.Verb{Name: "closing", Help: help, Fn: func(runDir, seatID string, a *record.Args) (string, error) {
+	return record.Verb{Name: "closing", Help: help, Flags: []string{"id"}, Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 		text, err := record.PayloadText(a)
 		if err != nil {
 			return "", err
@@ -491,7 +497,7 @@ func frictionVerb(help string) record.Verb {
 }
 
 func petitionVerb(help, suffix string) record.Verb {
-	return record.Verb{Name: "petition", Help: help, Fn: func(runDir, seatID string, a *record.Args) (string, error) {
+	return record.Verb{Name: "petition", Help: help, Flags: []string{"class", "basis", "relief"}, Fn: func(runDir, seatID string, a *record.Args) (string, error) {
 		p := a.Copy(record.NewPayload(), "class", "basis", "relief")
 		if _, err := record.Append(runDir, seatID, "petition", p); err != nil {
 			return "", err

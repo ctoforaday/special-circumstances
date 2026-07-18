@@ -6,12 +6,12 @@ registered judge-r2 (shard nonce NONCE001)
 $ bench opinion --run {RUN} --seat-id judge-r2 --gap-id R2-1 --disposition closed
 exit 2
 stderr:
-{TOOL}: record: opinion requires --principle (opinions, not dispositions)
+feov-record: bench: record: opinion requires --principle (opinions, not dispositions)
 
 $ bench opinion --run {RUN} --seat-id judge-r2 --gap-id R2-1 --disposition closed --principle p --tension t
 exit 2
 stderr:
-{TOOL}: record: opinion requires --review-flag (opinions, not dispositions)
+feov-record: bench: record: opinion requires --review-flag (opinions, not dispositions)
 
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl

@@ -1,71 +1,75 @@
 package record
 
 import (
+	"context"
 	crand "crypto/rand"
 	"encoding/hex"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
-// Locking, dependency-free.
+// Locking, on real OS advisory locks.
 //
 // The shards are single-writer by design, but the seat POINTER and the shared
-// PROJECTIONS are not: six lens processes mutating concurrently means six renders
-// racing onto one ledger.md, and on Windows a rename-over-existing under
-// contention throws rather than last-writer-wins.
+// PROJECTIONS are not: six lens processes mutating concurrently means six
+// renders racing onto one ledger.md, and on Windows a rename-over-existing under
+// contention fails rather than last-writer-wins.
 //
-// mkdir is the atomic primitive every lockfile package wraps, so the oracle's
-// algorithm ports directly and stays stdlib-only and portable (the R2g plan
-// chose this over flock/LockFileEx deliberately: no x/sys dependency, no
-// platform fork, and the semantics are already test-covered). What Go adds is
-// `go test -race` over the concurrency the mjs could only spawn-test.
+// WHY THIS REPLACED THE MKDIR LOCK. The ported algorithm acquired by mkdir and
+// STOLE any lock whose directory was older than ten seconds, on the theory that
+// the holder had crashed. That theory is unfalsifiable from outside the process:
+// a merge seat rendering a large board, or any seat on a loaded machine, is
+// indistinguishable from a dead one — so the heuristic could revoke a lock from
+// a LIVE holder and admit two writers to the critical section, which is the
+// exact failure the lock exists to prevent. It was also untestable, since no
+// test can hold a lock "slowly but legitimately" on demand.
 //
-// Acquire = mkdir (EEXIST -> wait); a stale lock from a crashed holder is stolen
-// after staleMS by mtime; the wait is BOUNDED and then proceeds unlocked rather
-// than deadlocking a seat — a lost render self-heals on the next mutation.
-const (
-	staleMS = 10 * time.Second
-	waitMS  = 5 * time.Second
-)
+// flock has no such hazard: the kernel releases the lock when the holder's
+// process dies, so a crashed holder needs no timeout and a slow holder is never
+// robbed. LockFileEx on Windows, flock(2) on Unix, one dependency, no heuristic
+// to tune. The wait stays BOUNDED — a seat that cannot acquire in time proceeds
+// rather than deadlocking, because a lost render self-heals on the next mutation
+// while a hung seat costs the round.
+const lockWait = 5 * time.Second
+
+// heldFlocks lets the signal guard release locks on an interrupted seat. The
+// kernel would release them at exit anyway; doing it explicitly means release
+// happens BEFORE teardown, so a peer waiting on the lock proceeds immediately
+// rather than serving out its own bounded wait.
+var heldFlocks sync.Map // *flock.Flock -> struct{}
 
 func withLock(runDir, name string, fn func()) {
-	lockDir := filepath.Join(recordsDir(runDir), ".lock-"+name)
 	os.MkdirAll(recordsDir(runDir), 0o755)
-	deadline := time.Now().Add(waitMS)
-	held := false
-	for !held {
-		err := os.Mkdir(lockDir, 0o755)
-		if err == nil {
-			held = true
-			heldLocks.Store(lockDir, struct{}{}) // released on signal, not just on return
-			break
-		}
-		if !os.IsExist(err) {
-			break // an unexpected error proceeds unlocked, as in the oracle's throw path
-		}
-		if st, serr := os.Stat(lockDir); serr == nil {
-			if time.Since(st.ModTime()) > staleMS {
-				os.Remove(lockDir)
-				continue
-			}
-		} else {
-			continue
-		}
-		if time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(time.Duration(50+rand.Intn(100)) * time.Millisecond)
+	fl := flock.New(filepath.Join(recordsDir(runDir), ".lock-"+name))
+
+	ctx, cancel := context.WithTimeout(context.Background(), lockWait)
+	defer cancel()
+	locked, err := fl.TryLockContext(ctx, 50*time.Millisecond)
+	if err == nil && locked {
+		heldFlocks.Store(fl, struct{}{})
+		defer func() {
+			heldFlocks.Delete(fl)
+			fl.Unlock()
+		}()
 	}
-	defer func() {
-		if held {
-			heldLocks.Delete(lockDir)
-			os.Remove(lockDir)
-		}
-	}()
+	// Failing to acquire is survivable and deliberate: proceed unlocked rather
+	// than abandon the seat's write. Projections are full-state, so the worst
+	// case is a render that loses a race and is rewritten by the next mutation.
 	fn()
+}
+
+func releaseHeldLocks() {
+	heldFlocks.Range(func(k, _ any) bool {
+		if fl, ok := k.(*flock.Flock); ok {
+			fl.Unlock()
+		}
+		return true
+	})
 }
 
 // writeAtomic is temp + fsync + rename + dir-fsync (plan-audit sitting-4 note 1,
@@ -113,6 +117,3 @@ func isRetryableRename(err error) bool {
 	}
 	return os.IsPermission(err) || os.IsExist(err)
 }
-
-// timeNowMinus is a test seam for ageing a lock without sleeping.
-func timeNowMinus(d time.Duration) time.Time { return time.Now().Add(-d) }

@@ -36,7 +36,6 @@ var (
 	guardCond    = sync.NewCond(&guardMu)
 	guardDepth   int
 	shuttingDown bool
-	heldLocks    sync.Map // lock directory path -> struct{}
 )
 
 // InstallSignalGuard arms interrupt handling for the process. It returns a stop
@@ -93,13 +92,6 @@ func exitCritical() {
 	if guardDepth <= 0 {
 		guardCond.Broadcast()
 	}
-}
-
-func releaseHeldLocks() {
-	heldLocks.Range(func(k, _ any) bool {
-		os.Remove(k.(string))
-		return true
-	})
 }
 
 // fsyncFile flushes a file's contents to stable storage.

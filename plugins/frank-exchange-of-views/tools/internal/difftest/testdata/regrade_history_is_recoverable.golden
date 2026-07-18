@@ -11,7 +11,7 @@ minted R1-1
 $ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
 exit 2
 stderr:
-{TOOL}: record: regrade requires --basis (grade movement is recorded with its reason)
+feov-record: merge: record: regrade requires --basis (grade movement is recorded with its reason)
 
 $ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --basis blue narrowed the scope; consequence shrank
 exit 0

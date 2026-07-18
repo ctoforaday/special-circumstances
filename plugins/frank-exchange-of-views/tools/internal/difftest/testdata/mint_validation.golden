@@ -6,22 +6,22 @@ registered red-merge-r1 (shard nonce NONCE001)
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --problem no check given
 exit 2
 stderr:
-{TOOL}: record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)
+feov-record: merge: record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --check run it --problem no class given
 exit 2
 stderr:
-{TOOL}: record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)
+feov-record: merge: record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check run it --severity catastrophic --problem bad grade
 exit 2
 stderr:
-{TOOL}: record: mint.severity="catastrophic" not in grade enum
+feov-record: merge: record: mint.severity="catastrophic" not in grade enum
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check run it --supersedes R9-9 --problem dangling lineage
 exit 2
 stderr:
-{TOOL}: record: mint supersedes R9-9, which no mint event has created — dangling lineage refused
+feov-record: merge: record: mint supersedes R9-9, which no mint event has created — dangling lineage refused
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check grep the sites --severity high --likelihood high --impact medium --cx low --problem a real one
 exit 0

@@ -11,17 +11,17 @@ minted R1-1
 $ merge close --run {RUN} --seat-id red-merge-r1 --id R1-1
 exit 2
 stderr:
-{TOOL}: record: close requires the attestation anchor (--anchor-seat --anchor-tool --anchor-target) or --carried-from <round> — an unanchored closure is unauditable (E0.5a)
+feov-record: merge: record: close requires the attestation anchor (--anchor-seat --anchor-tool --anchor-target) or --carried-from <round> — an unanchored closure is unauditable (E0.5a)
 
 $ merge close --run {RUN} --seat-id red-merge-r1 --id R9-9 --anchor-seat L1 --anchor-tool git show --anchor-target 7bc501e:x
 exit 2
 stderr:
-{TOOL}: record: close of unknown gap R9-9
+feov-record: merge: record: close of unknown gap R9-9
 
 $ merge close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed_with_regression --anchor-seat L1 --anchor-tool git show --anchor-target 7bc501e:x
 exit 2
 stderr:
-{TOOL}: record: closed_with_regression requires --successor (lineage never drops)
+feov-record: merge: record: closed_with_regression requires --successor (lineage never drops)
 
 $ merge close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed --anchor-seat L1 --anchor-tool WebFetch --anchor-target https://example.invalid/spec#s3
 exit 0
