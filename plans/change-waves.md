@@ -113,3 +113,50 @@ Fork/common-preamble rungs 2-3 (standing objection: structural promises); qmd
 tombstone lifecycle (measure over runs 4-6); LSP evaluation (Phase-4 trigger);
 sleeper-service Phase-4 build (deferred — future post-reform run produces the
 buildable design); gh-agent wrapper; MEMORY-index hook check.
+
+## RE-SEQUENCED (operator decision, 2026-07-18)
+
+Implement-first: the reform debate is DEMOTED from ratifier to first-shakedown —
+nearly every reform clause now carries measured evidence (13/13 FAIL, ~4% vs ~60%
+measured-vs-unmeasured, memory-read-and-regressed, catechism DEFECTIVE, 76/77
+carried), so ratification-by-debate buys little at ~$500. NO RUNS (FEOV debates,
+E-queue) until the existing corpus is exhausted (E0.5 below). The plan-audit gate
+(single agent, not a run) still applies before implementation waves.
+
+WAVE 2 (revised) — implement the known constitutional changes, PR series:
+- [ ] W2a. The three constitutions rewritten (blue/red/judge agent files): telos,
+      win/loss conditions, craft duties, calibration; assembly union-copy rule.
+- [ ] W2b. Engine: correctness manifest, acceptance-check-at-mint, class-sweep
+      clauses, repair_regression_rate + supersedes-edge delta telemetry.
+- [ ] W2c. Petitions (script-routed short-circuit) + judicial opinions +
+      JUDICIAL RECORD assembly section + judicial_halt.
+- [ ] W2d. Gap classes: class field, append-only registry, recurrence escalator,
+      class_mass telemetry (seed vocabulary from E0.5g).
+- [ ] W2e. law/ + feov-memory/ structure: statute/precedent two-tier authority,
+      craft memory compiled to manifest lines at setup, capture STATS + deltas.
+- [ ] W2f. Records layer: seats/board/friction JSONL + structured per-claim
+      confidence; capture audits move from heuristics to records.
+- [ ] W2g. MASS mapping v2 (existence vs consequence split) — new telemetry
+      series version; catechism/TL;DR into blue's round-0 template.
+
+E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3-5):
+- [ ] a. ATTESTATION VERIFICATION (the big undone one): every archive "verified
+      at leaf/line" claim cross-checked against the seat's ACTUAL tool calls in
+      its transcript — auditing behavior, not testimony. Bears directly on red's
+      constitution (how much verification machinery it needs).
+- [ ] b. Merge information-loss: lens candidates vs merged ledger, all rounds,
+      all runs — what dies at the merge bottleneck.
+- [ ] c. Lens ROI, full: candidates-based attribution where found_by is absent;
+      cost per surviving finding per lens (seat-count economics).
+- [ ] d. Judge value-add: did docketed/prioritized gaps close differently?
+- [ ] e. Friction as leading indicator: map friction entries to later gaps that
+      materialized in the same area.
+- [ ] f. Retroactive assembly screens on runs 3-4 (is assembly-seat regression
+      general or run-5-specific?).
+- [ ] g. Retroactive class vocabulary: classify all ~180 gaps across runs into
+      a seed registry (calibrates W2d before it ships).
+- [ ] h. Claim survival trace: blue claims attacked-and-held vs attacked-and-
+      repaired vs never-attacked (coverage + calibration prior).
+
+RUNS RESUME only after E0.5 is exhausted: first run under the new constitution
+= its shakedown + the reform A/B (E2), then the E-queue in order.
