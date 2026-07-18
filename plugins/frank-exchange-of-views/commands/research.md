@@ -32,3 +32,5 @@ is two script invocations.
    missing from friction.md) — report it like an UNVERIFIED: plainly, never smoothed over.
    Your judgment half: read the envelope's friction entries against friction.md and dedupe
    attributed near-duplicates the parity check can't (same complaint, different wording).
+
+**Monitoring a live run** (optional, read-only): `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/render-run-dashboard.mjs <run directory> <transcript dir> --watch` writes `<run directory>/dashboard.html` (auto-refreshing) — board mass trend, open gaps by severity, live seats, cost-so-far, blackboard growth. The Workflow panel shows the phase; the dashboard shows the debate.
