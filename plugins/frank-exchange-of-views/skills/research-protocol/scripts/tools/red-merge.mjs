@@ -7,7 +7,7 @@ import { existsSync, cpSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { createHash } from 'node:crypto'
-import { append, boardState, mintGapId, payloadText, registerSeat, render, roundOf, runVerb } from '../lib/record.mjs'
+import { append, boardState, existingMintByKey, mintGapId, payloadText, registerSeat, render, roundOf, runVerb } from '../lib/record.mjs'
 
 const list = (v) => (v ? String(v).split(',').map((s) => s.trim()).filter(Boolean) : [])
 
@@ -17,11 +17,15 @@ const verbs = {
     fn: (runDir, seatId) => { const r = registerSeat(runDir, seatId); return `registered ${seatId} (shard nonce ${r.nonce})` },
   },
   mint: {
-    help: 'mint a board gap (id is TOOL-assigned): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]',
+    help: 'mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]',
     fn: (runDir, seatId, a) => {
+      // Crash-retry idempotency (plan §II): --key (stable local label, e.g. the source
+      // lens finding) makes a retried mint return the EXISTING id, never double-mint.
+      const prior = existingMintByKey(runDir, seatId, a.key)
+      if (prior) return `minted ${prior} (idempotent retry — existing id returned)`
       const gap_id = mintGapId(runDir, roundOf(seatId))
       append(runDir, seatId, 'mint', {
-        gap_id, class: a['class-new'] || a.class, class_new: !!a['class-new'],
+        gap_id, mint_key: a.key, class: a['class-new'] || a.class, class_new: !!a['class-new'],
         definition: a.definition, neighbor: a.neighbor, distinguisher: a.distinguisher,
         location: a.location, problem: a.problem || payloadText(a), required_fix: a.fix,
         acceptance_check: a.check,

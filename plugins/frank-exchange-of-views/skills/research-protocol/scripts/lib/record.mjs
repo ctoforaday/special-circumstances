@@ -75,7 +75,17 @@ export function append(runDir, seatId, type, payload = {}) {
   validate(runDir, type, payload)
   const key = deriveKey(seatId, round, type, payload, events)
   const line = { seq: events.length, seatId, nonce, round, type, key, payload }
-  appendFileSync(shard, JSON.stringify(line) + '\n')
+  // Torn-line healing: a crash mid-append can leave an unterminated fragment as the
+  // file's last bytes; appending straight onto it would destroy THIS event too
+  // (caught by the crash-mid-append test). If the shard does not end in a newline,
+  // terminate the fragment first — the fragment stays visibly unparseable, the new
+  // event stays whole.
+  let prefix = ''
+  if (existsSync(shard)) {
+    const raw = readFileSync(shard, 'utf8')
+    if (raw.length && !raw.endsWith('\n')) prefix = '\n'
+  }
+  appendFileSync(shard, prefix + JSON.stringify(line) + '\n')
   return line
 }
 
@@ -142,6 +152,15 @@ function allGapIds(runDir) {
 export function mintGapId(runDir, round) {
   const existing = mergedEvents(runDir).events.filter((e) => e.type === 'mint' && e.round === round).length
   return `R${round}-${existing + 1}`
+}
+
+// Mint idempotency (plan §II, crash-retry safe): a seat whose message died after a
+// successful mint retries the SAME command; with --key (the stable local label, e.g.
+// the source lens finding), the retry returns the EXISTING id instead of double-minting.
+export function existingMintByKey(runDir, seatId, key) {
+  if (!key) return null
+  const hit = mergedEvents(runDir).events.find((e) => e.type === 'mint' && e.seatId === seatId && e.payload.mint_key === key)
+  return hit ? hit.payload.gap_id : null
 }
 
 // ---- Replay: shard discovery, winner selection, deterministic merge, dedup ----
@@ -227,7 +246,7 @@ export function render(runDir, { outDir = null } = {}) {
     '',
     `## OPEN GAPS (${open.length})`,
     '',
-    ...open.map((g) => `### ${g.gap_id} — ${g.problem ? g.problem.slice(0, 100) : ''}\n${g.location || ''}\nseverity ${g.severity} | ${g.likelihood} x ${g.impact} | cx ${g.complexity_cost} | class ${g.class}${g.supersedes && g.supersedes.length ? ` | supersedes ${g.supersedes.join(' ')}` : ''}\nrequired_fix: ${g.required_fix || ''}\nacceptance_check: ${g.acceptance_check}\n`),
+    ...open.map((g) => `### ${g.gap_id} — ${g.problem ? g.problem.slice(0, 100) : ''}\n${g.location || ''}\nseverity ${g.severity} | ${g.likelihood} x ${g.impact} | cx ${g.complexity_cost} | class ${g.class}${g.supersedes && g.supersedes.length ? ` | supersedes ${g.supersedes.join(' ')}` : ''}${g.found_by && g.found_by.length ? ` | found_by ${g.found_by.join(',')}` : ''}${g.regrades.length ? `\nregraded x${g.regrades.length} (history in the event log; latest basis: ${g.regrades[g.regrades.length - 1].basis})` : ''}\nrequired_fix: ${g.required_fix || ''}\nacceptance_check: ${g.acceptance_check}\n`),
     '## CLOSURE INDEX',
     '',
     ...closed.map((g) => `${g.gap_id} | ${g.closure.closure_class || 'closed'} | ${(g.problem || '').slice(0, 60)} | ${g.closure.successor || '-'}`),

@@ -209,3 +209,90 @@ test('mintGapId is sequential per round across the merged view', () => {
 test('grades enum is the pinned eight', () => {
   assert.deepEqual([...GRADES].sort(), ['certain', 'high', 'low', 'low-medium', 'medium', 'medium-high', 'realized', 'trivial'].sort())
 })
+
+// ---- Findings-audit additions (pre-merge sweep, 2026-07-18): every measured
+// failure case from the corpus gets its named test ----
+
+test('crash-retry idempotency: a retried mint with --key returns the EXISTING id, never double-mints', () => {
+  const merge = join(SCRIPTS, 'tools', 'red-merge.mjs')
+  const run = tmp()
+  const margs = ['mint', '--key', 'L5-F3', '--class', 'false-universal', '--location', 'S1', '--problem', 'p', '--fix', 'f', '--check', 'c', '--severity', 'medium', '--likelihood', 'medium', '--impact', 'medium', '--cx', 'low', '--run', run, '--seat-id', 'red-merge-r1']
+  const first = spawnSync(process.execPath, [merge, ...margs])
+  assert.ok(first.stdout.toString().includes('minted R1-1'), first.stderr.toString())
+  // The seat's message died after the successful bash call; the seat retries verbatim.
+  const retry = spawnSync(process.execPath, [merge, ...margs])
+  assert.ok(retry.stdout.toString().includes('minted R1-1') && retry.stdout.toString().includes('idempotent'), `retry must return the existing id: ${retry.stdout}`)
+  const fresh = spawnSync(process.execPath, [merge, 'mint', '--class', 'false-universal', '--location', 'S2', '--problem', 'q', '--fix', 'f', '--check', 'c', '--severity', 'low', '--likelihood', 'low', '--impact', 'low', '--cx', 'low', '--run', run, '--seat-id', 'red-merge-r1'])
+  assert.ok(fresh.stdout.toString().includes('minted R1-2'), 'a genuinely new mint still advances the id')
+})
+
+test('crash mid-append: a torn final line is tolerated; prior events survive intact', () => {
+  const run = tmp()
+  append(run, 'red-merge-r1', 'mint', mintArgs({ gap_id: 'R1-1' }))
+  const shard = readdirSync(join(run, 'records')).find((f) => f.startsWith('events-red-merge-r1'))
+  // Simulate the process dying mid-write: half a JSON object, no newline.
+  writeFileSync(join(run, 'records', shard), '{"seq":99,"seatId":"red-merge-r1","type":"clo', { flag: 'a' })
+  const { gaps } = boardState(run)
+  assert.equal(gaps.size, 1, 'the mint before the torn line is intact')
+  assert.ok(gaps.get('R1-1').open, 'the torn close never happened — renders as open (torn-round semantics)')
+  append(run, 'red-merge-r1', 'friction', { text: 'appends still work after a torn line' })
+  assert.equal(mergedEvents(run).events.filter((e) => e.type === 'friction').length, 1)
+})
+
+test('the quoting recurrence class: hostile prose (quotes, backticks, subshells, newlines, unicode) survives --file into the event and the render', () => {
+  const merge = join(SCRIPTS, 'tools', 'red-merge.mjs')
+  const run = tmp()
+  const hostile = 'He said "never" - then ' + String.fromCharCode(96) + 'rm -rf' + String.fromCharCode(96) + ' and $(echo gotcha) \\ backslash\nsecond line: 100% of £ costs ≈ √2 × naïve\n'
+  const proseFile = join(tmp(), 'problem.md')
+  writeFileSync(proseFile, hostile)
+  const r = spawnSync(process.execPath, [merge, 'mint', '--class', 'false-universal', '--location', 'S1', '--file', proseFile, '--fix', 'f', '--check', 'c', '--severity', 'medium', '--likelihood', 'medium', '--impact', 'medium', '--cx', 'low', '--run', run, '--seat-id', 'red-merge-r1'])
+  assert.equal(r.status, 0, r.stderr.toString())
+  const mint = mergedEvents(run).events.find((e) => e.type === 'mint')
+  assert.equal(mint.payload.problem, hostile, 'byte-exact round trip through the event log')
+  render(run)
+  const ledger = readFileSync(join(run, 'records', 'render-shadow', 'ledger.md'), 'utf8')
+  assert.ok(ledger.includes('He said "never"'), 'renders carry the prose')
+})
+
+test('E0.5b unauditability case: regrade history is fully recoverable — original grade, every basis, and the render says where to look', () => {
+  const run = tmp()
+  append(run, 'red-merge-r1', 'mint', mintArgs({ gap_id: 'R1-1', likelihood: 'high', impact: 'high' }))
+  append(run, 'red-merge-r2', 'regrade', { gap_id: 'R1-1', likelihood: 'medium', basis: 'repair narrowed the trigger set to admin-only paths' })
+  append(run, 'red-merge-r3', 'regrade', { gap_id: 'R1-1', impact: 'medium', basis: 'blast radius bounded by the new fence' })
+  const { events, gaps } = boardState(run)
+  const g = gaps.get('R1-1')
+  assert.equal(g.likelihood, 'medium')
+  assert.equal(g.impact, 'medium')
+  const mint = events.find((e) => e.type === 'mint')
+  assert.equal(mint.payload.likelihood, 'high', 'the ORIGINAL grade is still in the log — the run-4 unauditability class cannot recur')
+  assert.equal(g.regrades.length, 2, 'every movement carries its recorded basis')
+  render(run)
+  const ledger = readFileSync(join(run, 'records', 'render-shadow', 'ledger.md'), 'utf8')
+  assert.ok(ledger.includes('regraded x2') && ledger.includes('blast radius bounded'), 'the render discloses the history and its latest basis')
+})
+
+test('INTEGRATION - a full round through the CLIs: 6 lenses (findings, cites, notes) then the merge (dispose, mint with found_by, verdict) yields coherent projections', () => {
+  const lens = join(SCRIPTS, 'tools', 'red-lens.mjs')
+  const merge = join(SCRIPTS, 'tools', 'red-merge.mjs')
+  const run = tmp()
+  for (let i = 1; i <= 6; i++) {
+    const sid = `red-lens-r1-L${i}`
+    assert.equal(spawnSync(process.execPath, [lens, 'register', '--run', run, '--seat-id', sid]).status, 0)
+    assert.equal(spawnSync(process.execPath, [lens, 'finding', '--label', `L${i}-F1`, '--severity', 'medium', '--likelihood', 'medium', '--impact', 'medium', '--text', `lens ${i} finding`, '--run', run, '--seat-id', sid]).status, 0)
+    assert.equal(spawnSync(process.execPath, [lens, 'cite', '--claim', `claim ${i}`, '--reference', `arXiv:250${i}.0000${i}`, '--confidence', 'high', '--access-date', '2026-07-18', '--run', run, '--seat-id', sid]).status, 0)
+  }
+  assert.equal(spawnSync(process.execPath, [lens, 'observe', '--kind', 'note', '--label', 'L6-N1', '--text', 'sub-bar but real', '--run', run, '--seat-id', 'red-lens-r1-L6']).status, 0)
+  const m = (args) => spawnSync(process.execPath, [merge, ...args, '--run', run, '--seat-id', 'red-merge-r1'])
+  assert.equal(m(['register']).status, 0)
+  for (let i = 1; i <= 6; i++) assert.equal(m(['dispose', '--observation', `L${i}-F1`, '--as', i <= 2 ? 'minted-as' : 'folded-into', '--into', 'R1-1']).status, 0)
+  assert.equal(m(['dispose', '--observation', 'L6-N1', '--as', 'declined', '--reason', 'below bar, noted']).status, 0)
+  const minted = m(['mint', '--key', 'L1-F1', '--class', 'false-universal', '--location', 'S2', '--problem', 'merged finding', '--fix', 'fix it', '--check', 'grep it', '--severity', 'medium', '--likelihood', 'medium', '--impact', 'medium', '--cx', 'low', '--found-by', 'L1-F1,L2-F1'])
+  assert.ok(minted.stdout.toString().includes('minted R1-1'), minted.stderr.toString())
+  assert.equal(m(['verdict', '--as', 'FAIL']).status, 0)
+  const ledger = readFileSync(join(run, 'records', 'render-shadow', 'ledger.md'), 'utf8')
+  assert.ok(ledger.includes('OPEN GAPS (1)') && ledger.includes('found_by L1-F1,L2-F1'), 'board coherent, lens-finding-granular attribution rendered')
+  assert.ok(!ledger.includes('undisposed'), 'every observation received its fate')
+  const telemetry = readFileSync(join(run, 'records', 'render-shadow', 'board-telemetry.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(telemetry[0].open_count, 1)
+  assert.equal(mergedEvents(run).events.filter((e) => e.type === 'cite').length, 6, 'the citation ledger events all survive')
+})
