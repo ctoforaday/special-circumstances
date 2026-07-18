@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // Golden tests are what SURVIVES the oracle.
@@ -92,36 +94,10 @@ func compareGolden(t *testing.T, name, got string) {
 		t.Fatalf("missing golden %s (run with -update): %v", path, err)
 	}
 	want := strings.ReplaceAll(string(wantBytes), "\r\n", "\n")
-	if got != want {
-		t.Errorf("%s differs from its golden.\nIf this change is INTENTIONAL, regenerate with -update and justify it in the commit.\n%s",
-			name, firstDiff(got, want))
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with -update and justify it in the commit.\n%s",
+			name, diff)
 	}
-}
-
-// firstDiff reports the first differing line with context, rather than dumping
-// two multi-kilobyte transcripts into the failure output.
-func firstDiff(got, want string) string {
-	g, w := strings.Split(got, "\n"), strings.Split(want, "\n")
-	for i := 0; i < len(g) || i < len(w); i++ {
-		gl, wl := "", ""
-		if i < len(g) {
-			gl = g[i]
-		}
-		if i < len(w) {
-			wl = w[i]
-		}
-		if gl != wl {
-			start := max(0, i-3)
-			var b strings.Builder
-			fmt.Fprintf(&b, "first difference at line %d:\n", i+1)
-			for j := start; j < i; j++ {
-				fmt.Fprintf(&b, "  %s\n", w[j])
-			}
-			fmt.Fprintf(&b, "- want: %s\n+ got:  %s\n", wl, gl)
-			return b.String()
-		}
-	}
-	return "(transcripts differ only in trailing whitespace)"
 }
 
 func sortedKeys[V any](m map[string]V) []string {

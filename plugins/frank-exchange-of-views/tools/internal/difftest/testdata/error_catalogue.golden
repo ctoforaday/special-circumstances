@@ -1,0 +1,80 @@
+── mint without acceptance check
+exit 2
+{TOOL}: record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)
+
+── mint without class
+exit 2
+{TOOL}: record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)
+
+── mint with unknown class
+exit 2
+{TOOL}: record: unknown class invented — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or mint the class with --class-new (definition + neighbor + distinguisher required)
+
+── class-new missing definition
+exit 2
+{TOOL}: record: --class-new requires --definition, --neighbor <existing-slug>, and --distinguisher (the tie-break question)
+
+── class-new unknown neighbor
+exit 2
+{TOOL}: record: --neighbor nope is not a known class
+
+── mint with bad grade
+exit 2
+{TOOL}: record: mint.severity="catastrophic" not in grade enum
+
+── mint with dangling supersedes
+exit 2
+{TOOL}: record: mint supersedes R7-7, which no mint event has created — dangling lineage refused
+
+── close unknown gap
+exit 2
+{TOOL}: record: close of unknown gap R7-7
+
+── close without id
+exit 2
+{TOOL}: record: close requires --id
+
+── close without anchor
+exit 2
+{TOOL}: record: close requires the attestation anchor (--anchor-seat --anchor-tool --anchor-target) or --carried-from <round> — an unanchored closure is unauditable (E0.5a)
+
+── regression close without successor
+exit 2
+{TOOL}: record: closed_with_regression requires --successor (lineage never drops)
+
+── dispose without disposition
+exit 2
+{TOOL}: record: dispose requires --as minted-as|folded-into|declined|banked
+
+── regrade without basis
+exit 2
+{TOOL}: record: regrade requires --basis (grade movement is recorded with its reason)
+
+── opinion missing fields
+exit 2
+{TOOL}: record: opinion requires --principle (opinions, not dispositions)
+
+── invalid seat id
+exit 2
+{TOOL}: record: invalid --seat-id "not a seat id"
+
+── verb outside the lens role
+exit 2
+{TOOL}: verb 'mint' is outside this seat's role (available: register, finding, observe, cite, friction, petition, render)
+
+── verb outside the blue role
+exit 2
+{TOOL}: verb 'close' is outside this seat's role (available: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+
+── verb outside the bench role
+exit 2
+{TOOL}: verb 'mint' is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render)
+
+── unknown verb
+exit 2
+{TOOL}: verb 'frobnicate' is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render)
+
+── unknown role
+exit 2
+feov-record: unknown role "nonsuch" (roles: lens, merge, blue, bench)
+

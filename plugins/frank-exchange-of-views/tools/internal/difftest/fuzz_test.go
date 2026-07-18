@@ -5,8 +5,9 @@ import (
 	"math/rand"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestDifferentialFuzz drives RANDOM valid verb sequences through both
@@ -56,8 +57,8 @@ func TestDifferentialFuzz(t *testing.T) {
 			}
 
 			g, w := collect(t, goDir, goMap), collect(t, mjsDir, mjsMap)
-			if !reflect.DeepEqual(g.events, w.events) {
-				t.Errorf("event logs diverged\nsequence: %s\n go:  %s\n mjs: %s", dumpSeq(cmds), jsonDump(g.events), jsonDump(w.events))
+			if diff := cmp.Diff(w.events, g.events); diff != "" {
+				t.Errorf("event logs diverged (-oracle +go)\nsequence: %s\n%s", dumpSeq(cmds), diff)
 			}
 			for name, want := range w.renders {
 				if g.renders[name] != want {

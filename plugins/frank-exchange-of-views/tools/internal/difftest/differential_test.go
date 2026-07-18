@@ -29,13 +29,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // cmd is one CLI invocation. Role selects the seat contract; the Go side takes it
@@ -285,11 +286,11 @@ func TestDifferentialAgainstOracle(t *testing.T) {
 
 			g := collect(t, goDir, goMap)
 			w := collect(t, mjsDir, mjsMap)
-			if !reflect.DeepEqual(g.events, w.events) { // policy 2: structural
-				t.Errorf("event logs differ\n go:  %s\n mjs: %s", jsonDump(g.events), jsonDump(w.events))
+			if diff := cmp.Diff(w.events, g.events); diff != "" { // policy 2: structural
+				t.Errorf("event logs differ (-oracle +go)\n%s", diff)
 			}
-			if !reflect.DeepEqual(g.pointer, w.pointer) {
-				t.Errorf("seat pointers differ\n go: %v\n mjs: %v", g.pointer, w.pointer)
+			if diff := cmp.Diff(w.pointer, g.pointer); diff != "" {
+				t.Errorf("seat pointers differ (-oracle +go)\n%s", diff)
 			}
 			for name, want := range w.renders { // policy 3: byte-identical
 				got, ok := g.renders[name]
