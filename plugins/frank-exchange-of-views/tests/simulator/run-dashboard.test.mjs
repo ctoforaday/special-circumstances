@@ -66,7 +66,7 @@ test('dashboard html: mass line + both round rows + live seat + dark-mode roles,
   assert.ok(html.includes('polyline'), 'mass trend rendered')
   assert.ok(html.includes('118.75') && html.includes('81.5'), 'both telemetry rounds in the table')
   assert.ok(html.includes('red-merge-r2'), 'live seat listed (classified from transcript head)')
-  assert.ok(/running d+ min/.test(html), 'live seat shows elapsed minutes from transcript timestamp')
+  assert.ok(/running \d+ min/.test(html), 'live seat shows elapsed minutes from transcript timestamp')
   assert.ok(html.includes('class="bar"'), 'progress bar rendered')
   assert.ok(html.includes('close rate'), 'open/close rates table')
   assert.ok(html.includes('friction entries'), 'friction as count tile')
