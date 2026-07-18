@@ -17,15 +17,15 @@ ratifies. Nothing in wave 3 ships before ratification (house gate).
 ## WAVE 1 — mechanical PRs (friction-demanded plumbing; no debate needed)
 
 FEOV setup/capture scripts:
-- [ ] W1.1 Pin validation at setup: `git cat-file -e <pin>:<path>` per cited pin,
+- [x] W1.1 Pin validation at setup: `git cat-file -e <pin>:<path>` per cited pin,
       fail loudly; optional inputs-staging for cross-repo artifacts. [R1-7 —
       "recurs in every run pinning a cross-repo path until fixed"; judge-r2]
-- [ ] W1.2 Lens-friction auto-harvest at capture from red/candidates/*.md — lens
+- [x] W1.2 Lens-friction auto-harvest at capture from red/candidates/*.md — lens
       seats have no friction.md write path; merge relays by hand today.
       [red-merge-r1 friction]
-- [ ] W1.3 Context-use telemetry at capture: per-seat peak + fill%; flag any seat
+- [x] W1.3 Context-use telemetry at capture: per-seat peak + fill%; flag any seat
       crossing 50% of its model's window. [backlog; 146-transcript scan baseline]
-- [ ] W1.4 Assembly regression screen at capture: grep assembled sections against
+- [x] W1.4 Assembly regression screen at capture: grep assembled sections against
       the run's propagation lists. [catechism audit — mechanical half of the fix]
 - [ ] W1.5 Dashboard openRows fallback: telemetry authoritative when heuristic
       parse < telemetry count. [known wart, feat/run-dashboard]

@@ -81,6 +81,22 @@ export function mirrorGapPatterns(memoryDir, runDir) {
   return { written: true, files: parts.length }
 }
 
+// W1.1 — pin validation (R1-7, judge-r2 ruling: "setup tooling must validate every pinned
+// path and fail loudly on a miss, or stage cross-corpus artifacts into inputs/"). A cite
+// asserting a path that does not exist at its pin poisons every citation of that corpus for
+// the whole run — snapshot-grade at best, and the defect recurs every run until caught here.
+export function validatePins(cites, head, git = (args) => spawnSync('git', args)) {
+  if (!head || head === 'unknown') return { checked: 0, missing: [], skipped: 'not a git repo — pins UNVALIDATED' }
+  const missing = []
+  for (const c of cites) {
+    const [path, pin] = c.split('@')
+    const at = pin || head
+    const r = git(['cat-file', '-e', `${at}:${path}`])
+    if (r.error || r.status !== 0) missing.push({ path, pin: at })
+  }
+  return { checked: cites.length, missing }
+}
+
 // The commitment-as-state pattern: promises about future behavior (push freeze, no mid-run
 // plugin updates) become an observable marker that deterministic guards consult.
 export function writeRunLiveMarker(projectDir, runDir, pinnedPaths) {
@@ -114,6 +130,16 @@ function main() {
   const cites = rest.flatMap((a, i) => (a === '--cite' ? [rest[i + 1]] : []))
   const head = (spawnSync('git', ['rev-parse', '--short', 'HEAD']).stdout || '').toString().trim() || 'unknown'
 
+  // Pins validated BEFORE anything is built: a bad cite fails the whole setup loudly.
+  const pv = validatePins(cites, head)
+  if (pv.missing && pv.missing.length) {
+    console.error('run-setup: PIN VALIDATION FAILED — refusing to create the run:')
+    for (const m of pv.missing) console.error(`  - ${m.path} does not exist at pin ${m.pin} (git cat-file -e ${m.pin}:${m.path})`)
+    console.error('  remedies: fix the cite (right path / right pin), or stage the artifact into')
+    console.error('  <runDir>/inputs/ BEFORE setup and cite the staged copy (setup keeps pre-staged files).')
+    process.exit(2)
+  }
+
   const skel = buildSkeleton(runDir, topic)
   const pinned = buildPinned(runDir, head, cites)
   // Red's agent memory accrues under the LAUNCHING session's project (smoke finding #2):
@@ -129,6 +155,7 @@ function main() {
   console.log(`  skeleton: ${skel.created.length} created, ${skel.skipped.length} pre-staged (kept)`)
   console.log(`  NOT created (red-merge-born): red/ledger.md, red/archive.md, trajectories/board-telemetry.jsonl`)
   console.log(`  pinned: ${pinned.written ? `HEAD ${head} + ${cites.length} cited path(s)` : 'inputs/PINNED.md pre-staged (kept)'}`)
+  console.log(`  pin validation: ${pv.skipped ? pv.skipped : `${pv.checked} cite(s) verified at their pins`}`)
   console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} memory file(s) mirrored` : mirror.reason}`)
   console.log(`  run-live marker: ${marker}`)
   console.log(`  qmd refresh: ${qmd.ran ? `update ${qmd.update ? 'ok' : 'FAILED'}, embed ${qmd.embed ? 'ok' : 'FAILED'}` : qmd.reason}`)
