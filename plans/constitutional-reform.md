@@ -153,6 +153,21 @@ values in tension + evidence read directly + a `for_human_review` flag with a
 one-line "why a human should look at this." Dispositions keep the existing enum;
 add `halted` (below).
 
+ASSEMBLY IS UNION-COPY, NEVER AUTHORSHIP (empirical basis: the run-5 post-capture
+catechism audit, 2026-07-18 — the judge-assembled Catechism came back DEFECTIVE,
+6/7 answers carrying defects existing nowhere in the audited body, directionally
+patterned pro-build, with three defects reinstating exact pre-repair phrasings
+the debate had spent rounds correcting: the ASSEMBLY-SEAT REGRESSION pathology,
+now in red's gap-pattern memory). Rules: (1) every synthesis section a reader
+will trust (catechism, TL;DR, verdict detail) lives in BLUE's report template
+from round 0, inside red's mandatory full-re-read — audited every round like any
+other claim surface; (2) the assembly seat copies and arranges audited text; new
+sentences at assembly are confined to the JUDICIAL RECORD (opinions, signed as
+the bench's own voice — reviewable, never wearing the debate's authority);
+(3) capture greps assembled sections against the run's propagation lists (the
+repaired phrasings are known) — the mechanical regression screen. Recall is not
+the record: seats write from the artifact, never from memory of it.
+
 THE REVIEW DOCKET (P6). The assembled report gains a JUDICIAL RECORD section:
 every bench call of the run with its opinion, petitions and their outcomes, and
 the judge's run-end certification statement ("what I would want a human to
