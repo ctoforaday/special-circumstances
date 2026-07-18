@@ -43,7 +43,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null } = a
+const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null } = a
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
@@ -78,10 +78,36 @@ const speedClause = ` SPEED: every message you send costs a ~20s round-trip rega
 // that reaches for another role's verbs is refused. The tool's --help IS the
 // seat's record contract: everything listed is permitted, anything absent does
 // not exist for that seat and is FRICTION rather than something to work around.
+// W2h — the visibility loop's last leg: each chair's headline numbers, IN the
+// prompt of the seats that chair governs.
+//
+// A number computed at capture and filed in feov-memory is measured and still
+// invisible; the clause it instruments stays exactly as dead as "confidence
+// self-graded" was. The numbers arrive as an ARGUMENT rather than a path because
+// this script is sandboxed and cannot read files — setup prints the arg ready to
+// pass, so the value a seat sees is the same value the dashboard and the human
+// see, parsed from one rendered file.
+//
+// Classes travel with the numbers on purpose. A benchmark says optimize me; a
+// DIAGNOSTIC says this explains you and optimizing it is a defect — red driving
+// its grade stability up is stubbornness, not rigour, and a bare number invites
+// exactly that.
+const CHAIR = { 'red-lens': 'red', 'red-merge': 'red', blue: 'blue', bench: 'bench' }
+const scorecardClause = (tool) => {
+  const chair = CHAIR[tool]
+  const rows = scorecards && chair && scorecards[chair]
+  return rows && rows.length
+    ? ` YOUR CHAIR'S SCORECARD (measured at the last run's capture, ${chair}): ${rows.join('; ')}. These are how this chair is judged over time, and they carry their class: a BENCHMARK is yours to improve, a DIAGNOSTIC explains you and gaming it is itself a defect, a DETECTOR firing at all is a finding. Do not optimize a number at the expense of the duty it measures — the number exists to make the duty visible, not to replace it.`
+    : ''
+}
+
 const RECORD_ROLE = { 'red-lens': 'lens', 'red-merge': 'merge', blue: 'blue', bench: 'bench' }
 const recordClause = (seatId, tool) => binDir
-  ? ` SEAT_ID: ${seatId}. RECORD (dual-mode): in ADDITION to the file writes above, record every action through the record tool. FIRST ACTION: "${binDir}/feov-record" ${RECORD_ROLE[tool]} register --run ${runDir} --seat-id ${seatId} — then the matching verb for each act. YOUR CONTRACT IS \`feov-record ${RECORD_ROLE[tool]} --help\`, and each verb's own --help documents every flag: what is listed there you may do, and what is NOT listed does not exist for you. Do NOT improvise a flag, invent a verb, or hand-write an artifact the tool does not offer — record what you needed with the friction verb instead, because a missing capability is a finding about the tooling. Prose payloads over 2KB go via --file, NEVER inline. The hand-written files remain authoritative this run; the events are the record under test.`
-  : ''
+  ? `${scorecardClause(tool)} SEAT_ID: ${seatId}. RECORD (dual-mode): in ADDITION to the file writes above, record every action through the record tool. FIRST ACTION: "${binDir}/feov-record" ${RECORD_ROLE[tool]} register --run ${runDir} --seat-id ${seatId} — then the matching verb for each act. YOUR CONTRACT IS \`feov-record ${RECORD_ROLE[tool]} --help\`, and each verb's own --help documents every flag: what is listed there you may do, and what is NOT listed does not exist for you. Do NOT improvise a flag, invent a verb, or hand-write an artifact the tool does not offer — record what you needed with the friction verb instead, because a missing capability is a finding about the tooling. Prose payloads over 2KB go via --file, NEVER inline. The hand-written files remain authoritative this run; the events are the record under test.`
+  // The scorecard is NOT gated on dual-mode: a run without the record binary is
+  // still a run whose chairs have numbers, and a visibility loop that only closes
+  // when an unrelated feature is switched on is not a loop.
+  : scorecardClause(tool)
 
 
 // Compound grades allowed: red's protocol grades finer than a 3-point scale

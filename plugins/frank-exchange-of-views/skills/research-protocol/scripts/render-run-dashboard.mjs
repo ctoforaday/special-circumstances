@@ -240,6 +240,40 @@ export function summarizeResult(raw) {
   return bits.length ? bits.join(' · ') : raw.slice(0, 110)
 }
 
+// W2h — the per-chair scoreboard. The visibility loop's third leg: the same
+// numbers the seats were given, in front of the human watching the run.
+//
+// The CLASS is rendered, not just the value. A benchmark and a diagnostic look
+// identical as bare figures, and treating a diagnostic as a target is how red
+// learns that grade stability is a virtue rather than a symptom. Benchmarks read
+// bold, diagnostics muted, and a detector that has fired reads as an alarm
+// because any nonzero detector is a finding.
+export function scorecardSection(runDir) {
+  const inputs = join(runDir, 'inputs')
+  if (!existsSync(inputs)) return ''
+  const cards = readdirSync(inputs).filter((f) => f.endsWith('-scorecard.md'))
+  if (!cards.length) return ''
+  const blocks = []
+  for (const f of cards) {
+    const chair = f.replace('-scorecard.md', '')
+    const body = readFileSync(join(inputs, f), 'utf8')
+    const sections = body.split(/^## /m)
+    const latest = sections[sections.length - 1] || ''
+    const rows = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic|measure)\]\s*—\s*([^:]+):\s*(?:\*\*([^*]+)\*\*|_not computed_)/g)]
+    if (!rows.length) continue
+    blocks.push(`<h3>${esc(chair)}</h3><table>` + rows.map((r) => {
+      const [, metric, cls, clause, value] = r
+      const fired = cls === 'detector' && value && value.trim() !== '0'
+      const style = fired ? 'color:#b00;font-weight:700'
+        : cls === 'benchmark' ? 'font-weight:700'
+          : cls === 'diagnostic' ? 'opacity:.65' : 'opacity:.8'
+      return `<tr><td style="${style}">${esc(metric)}</td><td>${esc(cls)}</td>` +
+        `<td style="${style}">${esc(value || 'not computed')}</td><td>${esc(clause.trim())}</td></tr>`
+    }).join('') + '</table>')
+  }
+  return blocks.length ? `<h2>scorecards — last capture</h2>${blocks.join('')}` : ''
+}
+
 export function renderHtml(m) {
   const sevRow = (t) => t && t.new_mint && t.new_mint.by_severity
     ? Object.entries(t.new_mint.by_severity).map(([k, v]) => `${esc(v)}${esc(SEV_CODE[k] || k)}`).join(' ') : '—'
@@ -316,7 +350,7 @@ ${m.friction.count ? `<p>${m.friction.count} attributed entr${m.friction.count =
 ${live.length ? `<table>${live.map((g) => `<tr><td class="liveseat">${g.n > 1 ? `${g.n}× ` : ''}${esc(g.label)}</td><td class="muted">${g.oldest ? 'running ' + Math.max(1, Math.round((Date.now() - g.oldest) / 60000)) + ' min' : 'running'}</td></tr>`).join('')}</table>` : '<p class="muted">none — between seats or complete</p>'}
 <h2>Recent completions</h2>
 <table>${done.slice(-8).reverse().map((s) => `<tr><td class="nowrap">${esc(s.label)}</td><td class="muted">${esc(summarizeResult(s.result || ''))}</td></tr>`).join('\n')}</table>
-</body>`
+</body>${scorecardSection(m.runDir || "")}`
 }
 
 function generate(runDir, transcriptDir) {
