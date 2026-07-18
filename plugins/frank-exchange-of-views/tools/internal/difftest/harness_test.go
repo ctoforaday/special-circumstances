@@ -108,7 +108,13 @@ func capture(c *exec.Cmd) invocation {
 
 var shardRe = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)
 
-var mirrorRe = regexp.MustCompile(`run-mirror[\\/][0-9a-f]{12}`)
+// The verdict verb checkpoints into the USER'S HOME cache, so the path carries
+// both the home directory and a hash of the run dir. Normalizing only the hash
+// left the developer's home path baked into two goldens — files that could never
+// pass on another machine, and did not: CI on Linux was the first environment to
+// run them. A golden is a contract about BEHAVIOUR, so anything naming the
+// machine has to go, and the whole path is replaced rather than its tail.
+var mirrorRe = regexp.MustCompile(`\S*[\\/]run-mirror[\\/][0-9a-f]{12}`)
 
 // nonceMapper assigns canonical placeholders in shard DISCOVERY order.
 type nonceMapper struct {
@@ -237,7 +243,7 @@ func normalizeOutput(inv invocation, runDir string, m *nonceMapper) invocation {
 		// The verdict verb's recovery mirror is keyed by sha1 of the run dir, and
 		// the two sides run in different temp dirs by construction — the hash
 		// difference is harness noise, not a port divergence.
-		s = mirrorRe.ReplaceAllString(s, "run-mirror/{HASH}")
+		s = mirrorRe.ReplaceAllString(s, "{MIRROR}")
 		// The tool name differs by construction: "feov-record merge" vs "red-merge.mjs".
 		for _, prefix := range []string{"feov-record lens", "feov-record merge", "feov-record blue", "feov-record bench",
 			"red-lens.mjs", "red-merge.mjs", "blue.mjs", "bench.mjs"} {
@@ -278,6 +284,40 @@ func seed(t *testing.T, runDir string, files map[string]string) {
 		}
 		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+// TestGoldensAreMachineIndependent is the guard for the failure that shipped:
+// two goldens carried the developer's home directory, so they could only ever
+// pass on one machine — and nothing noticed until CI ran on Linux. A golden is a
+// contract about behaviour; a path naming a user, a home directory, or a temp
+// root is a contract about a laptop.
+func TestGoldensAreMachineIndependent(t *testing.T) {
+	entries, err := os.ReadDir("testdata")
+	if err != nil {
+		t.Skip("no goldens yet")
+	}
+	// Patterns that can only be true on the machine that recorded them.
+	machine := []string{`[A-Za-z]:\\Users\\`, `/home/[a-z]`, `/Users/[a-z]`, `AppData`, `/tmp/`, `\\Temp\\`}
+	res := make([]*regexp.Regexp, len(machine))
+	for i, p := range machine {
+		res[i] = regexp.MustCompile(p)
+	}
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".golden") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join("testdata", e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, re := range res {
+			if loc := re.FindIndex(b); loc != nil {
+				line := 1 + strings.Count(string(b[:loc[0]]), "\n")
+				t.Errorf("%s:%d carries a machine-specific path (%s): %q — normalize it in the harness, do not re-record",
+					e.Name(), line, machine[i], strings.TrimSpace(string(b[max(0, loc[0]-40):loc[1]+20])))
+			}
 		}
 	}
 }

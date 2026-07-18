@@ -21,7 +21,7 @@ minted R1-1
 $ merge verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
 exit 0
 stdout:
-verdict FAIL — rendered (1 open, 0 closed) and checkpointed to C:\Users\gbloc\.cache\feov\run-mirror/{HASH}
+verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
