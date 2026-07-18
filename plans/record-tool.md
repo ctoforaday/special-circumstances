@@ -365,3 +365,80 @@ no Go dependency for readers, which is the JSONL format paying off.
 ORACLE FREEZE: at #35 merge the mjs write path is FROZEN — post-port changes
 land in Go only; an intentional semantics change regenerates the oracle and
 the differential together, never one side alone.
+
+## R2g SHIPPED (2026-07-18) — and the amendments it forces
+
+R2g.1 landed as a faithful port validated by the differential gate (20 scenarios
++ 12 fuzz sequences), which caught three port bugs no reading would have:
+`${undefined}` interpolating as the literal "undefined"; JS slice() counting
+UTF-16 code units where Go slices bytes; encoding/json escaping <, > and & where
+JSON.stringify does not.
+
+ORACLE RETIRED, EARLY. The plan sequenced retirement at R3, after the mjs write
+path had been superseded in a live run. It went at R2g instead, because the
+premise for waiting was false: the mjs tools were NEVER USED — no run directory
+contains records/, and the engine's toolsDir defaulted to null throughout. An
+oracle that has certified its port and never shipped has no remaining job. Its
+validation is preserved in the golden transcripts, recorded while the gate was
+green and verified to replay in the same tree.
+
+BEYOND THE ORACLE (the port is no longer merely faithful):
+- DURABILITY: every append and projection is write -> fsync -> rename ->
+  fsync(dir). The oracle had none; a crash could leave a correctly-named empty
+  projection or a zero-filled shard.
+- ABORT SAFETY: writes run inside critical sections; SIGINT/SIGTERM lets
+  in-flight writes finish, releases locks, then exits 130. Seats are killed
+  routinely (quota aborts, timeouts, cancels), so this is the common path.
+- COBRA: unknown flags are refused. `--anchor-set` for `--anchor-seat` used to
+  produce an unanchored closure silently.
+- FLOCK: replaces the mkdir lock, whose ten-second staleness steal could revoke a
+  LIVE holder's lock and admit two writers to the critical section.
+- SEAT-ROLE BINDING: seat identity is bound to its namespace. Before it, a lens
+  could run `feov-record merge mint --seat-id red-lens-r1-L1` and the tool
+  answered "minted R1-1" — the role boundary was a naming convention, not a
+  boundary, which made the record evidence of nothing.
+- HELP IS THE CONTRACT: every flag documented, and every help ends by naming the
+  friction path. If a seat can see it, it may do it; if it cannot see it, the
+  capability does not exist and the gap is a FINDING about the tooling, not a
+  puzzle to route around by hand-writing the artifact.
+
+## AMENDMENT — the mjs/Go boundary is re-litigated (operator, 2026-07-18)
+
+The old doctrine line was "prompt-invoked orchestration = mjs IN GIT (no binary
+bootstrap — FEOV stays tag-free); event-driven guards = Go hooks in PC." The
+load-bearing clause was the parenthesis, and R2g killed it: FEOV now ships
+feov-record as a CI release asset with its own tag family and doctor bootstrap.
+
+What survives: debate.js MUST stay mjs — it is the workflow script the harness
+loads and executes, a constraint rather than a preference.
+
+What should move, and WHEN: capture-research-run, setup-research-run,
+render-run-dashboard, record-parity-check and cost-audit do real parsing and are
+where we have actually been bitten (the GNU-tar-C:-as-remote-host bug, the
+heuristic ledger parse that failed twice live, the dashboard regexing prompts for
+seat identity). They should become Go — but NOT YET, and the reason is
+sequencing, not taste: the record layer exists to DELETE their parsing (capture
+audits move to records/, the dashboard's heuristics retire against board.json,
+parity-check's shadow side stops regexing markdown). Porting a parser we are
+about to delete is the worst ordering available. Port after the record layer
+shrinks them, when the port is mostly deletion.
+
+## AMENDMENT — golden management (operator-driven)
+
+Goldens are the contract now that the oracle is gone, and they will proliferate
+(seat prompt goldens land one per seat class, and every wave edits prompts). The
+risk is not diff quality but REVIEW EROSION: a wave regenerates everything, the
+diff runs to hundreds of lines, it is rubber-stamped, and real drift ships inside
+the noise. Countermeasures shipped in scripts/golden.mjs: one command for both
+languages, a change report at update time, staleness failing in CI, and orphan
+detection. Convention: a testdata change rides its OWN commit.
+
+Libraries evaluated and declined, with the trigger stated so this is not
+re-litigated from scratch: google/golden is ARCHIVED (read-only since 2022);
+autogold formats through a Go AST and warns that golden formatting can change
+across its own minor versions and across Go versions, which would inject
+non-determinism into a gate whose entire job is detecting change; goldie is
+active and well-made but its value-adds (templates, JSON/XML asserts) do not
+reach us, and go-cmp already supplies the diff quality that was the real pain.
+TRIGGER for revisiting: if fixture management becomes real work — many suites,
+subtest-scoped fixtures, cleanup churn — goldie is the one to reach for.
