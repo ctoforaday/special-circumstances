@@ -271,6 +271,53 @@ test('E0.5b unauditability case: regrade history is fully recoverable — origin
   assert.ok(ledger.includes('regraded x2') && ledger.includes('blast radius bounded'), 'the render discloses the history and its latest basis')
 })
 
+test('CONCURRENCY: 6 truly parallel lens processes (each register + finding + cite, every verb rendering) — all events land, projections parse, no locks or temps leak', async () => {
+  const { spawn } = await import('node:child_process')
+  const lens = join(SCRIPTS, 'tools', 'red-lens.mjs')
+  const run = tmp()
+  const runOne = (args) => new Promise((res) => {
+    const c = spawn(process.execPath, [lens, ...args, '--run', run])
+    let err = ''
+    c.stderr.on('data', (d) => { err += d })
+    c.on('close', (code) => res({ code, err }))
+  })
+  const jobs = []
+  for (let i = 1; i <= 6; i++) {
+    const sid = `red-lens-r1-L${i}`
+    jobs.push((async () => {
+      const reg = await runOne(['register', '--seat-id', sid])
+      const f = await runOne(['finding', '--label', `L${i}-F1`, '--severity', 'medium', '--likelihood', 'medium', '--impact', 'medium', '--text', `parallel finding ${i}`, '--seat-id', sid])
+      const c = await runOne(['cite', '--claim', `c${i}`, '--reference', `ref-${i}`, '--confidence', 'high', '--access-date', '2026-07-18', '--seat-id', sid])
+      return [reg, f, c]
+    })())
+  }
+  const results = (await Promise.all(jobs)).flat()
+  for (const r of results) assert.equal(r.code, 0, r.err)
+  const { events, anomalies } = mergedEvents(run)
+  assert.equal(events.filter((e) => e.type === 'finding').length, 6, 'every parallel finding landed')
+  assert.equal(events.filter((e) => e.type === 'cite').length, 6, 'every parallel cite landed')
+  assert.equal(anomalies.length, 0, `no dedup anomalies from clean parallelism: ${anomalies.join('; ')}`)
+  const recDir = join(run, 'records')
+  const leftovers = readdirSync(recDir).filter((f) => f.startsWith('.lock-'))
+  assert.equal(leftovers.length, 0, `no lock leaks: ${leftovers.join(', ')}`)
+  const shadowLeft = readdirSync(join(recDir, 'render-shadow')).filter((f) => f.includes('.tmp-'))
+  assert.equal(shadowLeft.length, 0, 'no temp leaks under concurrent renders')
+  const ledger = readFileSync(join(recDir, 'render-shadow', 'citation-ledger.md'), 'utf8')
+  assert.equal(ledger.split('\n').filter((l) => l.includes(' | ')).length, 6, 'final render is full-state and complete')
+})
+
+test('CONCURRENCY: a stale lock (crashed holder) is stolen, not deadlocked on', () => {
+  const run = tmp()
+  mkdirSync(join(run, 'records', '.lock-render'), { recursive: true })
+  utimesSync(join(run, 'records', '.lock-render'), new Date(Date.now() - 60000), new Date(Date.now() - 60000))
+  append(run, 'red-merge-r1', 'friction', { text: 'proceeds despite the corpse lock' })
+  const t0 = Date.now()
+  render(run)
+  assert.ok(Date.now() - t0 < 5000, 'stale lock stolen well inside the wait bound')
+  assert.ok(existsSync(join(run, 'records', 'render-shadow', 'ledger.md')))
+  assert.ok(!existsSync(join(run, 'records', '.lock-render')), 'lock released after steal')
+})
+
 // ---- R2: blue + bench CLIs, projections, parity, join ----
 
 test('R2 role boundaries: blue has no board verbs; bench cannot mint; both help contracts complete', () => {
