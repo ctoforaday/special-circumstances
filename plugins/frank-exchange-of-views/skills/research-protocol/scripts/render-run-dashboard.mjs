@@ -18,6 +18,8 @@ const jsonl = (p) => existsSync(p)
 
 // Same list-rate arithmetic as cost-audit.mjs (kept tiny here: fable-tier default).
 const RATE = { in: 10, out: 50, cr: 1.0, cw: 12.5 }
+// Engine's pinned v1 mass mapping (for grade-migration arithmetic only).
+const MASSD = { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
 
 // Seat classification from the transcript's first user message — the journal carries only
 // {type, key, agentId} (no labels; labels are a panel affordance the harness does not
@@ -117,6 +119,55 @@ export function buildModel(runDir, transcriptDir) {
   let blueClaims = null
   for (const j of journal) if (j.result && typeof j.result === 'object' && typeof j.result.claim_count === 'number') blueClaims = j.result.claim_count
 
+  // Judiciary analytics from journal envelopes: rulings by type (the router-vs-decider
+  // signal — 64 of 65 rulings across runs 4-5 were `carried` under judge-before-blue
+  // ordering; the closing-arguments redesign predicts this distribution diversifies),
+  // dispute traffic, and ARGUMENT longevity measured over supersedes CHAINS (raw gap ids
+  // under-measure: red mints successor ids each round, so ids live ~1 round while the
+  // argument persists across the chain).
+  const rulings = {}
+  let judgeSittings = 0
+  const disputes = { raised: 0, accepted: 0, rejected: 0 }
+  const gapRounds = new Map() // id -> { first, last, firstMass, lastMass }
+  const parentOf = new Map() // union-find over supersedes edges
+  const find = (x) => { while (parentOf.has(x) && parentOf.get(x) !== x) x = parentOf.get(x); return x }
+  let redSeen = 0
+  for (const j of journal) {
+    const r = j.result
+    if (!r || typeof r !== 'object') continue
+    if (Array.isArray(r.resolutions)) { judgeSittings++; for (const x of r.resolutions) rulings[x.resolution] = (rulings[x.resolution] || 0) + 1 }
+    if (Array.isArray(r.grade_disputes)) disputes.raised += r.grade_disputes.length
+    if (Array.isArray(r.dispute_responses)) for (const d of r.dispute_responses) { if (d.response in disputes) disputes[d.response]++ }
+    if (r.verdict && Array.isArray(r.gaps)) {
+      redSeen++
+      for (const g of r.gaps) {
+        const gm = (MASSD[g.likelihood] ?? 0) * (MASSD[g.impact] ?? 0)
+        const e = gapRounds.get(g.id) || { first: redSeen, firstMass: gm }
+        e.last = redSeen; e.lastMass = gm
+        gapRounds.set(g.id, e)
+        for (const anc of g.supersedes || []) parentOf.set(g.id, find(anc))
+      }
+    }
+  }
+  // Chains: group ids by root; chain span = min(first)..max(last); migration = last vs first mass.
+  const chains = new Map()
+  for (const [id, e] of gapRounds) {
+    const root = find(id)
+    const c = chains.get(root) || { first: e.first, last: e.last, firstMass: e.firstMass, lastMass: e.lastMass, ids: 0 }
+    c.ids++
+    if (e.first <= c.first) { c.first = e.first; c.firstMass = e.firstMass }
+    if (e.last >= c.last) { c.last = e.last; c.lastMass = e.lastMass }
+    chains.set(root, c)
+  }
+  const chainSpans = {}
+  let migDown = 0, migUp = 0, migFlat = 0
+  for (const c of chains.values()) {
+    const span = c.last - c.first + 1
+    chainSpans[span] = (chainSpans[span] || 0) + 1
+    if (span > 1) { const d = c.lastMass - c.firstMass; if (d < 0) migDown++; else if (d > 0) migUp++; else migFlat++ }
+  }
+  const judiciary = { judgeSittings, rulings, disputes, chainSpans, chains: chains.size, migDown, migUp, migFlat }
+
   // Progress through the workflow's big steps: Frontier -> Blue lanes -> Synthesis ->
   // rounds 1..maxRounds (each: lenses -> merge -> respond [-> judge]) -> Assembly.
   // The ceiling divides the bar; judged termination may end it early — stated on the bar.
@@ -146,7 +197,7 @@ export function buildModel(runDir, transcriptDir) {
   })
 
   const latest = telemetry[telemetry.length - 1] || null
-  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, generated: new Date().toISOString() }
+  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, generated: new Date().toISOString() }
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -251,6 +302,14 @@ ${m.shards.ledgerExists ? `<table>
 <tr><td>closure index rows</td><td>${m.shards.closureIndexRows}</td></tr>
 <tr><td>archived closure records</td><td>${m.shards.archiveRecords}</td></tr>
 </table><p class="muted">severity counts are a heuristic parse of red's own rows — the ledger is the record</p>` : '<p class="muted">ledger not yet created (red-merge-born at round 1)</p>'}
+<h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>
+${m.judiciary.judgeSittings ? `<table>
+<tr><td>judge sittings</td><td>${m.judiciary.judgeSittings}</td></tr>
+<tr><td>rulings by type</td><td>${Object.entries(m.judiciary.rulings).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(' · ') || '—'} <span class="muted">(a carried-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>
+<tr><td>grade disputes</td><td>raised ${m.judiciary.disputes.raised} · accepted ${m.judiciary.disputes.accepted} · rejected ${m.judiciary.disputes.rejected}</td></tr>
+<tr><td>argument chains (supersedes-aware)</td><td>${m.judiciary.chains} chains · by rounds alive: ${Object.entries(m.judiciary.chainSpans).sort((a, b) => a[0] - b[0]).map(([k, v]) => `${esc(v)}×${esc(k)}r`).join(' · ')}</td></tr>
+<tr><td>grade migration on multi-round chains</td><td>down ${m.judiciary.migDown} · up ${m.judiciary.migUp} · flat ${m.judiciary.migFlat} <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>
+</table>` : '<p class="muted">no judge sittings yet</p>'}
 <h2>Friction — logged pain points</h2>
 ${m.friction.count ? `<p>${m.friction.count} attributed entr${m.friction.count === 1 ? 'y' : 'ies'} · latest: <span class="muted">${esc((m.friction.last || '').slice(0, 160))}</span></p>` : '<p class="muted">none logged yet</p>'}
 <h2>Seats live now</h2>

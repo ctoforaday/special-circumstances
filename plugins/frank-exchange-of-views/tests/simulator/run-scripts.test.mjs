@@ -146,13 +146,18 @@ function fixtureTranscript() {
   return dir
 }
 
-test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with telemetry join, audit report, marker removal', () => {
+test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with telemetry join, audit report, marker removal', (t) => {
   const runDir = fixtureRun({ ledgerLines: 1, archiveBlocks: 1 })
   const transcriptDir = fixtureTranscript()
-  // A live marker in cwd/.claude — capture must remove it.
-  const marker = join(process.cwd(), '.claude', 'run-live.json')
-  const hadMarker = existsSync(marker)
-  const priorMarker = hadMarker ? readFileSync(marker, 'utf8') : null
+  // capture() removes cwd/.claude/run-live.json — run under a TEMP cwd so the test never
+  // touches a live session's marker (2026-07-17 incident class) and passes in worktrees
+  // where the repo .claude dir doesn't exist.
+  const prevCwd = process.cwd()
+  const testCwd = tmp()
+  mkdirSync(join(testCwd, '.claude'), { recursive: true })
+  process.chdir(testCwd)
+  t.after(() => process.chdir(prevCwd))
+  const marker = join(testCwd, '.claude', 'run-live.json')
   writeFileSync(marker, JSON.stringify({ runDir, test: true }))
   const { audits } = capture(runDir, transcriptDir)
   assert.ok(existsSync(join(runDir, 'trajectories', 'journal.jsonl')), 'journal copied')
@@ -165,7 +170,6 @@ test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with te
   assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: FAIL'),
     'audit verdicts rendered (fixture has envelope friction not present in friction.md)')
   assert.ok(!existsSync(marker), 'run-live marker removed')
-  if (hadMarker) writeFileSync(marker, priorMarker) // restore whatever the session had
 })
 
 test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are never smoothed over)', () => {

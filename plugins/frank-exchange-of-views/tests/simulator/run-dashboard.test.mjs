@@ -26,9 +26,18 @@ function fixture() {
   writeFileSync(join(transcriptDir, 'journal.jsonl'), [
     JSON.stringify({ type: 'started', key: 'v2:a', agentId: 'idmerge' }),
     JSON.stringify({ type: 'started', key: 'v2:b', agentId: 'idsynth' }),
-    JSON.stringify({ type: 'result', key: 'v2:b', agentId: 'idsynth', result: { claim_count: 100 } }),
+    JSON.stringify({ type: 'result', key: 'v2:b', agentId: 'idsynth', result: { claim_count: 100, grade_disputes: [{ id: 'R1-1', proposed: 'medium' }] } }),
     JSON.stringify({ type: 'started', key: 'v2:c', agentId: 'idfront' }),
     JSON.stringify({ type: 'result', key: 'v2:c', agentId: 'idfront', result: 'hypotheses' }),
+    // Judiciary fixtures: two red envelopes with a supersedes chain (R1-1 -> R2-1, grade
+    // migrating high/high -> medium/medium), one judge sitting with mixed rulings, one
+    // dispute round-trip (blue raised above, red accepts here).
+    JSON.stringify({ type: 'started', key: 'v2:d', agentId: 'idred1' }),
+    JSON.stringify({ type: 'result', key: 'v2:d', agentId: 'idred1', result: { verdict: 'FAIL', gaps: [{ id: 'R1-1', likelihood: 'high', impact: 'high' }, { id: 'R1-2', likelihood: 'low', impact: 'low' }] } }),
+    JSON.stringify({ type: 'started', key: 'v2:e', agentId: 'idjudge' }),
+    JSON.stringify({ type: 'result', key: 'v2:e', agentId: 'idjudge', result: { resolutions: [{ id: 'R1-2', resolution: 'carried' }, { id: 'R1-3', resolution: 'risk_accepted' }] } }),
+    JSON.stringify({ type: 'started', key: 'v2:f', agentId: 'idred2' }),
+    JSON.stringify({ type: 'result', key: 'v2:f', agentId: 'idred2', result: { verdict: 'FAIL', gaps: [{ id: 'R2-1', supersedes: ['R1-1'], likelihood: 'medium', impact: 'medium' }], dispute_responses: [{ id: 'R1-1', response: 'accepted' }] } }),
   ].join('\n') + '\n')
   // Seat identity comes from each transcript's first user message (cost-audit's method).
   writeFileSync(join(transcriptDir, 'agent-idmerge.jsonl'), [
@@ -39,6 +48,12 @@ function fixture() {
     JSON.stringify({ message: { role: 'user', content: 'Blue synthesis for topic...' } }) + '\n')
   writeFileSync(join(transcriptDir, 'agent-idfront.jsonl'),
     JSON.stringify({ message: { role: 'user', content: 'Research debate opening for topic: x. Formulate 3-5 frontier hypotheses...' } }) + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idred1.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Red merge, round 1. FIRST ACTION...' } }) + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idjudge.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Judge sitting, round 1. Contested docket...' } }) + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idred2.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Red merge, round 2. FIRST ACTION...' } }) + '\n')
   return { runDir, transcriptDir }
 }
 
@@ -48,7 +63,7 @@ test('dashboard model: telemetry series, live vs done seats, cost estimate, blac
   assert.equal(m.telemetry.length, 2)
   assert.equal(m.latest.mass, 81.5)
   assert.equal(m.seats.filter((s) => !s.done).length, 1, 'started-without-result is live')
-  assert.equal(m.seats.filter((s) => s.done).length, 2)
+  assert.equal(m.seats.filter((s) => s.done).length, 5)
   assert.ok(m.cost > 1, 'cache reads priced')
   assert.equal(m.shards.openRows, 2, 'ledger open rows counted')
   assert.equal(m.shards.openBySeverity.high, 1)
@@ -74,6 +89,24 @@ test('dashboard html: mass line + both round rows + live seat + dark-mode roles,
   assert.ok(html.includes('data-theme="dark"'), 'dark mode selected, not flipped')
   assert.ok(html.includes('prefers-color-scheme'), 'OS scheme honored')
   assert.ok(!html.includes('<script'), 'no scripts — static artifact')
+})
+
+test('judiciary: rulings tallied, chains follow supersedes edges, migrations graded by mass', () => {
+  const { runDir, transcriptDir } = fixture()
+  const m = buildModel(runDir, transcriptDir)
+  const j = m.judiciary
+  assert.equal(j.judgeSittings, 1)
+  assert.deepEqual(j.rulings, { carried: 1, risk_accepted: 1 }, 'rulings tallied by type')
+  assert.equal(j.disputes.raised, 1, 'blue grade_disputes counted')
+  assert.equal(j.disputes.accepted, 1, 'red dispute_responses counted')
+  assert.equal(j.chains, 2, 'R1-1 and R2-1 collapse into one chain via supersedes; R1-2 is its own')
+  assert.deepEqual(j.chainSpans, { 1: 1, 2: 1 }, 'chain longevity spans rounds, not id lifetimes')
+  assert.equal(j.migDown, 1, 'high/high -> medium/medium along the chain is a downgrade')
+  assert.equal(j.migUp + j.migFlat, 0)
+  const html = renderHtml(m)
+  assert.ok(html.includes('Judiciary'), 'judiciary section rendered')
+  assert.ok(html.includes('carried: 1') && html.includes('risk_accepted: 1'), 'ruling distribution shown')
+  assert.ok(html.includes('1×1r') && html.includes('1×2r'), 'chain-longevity histogram shown')
 })
 
 test('dashboard degrades: no telemetry yet renders the stated absence, not a crash', () => {
