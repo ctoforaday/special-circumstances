@@ -175,11 +175,31 @@ valuable — bench metric swapped; e: friction mining validated ~42% predictive;
 f: assembly regression general-in-kind; g: 224-gap class seed, singleton
 assumption inverted; h: claim survival + the self-criticism blind spot).
 
-- [ ] W2i. Round-graduated lens economics (E0.5c): 6 lenses r1, L5+L6 + 2
+- [x] W2i. Round-graduated lens economics (E0.5c): 6 lenses r1, L5+L6 + up to 2
       consolidated citation seats (spot-check + staleness re-fetch, coverage
-      duty preserved) from r2-3 — engine change to lens dispatch; saves 35-38%
+      duty preserved) from r2 — engine change to lens dispatch; saves 35-38%
       of red-lens spend without touching round-1 coverage or the adversary's
       logic/dark-side strength.
+      SHIPPED as INPUT-SIZED, not as a flat cut: round 1 sizes citation dispatch
+      on the corpus (ceil(claims/40), cap 4, unchanged); rounds 2+ size on the
+      claim-count DELTA (floor 1, cap 2), because the citation ledger means a
+      verified claim does not un-verify — the later-round input is the new plus
+      the stale surface, not the corpus again. Round 3+ restores both seats: the
+      ">2 rounds elapsed" staleness trigger makes the sweep O(corpus) again. The
+      35-38% is therefore a CONSEQUENCE of correct sizing, not a hardcoded target;
+      if blue writes more per round, dispatch grows on its own.
+      Also fixes a latent defect W2i would have made routine: lens numbers are now
+      ROLES (L1-L4 citation slices, L5 logic, L6 dark-side) rather than dispatch
+      positions, which used to slide L5/L6 down to L3/L4 whenever fewer than 4
+      citation passes ran — breaking the found_by role map every cross-round lens
+      measurement is computed from.
+      ASSUMPTION UNDER TEST (operator-directed, first post-reform runs owe this):
+      the 70-80% post-round-1 citation-yield collapse is E0.5c's measurement on
+      runs 4-5 and is NOT re-proven by the simulator — tests can only prove the
+      dispatch arithmetic. The empirical recheck is the W2h citation-yield-by-role
+      scorecard row, computed at capture per run. If later-round citation yield
+      stops collapsing, or the consolidated seats' COVERAGE lines start reporting
+      real gaps, the cap comes back off and the sizing is retuned.
 
 FIRST RUN back (whenever called): smoke first (exercises waves 1-2 + record
 dual-mode + petitions + law mirror end-to-end), then the reform-shakedown
