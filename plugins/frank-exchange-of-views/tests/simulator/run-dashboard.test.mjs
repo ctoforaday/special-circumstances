@@ -18,7 +18,7 @@ function fixture() {
     JSON.stringify({ round: 2, mass: 81.5, open_count: 23, max_severity: 'high', new_mint: { count: 22, by_severity: { high: 1 } }, accepted_deltas: [] }),
   ].join('\n') + '\n')
   writeFileSync(join(runDir, 'blue', 'report.md'), '# report\ncontent\n')
-  writeFileSync(join(runDir, 'red', 'ledger.md'), '# ledger\n## open\nR2-1 | high | loc | problem\nR2-2 | medium | loc | problem\n## closure index\nR1-1 | closed | fixed | -\n')
+  writeFileSync(join(runDir, 'red', 'ledger.md'), '# ledger\n## open\nR2-1 | high | loc | problem\nR2-2 | medium | loc | problem\n## closure index\nR1-1 | closed | fixed | -\nR1-2 | closed_with_regression | superseded | R2-1 R2-2\n')
   writeFileSync(join(runDir, 'red', 'archive.md'), '# archive\n## R1-1 — closed\nprose\n')
   writeFileSync(join(runDir, 'friction.md'), '# friction\n- seat-a: pain one\n- seat-b: pain two\n')
   // Journal uses the REAL harness schema — {type, key, agentId}, NO labels (production
@@ -32,7 +32,7 @@ function fixture() {
   ].join('\n') + '\n')
   // Seat identity comes from each transcript's first user message (cost-audit's method).
   writeFileSync(join(transcriptDir, 'agent-idmerge.jsonl'), [
-    JSON.stringify({ message: { role: 'user', content: 'Red merge, round 2. FIRST ACTION...' } }),
+    JSON.stringify({ timestamp: new Date(Date.now() - 300000).toISOString(), message: { role: 'user', content: 'Red merge, round 2. FIRST ACTION...' } }),
     JSON.stringify({ message: { role: 'assistant', usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 1000000, cache_creation_input_tokens: 0 }, content: [] } }),
   ].join('\n') + '\n')
   writeFileSync(join(transcriptDir, 'agent-idsynth.jsonl'),
@@ -52,7 +52,7 @@ test('dashboard model: telemetry series, live vs done seats, cost estimate, blac
   assert.ok(m.cost > 1, 'cache reads priced')
   assert.equal(m.shards.openRows, 2, 'ledger open rows counted')
   assert.equal(m.shards.openBySeverity.high, 1)
-  assert.equal(m.shards.closureIndexRows, 1)
+  assert.equal(m.shards.closureIndexRows, 2, 'LINE count — a supersedes-bearing row counts once, not per id named')
   assert.equal(m.shards.archiveRecords, 1)
   assert.equal(m.friction.count, 2, 'friction is a count of pain points, not bytes')
   assert.equal(m.blueClaims, 100)
@@ -66,6 +66,7 @@ test('dashboard html: mass line + both round rows + live seat + dark-mode roles,
   assert.ok(html.includes('polyline'), 'mass trend rendered')
   assert.ok(html.includes('118.75') && html.includes('81.5'), 'both telemetry rounds in the table')
   assert.ok(html.includes('red-merge-r2'), 'live seat listed (classified from transcript head)')
+  assert.ok(/running d+ min/.test(html), 'live seat shows elapsed minutes from transcript timestamp')
   assert.ok(html.includes('class="bar"'), 'progress bar rendered')
   assert.ok(html.includes('close rate'), 'open/close rates table')
   assert.ok(html.includes('friction entries'), 'friction as count tile')

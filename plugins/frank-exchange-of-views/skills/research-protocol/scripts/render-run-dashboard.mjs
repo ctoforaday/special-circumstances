@@ -55,9 +55,12 @@ export function buildModel(runDir, transcriptDir) {
     const tp = join(transcriptDir, `agent-${id}.jsonl`)
     let head = ''
     try { head = readFileSync(tp, 'utf8').slice(0, 3000) } catch {}
+    // Start time lives on the transcript's first line (the journal carries no timestamps).
+    let startedMs = null
+    try { startedMs = Date.parse(JSON.parse(head.slice(0, head.indexOf('\n'))).timestamp) || null } catch {}
     const c = classifySeat(head)
     const label = c.round ? `${c.seat}-r${c.round}` : c.seat
-    seats.set(id, { ...s, label, seat: c.seat, round: c.round })
+    seats.set(id, { ...s, label, seat: c.seat, round: c.round, startedMs })
   }
 
   // Cost so far from transcripts (usage records).
@@ -104,7 +107,9 @@ export function buildModel(runDir, transcriptDir) {
     ledgerExists: ledgerTxt !== null,
     openRows,
     openBySeverity,
-    closureIndexRows: ledgerTxt ? (ledgerTxt.slice(Math.max(0, ledgerTxt.search(/closure index/i))).match(/R\d+-\d+/g) || []).length : 0,
+    // LINE count, not id-occurrence count: a closure row also NAMES its supersedes ids in
+    // the fourth column, so occurrence-counting read 88 for a 52-row index (seen live, run 5).
+    closureIndexRows: ledgerTxt ? ledgerTxt.slice(Math.max(0, ledgerTxt.search(/closure index/i))).split('\n').filter((l) => idLine.test(l) && l.includes('|')).length : 0,
     archiveRecords: archiveTxt ? (archiveTxt.match(/^#{1,4}\s+.*R\d+-\d+/gm) || []).length : 0,
   }
   // Blue corpus size in CLAIMS (last blue envelope in the journal), not bytes.
@@ -218,7 +223,7 @@ ${m.shards.ledgerExists ? `<table>
 <h2>Friction — logged pain points</h2>
 ${m.friction.count ? `<p>${m.friction.count} attributed entr${m.friction.count === 1 ? 'y' : 'ies'} · latest: <span class="muted">${esc((m.friction.last || '').slice(0, 160))}</span></p>` : '<p class="muted">none logged yet</p>'}
 <h2>Seats live now</h2>
-${live.length ? `<table>${live.map((s) => `<tr><td class="liveseat">${esc(s.label)}</td><td class="muted">since ${esc(s.started || '?')}</td></tr>`).join('')}</table>` : '<p class="muted">none — between seats or complete</p>'}
+${live.length ? `<table>${live.map((s) => `<tr><td class="liveseat">${esc(s.label)}</td><td class="muted">${s.startedMs ? 'running ' + Math.max(1, Math.round((Date.now() - s.startedMs) / 60000)) + ' min' : 'running'}</td></tr>`).join('')}</table>` : '<p class="muted">none — between seats or complete</p>'}
 <h2>Recent completions</h2>
 <table>${done.slice(-8).reverse().map((s) => `<tr><td>${esc(s.label)}</td><td class="muted">${esc(s.result || '')}</td></tr>`).join('\n')}</table>
 </body>`
