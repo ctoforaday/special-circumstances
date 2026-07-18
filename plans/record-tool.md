@@ -1,129 +1,163 @@
-# The record tool: physical guarantees instead of legislated discipline
+# The record tool: a record-management library + bespoke per-seat CLIs
 
-Proposed (user, 2026-07-18) after the E0.5 convergence: four independent audits
-acquitted the seats and indicted the record (attestations honest but phrased
-unauditably; merge lossless but retention lossy; boards overwritten in place;
-note-class observations with no fate). The response: the run record becomes an
-EVENT LOG owned by a tool, and everything downstream — markdown boards, telemetry,
-scorecards, audits — becomes a PROJECTION. Absorbs/reshapes W2c(record parts),
-W2d, W2f, W2h. Route: this plan → plan-audit gate → implementation PRs.
+Rev 3 (2026-07-18) — post plan-audit FAIL #1; all eight gaps addressed. Origin:
+the E0.5 convergence (four audits acquitted the seats, indicted the record) +
+the operator's proposal (tooling for lossless records, automatic metrics,
+structured tagging, constitutional deletion) + the per-seat refinement (verb
+sets ARE role boundaries).
 
-## The five goals (the proposal, verbatim intent)
+## I. Summary & Goals
 
-1. AUTOMATIC METRICS: every scorecard number is a projection of events — never a
-   seat self-report, never an assembly-minted aggregate (the E0.5f defect class
-   dies at the root: assembly copies projections, computes nothing).
-2. LOSSLESS BY CONSTRUCTION: append-only event log; the tool has no mutation or
-   deletion operation. In-place overwrite (which destroyed efficiency rounds 1-3
-   and made 19% of sleeper round-4 grade decisions unauditable) becomes
-   physically impossible. Any historical board state = replay to seq N.
-3. STRUCTURED TAGGING: class (validated against the seed registry, tie-break
-   hints printed on ambiguity), grades (enum-checked), lineage (supersedes must
-   reference an EXISTING id — the tool refuses dangling edges), found_by at
-   lens-finding granularity, contributing grades beside minted grades.
-4. PROBLEM-CLASS PREVENTION, mapped to measured findings: anchor-required
-   closures = required --seat/--tool/--target args (E0.5a); note-fate tracking =
-   lens observations demand a merge disposition (E0.5b); id collisions = ids
-   minted by the tool (cross-corpus-id-collision class); count self-reports
-   (ledger_closure_lines/archive_blocks) deleted — the tool counts.
-5. CONSTITUTIONAL DELETION: procedure leaves the constitutions; judgment stays.
+Replace hand-maintained run records with an append-only EVENT LOG owned by a
+shared library (`lib/record.mjs`) and written only through bespoke per-seat CLIs
+whose verb sets encode each chair's role. Markdown boards, telemetry, scorecards,
+and the judicial record become PROJECTIONS (`render`). Goals: (1) metrics as
+projections, never self-reports; (2) losslessness by construction at the
+sanctioned path, with a stated loss-window discipline for the unsanctioned ones;
+(3) structured tagging (class/grade/lineage/anchor) validated at append;
+(4) measured problem classes prevented structurally; (5) constitutional
+DELETION of record mechanics — judgment stays, procedure leaves. Non-goals:
+verifying claim truth (vacuity remains post-hoc behavior audit); replacing
+prose payloads (the tool structures envelopes, never arguments).
 
-## Shape
+## II. Design
 
-`record.mjs` (FEOV scripts; node is FEOV's required dep — same test harness as
-the other scripts). Storage: `<runDir>/records/events.jsonl`, append-only, one
-event per line: {seq, seat, type, payload}. Seats invoke subcommands:
+STORAGE — per-seat shards, contention-free by construction: each seat appends
+ONLY to `<runDir>/records/events-<seatId>.jsonl` (O_APPEND, one JSON line per
+event, line at most atomic-write size; prose payloads over 2KB go via
+`--file <path>` or stdin — never inline shell args, per the documented
+heredoc-mangling recurrence, which bit AGAIN while writing this very plan).
+seq is PER-SHARD monotonic; global order is a render-time merge by
+(round, seat, seq) — deterministic, no locks, 6 parallel lenses cannot race.
+Every mint-class verb takes `--idempotency-key` (seat + stable local label); a
+duplicate key returns the existing id instead of double-minting — crash-retry
+safe. A torn round (mint without close) renders as open state; nothing is lost,
+nothing blocks.
 
-  record.mjs mint    --seat red-merge-r2 --class enumeration-non-exhaustive \
-                     --location "…" --problem "…" --fix "…" --check "…" \
-                     --severity mh --likelihood m --impact mh \
-                     --found-by L5-F3,L6-F2 [--supersedes R1-16]
-  record.mjs close   --id R1-16 --class-of-closure closed_with_regression \
-                     --anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:…" \
-                     --successor R2-4 [--carried-from r2]   # carried-as-fresh becomes impossible to phrase
-  record.mjs observe --seat L4 --kind note --text "…"       # merge later: record.mjs dispose --obs 17 --as declined --reason "…"
-  record.mjs regrade --id R2-5 --likelihood l --basis "…"   # same-id regrades become possible AND recorded
-  record.mjs friction / opinion / petition / manifest-row / spot-check / revision …
+LOSS DISCIPLINE — the log lives on the untracked live blackboard, so the W1.13
+incident classes (add -A / checkout / stash) threaten it: (a) `red-merge.mjs
+verdict` runs an automatic `checkpoint` — mirrors `records/` to an out-of-repo
+session location (OS temp keyed by runDir hash) every round; recovery = copy
+back; (b) capture commits `records/` with the run record (git-tracked from then
+on); (c) the freeze-guard warning classes stand. Window: at most one round's
+events — the same exposure as today, now with a stated recovery procedure.
 
-  record.mjs render ledger|archive|telemetry|scorecards|judicial-record
-    → ledger.md, archive.md, board-telemetry.jsonl, the dashboard model, and the
-      report's aggregate sections become GENERATED VIEWS. Seats stop hand-writing
-      boards entirely; humans keep reading markdown; audits read events.
+VERB SETS (complete against everything the engine currently records — audit gap
+3 closed):
+- red-lens.mjs: finding (auto L*-F* ids), observe (note / checked-held), CITE
+  (citation-ledger event: claim, reference, confidence, round, access-date —
+  the cross-round re-fetch gate), friction, PETITION.
+- red-merge.mjs: mint (--class validated; --class-new SLUG requires
+  --definition --neighbor EXISTING --distinguisher — appended as a run-local
+  registry-extension event, promoted to the seed registry only at post-run human
+  review, two-tier like law), close (anchors required; --carried-from for
+  re-attestations), dispose (every lens observation demands one), regrade
+  (--basis), DISPUTE-RESPOND (accepted/rejected + rationale), SPOT-CHECK (the
+  W1.8 duty — moved here from lens; lenses report, the merge records), verdict
+  (renders boards + telemetry, then runs checkpoint), friction, PETITION.
+- blue.mjs: revision (the round-record event), manifest-row, dispute,
+  confidence, friction, PETITION.
+- bench.mjs: opinion (disposition/principle/tension/review-flag as required
+  args), petition-rule, halt, certify. No mint — the bench rules, never
+  originates.
+- Capture + dashboard consume the library read-only. `--help` on each CLI is the
+  seat's record contract (prompt prose retires to it).
 
-Validation at append time: enums, registry classes, existing-id references,
-required anchors. The log is git-tracked; capture's audit collapses to "log
-parses; views match a fresh render" — most current heuristic audits retire.
+ENFORCEMENT — stated at its true tier (audit gap 7): INTERFACE (no sanctioned
+path to out-of-role verbs) + DETERRENCE + POST-HOC JOIN AUDIT, per the
+attestation ceiling. The join audit is specified: capture check `record-join` —
+for every event, find the emitting seat's transcript tool_use whose Bash command
+invokes the event's CLI verb with the event's id or idempotency-key (payloads
+via --file match on key, not text); events with no matching invocation, or
+invocations from a transcript whose seat differs from the event's claimed seat,
+are FLAGGED. Bulk back-fill (hand-writing boards then transcribing at round
+end) is visible as a tail-clustered invocation pattern and flagged as a
+parity-vacuity WARN for human review. Hand-appended well-formed lines are
+caught by the same join. "Physically impossible" applies only to the sanctioned
+path; a PC-side seat-to-tool PreToolUse guard is a deferred hardening rung,
+priced on first observed misuse.
 
-## The constitutional deletion list (the payoff)
+RETAINED JUDGMENT CLAUSES (audit gap 8 — load the tool does not replace):
+(a) the near-match / reopen-vs-new judgment stays in red's constitution — the
+tool validates id EXISTENCE; deciding whether a candidate is a reopen remains
+judgment (the tool assists: `mint` prints closure-index near-matches for the
+gap's location/class before committing); (b) the recompute-or-cite gate stays
+in the bench's constitution for any ad-hoc aggregate no projection carries —
+narrowed, not deleted: standard aggregates come from renders; inventing a
+number outside them requires naming and recomputing its source.
 
-DELETED from red: ledger/archive maintenance mechanics (sharding format, closure
-index shape, NEVER-edit-an-archive-block, count self-reports, near-match index
-discipline as prose), the telemetry line spec + formulas, the attestation-format
-invariant prose (anchors are now arguments), spot-check recording mechanics.
-DELETED from blue: CHANGELOG round-entry mechanics (revision events), manifest
-envelope plumbing (manifest-row events). DELETED from the bench: judicial-record
-assembly mechanics (rendered view), the recompute-or-cite gate (nothing left to
-recompute — assembly copies projections). RETAINED everywhere: telos, win/loss,
-craft duties, grading judgment, what to write in the prose fields. The
-constitutions state WHO records WHAT and WHY; the tool owns HOW.
+## III. Implementation plan (file-by-file)
 
-## What stays honest
+R1 [NEW] plugins/frank-exchange-of-views/skills/research-protocol/scripts/lib/record.mjs
+   (append / validate / id-mint / replay / shard-merge / render: ledger,
+   archive, telemetry); [NEW] scripts/tools/red-lens.mjs and red-merge.mjs;
+   [NEW] tests/simulator/record.test.mjs (append atomicity, shard-merge
+   determinism property test, idempotency, dangling-supersedes refusal, class
+   validation incl. --class-new, render fixtures).
+R2 [NEW] scripts/tools/blue.mjs, bench.mjs; [MODIFY] debate.js — DUAL-MODE:
+   seats write boards AND events (prompts instruct both); engine checks
+   unchanged. [MODIFY] capture-research-run.mjs: add record-parity check and
+   record-join audit. No deletions yet.
+R2.5 PARITY RUN (the one-run parallel period, scheduled here — audit gap 2):
+   the first live run post-R2 runs dual-mode; capture executes
+   [NEW] scripts/record-parity-check.mjs — normalizes the hand-written
+   ledger.md / archive.md / board-telemetry.jsonl (whitespace-collapsed,
+   section-order-insensitive, id-sorted rows) against fresh renders; FAIL = any
+   divergence in gap ids, grades, closure classes, dispositions, counts, or
+   telemetry fields; prose bodies compare presence-not-text. Verdict lines land
+   in run-record-audit.md. Zero-FAIL is the gate to R3.
+R3 [MODIFY] debate.js: prompts shrink to tool contracts; RETIRE
+   round_record_appended (superseded by revision events), the empty-manifest
+   throw (superseded by a manifest-row event check), the count-consistency
+   throw at the merge (counts are renders), and the ledger/archive/telemetry
+   prompt paragraphs; KEEP the spot-check floor (now reading spot-check events
+   via the envelope summary), the null-guards, the lane floor, the dispute
+   machinery. [MODIFY] capture: RETIRE the shards audit, friction-parity +
+   harvest (friction is events), and the W1.7-form record-parity; KEEP
+   telemetry-presence (as render-match), context-use, assembly-screen, and
+   record-join. [MODIFY] the three constitutions: the deletion list minus the
+   two retained judgment clauses; every deleted paragraph ships in the same
+   diff as the tool clause replacing it.
+R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
+   escalator (recalibrated per the seed data: counts reset when a class reaches
+   zero open instances; cross-run class pressure routes to craft memory, never
+   the docket) + scorecard and judicial-record renders (absorbs W2h and W2c's
+   record surfaces).
 
-- Prose payloads (problem statements, rationales, closings) remain prose — the
-  tool structures the envelope, never the argument.
-- The tool cannot verify a claim, only its shape: vacuity's auditor remains
-  post-hoc behavior audits (tool-call index), now trivially joinable to events.
-- Migration: v1 runs the tool ALONGSIDE generated views double-checked against
-  the old prompts' outputs for one run; prompts shrink in v2 after parity holds.
-- The event log is the record layer W2f promised, promoted from convention
-  (agents append JSONL politely) to enforcement (the only write path is the tool).
+## IV. Risk & Mitigation (likelihood x impact x complexity-to-mitigate)
 
-## Sequencing
+- Shard-merge ordering bug renders a wrong board: med x high x low — the merge
+  is a pure function, property-tested (same events in any shard arrival order
+  render identically).
+- Loss window (untracked log swept by an incident-class git op): low-med x
+  high x low — per-round out-of-repo checkpoint + freeze-guard warnings + the
+  named recovery procedure.
+- Seat bypass (hand-appended events): low x med x low — record-join audit +
+  interface deterrence; PC guard deferred until first observed misuse.
+- Migration divergence (tool record vs prose record during dual-mode): med x
+  med x low — the parity gate exists for exactly this; R3 is blocked on
+  zero-FAIL.
+- Back-fill vacuity (transcribe-at-end defeats parity): med x med x med — the
+  tail-cluster detector in record-join, WARN tier, human-reviewed.
+- Tool-arg mangling on prose payloads: med (documented recurrence, reproduced
+  during this plan's own authoring) x low x low — --file/stdin mandatory over
+  2KB.
+- Registry poisoning via --class-new: low x med x low — run-local until human
+  promotion (two-tier authority).
+- Prompt/tool-help drift: med x low x low — help text lives beside the code; a
+  simulator test asserts every exposed verb appears in its own help.
 
-R1: record.mjs core (mint/close/observe/dispose/regrade/friction + render
-    ledger/archive/telemetry) + simulator tests. Rides the W2f slot.
-R2: engine prompts switch seats to tool invocations; constitutional deletions
-    land the same PR (the prompt shrink IS the review surface).
-R3: scorecards/judicial-record/dashboard-model renders (absorbs W2h + W2c record
-    parts); capture audit collapse.
-R4: class registry live (W2d) with recalibrated within-run escalator semantics.
+## V. Verification plan
 
-## REVISION (user, 2026-07-18): a library + bespoke per-seat tools
-
-Not one tool — a record-management LIBRARY (`lib/record.mjs`: append, validation,
-id minting, replay, projections) wrapped by BESPOKE PER-SEAT CLIs whose verb sets
-ARE the role boundaries:
-
-- `tools/red-lens.mjs` — observe, finding (auto-labeled L*-F*, lens-scoped ids
-  enforced by construction), spot-check-report, friction. NO mint, NO close: a
-  lens structurally cannot write board state — the current write-guard hook's
-  filename heuristic retires in favor of a missing verb.
-- `tools/red-merge.mjs` — mint, close, dispose (every lens observation demands a
-  disposition before the round record renders), regrade, verdict; telemetry and
-  ledger/archive views render as side effects of `verdict` — the merge stops
-  hand-writing boards entirely.
-- `tools/blue.mjs` — revision (the CHANGELOG/### BLUE round entry, one event),
-  manifest-row, dispute, confidence, friction. NO board verbs at all: the
-  additive-only rule and never-touch-the-ledger stop being obedience.
-- `tools/bench.mjs` — opinion (disposition + principle + tension + review-flag
-  as required args), petition-rule, halt, certify. NO mint: the bench cannot
-  originate findings, only rule on them.
-- Capture and the dashboard consume the library directly (read-only).
-
-Each CLI is self-documenting (`--help` carries the seat's verb contract), which
-deletes ANOTHER layer of prompt prose: seat prompts shrink to "your tool is
-red-merge.mjs; its help is your record contract."
-
-ENFORCEMENT HONESTY: v1 scope-limits by INTERFACE (a seat has no path to verbs
-outside its role through the sanctioned tool) and by RECORD (every event carries
-the claimed seat; the tool-call behavior audit joins events to transcripts, so a
-seat invoking another seat's tool is mechanically detectable post-hoc). Physical
-enforcement — a PC-side PreToolUse guard matching seat identity to permitted
-tool invocations — is a later hardening rung, priced only if misuse is ever
-observed (the write-guard experience: affordance + visibility deterred
-violations without a single block in three runs).
-
-Implementation resequencing: R1 = library + red-merge + red-lens tools (the
-board is the highest-value surface); R2 = blue + bench tools + seat switchover
-+ constitutional deletions; R3 = projection suite + capture collapse; R4 = live
-class registry. Same test pattern throughout (simulator fixtures over temp dirs).
+- `node --test plugins/frank-exchange-of-views/tests/simulator/record.test.mjs`
+  (R1 gates: atomicity, merge-determinism property test, idempotency,
+  validation refusals, render fixtures) and the full simulator suite green.
+- `node plugins/frank-exchange-of-views/skills/research-protocol/scripts/record-parity-check.mjs <runDir>`
+  — spec in III/R2.5; exit 2 on divergence; runs at the parity run's capture.
+- The record-join audit runs in every capture from R2 on; its verdict line
+  lands in run-record-audit.md (PASS / FLAGGED list / back-fill WARN).
+- Smoke (`/research --smoke`) after R2 and after R3: one round exercising every
+  seat CLI end-to-end; capture audits green.
+- The R3 constitutional-deletion PR diff IS the review surface: every deleted
+  paragraph must show its replacing tool clause in the same diff (reviewer
+  checklist in the PR body).
