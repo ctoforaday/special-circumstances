@@ -2,6 +2,17 @@
   "_comment": "frank-exchange-of-views's own tool dependencies — aggregated by /prosthetic-conscience:doctor (each plugin owns its manifest; the doctor reports the whole suite).",
   "tools": [
     {
+      "name": "feov-record",
+      "purpose": "the seat-side record runtime — every seat's acts become append-only events; a run launched with binDir records through it, and a seat that cannot reach it loses its record for that round",
+      "tier": "required",
+      "check_cmd": "feov-record --version",
+      "install": {
+        "windows": "/prosthetic-conscience:doctor --fix (fetches the checksum-verified release asset), or: cd plugins/frank-exchange-of-views/tools && go build -o ../bin/feov-record.exe ./cmd/feov-record",
+        "darwin": "/prosthetic-conscience:doctor --fix, or: cd plugins/frank-exchange-of-views/tools && go build -o ../bin/feov-record ./cmd/feov-record",
+        "linux": "/prosthetic-conscience:doctor --fix, or: cd plugins/frank-exchange-of-views/tools && go build -o ../bin/feov-record ./cmd/feov-record"
+      }
+    },
+    {
       "name": "node",
       "purpose": "runs the debate engine's orchestration scripts (setup-research-run, capture-research-run, cost-audit) and the zero-token simulator",
       "tier": "required",

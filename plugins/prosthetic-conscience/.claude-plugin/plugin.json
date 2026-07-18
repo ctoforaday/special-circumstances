@@ -1,11 +1,17 @@
 {
   "name": "prosthetic-conscience",
   "displayName": "Prosthetic Conscience",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Core adversarial + cowork behaviour for Special Circumstances: Design-by-Contract rules-as-skills, pair programming, spec-driven development + /plan-audit, project memory, proficiency skills, quality hooks, validation-loop, and environment preflight (/prosthetic-conscience:doctor).",
   "author": {
     "name": "Gregory Block"
   },
   "license": "MIT",
-  "keywords": ["adversarial", "design-by-contract", "spec-driven-development", "pair-programming", "code-review"]
+  "keywords": [
+    "adversarial",
+    "design-by-contract",
+    "spec-driven-development",
+    "pair-programming",
+    "code-review"
+  ]
 }
