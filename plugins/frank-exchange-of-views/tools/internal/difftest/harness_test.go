@@ -1,26 +1,22 @@
-// Package difftest is the R2g DIFFERENTIAL GATE: the same command sequences are
-// driven through the frozen mjs oracle and the Go port, and their event logs,
-// projections, and CLI output must agree.
+// Package difftest carries the golden harness for feov-record.
 //
-// The gate is the whole justification for the port being safe. Its comparison
-// policy (plans/record-tool.md, "DIFFERENTIAL COMPARISON POLICY") exists because
-// byte-identical output is impossible naively:
+// It was born as the R2g DIFFERENTIAL GATE: identical command sequences driven
+// through the frozen mjs oracle and the Go port, compared on stdout, stderr,
+// exit code, event structure, and byte-identical renders. The gate did its job —
+// it caught three real port bugs (JS `${undefined}` interpolation, UTF-16 vs
+// byte slicing, and HTML escaping in encoding/json) — and then the oracle was
+// retired: it existed only to validate the port, and it had never been used in
+// a run.
 //
-//  1. NONCES are random per register. The plan allowed either a test-only seed on
-//     both sides or harness normalization; normalization is used here, because
-//     seeding would require EDITING THE FROZEN ORACLE — and an oracle you modify
-//     to make the test pass is not an oracle. Nonces are mapped to canonical
-//     placeholders in DISCOVERY ORDER (commands run one at a time, newly appeared
-//     shards numbered as they appear), which is deterministic on both sides and
-//     survives the multi-nonce cases where sorting by hex would not.
-//  2. EVENTS compare structurally, never as bytes — JS object-key order and Go
-//     struct marshal order are unrelated.
-//  3. RENDERS compare BYTE-IDENTICAL after nonce normalization. This is where
-//     JS/Go number-formatting drift (String(46) vs strconv, toFixed vs %.2f) is
-//     caught, which is the E0.5f aggregate-drift class at the language boundary.
-//  4. MTIME-dependent behaviour (the multi-nonce fallback) has its mtimes set
-//     explicitly on both sides.
-//  5. LOCK and TEMP artifacts are excluded — implementation detail, not record.
+// What remains is the harness that drove it, now serving the GOLDEN suites:
+// scenario replay (golden_test.go), the help and error contracts
+// (contract_test.go), and replay determinism (fuzz_test.go). Every golden in
+// testdata/ was recorded while the gate was green, so the oracle's validation is
+// preserved in the files even though the oracle is gone.
+//
+// The normalization rules below outlived the gate for the same reason they
+// existed: nonces are random per register, and mtimes drive winner selection, so
+// a run is only comparable to another run after both are canonicalized.
 package difftest
 
 import (
@@ -35,8 +31,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 // cmd is one CLI invocation. Role selects the seat contract; the Go side takes it
@@ -54,13 +48,6 @@ type scenario struct {
 	cmds []cmd
 	// files written into the run dir before the scenario (registry, prose payloads).
 	seed map[string]string
-}
-
-var mjsScript = map[string]string{
-	"lens":  "red-lens.mjs",
-	"merge": "red-merge.mjs",
-	"blue":  "blue.mjs",
-	"bench": "bench.mjs",
 }
 
 func repoRoot(t *testing.T) string {
@@ -96,13 +83,6 @@ type invocation struct {
 func runGo(bin, runDir string, c cmd) invocation {
 	args := append([]string{c.role}, substitute(c.args, runDir)...)
 	return capture(exec.Command(bin, args...))
-}
-
-func runMjs(t *testing.T, root, runDir string, c cmd) invocation {
-	script := filepath.Join(root, "plugins", "frank-exchange-of-views", "skills",
-		"research-protocol", "scripts", "tools", mjsScript[c.role])
-	args := append([]string{script}, substitute(c.args, runDir)...)
-	return capture(exec.Command("node", args...))
 }
 
 func substitute(args []string, runDir string) []string {
@@ -247,70 +227,6 @@ func collect(t *testing.T, runDir string, m *nonceMapper) state {
 	return st
 }
 
-func TestDifferentialAgainstOracle(t *testing.T) {
-	if _, err := exec.LookPath("node"); err != nil {
-		t.Skip("node unavailable — the oracle cannot be driven; gate not run")
-	}
-	root := repoRoot(t)
-	bin := buildBinary(t)
-
-	for _, sc := range scenarios() {
-		t.Run(sc.name, func(t *testing.T) {
-			goDir := t.TempDir()
-			mjsDir := t.TempDir()
-			seed(t, goDir, sc.seed)
-			seed(t, mjsDir, sc.seed)
-
-			goMap, mjsMap := newMapper(), newMapper()
-			for i, c := range sc.cmds {
-				gi := runGo(bin, goDir, c)
-				mi := runMjs(t, root, mjsDir, c)
-				goMap.observe(filepath.Join(goDir, "records"))
-				mjsMap.observe(filepath.Join(mjsDir, "records"))
-				applyMtimes(t, goDir, goMap, c)
-				applyMtimes(t, mjsDir, mjsMap, c)
-
-				got := normalizeOutput(gi, goDir, goMap)
-				want := normalizeOutput(mi, mjsDir, mjsMap)
-				if got.code != want.code {
-					t.Errorf("cmd %d %v: exit code go=%d oracle=%d\ngo stderr: %s\noracle stderr: %s",
-						i, c.args, got.code, want.code, got.stderr, want.stderr)
-				}
-				if got.stdout != want.stdout {
-					t.Errorf("cmd %d %v: stdout differs\n go: %q\n mjs: %q", i, c.args, got.stdout, want.stdout)
-				}
-				if got.stderr != want.stderr {
-					t.Errorf("cmd %d %v: stderr differs\n go: %q\n mjs: %q", i, c.args, got.stderr, want.stderr)
-				}
-			}
-
-			g := collect(t, goDir, goMap)
-			w := collect(t, mjsDir, mjsMap)
-			if diff := cmp.Diff(w.events, g.events); diff != "" { // policy 2: structural
-				t.Errorf("event logs differ (-oracle +go)\n%s", diff)
-			}
-			if diff := cmp.Diff(w.pointer, g.pointer); diff != "" {
-				t.Errorf("seat pointers differ (-oracle +go)\n%s", diff)
-			}
-			for name, want := range w.renders { // policy 3: byte-identical
-				got, ok := g.renders[name]
-				if !ok {
-					t.Errorf("go did not render %s", name)
-					continue
-				}
-				if got != want {
-					t.Errorf("render %s differs\n--- go ---\n%s\n--- oracle ---\n%s", name, got, want)
-				}
-			}
-			for name := range g.renders {
-				if _, ok := w.renders[name]; !ok {
-					t.Errorf("go rendered %s, which the oracle does not", name)
-				}
-			}
-		})
-	}
-}
-
 // normalizeOutput strips the run-dir path (which differs by construction) and
 // canonicalizes nonces so CLI text is comparable.
 func normalizeOutput(inv invocation, runDir string, m *nonceMapper) invocation {
@@ -364,9 +280,4 @@ func seed(t *testing.T, runDir string, files map[string]string) {
 			t.Fatal(err)
 		}
 	}
-}
-
-func jsonDump(v any) string {
-	b, _ := json.MarshalIndent(v, "", "  ")
-	return string(b)
 }

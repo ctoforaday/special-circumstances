@@ -216,8 +216,17 @@ export function recordJoinAudit(runDir, transcriptDir, agentFiles) {
         if (c.type !== 'tool_use') continue
         toolCallCount++
         const cmd = c.input && c.input.command ? String(c.input.command) : ''
-        const m = cmd.match(/(red-lens|red-merge|blue|bench)\.mjs\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)/)
-        if (m) { invocations.add(`${m[3]}::${m[2]}`); cmds.push(toolCallCount) }
+        // The record tool is now the compiled binary with ROLE SUBCOMMANDS
+        // (`feov-record merge mint ...`), not four mjs scripts
+        // (`node tools/red-merge.mjs mint ...`). Both shapes are matched: the
+        // binary form is what seats emit from R2g on, and the mjs form is kept
+        // so this audit still reads any transcript captured before the port.
+        // Silently matching neither is the failure that matters — the join audit
+        // would report every event as an orphan, or (worse) report PASS over an
+        // empty invocation set.
+        const m = cmd.match(/feov-record\s+(?:lens|merge|blue|bench)\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)/) ||
+          cmd.match(/(?:red-lens|red-merge|blue|bench)\.mjs\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)/)
+        if (m) { invocations.add(`${m[2]}::${m[1]}`); cmds.push(toolCallCount) }
       }
     }
     if (cmds.length > 5 && cmds[0] > toolCallCount - cmds.length - 2) {

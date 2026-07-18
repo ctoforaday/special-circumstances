@@ -3,71 +3,84 @@ package difftest
 import (
 	"fmt"
 	"math/rand"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-// TestDifferentialFuzz drives RANDOM valid verb sequences through both
-// implementations. The R2g plan names this "the highest-value test class for a
-// port": hand-written scenarios encode what the author already thought of, while
-// a generator reaches the interleavings nobody enumerated — a close before a
-// mint, a regrade of a closed gap, a dispose naming a key that never existed, a
-// seat that mints in two rounds without re-registering.
+// TestReplayDeterminism drives random valid-ish verb sequences through the tool
+// TWICE, in separate run directories, and requires the resulting event logs and
+// projections to be identical after normalization.
 //
-// The sequences are VALID-ISH by construction rather than valid: rejected
-// commands are as interesting as accepted ones, because an error message is part
-// of the contract a seat reads. Both sides must reject identically.
+// This began as differential fuzzing against the mjs oracle, which is retired.
+// The generator is kept because the property it tests is independent of the
+// oracle and is the one that would silently rot: REPLAY MUST BE DETERMINISTIC.
+// The record layer's whole claim is that a board state is a pure function of its
+// event log — capture audits, the parity gate, and every projection depend on
+// replaying the same events to the same bytes. Go makes that easy to break by
+// accident, because map iteration order is randomized: the seat grouping, the
+// anomaly list, the by_severity tally, and the round ordering are all places
+// where reaching for a map would produce output that differs run to run. Each is
+// insertion-ordered on purpose, and this test is what notices if one stops being.
 //
-// The seed is fixed so a failure is reproducible; widen iterations locally when
-// hunting.
-func TestDifferentialFuzz(t *testing.T) {
-	if _, err := exec.LookPath("node"); err != nil {
-		t.Skip("node unavailable — the oracle cannot be driven; gate not run")
-	}
+// Hand-written scenarios cannot cover this: they exercise the orderings the
+// author already thought about. A generator reaches the interleavings nobody
+// enumerated — a close before its mint, a regrade of a closed gap, a dispose
+// naming an observation that never existed, a seat minting across two rounds
+// without re-registering.
+//
+// Sequences are valid-ISH by construction rather than valid: a refusal is as
+// interesting as an acceptance, because the error text is part of the contract a
+// seat reads, and it must be as reproducible as a success.
+func TestReplayDeterminism(t *testing.T) {
 	if testing.Short() {
-		t.Skip("fuzz differential is slow (two processes per command); skipped under -short")
+		t.Skip("determinism fuzz spawns two processes per command; skipped under -short")
 	}
-	root := repoRoot(t)
 	bin := buildBinary(t)
 
 	const sequences = 12
 	const maxLen = 14
-	rng := rand.New(rand.NewSource(0x5EED))
+	rng := rand.New(rand.NewSource(0x5EED)) // fixed: a failure must be reproducible
 
 	for i := 0; i < sequences; i++ {
 		t.Run(fmt.Sprintf("seq%02d", i), func(t *testing.T) {
 			cmds := generate(rng, maxLen)
-			goDir, mjsDir := t.TempDir(), t.TempDir()
-			goMap, mjsMap := newMapper(), newMapper()
+			first := replay(t, bin, cmds)
+			second := replay(t, bin, cmds)
 
-			for j, c := range cmds {
-				gi := runGo(bin, goDir, c)
-				mi := runMjs(t, root, mjsDir, c)
-				goMap.observe(filepath.Join(goDir, "records"))
-				mjsMap.observe(filepath.Join(mjsDir, "records"))
-				got := normalizeOutput(gi, goDir, goMap)
-				want := normalizeOutput(mi, mjsDir, mjsMap)
-				if got.code != want.code || got.stdout != want.stdout || got.stderr != want.stderr {
-					t.Fatalf("cmd %d %v %v diverged\n go:  code=%d out=%q err=%q\n mjs: code=%d out=%q err=%q\nsequence so far: %s",
-						j, c.role, c.args, got.code, got.stdout, got.stderr, want.code, want.stdout, want.stderr, dumpSeq(cmds[:j+1]))
-				}
+			if diff := cmp.Diff(first.events, second.events); diff != "" {
+				t.Errorf("event log is not reproducible across identical runs\nsequence: %s\n%s", dumpSeq(cmds), diff)
 			}
-
-			g, w := collect(t, goDir, goMap), collect(t, mjsDir, mjsMap)
-			if diff := cmp.Diff(w.events, g.events); diff != "" {
-				t.Errorf("event logs diverged (-oracle +go)\nsequence: %s\n%s", dumpSeq(cmds), diff)
+			if diff := cmp.Diff(first.renders, second.renders); diff != "" {
+				t.Errorf("projections are not reproducible across identical runs\nsequence: %s\n%s", dumpSeq(cmds), diff)
 			}
-			for name, want := range w.renders {
-				if g.renders[name] != want {
-					t.Errorf("render %s diverged\nsequence: %s\n--- go ---\n%s\n--- oracle ---\n%s",
-						name, dumpSeq(cmds), g.renders[name], want)
-				}
+			if diff := cmp.Diff(first.output, second.output); diff != "" {
+				t.Errorf("CLI output is not reproducible across identical runs\nsequence: %s\n%s", dumpSeq(cmds), diff)
 			}
 		})
 	}
+}
+
+type replayResult struct {
+	events  map[string][]map[string]any
+	renders map[string]string
+	output  []string
+}
+
+func replay(t *testing.T, bin string, cmds []cmd) replayResult {
+	t.Helper()
+	runDir := t.TempDir()
+	m := newMapper()
+	var out []string
+	for _, c := range cmds {
+		inv := runGo(bin, runDir, c)
+		m.observe(filepath.Join(runDir, "records"))
+		got := normalizeOutput(inv, runDir, m)
+		out = append(out, fmt.Sprintf("exit=%d out=%q err=%q", got.code, got.stdout, got.stderr))
+	}
+	st := collect(t, runDir, m)
+	return replayResult{events: st.events, renders: st.renders, output: out}
 }
 
 var (
@@ -83,23 +96,21 @@ func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
 func generate(rng *rand.Rand, maxLen int) []cmd {
 	n := 3 + rng.Intn(maxLen-3)
 	out := make([]cmd, 0, n)
-	seat := func(role string) (string, string) {
-		var s string
+	seat := func(role string) string {
 		switch role {
 		case "merge":
-			s = pick(rng, []string{"red-merge-r1", "red-merge-r2"})
+			return pick(rng, []string{"red-merge-r1", "red-merge-r2"})
 		case "lens":
-			s = pick(rng, []string{"red-lens-r1-L1", "red-lens-r1-L5", "red-lens-r2-L6"})
+			return pick(rng, []string{"red-lens-r1-L1", "red-lens-r1-L5", "red-lens-r2-L6"})
 		case "blue":
-			s = pick(rng, []string{"blue-respond-r1", "blue-synthesize"})
+			return pick(rng, []string{"blue-respond-r1", "blue-synthesize"})
 		default:
-			s = "judge-r1"
+			return "judge-r1"
 		}
-		return role, s
 	}
 	for len(out) < n {
 		role := pick(rng, []string{"merge", "merge", "merge", "lens", "lens", "blue", "bench"})
-		_, s := seat(role)
+		s := seat(role)
 		args := []string{}
 		switch role {
 		case "merge":
