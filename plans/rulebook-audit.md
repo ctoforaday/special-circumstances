@@ -24,10 +24,15 @@ Four for four. We patch INSTANCES while the CLASS survives and re-emerges at the
 adjacent seat — the exact argument in `ideas/gap-classes-proposal.md`, turned on
 the rulebook itself rather than on debate gaps.
 
-PROPOSED (status: OPEN, operator call not yet taken): extend the W2d class
-registry to cover protocol-rule defects, so a rule patch must name its class and
-sweep siblings before it ships. This is the only change in this file that stops
-the recurrence pattern rather than adding a fifth patch to it.
+AGREED (operator, 2026-07-18): extend the W2d class registry to cover
+protocol-rule defects, so a rule patch must name its class and sweep siblings
+before it ships. This is the only change in this file that stops the recurrence
+pattern rather than adding a fifth patch to it. Ships BEFORE the first run, with
+everything else here.
+
+Second-order use (see the memory entry below): red's gap-pattern memory should be
+CLASSES, not instances, for the same reason — instance-level patterns invite blue
+to fix the listed items and nothing else.
 
 ## 1. The full-re-read mandate + additive-never-subtract (AGREED)
 
@@ -186,19 +191,82 @@ MEASUREMENT FIRST: a footnote-mechanics friction row in the W2h scorecard, so th
 next run says whether this is still bleeding post-mitigation. The friction
 evidence above is all PRE-mitigation; the residual cost is unmeasured.
 
-## Still open (operator call not taken)
+## 7. Two enum gaps (AGREED)
 
-- THE META-FINDING above: extend the class registry to protocol-rule defects.
-- MEMORY-AS-READING IS MEASURED WORTHLESS: run 4 — the "read red's gap patterns"
-  clause was unsatisfiable at four blue seats (no path provisioned by the dispatch
-  that mandates the read). Run 5, worse — lanes verifiably READ the file and
-  committed both warned patterns anyway; only red's DUTY-EMBEDDED patterns caught
-  them. A rule saying "read this and be wiser" buys nothing; the same content
-  compiled into a duty works. Bears directly on the untracked
-  `.claude/agent-memory/` decision: the value of those 56 files is as compiled
-  manifest lines (already specified in the constitutional reform), not as a
-  corpus someone reads.
-- TWO ENUM GAPS: no verdict class for ceiling-terminated runs (run 5 ended with a
-  final revision no red pass ever audited, and no way to say so); no closure
-  amendment class (late-discovered composition defects between two verified
-  repairs masquerade as this-round closures).
+No verdict class for CEILING-TERMINATED runs: run 5 ended with a final blue
+revision that no red pass ever audited, while the round-5 LEAD had ruled deadlock
+FALSE — "the template has no verdict class for 'converging, ceiling-terminated,
+final revision unaudited'." It was handled by an assembly-owned risk row and a
+re-audit obligation transferred out of the run.
+
+No CLOSURE AMENDMENT class: run 4's R1-12/R1-17 both closed CLEAN in round 2;
+round 3 found a composition defect BETWEEN their two verified repairs. The only
+way to declare the lineage was to reclassify last round's closures inside this
+round's closures array and hand-annotate the ledger — so late-discovered
+composition defects masquerade as this-round closure events.
+
+Both are the same shape as the judge-enum misfit: an enum that does not cover the
+traffic actually observed. Small engine change; ships before the first run.
+
+## 8. Memory sharing between seats (AGREED IN PRINCIPLE — design open)
+
+EVIDENCE: run 4 — the "read red's accumulated gap patterns" clause was
+unsatisfiable at four blue seats (no path provisioned by the dispatch that
+mandated the read). Run 5, worse — lanes verifiably READ the file and committed
+both warned patterns anyway; only red's DUTY-EMBEDDED patterns caught them.
+
+DIAGNOSIS (operator-directed reframe: fix it, do not delete it): this is NOT an
+access problem. Blue had access in run 5 and regressed anyway. It is a BINDING
+problem — content read at seat start and never re-surfaced at the moment of the
+act is functionally forgotten: present in context, absent from the decision. Red's
+version worked because its patterns were discharged as a DUTY at a specific
+moment with an output, not staged as a corpus to read.
+
+GENERAL PRINCIPLE (holds for any seat-to-seat memory, not just red->blue): memory
+binds when it is compiled into a duty discharged at a decision point with an
+observable; it does not bind when it is staged as reading. Design candidates,
+compatible and probably wanted together:
+1. COMPILE TO DUTY LINES at the decision point — patterns injected into the
+   REPAIR step, not the seat preamble. Blue's correctness manifest (W2b) already
+   has a row-per-repair shape; add a row naming which patterns applied and what
+   checking them showed. Observable, therefore auditable, therefore scorecardable
+   as a DETECTOR.
+2. MEMORY AS EXECUTABLE CHECK, not prose — red's patterns become
+   acceptance_check entries (the W2b at-mint machinery already exists) that blue
+   must RUN rather than read. Converts memory from advice into test.
+3. JUST-IN-TIME RETRIEVAL — dispatch injects only the patterns matching the
+   current gap's CLASS (needs W2d), instead of 50-odd patterns at seat start
+   competing for salience.
+
+GOODHART RISK, stated honestly: red's gap-pattern memory is the adversary's
+playbook. Blue reading it is partly what we want (yesterday's expensive discovery
+as today's free checklist) and partly teaching-to-the-test (blue fixes the listed
+patterns and nothing else). Mitigation is the class registry: share CLASSES, not
+instances, so narrow pattern-matching does not discharge the duty.
+
+BEARS ON: the untracked `.claude/agent-memory/` decision — the value of those 56
+files is as compiled duty lines, not as a corpus someone reads.
+
+## 9. Can the bench see into the parties? (OPEN — the operator's question)
+
+Distinct from #8 and genuinely harder. Today the judge rules on artifacts plus
+closings; a performative repair and a rigorous one look identical in the artifact,
+which is part of why E0.5d measured the gate inert (86/87 carried).
+
+THE COUNTERWEIGHT is an explicit engine rule, stated to blue in every response
+prompt: "the judge rules on the closings, the transcript, and the final state of
+the artifacts — your closing is your case; material not in the record cannot help
+you." Blanket trajectory access breaks that both ways: the bench could rule on
+material the other party never saw and cannot rebut, and a party's untidy
+reasoning could convict it even where its argument on the record is sound. That is
+the line between a judiciary and a surveillance system. Trajectories are also
+enormous — the context cost is real.
+
+PROPOSED SHAPE (the reform already half-builds it: targeted trajectory access
+plus the evidence-confinement DETECTOR — opinions' named reads vs actual tool
+calls): the bench MAY look, but must DECLARE what it looked at, and the
+declaration ENTERS THE RECORD, so the parties can see and answer it. That
+converts surveillance into evidence. Refinement to decide: make inspection
+DEMANDABLE by a party (discovery-shaped) as well as available on the bench's own
+motion, with any own-motion inspection docketed; anything the bench relies on is
+quoted into the opinion.
