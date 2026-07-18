@@ -918,3 +918,52 @@ test('W2h: no scorecards -> no clause (a first run is not told it scored nothing
   await world.run(script, ARGS)
   assert.ok(!world.calls.some((c) => /SCORECARD/.test(c.prompt)), 'absent scorecards leave prompts untouched')
 })
+
+// ---- memory-as-duty: the class join delivers patterns to the repair, not the seat ----
+
+const PATTERNS = {
+  'citation-figure-misattribution': [{ file: 'cite.md', title: 'Citation misattribution', hook: 'real figures cited to the wrong source' }],
+  'false-universal': [{ file: 'universal.md', title: 'False universal', hook: '"every" claims that hold for the sampled cases only' }],
+  'live-source-drift': [{ file: 'drift.md', title: 'Live-source drift', hook: 'volatile figures only catchable live' }],
+}
+
+test('memory-as-duty: only the patterns matching the REPAIRED gaps class are delivered', async () => {
+  const world = makeWorld(makeResponder({
+    red: [
+      redEnv({ gaps: [{ ...gap('R1-1'), class: 'false-universal' }] }),
+      redEnv({ verdict: 'PASS' }),
+    ],
+  }))
+  await world.run(script, { ...ARGS, gapPatterns: PATTERNS })
+  const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1')).prompt
+
+  assert.ok(respond.includes('False universal'), 'the gap class selects its pattern')
+  assert.ok(!respond.includes('Citation misattribution'), 'an unrelated class is NOT delivered — the point is the join, not the corpus')
+  assert.ok(!respond.includes('Live-source drift'), 'nor is any other unrelated class')
+  // The duty has to be a duty: checked before closure, recorded in the manifest.
+  assert.ok(/manifest row which patterns you checked/.test(respond), 'the check is recorded, so a skipped duty is visible')
+})
+
+test('memory-as-duty: a gap whose class has no patterns adds no clause (no noise, no ritual)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [
+      redEnv({ gaps: [{ ...gap('R1-1'), class: 'a-class-with-no-memory' }] }),
+      redEnv({ verdict: 'PASS' }),
+    ],
+  }))
+  await world.run(script, { ...ARGS, gapPatterns: PATTERNS })
+  const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1')).prompt
+  assert.ok(!/PATTERN DUTY/.test(respond), 'no matching memory -> no clause')
+})
+
+test('memory-as-duty: patterns are deduped across gaps sharing a class', async () => {
+  const world = makeWorld(makeResponder({
+    red: [
+      redEnv({ gaps: [{ ...gap('R1-1'), class: 'false-universal' }, { ...gap('R1-2'), class: 'false-universal' }] }),
+      redEnv({ verdict: 'PASS' }),
+    ],
+  }))
+  await world.run(script, { ...ARGS, gapPatterns: PATTERNS })
+  const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1')).prompt
+  assert.equal((respond.match(/False universal/g) || []).length, 1, 'one pattern, once — a repeated duty reads as two duties')
+})

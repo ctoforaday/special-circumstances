@@ -2,6 +2,7 @@
 name: pattern-measurement-methodology-drift
 description: A cited self-reported number (tokens/cost/etc.) survives leaf-node verification against its named source, but a LATER, more rigorous measurement from the same project quietly proves the counting method was wrong — the citation is accurate and the number is still stale
 metadata:
+  classes: [measurement-methodology-drift, self-attestation]
   type: feedback
 ---
 

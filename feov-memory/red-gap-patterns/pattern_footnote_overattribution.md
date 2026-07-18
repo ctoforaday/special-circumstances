@@ -2,6 +2,7 @@
 name: pattern-footnote-overattribution
 description: A footnote's claim-list bundles several specifics but only some trace to the primary; multi-citing one figure to N footnotes hides which one carries it
 metadata:
+  classes: [citation-figure-misattribution, derivation-status-overclaim]
   type: feedback
 ---
 

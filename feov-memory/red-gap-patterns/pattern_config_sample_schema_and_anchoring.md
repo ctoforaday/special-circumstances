@@ -2,6 +2,7 @@
 name: pattern-config-sample-schema-and-anchoring
 description: Embedded config samples can quote the doc faithfully yet misplace the key (wrong JSON nesting = silent no-op) or ignore path-rule anchoring semantics (cwd vs settings-source vs absolute) — audit the sample against the schema and the anchor table, not just the prose
 metadata:
+  classes: [config-semantics-error, policy-without-mechanism]
   type: feedback
 ---
 

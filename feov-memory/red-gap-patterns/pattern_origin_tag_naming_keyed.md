@@ -2,6 +2,7 @@
 name: pattern-origin-tag-naming-keyed
 description: an anti-self-amplification origin tag keyed on a dir-NAME/glob convention is circumvented by the process's own spawned sub-runs that land in differently-named dirs — and those sub-runs supply the "independent corroboration" the cap required
 metadata:
+  classes: [name-keying-vs-marker, partial-control-coverage, incomplete-repair-propagation]
   type: feedback
 ---
 

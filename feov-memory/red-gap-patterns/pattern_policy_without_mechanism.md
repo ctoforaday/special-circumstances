@@ -2,6 +2,7 @@
 name: pattern-policy-without-mechanism
 description: An invariant/policy asserted as self-enforcing ("just a removal of trust") while the concrete enforcing artifact was withdrawn in a prior round and never replaced
 metadata:
+  classes: [policy-without-mechanism, self-attestation]
   type: feedback
 ---
 

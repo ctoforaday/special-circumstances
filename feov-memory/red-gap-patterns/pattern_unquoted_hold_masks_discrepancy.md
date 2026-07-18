@@ -2,6 +2,7 @@
 name: pattern-unquoted-hold-masks-discrepancy
 description: A lens's "checked, held, not raised" entry that asserts a match WITHOUT quoting both sides can mask a live discrepancy; when lenses conflict, the merge seat decides by direct read, never by majority or by trusting the hold
 metadata:
+  classes: [self-attestation, causal-narrative-fails-reproduction]
   type: feedback
 ---
 

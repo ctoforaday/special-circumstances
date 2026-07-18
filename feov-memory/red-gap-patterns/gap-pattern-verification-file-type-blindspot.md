@@ -2,6 +2,7 @@
 name: gap-pattern-verification-file-type-blindspot
 description: Gap pattern — "no X exists" claims backed by a grep scoped to one file type miss X implemented in another layer (e.g. compiled tools)
 metadata:
+  classes: [verification-scope-blindspot, false-universal]
   type: feedback
 ---
 

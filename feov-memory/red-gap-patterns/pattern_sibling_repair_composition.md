@@ -2,6 +2,7 @@
 name: pattern-sibling-repair-composition
 description: Two same-round repairs to one design (mechanism hardened, registered test/prediction restated) can fail to compose — re-derive the test from the hardened mechanism
 metadata:
+  classes: [unverified-composition, incomplete-repair-propagation]
   type: feedback
 ---
 

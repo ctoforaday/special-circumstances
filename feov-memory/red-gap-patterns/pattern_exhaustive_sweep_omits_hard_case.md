@@ -2,6 +2,7 @@
 name: pattern-exhaustive-sweep-omits-hard-case
 description: A self-certifying completeness sweep ("every catch traced", "checked against every position", "both misattributions corrected") silently omits the hardest named case — often one the same report itself elevated pages earlier
 metadata:
+  classes: [exhaustive-sweep-omits-case, enumeration-non-exhaustive]
   type: feedback
 ---
 

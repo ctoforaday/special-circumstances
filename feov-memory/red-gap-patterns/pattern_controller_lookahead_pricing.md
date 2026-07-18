@@ -2,6 +2,7 @@
 name: pattern-controller-lookahead-pricing
 description: Counterfactual savings for a throttle/controller priced on data only observable AFTER the controlled round — check what board/state the mechanism could actually read at decision time
 metadata:
+  classes: [pricing-basis-drift, derivation-status-overclaim]
   type: feedback
 ---
 

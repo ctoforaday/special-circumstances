@@ -2,6 +2,7 @@
 name: pattern-fail-open-guard-and-erasable-evidence
 description: Two composing control-design defects — a guard keyed on an ambient marker that silently disarms when the marker is lost (fail-open), and "tamper evidence" living where the audited actor can erase it (uncommitted working tree, actor-writable ledger)
 metadata:
+  classes: [unhandled-degenerate-case, self-attestation, partial-control-coverage]
   type: feedback
 ---
 

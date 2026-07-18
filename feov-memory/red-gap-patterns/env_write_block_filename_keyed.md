@@ -2,6 +2,8 @@
 name: env-write-block-filename-keyed
 description: The subagent report-file write-block keys on FILENAME semantics regardless of directory — even scratchpad/findings.md is refused; workaround = Write under a neutral name, then Bash cp into place
 metadata:
+  classes: []
+  class_note: harness-limit — a tooling constraint, not a research defect class; kept for red's reference and deliberately NOT delivered as a repair duty
   type: project
 ---
 

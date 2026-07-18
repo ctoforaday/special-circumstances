@@ -2,6 +2,7 @@
 name: pattern-per-instance-cap-not-per-cause
 description: A retry/waste cap bounds the INSTANCE (run-dir, item, attempt) while the generating CAUSE freely mints new instances — "cannot recur forever" claims that hold per-instance only
 metadata:
+  classes: [recurrence-detector-keying, false-universal]
   type: feedback
 ---
 

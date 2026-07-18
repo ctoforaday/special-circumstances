@@ -2,6 +2,7 @@
 name: pattern-inherited-surface-netting
 description: "We don't add risk, it's inherited from native/baseline" netting arguments must verify the baseline wasn't since remediated — bespoke may re-open what upstream closed
 metadata:
+  classes: [risk-coverage-omission, claim-contradicts-own-record]
   type: feedback
 ---
 

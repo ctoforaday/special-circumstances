@@ -2,6 +2,7 @@
 name: pattern-gate-stack-rung-nonportability
 description: "Consent/gate stack designed for one deployment rung (local wrapper + out-of-repo settings) silently assumed to hold on other rungs (cloud routine = fresh clone, no local files; CI = settings must move in-repo)"
 metadata:
+  classes: [partial-control-coverage, false-universal]
   type: feedback
 ---
 

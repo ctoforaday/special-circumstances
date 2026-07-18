@@ -2,6 +2,7 @@
 name: pattern-reflexivity-blindspot
 description: report headlines a risk class for its subject matter but never applies it to its own toolchain/pipeline/drafting window — audit the report's own operations against its own findings
 metadata:
+  classes: [reflexivity-blindspot, risk-coverage-omission]
   type: feedback
 ---
 

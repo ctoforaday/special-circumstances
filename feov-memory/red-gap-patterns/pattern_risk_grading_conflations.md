@@ -2,6 +2,7 @@
 name: pattern-risk-grading-conflations
 description: Recurring logic gaps in research risk matrices — likelihood/success conflation and keystone-on-unverified-evidence
 metadata:
+  classes: [metric-conflation, claim-contradicts-own-record, risk-coverage-omission]
   type: feedback
 ---
 

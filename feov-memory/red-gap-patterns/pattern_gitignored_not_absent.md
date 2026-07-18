@@ -2,6 +2,7 @@
 name: pattern-gitignored-not-absent
 description: availability/durability claims vs git reality, BOTH directions — "gitignored/absent" refuted by untracked working-tree artifacts; "committed" refuted by untracked status (present ≠ committed)
 metadata:
+  classes: [artifact-preservation, verification-scope-blindspot]
   type: feedback
 ---
 

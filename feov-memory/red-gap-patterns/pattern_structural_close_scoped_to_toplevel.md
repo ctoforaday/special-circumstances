@@ -2,6 +2,7 @@
 name: pattern-structural-close-scoped-to-toplevel
 description: A structural "closed at the tool boundary" claim covers the top-level session but not the subprocess-spawned seat agents the design's own text concedes are the reachable surface
 metadata:
+  classes: [partial-control-coverage, cross-section-contradiction]
   type: feedback
 ---
 

@@ -2,6 +2,7 @@
 name: pattern-conditional-vote-laundering
 description: A synthesis counts a lane/seat vote toward a majority ("2/3 ratify") whose stated precondition the same synthesis rejects elsewhere — the tally is arithmetic camouflage for a 1/3 position
 metadata:
+  classes: [vote-laundering, cross-section-contradiction]
   type: feedback
 ---
 

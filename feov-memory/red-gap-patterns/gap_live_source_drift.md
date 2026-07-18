@@ -2,6 +2,7 @@
 name: gap-live-source-drift
 description: Citation figures/mechanisms drift when live web sources move after the report's access date; re-follow to primary, don't trust the footnote's numbers
 metadata:
+  classes: [live-source-drift]
   type: feedback
 ---
 

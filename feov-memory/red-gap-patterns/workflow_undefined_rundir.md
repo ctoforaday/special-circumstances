@@ -2,6 +2,8 @@
 name: workflow-undefined-rundir
 description: FEOV workflow script can pass a literal "undefined" run directory to red — abort and report, never fabricate an audit
 metadata:
+  classes: []
+  class_note: harness-limit — a tooling constraint, not a research defect class; kept for red's reference and deliberately NOT delivered as a repair duty
   type: project
 ---
 

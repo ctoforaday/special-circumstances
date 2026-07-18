@@ -2,6 +2,7 @@
 name: pattern-ephemeral-instrument-and-grid-count
 description: two quantitative-claim hazards — a measurement whose parser/input lives only in scratchpad (self-report with no re-derivation path), and table counts asserted by grid arithmetic instead of row enumeration
 metadata:
+  classes: [artifact-preservation, figure-recount-fails, self-attestation]
   type: feedback
 ---
 

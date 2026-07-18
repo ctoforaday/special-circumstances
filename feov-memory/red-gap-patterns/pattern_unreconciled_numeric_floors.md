@@ -2,6 +2,7 @@
 name: pattern-unreconciled-numeric-floors
 description: Two fixes added in different rounds each set a minimum/allocation over the same shared resource (lane count, agent count, budget); neither cross-references the other's arithmetic
 metadata:
+  classes: [unverified-composition, figure-recount-fails]
   type: feedback
 ---
 

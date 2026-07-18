@@ -2,6 +2,7 @@
 name: pattern-within-source-condition-misattribution
 description: A correctly-cited paper's headline result quoted with a gloss that silently reassigns it to a weaker experimental condition/arm — especially to justify NOT building the stronger condition; check which arm carries the number
 metadata:
+  classes: [within-source-condition-misattribution, false-universal]
   type: feedback
 ---
 
