@@ -263,3 +263,41 @@ two grounded empirically in the run-5 corpus). Sitting 4: PASS. Notes, binding o
 3. The dashboard-regex retirement claim is DESCOPED from this plan (inert here —
    render-run-dashboard.mjs and cost-audit.mjs are not in the modify inventory);
    scheduled instead as a small follow-up once SEAT_ID ships in transcripts.
+
+## Amendment (operator challenge, 2026-07-18): Go for seat-side runtime; markdown never parsed
+
+Two foundational reversals, both conceded on the merits:
+
+1. LANGUAGE. The "node is already installed / shares code with debate.js"
+   rationale is DEAD: debate.js is sandboxed (zero imports — sharing is
+   impossible), and the record tool grew from glue into SEAT-SIDE RUNTIME
+   (per-seat invocation frequency, locks, atomicity, role enforcement) where
+   the mjs constraint set forced hand-rolled locks, untyped schemas, and
+   un-race-tested concurrency. Doctrine line (matching PC's hooks precedent):
+   LEAD-SIDE GLUE = mjs (setup/capture/dashboard/parity: run-per-run
+   orchestration); SEAT-SIDE RUNTIME = compiled Go. The record CLIs move to Go:
+   ONE binary, roles as subcommands (feov-record lens|merge|blue|bench <verb>),
+   which strengthens role boundaries (a namespace refuses a --seat-id outside
+   its role prefix — impossible with separate loose scripts), ships as one CI
+   release asset, uses real file locks and typed event structs, and gets
+   `go test -race` on the actual concurrency. FEOV owns its own tools/ Go
+   module (W1.15 each-plugin-owns-its-deps) riding the existing CI release +
+   doctor-bootstrap machinery; the empty-bin window is covered by the same
+   guard pattern PC shipped.
+2. MARKDOWN. JSON is the record AND the machine interface; markdown is a
+   WRITE-ONLY reading view that nothing ever parses again. Renders emit
+   board.json (versioned, structured — gaps, closures, observations,
+   anomalies) beside the md views; dashboard, capture audits, and the parity
+   checker's shadow side consume events or board.json. The only surviving
+   markdown parsing is the parity checker's HAND side during dual-mode — it
+   dies with the hand-written artifacts at R3.
+
+MIGRATION — the mjs implementation is DEMOTED TO ORACLE, not discarded: its 29
+tests encode the audited semantics, and the Go port is validated by
+DIFFERENTIAL TESTING (same command sequences through both → byte-identical
+events and renders) before the mjs write path retires. mjs consumers keep
+reading the language-neutral JSONL directly — the format was the point.
+Revised sequence: R2 (PR #35) merges as ORACLE + parity harness, not for seat
+adoption; R2g = the Go port with differential suite; dual-mode prompts point
+at the binary (toolsDir becomes binDir) only after R2g's differential gate is
+green; R2.5 parity run follows on the Go tool.
