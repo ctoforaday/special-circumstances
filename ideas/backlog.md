@@ -46,3 +46,53 @@ whichever PR next touches its plugin; bigger items get promoted to `plans/` prop
 - [ ] **Supersedes-edge grade-delta telemetry**: accepted-delta docket threshold only sees the dispute channel (0 uses in 3 runs) while ~20 mass moved along supersedes edges per run. Merge computes edge deltas into the round line; script-visible, closes the audit blind spot. Rides gap-classes.
 - [ ] **Dashboard openRows fallback**: ledger open-section heuristic parse showed 1 while telemetry said 16 — fallback engages only at zero. Make telemetry authoritative when parse < telemetry, or parse the new sharded format properly. Small fix, feat/run-dashboard.
 - [ ] **Context-peak telemetry + the haiku-window constraint** (measured 2026-07-17): zero compaction events across all 146 seat transcripts in runs 3-5 — the engine is already memento-shaped (seats die before windows fill; the blackboard is the checkpoint; every handoff is disk-mediated). Peak seat context: 270k = 27% of the 1M window (red-merge-r5, run 5), growing with report+ledger size (run 4 max was 202k). GUARD: capture computes per-seat peak context and flags any seat crossing 50% of its model's window — the tripwire that tells us when within-seat checkpointing becomes real. CONSTRAINT FOUND: a full minimalist run on a 200k-window model (haiku) would breach at the merge seat (270k > 200k) — judgment seats must stay on a 1M-window tier, or the merge compacts mid-audit; wire into the model-guidance note in research.md.
+
+## Sleeper-service extension: aggressive skill discovery + reskilling (operator, 2026-07-18)
+
+Recorded so it is not lost — NOT queued, and downstream of the Phase-4 build.
+
+The sleeper service is currently designed to mine what WE produce: friction,
+telemetry, run records (E0.5e validated the premise — ~42% of friction subjects
+became matching defects within hours to five days). It has no channel for what
+everyone ELSE has already worked out. The published skill ecosystem — Anthropic's
+own, plugin marketplaces, community corpora — is a body of knowledge this suite
+currently rediscovers by hand, one session at a time, whenever someone happens to
+notice a gap.
+
+Two halves, related but distinct:
+
+- AGGRESSIVE SKILL DISCOVERY — locating existing skills relevant to work we
+  actually do, and evaluating them, rather than waiting for a human to stumble
+  over one. Cheap signal already exists: recurring friction subjects name the
+  capability we lack, and a missing capability is exactly what someone else may
+  have already packaged.
+- AGGRESSIVE RESKILLING — acting on that: adopting, adapting, or deliberately
+  rejecting an external skill, and revising OUR skills when the ecosystem has
+  moved. Today a skill written once drifts silently against a changing harness;
+  nothing in the suite notices that the world moved.
+
+WHY IT FITS THE SLEEPER SERVICE: this is precisely unattended, low-urgency,
+high-latency work with a human gate at the end — the shape /self-improve and
+/graduate already have (writes only to research/ and ideas/, promotion
+human-gated).
+
+RISKS TO DESIGN AGAINST, not discovered later:
+
+- POISONING. An imported skill is instructions that BIND behaviour, arriving from
+  outside review. Same class as agent memory (see plans/rulebook-audit.md item 8)
+  and the same answer: promotion is a deliberate human review step, never a sync.
+- IDENTITY DRIFT. Special Circumstances is adversarial by design and explicitly
+  not a yes-man. Much of the published corpus optimizes for agreeableness and
+  smooth completion. Wholesale adoption would erode the thing that makes the
+  suite worth running, and it would erode it invisibly.
+- PROVENANCE AND LICENCE. What was imported, from where, at what version, under
+  what terms — the same pinning discipline the research protocol already demands
+  of citations.
+- REDISCOVERY VS DEPENDENCE. Adopting an external skill imports its maintenance
+  risk. Sometimes the right verdict is "they solved it, here is the idea, we
+  write our own" — and the record should say which was chosen and why.
+
+An honest observation that motivated the note: this session repeatedly reached
+for knowledge that exists outside the repo (cobra's own generator and how-to
+guides settled a design argument in minutes), and there is currently no mechanism
+that would have surfaced it without a human suggesting it.
