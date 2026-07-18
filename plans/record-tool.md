@@ -87,3 +87,43 @@ R2: engine prompts switch seats to tool invocations; constitutional deletions
 R3: scorecards/judicial-record/dashboard-model renders (absorbs W2h + W2c record
     parts); capture audit collapse.
 R4: class registry live (W2d) with recalibrated within-run escalator semantics.
+
+## REVISION (user, 2026-07-18): a library + bespoke per-seat tools
+
+Not one tool — a record-management LIBRARY (`lib/record.mjs`: append, validation,
+id minting, replay, projections) wrapped by BESPOKE PER-SEAT CLIs whose verb sets
+ARE the role boundaries:
+
+- `tools/red-lens.mjs` — observe, finding (auto-labeled L*-F*, lens-scoped ids
+  enforced by construction), spot-check-report, friction. NO mint, NO close: a
+  lens structurally cannot write board state — the current write-guard hook's
+  filename heuristic retires in favor of a missing verb.
+- `tools/red-merge.mjs` — mint, close, dispose (every lens observation demands a
+  disposition before the round record renders), regrade, verdict; telemetry and
+  ledger/archive views render as side effects of `verdict` — the merge stops
+  hand-writing boards entirely.
+- `tools/blue.mjs` — revision (the CHANGELOG/### BLUE round entry, one event),
+  manifest-row, dispute, confidence, friction. NO board verbs at all: the
+  additive-only rule and never-touch-the-ledger stop being obedience.
+- `tools/bench.mjs` — opinion (disposition + principle + tension + review-flag
+  as required args), petition-rule, halt, certify. NO mint: the bench cannot
+  originate findings, only rule on them.
+- Capture and the dashboard consume the library directly (read-only).
+
+Each CLI is self-documenting (`--help` carries the seat's verb contract), which
+deletes ANOTHER layer of prompt prose: seat prompts shrink to "your tool is
+red-merge.mjs; its help is your record contract."
+
+ENFORCEMENT HONESTY: v1 scope-limits by INTERFACE (a seat has no path to verbs
+outside its role through the sanctioned tool) and by RECORD (every event carries
+the claimed seat; the tool-call behavior audit joins events to transcripts, so a
+seat invoking another seat's tool is mechanically detectable post-hoc). Physical
+enforcement — a PC-side PreToolUse guard matching seat identity to permitted
+tool invocations — is a later hardening rung, priced only if misuse is ever
+observed (the write-guard experience: affordance + visibility deterred
+violations without a single block in three runs).
+
+Implementation resequencing: R1 = library + red-merge + red-lens tools (the
+board is the highest-value surface); R2 = blue + bench tools + seat switchover
++ constitutional deletions; R3 = projection suite + capture collapse; R4 = live
+class registry. Same test pattern throughout (simulator fixtures over temp dirs).
