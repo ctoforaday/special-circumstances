@@ -132,6 +132,7 @@ func RoleCommand(role, short string, verbs []Verb) *cobra.Command {
 	roleCmd := &cobra.Command{
 		Use:   role,
 		Short: short,
+		Long:  short + "\n" + frictionFooter,
 		// ArbitraryArgs so an unrecognised verb reaches RunE instead of cobra's
 		// generic `unknown command "mint" for "feov-record lens"`. The difference
 		// is the whole point of the role boundary: the seat must be told what it
@@ -172,22 +173,30 @@ func verbCommand(role string, v Verb) *cobra.Command {
 	c := &cobra.Command{
 		Use:          v.Name,
 		Short:        v.Help,
+		Long:         v.Help + "\n" + frictionFooter,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		Args:         cobra.NoArgs,
 	}
-	c.Flags().String("run", "", "the run directory")
-	c.Flags().String("seat-id", "", "the seat id the engine assigned (it is in your prompt)")
+	c.Flags().String("run", "", flagDoc(v.Name, "run"))
+	c.Flags().String("seat-id", "", flagDoc(v.Name, "seat-id"))
 	for _, spec := range v.Flags {
-		c.Flags().String(flagOf(spec), "", "")
+		f := flagOf(spec)
+		// An undocumented flag makes the help stop being a contract, so a missing
+		// gloss shows up in the output rather than as a silent blank column.
+		doc := flagDoc(v.Name, f)
+		if doc == "" {
+			doc = "(undocumented — add it to flagDocs)"
+		}
+		c.Flags().String(f, "", doc)
 	}
 	// --file and --text are the prose payload channel; every verb that reads
 	// PayloadText accepts them, and declaring them centrally keeps a verb from
 	// accidentally omitting one.
-	if !c.Flags().HasFlags() || c.Flags().Lookup("file") == nil {
-		c.Flags().String("file", "", "read the prose payload from a file (over 2KB, always use this)")
+	if c.Flags().Lookup("file") == nil {
+		c.Flags().String("file", "", flagDoc(v.Name, "file"))
 	}
 	if c.Flags().Lookup("text") == nil {
-		c.Flags().String("text", "", "the prose payload inline")
+		c.Flags().String("text", "", flagDoc(v.Name, "text"))
 	}
 
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
