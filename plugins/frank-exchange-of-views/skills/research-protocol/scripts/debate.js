@@ -43,7 +43,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, toolsDir = null } = a
+const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null } = a
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
@@ -67,14 +67,22 @@ const frictionClause = (who) => ` FRICTION: if you report any friction, ALSO app
 // Bash spawn additionally carries a measured multi-second fixed floor. Every seat gets this.
 const speedClause = ` SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result. Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing). KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.`
 
-// Record-tool dual-mode (plan §III R2, gated on toolsDir so old runs resume
-// untouched): every seat gets an engine-assigned SEAT_ID and records each act
-// through its seat CLI IN ADDITION to the file writes. Hand-written artifacts
-// stay authoritative until the R2.5 parity gate passes; the events are the
-// record under test. The tool's --help is the seat's record contract.
-const recordClause = (seatId, tool) => toolsDir
-  ? ` SEAT_ID: ${seatId}. RECORD (dual-mode): in ADDITION to the file writes above, record every action through your seat tool. FIRST ACTION: node "${toolsDir}/${tool}.mjs" register --run ${runDir} --seat-id ${seatId} — then the matching verb for each act (see --help, your record contract; findings/cites at lenses, mint/close/dispose/spot-check/position/closing/verdict at the merge, revision/manifest-row/dispute/position/closing at blue, opinion/certify/friction at the bench; prose payloads over 2KB via --file, NEVER inline). The hand-written files remain authoritative this run; the events are the record under test.`
+// Record-tool dual-mode (plan §III R2, now gated on binDir): every seat gets an
+// engine-assigned SEAT_ID and records each act through the record binary IN
+// ADDITION to the file writes. Hand-written artifacts stay authoritative until
+// the R2.5 parity gate passes; the events are the record under test.
+//
+// R2g: the four mjs seat CLIs are retired and the writer is ONE compiled binary
+// with role subcommands, so the seat is handed its ROLE rather than a script
+// path. The role is not decoration — seat identity is bound to it, and a seat
+// that reaches for another role's verbs is refused. The tool's --help IS the
+// seat's record contract: everything listed is permitted, anything absent does
+// not exist for that seat and is FRICTION rather than something to work around.
+const RECORD_ROLE = { 'red-lens': 'lens', 'red-merge': 'merge', blue: 'blue', bench: 'bench' }
+const recordClause = (seatId, tool) => binDir
+  ? ` SEAT_ID: ${seatId}. RECORD (dual-mode): in ADDITION to the file writes above, record every action through the record tool. FIRST ACTION: "${binDir}/feov-record" ${RECORD_ROLE[tool]} register --run ${runDir} --seat-id ${seatId} — then the matching verb for each act. YOUR CONTRACT IS \`feov-record ${RECORD_ROLE[tool]} --help\`, and each verb's own --help documents every flag: what is listed there you may do, and what is NOT listed does not exist for you. Do NOT improvise a flag, invent a verb, or hand-write an artifact the tool does not offer — record what you needed with the friction verb instead, because a missing capability is a finding about the tooling. Prose payloads over 2KB go via --file, NEVER inline. The hand-written files remain authoritative this run; the events are the record under test.`
   : ''
+
 
 // Compound grades allowed: red's protocol grades finer than a 3-point scale
 // (retrospective friction #6 — forced rounding lost information every round).

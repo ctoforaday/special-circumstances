@@ -1,0 +1,206 @@
+$ feov-record 
+exit 0
+stdout:
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
+
+Usage:
+  feov-record [command]
+
+Available Commands:
+  bench       the bench — opinions, petition rulings, halt, certification. Never originates.
+  blue        blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  lens        red lens seats — findings, observations, citations. Cannot mint or close.
+  merge       the red merge seat — the board's only writer.
+
+Flags:
+  -h, --help      help for feov-record
+  -v, --version   version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+
+$ feov-record help
+exit 0
+stdout:
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
+
+Usage:
+  feov-record [command]
+
+Available Commands:
+  bench       the bench — opinions, petition rulings, halt, certification. Never originates.
+  blue        blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  lens        red lens seats — findings, observations, citations. Cannot mint or close.
+  merge       the red merge seat — the board's only writer.
+
+Flags:
+  -h, --help      help for feov-record
+  -v, --version   version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+
+$ feov-record --help
+exit 0
+stdout:
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
+
+Usage:
+  feov-record [command]
+
+Available Commands:
+  bench       the bench — opinions, petition rulings, halt, certification. Never originates.
+  blue        blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  lens        red lens seats — findings, observations, citations. Cannot mint or close.
+  merge       the red merge seat — the board's only writer.
+
+Flags:
+  -h, --help      help for feov-record
+  -v, --version   version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+
+$ feov-record lens help
+exit 0
+stdout:
+red lens seats — findings, observations, citations. Cannot mint or close.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record lens [flags]
+  feov-record lens [command]
+
+Available Commands:
+  cite        citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
+  finding     a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--text "..."|--file f] [--location "..."]
+  friction    attributed friction (survives aborts as an event): --text|--file
+  observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file
+  petition    petition the bench (never sanctioned; does not pause your duties): --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
+  register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  render      read-only projection refresh (any seat may invoke)
+
+Flags:
+  -h, --help   help for lens
+
+Use "feov-record lens [command] --help" for more information about a command.
+
+$ feov-record merge help
+exit 0
+stdout:
+the red merge seat — the board's only writer.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record merge [flags]
+  feov-record merge [command]
+
+Available Commands:
+  close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--prose-file f]
+  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>
+  dispose         every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
+  dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --rationale "..."
+  friction        attributed friction: --text|--file
+  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  petition        petition the bench: --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
+  position        the round's ### RED section (prose via --file)
+  register        FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
+  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."
+  render          read-only projection refresh (any seat may invoke)
+  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."]
+  verdict         the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror
+
+Flags:
+  -h, --help   help for merge
+
+Use "feov-record merge [command] --help" for more information about a command.
+
+$ feov-record blue help
+exit 0
+stdout:
+blue seats — revisions, manifest rows, disputes. No board verbs at all.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record blue [flags]
+  feov-record blue [command]
+
+Available Commands:
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --file <prose>
+  confidence   per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low
+  dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."
+  friction     attributed friction (survives aborts as an event): --text|--file
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  petition     petition the bench (never sanctioned; does not pause your duties): --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
+  position     the round's ### BLUE section (prose via --file)
+  register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  render       read-only projection refresh (any seat may invoke)
+  revision     the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land
+
+Flags:
+  -h, --help   help for blue
+
+Use "feov-record blue [command] --help" for more information about a command.
+
+$ feov-record bench help
+exit 0
+stdout:
+the bench — opinions, petition rulings, halt, certification. Never originates.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record bench [flags]
+  feov-record bench [command]
+
+Available Commands:
+  certify       the run-end certification statement ("what I would want a human to re-examine"): --file <statement>
+  friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file
+  halt          the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>
+  opinion       a ruling as an OPINION: --gap-id R3-2 --disposition carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]
+  petition-rule rule on a petition: --petitioner <seatId> --class <class> --as granted|denied --file <opinion> (a halt is its own verb)
+  register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  render        read-only projection refresh (any seat may invoke)
+
+Flags:
+  -h, --help   help for bench
+
+Use "feov-record bench [command] --help" for more information about a command.
+
+$ feov-record --version
+exit 0
+stdout:
+feov-record version 0.1.0
+
+$ feov-record nonsuch help
+exit 2
+stderr:
+feov-record: unknown command "nonsuch" for "feov-record"
+

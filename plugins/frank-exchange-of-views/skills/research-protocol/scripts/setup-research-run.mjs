@@ -15,8 +15,9 @@
 // qmd recall index when installed.
 import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
 // Stub files with a one-line header each — the write-guard workaround (agents append to
 // existing artifacts; the guard is filename-keyed and path-independent, run-3 experiment).
@@ -103,14 +104,24 @@ export function mirrorLaw(repoLawDir, runDir) {
 export function mirrorGapPatterns(memoryDir, runDir) {
   const out = join(runDir, 'inputs', 'red-gap-patterns.md')
   if (existsSync(out)) return { written: false, reason: 'already staged' }
-  if (!memoryDir || !existsSync(memoryDir)) return { written: false, reason: 'no memory dir' }
+  const dirs = (Array.isArray(memoryDir) ? memoryDir : [memoryDir]).filter((d) => d && existsSync(d))
+  if (!dirs.length) return { written: false, reason: 'no memory dir' }
   const parts = []
-  for (const f of readdirSync(memoryDir).filter((f) => f.endsWith('.md'))) {
-    parts.push(`\n<!-- mirrored from agent memory: ${f} -->\n` + readFileSync(join(memoryDir, f), 'utf8'))
+  const seen = new Set()
+  for (const dir of dirs) {
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md')) {
+      // First source wins: the PROMOTED corpus is authoritative, and raw accrual
+      // only contributes patterns that have not been promoted yet. A file present
+      // in both must not be staged twice — red would read the same pattern under
+      // two headings and could not tell which one the run is holding it to.
+      if (seen.has(f)) continue
+      seen.add(f)
+      parts.push(`\n<!-- mirrored from ${dir}: ${f} -->\n` + readFileSync(join(dir, f), 'utf8'))
+    }
   }
   if (!parts.length) return { written: false, reason: 'memory dir empty' }
   writeFileSync(out, '# red gap-pattern inventory (mirrored at run setup — read-only copy)\n' + parts.join('\n'))
-  return { written: true, files: parts.length }
+  return { written: true, files: parts.length, sources: dirs.length }
 }
 
 // W1.1 — pin validation (R1-7, judge-r2 ruling: "setup tooling must validate every pinned
@@ -142,6 +153,45 @@ export function writeRunLiveMarker(projectDir, runDir, pinnedPaths) {
 // Single command string with shell (not args + shell): Windows needs the shell for the
 // npm .cmd shim, and node deprecates args-array-with-shell (DEP0190, smoke finding #3).
 // bin is caller-controlled ('qmd' or an injected test double), never user input.
+// The record binary is checked BEFORE the run exists, not when a seat first
+// reaches for it. A missing or version-skewed feov-record discovered mid-round
+// costs a seat: the agent is already dispatched, its context is spent, and its
+// record for that round is simply absent — while the same failure at setup costs
+// nothing but a re-run. (The suite's own rule that plugins are never updated
+// mid-run exists for the same reason; this is its enforceable half.)
+//
+// Skew is reported, not just absence: the binary is released per plugin tag, so
+// a stale one on PATH silently writes events under an older contract.
+// The plugin manifest is the version authority — hardcoding it here would create
+// exactly the skew this preflight exists to catch.
+export function recordToolVersion(pluginJson = null) {
+  try {
+    const p = pluginJson || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '.claude-plugin', 'plugin.json')
+    return JSON.parse(readFileSync(p, 'utf8')).recordToolVersion || null
+  } catch { return null }
+}
+
+export function preflightRecordBinary(expectVersion, bin = 'feov-record', run = (b, a) => spawnSync(b, a)) {
+  const r = run(bin, ['--version'])
+  if (r.error || r.status !== 0) {
+    return {
+      ok: false,
+      reason: `${bin} not runnable (${r.error ? r.error.code || r.error.message : `exit ${r.status}`})`,
+      remedy: 'install it with /prosthetic-conscience:doctor --fix, or build it: ' +
+        '(cd plugins/frank-exchange-of-views/tools && go build ./cmd/feov-record)',
+    }
+  }
+  const got = (r.stdout || '').toString().trim().split(/\s+/).pop() || ''
+  if (expectVersion && got && got !== expectVersion) {
+    return {
+      ok: false,
+      reason: `${bin} is ${got}, the plugin expects ${expectVersion} — a skewed binary writes events under a different contract`,
+      remedy: 'refresh it with /prosthetic-conscience:doctor --fix (never mid-run)',
+    }
+  }
+  return { ok: true, version: got }
+}
+
 export function qmdRefresh(bin = 'qmd') {
   const sh = { shell: true }
   const probe = spawnSync(`${bin} --version`, sh)
@@ -172,16 +222,41 @@ function main() {
     process.exit(2)
   }
 
+  // Record-binary preflight, before ANY run state is created — but bound to
+  // INTENT rather than to mere availability. --bin-dir is how the operator says
+  // this run will record through the tool (it is the same value the engine takes
+  // as binDir), so a missing or skewed binary there is fatal: the run cannot do
+  // what it was asked to do. Without --bin-dir the run is not using the tool, and
+  // a hard failure would block legacy and no-record runs over a dependency they
+  // never take. Absence is still REPORTED, because silence would let a run
+  // intended to record start without the means to.
+  const binDir = arg('--bin-dir')
+  const recordBin = binDir ? join(binDir, 'feov-record') : 'feov-record'
+  const pre = preflightRecordBinary(recordToolVersion(), recordBin)
+  if (!pre.ok && binDir) {
+    console.error('run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:')
+    console.error(`  ${pre.reason}`)
+    console.error(`  remedy: ${pre.remedy}`)
+    console.error('  (failing here costs a re-run; failing mid-round costs a seat its whole record)')
+    process.exit(2)
+  }
+
   const skel = buildSkeleton(runDir, topic)
   const mirrors = purgeStaleMirrors(join(homedir(), '.cache', 'feov', 'run-mirror'))
   if (mirrors.purged) console.log(`  mirror purge: ${mirrors.purged} stale checkpoint mirror(s) removed`)
   const pinned = buildPinned(runDir, head, cites)
   // Red's agent memory accrues under the LAUNCHING session's project (smoke finding #2):
   // CLAUDE_PROJECT_DIR names it when set; cwd is the repo-local fallback; --memory-dir wins.
+  // TWO TIERS, promoted first. feov-memory/ is the tracked, reviewed corpus that
+  // binds seats; .claude/agent-memory/ is the harness's raw accrual path, which is
+  // machine-local and gitignored. Sourcing only from the latter is what nearly
+  // started red amnesiac at the 2026-07-18 cwd move — a corpus that survives on
+  // one disk is not a corpus. Clone the repo, get the memory.
   const memHome = (d) => join(d, '.claude', 'agent-memory', 'frank-exchange-of-views-red-auditor')
-  const memDir = arg('--memory-dir') ||
-    [process.env.CLAUDE_PROJECT_DIR, process.cwd()].filter(Boolean).map(memHome).find(existsSync)
-  const mirror = mirrorGapPatterns(memDir, runDir)
+  const promoted = join(process.cwd(), 'feov-memory', 'red-gap-patterns')
+  const raw = [process.env.CLAUDE_PROJECT_DIR, process.cwd()].filter(Boolean).map(memHome).find(existsSync)
+  const memDirs = arg('--memory-dir') ? [arg('--memory-dir')] : [promoted, raw]
+  const mirror = mirrorGapPatterns(memDirs, runDir)
   const law = mirrorLaw(join(process.cwd(), 'law'), runDir)
   const marker = writeRunLiveMarker(process.cwd(), runDir, cites.map((c) => c.split('@')[0]))
   const qmd = rest.includes('--no-qmd') ? { ran: false, reason: 'skipped (--no-qmd)' } : qmdRefresh()
@@ -191,8 +266,9 @@ function main() {
   console.log(`  NOT created (red-merge-born): red/ledger.md, red/archive.md, trajectories/board-telemetry.jsonl`)
   console.log(`  pinned: ${pinned.written ? `HEAD ${head} + ${cites.length} cited path(s)` : 'inputs/PINNED.md pre-staged (kept)'}`)
   console.log(`  pin validation: ${pv.skipped ? pv.skipped : `${pv.checked} cite(s) verified at their pins`}`)
-  console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} memory file(s) mirrored` : mirror.reason}`)
+  console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} pattern(s) mirrored from ${mirror.sources} source(s) (promoted corpus first)` : mirror.reason}`)
   console.log(`  law: ${law.written ? `${law.files} file(s) mirrored (statute > precedent > argument)` : law.reason}`)
+  console.log(`  record binary: ${pre.ok ? `${recordBin} ${pre.version || '(version unreported)'}` : `NOT AVAILABLE — ${pre.reason} (this run will not record through the tool; pass --bin-dir to require it)`}`)
   console.log(`  run-live marker: ${marker}`)
   console.log(`  qmd refresh: ${qmd.ran ? `update ${qmd.update ? 'ok' : 'FAILED'}, embed ${qmd.embed ? 'ok' : 'FAILED'}` : qmd.reason}`)
 }

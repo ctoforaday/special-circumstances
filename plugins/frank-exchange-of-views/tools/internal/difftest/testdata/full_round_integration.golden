@@ -1,0 +1,118 @@
+$ lens register --run {RUN} --seat-id red-lens-r1-L1
+exit 0
+stdout:
+registered red-lens-r1-L1 (shard nonce NONCE001)
+
+$ lens cite --run {RUN} --seat-id red-lens-r1-L1 --claim claim one --reference https://example.invalid/a --confidence high --access-date 2026-07-18
+exit 0
+stdout:
+citation recorded: https://example.invalid/a
+
+$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --label L1-F1 --severity medium --likelihood medium --impact high --location ## S2 --text citation does not support
+exit 0
+stdout:
+finding L1-F1 recorded
+
+$ lens register --run {RUN} --seat-id red-lens-r1-L5
+exit 0
+stdout:
+registered red-lens-r1-L5 (shard nonce NONCE002)
+
+$ lens finding --run {RUN} --seat-id red-lens-r1-L5 --label L5-F1 --severity high --likelihood high --impact high --location ## S4 --text a leap of faith
+exit 0
+stdout:
+finding L5-F1 recorded
+
+$ lens observe --run {RUN} --seat-id red-lens-r1-L5 --kind checked-held --label L5-N1 --text checked, held
+exit 0
+stdout:
+observation recorded (red-lens-r1-L5:observe:L5-N1) — awaiting merge disposition
+
+$ merge register --run {RUN} --seat-id red-merge-r1
+exit 0
+stdout:
+registered red-merge-r1 (shard nonce NONCE003)
+
+$ merge dispose --run {RUN} --seat-id red-merge-r1 --observation L1-F1 --as minted-as --into R1-1
+exit 0
+stdout:
+disposed L1-F1: minted-as
+
+$ merge dispose --run {RUN} --seat-id red-merge-r1 --observation L5-N1 --as banked
+exit 0
+stdout:
+disposed L5-N1: banked
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check refetch and diff --severity high --likelihood high --impact high --cx medium --location ## S2 --found-by L1,L5 --problem the cited source does not say this
+exit 0
+stdout:
+minted R1-1
+
+$ merge position --run {RUN} --seat-id red-merge-r1 --text round one: FAIL
+exit 0
+stdout:
+position recorded
+
+$ merge verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
+exit 0
+stdout:
+verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
+
+═══ EVENTS ═══
+-- events-red-lens-r1-L1-NONCE001.jsonl
+{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{},"round":1,"seatId":"red-lens-r1-L1","seq":0,"type":"register"}
+{"key":"red-lens-r1-L1:cite:https://example.invalid/a","nonce":"NONCE001","payload":{"access_date":"2026-07-18","claim":"claim one","confidence":"high","reference":"https://example.invalid/a"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"type":"cite"}
+{"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"impact":"high","label":"L1-F1","likelihood":"medium","location":"## S2","severity":"medium","text":"citation does not support"},"round":1,"seatId":"red-lens-r1-L1","seq":2,"type":"finding"}
+-- events-red-lens-r1-L5-NONCE002.jsonl
+{"key":"red-lens-r1-L5:register:NONCE002","nonce":"NONCE002","payload":{},"round":1,"seatId":"red-lens-r1-L5","seq":0,"type":"register"}
+{"key":"red-lens-r1-L5:finding:L5-F1","nonce":"NONCE002","payload":{"impact":"high","label":"L5-F1","likelihood":"high","location":"## S4","severity":"high","text":"a leap of faith"},"round":1,"seatId":"red-lens-r1-L5","seq":1,"type":"finding"}
+{"key":"red-lens-r1-L5:observe:L5-N1","nonce":"NONCE002","payload":{"kind":"checked-held","label":"L5-N1","text":"checked, held"},"round":1,"seatId":"red-lens-r1-L5","seq":2,"type":"observe"}
+-- events-red-merge-r1-NONCE003.jsonl
+{"key":"red-merge-r1:register:NONCE003","nonce":"NONCE003","payload":{},"round":1,"seatId":"red-merge-r1","seq":0,"type":"register"}
+{"key":"red-merge-r1:dispose:L1-F1","nonce":"NONCE003","payload":{"disposition":"minted-as","into":"R1-1","observation":"L1-F1"},"round":1,"seatId":"red-merge-r1","seq":1,"type":"dispose"}
+{"key":"red-merge-r1:dispose:L5-N1","nonce":"NONCE003","payload":{"disposition":"banked","observation":"L5-N1"},"round":1,"seatId":"red-merge-r1","seq":2,"type":"dispose"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE003","payload":{"acceptance_check":"refetch and diff","class":"citation-drift","class_new":false,"complexity_cost":"medium","found_by":["L1","L5"],"gap_id":"R1-1","impact":"high","likelihood":"high","location":"## S2","problem":"the cited source does not say this","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"type":"mint"}
+{"key":"red-merge-r1:position","nonce":"NONCE003","payload":{"text":"round one: FAIL"},"round":1,"seatId":"red-merge-r1","seq":4,"type":"position"}
+{"key":"red-merge-r1:verdict","nonce":"NONCE003","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":5,"type":"verdict"}
+
+═══ RENDERS ═══
+-- CHANGELOG.md
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- archive.md
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- board-telemetry.jsonl
+{"round":1,"mapping_version":"v1","open_count":1,"max_severity":"high","new_mint":{"count":1,"by_severity":{"high":1}},"mass":9,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
+
+-- citation-ledger.md
+# red citation-ledger — RENDERED PROJECTION
+claim one | https://example.invalid/a | high | r1 | 2026-07-18
+
+-- debate.md
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Round 1
+
+### RED
+round one: FAIL
+
+-- ledger.md
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — the cited source does not say this
+## S2
+severity high | high x high | cx medium | class citation-drift | found_by L1,L5
+required_fix: 
+acceptance_check: refetch and diff
+
+## CLOSURE INDEX
+
+
+
+## undisposed lens observations (every observation demands a merge disposition)
+
+- red-lens-r1-L5 L5-F1: a leap of faith
+

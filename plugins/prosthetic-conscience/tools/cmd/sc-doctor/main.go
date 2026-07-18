@@ -31,6 +31,15 @@ type requirements struct {
 type binStatus struct {
 	Name  string
 	Built bool
+	// Plugin/Root/Version identify WHICH plugin owns this binary. The doctor used
+	// to know only its own: prosthetic-conscience shipped the only Go binaries, so
+	// "the binaries" and "our binaries" were the same set. frank-exchange-of-views
+	// now ships feov-record, and a seat that reaches for a record tool nobody
+	// installed fails MID-ROUND — the expensive failure this preflight exists to
+	// move to setup time.
+	Plugin  string
+	Root    string
+	Version string
 }
 
 func exeSuffix() string {
@@ -40,8 +49,9 @@ func exeSuffix() string {
 	return ""
 }
 
-// hookBinaries lists every command under tools/cmd and whether bin/<name> exists.
-func hookBinaries(root string) []binStatus {
+// binariesOf lists every command under a plugin root's tools/cmd and whether
+// bin/<name> exists.
+func binariesOf(root, plugin, version string) []binStatus {
 	entries, err := os.ReadDir(filepath.Join(root, "tools", "cmd"))
 	if err != nil {
 		return nil
@@ -53,7 +63,40 @@ func hookBinaries(root string) []binStatus {
 		}
 		bin := filepath.Join(root, "bin", e.Name()+exeSuffix())
 		_, err := os.Stat(bin)
-		out = append(out, binStatus{Name: e.Name(), Built: err == nil})
+		out = append(out, binStatus{
+			Name: e.Name(), Built: err == nil,
+			Plugin: plugin, Root: root, Version: version,
+		})
+	}
+	return out
+}
+
+// hookBinaries lists this plugin's own commands.
+func hookBinaries(root string) []binStatus {
+	return binariesOf(root, filepath.Base(filepath.Dir(root)), filepath.Base(root))
+}
+
+// siblingBinaries walks the marketplace cache for every OTHER installed SC plugin
+// that ships a Go module, so `--fix` provisions the whole suite rather than only
+// the plugin the doctor happens to live in. Each plugin owns its own bin/ and its
+// own release tag; nothing here assumes a shared one.
+func siblingBinaries(root string) []binStatus {
+	marketDir := filepath.Dir(filepath.Dir(root))
+	self := filepath.Base(filepath.Dir(root))
+	entries, err := os.ReadDir(marketDir)
+	if err != nil {
+		return nil
+	}
+	var out []binStatus
+	for _, e := range entries {
+		if !e.IsDir() || e.Name() == self {
+			continue
+		}
+		v := newestVersionDir(filepath.Join(marketDir, e.Name()))
+		if v == "" {
+			continue
+		}
+		out = append(out, binariesOf(filepath.Join(marketDir, e.Name(), v), e.Name(), v)...)
 	}
 	return out
 }
@@ -232,18 +275,31 @@ func verifySHA256(sums, asset, digest string) bool {
 
 // fetchRelease downloads the CI-built asset for this platform, verifies its
 // checksum against the release SHA256SUMS, and installs it into bin/.
-func fetchRelease(root, name string) error {
+func fetchRelease(b binStatus) error {
 	if !toolchain.Present("gh") {
 		return fmt.Errorf("gh not on PATH")
 	}
+	root, name := b.Root, b.Name
 	asset := fmt.Sprintf("%s_%s_%s%s", name, runtime.GOOS, runtime.GOARCH, exeSuffix())
+	// The release is PINNED to the owning plugin's tag. Falling back to "latest"
+	// would resolve to whichever plugin tagged most recently, whose assets do not
+	// contain this binary at all — a download failure that reads like a network
+	// problem rather than the version confusion it is.
+	tag := ""
+	if b.Plugin != "" && b.Version != "" {
+		tag = fmt.Sprintf("%s--v%s", b.Plugin, b.Version)
+	}
 	tmp, err := os.MkdirTemp("", "sc-doctor-fetch-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	dl := exec.Command("gh", "release", "download",
-		"--repo", releaseRepo, "--pattern", asset, "--pattern", "SHA256SUMS", "--dir", tmp)
+	args := []string{"release", "download"}
+	if tag != "" {
+		args = append(args, tag)
+	}
+	args = append(args, "--repo", releaseRepo, "--pattern", asset, "--pattern", "SHA256SUMS", "--dir", tmp)
+	dl := exec.Command("gh", args...)
 	if msg, err := dl.CombinedOutput(); err != nil {
 		return fmt.Errorf("release download failed: %s", strings.TrimSpace(string(msg)))
 	}
@@ -268,21 +324,21 @@ func fetchRelease(root, name string) error {
 
 // fix provisions every missing binary: CI-built release asset first (checksum-
 // verified); a from-source build is only the dev-convenience fallback.
-func fix(root string, bins []binStatus) []string {
+func fix(bins []binStatus) []string {
 	var report []string
 	goPresent := toolchain.Present("go")
 	for _, b := range bins {
 		if b.Built {
 			continue
 		}
-		fetchErr := fetchRelease(root, b.Name)
+		fetchErr := fetchRelease(b)
 		if fetchErr == nil {
-			report = append(report, fmt.Sprintf("%s: fetched CI-built release asset (checksum verified)", b.Name))
+			report = append(report, fmt.Sprintf("%s (%s): fetched CI-built release asset (checksum verified)", b.Name, b.Plugin))
 			continue
 		}
 		if goPresent {
-			out := filepath.Join(root, "bin", b.Name+exeSuffix())
-			cmd := exec.Command("go", "build", "-C", filepath.Join(root, "tools"), "-o", out, "./cmd/"+b.Name)
+			out := filepath.Join(b.Root, "bin", b.Name+exeSuffix())
+			cmd := exec.Command("go", "build", "-C", filepath.Join(b.Root, "tools"), "-o", out, "./cmd/"+b.Name)
 			if msg, err := cmd.CombinedOutput(); err != nil {
 				report = append(report, fmt.Sprintf("%s: fetch failed (%v); BUILD FAILED: %s", b.Name, fetchErr, strings.TrimSpace(string(msg))))
 			} else {
@@ -290,7 +346,7 @@ func fix(root string, bins []binStatus) []string {
 			}
 		} else {
 			report = append(report, fmt.Sprintf("%s: fetch failed (%v) and Go not found — install gh or Go, or place %s_%s_%s%s into %s manually",
-				b.Name, fetchErr, b.Name, runtime.GOOS, runtime.GOARCH, exeSuffix(), filepath.Join(root, "bin")))
+				b.Name, fetchErr, b.Name, runtime.GOOS, runtime.GOARCH, exeSuffix(), filepath.Join(b.Root, "bin")))
 		}
 	}
 	return report
@@ -328,13 +384,17 @@ func main() {
 	}
 
 	tools := toolchain.Probe(req.Tools)
-	bins := hookBinaries(root)
+	// Own binaries AND every sibling plugin's: the suite is provisioned as a
+	// whole, because a seat blocked by another plugin's missing binary fails just
+	// as hard as one blocked by ours.
+	allBins := func() []binStatus { return append(hookBinaries(root), siblingBinaries(root)...) }
+	bins := allBins()
 
 	if *doFix {
-		for _, line := range fix(root, bins) {
+		for _, line := range fix(bins) {
 			fmt.Println(line)
 		}
-		bins = hookBinaries(root) // re-probe
+		bins = allBins() // re-probe
 	}
 
 	fmt.Print(table(tools, bins))

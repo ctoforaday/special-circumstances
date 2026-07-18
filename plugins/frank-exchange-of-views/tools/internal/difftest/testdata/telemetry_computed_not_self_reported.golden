@@ -1,0 +1,117 @@
+$ merge register --run {RUN} --seat-id red-merge-r1
+exit 0
+stdout:
+registered red-merge-r1 (shard nonce NONCE001)
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check a --severity high --likelihood high --impact high --cx medium --problem first
+exit 0
+stdout:
+minted R1-1
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check b --severity low --likelihood trivial --impact low --cx low --problem second
+exit 0
+stdout:
+minted R1-2
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check c --severity medium --likelihood certain --impact medium --problem third
+exit 0
+stdout:
+minted R1-3
+
+$ merge close --run {RUN} --seat-id red-merge-r1 --id R1-2 --anchor-seat L4 --anchor-tool Read --anchor-target report.md#S3
+exit 0
+stdout:
+closed R1-2 (closed)
+
+$ merge register --run {RUN} --seat-id red-merge-r2
+exit 0
+stdout:
+registered red-merge-r2 (shard nonce NONCE002)
+
+$ merge mint --run {RUN} --seat-id red-merge-r2 --class citation-drift --check d --severity medium --likelihood medium --impact low --supersedes R1-1 --problem successor, shrunk
+exit 0
+stdout:
+minted R2-1
+
+$ merge mint --run {RUN} --seat-id red-merge-r2 --class scope-creep --check e --severity high --likelihood high --impact high --supersedes R1-3 --problem successor, grown
+exit 0
+stdout:
+minted R2-2
+
+$ merge close --run {RUN} --seat-id red-merge-r2 --id R1-1 --anchor-seat L5 --anchor-tool Grep --anchor-target report.md
+exit 0
+stdout:
+closed R1-1 (closed)
+
+$ merge render --run {RUN}
+exit 0
+stdout:
+{TOOL}: rendered to {RUN}/records/render-shadow (3 open, 2 closed)
+
+═══ EVENTS ═══
+-- events-red-merge-r1-NONCE001.jsonl
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{},"round":1,"seatId":"red-merge-r1","seq":0,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"citation-drift","class_new":false,"complexity_cost":"medium","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"first","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"type":"mint"}
+{"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"b","class":"scope-creep","class_new":false,"complexity_cost":"low","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"trivial","problem":"second","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"type":"mint"}
+{"key":"red-merge-r1:mint:R1-3","nonce":"NONCE001","payload":{"acceptance_check":"c","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-3","impact":"medium","likelihood":"certain","problem":"third","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"type":"mint"}
+{"key":"red-merge-r1:close:R1-2","nonce":"NONCE001","payload":{"anchor_seat":"L4","anchor_target":"report.md#S3","anchor_tool":"Read","closure_class":"closed","gap_id":"R1-2"},"round":1,"seatId":"red-merge-r1","seq":4,"type":"close"}
+-- events-red-merge-r2-NONCE002.jsonl
+{"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{},"round":2,"seatId":"red-merge-r2","seq":0,"type":"register"}
+{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE002","payload":{"acceptance_check":"d","class":"citation-drift","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"low","likelihood":"medium","problem":"successor, shrunk","severity":"medium","supersedes":["R1-1"]},"round":2,"seatId":"red-merge-r2","seq":1,"type":"mint"}
+{"key":"red-merge-r2:mint:R2-2","nonce":"NONCE002","payload":{"acceptance_check":"e","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R2-2","impact":"high","likelihood":"high","problem":"successor, grown","severity":"high","supersedes":["R1-3"]},"round":2,"seatId":"red-merge-r2","seq":2,"type":"mint"}
+{"key":"red-merge-r2:close:R1-1","nonce":"NONCE002","payload":{"anchor_seat":"L5","anchor_target":"report.md","anchor_tool":"Grep","closure_class":"closed","gap_id":"R1-1"},"round":2,"seatId":"red-merge-r2","seq":3,"type":"close"}
+
+═══ RENDERS ═══
+-- CHANGELOG.md
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- archive.md
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+## R1-1 — closed
+first
+verification anchor: L5 | Grep | report.md
+
+## R1-2 — closed
+second
+verification anchor: L4 | Read | report.md#S3
+
+-- board-telemetry.jsonl
+{"round":1,"mapping_version":"v1","open_count":2,"max_severity":"high","new_mint":{"count":3,"by_severity":{"high":1,"low":1,"medium":1}},"mass":16,"repair_regression":{"closures":1,"lineage_mints":0,"ratio":0},"edge_deltas":{"down_mass":0,"up_mass":0}}
+{"round":2,"mapping_version":"v1","open_count":3,"max_severity":"high","new_mint":{"count":2,"by_severity":{"medium":1,"high":1}},"mass":18,"repair_regression":{"closures":1,"lineage_mints":2,"ratio":2},"edge_deltas":{"down_mass":7,"up_mass":2}}
+
+-- citation-ledger.md
+# red citation-ledger — RENDERED PROJECTION
+
+-- debate.md
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- ledger.md
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (3)
+
+### R1-3 — third
+
+severity medium | certain x medium | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: c
+
+### R2-1 — successor, shrunk
+
+severity medium | medium x low | cx undefined | class citation-drift | supersedes R1-1
+required_fix: 
+acceptance_check: d
+
+### R2-2 — successor, grown
+
+severity high | high x high | cx undefined | class scope-creep | supersedes R1-3
+required_fix: 
+acceptance_check: e
+
+## CLOSURE INDEX
+
+R1-1 | closed | first | -
+R1-2 | closed | second | -
+
+

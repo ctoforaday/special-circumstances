@@ -8,7 +8,6 @@
 // Usage: node record-parity-check.mjs <runDir>
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { render } from './lib/record.mjs'
 
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null)
 const idRe = /R\d+-\d+/g
@@ -42,8 +41,22 @@ export function extractTelemetryFacts(text) {
 }
 
 export function compare(runDir) {
-  render(runDir) // fresh shadow
+  // READERS READ. This script used to call the mjs record library's render() to
+  // refresh the shadow first; it no longer does, and the point is architectural
+  // rather than incidental. The writer is now the compiled feov-record binary,
+  // and every seat verb renders on mutation, so the shadow on disk is already
+  // current — re-rendering here would mean a reader carrying a dependency on
+  // whichever implementation happens to own the write path this month. The
+  // JSONL and its projections are the interface; that was the whole point of
+  // the format.
   const shadow = join(runDir, 'records', 'render-shadow')
+  if (!existsSync(shadow)) {
+    // Distinguish "no records yet" from "parity passed with nothing to compare":
+    // silently comparing two absent things is how a gate reports success while
+    // measuring nothing.
+    throw new Error(`record-parity-check: no shadow renders at ${shadow} — the run has no records/ yet, ` +
+      `or no seat has written through feov-record. A parity gate with nothing to compare is not a passing gate.`)
+  }
   const divergences = []
   const push = (artifact, what, hand, sh) => divergences.push(`${artifact}: ${what} — hand=${hand} shadow=${sh}`)
 

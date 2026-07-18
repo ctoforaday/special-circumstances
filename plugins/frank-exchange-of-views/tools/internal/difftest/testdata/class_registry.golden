@@ -1,0 +1,74 @@
+$ merge register --run {RUN} --seat-id red-merge-r1
+exit 0
+stdout:
+registered red-merge-r1 (shard nonce NONCE001)
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class invented-class --check x --problem p
+exit 2
+stderr:
+feov-record: merge: record: unknown class invented-class — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or mint the class with --class-new (definition + neighbor + distinguisher required)
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --check x --problem p
+exit 2
+stderr:
+feov-record: merge: record: --class-new requires --definition, --neighbor <existing-slug>, and --distinguisher (the tie-break question)
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor not-a-real-neighbor --distinguisher was the act repeated? --check x --problem p
+exit 2
+stderr:
+feov-record: merge: record: --neighbor not-a-real-neighbor is not a known class
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor citation-drift --distinguisher was the act repeated? --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
+exit 0
+stdout:
+minted R1-1
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check same class again --severity low --likelihood low --impact low --problem extension accepted
+exit 0
+stdout:
+minted R1-2
+
+═══ EVENTS ═══
+-- events-red-merge-r1-NONCE001.jsonl
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{},"round":1,"seatId":"red-merge-r1","seq":0,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"compare anchors","class":"attestation-inflation","class_new":true,"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"medium","neighbor":"citation-drift","problem":"inflation","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"type":"mint"}
+{"key":"red-merge-r1:class-new:#1","nonce":"NONCE001","payload":{"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","neighbor":"citation-drift","slug":"attestation-inflation"},"round":1,"seatId":"red-merge-r1","seq":2,"type":"class-new"}
+{"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"same class again","class":"attestation-inflation","class_new":false,"found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"low","problem":"extension accepted","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"type":"mint"}
+
+═══ RENDERS ═══
+-- CHANGELOG.md
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- archive.md
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- board-telemetry.jsonl
+{"round":1,"mapping_version":"v1","open_count":2,"max_severity":"medium","new_mint":{"count":2,"by_severity":{"medium":1,"low":1}},"mass":7,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
+
+-- citation-ledger.md
+# red citation-ledger — RENDERED PROJECTION
+
+-- debate.md
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- ledger.md
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (2)
+
+### R1-1 — inflation
+
+severity medium | medium x high | cx undefined | class attestation-inflation
+required_fix: 
+acceptance_check: compare anchors
+
+### R1-2 — extension accepted
+
+severity low | low x low | cx undefined | class attestation-inflation
+required_fix: 
+acceptance_check: same class again
+
+## CLOSURE INDEX
+
+
+

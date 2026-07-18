@@ -1,0 +1,20 @@
+$ bench register --run {RUN} --seat-id judge-r2
+exit 0
+stdout:
+registered judge-r2 (shard nonce NONCE001)
+
+$ bench opinion --run {RUN} --seat-id judge-r2 --gap-id R2-1 --disposition closed
+exit 2
+stderr:
+feov-record: bench: record: opinion requires --principle (opinions, not dispositions)
+
+$ bench opinion --run {RUN} --seat-id judge-r2 --gap-id R2-1 --disposition closed --principle p --tension t
+exit 2
+stderr:
+feov-record: bench: record: opinion requires --review-flag (opinions, not dispositions)
+
+═══ EVENTS ═══
+-- events-judge-r2-NONCE001.jsonl
+{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{},"round":2,"seatId":"judge-r2","seq":0,"type":"register"}
+
+═══ RENDERS ═══

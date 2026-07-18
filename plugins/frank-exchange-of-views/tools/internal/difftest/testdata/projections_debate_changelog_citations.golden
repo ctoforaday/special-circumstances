@@ -1,0 +1,147 @@
+$ merge register --run {RUN} --seat-id red-merge-r1
+exit 0
+stdout:
+registered red-merge-r1 (shard nonce NONCE001)
+
+$ merge position --run {RUN} --seat-id red-merge-r1 --file {RUN}/red.md
+exit 0
+stdout:
+position recorded
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check x --severity medium --likelihood medium --impact medium --problem docketed
+exit 0
+stdout:
+minted R1-1
+
+$ merge closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --text red's closing
+exit 0
+stdout:
+closing filed for R1-1
+
+$ blue position --run {RUN} --seat-id blue-respond-r1 --file {RUN}/blue.md
+exit 0
+stdout:
+position recorded
+
+$ blue closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --text blue's closing
+exit 0
+stdout:
+closing filed for R1-1
+
+$ blue revision --run {RUN} --seat-id blue-respond-r1 --text repairs landed --claim-count 88
+exit 0
+stdout:
+revision recorded — the round is on the record
+
+$ blue manifest-row --run {RUN} --seat-id blue-respond-r1 --id R1-1 --row figures recomputed; check run: pass
+exit 0
+stdout:
+manifest row recorded for R1-1
+
+$ blue dispute --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --evidence the harm needs two failures
+exit 0
+stdout:
+dispute filed on R1-1.likelihood
+
+$ blue confidence --run {RUN} --seat-id blue-respond-r1 --label C7 --grade medium
+exit 0
+stdout:
+confidence recorded for C7
+
+$ lens cite --run {RUN} --seat-id red-lens-r1-L1 --claim throughput doubled --reference https://example.invalid/paper --confidence high --access-date 2026-07-18
+exit 0
+stdout:
+citation recorded: https://example.invalid/paper
+
+$ bench register --run {RUN} --seat-id judge-r1
+exit 0
+stdout:
+registered judge-r1 (shard nonce NONCE004)
+
+$ bench opinion --run {RUN} --seat-id judge-r1 --gap-id R1-1 --disposition carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --text the rationale body
+exit 0
+stdout:
+opinion recorded: R1-1 carried
+
+$ bench certify --run {RUN} --seat-id judge-r1 --text what a human should re-examine
+exit 0
+stdout:
+certification recorded
+
+═══ EVENTS ═══
+-- events-blue-respond-r1-NONCE002.jsonl
+{"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{},"round":1,"seatId":"blue-respond-r1","seq":0,"type":"register"}
+{"key":"blue-respond-r1:position","nonce":"NONCE002","payload":{"text":"blue's round position\n"},"round":1,"seatId":"blue-respond-r1","seq":1,"type":"position"}
+{"key":"blue-respond-r1:closing:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","text":"blue's closing"},"round":1,"seatId":"blue-respond-r1","seq":2,"type":"closing"}
+{"key":"blue-respond-r1:revision","nonce":"NONCE002","payload":{"claim_count":88,"text":"repairs landed"},"round":1,"seatId":"blue-respond-r1","seq":3,"type":"revision"}
+{"key":"blue-respond-r1:manifest-row:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seatId":"blue-respond-r1","seq":4,"type":"manifest-row"}
+{"key":"blue-respond-r1:dispute:R1-1","nonce":"NONCE002","payload":{"dimension":"likelihood","evidence":"the harm needs two failures","gap_id":"R1-1","proposed":"low"},"round":1,"seatId":"blue-respond-r1","seq":5,"type":"dispute"}
+{"key":"blue-respond-r1:confidence:C7","nonce":"NONCE002","payload":{"grade":"medium","label":"C7"},"round":1,"seatId":"blue-respond-r1","seq":6,"type":"confidence"}
+-- events-judge-r1-NONCE004.jsonl
+{"key":"judge-r1:register:NONCE004","nonce":"NONCE004","payload":{},"round":1,"seatId":"judge-r1","seq":0,"type":"register"}
+{"key":"judge-r1:opinion:R1-1","nonce":"NONCE004","payload":{"disposition":"carried","gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","tension":"thoroughness vs cost"},"round":1,"seatId":"judge-r1","seq":1,"type":"opinion"}
+{"key":"judge-r1:certify:#1","nonce":"NONCE004","payload":{"statement":"what a human should re-examine"},"round":1,"seatId":"judge-r1","seq":2,"type":"certify"}
+-- events-red-lens-r1-L1-NONCE003.jsonl
+{"key":"red-lens-r1-L1:register:NONCE003","nonce":"NONCE003","payload":{},"round":1,"seatId":"red-lens-r1-L1","seq":0,"type":"register"}
+{"key":"red-lens-r1-L1:cite:https://example.invalid/paper","nonce":"NONCE003","payload":{"access_date":"2026-07-18","claim":"throughput doubled","confidence":"high","reference":"https://example.invalid/paper"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"type":"cite"}
+-- events-red-merge-r1-NONCE001.jsonl
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{},"round":1,"seatId":"red-merge-r1","seq":0,"type":"register"}
+{"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position\n"},"round":1,"seatId":"red-merge-r1","seq":1,"type":"position"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"type":"mint"}
+{"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","text":"red's closing"},"round":1,"seatId":"red-merge-r1","seq":3,"type":"closing"}
+
+═══ RENDERS ═══
+-- CHANGELOG.md
+# blue CHANGELOG — RENDERED PROJECTION
+
+## Round 1 (claim_count 88)
+repairs landed
+
+-- archive.md
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- board-telemetry.jsonl
+{"round":1,"mapping_version":"v1","open_count":1,"max_severity":"medium","new_mint":{"count":1,"by_severity":{"medium":1}},"mass":4,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
+
+-- citation-ledger.md
+# red citation-ledger — RENDERED PROJECTION
+throughput doubled | https://example.invalid/paper | high | r1 | 2026-07-18
+
+-- debate.md
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Round 1
+
+### RED
+red's round position
+
+
+### RED CLOSING (round 1) — R1-1
+red's closing
+
+### BLUE
+blue's round position
+
+
+### BLUE CLOSING (round 1) — R1-1
+blue's closing
+
+### LEAD
+- R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
+the rationale body
+
+-- ledger.md
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — docketed
+
+severity medium | medium x medium | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: x
+
+## CLOSURE INDEX
+
+
+

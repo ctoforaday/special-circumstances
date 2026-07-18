@@ -1,0 +1,19 @@
+prompt sha256: 0c192644b2807cd0e083c26da8081a8419194dd002eeacf50954555deba0c236
+
+Blue synthesis for topic: "the seat prompt contract".
+PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
+Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize, and never drop substantive content — structural merge (append + dedup), not a free-form rewrite.
+CLAIM PROVENANCE (cheap manifest): while merging, tag every claim that appears in exactly ONE lane's draft with its lane marker (e.g.
+"[minority: lane-2/practitioner]") — single-lane claims are minority reports red must weigh differently from convergent ones; the set-difference exists transiently in this merge and must not be discarded.
+Lane footnote labels arrive lane-prefixed; when two lanes cite the SAME source, merge to one label and note both lanes.
+THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authored catechism DEFECTIVE, 6/7 answers carrying defects from synthesis-by-recall; synthesis surfaces belong inside the audited document): write "## The Catechism" INTO research/2026-01-01_golden/blue/report.md at round 0 per references/catechism_template.md — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline.
+It lives inside red's mandatory full re-read and is audited every round like any other claim surface.
+Follow the report conventions (semantic footnotes with access dates).
+CLAIM UNIT (pinned — two honest merges differed 2x without it): claim_count = the number of FOOTNOTED declarative claims (a sentence carrying at least one footnote marker counts once; unfootnoted prose counts zero; a multi-footnote sentence still counts once).
+Start research/2026-01-01_golden/blue/CHANGELOG.md with a Round 0 entry describing the synthesis and stating claim_count (the tracked copy of the envelope figure). round_record_appended: set TRUE only after the CHANGELOG Round 0 entry exists on disk.
+PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-synthesize).
+FRICTION: if you report any friction, ALSO append each entry to research/2026-01-01_golden/friction.md as one attributed line ("blue-synthesize: ...") in addition to the envelope's friction field, so the complaint survives even if a later phase aborts.
+SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
+Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
+KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
+Return the blue envelope.

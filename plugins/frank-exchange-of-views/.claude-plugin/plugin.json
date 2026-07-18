@@ -7,6 +7,15 @@
     "name": "Gregory Block"
   },
   "license": "MIT",
-  "dependencies": ["prosthetic-conscience"],
-  "keywords": ["research", "red-team", "blue-team", "debate", "verification"]
+  "dependencies": [
+    "prosthetic-conscience"
+  ],
+  "keywords": [
+    "research",
+    "red-team",
+    "blue-team",
+    "debate",
+    "verification"
+  ],
+  "recordToolVersion": "0.1.0"
 }

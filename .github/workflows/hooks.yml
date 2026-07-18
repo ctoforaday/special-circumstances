@@ -26,6 +26,55 @@ jobs:
         shell: bash
       - run: go test ./...
 
+  feov-record:
+    # The FEOV seat-side record runtime (plans/record-tool.md R2g). Its own Go
+    # module, so the prosthetic-conscience job's working-directory does not reach
+    # it. -race is the point of the port being Go at all: the mjs implementation
+    # could only spawn processes and check that nothing was visibly lost, which
+    # passes right up until an interleaving the test did not happen to hit.
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: plugins/frank-exchange-of-views/tools
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: go vet ./...
+      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+        shell: bash
+      - run: go test ./...
+      # Race detection needs cgo, which needs a C toolchain; both CI images ship
+      # one, so this leg runs where a developer box may not be able to.
+      - run: go test -race ./internal/record/
+        env:
+          CGO_ENABLED: "1"
+
+  goldens:
+    # Goldens are a contract, so STALENESS IS A FAILURE: a behaviour change that
+    # was never re-recorded must not merge quietly. This runs the same command a
+    # developer runs, without --update, across both languages.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: node scripts/golden.mjs
+
   debate-sim:
     # Zero-token regression suite for the FEOV debate engine: the simulator stubs the
     # Workflow runtime's agent() contract and drives every branch of debate.js.
@@ -38,7 +87,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs plugins/frank-exchange-of-views/tests/simulator/cost-audit.test.mjs plugins/frank-exchange-of-views/tests/simulator/run-scripts.test.mjs plugins/frank-exchange-of-views/tests/simulator/run-dashboard.test.mjs
+      # Files are enumerated, never globbed: `node --test <dir>` fails on Windows,
+      # and an explicit list is the only thing that keeps a new suite from being
+      # silently uncovered. record.test.mjs went unlisted for its whole life and
+      # never ran in CI once — the reader suite that replaced it is listed here.
+      - run: node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs plugins/frank-exchange-of-views/tests/simulator/cost-audit.test.mjs plugins/frank-exchange-of-views/tests/simulator/run-scripts.test.mjs plugins/frank-exchange-of-views/tests/simulator/run-dashboard.test.mjs plugins/frank-exchange-of-views/tests/simulator/record-readers.test.mjs plugins/frank-exchange-of-views/tests/simulator/prompts.test.mjs
       - name: Validate all tracked JSON (manifests break silently)
         run: node .github/validate-json.mjs
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
@@ -61,18 +114,43 @@ jobs:
           echo "all hook commands exit 0 with the guard warning on an empty plugin root"
 
   release:
-    # Cross-compile + publish binaries when a plugin version tag is pushed (e.g. prosthetic-conscience--v0.1.0).
+    # Cross-compile + publish binaries when a plugin version tag is pushed.
+    #
+    # The tag NAMES THE PLUGIN: <plugin>--v<version>, e.g.
+    # prosthetic-conscience--v0.9.0 or frank-exchange-of-views--v0.9.10. This job
+    # used to be hardcoded to prosthetic-conscience through the workflow-level
+    # working-directory, which meant a FEOV tag would have built PC's binaries
+    # and published them under FEOV's release — silently, since the build would
+    # succeed. Deriving the plugin from the tag is what makes a second plugin
+    # with a binary possible at all.
     if: startsWith(github.ref, 'refs/tags/') && contains(github.ref, '--v')
-    needs: test
+    needs: [test, feov-record]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
+      - name: Resolve the plugin from the tag
+        id: plugin
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          plugin="${tag%%--v*}"
+          dir="plugins/${plugin}/tools"
+          if [ ! -f "${dir}/go.mod" ]; then
+            echo "tag ${tag} names plugin '${plugin}', which has no Go module at ${dir}"
+            echo "(a plugin with no binaries should not carry a version tag that triggers a release)"
+            exit 1
+          fi
+          echo "plugin=${plugin}" >> "$GITHUB_OUTPUT"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
       - name: Cross-compile
+        working-directory: ${{ steps.plugin.outputs.dir }}
         run: |
           mkdir -p dist
           for cmd in cmd/*/; do
@@ -80,12 +158,11 @@ jobs:
             for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
               os="${pair%/*}"; arch="${pair#*/}"; ext=""
               [ "$os" = "windows" ] && ext=".exe"
-              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" \
-                -o "dist/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w"                 -o "dist/${name}_${os}_${arch}${ext}" "./cmd/${name}"
             done
           done
           cd dist && sha256sum * > SHA256SUMS
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: plugins/prosthetic-conscience/tools/dist/*
+          files: ${{ steps.plugin.outputs.dir }}/dist/*
