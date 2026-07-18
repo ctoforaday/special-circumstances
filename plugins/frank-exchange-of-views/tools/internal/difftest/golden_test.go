@@ -2,7 +2,6 @@ package difftest
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +29,12 @@ import (
 //
 //	go test ./internal/difftest -run TestGolden -update
 
-var update = flag.Bool("update", false, "regenerate golden files (a deliberate semantics change)")
+// Updating is driven by an ENV VAR rather than a test flag so that one command
+// can drive both languages: a Go test flag is package-scoped (passing -update to
+// a package that does not declare it is a hard error), while UPDATE_GOLDENS=1
+// reaches every suite in the repo, Go and mjs alike. scripts/golden.mjs relies
+// on that.
+var update = os.Getenv("UPDATE_GOLDENS") == "1"
 
 func TestGolden(t *testing.T) {
 	bin := buildBinary(t)
@@ -79,7 +83,7 @@ func TestGolden(t *testing.T) {
 func compareGolden(t *testing.T, name, got string) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
-	if *update {
+	if update {
 		if err := os.MkdirAll("testdata", 0o755); err != nil {
 			t.Fatal(err)
 		}
