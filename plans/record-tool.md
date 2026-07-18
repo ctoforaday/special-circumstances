@@ -1,6 +1,6 @@
 # The record tool: a record-management library + bespoke per-seat CLIs
 
-Rev 4 (2026-07-18) — post plan-audit FAIL #2 (six gaps, two empirically grounded
+Rev 5 (2026-07-18) — post plan-audit FAIL #3 (seven gaps: prose-verb dedup, shadow renders, render inventory, CHANGELOG fate, bench friction, setup accounting, render locus). Rev 4 was post FAIL #2 (six gaps, two empirically grounded
 in the run-5 corpus: 8 duplicate seat dispatches in 58 starts; transcripts carry
 no seat label). Rev 3 was post FAIL #1 (eight gaps). Origin:
 the E0.5 convergence (four audits acquitted the seats, indicted the record) +
@@ -40,14 +40,29 @@ JSON line per event, line at most atomic-write size; prose payloads over 2KB go
 via `--file <path>` or stdin — never inline shell args, per the documented
 heredoc-mangling recurrence (which bit AGAIN while authoring this plan). seq is
 PER-SHARD monotonic (re-read tail on append). Global order is a render-time
-merge by (round, seatId, nonce, seq) — deterministic, no locks. EVERY verb
-(not just mint-class) derives an idempotency key — `seatId + round + verb +
-local label-or-content-hash` — so duplicate events from a re-dispatched seat
-dedup at RENDER time by key (first-nonce-wins, the duplicate flagged in the
-render's anomaly footer). Lens labels restart each round; keys are
-round-qualified through seatId by construction, with an explicit
-same-label-next-round collision test in R1's suite. A torn round (mint without
-close) renders as open state; nothing is lost, nothing blocks.
+merge by (round, seatId, nonce, seq) — deterministic, no locks. DEDUP SEMANTICS
+(audit-3 gap 1 — content hashing fails for prose verbs, where duplicate seats
+write DIFFERENT text): keys are STRUCTURAL, never content hashes.
+Singleton-per-round verbs (position, revision, verdict, spot-check) key on
+`seatId + round + verb`; multi-instance verbs key on their stable labels
+(closing → gap_id; finding → L-label; cite → reference; dispose → observation
+id; manifest-row → gap_id; opinion → gap_id). Friction and observe key on
+`seatId + round + verb + ordinal`. WINNER SELECTION under nonce multiplicity:
+the nonce whose shard carries that seat's TERMINAL event (verdict / revision /
+the last verb of the seat's contract) wins; ties fall to latest-mtime; EVERY
+multi-nonce seatId is listed in the render's anomaly footer AND flagged by the
+join audit — duplicate dispatch is never silently normalized, it is dedup'd
+AND reported. Lens labels restart each round; keys are round-qualified through
+seatId by construction, with a same-label-next-round collision test in R1's
+suite. A torn round (mint without close) renders as open state; nothing is
+lost, nothing blocks.
+
+RENDER LOCUS (audit-3 gap 7, dissolving ordering contracts): every MUTATING
+verb on every CLI triggers a re-render of its affected projections as a side
+effect (local node process, zero tokens — cost cleared by audit-3), and every
+CLI exposes read-only `render`. Readers therefore never depend on another
+seat's verb order: the projection is current as of the last mutation, and the
+bench's prompt FIRST ACTION is `bench.mjs render` as a belt.
 
 LOSS DISCIPLINE — the log lives on the untracked live blackboard, so the W1.13
 incident classes (add -A / checkout / stash) threaten it: (a) `red-merge.mjs
@@ -89,8 +104,20 @@ VERB SETS (complete against everything the engine currently records — audit ga
   projections are current for the next reader mid-round (audit-2 gap 4's
   render-locus requirement).
 - bench.mjs: opinion (disposition/principle/tension/review-flag as required
-  args), petition-rule, halt, certify. No mint — the bench rules, never
-  originates.
+  args), petition-rule, halt, certify, FRICTION (audit-3 gap 5 — judge-r,
+  judge-terminal, and assemble are all bench seats whose friction previously
+  rode the file dual-write; post-R3 the event IS the abort-surviving copy).
+  No mint — the bench rules, never originates. The ASSEMBLE seat uses bench.mjs.
+- CHANGELOG.MD IS A PROJECTION of revision events (audit-3 gap 4): `revision
+  --file` carries the round's entry body; `render changelog` assembles it. The
+  round_record_appended attestation is REDEFINED at R3 to attest "the revision
+  event was emitted and the rendered CHANGELOG carries this round" (same in-run
+  envelope gate, new referent); the citation-ledger re-fetch trigger reads the
+  RENDERED changelog — reader unchanged.
+- RENDER INVENTORY (audit-3 gap 3, complete): R1 renders ledger.md, archive.md,
+  board-telemetry.jsonl; R2 adds debate.md, CHANGELOG.md, citation-ledger.md
+  (all three needed for the parity gate); R4 adds scorecards + the judicial
+  record. NOTHING cuts over at R3 without appearing in the R2.5 parity set.
 - Capture + dashboard consume the library read-only. `--help` on each CLI is the
   seat's record contract (prompt prose retires to it).
 
@@ -131,16 +158,22 @@ R1 [NEW] plugins/frank-exchange-of-views/skills/research-protocol/scripts/lib/re
    validation incl. --class-new, render fixtures).
 R2 [NEW] scripts/tools/blue.mjs, bench.mjs; [MODIFY] debate.js — DUAL-MODE:
    seats write boards AND events (prompts instruct both); engine checks
-   unchanged. [MODIFY] capture-research-run.mjs: add record-parity check and
-   record-join audit. No deletions yet.
-R2.5 PARITY RUN (the one-run parallel period, scheduled here — audit gap 2):
-   the first live run post-R2 runs dual-mode; capture executes
-   [NEW] scripts/record-parity-check.mjs — normalizes the hand-written
-   ledger.md / archive.md / board-telemetry.jsonl (whitespace-collapsed,
-   section-order-insensitive, id-sorted rows) against fresh renders; FAIL = any
-   divergence in gap ids, grades, closure classes, dispositions, counts, or
-   telemetry fields; prose bodies compare presence-not-text. Verdict lines land
-   in run-record-audit.md. Zero-FAIL is the gate to R3.
+   unchanged. SHADOW RENDERS (audit-3 gap 2): during dual-mode, ALL renders
+   write to `<runDir>/records/render-shadow/` — the hand-written artifacts are
+   never touched, so the parity gate compares hand vs shadow, never
+   render-vs-render. [MODIFY] capture-research-run.mjs: add record-parity check
+   and record-join audit. [MODIFY] setup-research-run.mjs (audit-3 gap 6):
+   creates records/, runs the 30-day mirror orphan purge. No deletions yet.
+R2.5 PARITY RUN (the one-run parallel period): the first live run post-R2 runs
+   dual-mode; capture executes [NEW] scripts/record-parity-check.mjs —
+   normalizes the hand-written ledger.md / archive.md / board-telemetry.jsonl /
+   debate.md / CHANGELOG.md / citation-ledger.md (whitespace-collapsed,
+   section-order-insensitive, id-sorted rows) against the SHADOW renders;
+   FAIL = any divergence in gap ids, grades, closure classes, dispositions,
+   counts, telemetry fields, round-section presence, or ledger rows; prose
+   bodies compare presence-not-text. Verdict lines land in run-record-audit.md.
+   Zero-FAIL is the gate to R3, at which point renders switch from shadow to
+   the real paths.
 R3 [MODIFY] debate.js: prompts shrink to tool contracts; RETIRE the
    count-consistency throw at the merge (counts are renders) and the
    ledger/archive/telemetry prompt paragraphs; KEEP — corrected per audit-2
@@ -209,6 +242,7 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
       tools/bench.mjs           [NEW R2]
       record-parity-check.mjs   [NEW R2]
       debate.js                 [MODIFY R2 dual-mode; R3 shrink]
+      setup-research-run.mjs    [MODIFY R2: records/ + mirror orphan purge]
       capture-research-run.mjs  [MODIFY R2 +join/parity; R3 audit collapse]
     plugins/frank-exchange-of-views/tests/simulator/record.test.mjs  [NEW R1]
     <runDir>/records/events-<seatId>-<nonce>.jsonl   (per-process shards)
