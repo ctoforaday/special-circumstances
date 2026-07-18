@@ -136,7 +136,7 @@ WAVE 2 (revised) — implement the known constitutional changes, PR series:
       craft memory compiled to manifest lines at setup, capture STATS + deltas.
 - [ ] W2f. Records layer: seats/board/friction JSONL + structured per-claim
       confidence; capture audits move from heuristics to records.
-- [ ] W2g. MASS mapping v2 (existence vs consequence split) — new telemetry
+- [x] W2g. MASS mapping v2 (existence vs consequence split) — new telemetry
       series version; catechism/TL;DR into blue's round-0 template.
 
 E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3-5):

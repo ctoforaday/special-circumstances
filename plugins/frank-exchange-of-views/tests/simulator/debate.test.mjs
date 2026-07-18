@@ -306,12 +306,12 @@ test('friction aggregates from every seat with attribution', async () => {
 
 // ---- Efficiency phase (run-4 ratified levers; plans/efficiency-phase.md PR-A) ----
 
-test('telemetry: red-merge prompt carries the board-telemetry append with the pinned v1 mapping', async () => {
+test('telemetry: red-merge prompt carries the board-telemetry append with the pinned v2 mapping', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
   assert.ok(merge.prompt.includes('trajectories/board-telemetry.jsonl'), 'telemetry sink named')
-  assert.ok(merge.prompt.includes('"mapping_version": "v1"'), 'mapping version pinned in the line spec')
+  assert.ok(merge.prompt.includes('"mapping_version": "v2"'), 'mapping version pinned in the line spec')
   assert.ok(merge.prompt.includes('"realized":0'), 'realized pinned to 0 in the mapping (excluded from mass)')
   assert.ok(merge.prompt.includes('"trivial":0.5'), 'trivial assigned, not left to seat convention')
 })
@@ -782,4 +782,28 @@ test('W2e: every bench sitting carries the law clause — precedent is argument,
     assert.ok(c, `${seat} sat`)
     assert.ok(c.prompt.includes('PRECEDENT IS ARGUMENT, NOT EVIDENCE') && c.prompt.includes('the leaf wins') && c.prompt.includes('only AFFIRMED ones bind'), `${seat} missing law clause`)
   }
+})
+
+// ---- W2g: MASS v2 (existence/consequence split) + catechism into blue's template ----
+
+test('W2g: mapping version is v2; gaps carry existence; merge prompt redefines likelihood as consequence-only', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const merge = world.calls.find((c) => c.opts.label.startsWith('red-merge-r1'))
+  assert.ok(merge.prompt.includes('"mapping_version": "v2"'), 'telemetry line spec carries v2')
+  assert.ok(merge.prompt.includes('existence (verified') && merge.prompt.includes('CONSEQUENCE ONLY'), 'grading redefinition stated')
+})
+
+test('W2g: blue authors the catechism at round 0 inside the audited report; assembly union-copies and never authors', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const synth = world.calls.find((c) => c.opts.label.startsWith('blue-synthesize'))
+  assert.ok(synth.prompt.includes('THE CATECHISM IS YOURS') && synth.prompt.includes('## The Catechism'), 'catechism is blue round-0 duty')
+  assert.ok(synth.prompt.includes('every risk-accepted residual'), 'against-case at full strength demanded (the E0.5h/catechism-audit omission class)')
+  const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
+  assert.ok(assemble.prompt.includes('COPIED VERBATIM') && assemble.prompt.includes('DO NOT write one yourself'), 'assembly is union-copy with a stated refusal path')
 })
