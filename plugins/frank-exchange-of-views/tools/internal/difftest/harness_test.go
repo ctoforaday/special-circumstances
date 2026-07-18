@@ -114,6 +114,10 @@ var shardRe = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)
 // pass on another machine, and did not: CI on Linux was the first environment to
 // run them. A golden is a contract about BEHAVIOUR, so anything naming the
 // machine has to go, and the whole path is replaced rather than its tail.
+// placeholderPathRe matches a path rooted at one of our placeholders, which is
+// the only place a separator is ours to normalize.
+var placeholderPathRe = regexp.MustCompile(`\{(?:RUN|MIRROR)\}[^\s"']*`)
+
 var mirrorRe = regexp.MustCompile(`\S*[\\/]run-mirror[\\/][0-9a-f]{12}`)
 
 // nonceMapper assigns canonical placeholders in shard DISCOVERY order.
@@ -244,6 +248,15 @@ func normalizeOutput(inv invocation, runDir string, m *nonceMapper) invocation {
 		// the two sides run in different temp dirs by construction — the hash
 		// difference is harness noise, not a port divergence.
 		s = mirrorRe.ReplaceAllString(s, "{MIRROR}")
+		// Separators inside OUR OWN paths are OS-specific: Windows renders
+		// "{RUN}\records\render-shadow" where Linux renders "{RUN}/records/...".
+		// Normalized only within placeholder-rooted tokens, never globally — seat
+		// prose legitimately contains backslashes (the hostile-prose fixture carries
+		// "backslash \ and \n literal"), and flattening those would corrupt the very
+		// payloads that golden is there to protect.
+		s = placeholderPathRe.ReplaceAllStringFunc(s, func(tok string) string {
+			return strings.ReplaceAll(tok, "\\", "/")
+		})
 		// The tool name differs by construction: "feov-record merge" vs "red-merge.mjs".
 		for _, prefix := range []string{"feov-record lens", "feov-record merge", "feov-record blue", "feov-record bench",
 			"red-lens.mjs", "red-merge.mjs", "blue.mjs", "bench.mjs"} {

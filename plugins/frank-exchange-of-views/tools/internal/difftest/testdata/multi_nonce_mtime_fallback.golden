@@ -21,7 +21,7 @@ finding L1-F2 recorded
 $ lens render --run {RUN}
 exit 0
 stdout:
-{TOOL}: rendered to {RUN}\records\render-shadow (0 open, 0 closed, 1 anomalies)
+{TOOL}: rendered to {RUN}/records/render-shadow (0 open, 0 closed, 1 anomalies)
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L1-NONCE001.jsonl

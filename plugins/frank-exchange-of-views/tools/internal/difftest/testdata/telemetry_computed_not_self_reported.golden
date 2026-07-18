@@ -46,7 +46,7 @@ closed R1-1 (closed)
 $ merge render --run {RUN}
 exit 0
 stdout:
-{TOOL}: rendered to {RUN}\records\render-shadow (3 open, 2 closed)
+{TOOL}: rendered to {RUN}/records/render-shadow (3 open, 2 closed)
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
