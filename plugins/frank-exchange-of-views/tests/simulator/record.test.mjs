@@ -271,6 +271,89 @@ test('E0.5b unauditability case: regrade history is fully recoverable — origin
   assert.ok(ledger.includes('regraded x2') && ledger.includes('blast radius bounded'), 'the render discloses the history and its latest basis')
 })
 
+// ---- R2: blue + bench CLIs, projections, parity, join ----
+
+test('R2 role boundaries: blue has no board verbs; bench cannot mint; both help contracts complete', () => {
+  const blue = join(SCRIPTS, 'tools', 'blue.mjs')
+  const bench = join(SCRIPTS, 'tools', 'bench.mjs')
+  const run = tmp()
+  for (const [tool, verb] of [[blue, 'mint'], [blue, 'close'], [bench, 'mint']]) {
+    const r = spawnSync(process.execPath, [tool, verb, '--run', run, '--seat-id', 'x-r1'])
+    assert.equal(r.status, 2)
+    assert.ok(r.stderr.toString().includes("outside this seat's role"))
+  }
+  const blueHelp = spawnSync(process.execPath, [blue, '--help']).stdout.toString()
+  for (const v of ['revision', 'manifest-row', 'dispute', 'confidence', 'position', 'closing', 'friction', 'petition']) assert.ok(blueHelp.includes(v), `blue help missing ${v}`)
+  const benchHelp = spawnSync(process.execPath, [bench, '--help']).stdout.toString()
+  for (const v of ['opinion', 'petition-rule', 'halt', 'certify', 'friction']) assert.ok(benchHelp.includes(v), `bench help missing ${v}`)
+})
+
+test('R2 projections: debate.md assembles positions/closings/opinions by round; CHANGELOG from revisions; citation-ledger from cites', () => {
+  const run = tmp()
+  append(run, 'red-merge-r1', 'position', { text: 'red says the board is heavy' })
+  append(run, 'red-merge-r1', 'closing', { gap_id: 'RX', text: 'red closing case' })
+  append(run, 'blue-respond-r1', 'position', { text: 'blue answers' })
+  append(run, 'blue-respond-r1', 'closing', { gap_id: 'RX', text: 'blue closing case' })
+  append(run, 'judge-r1', 'opinion', { gap_id: 'RX', disposition: 'carried', principle: 'correctness first', tension: 'correctness vs economy', review_flag: 'first opinion under the new form' })
+  append(run, 'blue-respond-r1', 'revision', { text: 'round 1 edits: S2 rewritten', claim_count: 44 })
+  append(run, 'red-lens-r1-L2', 'cite', { claim: 'c', reference: 'arXiv:1234.5678', confidence: 'high', access_date: '2026-07-18' })
+  render(run)
+  const shadow = join(run, 'records', 'render-shadow')
+  const debate = readFileSync(join(shadow, 'debate.md'), 'utf8')
+  assert.ok(debate.includes('### RED\n') && debate.includes('### BLUE\n') && debate.includes('### LEAD'), 'all three section kinds')
+  assert.ok(debate.includes('RED CLOSING (round 1)') && debate.includes('BLUE CLOSING (round 1)'))
+  assert.ok(debate.includes('principle: correctness first'), 'opinions carry their principles')
+  assert.ok(readFileSync(join(shadow, 'CHANGELOG.md'), 'utf8').includes('## Round 1 (claim_count 44)'))
+  assert.ok(readFileSync(join(shadow, 'citation-ledger.md'), 'utf8').includes('arXiv:1234.5678 | high | r1'))
+})
+
+test('R2 parity check: agreeing hand artifacts PASS; a hand-ledger gap missing from events FAILs with the id named', async () => {
+  const { compare } = await import('../../skills/research-protocol/scripts/record-parity-check.mjs')
+  const run = tmp()
+  append(run, 'red-merge-r1', 'mint', mintArgs({ gap_id: 'R1-1' }))
+  mkdirSync(join(run, 'red'), { recursive: true })
+  mkdirSync(join(run, 'trajectories'), { recursive: true })
+  writeFileSync(join(run, 'red', 'ledger.md'), '# ledger\n## OPEN\nR1-1 | medium | loc\n## closure index\n')
+  let d = compare(run)
+  assert.equal(d.length, 0, `agreeing records diverged: ${d.join('; ')}`)
+  writeFileSync(join(run, 'red', 'ledger.md'), '# ledger\n## OPEN\nR1-1 | medium | loc\nR1-2 | high | loc2\n## closure index\n')
+  d = compare(run)
+  assert.ok(d.some((x) => x.includes('R1-2') && x.includes('missing from shadow')), `hand-only gap flagged: ${d.join('; ')}`)
+})
+
+test('R2 setup: records/ is created; stale mirrors purge at 30 days and fresh ones survive', async () => {
+  const { buildSkeleton, purgeStaleMirrors } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+  const run = tmp()
+  buildSkeleton(run, 'topic')
+  assert.ok(existsSync(join(run, 'records')), 'records/ born at setup')
+  const mirrors = tmp()
+  mkdirSync(join(mirrors, 'oldrun'))
+  mkdirSync(join(mirrors, 'newrun'))
+  utimesSync(join(mirrors, 'oldrun'), new Date(Date.now() - 40 * 86400e3), new Date(Date.now() - 40 * 86400e3))
+  const r = purgeStaleMirrors(mirrors)
+  assert.equal(r.purged, 1)
+  assert.ok(!existsSync(join(mirrors, 'oldrun')) && existsSync(join(mirrors, 'newrun')))
+})
+
+test('R2 record-join audit: an event with no transcript invocation is FLAGGED; matching invocations PASS', async () => {
+  const { recordJoinAudit } = await import('../../skills/research-protocol/scripts/capture-research-run.mjs')
+  const run = tmp()
+  const transcripts = tmp()
+  append(run, 'red-lens-r1-L1', 'finding', { label: 'L1-F1', text: 'x' })
+  // Transcript whose Bash commands carry the seat-id + verb.
+  writeFileSync(join(transcripts, 'agent-aaa.jsonl'), [
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'node tools/red-lens.mjs register --run x --seat-id red-lens-r1-L1' } }] } }),
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'node tools/red-lens.mjs finding --label L1-F1 --text "x" --run x --seat-id red-lens-r1-L1' } }] } }),
+  ].join('\n') + '\n')
+  const pass = recordJoinAudit(run, transcripts, ['agent-aaa.jsonl'])
+  assert.equal(pass.verdict, 'PASS', pass.detail)
+  // A hand-appended event no transcript ever invoked.
+  append(run, 'red-merge-r1', 'friction', { text: 'nobody ran this through a tool' })
+  const flagged = recordJoinAudit(run, transcripts, ['agent-aaa.jsonl'])
+  assert.equal(flagged.verdict, 'FAIL')
+  assert.ok(flagged.detail.includes('red-merge-r1 friction'), 'the orphan event is named')
+})
+
 test('INTEGRATION - a full round through the CLIs: 6 lenses (findings, cites, notes) then the merge (dispose, mint with found_by, verdict) yields coherent projections', () => {
   const lens = join(SCRIPTS, 'tools', 'red-lens.mjs')
   const merge = join(SCRIPTS, 'tools', 'red-merge.mjs')

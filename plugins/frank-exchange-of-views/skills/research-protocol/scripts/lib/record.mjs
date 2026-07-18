@@ -289,6 +289,36 @@ export function render(runDir, { outDir = null } = {}) {
     }))
   }
   writeAtomic(join(out, 'board-telemetry.jsonl'), lines.join('\n') + (lines.length ? '\n' : ''))
+
+  // R2 projections: debate.md, CHANGELOG.md, citation-ledger.md — the remaining
+  // hand-maintained records become renders (nothing cuts over unvalidated: all
+  // three are in the R2.5 parity set).
+  const evs = boardState(runDir).events
+  const byRound = new Map()
+  for (const e of evs) { const arr = byRound.get(e.round) || []; arr.push(e); byRound.set(e.round, arr) }
+  const debateParts = [`# debate.md — RENDERED PROJECTION (source of truth: records/ event log)`]
+  for (const r of [...byRound.keys()].sort((a, b) => a - b)) {
+    const re = byRound.get(r)
+    const sec = (type, seatPrefix) => re.filter((e) => e.type === type && e.seatId.startsWith(seatPrefix))
+    const parts = [`\n## Round ${r}`]
+    for (const p of sec('position', 'red-merge')) parts.push(`### RED\n${p.payload.text || ''}`)
+    for (const c of sec('closing', 'red-merge')) parts.push(`### RED CLOSING (round ${r}) — ${c.payload.gap_id}\n${c.payload.text || ''}`)
+    for (const p of sec('position', 'blue')) parts.push(`### BLUE\n${p.payload.text || ''}`)
+    for (const c of sec('closing', 'blue')) parts.push(`### BLUE CLOSING (round ${r}) — ${c.payload.gap_id}\n${c.payload.text || ''}`)
+    const ops = re.filter((e) => e.type === 'opinion')
+    if (ops.length) parts.push(`### LEAD\n${ops.map((o) => `- ${o.payload.gap_id}: ${o.payload.disposition} — principle: ${o.payload.principle}; tension: ${o.payload.tension}; review: ${o.payload.review_flag}\n${o.payload.rationale || ''}`).join('\n')}`)
+    if (parts.length > 1) debateParts.push(parts.join('\n\n'))
+  }
+  writeAtomic(join(out, 'debate.md'), debateParts.join('\n') + '\n')
+
+  const revisions = evs.filter((e) => e.type === 'revision')
+  writeAtomic(join(out, 'CHANGELOG.md'), [`# blue CHANGELOG — RENDERED PROJECTION`,
+    ...revisions.map((e) => `\n## Round ${e.round}${e.payload.claim_count !== undefined ? ` (claim_count ${e.payload.claim_count})` : ''}\n${e.payload.text || ''}`)].join('\n') + '\n')
+
+  const cites = evs.filter((e) => e.type === 'cite')
+  writeAtomic(join(out, 'citation-ledger.md'), [`# red citation-ledger — RENDERED PROJECTION`,
+    ...cites.map((e) => `${e.payload.claim} | ${e.payload.reference} | ${e.payload.confidence} | r${e.round} | ${e.payload.access_date}`)].join('\n') + '\n')
+
   return { out, anomalies: anomalies.length, open: open.length, closed: closed.length }
 }
 
