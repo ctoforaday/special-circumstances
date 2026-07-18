@@ -53,7 +53,8 @@ finding). Joint-read rules stated per benchmark (repair ratio reads WITH red rig
 | Clause | Metric | Instrument | Status |
 |---|---|---|---|
 | Not a router | ruling-mix diversity; carried share (BENCHMARK vs 76/77 baseline) | dashboard judiciary section | SHIPPED |
-| Reversal rate | human affirm/reverse per ruling (BENCHMARK — THE bench score) | docket-review loop | W2e |
+| Direction-uptake (BENCHMARK — the bench headline, per E0.5d: in-run ruling reversal is ~0 by traffic-class construction and measures nothing) | blue citations of LEAD direction per round (baseline ~100%) + defects-found-by-bar (registered-figure errors surfaced by judge-directed recomputes; baseline: the 4x dollar error both adversaries missed) | CHANGELOG/### BLUE citation grep + bar-outcome log | E0.5d-amended |
+| Precedent quality (the LAW-layer reversal rate — the only reversal metric that survives E0.5d) | human promote/ignore/reverse per proposed holding | law/proposed review outcomes | W2e SHIPPED (harvest live) |
 | Evidence confinement | demanded-read compliance: opinions' named reads vs actual tool calls (DETECTOR) | tool-call index cross-check | NEW — scriptable |
 | Opinion form | % rulings carrying principle+tension+review-flag (DETECTOR) | format grep | W2c |
 | Petition handling | count + latency (rounds to hearing) (MEASURE) | engine events | W2c |
@@ -70,3 +71,23 @@ has an instrument. Current aspirational set: NONE (every clause above has a path
 W2h (this spec) rides existing waves: the scriptable-now rows land with W2b telemetry;
 calibration unblocks at W2f; reversal rate at W2e. The scorecard file format + setup
 mirroring + dashboard section are one small PR after W2b.
+
+## E0.5 amendments (2026-07-18)
+
+- BENCH (E0.5d): in-run ruling reversal-rate DELETED as a metric — 86/87 carried
+  with 100% closure in both cohorts means it is structurally ~0 and measures
+  nothing. Direction-uptake + defects-found-by-bar are the bench headline; the
+  law-layer reversal rate (human review of proposed holdings) is the only
+  reversal metric retained.
+- RED (E0.5h): coverage must never sum gap-contact and citation-contact into
+  one number — citation-only contact certifies fidelity, not validity. New
+  DETECTOR: the self-criticism blind spot — sections red never gap-anchors
+  concentrate in disconfirming passes, human-gated paths, and self-attested
+  inventories; a steelman-verification lens duty is the fix candidate (same
+  shape the catechism audit found at assembly).
+- BLUE (E0.5h): attacked-and-held baseline is low-single-digits-to-teens;
+  survival-in-substance ~94%; no thesis reversal in 5 rounds.
+- SLEEPER RUNG 1 (E0.5e): friction mining validated — ~42% of subjects became
+  matching defects in hours-to-5-days, ~87% actionable, ~8-13% noise; the
+  product is the recurrence-ranked SUBJECT list (dedupe is the mining task);
+  mine the structured channel only.

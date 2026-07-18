@@ -148,14 +148,14 @@ E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3
       all runs — what dies at the merge bottleneck.
 - [ ] c. Lens ROI, full: candidates-based attribution where found_by is absent;
       cost per surviving finding per lens (seat-count economics).
-- [ ] d. Judge value-add: did docketed/prioritized gaps close differently?
-- [ ] e. Friction as leading indicator: map friction entries to later gaps that
+- [x] d. Judge value-add: did docketed/prioritized gaps close differently?
+- [x] e. Friction as leading indicator: map friction entries to later gaps that
       materialized in the same area.
 - [x] f. Retroactive assembly screens on runs 3-4 (is assembly-seat regression
       general or run-5-specific?).
 - [x] g. Retroactive class vocabulary: classify all ~180 gaps across runs into
       a seed registry (calibrates W2d before it ships).
-- [ ] h. Claim survival trace: blue claims attacked-and-held vs attacked-and-
+- [x] h. Claim survival trace: blue claims attacked-and-held vs attacked-and-
       repaired vs never-attacked (coverage + calibration prior).
 
 RUNS RESUME only after E0.5 is exhausted: first run under the new constitution
