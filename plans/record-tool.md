@@ -301,3 +301,53 @@ Revised sequence: R2 (PR #35) merges as ORACLE + parity harness, not for seat
 adoption; R2g = the Go port with differential suite; dual-mode prompts point
 at the binary (toolsDir becomes binDir) only after R2g's differential gate is
 green; R2.5 parity run follows on the Go tool.
+
+## R2g design notes (thought through 2026-07-18; execution deferred)
+
+FAITHFUL-FIRST, IMPROVE-SECOND: the differential gate only means something if
+the port is semantically exact. R2g.1 = faithful port, gate green; R2g.2 =
+improvements as separate commits (each visible in the diff, each tested):
+role/seat-id cross-check per subcommand namespace, board.json render,
+tool_version stamped on register events, event schema_version field.
+
+DIFFERENTIAL COMPARISON POLICY (the trap that would eat a naive port):
+byte-identical output is IMPOSSIBLE naively — nonces are random, JS object-key
+order != Go struct marshal order, and mtime drives winner selection. Policy:
+(1) both implementations accept a test-only nonce seed (env var) OR the
+harness normalizes nonces to canonical placeholders on both sides;
+(2) EVENTS compare by structural (parsed deep-) equality, never bytes;
+(3) RENDERS compare byte-identical AFTER nonce normalization — this is where
+JS/Go number-formatting drift (String(46) vs strconv, toFixed vs %.2f) gets
+caught, which is precisely the E0.5f aggregate-drift class at the language
+boundary; (4) mtime-dependent tests control mtimes explicitly on both sides;
+(5) lock artifacts are excluded from comparison (implementation detail).
+HARNESS: the 29 oracle tests' scenarios exported as replayable command lists,
+plus a random-valid-verb-sequence generator (differential fuzzing — cheap in
+Go, and the highest-value test class for a port).
+
+LOCKING: keep the mkdir-lock ALGORITHM in Go (portable Windows/Unix, stdlib-
+only, semantics already tested) rather than flock/LockFileEx (x/sys dep,
+platform fork). go test -race validates what the mjs could only spawn-test.
+
+DISTRIBUTION: FEOV gets its own tools/ Go module (W1.15 ownership) —
+plugins/frank-exchange-of-views/tools/cmd/feov-record/ — riding the existing
+CI matrix; tag family frank-exchange-of-views--v* added to the release
+workflow. Doctor: extend sibling aggregation to sibling BIN BOOTSTRAP (small
+PC change) so --fix installs FEOV's binary too. EMPTY-BIN DEFENSE at the
+right layer: setup-research-run.mjs preflights `feov-record --version`
+against the plugin version BEFORE writing the run-live marker — a missing or
+skewed binary fails at setup, never mid-round (the mid-run failure mode is
+the one that costs a seat).
+
+VERSION SKEW: register events carry tool_version; the never-update-mid-run
+rule stands; skew becomes visible in the log rather than mysterious.
+
+POST-PORT SIMPLIFICATIONS (R2g.2+): parity-check's shadow side reads
+board.json instead of regexing rendered md; the dashboard's heuristic parses
+retire against board.json (the descoped W-item returns with a real substrate);
+mjs consumers (capture, dashboard) keep reading events/board.json directly —
+no Go dependency for readers, which is the JSONL format paying off.
+
+ORACLE FREEZE: at #35 merge the mjs write path is FROZEN — post-port changes
+land in Go only; an intentional semantics change regenerates the oracle and
+the differential together, never one side alone.
