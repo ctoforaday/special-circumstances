@@ -73,7 +73,7 @@ export const redEnv = (over = {}) => ({
   archive_spot_checks: ['R1-1'], ledger_closure_lines: 0, archive_blocks: 0, ...over,
 })
 export const gap = (id, over = {}) => ({
-  id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor',
+  id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
 export const judgeEnv = (over = {}) => ({ deadlock: false, resolutions: [], friction: [], ...over })
