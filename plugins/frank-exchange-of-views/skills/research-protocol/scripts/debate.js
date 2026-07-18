@@ -283,6 +283,7 @@ takeFriction('blue-synthesize', blueEnv)
 
 while (round < maxRounds) {
   round++
+  log(`round ${round}: dispatching ${Math.min(4, Math.max(1, Math.ceil((blueEnv.claim_count || 20) / 40))) + 2} red lenses over ${blueEnv.claim_count || '?'} claims`)
 
   // Citation verification scales with the CURRENT report size — recomputed every round
   // (retrospective §3 row 2b: computed once, later rounds were systematically under-scaled
@@ -315,6 +316,7 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
 
   takeFriction(`red-merge-r${round}`, redEnv)
   if (!redEnv) throw new Error(`red-merge round ${round} returned null (agent failed) — aborting cleanly`)
+  log(`round ${round}: red ${redEnv.verdict} — ${redEnv.gaps.length} gaps open, mass ${redEnv.gaps.reduce((s, g) => s + gapMass(g), 0).toFixed(1)}, ${redEnv.citations_checked} citations checked`)
   // Degenerate-shape guard (retrospective §3 row 20, decided R4-2: throw, never soft-convert):
   // FAIL with zero gaps is evidence of a broken merge, not a clean report — looping on it
   // burns maxRounds silently and returns a self-contradictory UNVERIFIED/0-gaps verdict.
@@ -398,6 +400,7 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
   contested.push(...disputeDocket)
   const hasNew = redEnv.gaps.some(g => !allPriorGapIds.has(g.id) && !(g.supersedes || []).some(id => allPriorGapIds.has(id)))
   if (contested.length > 0) {
+    log(`round ${round}: docket — ${contested.length} contested item(s) to the judge`)
     const judge = await agent(
       `Adjudication, round ${round}, topic "${topic}". Contested docket: ${JSON.stringify(contested)}. TRAFFIC CLASSES: "re_raised" gaps have a blue response on record — the full resolution set applies; "first_raise_successor" gaps are regression successors blue has NOT yet answered — closed and rebuttal_sustained are structurally unavailable for them (rule carried with the owed research direction, risk_accepted, or unresolved); "grade_dispute_*" entries contest a GRADE, not a gap's existence — rule grade_adjusted (state the corrected grade in the rationale; red applies it next round) or unresolved (red's grade stands, recorded as contested). Rule moot when a gap's predicate has EXPIRED — the claim or artifact it attached to no longer exists in the report (overtaken by events is a disposition, not a reason to carry). New gaps were ${hasNew ? 'ALSO raised' : 'NOT raised'} this round. Read ${runDir}/debate.md and ${LEDGER} in full. DEMANDED READS: for every ruling on a gap with a supersedes chain, you MUST read the named ancestors' records in ${ARCHIVE} first and NAME the records read in your rationale — the ruling class most sensitive to missing ancestor context is carried vs risk_accepted. Rule per contested item with rationale — for carried, state what further research blue owes. deadlock is true only if no gap is carried AND no new gaps were raised. Append your "### LEAD" resolutions to ${runDir}/debate.md.${frictionClause(`judge-r${round}`)}${speedClause} Return the judge envelope.`,
       { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
@@ -422,6 +425,7 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
     { ...bulk, label: `blue-respond-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
   takeFriction(`blue-respond-r${round}`, blueEnv)
   if (!blueEnv) throw new Error(`blue response round ${round} returned null (agent failed) — aborting cleanly`)
+  log(`round ${round}: blue responded — ${openGaps.length} gaps addressed, corpus at ${blueEnv.claim_count} claims${(blueEnv.grade_disputes || []).length ? `, ${(blueEnv.grade_disputes || []).length} grade dispute(s) raised` : ''}`)
 
   // Dispute intake (run-4 §3.3): re-disputed held items go straight to next round's docket;
   // fresh disputes await red's response; beyond the cap, overflow batch-dockets as ONE item.

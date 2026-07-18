@@ -559,3 +559,15 @@ test('speed doctrine: every seat prompt carries the batching + native-peek claus
     assert.ok(c.prompt.includes('batch INDEPENDENT tool calls'), `batching directive missing: ${c.opts.label}`)
   }
 })
+
+test('heartbeats: the panel narrator logs round start, red verdict + mass, docket size, and blue response', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 2 })
+  const all = world.logs.join('\n')
+  assert.ok(/round 1: dispatching \d+ red lenses/.test(all), 'round-start heartbeat')
+  assert.ok(/round 1: red FAIL — 1 gaps open, mass 4\.0/.test(all), 'verdict heartbeat carries live mass')
+  assert.ok(/round 2: docket — 1 contested item/.test(all), 'docket heartbeat')
+  assert.ok(/round 1: blue responded — 1 gaps addressed/.test(all), 'blue heartbeat')
+})
