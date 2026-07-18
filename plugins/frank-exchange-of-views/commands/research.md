@@ -33,4 +33,4 @@ is two script invocations.
    Your judgment half: read the envelope's friction entries against friction.md and dedupe
    attributed near-duplicates the parity check can't (same complaint, different wording).
 
-**Monitoring a live run** (optional, read-only): `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/render-run-dashboard.mjs <run directory> <transcript dir> --watch` writes `<run directory>/dashboard.html` (auto-refreshing) — board mass trend, open gaps by severity, live seats, cost-so-far, blackboard growth. The Workflow panel shows the phase; the dashboard shows the debate.
+**Monitoring a live run** (start this as a BACKGROUND task right after the Workflow launches — the watcher keys its lifetime to the .run-live marker and exits on its own when run-capture lifts it): `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/render-run-dashboard.mjs <run directory> <transcript dir> --watch` writes `<run directory>/dashboard.html` (auto-refreshing) — board mass trend, open gaps by severity, live seats, cost-so-far, blackboard growth. The Workflow panel shows the phase; the dashboard shows the debate.
