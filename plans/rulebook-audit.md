@@ -270,3 +270,68 @@ converts surveillance into evidence. Refinement to decide: make inspection
 DEMANDABLE by a party (discovery-shaped) as well as available on the bench's own
 motion, with any own-motion inspection docketed; anything the bench relies on is
 quoted into the opinion.
+
+## PR #41 review docket (operator, 2026-07-18) — triaged now vs later
+
+Eight review comments. Two were checked as possible live defects and are NOT:
+both are correct for dual-mode and become wrong only at R3, which is recorded
+here so the cleanup is not forgotten rather than done early.
+
+### NEXT — cobra-native restructure (its own PR)
+
+The verdict is right: cobra was bolted on for flag management, not adopted. The
+Verb table, the RoleCommand factory and the Args shim over pflag are a hand-rolled
+framework wearing cobra's clothes; an application STARTED on cobra would define
+commands with typed flags bound directly and would carry none of it.
+
+Deliberately NOT folded into #41. The goldens (help contracts, error catalogue,
+20 scenarios) already pin the behaviour, so a restructure lands as a diff whose
+entire claim is "no golden moved" — which is a two-minute review. Folding it in
+would make the reviewer read build-it-then-rewrite-it in one pass, and the
+reviewer has already said reviewing this sucks. Ship the working shape, then
+change the shape under test.
+
+### DESIGN — hooks replace instructions
+
+Every seat prompt carries paragraphs of harness trivia: the Glob/Grep
+working-directory limit and its sanctioned fallback, the Grep-counts-LINES
+footgun, the heredoc-eats-backslashes footgun. These are conditions a
+PostToolUse hook can DETECT and answer at the moment they bite, instead of
+prose every seat pays for in every round whether or not it ever hits them.
+
+This is the marker-and-hook doctrine (design-by-contract) pointed at the prompt
+surface, and it shrinks every prompt in the engine. It also fixes a real defect
+of prose guidance: a paragraph read at seat start is not present at the moment
+the tool call fails — the same salience problem measured for memory (E0.5:
+lanes read the patterns and regressed anyway).
+
+### DESIGN — the gap JSON does not carry its own semantics
+
+Blue is handed gaps as JSON and repairs from it. The map is self-describing as
+STRUCTURE and silent on MEANING: nothing in the payload says likelihood grades
+CONSEQUENCE ONLY and that existence is a separate axis (MASS v2, W2g). A seat
+reading the JSON directly would apply v1 semantics and never know. Candidates:
+carry mapping_version in the payload; name the axis semantics at the point of
+use; or have the record tool emit the gap with its grading contract attached.
+
+### R3 CLEANUP (correct today, wrong later)
+
+- The FRICTION clause tells every seat to ALSO append to friction.md by hand.
+  That is right during dual-mode — hand-written artifacts stay authoritative
+  until the R2.5 parity gate passes — and becomes exactly the hand-write-the-
+  artifact failure the record layer exists to end. Retire it with the
+  hand-written artifacts, not before.
+- Reviewer asked whether the HARNESS NOTES grep guidance is superseded by the
+  tool: it is not. That is Grep-tool trivia, not record work — it belongs to the
+  hooks-replace-instructions item above.
+
+### ANSWERED, no action
+
+- Footnotes: yes, still queued — item 6 of this file.
+- The ~20s round trip: identified. Run-4 wall-clock forensics measured 80% of
+  wall-clock as API rounds, 1015 of them at ~23.8s each, with context size
+  showing r about 0 against latency. It is the per-message round-trip itself,
+  invariant to content — which is why the lever was ROUND COUNT (batching) and
+  not smaller prompts, and why the speed clause says "regardless of content".
+  NOTE: that finding lives in session memory and not in any plan, which is its
+  own small gap; it is written down here now.
