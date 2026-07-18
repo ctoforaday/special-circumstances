@@ -248,3 +248,18 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
     <runDir>/records/events-<seatId>-<nonce>.jsonl   (per-process shards)
     <runDir>/records/registry-extensions.jsonl        (run-local --class-new)
     ~/.cache/feov/run-mirror/<runDirHash>/            (checkpoint mirror, capture-deleted)
+
+## Plan-audit disposition (sitting 4, 2026-07-18): PASS with notes — all folded
+
+Three sittings FAILed revs 2-4 (21 specification defects caught pre-implementation,
+two grounded empirically in the run-5 corpus). Sitting 4: PASS. Notes, binding on R1:
+1. ATOMIC RENDERS: record.mjs renders write temp + atomic-rename — concurrent lens
+   mutations rewrite shared projections (cite -> citation-ledger.md) and
+   "current as of last mutation" is false under the race otherwise. Last-writer-wins
+   acceptable: every render is full-state, self-healing on next mutation.
+2. Winner selection: the neither-nonce-has-terminal case falls EXPLICITLY to the
+   latest-mtime tiebreak; R1's suite gains a multi-nonce winner-selection fixture
+   (the 8/50 duplicate-dispatch anomaly gets its named test).
+3. The dashboard-regex retirement claim is DESCOPED from this plan (inert here —
+   render-run-dashboard.mjs and cost-audit.mjs are not in the modify inventory);
+   scheduled instead as a small follow-up once SEAT_ID ships in transcripts.
