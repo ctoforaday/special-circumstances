@@ -78,6 +78,11 @@ exit 0
 stdout:
 red lens seats — findings, observations, citations. Cannot mint or close.
 
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
 Usage:
   feov-record lens [flags]
   feov-record lens [command]
@@ -100,6 +105,11 @@ $ feov-record merge help
 exit 0
 stdout:
 the red merge seat — the board's only writer.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
   feov-record merge [flags]
@@ -130,6 +140,11 @@ exit 0
 stdout:
 blue seats — revisions, manifest rows, disputes. No board verbs at all.
 
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
 Usage:
   feov-record blue [flags]
   feov-record blue [command]
@@ -155,6 +170,11 @@ $ feov-record bench help
 exit 0
 stdout:
 the bench — opinions, petition rulings, halt, certification. Never originates.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
   feov-record bench [flags]

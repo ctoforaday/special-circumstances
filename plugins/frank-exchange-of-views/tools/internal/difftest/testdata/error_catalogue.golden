@@ -56,7 +56,7 @@ feov-record: bench: record: opinion requires --principle (opinions, not disposit
 
 ── invalid seat id
 exit 2
-feov-record: merge: record: invalid --seat-id "not a seat id"
+feov-record: merge: seat "not a seat id" does not belong to any role namespace (expected one of red-merge-) — the engine assigns the seat id; a hand-invented one records under an identity no dispatch created
 
 ── verb outside the lens role
 exit 2
