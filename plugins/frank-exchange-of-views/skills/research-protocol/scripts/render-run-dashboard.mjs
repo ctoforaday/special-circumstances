@@ -49,14 +49,71 @@ export function buildModel(runDir, transcriptDir) {
     }
   }
 
-  const blackboard = {}
-  for (const rel of ['blue/report.md', 'red/ledger.md', 'red/archive.md', 'debate.md', 'friction.md']) {
-    const p = join(runDir, rel)
-    blackboard[rel] = existsSync(p) ? statSync(p).size : null
+  // CONTENTS over bytes (review feedback): counts and states, not file sizes.
+  const readIf = (rel) => { const p = join(runDir, rel); return existsSync(p) ? readFileSync(p, 'utf8') : null }
+  const frictionTxt = readIf('friction.md')
+  const friction = {
+    count: frictionTxt ? (frictionTxt.match(/^- /gm) || []).length : 0,
+    last: frictionTxt ? (frictionTxt.match(/^- .*$/gm) || []).slice(-1)[0] || null : null,
   }
+  const ledgerTxt = readIf('red/ledger.md')
+  const archiveTxt = readIf('red/archive.md')
+  const GRADES = ['certain', 'high', 'medium-high', 'medium', 'low-medium', 'low', 'trivial', 'realized']
+  const idLine = /R\d+-\d+/
+  let openRows = 0
+  const openBySeverity = {}
+  if (ledgerTxt) {
+    // Heuristic over red's ledger: rows above the closure index are the open board.
+    const closureAt = ledgerTxt.search(/closure index/i)
+    const openSection = closureAt >= 0 ? ledgerTxt.slice(0, closureAt) : ledgerTxt
+    for (const line of openSection.split('\n')) {
+      if (!idLine.test(line) || !line.includes('|')) continue
+      openRows++
+      const low = line.toLowerCase()
+      const g = GRADES.find((g2) => low.includes(g2))
+      if (g) openBySeverity[g] = (openBySeverity[g] || 0) + 1
+    }
+  }
+  const shards = {
+    ledgerExists: ledgerTxt !== null,
+    openRows,
+    openBySeverity,
+    closureIndexRows: ledgerTxt ? (ledgerTxt.slice(Math.max(0, ledgerTxt.search(/closure index/i))).match(/R\d+-\d+/g) || []).length : 0,
+    archiveRecords: archiveTxt ? (archiveTxt.match(/^#{1,4}\s+.*R\d+-\d+/gm) || []).length : 0,
+  }
+  // Blue corpus size in CLAIMS (last blue envelope in the journal), not bytes.
+  let blueClaims = null
+  for (const j of journal) if (j.result && typeof j.result === 'object' && typeof j.result.claim_count === 'number') blueClaims = j.result.claim_count
+
+  // Progress through the workflow's big steps: Frontier -> Blue lanes -> Synthesis ->
+  // rounds 1..maxRounds (each: lenses -> merge -> respond [-> judge]) -> Assembly.
+  // The ceiling divides the bar; judged termination may end it early — stated on the bar.
+  const MAX_ROUNDS_CEILING = 8
+  const seatList = [...seats.values()]
+  const seen = (prefix) => seatList.some((s) => s.label.startsWith(prefix))
+  const doneSeat = (prefix) => seatList.some((s) => s.label.startsWith(prefix) && s.done)
+  const steps = []
+  steps.push({ name: 'frontier', state: doneSeat('frontier') ? 'done' : seen('frontier') ? 'live' : 'todo' })
+  steps.push({ name: 'blue lanes', state: seatList.filter((s) => s.label.startsWith('blue-lane')).every((s) => s.done) && seen('blue-lane') ? 'done' : seen('blue-lane') ? 'live' : 'todo' })
+  steps.push({ name: 'synthesis', state: doneSeat('blue-synthesize') ? 'done' : seen('blue-synthesize') ? 'live' : 'todo' })
+  for (let r = 1; r <= MAX_ROUNDS_CEILING; r++) {
+    const respondDone = doneSeat(`blue-respond-r${r}`)
+    const anySeen = seen(`red-lens-1-r${r}`) || seen(`red-merge-r${r}`) || seen(`blue-respond-r${r}`) || seen(`judge-r${r}`)
+    steps.push({ name: `round ${r}`, state: respondDone ? 'done' : anySeen ? 'live' : 'todo' })
+  }
+  steps.push({ name: 'assembly', state: doneSeat('assemble') ? 'done' : seen('assemble') ? 'live' : 'todo' })
+
+  // Open/close rates per round, computed from consecutive telemetry lines:
+  // closed_in_round = prev_open + minted - open (round 1: minted - open).
+  const rates = telemetry.map((t, i) => {
+    const prevOpen = i === 0 ? 0 : (telemetry[i - 1].open_count || 0)
+    const minted = (t.new_mint && t.new_mint.count) || 0
+    const closed = prevOpen + minted - (t.open_count || 0)
+    return { round: t.round, opened: minted, closed, open: t.open_count, closeRate: minted + prevOpen > 0 ? Math.round((100 * closed) / (prevOpen + minted)) : 0 }
+  })
 
   const latest = telemetry[telemetry.length - 1] || null
-  return { runDir, telemetry, latest, seats: [...seats.values()], cost, apiRounds: rounds, agents, blackboard, generated: new Date().toISOString() }
+  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, generated: new Date().toISOString() }
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -100,30 +157,43 @@ table { border-collapse: collapse; width: 100%; } td, th { text-align: left; pad
 .muted, .axis, .label { fill: var(--text-secondary); color: var(--text-secondary); font-size: 11px; }
 .label { fill: var(--text-primary); font-weight: 600; }
 .liveseat { font-weight: 600; }
+.bar { display: flex; gap: 3px; margin: 6px 0 2px; } .seg { flex: 1; height: 14px; border-radius: 4px; background: color-mix(in oklab, var(--text-secondary) 18%, transparent); position: relative; }
+.seg.done { background: var(--series-1); } .seg.live { background: color-mix(in oklab, var(--series-1) 45%, transparent); outline: 2px solid var(--series-1); }
+.barlabels { display: flex; gap: 3px; } .barlabels span { flex: 1; font-size: 10px; color: var(--text-secondary); text-align: center; overflow: hidden; white-space: nowrap; }
 </style>
 <body class="viz-root">
 <h1>FEOV run · ${esc(m.runDir.split(/[\\/]/).pop())}</h1>
 <p class="muted">generated ${esc(m.generated)} · auto-refreshes every 20s · dollars are list-rate estimates</p>
-<div class="tiles">
+<h2>Progress (rounds segmented by the ceiling — judged termination may end the run earlier)</h2>
+<div class="bar">${m.steps.map((s) => `<div class="seg ${s.state}" title="${esc(s.name)}: ${esc(s.state)}"></div>`).join('')}</div>
+<div class="barlabels">${m.steps.map((s) => `<span>${esc(s.name.replace('round ', 'r'))}</span>`).join('')}</div>
+<div class="tiles" style="margin-top:12px">
 <div class="tile"><b>${m.latest ? esc(m.latest.mass) : '—'}</b><span>board mass</span></div>
 <div class="tile"><b>${m.latest ? esc(m.latest.open_count) : '—'}</b><span>open gaps</span></div>
 <div class="tile"><b>${m.latest ? esc(m.latest.max_severity) : '—'}</b><span>max severity</span></div>
-<div class="tile"><b>${m.telemetry.length}</b><span>rounds recorded</span></div>
+<div class="tile"><b>${m.blueClaims ?? '—'}</b><span>blue claims</span></div>
+<div class="tile"><b>${m.friction.count}</b><span>friction entries</span></div>
 <div class="tile"><b>$${m.cost.toFixed(2)}</b><span>cost so far (est.)</span></div>
 <div class="tile"><b>${done.length}/${m.agents}</b><span>seats done</span></div>
 </div>
 <h2>Board mass by round</h2>
 ${massSvg(m.telemetry)}
-<h2>Rounds</h2>
-<table><tr><th>round</th><th>open</th><th>max sev</th><th>new mints (by severity)</th><th>mass</th><th>accepted deltas</th></tr>
-${m.telemetry.map((t) => `<tr><td>${esc(t.round)}</td><td>${esc(t.open_count ?? '—')}</td><td>${esc(t.max_severity ?? '—')}</td><td>${sevRow(t)}</td><td>${esc(t.mass ?? '—')}</td><td>${(t.accepted_deltas || []).length}</td></tr>`).join('\n')}
+<h2>Open / close rates (the convergence signal — is red's discovery decaying?)</h2>
+<table><tr><th>round</th><th>opened</th><th>closed</th><th>still open</th><th>close rate</th><th>max sev</th><th>new mints by severity</th><th>mass</th><th>deltas</th></tr>
+${m.rates.map((r, i) => { const t = m.telemetry[i]; return `<tr><td>${esc(r.round)}</td><td>${esc(r.opened)}</td><td>${esc(r.closed)}</td><td>${esc(r.open)}</td><td>${esc(r.closeRate)}%</td><td>${esc(t.max_severity ?? '—')}</td><td>${sevRow(t)}</td><td>${esc(t.mass ?? '—')}</td><td>${(t.accepted_deltas || []).length}</td></tr>` }).join('\n')}
 </table>
+<h2>Red's board (contents, not bytes)</h2>
+${m.shards.ledgerExists ? `<table>
+<tr><td>open gaps on the ledger</td><td>${m.shards.openRows}${Object.keys(m.shards.openBySeverity).length ? ' <span class="muted">(' + Object.entries(m.shards.openBySeverity).map(([k, v]) => `${esc(k)}:${esc(v)}`).join(' · ') + ')</span>' : ''}</td></tr>
+<tr><td>closure index rows</td><td>${m.shards.closureIndexRows}</td></tr>
+<tr><td>archived closure records</td><td>${m.shards.archiveRecords}</td></tr>
+</table><p class="muted">severity counts are a heuristic parse of red's own rows — the ledger is the record</p>` : '<p class="muted">ledger not yet created (red-merge-born at round 1)</p>'}
+<h2>Friction — logged pain points</h2>
+${m.friction.count ? `<p>${m.friction.count} attributed entr${m.friction.count === 1 ? 'y' : 'ies'} · latest: <span class="muted">${esc((m.friction.last || '').slice(0, 160))}</span></p>` : '<p class="muted">none logged yet</p>'}
 <h2>Seats live now</h2>
 ${live.length ? `<table>${live.map((s) => `<tr><td class="liveseat">${esc(s.label)}</td><td class="muted">since ${esc(s.started || '?')}</td></tr>`).join('')}</table>` : '<p class="muted">none — between seats or complete</p>'}
 <h2>Recent completions</h2>
 <table>${done.slice(-8).reverse().map((s) => `<tr><td>${esc(s.label)}</td><td class="muted">${esc(s.result || '')}</td></tr>`).join('\n')}</table>
-<h2>Blackboard</h2>
-<table>${Object.entries(m.blackboard).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="muted">${v === null ? 'not yet created' : (v / 1024).toFixed(1) + ' KB'}</td></tr>`).join('\n')}</table>
 </body>`
 }
 
