@@ -650,3 +650,58 @@ test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset
   const citLens = world.calls.filter((c) => c.opts.label.startsWith('red-lens')).find((c) => c.prompt.includes('CITATION LEDGER'))
   assert.ok(citLens && citLens.prompt.includes('LARGE SOURCES') && citLens.prompt.includes('--comments'), 'citation lens carries the truncation rule (W1.12)')
 })
+
+// ---- W2b engine mechanics ----
+
+test('W2b: empty manifest on a repair round aborts; the harness default satisfies the floor', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] })],
+    blueRespond: [blueEnv({ manifest: [] })],
+  }))
+  await assert.rejects(world.run(script, ARGS), /EMPTY correctness manifest/)
+})
+
+test('W2b: manifest coverage gap is LOGGED (scored at capture), never fatal', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1'), gap('R1-2')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  const result = await world.run(script, ARGS)
+  assert.equal(result.verdict, 'VERIFIED', 'partial coverage does not kill the round')
+  assert.ok(world.logs.some((l) => l.includes('manifest coverage 1/2') && l.includes('R1-2')), 'the uncovered gap is named')
+})
+
+test('W2b: script-side scorecard — repair_regression ratio and edge deltas logged from envelopes', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1', { likelihood: 'high', impact: 'high' })] }),
+          redEnv({ gaps: [gap('R2-1', { supersedes: ['R1-1'], likelihood: 'medium', impact: 'medium' })] }),
+          redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 4 })
+  const line = world.logs.find((l) => l.includes('scorecard'))
+  assert.ok(line, 'scorecard line emitted')
+  assert.ok(line.includes('repair_regression 1/1 = 1.00'), `ratio computed: ${line}`)
+  assert.ok(line.includes('down 5.0'), `edge delta down 9-4=5 mass: ${line}`)
+})
+
+test('W2b: convergence-vs-verdict detector fires on converged fallout-only FAIL, visibility only', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }),
+          redEnv({ gaps: [gap('R2-1', { supersedes: ['R1-1'], severity: 'low', likelihood: 'low', impact: 'low' })] }),
+          redEnv({ verdict: 'PASS' })],
+  }))
+  const result = await world.run(script, { ...ARGS, maxRounds: 4 })
+  assert.equal(result.verdict, 'VERIFIED', 'detector never blocks — the run continued to PASS')
+  assert.ok(world.logs.some((l) => l.includes('convergence-vs-verdict divergence')), 'detector line emitted')
+})
+
+test('W2b: telemetry spec and gap records carry the new fields in the merge prompt', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const merge = world.calls.find((c) => c.opts.label.startsWith('red-merge-r1'))
+  assert.ok(merge.prompt.includes('repair_regression') && merge.prompt.includes('edge_deltas'), 'telemetry line spec extended')
+  assert.ok(merge.prompt.includes('acceptance_check'), 'acceptance-check-at-mint demanded')
+  const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1'))
+  assert.ok(respond.prompt.includes('THE MANIFEST') && respond.prompt.includes('manifest array'), 'manifest demanded at respond')
+})
