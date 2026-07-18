@@ -140,7 +140,7 @@ WAVE 2 (revised) — implement the known constitutional changes, PR series:
       series version; catechism/TL;DR into blue's round-0 template.
 
 E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3-5):
-- [ ] a. ATTESTATION VERIFICATION (the big undone one): every archive "verified
+- [x] a. ATTESTATION VERIFICATION (the big undone one): every archive "verified
       at leaf/line" claim cross-checked against the seat's ACTUAL tool calls in
       its transcript — auditing behavior, not testimony. Bears directly on red's
       constitution (how much verification machinery it needs).
