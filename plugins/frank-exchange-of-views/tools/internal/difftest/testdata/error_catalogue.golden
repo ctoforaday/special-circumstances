@@ -20,7 +20,7 @@ feov-record: merge: record: --neighbor nope is not a known class
 
 ── mint with bad grade
 exit 2
-feov-record: merge: record: mint.severity="catastrophic" not in grade enum
+feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low-medium | medium | medium-high | high | certain | realized | trivial
 
 ── mint with dangling supersedes
 exit 2
