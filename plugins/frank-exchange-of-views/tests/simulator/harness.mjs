@@ -63,6 +63,7 @@ export function makeWorld(respond) {
 // Canned envelopes, schema-shaped.
 export const blueEnv = (over = {}) => ({
   path: 'blue/report.md', tldr: 'tldr', claim_count: 40, saturation_reached: true, round_record_appended: true,
+  manifest: [{ gap_id: 'R1-1', row: 'figures recomputed; acceptance check run: pass' }],
   open_questions: [], friction: [], ...over,
 })
 export const redEnv = (over = {}) => ({
@@ -72,7 +73,7 @@ export const redEnv = (over = {}) => ({
   archive_spot_checks: ['R1-1'], ledger_closure_lines: 0, archive_blocks: 0, ...over,
 })
 export const gap = (id, over = {}) => ({
-  id, location: 'loc', problem: 'p', required_fix: 'f',
+  id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
 export const judgeEnv = (over = {}) => ({ deadlock: false, resolutions: [], friction: [], ...over })

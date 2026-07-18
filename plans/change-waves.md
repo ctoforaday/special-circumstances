@@ -126,7 +126,7 @@ E-queue) until the existing corpus is exhausted (E0.5 below). The plan-audit gat
 WAVE 2 (revised) — implement the known constitutional changes, PR series:
 - [x] W2a. The three constitutions rewritten (blue/red/judge agent files): telos,
       win/loss conditions, craft duties, calibration; assembly union-copy rule.
-- [ ] W2b. Engine: correctness manifest, acceptance-check-at-mint, class-sweep
+- [x] W2b. Engine: correctness manifest, acceptance-check-at-mint, class-sweep
       clauses, repair_regression_rate + supersedes-edge delta telemetry.
 - [ ] W2c. Petitions (script-routed short-circuit) + judicial opinions +
       JUDICIAL RECORD assembly section + judicial_halt.
