@@ -128,7 +128,7 @@ WAVE 2 (revised) — implement the known constitutional changes, PR series:
       win/loss conditions, craft duties, calibration; assembly union-copy rule.
 - [ ] W2b. Engine: correctness manifest, acceptance-check-at-mint, class-sweep
       clauses, repair_regression_rate + supersedes-edge delta telemetry.
-- [ ] W2c. Petitions (script-routed short-circuit) + judicial opinions +
+- [ ] W2c. Petitions (script-routed short-circuit) + judicial opinions + RECOMPUTE-OR-CITE assembly gate (E0.5f) +
       JUDICIAL RECORD assembly section + judicial_halt.
 - [ ] W2d. Gap classes: class field, append-only registry, recurrence escalator,
       class_mass telemetry (seed vocabulary from E0.5g).
@@ -151,7 +151,7 @@ E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3
 - [ ] d. Judge value-add: did docketed/prioritized gaps close differently?
 - [ ] e. Friction as leading indicator: map friction entries to later gaps that
       materialized in the same area.
-- [ ] f. Retroactive assembly screens on runs 3-4 (is assembly-seat regression
+- [x] f. Retroactive assembly screens on runs 3-4 (is assembly-seat regression
       general or run-5-specific?).
 - [x] g. Retroactive class vocabulary: classify all ~180 gaps across runs into
       a seed registry (calibrates W2d before it ships).
