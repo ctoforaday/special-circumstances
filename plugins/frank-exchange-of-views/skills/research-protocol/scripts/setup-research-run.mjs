@@ -91,8 +91,7 @@ export function mirrorLaw(repoLawDir, runDir) {
   mkdirSync(outDir, { recursive: true })
   let files = 0
   for (const f of readdirSync(repoLawDir).filter((x) => x.endsWith('.md'))) {
-    writeFileSync(join(outDir, f), '<!-- mirrored from law/ at run setup — read-only copy -->
-' + readFileSync(join(repoLawDir, f), 'utf8'))
+    writeFileSync(join(outDir, f), '<!-- mirrored from law/ at run setup — read-only copy -->\n' + readFileSync(join(repoLawDir, f), 'utf8'))
     files++
   }
   return { written: files > 0, files }

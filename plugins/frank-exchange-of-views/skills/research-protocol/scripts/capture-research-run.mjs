@@ -8,7 +8,7 @@
 // Usage: node capture-research-run.mjs <runDir> <workflow-transcript-dir>
 // Writes <runDir>/run-record-audit.md, <runDir>/cost.md, trajectories/journal.jsonl (copy),
 // trajectories/agent-transcripts.tar.gz; removes the .run-live marker.
-import { existsSync, readFileSync, writeFileSync, copyFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, readdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL, fileURLToPath } from 'node:url'
@@ -242,7 +242,7 @@ const verbOf = (type) => (type === 'class-new' ? 'mint' : type)
 // + petition rulings); facts/scope stay stubs the reviewer fills from the
 // cited record — the harvest never invents.
 export function harvestPrecedents(runDir, results, lawDir) {
-  const slug = String(runDir).replace(/[\/]+$/, '').split(/[\/]/).pop()
+  const slug = String(runDir).replace(/[\\/]+$/, '').split(/[\\/]/).pop()
   const rulings = []
   for (const r of results) {
     if (Array.isArray(r.resolutions)) for (const x of r.resolutions) rulings.push({ kind: 'docket', gap_id: x.gap_id, disposition: x.resolution, rationale: x.rationale })
@@ -262,10 +262,8 @@ export function harvestPrecedents(runDir, results, lawDir) {
       'scope-limits: <reviewer: state what this assumed>',
       'source: ' + slug + ', ' + (r.kind === 'docket' ? r.gap_id : 'petition:' + r.petitioner),
       '',
-    ].join('
-')),
-  ].join('
-')
+    ].join('\n')),
+  ].join('\n')
   writeFileSync(out, body)
   return { written: true, count: rulings.length, path: out }
 }

@@ -327,3 +327,40 @@ test('record parity (W1.7 post-hoc): missing BLUE blocks or CHANGELOG rounds FAI
   writeFileSync(join(passExit, 'blue', 'CHANGELOG.md'), '## Round 1\nedits\n')
   assert.equal(recordParityAudit(passExit).verdict, 'PASS', 'a PASS exit has no final blue response — floored')
 })
+
+test('W2e law mirror: repo law/ stages read-only into inputs/law; absent law dir is a stated no-op', async () => {
+  const { mirrorLaw } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+  const repo = tmp()
+  mkdirSync(join(repo, 'law'), { recursive: true })
+  writeFileSync(join(repo, 'law', 'README.md'), '# law\nstatute > precedent > argument\n')
+  writeFileSync(join(repo, 'law', 'precedents.md'), '# precedents\n## some-holding [AFFIRMED 2026-07-18]\n')
+  const run = tmp()
+  const r = mirrorLaw(join(repo, 'law'), run)
+  assert.equal(r.files, 2)
+  const staged = readFileSync(join(run, 'inputs', 'law', 'precedents.md'), 'utf8')
+  assert.ok(staged.includes('read-only copy') && staged.includes('AFFIRMED'), 'mirrored with provenance banner')
+  const none = mirrorLaw(join(repo, 'nope'), tmp())
+  assert.equal(none.written, false)
+})
+
+test('W2e precedent harvest: rulings become PERSUASIVE proposals with defeasible form; harvest never invents facts', async () => {
+  const { harvestPrecedents } = await import('../../skills/research-protocol/scripts/capture-research-run.mjs')
+  const repo = tmp()
+  mkdirSync(join(repo, 'law'), { recursive: true })
+  const runDir = join(repo, 'research', '2026-07-18_law-test')
+  mkdirSync(runDir, { recursive: true })
+  const results = [
+    { resolutions: [{ gap_id: 'R2-3', resolution: 'risk_accepted', rationale: 'complexity exceeds bounded likelihood x impact' }] },
+    { rulings: [{ petitioner: 'blue-respond-r2', ruling: 'granted', opinion: 'scope narrowed to shipped artifacts' }] },
+  ]
+  const r = harvestPrecedents(runDir, results, join(repo, 'law'))
+  assert.equal(r.count, 2)
+  const out = readFileSync(r.path, 'utf8')
+  assert.ok(out.includes('[PERSUASIVE]') && !out.includes('[AFFIRMED'), 'everything starts persuasive')
+  assert.ok(out.includes('holding: risk_accepted') && out.includes('holding: granted'))
+  assert.ok(out.includes('facts: <reviewer: fill from the cited record'), 'the harvest never invents facts')
+  assert.ok(out.includes('source: 2026-07-18_law-test, R2-3'), 'holdings carry their source anchors')
+  const noLaw = harvestPrecedents(runDir, results, join(repo, 'absent'))
+  assert.equal(noLaw.written, false)
+  assert.ok(noLaw.reason.includes('law'))
+})

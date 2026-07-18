@@ -132,7 +132,7 @@ WAVE 2 (revised) — implement the known constitutional changes, PR series:
       JUDICIAL RECORD assembly section + judicial_halt.
 - [ ] W2d. Gap classes: class field, append-only registry, recurrence escalator,
       class_mass telemetry (seed vocabulary from E0.5g).
-- [ ] W2e. law/ + feov-memory/ structure: statute/precedent two-tier authority,
+- [x] W2e. law/ + feov-memory/ structure: statute/precedent two-tier authority,
       craft memory compiled to manifest lines at setup, capture STATS + deltas.
 - [ ] W2f. Records layer: seats/board/friction JSONL + structured per-claim
       confidence; capture audits move from heuristics to records.

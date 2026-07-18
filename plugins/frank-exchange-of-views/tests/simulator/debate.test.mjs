@@ -770,3 +770,16 @@ test('W2c: no petitions -> no sitting (zero cost); granted relief binds subseque
   assert.ok(respond.prompt.includes('BENCH RELIEF IN EFFECT') && respond.prompt.includes('scope narrowed'), 'granted relief surfaced to the party')
   assert.ok(world.calls.find((c) => c.opts.label.startsWith('blue-synthesize')).prompt.includes('PETITIONS:'), 'the right is stated at the seat')
 })
+
+test('W2e: every bench sitting carries the law clause — precedent is argument, the leaf wins, persuasive vs affirmed', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    blueSynth: [blueEnv({ petitions: [{ class: 'ethical', basis: 'b', relief: 'r' }] })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 4 })
+  for (const seat of ['judge-petition', 'judge-r']) {
+    const c = world.calls.find((x) => x.opts.label.startsWith(seat))
+    assert.ok(c, `${seat} sat`)
+    assert.ok(c.prompt.includes('PRECEDENT IS ARGUMENT, NOT EVIDENCE') && c.prompt.includes('the leaf wins') && c.prompt.includes('only AFFIRMED ones bind'), `${seat} missing law clause`)
+  }
+})
