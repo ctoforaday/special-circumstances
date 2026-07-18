@@ -47,7 +47,8 @@ export function buildModel(runDir, transcriptDir) {
   for (const j of journal) {
     if (!j.agentId) continue
     const s = byId.get(j.agentId) || { agentId: j.agentId, done: false }
-    if (j.result !== undefined) { s.done = true; s.result = typeof j.result === 'string' ? j.result.slice(0, 100) : JSON.stringify(j.result).slice(0, 100) }
+    // Keep the RAW result — truncating here fed the summarizer unparseable half-JSON.
+    if (j.result !== undefined) { s.done = true; s.result = j.result }
     byId.set(j.agentId, s)
   }
   const seats = new Map()

@@ -91,4 +91,5 @@ test('phone UX pass: severity codes, live-seat grouping, summarized envelopes, t
   assert.ok(html.includes('3h') && html.includes('9m'), 'severity codes compact (3h · 9m style)')
   assert.ok(html.includes('class="scrollx"'), 'rates table scrolls in its own container')
   assert.ok(html.includes('title="frontier"') && html.includes('>front<'), 'short bar labels with full-name tooltips')
+  assert.ok(html.includes('100 claims'), 'completions summarize the raw envelope end-to-end (untruncated at capture)')
 })
