@@ -144,7 +144,7 @@ E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3
       at leaf/line" claim cross-checked against the seat's ACTUAL tool calls in
       its transcript — auditing behavior, not testimony. Bears directly on red's
       constitution (how much verification machinery it needs).
-- [ ] b. Merge information-loss: lens candidates vs merged ledger, all rounds,
+- [x] b. Merge information-loss: lens candidates vs merged ledger, all rounds,
       all runs — what dies at the merge bottleneck.
 - [ ] c. Lens ROI, full: candidates-based attribution where found_by is absent;
       cost per surviving finding per lens (seat-count economics).
