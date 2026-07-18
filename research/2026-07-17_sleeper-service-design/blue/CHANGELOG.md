@@ -141,3 +141,133 @@ body AND footnotes.
 top-level bullets, numbered items, table body rows outside code blocks and footnotes;
 6 header rows and 6 separator rows excluded — plus 18 code-block contract units:
 /self-improve steps 0–7 and the now-10 idea-stub contract fields). Floor, not ceiling.
+
+## Round 2 — revision (2026-07-17)
+
+All 22 round-2 gaps addressed additively (R2-1..R2-16 lead-carried with owed directions —
+each direction executed; R2-17..R2-22 red-minted round 2); zero grade disputes filed
+(round-2 grading accepted whole: every required fix priced trivial-to-low-medium, so
+absorption again beat contestation on the pragmatist's arithmetic). Pre-flight:
+`inputs/red-gap-patterns.md` re-read (window-without-a-watchman, false-equivalence
+disjuncts, sibling-repair composition, exhaustive-sweep-omits-own-specimen,
+self-referential-repo-drift, incomplete-repair both directions — all applied);
+`debate.md` ### RED and ### LEAD round-2 sections read in full before drafting. No
+pending dispute deltas (none filed round 1).
+
+**Round-2 probes of record:**
+
+- R2-1: `claude --help` on pinned CLI 2.1.212 confirms `--input-format <format>` with
+  `stream-json` ("realtime streaming input", print-mode only) — the two-phase canary
+  drive is buildable at the pinned version. Logged in [^CliReference].
+- R2-3: FEOV execution locus determined from the shipped command file (plugin copy
+  0.7.0, commands/research.md steps 2/3/5): setup-research-run.mjs and
+  capture-research-run.mjs are session-Bash `node` invocations; the debate engine is a
+  **Workflow tool** invocation (`scriptPath` = debate.js) — MIXED locus; neither of
+  red's two branches alone. Logged in [^ResearchCommand].
+
+**Design changes (build-altering):**
+
+- R2-1 (medium-high): canary actor/observer/abort specified — the wrapper is a
+  PHASE-DRIVEN stream-json session driver; phase 0 sends the canary-only message, parses
+  the event stream + fired-record, and only on pass sends the real prompt; kill+abort
+  otherwise. Header/label contradiction reconciled (attempt in-session; actor/observer/
+  abort wrapper-side). Edited: §0 tree, §2.2 step 0, §4.3 layer 2.
+- R2-2 (medium-high): layer-1-masks-layer-2 closed by a POSITIVE hook-liveness record —
+  the guard appends a fired-record (tool, path, nonce, decision) to the operator-owned
+  dir on every sleeper-fence deny; wrapper requires deny-in-stream AND nonce-in-record;
+  marker loss means no record means ABORT. "Enforcement PROVEN" reworded to "fence
+  LIVENESS proven" at §0 tree + §4.3 layer 2; OQ2's acceptance test rewritten to the
+  fence-dormant case the new mechanism passes; deny-provenance-in-stream parked as belt
+  (OQ21).
+- R2-3 (high, the round's priority): mixed locus stated; the two Bash node scripts
+  re-hosted WRAPPER-SIDE (§2.2 steps 0/4/7 — setup after the phase-A structured-output
+  pick, topic sanitized to slug charset; capture at step 7); the debate engine rides the
+  Workflow tool — `Workflow` added to the §4.2 allow list, sleeper-guard hook scopes
+  scriptPath to the read-only plugin copy (native rule scoping = OQ20); seat-agent hook
+  coverage argued from leaf evidence [^IdeasCorpus]; workflow-script fs writes classed
+  layer-4 residual bounded by pinned code + R2-7 compare. §4.3 layer 4 re-scoped
+  ("removes all MODEL-AUTHORED script execution"); §6 row 4 re-graded Low to Low-Medium
+  and re-argued on the true premise (supersedes the R1-21 re-argument), leg (b) now
+  backed by R2-7's watchman.
+- R2-5 (medium-high): origin tagging moved from `*_self-improve/` name glob to
+  wrapper-stamped causal-provenance markers (`inputs/.sleeper-origin` at creation for
+  BOTH dirs — possible because R2-3 moved sub-run setup wrapper-side) + step-7
+  porcelain-delta sweep + run-window fallback; harvest reads markers, never names.
+  §1.5 restated; §6 row 10 re-graded on the new mechanism.
+- R2-6 (medium): disjunction DECIDED — severity-gated bypass (red's shape,
+  lead-endorsed): infrastructure-failure classes enter flagged `sleeper-only` without
+  corroboration; ordinary classes need one non-sleeper occurrence; both horns' costs
+  owned in §1.5; row 10 tracks the decision.
+- R2-7 (medium): the snapshot delta gets its watchman — wrapper compares end-vs-start
+  and start-vs-prior-end at step 7; mismatch raises a dated TAMPER flag + doctor line +
+  NEXT preflight fails closed. §4.3 layer 5, §2.2 step 7, §6 row 4 leg (b)/revisit
+  trigger.
+- R2-8 (medium): plugin-copy lifecycle built — refresh-sleeper-copy step in
+  scheduling.md's guardrail-PR checklist; operator-approved content hash; preflight
+  recomputes and FAILS CLOSED on mismatch; doctor staleness line. §3.2, §2.2 step 0.
+- R2-9 (low-medium): decision, both horns owned — SessionStart-hook staleness warning
+  (N=7 days) in interactive sessions as a passively-received push-adjacent channel
+  independent of the scheduler; residual latency stated honestly (unbounded only if the
+  operator abandons the tool); §6 row 15 re-graded with the latency term. §3.4.
+- R2-10 (low-medium): per-cause dead SIGNATURE (normalized abort reason); M=3
+  consecutive same-signature fresh-dir deaths trigger a HALT marker, preflight refuses
+  until human-cleared, dead-man flag with reason; "cannot be resumed nightly forever"
+  softened to per-dir scope. §3.4, §2.2 step 0, §6 row 15.
+- R2-11 (low-medium): `graduation-queued` human-set status exempts a stub from
+  auto-stale while still deduping; window stays tunable. §1.4 stage 2, §2.3 status enum,
+  §6 row 3.
+- R2-12 (low): completeness read from the wrapper's OWN step-7 ledger record
+  (operator-owned dir), never run-dir contents; DEAD marker located beside the ledger.
+  §2.2 step 0, §3.4 idempotence.
+- R2-17 (low-medium): trade CHOSEN — nightly profile stays strict qmd-only and ACCEPTS
+  degraded PDF citation capability (vs re-opening #68375 unattended); false "ToolSearch
+  reaches pdf/arxiv" parenthetical corrected (strict-mcp-config removes the declaration);
+  standing confidence caveat added to the stub contract; full PDF tooling at graduation.
+  §3.3(a), §2.3, §2.2 step 4.
+- R2-18 (low-medium): expected per-run spend stated (~$0.10–0.50, from the measured
+  ~50k-token smoke shape + probe P2's $0.058); $2–5 declared per-run CEILING/anomaly
+  bound; 30 x expected = ~$3–15/mo vs the $50 cap, so cap-trip = anomaly signal; skip
+  records carry REASON, printed on the dead-man line. §5.2 table, §1.4, §3.4.
+
+**Text/enumeration/citation repairs:**
+
+- R2-4: §2.2 step 2 reworded — "read the wrapper-staged scored table" (scoring ran
+  wrapper-side in harvest.mjs); no in-session script.
+- R2-13: §6 row 5 cell requalified "(no spend-limit API; rate-limit API unreachable at
+  this auth tier — §5.1/R1-9)".
+- R2-14: §7 Pattern B/E bullet upgraded ("leaf-verified HIGH round 1, R1-11"); R1-11
+  added to §7's banked-upgrade list; §7 Round 2 update block added.
+- R2-15: §3.4 rung-1 label now "RECOMMENDED default among SCHEDULED rungs, once the
+  human opts in"; the table's "Reading:" paragraph aligned.
+- R2-16: R0 L2 cell split ("fence YES (cache copy); canary n/a"); rung-0 manual spend
+  declared OUT-OF-LEDGER BY DESIGN with consequences owned + cheap upgrade named. §3.4.
+- R2-19: §0 artifact enumeration made total over the printed tree (+ continuous-learning
+  skill file + plugin manifest).
+- R2-20: [^Backlog] range 15–17 corrected to 15–18 with correction note.
+- R2-21: §2.4 "exact" changed to "direct" + honesty clause (DGM admits low scorers;
+  admission = compile+edit-ability; our /graduate is stricter, pass-required). No H2
+  re-grade.
+- R2-22: [^EfficiencyPlan] added beside the $149.95 run-3 figure in §5.2.
+- Lead direction: invariant 7 added to §0 (checked, human-surfaced liveness/outcome
+  record for every wrapper gate), with the four derived instances named; §0 Round-2
+  revision header added.
+- Banked round-2 upgrades claimed: [^WindowsHang] MEDIUM to HIGH (regression span
+  body-confirmed), [^Pricing] zero-drift re-fetch + Batch 24h sub-claim MEDIUM to HIGH
+  (footnote + §5.2 body both updated), [^CliReference] gains --input-format +
+  --json-schema version marker, #76239/#68375 re-confirmed OPEN.
+
+**Propagation greps (both directions, report-wide):** `enforcement PROVEN` (0 standing —
+reworded at both sites; "proven" survives only inside correction contexts), `removes ALL
+script` (0 standing; survives only inside the R2-3 correction quote), `*_self-improve/`
+glob-as-mechanism (0 standing; the string survives as dir name + correction contexts),
+`already looks at` (0 standing; survives only inside the R2-9 correction quote), `cannot
+be resumed nightly forever` (now scoped "within one run dir"), `$2–5` (3 sites — §1.4,
+§5.2 table, §3.4 R2-10 text — all now ceiling-labeled with expected spend stated),
+`RECOMMENDED default` (qualified at the rung row AND the "Reading:" paragraph),
+`analogy is exact` (0 — now "direct"), `no API` (§6 row 5 requalified; §5.1 sites were
+already correct per R1-9), `15–17` (0), `carried MEDIUM pending` (0 — body + footnote
+both resolved), `graduation-queued` (present at §1.4/§2.3/§6 row 3 — all three
+stale-rule sites), `denial canary` (remaining mentions are the historical round-1 record
++ the gate-table row label; every mechanism site carries the fired-record).
+claim_count 142 to 146 (method unchanged: +invariant 7, +§7 Round-2 bullet, +OQ20,
++OQ21).

@@ -347,3 +347,62 @@ result on the carried items' own terms.
 
 Deadlock check: FALSE — 16 gaps carried this round AND red raised six new gaps
 (R2-17..R2-22). The debate continues into round 3.
+
+### BLUE
+
+Round 2: all 22 gaps addressed additively; zero grade disputes filed (every required fix
+priced trivial-to-low-medium — absorption beat contestation again). claim_count 142 → 146
+(CHANGELOG Round 2). The lead's cross-cutting direction is adopted as the round's
+organizing move: **invariant 7** now stands in §0 — every wrapper gate emits a checked,
+human-surfaced liveness/outcome record — and the R2-1/R2-2/R2-7/R2-8 fixes are derived
+from it rather than patched singly.
+
+Two probes discharged the lead's owed directions. (1) R2-1: `claude --help` on the pinned
+CLI 2.1.212 confirms `--input-format stream-json` — the wrapper is now specified as a
+PHASE-DRIVEN session driver: phase 0 sends only the canary, the wrapper parses the event
+stream and the guard's fired-record, and the real prompt is sent only on pass; the
+header/label contradiction is reconciled (attempt in-session, actor/observer/abort
+wrapper-side). (2) R2-3, the round's HIGH: the FEOV execution locus is MIXED per the
+shipped command file (probe of record in [^ResearchCommand]) — setup/capture are
+session-Bash `node` calls, the debate engine is a **Workflow tool** invocation. Neither
+red branch alone was true. The design re-hosts the two Bash scripts wrapper-side (which
+also makes R2-5's stamp-at-creation possible) and owns the Workflow channel explicitly:
+allow-listed, hook-scoped scriptPath (native rule scoping is OQ20), seat agents
+leaf-verified as hook subjects, script fs writes classed layer-4 residual under R2-7's
+watchman. §4.3 layer 4 and §6 row 4 are re-argued on the true premise; row 4 re-graded
+Low → Low-Medium.
+
+R2-2's masking argument was right and is closed positively, not by downgrade: the guard
+appends a fired-record on every sleeper-fence deny; the canary requires deny-in-stream
+AND nonce-in-record, so marker loss (no record) ABORTS even though layer 1 still denies —
+OQ2's fence-dormant test now passes as designed. R2-5/R2-6: causal-provenance markers
+replace the name glob, and the corroboration disjunction is DECIDED as the severity-gated
+bypass with both horns' costs owned in §1.5. R2-7: the wrapper compares hashes at step 7;
+TAMPER flag + fail-closed next preflight — detection latency is one run. R2-8: the
+executing copy gets a hash-verified lifecycle (approved-hash preflight, refresh step in
+the guardrail-PR checklist, doctor staleness line). R2-9: both horns owned — a
+SessionStart staleness warning as a passively-received channel independent of the
+scheduler, plus the honest statement that latency is unbounded if the operator abandons
+the tool. R2-10: per-cause signature HALT. R2-17: the trade is chosen — nightly stays
+qmd-only, PDF degradation stated as a standing stub-confidence caveat, full tooling at
+graduation (cheapening citation-polish mechanics on proposals, never judgment). R2-18:
+expected spend stated (~$0.10–0.50/night measured basis) — the $50 cap carries ≥3×
+headroom and cap-trip is an anomaly signal; skip reasons print on the dead-man line, so
+cap streaks are distinguishable from death. Remaining items (R2-4, R2-11..R2-16,
+R2-19..R2-22) landed as specified, including the DGM honesty clause (R2-21: our gate is
+STRICTER than DGM — pass-required vs retain-low-scorers) and the §0 enumeration made
+total (R2-19).
+
+Rebuttals maintained: none — every gap was right on its evidence; where the lead offered
+alternatives, the cheaper buildable horn was chosen and the cost stated in text.
+Banked round-2 upgrades claimed: [^WindowsHang] → HIGH, [^Pricing] zero-drift + Batch
+≤24h → HIGH, [^WebSandbox]/[^MissedRun] → HIGH, `--json-schema` ≥2.1.205, #76239/#68375
+re-confirmed OPEN. Propagation greps for all corrected tokens logged in CHANGELOG Round 2
+(both directions). Open questions now 21: OQ2 rewritten to the liveness test, OQ20
+(Workflow rule scoping) and OQ21 (deny provenance in stream-json) added.
+
+One friction item filed: two of the lead's owed probe directions (stream deny-provenance
+distinguishability; live Workflow-under-sleeper-profile behavior) require built artifacts
+that do not exist in a design-phase debate — discharged by document-probe + mechanism
+choice + named OQs, but the protocol wants a "probe class" distinction (document-probe vs
+live-probe) so a design-phase seat can honestly declare which is available.
