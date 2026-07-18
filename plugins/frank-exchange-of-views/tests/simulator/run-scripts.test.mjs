@@ -171,7 +171,7 @@ test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with te
 test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are never smoothed over)', () => {
   const runDir = fixtureRun({ ledgerLines: 1, archiveBlocks: 1, frictionInFile: false })
   const transcriptDir = fixtureTranscript()
-  const r = spawnSync(process.execPath, [join(SCRIPTS, 'capture-research-run.mjs'), runDir, transcriptDir])
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'capture-research-run.mjs'), runDir, transcriptDir], { cwd: tmp() }) // cwd MUST be a temp dir: capture removes cwd/.claude/run-live.json, and an inherited repo cwd would delete a LIVE session marker (happened 2026-07-17 — killed the run-5 watcher)
   assert.equal(r.status, 2, `expected exit 2, got ${r.status}: ${r.stderr}`)
   assert.ok(r.stdout.toString().includes('friction-parity: FAIL'))
 })
