@@ -74,3 +74,18 @@ found_by attribution exists only for run-5 rounds 4-5 (L5:7, L6:4, L4:0 in r5).
 Once one full run carries end-to-end attribution: cost per surviving finding per
 lens; test whether 6 lenses outperform 4 at the observed ROI skew (~30% red-side
 cost lever).
+
+## E7. Persistent-blue arm (CONDITIONAL — gated on E2 results)
+
+Question: would a blue-respond that persists across rounds (carrying its own repair
+rationale in context) cut the regression ratio? Prior: no — the measured dominant
+defect is absent self-review, not lost rationale, and persistence costs the things
+the audits found load-bearing (fresh-eyes self-correction, forced externalization,
+zero-compaction, cache-replay resume; a persistent red across run 5 would have hit
+~0.8-1.3M tokens = guaranteed mid-run compaction). GATE: run only if the reformed
+run's repair_regression_ratio stays >0.3 AND transcripts show repairs failing
+specifically because rationale did not survive the round handoff. The ephemerality
+TAX (report.md read 110x/run) is addressed separately by corpus-snapshot
+single-read mechanics (doctrine-neutral rung 1), not by identity persistence.
+Doctrine at stake: "the team persists; the sitting is ephemeral" — continuity
+through artifacts (constitution/memory/law), never through context.
