@@ -126,3 +126,12 @@ test('phone UX pass: severity codes, live-seat grouping, summarized envelopes, t
   assert.ok(html.includes('title="frontier"') && html.includes('>front<'), 'short bar labels with full-name tooltips')
   assert.ok(html.includes('100 claims'), 'completions summarize the raw envelope end-to-end (untruncated at capture)')
 })
+
+test('W1.5: telemetry is authoritative when the ledger parse under-reads the open count', () => {
+  const { runDir, transcriptDir } = fixture()
+  // Ledger open section parses 2 rows but telemetry says 23 open — the run-5 "open gaps: 1"
+  // regression class: the old fallback engaged only at zero.
+  const html = renderHtml(buildModel(runDir, transcriptDir))
+  assert.ok(html.includes('23 <span class="muted">(from telemetry'), 'under-read parse defers to telemetry')
+  assert.ok(html.includes('found 2 row(s)'), 'the parse count is disclosed, not hidden')
+})

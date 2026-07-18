@@ -298,7 +298,7 @@ ${m.rates.map((r, i) => { const t = m.telemetry[i]; return `<tr><td>${esc(r.roun
 </table></div>
 <h2>Red's board (contents, not bytes)</h2>
 ${m.shards.ledgerExists ? `<table>
-<tr><td>open gaps on the ledger</td><td>${m.shards.openRows === 0 && m.latest && m.latest.open_count > 0 ? `${esc(m.latest.open_count)} <span class="muted">(from telemetry — ledger open-section rows not parseable)</span>` : `${m.shards.openRows}${Object.keys(m.shards.openBySeverity).length ? ' <span class="muted">(' + Object.entries(m.shards.openBySeverity).map(([k, v]) => `${esc(k)}:${esc(v)}`).join(' · ') + ')</span>' : ''}`}</td></tr>
+<tr><td>open gaps on the ledger</td><td>${m.latest && m.latest.open_count > 0 && m.shards.openRows < m.latest.open_count ? `${esc(m.latest.open_count)} <span class="muted">(from telemetry — heuristic ledger parse found ${esc(m.shards.openRows)} row(s); telemetry wins when the parse under-reads)</span>` : `${m.shards.openRows}${Object.keys(m.shards.openBySeverity).length ? ' <span class="muted">(' + Object.entries(m.shards.openBySeverity).map(([k, v]) => `${esc(k)}:${esc(v)}`).join(' · ') + ')</span>' : ''}`}</td></tr>
 <tr><td>closure index rows</td><td>${m.shards.closureIndexRows}</td></tr>
 <tr><td>archived closure records</td><td>${m.shards.archiveRecords}</td></tr>
 </table><p class="muted">severity counts are a heuristic parse of red's own rows — the ledger is the record</p>` : '<p class="muted">ledger not yet created (red-merge-born at round 1)</p>'}

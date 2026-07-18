@@ -27,7 +27,7 @@ FEOV setup/capture scripts:
       crossing 50% of its model's window. [backlog; 146-transcript scan baseline]
 - [ ] W1.4 Assembly regression screen at capture: grep assembled sections against
       the run's propagation lists. [catechism audit — mechanical half of the fix]
-- [ ] W1.5 Dashboard openRows fallback: telemetry authoritative when heuristic
+- [x] W1.5 Dashboard openRows fallback: telemetry authoritative when heuristic
       parse < telemetry count. [known wart, feat/run-dashboard]
 
 FEOV engine (debate.js — plumbing, not constitutions):
