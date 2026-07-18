@@ -303,7 +303,15 @@ function main() {
     // Printed as a ready-to-pass workflow arg: debate.js is SANDBOXED (zero
     // imports) and cannot read this file itself, so the numbers travel as an
     // argument rather than as a path the engine would have to open.
-    console.log(`  scorecards arg: ${JSON.stringify(cards.headlines)}`)
+    // Written as a FILE as well as printed. The workflow script cannot read it —
+    // verified empirically, not assumed: a zero-agent probe found require,
+    // process, fetch and import() all absent, with import() explicitly refused
+    // ("import() is not available in workflow scripts"). But whoever LAUNCHES the
+    // run can read it, and a machine-readable file beats a human retyping a
+    // printed line into an argument.
+    writeFileSync(join(runDir, 'inputs', 'scorecards.json'), JSON.stringify(cards.headlines, null, 2) + '\n')
+    console.log(`  scorecards arg: pass inputs/scorecards.json as the workflow's "scorecards" arg`)
+    console.log(`    ${JSON.stringify(cards.headlines)}`)
   }
   console.log(`  record binary: ${pre.ok ? `${recordBin} ${pre.version || '(version unreported)'}` : `NOT AVAILABLE — ${pre.reason} (this run will not record through the tool; pass --bin-dir to require it)`}`)
   console.log(`  run-live marker: ${marker}`)
