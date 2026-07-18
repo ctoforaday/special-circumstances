@@ -35,47 +35,45 @@
       }
     },
     {
-      "name": "node",
-      "purpose": "JavaScript runtime — FEOV workflow simulator + cost-audit, npx-launched MCP servers (pdf-reader), and the npm-installed qmd",
-      "tier": "recommended",
-      "check_cmd": "node --version",
+      "name": "jq",
+      "purpose": "JSON slicing for diagnostics and key-scoped settings reads",
+      "tier": "optional",
+      "check_cmd": "jq --version",
       "install": {
-        "windows": "winget install --id OpenJS.NodeJS.LTS -e",
-        "darwin": "brew install node",
-        "linux": "see https://nodejs.org/en/download"
-      }
-    },
-    {
-      "name": "qmd",
-      "purpose": "research-corpus recall index — the ONE installed qmd shared by the MCP server (read path) and sc-recall-index hook (write path), so index-schema skew is impossible; this install string is the version authority",
-      "tier": "recommended",
-      "check_cmd": "qmd --version",
-      "install": {
-        "windows": "npm install -g @tobilu/qmd@2.5.3",
-        "darwin": "npm install -g @tobilu/qmd@2.5.3",
-        "linux": "npm install -g @tobilu/qmd@2.5.3"
-      }
-    },
-    {
-      "name": "uv",
-      "purpose": "Python tool runner — uvx launches the arxiv-latex MCP server (FEOV document extraction)",
-      "tier": "recommended",
-      "check_cmd": "uv --version",
-      "install": {
-        "windows": "winget install --id astral-sh.uv -e",
-        "darwin": "brew install uv",
-        "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh"
+        "windows": "winget install --id jqlang.jq -e",
+        "darwin": "brew install jq",
+        "linux": "sudo apt-get install -y jq"
       }
     }
   ],
   "_hook_binaries": {
     "_comment": "OUR compiled hooks, not external deps — one per directory under tools/cmd/. /prosthetic-conscience:doctor --fix fetches the CI-built release asset <name>_{goos}_{goarch}{exe} (SHA256-verified) into bin/, falling back to go build only as a dev convenience. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
     "binaries": [
-      { "name": "sc-quality-gate", "event": "PostToolUse(Write|Edit)", "purpose": "qlty fmt/check gate, capability-gated" },
-      { "name": "sc-secrets-gate", "event": "PreToolUse(WebFetch|WebSearch|Bash)", "purpose": "deny outbound payloads matching secret patterns" },
-      { "name": "sc-toolchain-nudge", "event": "SessionStart", "purpose": "one-line warning when a recommended tool is missing" },
-      { "name": "sc-push-freeze-guard", "event": "PreToolUse(Bash)", "purpose": "warns on git push while a research run is live (.run-live marker) — the pinned-path freeze made unforgettable, never blocking" },
-      { "name": "sc-recall-index", "event": "PostToolUse(Write|Edit)", "purpose": "qmd FTS update on markdown writes — deterministic recall freshness; runs ONLY the doctor-installed qmd (no npx fallback — a second resolution path is a second version), silent no-op when absent" }
+      {
+        "name": "sc-quality-gate",
+        "event": "PostToolUse(Write|Edit)",
+        "purpose": "qlty fmt/check gate, capability-gated"
+      },
+      {
+        "name": "sc-secrets-gate",
+        "event": "PreToolUse(WebFetch|WebSearch|Bash)",
+        "purpose": "deny outbound payloads matching secret patterns"
+      },
+      {
+        "name": "sc-toolchain-nudge",
+        "event": "SessionStart",
+        "purpose": "one-line warning when a recommended tool is missing"
+      },
+      {
+        "name": "sc-push-freeze-guard",
+        "event": "PreToolUse(Bash)",
+        "purpose": "warns on git push while a research run is live (.run-live marker) — the pinned-path freeze made unforgettable, never blocking"
+      },
+      {
+        "name": "sc-recall-index",
+        "event": "PostToolUse(Write|Edit)",
+        "purpose": "qmd FTS update on markdown writes — deterministic recall freshness; runs ONLY the doctor-installed qmd (no npx fallback — a second resolution path is a second version), silent no-op when absent"
+      }
     ]
   }
 }

@@ -14,11 +14,27 @@ func TestDecide(t *testing.T) {
 		m       *runlive.Marker
 		cmd     string
 		wantHit bool
+		wantSub string // required substring of the warning when wantHit
 	}{
-		{"no marker is silent even on push", nil, "git push origin main", false},
-		{"live + push warns", live, "cd repo && git push", true},
-		{"live + non-push is silent", live, "git status", false},
-		{"live + commit without push is silent", live, "git commit -m x", false},
+		{"no marker is silent even on push", nil, "git push origin main", false, ""},
+		{"live + push warns with the frozen pins", live, "cd repo && git push", true, "FROZEN"},
+		{"live + non-push is silent", live, "git status", false, ""},
+		{"live + commit without push is silent", live, "git commit -m x", false, ""},
+		// W1.13 — the 2026-07-17 incident classes.
+		{"live + add -A warns", live, "git add -A && git commit -m x", true, "sweeping"},
+		{"live + add . warns", live, "cd repo && git add .", true, "sweeping"},
+		{"live + add --all warns", live, "git add --all", true, "sweeping"},
+		{"live + explicit-path add is silent", live, "git add ideas/backlog.md plans/x.md", false, ""},
+		{"live + checkout branch warns", live, "git checkout main", true, "worktree"},
+		{"live + checkout -b is silent (no working-tree deletion)", live, "git checkout -b feat/x", false, ""},
+		{"live + switch warns", live, "git switch main", true, "worktree"},
+		{"live + switch -c is silent", live, "git switch -c feat/x", false, ""},
+		{"live + stash -u warns", live, "git stash -u", true, "untracked"},
+		{"live + stash --include-untracked warns", live, "git stash push --include-untracked -m x", true, "untracked"},
+		{"live + stash pop warns on clobber risk", live, "git stash pop", true, "never pop"},
+		{"live + plain stash push is silent (tracked-only)", live, "git stash push -m wip", false, ""},
+		{"no marker is silent on add -A", nil, "git add -A", false, ""},
+		{"flag in a LATER command never leaks into the git verb", live, "git add file.md && rm -A", false, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -27,10 +43,8 @@ func TestDecide(t *testing.T) {
 				t.Fatalf("decide(%v, %q) = %q; wantHit=%v", c.m != nil, c.cmd, got, c.wantHit)
 			}
 			if c.wantHit {
-				for _, want := range []string{"research/x", "ideas/backlog.md", "FROZEN"} {
-					if !strings.Contains(got, want) {
-						t.Fatalf("warning missing %q: %q", want, got)
-					}
+				if !strings.Contains(got, "research/x") || !strings.Contains(got, c.wantSub) {
+					t.Fatalf("warning missing run dir or %q: %q", c.wantSub, got)
 				}
 			}
 		})

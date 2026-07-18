@@ -10,7 +10,7 @@ ratifies. Nothing in wave 3 ships before ratification (house gate).
 
 ## WAVE 0 — operational preconditions (no code)
 
-- [ ] Update dance to 0.9.0 (closing arguments + judiciary dashboard are merged
+- [ ] Update dance to latest (FEOV 0.9.2 + PC 0.9.0 after this wave merges/tags) (closing arguments + judiciary dashboard are merged
       but the plugin cache still runs 0.7.0): /plugin update → /reload-plugins →
       /reload-skills → doctor --fix.
 
@@ -51,12 +51,12 @@ FEOV engine (debate.js — plumbing, not constitutions):
       structural batching mechanism from the efficiency queue).
 
 Prosthetic-conscience (Go; tag next PC bump):
-- [ ] W1.13 sc-push-freeze-guard extension: warn on `git add -A`/`git add .`/
+- [x] W1.13 sc-push-freeze-guard extension: warn on `git add -A`/`git add .`/
       `git checkout <branch>`/`git stash` while run-live marker exists. [incident
       class 2026-07-17]
-- [ ] W1.14 requirements.json: add jq (optional tier). [user-installed; doctor
+- [x] W1.14 requirements.json: add jq (optional tier). [user-installed; doctor
       should own it]
-- [ ] W1.15 Doctor cross-plugin aggregation: each plugin ships requirements.json,
+- [x] W1.15 Doctor cross-plugin aggregation: each plugin ships requirements.json,
       doctor walks every installed SC plugin. [backlog; PR #17 debt]
 
 ## WAVE 2 — the debate (plan-audit gate first; the old constitution's last case)

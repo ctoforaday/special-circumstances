@@ -22,6 +22,28 @@
         "darwin": "ships with macOS",
         "linux": "sudo apt-get install -y tar"
       }
+    },
+    {
+      "name": "qmd",
+      "purpose": "research-corpus recall index — the ONE installed qmd shared by the MCP server (read path) and sc-recall-index hook (write path), so index-schema skew is impossible; this install string is the version authority",
+      "tier": "recommended",
+      "check_cmd": "qmd --version",
+      "install": {
+        "windows": "npm install -g @tobilu/qmd@2.5.3",
+        "darwin": "npm install -g @tobilu/qmd@2.5.3",
+        "linux": "npm install -g @tobilu/qmd@2.5.3"
+      }
+    },
+    {
+      "name": "uv",
+      "purpose": "Python tool runner — uvx launches the arxiv-latex MCP server (FEOV document extraction)",
+      "tier": "recommended",
+      "check_cmd": "uv --version",
+      "install": {
+        "windows": "winget install --id astral-sh.uv -e",
+        "darwin": "brew install uv",
+        "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh"
+      }
     }
   ]
 }
