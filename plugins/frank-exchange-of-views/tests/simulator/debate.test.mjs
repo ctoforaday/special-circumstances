@@ -2,7 +2,7 @@
 //   node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs (directory form fails on Windows node — list files explicitly)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, redEnv, gap, judgeEnv } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, redEnv, gap, judgeEnv, petitionRulingEnv } from './harness.mjs'
 
 const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url))
 const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3 }
@@ -721,4 +721,52 @@ test('R2 dual-mode: toolsDir arms SEAT_ID + record clauses on every seat; omitti
   const legacy = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await legacy.run(script, ARGS)
   assert.ok(!legacy.calls.some((c) => c.prompt.includes('SEAT_ID:')), 'no toolsDir -> no clause, old resumes untouched')
+})
+
+// ---- W2c: the petition short-circuit + judicial halt ----
+
+test('W2c: a petition dispatches a bench sitting BEFORE the next seat; denied -> the debate continues to its normal end', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ petitions: [{ class: 'ethical', basis: 'asked to assert what I believe false', relief: 'reframe the claim' }] })],
+    red: [redEnv({ verdict: 'PASS' })],
+    petition: [petitionRulingEnv()],
+  }))
+  const result = await world.run(script, ARGS)
+  assert.equal(result.verdict, 'VERIFIED', 'denied petition never blocks the run')
+  const idx = world.calls.findIndex((c) => c.opts.label.startsWith('judge-petition'))
+  const redIdx = world.calls.findIndex((c) => c.opts.label.startsWith('red-lens'))
+  assert.ok(idx >= 0 && idx < redIdx, 'the sitting fired before round 1 dispatched')
+  assert.equal(result.petitions.length, 1)
+  assert.equal(result.petitions[0].ruling, 'denied')
+  assert.ok(world.calls[idx].prompt.includes('never sanctioned'), 'anti-chilling stated at the sitting')
+})
+
+test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbatim to assembly and the envelope', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'the topic requires publishing an exploit chain', relief: 'halt the run' }] })],
+    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'halt', opinion: 'continuing would compromise safety; the human must decide' }] })],
+  }))
+  const result = await world.run(script, { ...ARGS, maxRounds: 5 })
+  assert.equal(result.verdict, 'HALTED')
+  assert.equal(result.halted, true)
+  assert.ok(result.halt_opinion.includes('the human must decide'))
+  assert.ok(!world.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'the round never continued past the halt')
+  const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
+  assert.ok(assemble.prompt.includes('Stamp HALTED') && assemble.prompt.includes('VERBATIM') && assemble.prompt.includes('the human must decide'), 'assembly quotes the opinion in full, never smoothed')
+})
+
+test('W2c: no petitions -> no sitting (zero cost); granted relief binds subsequent seats', async () => {
+  const quiet = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await quiet.run(script, ARGS)
+  assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge-petition')), 'no petition, no sitting')
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ petitions: [{ class: 'constitutional', basis: 'b', relief: 'narrow the demanded scope' }] })],
+    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'blue-synthesize', class: 'constitutional', ruling: 'granted', opinion: 'scope narrowed to the shipped artifacts' }] })],
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  const result = await world.run(script, ARGS)
+  assert.equal(result.verdict, 'VERIFIED')
+  const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1'))
+  assert.ok(respond.prompt.includes('BENCH RELIEF IN EFFECT') && respond.prompt.includes('scope narrowed'), 'granted relief surfaced to the party')
+  assert.ok(world.calls.find((c) => c.opts.label.startsWith('blue-synthesize')).prompt.includes('PETITIONS:'), 'the right is stated at the seat')
 })

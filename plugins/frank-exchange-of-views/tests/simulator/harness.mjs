@@ -77,15 +77,17 @@ export const gap = (id, over = {}) => ({
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
 export const judgeEnv = (over = {}) => ({ deadlock: false, resolutions: [], friction: [], ...over })
+export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied', opinion: 'considered and denied with reasons' }], friction: [], ...over })
 
 // Role-routing responder: dispatches on the label prefix the script assigns each seat.
 // red / judge / blueSynth / blueRespond are queues consumed in call order (last entry
 // repeats); bulk narrative seats (frontier, lanes, lenses, assemble) return synopsis text.
-export function makeResponder({ red = [redEnv()], judge = [judgeEnv()], blueSynth = [blueEnv()], blueRespond = [blueEnv()] } = {}) {
+export function makeResponder({ red = [redEnv()], judge = [judgeEnv()], blueSynth = [blueEnv()], blueRespond = [blueEnv()], petition = [petitionRulingEnv()] } = {}) {
   const take = (q) => (q.length > 1 ? q.shift() : q[0])
   return (prompt, opts) => {
     const label = opts.label || ''
     if (label.startsWith('red-merge')) return take(red)
+    if (label.startsWith('judge-petition')) return take(petition)
     if (label.startsWith('judge')) return take(judge)
     if (label.startsWith('blue-synthesize')) return take(blueSynth)
     if (label.startsWith('blue-respond')) return take(blueRespond)

@@ -98,6 +98,48 @@ const ACCEPTED_DELTA_DOCKET_THRESHOLD = 2
 
 const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity_cost'] }
 
+// W2c — the petition short-circuit (constitutional right, engine-routed): any
+// party seat may petition the bench; a non-empty petitions array dispatches a
+// bench sitting BEFORE the next scheduled seat (script law, not good faith).
+// Petitions are never sanctioned and do not pause the petitioner's duties (the
+// seat has already finished when routing fires). ALL petitions land on the
+// judicial record regardless of outcome.
+const PETITIONS = {
+  type: 'array',
+  items: {
+    type: 'object',
+    required: ['class', 'basis', 'relief'],
+    properties: {
+      class: { type: 'string', enum: ['ethical', 'safety', 'integrity', 'constitutional'] },
+      basis: { type: 'string' },
+      relief: { type: 'string' },
+    },
+  },
+}
+const PETITION_RULING = {
+  type: 'object',
+  required: ['rulings'],
+  properties: {
+    friction: { type: 'array', items: { type: 'string' } },
+    rulings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['petitioner', 'class', 'ruling', 'opinion'],
+        properties: {
+          petitioner: { type: 'string' },
+          class: { type: 'string' },
+          // halt = the safety boundary: the run ends HALTED, the opinion is
+          // relayed verbatim by capture, never smoothed.
+          ruling: { type: 'string', enum: ['granted', 'denied', 'halt'] },
+          opinion: { type: 'string' },
+        },
+      },
+    },
+  },
+}
+const petitionClause = (who) => ` PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as ${who}).`
+
 const BLUE_ENVELOPE = {
   type: 'object',
   required: ['path', 'tldr', 'claim_count', 'saturation_reached', 'open_questions', 'round_record_appended'],
@@ -135,6 +177,7 @@ const BLUE_ENVELOPE = {
       },
     },
     friction: { type: 'array', items: { type: 'string' } },
+    petitions: PETITIONS,
     // Grade-dispute channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
     // contest path against red's grades. Record-integrity insurance; zero expected savings.
     grade_disputes: {
@@ -153,6 +196,7 @@ const RED_ENVELOPE = {
   required: ['verdict', 'gaps', 'citations_checked'],
   properties: {
     verdict: { type: 'string', enum: ['PASS', 'FAIL'] },
+    petitions: PETITIONS,
     gaps: {
       type: 'array',
       items: {
@@ -284,6 +328,32 @@ const LEDGER = `${runDir}/red/ledger.md`
 const ARCHIVE = `${runDir}/red/archive.md`
 const TELEMETRY = `${runDir}/trajectories/board-telemetry.jsonl`
 
+// W2c petition machinery: the log is the judicial record's petition section; a
+// halt ruling ends the run (verdict HALTED — capture relays the opinion
+// verbatim, never smoothed); granted relief is surfaced to subsequent seats.
+const friction = [] // capability complaints from any agent, aggregated for /self-improve
+const takeFriction = (who, env) => { if (env && env.friction) for (const f of env.friction) friction.push(`${who}: ${f}`) }
+const petitionLog = []
+const reliefInEffect = []
+let halted = false
+let haltOpinion = null
+async function hearPetitions(env, who) {
+  const petitions = (env && env.petitions) || []
+  if (!petitions.length) return false
+  log(`petition(s) filed by ${who} (${petitions.map((x) => x.class).join(', ')}) — bench sitting before the debate continues`)
+  const sitting = await agent(
+    `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted (state the relief as it will bind the coming seats) | denied (with opinion) | halt (ONLY where continuing would compromise safety, consent gates, corpus integrity, or participant integrity — a halt ends the run and your opinion is relayed to the human verbatim). Every ruling is a written OPINION: the principle applied, the values in tension, and why a human should or should not look. Read ${runDir}/debate.md for context; append your rulings under "### LEAD (petitions)".${frictionClause('judge-petition')}${speedClause}${recordClause('judge-petition', 'bench')} Return the petition-ruling envelope.`,
+    { ...judgment, label: `judge-petition · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
+  if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
+  takeFriction('judge-petition', sitting)
+  for (const r of sitting.rulings) {
+    petitionLog.push({ petitioner: who, class: r.class, ruling: r.ruling, opinion: r.opinion })
+    if (r.ruling === 'halt') { halted = true; haltOpinion = r.opinion }
+    if (r.ruling === 'granted') reliefInEffect.push({ petitioner: who, opinion: r.opinion })
+  }
+  if (halted) log(`JUDICIAL HALT — ${haltOpinion ? haltOpinion.slice(0, 200) : ''}`)
+  return halted
+}
 // ---- Frontier ----
 phase('Frontier')
 await agent(
@@ -297,11 +367,12 @@ await parallel(Array.from({ length: lanes }, (_, i) => () => agent(
   { ...bulk, label: `blue-lane-${i + 1} · ${slug}`, phase: 'Blue', agentType: 'frank-exchange-of-views:blue-researcher' })))
 
 let blueEnv = await agent(
-  `Blue synthesis for topic: "${topic}". PRE-FLIGHT: if ${runDir}/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns. Read every draft in ${runDir}/blue/candidates/ and synthesize ${runDir}/blue/report.md by UNION: deduplicate overlapping claims, reorganize, and never drop substantive content — structural merge (append + dedup), not a free-form rewrite. CLAIM PROVENANCE (cheap manifest): while merging, tag every claim that appears in exactly ONE lane's draft with its lane marker (e.g. "[minority: lane-2/practitioner]") — single-lane claims are minority reports red must weigh differently from convergent ones; the set-difference exists transiently in this merge and must not be discarded. Lane footnote labels arrive lane-prefixed; when two lanes cite the SAME source, merge to one label and note both lanes. Follow the report conventions (semantic footnotes with access dates). CLAIM UNIT (pinned — two honest merges differed 2x without it): claim_count = the number of FOOTNOTED declarative claims (a sentence carrying at least one footnote marker counts once; unfootnoted prose counts zero; a multi-footnote sentence still counts once). Start ${runDir}/blue/CHANGELOG.md with a Round 0 entry describing the synthesis and stating claim_count (the tracked copy of the envelope figure). round_record_appended: set TRUE only after the CHANGELOG Round 0 entry exists on disk. ${frictionClause('blue-synthesize')}${speedClause}${recordClause('blue-synthesize', 'blue')} Return the blue envelope.`,
+  `Blue synthesis for topic: "${topic}". PRE-FLIGHT: if ${runDir}/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns. Read every draft in ${runDir}/blue/candidates/ and synthesize ${runDir}/blue/report.md by UNION: deduplicate overlapping claims, reorganize, and never drop substantive content — structural merge (append + dedup), not a free-form rewrite. CLAIM PROVENANCE (cheap manifest): while merging, tag every claim that appears in exactly ONE lane's draft with its lane marker (e.g. "[minority: lane-2/practitioner]") — single-lane claims are minority reports red must weigh differently from convergent ones; the set-difference exists transiently in this merge and must not be discarded. Lane footnote labels arrive lane-prefixed; when two lanes cite the SAME source, merge to one label and note both lanes. Follow the report conventions (semantic footnotes with access dates). CLAIM UNIT (pinned — two honest merges differed 2x without it): claim_count = the number of FOOTNOTED declarative claims (a sentence carrying at least one footnote marker counts once; unfootnoted prose counts zero; a multi-footnote sentence still counts once). Start ${runDir}/blue/CHANGELOG.md with a Round 0 entry describing the synthesis and stating claim_count (the tracked copy of the envelope figure). round_record_appended: set TRUE only after the CHANGELOG Round 0 entry exists on disk. ${petitionClause('blue-synthesize')}${frictionClause('blue-synthesize')}${speedClause}${recordClause('blue-synthesize', 'blue')} Return the blue envelope.`,
   { ...judgment, label: `blue-synthesize · ${slug}`, phase: 'Blue', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
 
 if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — aborting cleanly')
 if (blueEnv.round_record_appended !== true) throw new Error('round-parity (W1.7): blue-synthesize did not attest the CHANGELOG Round 0 entry — the synthesis is not on the record')
+await hearPetitions(blueEnv, 'blue-synthesize')
 // ---- Debate loop: red audits gate; termination is judged, never counted ----
 let round = 0
 let redEnv = null
@@ -309,6 +380,7 @@ let deadlocked = false
 const allPriorGapIds = new Set() // every gap id from every prior round — the docket window is the whole debate, not one round
 const adjudicated = [] // judge-ruled gaps (closed / rebuttal_sustained / risk_accepted / routed) — out of red's verdict
 const infraDebts = [] // routed_to_infrastructure rulings (W1.9) — the lead's named debts, surfaced at assembly and in the final envelope
+
 // Carried-ruling persistence (run-4 §6.4 item 6 — the re-docket loop): a carried gap does
 // NOT re-docket every round it stays open. It re-dockets only when red's GRADE for it
 // changed (script-visible in redEnv) or a lineage successor names it — new evidence routes
@@ -324,11 +396,9 @@ let pendingDisputes = []
 let overflowDisputes = [] // clause (vii): beyond the cap, batch-docketed as ONE judge item
 const heldDisputes = new Map() // `${gap_id}|${dimension}` -> dispute
 let gradeAdjustments = [] // judge grade_adjusted rulings for red to apply next round
-const friction = [] // capability complaints from any agent, aggregated for /self-improve
-const takeFriction = (who, env) => { if (env && env.friction) for (const f of env.friction) friction.push(`${who}: ${f}`) }
 takeFriction('blue-synthesize', blueEnv)
 
-while (round < maxRounds) {
+while (!halted && round < maxRounds) {
   round++
   // W1.8: the spot-check floor keys on round-START archive state, not the round number —
   // run 5's round-2 merge entered with ZERO archive blocks (round 1 closed nothing), so the
@@ -364,7 +434,7 @@ SHARDED FINDINGS (run-4 §4 — the ledger is the single source of truth for sta
 FOUND_BY: on every gap, record which lens seats surfaced it (found_by: ["L1","L4",...]) — auditable against the candidate files.
 Gap ids are stable across rounds (R1-1 stays R1-1); assign fresh R${round}-N ids to genuinely new gaps only. LINEAGE IS MANDATORY: when you close a gap WITH REGRESSION and mint a successor, the successor gap's "supersedes" array MUST name the closed gap's id, and your envelope's "closures" array MUST record the closure with class "closed_with_regression" — the docket detector follows these chains and an undeclared lineage is a protocol violation the script rejects.${adjudicated.length ? ` Gaps already adjudicated by the lead-judge and EXCLUDED from your verdict: ${JSON.stringify(adjudicated.map(x => x.gap_id))}.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round (apply each in the ledger, and list the delta in your "### RED" entry): ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round — you MUST answer EVERY one in the envelope's dispute_responses (accepted or rejected, with rationale; an unaddressed dispute is treated as rejected and auto-docketed to the judge): ${JSON.stringify(pendingDisputes)}. For each ACCEPTED dispute: apply the new grade in the ledger AND list the delta (gap id, dimension, old -> new) in your "### RED" entry — pending deltas are watched there by blue, the judge, and the operator.` : ''}
 BOARD TELEMETRY (run-4 §2.5 — the signal the stopping judgment reads): append ONE JSON line to ${TELEMETRY} (bash: cat >> — the file is git-tracked): {"round": ${round}, "mapping_version": "${MASS_MAPPING_VERSION}", "open_count", "max_severity", "new_mint": {"count", "by_severity"}, "mass", "accepted_deltas": [...], "realized_open", "excluded_mass_memo", "found_by_summary", "repair_regression": {"closures", "lineage_mints", "ratio"}, "edge_deltas": {"down_mass", "up_mass"}} — mass = sum over OPEN unadjudicated gaps of L×I under the pinned mapping ${JSON.stringify(MASS)} (realized contributes 0 and is counted in realized_open; list any excluded gaps in excluded_mass_memo). repair_regression (W2b, blue's headline scorecard number — baseline 0.37-0.72): closures = prior-round gaps you closed this round; lineage_mints = fresh gaps whose supersedes names a gap closed THIS round; ratio = lineage_mints/closures (null when closures=0). edge_deltas (W2b — the accepted-delta blind spot: ~20 mass moved per run along supersedes edges the dispute-channel accounting cannot see): for each supersedes edge minted this round, mass(successor) - mass(ancestor) under the pinned mapping; report the summed magnitudes split by sign. This line is the convenience copy, never the evidence of record — grades of record live in the ledger; a pending-window dispute delta is EXPECTED divergence, carried in the line's own delta record. GAP RECORDS: every gap you mint carries acceptance_check — the exact falsifiable check you will run at re-audit (probe command, recount command, quote-anchor); a fix-spec naming instances states the class-closure rule or declares the enumeration open (the sweep clause).
-Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, evidence-rebutted, or risk-accepted. Append the round-${round} "### RED" section to ${runDir}/debate.md per the debate template. CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, also append a "### RED CLOSING (round ${round})" entry to ${runDir}/debate.md — max 120 words per item: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules AFTER blue responds this round, on the closings, the transcript, and the final artifact state only — your closing is your case; overstatement the record does not support counts against you.${frictionClause(`red-merge-r${round}`)}${speedClause}${recordClause(`red-merge-r${round}`, 'red-merge')} Return the red envelope.`,
+Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, evidence-rebutted, or risk-accepted. Append the round-${round} "### RED" section to ${runDir}/debate.md per the debate template. CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, also append a "### RED CLOSING (round ${round})" entry to ${runDir}/debate.md — max 120 words per item: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules AFTER blue responds this round, on the closings, the transcript, and the final artifact state only — your closing is your case; overstatement the record does not support counts against you.${petitionClause(`red-merge-r${round}`)}${frictionClause(`red-merge-r${round}`)}${speedClause}${recordClause(`red-merge-r${round}`, 'red-merge')} Return the red envelope.`,
     { ...judgment, label: `red-merge-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor', schema: RED_ENVELOPE })
 
   takeFriction(`red-merge-r${round}`, redEnv)
@@ -421,6 +491,8 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
       log(`round ${round} DETECTOR: convergence-vs-verdict divergence — mass ${mass.toFixed(1)}, nothing above medium, zero fresh (non-lineage) mints, verdict FAIL. Visibility only; certification stays red's call.`)
     }
   }
+
+  if (await hearPetitions(redEnv, `red-merge-r${round}`)) break
 
   // Grade-dispute processing (run-4 §3.3): every pending dispute gets red's answer or the
   // docket. Explicit rejection is HELD one round (dockets only on blue's re-dispute);
@@ -484,7 +556,7 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
   const adjudicatedIds = new Set(adjudicated.map(x => x.gap_id))
   const openGaps = redEnv.gaps.filter(g => !adjudicatedIds.has(g.id))
   blueEnv = await agent(
-    `Blue response, round ${round}, topic "${topic}". Red's verdict: FAIL. FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — \`cat ${LEDGER} ${runDir}/debate.md ${runDir}/inputs/red-gap-patterns.md > <your session scratchpad>/respond-${round}-workset.md\` (ABSOLUTE scratchpad path, never under ${runDir}) — then read that one file instead of three separate reads; report.md you edit in place as usual. PRE-FLIGHT: re-check your planned repairs against red's gap patterns (in the workset). Open gaps (adjudicated ones excluded): ${JSON.stringify(openGaps)}. Corroboration flags: ${JSON.stringify(redEnv.corroboration || [])}. BEFORE drafting, read the latest "### RED" section of ${runDir}/debate.md — the gap JSON above is a lossy summary of the transcript, and it lists any accepted grade-dispute deltas pending their contest window — and the latest "### LEAD" section if one exists: any gap the judge CARRIED comes with a stated research direction you owe. Address every open gap ADDITIVELY in ${runDir}/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; never subtract substance, and propagate every correction to ALL sites that state the corrected claim, not only the flagged sentence (incomplete propagation was run 3's dominant blue failure class — 5 regressions in 5 rounds; grep the corrected strings/figures report-wide and log the sites checked in the CHANGELOG).${contested.length ? ` CLOSING ARGUMENTS: the following items are DOCKETED for adjudication AFTER your response this round: ${JSON.stringify(contested)}. For EACH docketed item, after your repairs, append a "### BLUE CLOSING (round ${round})" entry to ${runDir}/debate.md — max 120 words per item: why your response resolves it, or why red's grade/claim is wrong, citing the exact section and evidence. The judge rules on the closings, the transcript, and the final state of the artifacts — your closing is your case; material not in the record cannot help you.` : ''} GRADE DISPUTES (your machine-readable contest path on red's grading): you MAY dispute a gap's severity/likelihood/impact/complexity_cost via the envelope's grade_disputes (gap_id, dimension, proposed grade, evidence) — max ${DISPUTE_CAP} per round (overflow is batch-docketed to the judge as one item)${heldDisputes.size ? `; disputes red REJECTED last round (re-dispute any of these to send it to the judge): ${JSON.stringify([...heldDisputes.values()])}` : ''}. PROBE CLASSES (W1.10): where a fix demands a probe, discharge a DOCUMENT-PROBE now (against shipped artifacts) or, for a LIVE-PROBE needing built artifacts, name it as a deferred acceptance test with its pass condition — never call a file read a live probe. THE MANIFEST (W2b — your self-audit's receipt; your constitution carries the full eight rows): for EVERY gap you repair, run the correctness manifest — figures recomputed, universals enumerated, consistency sites swept report-wide, the repair's own boundary case asked, compositions noted where edits share text, sibling sweep or declared-open enumeration, the gap's acceptance_check RUN with its result, new claims tagged verified-at-leaf/derived/asserted — and return one manifest row per repaired gap in the envelope's manifest array ({gap_id, row}: what you checked and what it showed, compressed). An unmanifested repair is unaudited by your own standard; the script rejects an EMPTY manifest on a round with open gaps, and coverage is scored at capture. CLAIM UNIT (pinned): claim_count = FOOTNOTED declarative claims (a footnote-bearing sentence counts once; unfootnoted prose counts zero). Log edits to ${runDir}/blue/CHANGELOG.md (Round ${round}, including claim_count); append your "### BLUE" section for round ${round} to ${runDir}/debate.md. ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH the "### BLUE" round-${round} section in debate.md AND the CHANGELOG Round ${round} entry exist on disk — the script aborts on false; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).${frictionClause(`blue-respond-r${round}`)}${speedClause}${recordClause(`blue-respond-r${round}`, 'blue')} Return the blue envelope.`,
+    `Blue response, round ${round}, topic "${topic}". Red's verdict: FAIL.${reliefInEffect.length ? ` BENCH RELIEF IN EFFECT (binding): ${JSON.stringify(reliefInEffect)}.` : ''} FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — \`cat ${LEDGER} ${runDir}/debate.md ${runDir}/inputs/red-gap-patterns.md > <your session scratchpad>/respond-${round}-workset.md\` (ABSOLUTE scratchpad path, never under ${runDir}) — then read that one file instead of three separate reads; report.md you edit in place as usual. PRE-FLIGHT: re-check your planned repairs against red's gap patterns (in the workset). Open gaps (adjudicated ones excluded): ${JSON.stringify(openGaps)}. Corroboration flags: ${JSON.stringify(redEnv.corroboration || [])}. BEFORE drafting, read the latest "### RED" section of ${runDir}/debate.md — the gap JSON above is a lossy summary of the transcript, and it lists any accepted grade-dispute deltas pending their contest window — and the latest "### LEAD" section if one exists: any gap the judge CARRIED comes with a stated research direction you owe. Address every open gap ADDITIVELY in ${runDir}/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; never subtract substance, and propagate every correction to ALL sites that state the corrected claim, not only the flagged sentence (incomplete propagation was run 3's dominant blue failure class — 5 regressions in 5 rounds; grep the corrected strings/figures report-wide and log the sites checked in the CHANGELOG).${contested.length ? ` CLOSING ARGUMENTS: the following items are DOCKETED for adjudication AFTER your response this round: ${JSON.stringify(contested)}. For EACH docketed item, after your repairs, append a "### BLUE CLOSING (round ${round})" entry to ${runDir}/debate.md — max 120 words per item: why your response resolves it, or why red's grade/claim is wrong, citing the exact section and evidence. The judge rules on the closings, the transcript, and the final state of the artifacts — your closing is your case; material not in the record cannot help you.` : ''} GRADE DISPUTES (your machine-readable contest path on red's grading): you MAY dispute a gap's severity/likelihood/impact/complexity_cost via the envelope's grade_disputes (gap_id, dimension, proposed grade, evidence) — max ${DISPUTE_CAP} per round (overflow is batch-docketed to the judge as one item)${heldDisputes.size ? `; disputes red REJECTED last round (re-dispute any of these to send it to the judge): ${JSON.stringify([...heldDisputes.values()])}` : ''}. PROBE CLASSES (W1.10): where a fix demands a probe, discharge a DOCUMENT-PROBE now (against shipped artifacts) or, for a LIVE-PROBE needing built artifacts, name it as a deferred acceptance test with its pass condition — never call a file read a live probe. THE MANIFEST (W2b — your self-audit's receipt; your constitution carries the full eight rows): for EVERY gap you repair, run the correctness manifest — figures recomputed, universals enumerated, consistency sites swept report-wide, the repair's own boundary case asked, compositions noted where edits share text, sibling sweep or declared-open enumeration, the gap's acceptance_check RUN with its result, new claims tagged verified-at-leaf/derived/asserted — and return one manifest row per repaired gap in the envelope's manifest array ({gap_id, row}: what you checked and what it showed, compressed). An unmanifested repair is unaudited by your own standard; the script rejects an EMPTY manifest on a round with open gaps, and coverage is scored at capture. CLAIM UNIT (pinned): claim_count = FOOTNOTED declarative claims (a footnote-bearing sentence counts once; unfootnoted prose counts zero). Log edits to ${runDir}/blue/CHANGELOG.md (Round ${round}, including claim_count); append your "### BLUE" section for round ${round} to ${runDir}/debate.md. ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH the "### BLUE" round-${round} section in debate.md AND the CHANGELOG Round ${round} entry exist on disk — the script aborts on false; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).${petitionClause(`blue-respond-r${round}`)}${frictionClause(`blue-respond-r${round}`)}${speedClause}${recordClause(`blue-respond-r${round}`, 'blue')} Return the blue envelope.`,
     { ...bulk, label: `blue-respond-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
   takeFriction(`blue-respond-r${round}`, blueEnv)
   if (!blueEnv) throw new Error(`blue response round ${round} returned null (agent failed) — aborting cleanly`)
@@ -498,6 +570,7 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
     if (uncovered.length) log(`round ${round}: manifest coverage ${covered.size}/${openGaps.length} — unmanifested: ${uncovered.join(', ')} (scored at capture)`)
   }
   log(`round ${round}: blue responded — ${openGaps.length} gaps addressed, corpus at ${blueEnv.claim_count} claims${(blueEnv.grade_disputes || []).length ? `, ${(blueEnv.grade_disputes || []).length} grade dispute(s) raised` : ''}`)
+  if (await hearPetitions(blueEnv, `blue-respond-r${round}`)) break
 
   // Adjudication sits LAST in the round (closing-arguments redesign, 2026-07-17): the judge
   // never rules on material blue has not answered — which structurally dissolves the
@@ -539,8 +612,8 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
 }
 
 const exhausted = round >= maxRounds && redEnv && redEnv.verdict !== 'PASS' && !deadlocked
-const verdict = redEnv && redEnv.verdict === 'PASS' ? 'VERIFIED' : 'UNVERIFIED'
-log(`debate ended: ${verdict} after ${round} round(s)${deadlocked ? ' (judged deadlock)' : exhausted ? ' (safety ceiling hit)' : ''}`)
+const verdict = halted ? 'HALTED' : redEnv && redEnv.verdict === 'PASS' ? 'VERIFIED' : 'UNVERIFIED'
+log(`debate ended: ${verdict} after ${round} round(s)${halted ? ' (JUDICIAL HALT)' : deadlocked ? ' (judged deadlock)' : exhausted ? ' (safety ceiling hit)' : ''}`)
 
 // Terminal dispute disposition (run-4 §3.3 clause (vi) — exit-agnostic: PASS, deadlock, or
 // ceiling): pending or held disputes at ANY exit auto-docket for judge disposition BEFORE
@@ -566,7 +639,7 @@ if (terminalDisputes.length > 0) {
 // ---- Assemble: union, not summary ----
 phase('Assemble')
 await agent(
-  `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${round} round(s)${deadlocked ? ' by judged deadlock' : ''}${exhausted ? ' by safety ceiling' : ''}. Assemble ${runDir}/report.md by UNION per the report template (references/report_template.md): verdict stamp, TL;DR, the Catechism (references/catechism_template.md — the AGREED answers: the case against at full strength, of-interest-vs-merely-interesting, cost and stopping points), technical foundations, analysis, graded risk matrix (including risk_accepted items with rationale), then blue/report.md IN FULL, red's board IN FULL (${LEDGER} then ${ARCHIVE}), per-round debate synopsis pointing at debate.md, an "Open questions carried past this run" section from blue's final envelope: ${JSON.stringify((blueEnv && blueEnv.open_questions) || [])}, and the consolidated footnotes. Never compress the research into a digest. ${verdict === 'UNVERIFIED' ? 'Stamp UNVERIFIED and list every outstanding gap with its disposition and the compromise rationale.' : ''}${gradeAdjustments.length ? ` Terminal grade adjustments ruled by the judge (record each delta in the risk matrix): ${JSON.stringify(gradeAdjustments)}.` : ''}${infraDebts.length ? ` INFRASTRUCTURE DEBTS ruled routed_to_infrastructure (W1.9 — the lead's owed fixes; list them in their own report section, never dropped): ${JSON.stringify(infraDebts)}.` : ''} Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${frictionClause('assemble')}${speedClause}${recordClause('assemble', 'bench')} Return a 5-line synopsis of the final report, plus your own friction if any.`,
+  `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${round} round(s)${deadlocked ? ' by judged deadlock' : ''}${exhausted ? ' by safety ceiling' : ''}. Assemble ${runDir}/report.md by UNION per the report template (references/report_template.md): verdict stamp, TL;DR, the Catechism (references/catechism_template.md — the AGREED answers: the case against at full strength, of-interest-vs-merely-interesting, cost and stopping points), technical foundations, analysis, graded risk matrix (including risk_accepted items with rationale), then blue/report.md IN FULL, red's board IN FULL (${LEDGER} then ${ARCHIVE}), per-round debate synopsis pointing at debate.md, an "Open questions carried past this run" section from blue's final envelope: ${JSON.stringify((blueEnv && blueEnv.open_questions) || [])}, and the consolidated footnotes. Never compress the research into a digest. ${verdict === 'UNVERIFIED' ? 'Stamp UNVERIFIED and list every outstanding gap with its disposition and the compromise rationale.' : ''}${verdict === 'HALTED' ? ` Stamp HALTED at the top: the bench ended this run. Quote the halt opinion IN FULL and VERBATIM — it is relayed to the human, never smoothed: ${JSON.stringify(haltOpinion)}.` : ''}${petitionLog.length ? ` JUDICIAL RECORD — petitions (list each with its ruling and opinion, never dropped): ${JSON.stringify(petitionLog)}.` : ''}${gradeAdjustments.length ? ` Terminal grade adjustments ruled by the judge (record each delta in the risk matrix): ${JSON.stringify(gradeAdjustments)}.` : ''}${infraDebts.length ? ` INFRASTRUCTURE DEBTS ruled routed_to_infrastructure (W1.9 — the lead's owed fixes; list them in their own report section, never dropped): ${JSON.stringify(infraDebts)}.` : ''} Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${frictionClause('assemble')}${speedClause}${recordClause('assemble', 'bench')} Return a 5-line synopsis of the final report, plus your own friction if any.`,
   { ...judgment, label: `assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge' })
 
 return {
@@ -578,5 +651,8 @@ return {
   gaps_outstanding: redEnv && redEnv.verdict !== 'PASS' ? redEnv.gaps.length : 0,
   blue_claims: blueEnv ? blueEnv.claim_count : null,
   infra_debts: infraDebts,
+  petitions: petitionLog,
+  halted,
+  halt_opinion: haltOpinion,
   friction,
 }
