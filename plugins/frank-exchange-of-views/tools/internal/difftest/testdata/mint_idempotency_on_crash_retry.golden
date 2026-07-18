@@ -1,0 +1,63 @@
+$ merge register --run {RUN} --seat-id red-merge-r3
+exit 0
+stdout:
+registered red-merge-r3 (shard nonce NONCE001)
+
+$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check x --severity medium --likelihood medium --impact medium --problem minted once
+exit 0
+stdout:
+minted R3-1
+
+$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check x --severity medium --likelihood medium --impact medium --problem minted once
+exit 0
+stdout:
+minted R3-1 (idempotent retry — existing id returned)
+
+$ merge mint --run {RUN} --seat-id red-merge-r3 --key L6-F1 --class scope-creep --check y --severity low --likelihood low --impact low --problem a different key mints
+exit 0
+stdout:
+minted R3-2
+
+═══ EVENTS ═══
+-- events-red-merge-r3-NONCE001.jsonl
+{"key":"red-merge-r3:register:NONCE001","nonce":"NONCE001","payload":{},"round":3,"seatId":"red-merge-r3","seq":0,"type":"register"}
+{"key":"red-merge-r3:mint:R3-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-1","impact":"medium","likelihood":"medium","mint_key":"L5-F3","problem":"minted once","severity":"medium","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":1,"type":"mint"}
+{"key":"red-merge-r3:mint:R3-2","nonce":"NONCE001","payload":{"acceptance_check":"y","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-2","impact":"low","likelihood":"low","mint_key":"L6-F1","problem":"a different key mints","severity":"low","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":2,"type":"mint"}
+
+═══ RENDERS ═══
+-- CHANGELOG.md
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- archive.md
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- board-telemetry.jsonl
+{"round":3,"mapping_version":"v1","open_count":2,"max_severity":"medium","new_mint":{"count":2,"by_severity":{"medium":1,"low":1}},"mass":5,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
+
+-- citation-ledger.md
+# red citation-ledger — RENDERED PROJECTION
+
+-- debate.md
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- ledger.md
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (2)
+
+### R3-1 — minted once
+
+severity medium | medium x medium | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: x
+
+### R3-2 — a different key mints
+
+severity low | low x low | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: y
+
+## CLOSURE INDEX
+
+
+

@@ -1,0 +1,68 @@
+$ merge register --run {RUN} --seat-id red-merge-r1
+exit 0
+stdout:
+registered red-merge-r1 (shard nonce NONCE001)
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check a --severity high --likelihood high --impact high --cx high --problem graded high at mint
+exit 0
+stdout:
+minted R1-1
+
+$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
+exit 2
+stderr:
+{TOOL}: record: regrade requires --basis (grade movement is recorded with its reason)
+
+$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --basis blue narrowed the scope; consequence shrank
+exit 0
+stdout:
+regraded R1-1
+
+$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --impact low --basis second movement, same id
+exit 0
+stdout:
+regraded R1-1
+
+═══ EVENTS ═══
+-- events-red-merge-r1-NONCE001.jsonl
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{},"round":1,"seatId":"red-merge-r1","seq":0,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"scope-creep","class_new":false,"complexity_cost":"high","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"graded high at mint","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"type":"mint"}
+{"key":"red-merge-r1:regrade:R1-1","nonce":"NONCE001","payload":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"R1-1","likelihood":"low","severity":"medium"},"round":1,"seatId":"red-merge-r1","seq":2,"type":"regrade"}
+{"key":"red-merge-r1:regrade:R1-1","nonce":"NONCE001","payload":{"basis":"second movement, same id","gap_id":"R1-1","impact":"low"},"round":1,"seatId":"red-merge-r1","seq":3,"type":"regrade"}
+
+═══ RENDERS ═══
+-- CHANGELOG.md
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- archive.md
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- board-telemetry.jsonl
+{"round":1,"mapping_version":"v1","open_count":1,"max_severity":"medium","new_mint":{"count":1,"by_severity":{"medium":1}},"mass":3,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
+
+-- citation-ledger.md
+# red citation-ledger — RENDERED PROJECTION
+
+-- debate.md
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- ledger.md
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — graded high at mint
+
+severity medium | low x high | cx high | class scope-creep
+regraded x1 (history in the event log; latest basis: blue narrowed the scope; consequence shrank)
+required_fix: 
+acceptance_check: a
+
+## CLOSURE INDEX
+
+
+## render anomalies (never silently normalized)
+
+- duplicate key dedup'd: red-merge-r1:regrade:R1-1 (nonce NONCE001)
+
+

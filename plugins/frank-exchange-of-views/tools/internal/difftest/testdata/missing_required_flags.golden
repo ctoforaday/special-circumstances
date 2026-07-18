@@ -1,0 +1,18 @@
+$ merge mint --seat-id red-merge-r1
+exit 2
+stderr:
+{TOOL}: --run <runDir> is required
+
+$ merge mint --run {RUN}
+exit 2
+stderr:
+{TOOL}: --seat-id is required (the engine assigns it; it is in your prompt)
+
+$ merge not-a-verb --run {RUN} --seat-id red-merge-r1
+exit 2
+stderr:
+{TOOL}: verb 'not-a-verb' is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render)
+
+═══ EVENTS ═══
+
+═══ RENDERS ═══
