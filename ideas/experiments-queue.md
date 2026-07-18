@@ -89,3 +89,22 @@ TAX (report.md read 110x/run) is addressed separately by corpus-snapshot
 single-read mechanics (doctrine-neutral rung 1), not by identity persistence.
 Doctrine at stake: "the team persists; the sitting is ephemeral" — continuity
 through artifacts (constitution/memory/law), never through context.
+
+## E8. Context-budget doctrine — spend the window on depth (user-originated 2026-07-17)
+
+Peak seat context is 27% of the 1M window while a lens logged a 54KB FETCH OVERFLOW
+mid-verification — we ration the resource leaf-verification runs on. Reframe: the
+window is a DEPTH BUDGET, spent front-loaded (big ingestion, few turns — the proven
+merge FIRST-ACTION shape), never filled for its own sake (cache reads bill per
+turn: 700k x 50 turns = $35/seat; attention degrades at extreme fill).
+
+Levers, ranked: (1) window-aware fetch limits at lenses — whole primary sources,
+kills the truncation friction; (2) blue-respond reads the full source per repaired
+gap before the fix ships (R3-14 operationalized — the lossy-gap-JSON repair class);
+(3) generous bench conduct reads; (4) whole-pinned-corpus in-context at lanes
+(qmd finds, the window holds) — test in E4 where saturation is measurable.
+Engine-computed ingestion manifests per seat (automation doctrine — same structural
+mechanism queued for batching). Measure: context-USE telemetry (fill% per seat)
+against regression ratio and round count. BET: ~$40-60/run of fuller ingestion buys
+back a $80-120 round. Guard: the haiku-window constraint (backlog) — budget is
+per-model.
