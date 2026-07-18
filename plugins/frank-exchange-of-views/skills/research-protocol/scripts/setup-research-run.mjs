@@ -157,6 +157,42 @@ export function mirrorScorecards(memoryDir, runDir) {
   return { written: staged.length > 0, chairs: staged, headlines }
 }
 
+// buildPatternIndex — the class join's lookup table.
+//
+// MEMORY THAT BINDS IS DELIVERED, NOT STAGED. E0.5 settled this empirically: run
+// 4's "read red's gap patterns" clause was unsatisfiable at four blue seats, and
+// run 5 was worse — lanes verifiably READ the staged file and committed both
+// warned patterns anyway. Fifty-odd patterns at seat start is a salience problem,
+// not a knowledge problem.
+//
+// So patterns are indexed BY CLASS here, and the engine hands a repairing seat
+// only the patterns whose class matches the gap in front of it. That makes the
+// duty deterministic (a join, not a search), auditable (the manifest row records
+// which patterns applied and what checking them showed), and small enough to
+// survive the seat's attention.
+//
+// A pattern with no classes is deliberately NOT delivered. Promotion into the
+// corpus is where classification happens, and an unclassified pattern is a
+// promotion that skipped its review step rather than a pattern that applies
+// everywhere.
+export function buildPatternIndex(dirs) {
+  const byClass = {}
+  const unclassified = []
+  for (const dir of (Array.isArray(dirs) ? dirs : [dirs]).filter((d) => d && existsSync(d))) {
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md' && f !== 'MEMORY.md')) {
+      const body = readFileSync(join(dir, f), 'utf8')
+      const fm = /^---\n([\s\S]*?)\n---/.exec(body)
+      const title = (/^#\s+(.+)$/m.exec(body) || [, f])[1]
+      const desc = fm ? (/^description:\s*(.+)$/m.exec(fm[1]) || [, ''])[1].replace(/^["']|["']$/g, '') : ''
+      const classLine = fm ? /^\s*classes:\s*\[([^\]]*)\]/m.exec(fm[1]) : null
+      const classes = classLine ? classLine[1].split(',').map((c) => c.trim().replace(/^["']|["']$/g, '')).filter(Boolean) : []
+      if (!classes.length) { unclassified.push(f); continue }
+      for (const c of classes) (byClass[c] ||= []).push({ file: f, title, hook: desc })
+    }
+  }
+  return { byClass, unclassified }
+}
+
 export function validatePins(cites, head, git = (args) => spawnSync('git', args)) {
   if (!head || head === 'unknown') return { checked: 0, missing: [], skipped: 'not a git repo — pins UNVALIDATED' }
   const missing = []
@@ -286,6 +322,8 @@ function main() {
   const raw = [process.env.CLAUDE_PROJECT_DIR, process.cwd()].filter(Boolean).map(memHome).find(existsSync)
   const memDirs = arg('--memory-dir') ? [arg('--memory-dir')] : [promoted, raw]
   const mirror = mirrorGapPatterns(memDirs, runDir)
+  const patternIndex = buildPatternIndex(memDirs)
+  writeFileSync(join(runDir, 'inputs', 'gap-patterns-by-class.json'), JSON.stringify(patternIndex.byClass, null, 2) + '\n')
   const law = mirrorLaw(join(process.cwd(), 'law'), runDir)
   const cards = mirrorScorecards(join(process.cwd(), 'feov-memory'), runDir)
   const marker = writeRunLiveMarker(process.cwd(), runDir, cites.map((c) => c.split('@')[0]))
@@ -298,6 +336,7 @@ function main() {
   console.log(`  pin validation: ${pv.skipped ? pv.skipped : `${pv.checked} cite(s) verified at their pins`}`)
   console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} pattern(s) mirrored from ${mirror.sources} source(s) (promoted corpus first)` : mirror.reason}`)
   console.log(`  law: ${law.written ? `${law.files} file(s) mirrored (statute > precedent > argument)` : law.reason}`)
+  console.log(`  gap-pattern index: ${Object.keys(patternIndex.byClass).length} class(es) -> inputs/gap-patterns-by-class.json${patternIndex.unclassified.length ? ` (${patternIndex.unclassified.length} UNCLASSIFIED, not delivered — classify them to make them bind)` : ''}`)
   console.log(`  scorecards: ${cards.written ? `${cards.chairs.join(', ')} staged into inputs/` : cards.reason}`)
   if (Object.keys(cards.headlines).length) {
     // Printed as a ready-to-pass workflow arg: debate.js is SANDBOXED (zero
