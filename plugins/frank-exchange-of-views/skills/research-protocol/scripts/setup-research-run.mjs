@@ -128,6 +128,35 @@ export function mirrorGapPatterns(memoryDir, runDir) {
 // path and fail loudly on a miss, or stage cross-corpus artifacts into inputs/"). A cite
 // asserting a path that does not exist at its pin poisons every citation of that corpus for
 // the whole run — snapshot-grade at best, and the defect recurs every run until caught here.
+// W2h — the visibility loop's second leg: stage each chair's scorecard where the
+// run can see it, and hand back the HEADLINE numbers for the prompts.
+//
+// The file mirror is for the human and the audit trail. The headline is what
+// actually reaches a seat, because E0.5 measured what staging alone is worth:
+// run 5's lanes verifiably READ the staged gap patterns and committed both warned
+// patterns anyway. A number a seat must go and look up is a number it will not
+// look up; a number in its prompt is one it cannot avoid.
+export function mirrorScorecards(memoryDir, runDir) {
+  if (!memoryDir || !existsSync(memoryDir)) return { written: false, reason: 'no feov-memory dir', headlines: {} }
+  const staged = []
+  const headlines = {}
+  for (const f of readdirSync(memoryDir).filter((f) => f.endsWith('-scorecard.md'))) {
+    const chair = f.replace('-scorecard.md', '')
+    const body = readFileSync(join(memoryDir, f), 'utf8')
+    writeFileSync(join(runDir, 'inputs', f), body)
+    staged.push(chair)
+    // The LAST section is the most recent run; its bolded values are the
+    // headline. Parsed from the rendered file rather than recomputed, so the
+    // seat sees exactly what the dashboard and the human see.
+    const sections = body.split(/^## /m)
+    const latest = sections[sections.length - 1] || ''
+    const picks = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic)\][^:]*:\s*\*\*([^*]+)\*\*/g)]
+      .map((m) => `${m[1]} ${m[3]} [${m[2].toUpperCase()}]`)
+    if (picks.length) headlines[chair] = picks.slice(0, 3)
+  }
+  return { written: staged.length > 0, chairs: staged, headlines }
+}
+
 export function validatePins(cites, head, git = (args) => spawnSync('git', args)) {
   if (!head || head === 'unknown') return { checked: 0, missing: [], skipped: 'not a git repo — pins UNVALIDATED' }
   const missing = []
@@ -258,6 +287,7 @@ function main() {
   const memDirs = arg('--memory-dir') ? [arg('--memory-dir')] : [promoted, raw]
   const mirror = mirrorGapPatterns(memDirs, runDir)
   const law = mirrorLaw(join(process.cwd(), 'law'), runDir)
+  const cards = mirrorScorecards(join(process.cwd(), 'feov-memory'), runDir)
   const marker = writeRunLiveMarker(process.cwd(), runDir, cites.map((c) => c.split('@')[0]))
   const qmd = rest.includes('--no-qmd') ? { ran: false, reason: 'skipped (--no-qmd)' } : qmdRefresh()
 
@@ -268,6 +298,21 @@ function main() {
   console.log(`  pin validation: ${pv.skipped ? pv.skipped : `${pv.checked} cite(s) verified at their pins`}`)
   console.log(`  gap-patterns: ${mirror.written ? `${mirror.files} pattern(s) mirrored from ${mirror.sources} source(s) (promoted corpus first)` : mirror.reason}`)
   console.log(`  law: ${law.written ? `${law.files} file(s) mirrored (statute > precedent > argument)` : law.reason}`)
+  console.log(`  scorecards: ${cards.written ? `${cards.chairs.join(', ')} staged into inputs/` : cards.reason}`)
+  if (Object.keys(cards.headlines).length) {
+    // Printed as a ready-to-pass workflow arg: debate.js is SANDBOXED (zero
+    // imports) and cannot read this file itself, so the numbers travel as an
+    // argument rather than as a path the engine would have to open.
+    // Written as a FILE as well as printed. The workflow script cannot read it —
+    // verified empirically, not assumed: a zero-agent probe found require,
+    // process, fetch and import() all absent, with import() explicitly refused
+    // ("import() is not available in workflow scripts"). But whoever LAUNCHES the
+    // run can read it, and a machine-readable file beats a human retyping a
+    // printed line into an argument.
+    writeFileSync(join(runDir, 'inputs', 'scorecards.json'), JSON.stringify(cards.headlines, null, 2) + '\n')
+    console.log(`  scorecards arg: pass inputs/scorecards.json as the workflow's "scorecards" arg`)
+    console.log(`    ${JSON.stringify(cards.headlines)}`)
+  }
   console.log(`  record binary: ${pre.ok ? `${recordBin} ${pre.version || '(version unreported)'}` : `NOT AVAILABLE — ${pre.reason} (this run will not record through the tool; pass --bin-dir to require it)`}`)
   console.log(`  run-live marker: ${marker}`)
   console.log(`  qmd refresh: ${qmd.ran ? `update ${qmd.update ? 'ok' : 'FAILED'}, embed ${qmd.embed ? 'ok' : 'FAILED'}` : qmd.reason}`)

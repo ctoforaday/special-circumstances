@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, readd
 import { join, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL, fileURLToPath } from 'node:url'
+import { computeScorecards, renderChair, chairHeader } from './scorecards.mjs'
 
 // Tolerant journal walk: collect every result object and any friction arrays inside.
 export function readJournal(transcriptDir) {
@@ -282,6 +283,25 @@ export function harvestPrecedents(runDir, results, lawDir) {
   return { written: true, count: rulings.length, path: out }
 }
 
+// writeScorecards appends this run's rows to each chair's scorecard.
+//
+// The run label is the run DIRECTORY name, which is dated and unique, so the
+// series reads chronologically without anyone stamping a timestamp — and without
+// this script needing a clock it would have to be trusted about.
+export function writeScorecards(runDir, results, memoryDir) {
+  if (!existsSync(memoryDir)) return { written: false, reason: `no ${memoryDir} — scorecards need the tracked memory dir` }
+  const cards = computeScorecards(runDir, results)
+  const label = runDir.split(/[\\/]/).filter(Boolean).pop() || 'run'
+  let rows = 0
+  for (const [chair, chairRows] of Object.entries(cards)) {
+    const p = join(memoryDir, `${chair}-scorecard.md`)
+    const head = existsSync(p) ? readFileSync(p, 'utf8') : chairHeader(chair)
+    writeFileSync(p, head.replace(/\n+$/, '\n') + '\n' + renderChair(chair, chairRows, label))
+    rows += chairRows.length
+  }
+  return { written: true, rows, chairs: Object.keys(cards).length }
+}
+
 export function capture(runDir, transcriptDir) {
   const lines = []
   // Mechanics: journal copy, transcript tarball, cost.md (with telemetry join).
@@ -319,6 +339,13 @@ export function capture(runDir, transcriptDir) {
     const parity = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'record-parity-check.mjs'), runDir])
     audits.push({ check: 'record-parity-r25', verdict: parity.status === 0 ? 'PASS' : 'FAIL', detail: (parity.stdout || '').toString().trim().split('\n').slice(0, 12).join('\n  ') })
   }
+
+  // W2h — the visibility loop's first leg: compute every scorecard number from
+  // the artifacts and APPEND it to the chair's file. Appended, never overwritten:
+  // one run's number says nothing about whether a chair is improving, and the
+  // run-over-run series is the only thing that does.
+  const scorecards = writeScorecards(runDir, results, join(process.cwd(), 'feov-memory'))
+  lines.push(`scorecards: ${scorecards.written ? `${scorecards.rows} row(s) across ${scorecards.chairs} chair(s) -> feov-memory/` : scorecards.reason}`)
 
   const precedents = harvestPrecedents(runDir, results, join(process.cwd(), 'law'))
   lines.push(`precedent harvest: ${precedents.written ? `${precedents.count} ruling(s) -> ${precedents.path} (PERSUASIVE, awaiting review)` : precedents.count ? `${precedents.count} ruling(s), ${precedents.reason}` : 'no rulings this run'}`)

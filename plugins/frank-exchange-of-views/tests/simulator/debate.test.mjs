@@ -885,3 +885,36 @@ test('W2g: blue authors the catechism at round 0 inside the audited report; asse
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('COPIED VERBATIM') && assemble.prompt.includes('DO NOT write one yourself'), 'assembly is union-copy with a stated refusal path')
 })
+
+// ---- W2h: the scorecard visibility loop reaches the seat ----
+
+test('W2h: each chair sees ITS OWN scorecard headline, with the class attached', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, {
+    ...ARGS,
+    scorecards: {
+      blue: ['repair_regression_ratio 0.63 [BENCHMARK]'],
+      red: ['anchored_closures_pct 89 [BENCHMARK]'],
+      bench: ['carried_share 0.98 [BENCHMARK]'],
+    },
+  })
+  const promptOf = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
+
+  // Chair routing: a seat sees its own chair's numbers and no one else's. Handing
+  // red blue's ratio would be worse than handing it nothing.
+  assert.ok(promptOf('blue-synthesize').includes('repair_regression_ratio 0.63'), 'blue sees blue')
+  assert.ok(!promptOf('blue-synthesize').includes('anchored_closures_pct'), 'blue does not see red')
+  assert.ok(promptOf('red-lens').includes('anchored_closures_pct 89'), 'lenses are the red chair')
+  assert.ok(promptOf('red-merge-r1').includes('anchored_closures_pct 89'), 'so is the merge')
+  assert.ok(promptOf('assemble').includes('carried_share 0.98'), 'assembly is the bench chair')
+
+  // The GOODHART GUARD travels with the number: a diagnostic optimized is a
+  // defect, and a bare figure invites exactly that.
+  assert.ok(/gaming it is itself a defect/.test(promptOf('blue-synthesize')), 'the class semantics are stated')
+})
+
+test('W2h: no scorecards -> no clause (a first run is not told it scored nothing)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  assert.ok(!world.calls.some((c) => /SCORECARD/.test(c.prompt)), 'absent scorecards leave prompts untouched')
+})
