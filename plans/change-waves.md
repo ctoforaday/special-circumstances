@@ -124,7 +124,7 @@ E-queue) until the existing corpus is exhausted (E0.5 below). The plan-audit gat
 (single agent, not a run) still applies before implementation waves.
 
 WAVE 2 (revised) — implement the known constitutional changes, PR series:
-- [ ] W2a. The three constitutions rewritten (blue/red/judge agent files): telos,
+- [x] W2a. The three constitutions rewritten (blue/red/judge agent files): telos,
       win/loss conditions, craft duties, calibration; assembly union-copy rule.
 - [ ] W2b. Engine: correctness manifest, acceptance-check-at-mint, class-sweep
       clauses, repair_regression_rate + supersedes-edge delta telemetry.
