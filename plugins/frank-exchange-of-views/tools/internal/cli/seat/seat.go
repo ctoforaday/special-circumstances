@@ -1,0 +1,174 @@
+// Package seat carries what every verb of every role shares: the seat context,
+// the preconditions, and the after-render.
+//
+// It is deliberately small. The first cut of this CLI grew a Verb struct, a
+// []Verb table per role, a RoleCommand factory and an Args shim over pflag —
+// a hand-rolled framework, built because cobra was adopted late for flag parsing
+// rather than designed in. Cobra already owns every one of those jobs:
+//
+//	persistent flags     --run and --seat-id declared ONCE on the root and
+//	                     inherited, rather than re-declared by sixteen verbs
+//	PreRunE              preconditions where cobra runs preconditions
+//	PostRunE             render-on-mutation as an after-hook, not an
+//	                     if-statement a wrapper had to remember
+//	flag usage strings   documentation at the declaration site, which is what
+//	                     made the flagDocs map unnecessary
+//
+// What is left here is shared BEHAVIOUR, not structure: no command is defined in
+// this package, and no role's contract is stated here. Each verb builds itself,
+// in its own file, next to its own flags.
+package seat
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+)
+
+// FrictionFooter closes the loop the help opens. A seat that needs something the
+// contract does not offer must not improvise around it — the gap in the tooling
+// is itself a finding, and friction is the channel that carries it to the human
+// who can retool the seat.
+const FrictionFooter = `
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.`
+
+// Context is what every verb needs and no verb should re-derive.
+type Context struct {
+	RunDir string
+	SeatID string
+	Role   string
+}
+
+// Of reads the seat context from the inherited persistent flags.
+func Of(cmd *cobra.Command, role string) Context {
+	runDir, _ := cmd.Flags().GetString("run")
+	seatID, _ := cmd.Flags().GetString("seat-id")
+	return Context{RunDir: runDir, SeatID: seatID, Role: role}
+}
+
+// Handler is a verb's work: everything cobra-shaped is handled around it.
+type Handler func(Context, *cobra.Command) (string, error)
+
+// New builds a verb command with the shared plumbing attached. The verb supplies
+// its own name, contract text, flags and handler; it never restates the
+// preconditions, the error prefix, or the render.
+func New(role, name, help string, run Handler) *cobra.Command {
+	c := &cobra.Command{
+		Use:          name,
+		Short:        help,
+		Long:         help + "\n" + FrictionFooter,
+		Args:         cobra.NoArgs,
+		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			s := Of(cmd, role)
+			if s.RunDir == "" {
+				return fmt.Errorf("%s: --run <runDir> is required", role)
+			}
+			if s.SeatID == "" {
+				return fmt.Errorf("%s: --seat-id is required (the engine assigns it; it is in your prompt)", role)
+			}
+			return record.CheckSeatRole(role, s.SeatID)
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			out, err := run(Of(cmd, role), cmd)
+			if err != nil {
+				// The ROLE leads the message: a seat reading "close requires --id"
+				// learns less than one reading "merge: close requires --id", because
+				// the role names which contract it is being held to.
+				return fmt.Errorf("%s: %w", role, err)
+			}
+			if out != "" {
+				fmt.Println(out)
+			}
+			return nil
+		},
+	}
+	// Render-on-mutation keeps projections current after every write. register is
+	// exempt: it creates the seat rather than changing the board.
+	if name != "register" {
+		c.PostRunE = func(cmd *cobra.Command, _ []string) error {
+			_, err := record.Render(Of(cmd, role).RunDir, "")
+			return err
+		}
+	}
+	return c
+}
+
+// Prose adds the shared payload channel to a verb that reads one.
+func Prose(c *cobra.Command) *cobra.Command {
+	c.Flags().String("file", "", "read the prose payload from a file — ALWAYS use this over --text for anything above ~2KB")
+	c.Flags().String("text", "", "the prose payload, inline (short values only)")
+	return c
+}
+
+// Text resolves that channel: --file (read whole) or --text, else empty.
+func Text(cmd *cobra.Command) (string, error) {
+	if Given(cmd, "file") {
+		b, err := os.ReadFile(Str(cmd, "file"))
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	}
+	if Given(cmd, "text") {
+		return Str(cmd, "text"), nil
+	}
+	return "", nil
+}
+
+// Str reads a string flag.
+func Str(cmd *cobra.Command, name string) string {
+	v, err := cmd.Flags().GetString(name)
+	if err != nil {
+		return ""
+	}
+	return v
+}
+
+// Given answers whether the SEAT passed the flag. The absent/present distinction
+// is load-bearing for the record format — a flag never passed must not appear in
+// the event at all — and pflag's Changed is exactly that question.
+func Given(cmd *cobra.Command, name string) bool {
+	f := cmd.Flags().Lookup(name)
+	return f != nil && f.Changed
+}
+
+// Set copies a flag into the payload only when the seat passed it.
+func Set(cmd *cobra.Command, p *record.Payload, key, name string) *record.Payload {
+	if Given(cmd, name) {
+		p.Set(key, Str(cmd, name))
+	}
+	return p
+}
+
+// SetGrade writes a typed grade only when the seat passed it. The typed value
+// carries the absent/present distinction itself, so this never consults the flag
+// set — one fewer place for the two to disagree.
+func SetGrade(p *record.Payload, key string, g *flags.GradeValue) *record.Payload {
+	if g.Given() {
+		p.Set(key, string(g.Grade))
+	}
+	return p
+}
+
+// SetList writes a comma-list field. These are ALWAYS present in the event, even
+// empty: a gap with no ancestors records "supersedes": [], because an absent key
+// would read as "lineage unknown" where the truth is "lineage none".
+func SetList(p *record.Payload, key string, c *flags.CSV) *record.Payload {
+	return p.Set(key, c.Value())
+}
+
+// SetSame is Set where the payload key and the flag name agree.
+func SetSame(cmd *cobra.Command, p *record.Payload, names ...string) *record.Payload {
+	for _, n := range names {
+		Set(cmd, p, n, n)
+	}
+	return p
+}

@@ -1,0 +1,97 @@
+package merge
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+)
+
+// mint: put a gap on the board.
+//
+// The id is TOOL-assigned, sequential per round. Letting seats choose produced
+// four different "R5-1"s in one round of run 3, and the collision class dies here
+// rather than being policed downstream.
+func newMint() *cobra.Command {
+	var severity, likelihood, impact, cx flags.GradeValue
+	var supersedes, foundBy flags.CSV
+
+	c := seat.Prose(seat.New(role, "mint",
+		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
+		func(s seat.Context, cmd *cobra.Command) (string, error) {
+			// Crash-retry idempotency: --key (the stable local label, e.g. the source
+			// lens finding) makes a retried mint return the EXISTING id.
+			prior, err := record.ExistingMintByKey(s.RunDir, s.SeatID, seat.Str(cmd, "key"))
+			if err != nil {
+				return "", err
+			}
+			if prior != "" {
+				return fmt.Sprintf("minted %s (idempotent retry — existing id returned)", prior), nil
+			}
+			gapID, err := record.MintGapID(s.RunDir, record.RoundOf(s.SeatID))
+			if err != nil {
+				return "", err
+			}
+			text, err := seat.Text(cmd)
+			if err != nil {
+				return "", err
+			}
+			problem := seat.Str(cmd, "problem")
+			if problem == "" {
+				problem = text
+			}
+
+			p := record.NewPayload().Set("gap_id", gapID)
+			seat.Set(cmd, p, "mint_key", "key")
+			// --class-new both names the class and mints it, so it wins over --class.
+			if seat.Given(cmd, "class-new") {
+				p.Set("class", seat.Str(cmd, "class-new"))
+			} else {
+				seat.Set(cmd, p, "class", "class")
+			}
+			p.Set("class_new", seat.Given(cmd, "class-new"))
+			seat.SetSame(cmd, p, "definition", "neighbor", "distinguisher", "location")
+			p.Set("problem", problem)
+			seat.Set(cmd, p, "required_fix", "fix")
+			seat.Set(cmd, p, "acceptance_check", "check")
+			seat.SetGrade(p, "severity", &severity)
+			seat.SetGrade(p, "likelihood", &likelihood)
+			seat.SetGrade(p, "impact", &impact)
+			seat.SetGrade(p, "complexity_cost", &cx)
+			seat.SetList(p, "supersedes", &supersedes)
+			seat.SetList(p, "found_by", &foundBy)
+
+			if _, err := record.Append(s.RunDir, s.SeatID, "mint", p); err != nil {
+				return "", err
+			}
+			if seat.Given(cmd, "class-new") {
+				cn := record.NewPayload().Set("slug", seat.Str(cmd, "class-new"))
+				seat.SetSame(cmd, cn, "definition", "neighbor", "distinguisher")
+				if _, err := record.Append(s.RunDir, s.SeatID, "class-new", cn); err != nil {
+					return "", err
+				}
+			}
+			return fmt.Sprintf("minted %s", gapID), nil
+		}))
+
+	c.Flags().String("key", "", "a stable local label (e.g. the source lens finding) making a retried mint idempotent")
+	c.Flags().String("class", "", "the gap's class slug from the registry — what KIND of defect this is")
+	c.Flags().String("class-new", "", "mint a new class slug; requires --definition, --neighbor and --distinguisher")
+	c.Flags().String("definition", "", "what the new class is, in one line")
+	c.Flags().String("neighbor", "", "the existing class this one sits closest to")
+	c.Flags().String("distinguisher", "", "the tie-break question that tells the two apart")
+	c.Flags().String("location", "", "where the defect lives: a section heading plus a quoted sentence")
+	c.Flags().String("problem", "", "what is wrong (or pass it via --file)")
+	c.Flags().String("fix", "", "the required fix")
+	c.Flags().String("check", "", "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
+	c.Flags().Var(&severity, "severity", flags.GradeUsage("how bad this is"))
+	c.Flags().Var(&likelihood, "likelihood", "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
+	c.Flags().Var(&impact, "impact", "how bad the consequence is if it lands")
+	c.Flags().Var(&cx, "cx", "complexity_cost — what fixing it costs, on the same scale")
+	c.Flags().Var(&supersedes, "supersedes", "comma-separated ancestor ids this gap replaces; lineage is never dropped")
+	c.Flags().Var(&foundBy, "found-by", "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
+	return c
+}

@@ -14,7 +14,7 @@ func TestSeatRoleBinding(t *testing.T) {
 	}
 	for role, seats := range allowed {
 		for _, s := range seats {
-			if err := checkSeatRole(role, s); err != nil {
+			if err := CheckSeatRole(role, s); err != nil {
 				t.Errorf("%s should accept its own seat %q: %v", role, s, err)
 			}
 		}
@@ -26,7 +26,7 @@ func TestSeatRoleBinding(t *testing.T) {
 				continue
 			}
 			for _, s := range seats {
-				err := checkSeatRole(role, s)
+				err := CheckSeatRole(role, s)
 				if err == nil {
 					t.Errorf("%s accepted %s seat %q — the role boundary is not enforced", role, other, s)
 					continue
@@ -37,7 +37,7 @@ func TestSeatRoleBinding(t *testing.T) {
 			}
 		}
 	}
-	if err := checkSeatRole("blue", "totally-made-up"); err == nil {
+	if err := CheckSeatRole("blue", "totally-made-up"); err == nil {
 		t.Error("a seat id no dispatch created was accepted")
 	}
 }

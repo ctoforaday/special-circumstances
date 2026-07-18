@@ -18,8 +18,10 @@ Available Commands:
   merge       the red merge seat — the board's only writer.
 
 Flags:
-  -h, --help      help for feov-record
-  -v, --version   version for feov-record
+  -h, --help             help for feov-record
+      --run string       the run directory (the engine passes it; it is in your prompt)
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+  -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -43,8 +45,10 @@ Available Commands:
   merge       the red merge seat — the board's only writer.
 
 Flags:
-  -h, --help      help for feov-record
-  -v, --version   version for feov-record
+  -h, --help             help for feov-record
+      --run string       the run directory (the engine passes it; it is in your prompt)
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+  -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -68,8 +72,10 @@ Available Commands:
   merge       the red merge seat — the board's only writer.
 
 Flags:
-  -h, --help      help for feov-record
-  -v, --version   version for feov-record
+  -h, --help             help for feov-record
+      --run string       the run directory (the engine passes it; it is in your prompt)
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+  -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -98,6 +104,10 @@ Available Commands:
 
 Flags:
   -h, --help   help for lens
+
+Global Flags:
+      --run string       the run directory (the engine passes it; it is in your prompt)
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "feov-record lens [command] --help" for more information about a command.
 
@@ -133,6 +143,10 @@ Available Commands:
 Flags:
   -h, --help   help for merge
 
+Global Flags:
+      --run string       the run directory (the engine passes it; it is in your prompt)
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
 Use "feov-record merge [command] --help" for more information about a command.
 
 $ feov-record blue help
@@ -164,6 +178,10 @@ Available Commands:
 Flags:
   -h, --help   help for blue
 
+Global Flags:
+      --run string       the run directory (the engine passes it; it is in your prompt)
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
 Use "feov-record blue [command] --help" for more information about a command.
 
 $ feov-record bench help
@@ -191,6 +209,10 @@ Available Commands:
 
 Flags:
   -h, --help   help for bench
+
+Global Flags:
+      --run string       the run directory (the engine passes it; it is in your prompt)
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "feov-record bench [command] --help" for more information about a command.
 
