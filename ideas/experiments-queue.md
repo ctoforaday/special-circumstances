@@ -108,3 +108,16 @@ mechanism queued for batching). Measure: context-USE telemetry (fill% per seat)
 against regression ratio and round count. BET: ~$40-60/run of fuller ingestion buys
 back a $80-120 round. Guard: the haiku-window constraint (backlog) — budget is
 per-model.
+
+## E9. Embedding-assist for the record (user-mused 2026-07-18, self-doubted, made falsifiable)
+
+Hypothesis vs doubt: semantic search might auto-suggest class labels at mint —
+but embeddings cluster by TOPIC while classes cut by defect-SHAPE (same-class
+gaps share no vocabulary; same-subsystem different-class gaps embed as
+neighbors), and at 38 labels the whole registry fits in the merge's context.
+TEST (cheap, we hold ground truth): embed the 38 class definitions, classify
+the 224 seed-labeled gaps by nearest match, score top-1/top-3 vs the seed.
+Regardless of outcome, the RETRIEVAL-shaped uses go in: qmd-powered near-match
+screening at mint (instance-to-instance, topic-similarity is the RIGHT axis —
+serves the retained reopen-vs-new judgment clause), cross-run recurrence
+lookup, and friction near-duplicate detection (the paraphrase-blind class).
