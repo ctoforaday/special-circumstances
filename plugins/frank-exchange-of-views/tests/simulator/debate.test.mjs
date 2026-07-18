@@ -767,21 +767,38 @@ test('W2b: telemetry spec and gap records carry the new fields in the merge prom
   assert.ok(respond.prompt.includes('THE MANIFEST') && respond.prompt.includes('manifest array'), 'manifest demanded at respond')
 })
 
-test('R2 dual-mode: toolsDir arms SEAT_ID + record clauses on every seat; omitting it leaves prompts untouched (resume-safe)', async () => {
+test('R2g dual-mode: binDir arms SEAT_ID + the record contract on every seat; omitting it leaves prompts untouched', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
-  await world.run(script, { ...ARGS, toolsDir: '/plug/tools' })
+  await world.run(script, { ...ARGS, binDir: '/plug/bin' })
   const seats = ['blue-synthesize', 'red-lens', 'red-merge-r1', 'blue-respond-r1', 'assemble']
   for (const s of seats) {
     const c = world.calls.find((x) => x.opts.label.startsWith(s))
-    assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/plug/tools'), `${s} missing record clause`)
+    assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/plug/bin/feov-record'), `${s} missing record clause`)
   }
-  const lens = world.calls.find((x) => x.opts.label.startsWith('red-lens'))
-  assert.ok(lens.prompt.includes('red-lens-r1-L') && lens.prompt.includes('red-lens.mjs'), 'lens seat id + tool mapped')
+  // Each seat is handed its ROLE, not a script path: seat identity is bound to
+  // the role namespace, so a seat pointed at the wrong one is refused by the tool.
+  const roleOf = (label) => world.calls.find((x) => x.opts.label.startsWith(label)).prompt
+  // The path is QUOTED (plugin roots can contain spaces), so the role token sits
+  // after the closing quote — the same shape capture's join audit must match.
+  const dispatches = (label, role) => new RegExp(`feov-record"?\\s+${role}\\s+register`).test(roleOf(label))
+  assert.ok(dispatches('red-lens', 'lens'), 'lens dispatched to the lens role')
+  assert.ok(dispatches('red-merge-r1', 'merge'), 'merge dispatched to the merge role')
+  assert.ok(dispatches('blue-respond-r1', 'blue'), 'blue dispatched to the blue role')
+  assert.ok(dispatches('assemble', 'bench'), 'assembly dispatched to the bench role')
+
+  // THE HELP IS THE CONTRACT, and the seat is told so explicitly — including what
+  // to do when what it needs is absent, which is friction rather than improvising
+  // or hand-writing the artifact the record layer exists to replace.
+  const lens = roleOf('red-lens')
+  assert.ok(lens.includes('feov-record lens --help'), 'the seat is pointed at its own contract')
+  assert.ok(/does not exist for you/.test(lens), 'absence is stated as absence')
+  assert.ok(/friction verb/.test(lens), 'the escalation path is named')
+
   const legacy = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await legacy.run(script, ARGS)
-  assert.ok(!legacy.calls.some((c) => c.prompt.includes('SEAT_ID:')), 'no toolsDir -> no clause, old resumes untouched')
+  assert.ok(!legacy.calls.some((c) => c.prompt.includes('SEAT_ID:')), 'no binDir -> no clause')
 })
 
 // ---- W2c: the petition short-circuit + judicial halt ----

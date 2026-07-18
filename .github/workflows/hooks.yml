@@ -114,18 +114,43 @@ jobs:
           echo "all hook commands exit 0 with the guard warning on an empty plugin root"
 
   release:
-    # Cross-compile + publish binaries when a plugin version tag is pushed (e.g. prosthetic-conscience--v0.1.0).
+    # Cross-compile + publish binaries when a plugin version tag is pushed.
+    #
+    # The tag NAMES THE PLUGIN: <plugin>--v<version>, e.g.
+    # prosthetic-conscience--v0.9.0 or frank-exchange-of-views--v0.9.10. This job
+    # used to be hardcoded to prosthetic-conscience through the workflow-level
+    # working-directory, which meant a FEOV tag would have built PC's binaries
+    # and published them under FEOV's release — silently, since the build would
+    # succeed. Deriving the plugin from the tag is what makes a second plugin
+    # with a binary possible at all.
     if: startsWith(github.ref, 'refs/tags/') && contains(github.ref, '--v')
-    needs: test
+    needs: [test, feov-record]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
+      - name: Resolve the plugin from the tag
+        id: plugin
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          plugin="${tag%%--v*}"
+          dir="plugins/${plugin}/tools"
+          if [ ! -f "${dir}/go.mod" ]; then
+            echo "tag ${tag} names plugin '${plugin}', which has no Go module at ${dir}"
+            echo "(a plugin with no binaries should not carry a version tag that triggers a release)"
+            exit 1
+          fi
+          echo "plugin=${plugin}" >> "$GITHUB_OUTPUT"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
       - name: Cross-compile
+        working-directory: ${{ steps.plugin.outputs.dir }}
         run: |
           mkdir -p dist
           for cmd in cmd/*/; do
@@ -133,12 +158,11 @@ jobs:
             for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
               os="${pair%/*}"; arch="${pair#*/}"; ext=""
               [ "$os" = "windows" ] && ext=".exe"
-              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" \
-                -o "dist/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w"                 -o "dist/${name}_${os}_${arch}${ext}" "./cmd/${name}"
             done
           done
           cd dist && sha256sum * > SHA256SUMS
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: plugins/prosthetic-conscience/tools/dist/*
+          files: ${{ steps.plugin.outputs.dir }}/dist/*

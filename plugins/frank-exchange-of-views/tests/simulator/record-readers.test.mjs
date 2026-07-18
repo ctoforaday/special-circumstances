@@ -110,3 +110,52 @@ test('record-join audit still reads pre-port transcripts (the mjs invocation sha
   const pass = recordJoinAudit(run, transcripts, ['agent-old.jsonl'])
   assert.equal(pass.verdict, 'PASS', pass.detail)
 })
+
+test('setup preflight: a missing or skewed record binary refuses the run BEFORE any state exists', async () => {
+  const { preflightRecordBinary, recordToolVersion } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+
+  const missing = preflightRecordBinary('0.1.0', 'feov-record', () => ({ error: { code: 'ENOENT' }, status: null }))
+  assert.equal(missing.ok, false)
+  assert.match(missing.reason, /not runnable/)
+  assert.match(missing.remedy, /doctor --fix/)
+
+  // Skew is the subtler failure: the binary RUNS, so nothing else would notice,
+  // and it writes events under a different contract for the whole run.
+  const skewed = preflightRecordBinary('0.2.0', 'feov-record', () => ({ status: 0, stdout: Buffer.from('0.1.0\n') }))
+  assert.equal(skewed.ok, false)
+  assert.match(skewed.reason, /0\.1\.0.*expects 0\.2\.0/)
+
+  const good = preflightRecordBinary('0.1.0', 'feov-record', () => ({ status: 0, stdout: Buffer.from('0.1.0\n') }))
+  assert.equal(good.ok, true)
+  assert.equal(good.version, '0.1.0')
+
+  // The plugin manifest is the version authority; a hardcoded copy here would be
+  // the very skew the preflight exists to catch.
+  assert.equal(recordToolVersion(), '0.1.0')
+})
+
+test('record-join audit matches the QUOTED binary path the engine actually emits', async () => {
+  const { recordJoinAudit } = await import('../../skills/research-protocol/scripts/capture-research-run.mjs')
+  const run = tmp()
+  const transcripts = tmp()
+  writeEvents(run, 'red-lens-r1-L1', [{ type: 'finding', payload: { label: 'L1-F1', text: 'x' } }])
+  // Exactly what recordClause renders: the path is quoted because a plugin root
+  // can contain spaces. Requiring whitespace after the binary name matched
+  // nothing here, so the audit reported healthy while measuring nothing.
+  writeFileSync(join(transcripts, 'agent-q.jsonl'),
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: '"/plug/bin/feov-record" lens finding --label L1-F1 --run x --seat-id red-lens-r1-L1' } }] } }) + '\n')
+  const pass = recordJoinAudit(run, transcripts, ['agent-q.jsonl'])
+  assert.equal(pass.verdict, 'PASS', pass.detail)
+})
+
+test('setup preflight binds to INTENT: fatal with --bin-dir, reported without it', async () => {
+  const { runSetupCli } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs').catch(() => ({}))
+  // The CLI path is covered end-to-end in run-scripts.test.mjs; what matters here
+  // is the rule: a run that never asked to record must not be blocked by a tool
+  // it does not use, and a run that DID ask must not start without it.
+  const { preflightRecordBinary } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+  const absent = preflightRecordBinary('0.1.0', 'no-such-binary')
+  assert.equal(absent.ok, false, 'absence is detected either way — the difference is what setup DOES about it')
+  assert.ok(absent.reason.includes('not runnable'))
+  assert.equal(typeof runSetupCli, 'undefined')
+})

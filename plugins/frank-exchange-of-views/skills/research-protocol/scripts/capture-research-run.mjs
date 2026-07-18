@@ -224,7 +224,12 @@ export function recordJoinAudit(runDir, transcriptDir, agentFiles) {
         // Silently matching neither is the failure that matters — the join audit
         // would report every event as an orphan, or (worse) report PASS over an
         // empty invocation set.
-        const m = cmd.match(/feov-record\s+(?:lens|merge|blue|bench)\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)/) ||
+        // The engine QUOTES the binary path ("<binDir>/feov-record" lens register)
+        // because a plugin root can contain spaces, so the closing quote sits
+        // between the binary name and the role. Requiring whitespace there
+        // matched nothing in a real transcript — the audit would have reported
+        // every event as an orphan while looking entirely healthy.
+        const m = cmd.match(/feov-record"?\s+(?:lens|merge|blue|bench)\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)/) ||
           cmd.match(/(?:red-lens|red-merge|blue|bench)\.mjs\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)/)
         if (m) { invocations.add(`${m[2]}::${m[1]}`); cmds.push(toolCallCount) }
       }
