@@ -442,7 +442,7 @@ test('grade_adjusted: a judge grade ruling reaches the next red-merge as an inst
   assert.ok(merge3 && merge3.prompt.includes('GRADE ADJUSTMENTS'), 'adjustment applied by the seat that owns the ledger')
 })
 
-test('traffic classes: regression successors are marked first-raise; re-raised ids keep the full resolution set', async () => {
+test('closing arguments: judge sits AFTER blue, both sides file closings, ruling basis confined', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1'), gap('R1-2')] }),
           redEnv({
@@ -452,11 +452,17 @@ test('traffic classes: regression successors are marked first-raise; re-raised i
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
   const judge2 = world.calls.find(c => c.opts.label.startsWith('judge-r2'))
-  assert.ok(judge2.prompt.includes('"first_raise_successor"'), 'successor marked as first-raise traffic')
-  assert.ok(judge2.prompt.includes('"re_raised"'), 're-raised id marked with full resolution set')
-  assert.ok(judge2.prompt.includes('structurally unavailable'), 'judge told which options are dead for first-raise traffic')
+  const blue2 = world.calls.find(c => c.opts.label.startsWith('blue-respond-r2'))
+  const merge2 = world.calls.find(c => c.opts.label.startsWith('red-merge-r2'))
+  assert.ok(judge2 && blue2, 'both seats ran in round 2')
+  assert.ok(judge2.n > blue2.n, 'the judge rules AFTER blue has answered — never on unanswered material')
+  assert.ok(merge2.prompt.includes('### RED CLOSING'), 'red files its closing at the merge')
+  assert.ok(blue2.prompt.includes('### BLUE CLOSING'), 'blue files its closing with its response')
+  assert.ok(blue2.prompt.includes('DOCKETED for adjudication AFTER your response'), 'blue told the docket before the judge sits')
+  assert.ok(judge2.prompt.includes('RULING BASIS IS CONFINED TO'), 'ruling basis: closings + transcript + final state')
+  assert.ok(judge2.prompt.includes('counts AGAINST the side that made it'), 'overstatement penalty stated to the judge')
+  assert.ok(!judge2.prompt.includes('structurally unavailable'), 'dead-options patch removed — full resolution set for all classes')
 })
-
 test('lane footnote namespaces: every lane prompt assigns a lane-prefixed label convention', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
