@@ -146,7 +146,7 @@ E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3
       constitution (how much verification machinery it needs).
 - [x] b. Merge information-loss: lens candidates vs merged ledger, all rounds,
       all runs — what dies at the merge bottleneck.
-- [ ] c. Lens ROI, full: candidates-based attribution where found_by is absent;
+- [x] c. Lens ROI, full: candidates-based attribution where found_by is absent;
       cost per surviving finding per lens (seat-count economics).
 - [x] d. Judge value-add: did docketed/prioritized gaps close differently?
 - [x] e. Friction as leading indicator: map friction entries to later gaps that
@@ -165,3 +165,23 @@ RUNS RESUME only after E0.5 is exhausted: first run under the new constitution
       capture computes -> feov-memory STATS -> setup mirrors -> seat prompts carry
       headline numbers -> dashboard per-chair scoreboard. The visibility loop that
       keeps the telos from becoming the next "confidence self-graded" dead letter.
+
+## E0.5 COMPLETE (2026-07-18) — the runs-resume gate is OPEN
+
+All eight analyses done (a: attestation ~honest + format invariant shipped;
+b: merge lossless, retention indicted; c: lens economics — round-graduated cut
+supported, L5/L6 untouchable, L4 marginal; d: judge gate inert, direction
+valuable — bench metric swapped; e: friction mining validated ~42% predictive;
+f: assembly regression general-in-kind; g: 224-gap class seed, singleton
+assumption inverted; h: claim survival + the self-criticism blind spot).
+
+- [ ] W2i. Round-graduated lens economics (E0.5c): 6 lenses r1, L5+L6 + 2
+      consolidated citation seats (spot-check + staleness re-fetch, coverage
+      duty preserved) from r2-3 — engine change to lens dispatch; saves 35-38%
+      of red-lens spend without touching round-1 coverage or the adversary's
+      logic/dark-side strength.
+
+FIRST RUN back (whenever called): smoke first (exercises waves 1-2 + record
+dual-mode + petitions + law mirror end-to-end), then the reform-shakedown
+keeper = R2.5 parity run + reform A/B vs the three baseline curves + the E-queue
+sequence from E1.
