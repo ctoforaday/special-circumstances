@@ -57,6 +57,29 @@ jobs:
         env:
           CGO_ENABLED: "1"
 
+  rule-sweep:
+    # A rule patch must name its class and sweep its siblings
+    # (feov-memory/protocol-class-registry.md). Every protocol patch that shipped
+    # before this check recurred in adjacent form — four for four — because each
+    # fix was an INSTANCE fix and the class survived at the next seat.
+    #
+    # fetch-depth 0 and an explicit base: the check reads the branch's COMMIT
+    # MESSAGES, which a shallow clone does not have.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node scripts/rule-sweep.mjs --selftest
+      - run: node scripts/rule-sweep.mjs --base origin/${{ github.base_ref }}
+
   goldens:
     # Goldens are a contract, so STALENESS IS A FAILURE: a behaviour change that
     # was never re-recorded must not merge quietly. This runs the same command a
