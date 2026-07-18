@@ -164,6 +164,27 @@ export function assemblyScreen(runDir) {
   }
 }
 
+// W1.7 (post-hoc half) — record parity: blue's in-run attestation (round_record_appended)
+// is shape-tier; this recount is the vacuity check. Every red round should have a "### BLUE"
+// block in debate.md and a CHANGELOG round entry (the final round may lack both on a PASS
+// exit — blue never responded — so the floor is redRounds - 1).
+export function recordParityAudit(runDir) {
+  const debateP = join(runDir, 'debate.md')
+  const clP = join(runDir, 'blue', 'CHANGELOG.md')
+  if (!existsSync(debateP)) return { check: 'record-parity', verdict: 'SKIP', detail: 'no debate.md' }
+  const debate = readFileSync(debateP, 'utf8')
+  const redRounds = (debate.match(/^### RED\b/gm) || []).length
+  if (redRounds === 0) return { check: 'record-parity', verdict: 'SKIP', detail: 'no red rounds on record' }
+  const blueBlocks = (debate.match(/^### BLUE\b/gm) || []).length
+  const clRounds = existsSync(clP) ? new Set((readFileSync(clP, 'utf8').match(/^#+.*Round \d+/gim) || []).map((h) => h.match(/Round (\d+)/i)[1])).size : 0
+  const ok = blueBlocks >= redRounds - 1 && clRounds >= redRounds - 1
+  return {
+    check: 'record-parity',
+    verdict: ok ? 'PASS' : 'FAIL',
+    detail: `${redRounds} red round(s) vs ${blueBlocks} "### BLUE" block(s) and ${clRounds} CHANGELOG round entr${clRounds === 1 ? 'y' : 'ies'} (floor: redRounds-1 — a PASS exit has no final blue response)`,
+  }
+}
+
 export function capture(runDir, transcriptDir) {
   const lines = []
   // Mechanics: journal copy, transcript tarball, cost.md (with telemetry join).
@@ -192,6 +213,7 @@ export function capture(runDir, transcriptDir) {
     frictionAudit(runDir, friction, harvested),
     contextUse(transcriptDir, agentFiles),
     assemblyScreen(runDir),
+    recordParityAudit(runDir),
   ]
 
   // Marker removal: the run is no longer live; hook guards stand down.

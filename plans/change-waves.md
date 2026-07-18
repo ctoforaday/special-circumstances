@@ -31,22 +31,22 @@ FEOV setup/capture scripts:
       parse < telemetry count. [known wart, feat/run-dashboard]
 
 FEOV engine (debate.js — plumbing, not constitutions):
-- [ ] W1.6 claim_count counting unit pinned in the envelope spec (two honest
+- [x] W1.6 claim_count counting unit pinned in the envelope spec (two honest
       merges currently differ 2x). [blue-synthesize friction]
-- [ ] W1.7 Round-parity check: report.md revision without a round-N ### BLUE
+- [x] W1.7 Round-parity check: report.md revision without a round-N ### BLUE
       block + CHANGELOG entry is detected (envelope-side or seat-launch check) —
       the desync misled a lens and the judge. [red-merge-r3, judge-r3,
       blue-respond-r3 — three seats demanded it independently]
-- [ ] W1.8 Archive spot-check floor keyed on "archive non-empty at round START"
+- [x] W1.8 Archive spot-check floor keyed on "archive non-empty at round START"
       (round-2 self-attestation degeneracy). [red-merge-r2 friction]
-- [ ] W1.9 `routed_to_infrastructure` disposition in the judge enum (valid
+- [x] W1.9 `routed_to_infrastructure` disposition in the judge enum (valid
       finding, fix owned outside the debate). [judge-r2 friction]
-- [ ] W1.10 Probe-class vocabulary: document-probe vs live-probe; live-probe
+- [x] W1.10 Probe-class vocabulary: document-probe vs live-probe; live-probe
       deferrable to the build PR as a named acceptance test. [blue-respond-r2]
-- [ ] W1.11 Run-dir access for Glob/Grep (register the audit surface as a
+- [x] W1.11 Run-dir access for Glob/Grep (register the audit surface as a
       working directory, or document the Bash fallback as sanctioned). [3x
       recurrence: r1/r2 L1, red-merge-r3]
-- [ ] W1.12 E8 mechanical bits: window-aware fetch limits at lenses (kills the
+- [x] W1.12 E8 mechanical bits: window-aware fetch limits at lenses (kills the
       54KB truncation); engine-computed ingestion manifests per seat (also the
       structural batching mechanism from the efficiency queue).
 

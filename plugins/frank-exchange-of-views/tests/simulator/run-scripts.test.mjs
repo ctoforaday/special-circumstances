@@ -89,7 +89,9 @@ function fixtureRun({ telemetryRounds = 2, redRounds = 2, ledgerLines = 2, archi
   const dir = tmp()
   mkdirSync(join(dir, 'red'), { recursive: true })
   mkdirSync(join(dir, 'trajectories'), { recursive: true })
-  writeFileSync(join(dir, 'debate.md'), Array.from({ length: redRounds }, (_, i) => `## Round ${i + 1}\n### RED\nverdict\n`).join('\n'))
+  writeFileSync(join(dir, 'debate.md'), Array.from({ length: redRounds }, (_, i) => `## Round ${i + 1}\n### RED\nverdict\n### BLUE\nresponse\n`).join('\n'))
+  mkdirSync(join(dir, 'blue'), { recursive: true })
+  writeFileSync(join(dir, 'blue', 'CHANGELOG.md'), Array.from({ length: redRounds }, (_, i) => `## Round ${i + 1}\nedits\n`).join('\n'))
   if (telemetryRounds >= 0) {
     writeFileSync(join(dir, 'trajectories', 'board-telemetry.jsonl'),
       Array.from({ length: telemetryRounds }, (_, i) => JSON.stringify({ round: i + 1, mass: 4, open_count: 2 })).join('\n') + '\n')
@@ -188,6 +190,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 import { qmdRefresh } from '../../skills/research-protocol/scripts/setup-research-run.mjs'
 import { capture } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
+import * as capMod from '../../skills/research-protocol/scripts/capture-research-run.mjs'
 
 const SCRIPTS = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills', 'research-protocol', 'scripts')
 
@@ -308,4 +311,19 @@ test('batch-collapse CLI: pairs candidate-read ingestions and reports per-round 
   const r = spawnSync(process.execPath, [join(SCRIPTS, 'measure-read-batching.mjs'), dir])
   assert.equal(r.status, 0, r.stderr.toString())
   assert.ok(/round 1/.test(r.stdout.toString()), `expected a round-1 row, got: ${r.stdout}`)
+})
+
+test('record parity (W1.7 post-hoc): missing BLUE blocks or CHANGELOG rounds FAIL; the PASS-exit final round is floored out', () => {
+  const { recordParityAudit } = capMod
+  const healthy = fixtureRun()
+  assert.equal(recordParityAudit(healthy).verdict, 'PASS')
+  const desynced = fixtureRun()
+  writeFileSync(join(desynced, 'debate.md'), '## Round 1\n### RED\nv\n### BLUE\nr\n## Round 2\n### RED\nv\n## Round 3\n### RED\nv\n')
+  const r = recordParityAudit(desynced)
+  assert.equal(r.verdict, 'FAIL', '3 red rounds with 1 blue block is below the redRounds-1 floor')
+  assert.ok(r.detail.includes('3 red round(s)'))
+  const passExit = fixtureRun()
+  writeFileSync(join(passExit, 'debate.md'), '## Round 1\n### RED\nv\n### BLUE\nr\n## Round 2\n### RED\nPASS\n')
+  writeFileSync(join(passExit, 'blue', 'CHANGELOG.md'), '## Round 1\nedits\n')
+  assert.equal(recordParityAudit(passExit).verdict, 'PASS', 'a PASS exit has no final blue response — floored')
 })

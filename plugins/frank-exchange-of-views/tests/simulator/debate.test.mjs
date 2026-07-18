@@ -341,7 +341,7 @@ test('sharding: ledger+archive replace findings.md in every seat prompt', async 
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] }),
+    red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [], ledger_closure_lines: 1, archive_blocks: 1 }),
           redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] })],
   }))
   await assert.rejects(world.run(script, { ...ARGS, maxRounds: 3 }), /round 2 reported no archive spot-checks/)
@@ -576,4 +576,77 @@ test('heartbeats: the panel narrator logs round start, red verdict + mass, docke
   assert.ok(/round 1: red FAIL — 1 gaps open, mass 4\.0/.test(all), 'verdict heartbeat carries live mass')
   assert.ok(/round 2: docket — 1 contested item/.test(all), 'docket heartbeat')
   assert.ok(/round 1: blue responded — 1 gaps addressed/.test(all), 'blue heartbeat')
+})
+
+// ---- Wave 1 engine plumbing (W1.6-W1.12) ----
+
+test('W1.6: pinned claim unit reaches synthesis and response prompts', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  for (const seat of ['blue-synthesize', 'blue-respond-r1']) {
+    const c = world.calls.find((c) => c.opts.label.startsWith(seat))
+    assert.ok(c.prompt.includes('CLAIM UNIT') && c.prompt.includes('FOOTNOTED'), `${seat} missing pinned claim unit`)
+  }
+})
+
+test('W1.7: blue-respond without the round-record attestation aborts with the parity error', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] })],
+    blueRespond: [blueEnv({ round_record_appended: false })],
+  }))
+  await assert.rejects(world.run(script, ARGS), /round-parity.*not on the record/)
+})
+
+test('W1.7: blue-synthesize without the Round 0 CHANGELOG attestation aborts before any red seat spawns', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ round_record_appended: false })],
+  }))
+  await assert.rejects(world.run(script, ARGS), /round-parity.*Round 0/)
+  assert.ok(!world.calls.some((c) => c.opts.label.startsWith('red-')), 'no red seat dispatched after a desynced synthesis')
+})
+
+test('W1.8: empty spot-checks are EXEMPT when the archive entered the round with zero records (round 1 closed nothing)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [], ledger_closure_lines: 0, archive_blocks: 0 }),
+          redEnv({ verdict: 'PASS', archive_spot_checks: [], ledger_closure_lines: 0, archive_blocks: 0 })],
+  }))
+  const result = await world.run(script, { ...ARGS, maxRounds: 3 })
+  assert.equal(result.verdict, 'VERIFIED', 'run completes — the floor keys on round-START archive state, not the round number')
+  const merge2 = world.calls.find((c) => c.opts.label.startsWith('red-merge-r2'))
+  assert.ok(merge2.prompt.includes('round-START archive state'), 'merge prompt states the keying rule')
+})
+
+test('W1.9: routed_to_infrastructure leaves red verdict pool and ships as a named infra debt', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }),
+          redEnv({ gaps: [gap('R1-1')] }), // re-raise -> dockets
+          redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'routed_to_infrastructure', rationale: 'pin validation is setup tooling, owed by the lead' }] })],
+  }))
+  const result = await world.run(script, { ...ARGS, maxRounds: 4 })
+  assert.equal(result.infra_debts.length, 1)
+  assert.equal(result.infra_debts[0].gap_id, 'R1-1')
+  assert.ok(result.infra_debts[0].owed_fix.includes('setup tooling'))
+  const judgePrompt = world.calls.find((c) => c.opts.label.startsWith('judge-r'))
+  assert.ok(judgePrompt.prompt.includes('routed_to_infrastructure'), 'the disposition is offered in the resolution set')
+  const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
+  assert.ok(assemble.prompt.includes('INFRASTRUCTURE DEBTS'), 'assembly surfaces the debts section')
+})
+
+test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset batching, large-source rule', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const merge = world.calls.find((c) => c.opts.label.startsWith('red-merge-r1'))
+  const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1'))
+  const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens'))
+  assert.ok(merge.prompt.includes('PROBE CLASSES') && merge.prompt.includes('DOCUMENT-PROBE'), 'merge demands classed probes (W1.10)')
+  assert.ok(respond.prompt.includes('PROBE CLASSES') && respond.prompt.includes('deferred acceptance test'), 'respond discharges by class (W1.10)')
+  assert.ok(lens.prompt.includes('KNOWN HARNESS LIMIT') && lens.prompt.includes('SANCTIONED fallback'), 'Glob/Grep fallback sanctioned everywhere via speedClause (W1.11)')
+  assert.ok(respond.prompt.includes('respond-1-workset'), 'respond FIRST ACTION batches its working set (W1.12)')
+  const citLens = world.calls.filter((c) => c.opts.label.startsWith('red-lens')).find((c) => c.prompt.includes('CITATION LEDGER'))
+  assert.ok(citLens && citLens.prompt.includes('LARGE SOURCES') && citLens.prompt.includes('--comments'), 'citation lens carries the truncation rule (W1.12)')
 })
