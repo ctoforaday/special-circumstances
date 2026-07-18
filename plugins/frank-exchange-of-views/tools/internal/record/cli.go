@@ -200,6 +200,9 @@ func verbCommand(role string, v Verb) *cobra.Command {
 		if seatID == "" {
 			return fmt.Errorf("%s: --seat-id is required (the engine assigns it; it is in your prompt)", role)
 		}
+		if err := checkSeatRole(role, seatID); err != nil {
+			return err
+		}
 		result, err := v.Fn(runDir, seatID, a)
 		if err != nil {
 			// Carry the ROLE in the prefix. A seat reading "record: close requires
