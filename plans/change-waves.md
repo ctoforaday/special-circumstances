@@ -134,8 +134,13 @@ WAVE 2 (revised) — implement the known constitutional changes, PR series:
       class_mass telemetry (seed vocabulary from E0.5g).
 - [x] W2e. law/ + feov-memory/ structure: statute/precedent two-tier authority,
       craft memory compiled to manifest lines at setup, capture STATS + deltas.
-- [ ] W2f. Records layer: seats/board/friction JSONL + structured per-claim
+- [~] W2f. Records layer: seats/board/friction JSONL + structured per-claim
       confidence; capture audits move from heuristics to records.
+      PARTIAL: the record layer SHIPPED (R2g — feov-record, events + projections,
+      dual-mode armed by binDir). Still open: capture's audits are heuristic
+      parses, per-claim confidence has a verb but no calibration computation, and
+      the dashboard still regexes prose. Those close when the run records exist to
+      read, which needs the first run.
 - [x] W2g. MASS mapping v2 (existence vs consequence split) — new telemetry
       series version; catechism/TL;DR into blue's round-0 template.
 
@@ -160,7 +165,7 @@ E0.5 — EXHAUST THE EXISTING CORPUS (no runs; scripts + read agents over runs 3
 
 RUNS RESUME only after E0.5 is exhausted: first run under the new constitution
 = its shakedown + the reform A/B (E2), then the E-queue in order.
-- [ ] W2h. Scorecards (plans/scorecards.md): every constitutional clause mapped to an
+- [x] W2h. Scorecards (plans/scorecards.md): every constitutional clause mapped to an
       instrumented number with a Goodhart class (benchmark/diagnostic/detector);
       capture computes -> feov-memory STATS -> setup mirrors -> seat prompts carry
       headline numbers -> dashboard per-chair scoreboard. The visibility loop that
@@ -205,3 +210,33 @@ FIRST RUN back (whenever called): smoke first (exercises waves 1-2 + record
 dual-mode + petitions + law mirror end-to-end), then the reform-shakedown
 keeper = R2.5 parity run + reform A/B vs the three baseline curves + the E-queue
 sequence from E1.
+
+## STATE AT THE PRE-RUN GATE (2026-07-18)
+
+Everything the operator directive named ("land everything before the first run,
+one set of debug cycles") is now landed: W2a-W2i, R2g, and the record tool with
+its differential validation, durability, abort-safety, role binding and typed
+CLI. Wave 2 is closed except W2d and the W2f remainder, both of which are
+recorded above as needing artifacts only a live run produces.
+
+REMAINING BEFORE THE FIRST RUN — the rulebook-audit items the operator approved
+(plans/rulebook-audit.md), in the order they should ship:
+
+1. MEMORY-AS-DUTY (item 8). Red's corpus is tracked and mirrored, and still does
+   not BIND: run 5's lanes read it and committed the warned patterns anyway. The
+   design is settled — classify the 56 patterns against the 38-class registry,
+   add metadata.classes frontmatter, and deliver by CLASS JOIN at the repair step
+   rather than by staging the corpus at seat start. First because it is the one
+   with measured evidence that the current shape does nothing.
+2. THE META-FINDING. Extend the class registry to protocol-rule defects, so a
+   rule patch must name its class and sweep siblings. This is what stops the
+   four-for-four recurrence pattern (patch an instance, the class re-emerges at
+   the adjacent seat) that the audit found.
+3. FULL-RE-READ / ADDITIVE DECOUPLING (item 1). Now unblocked: "additive" becomes
+   a claims-level invariant the record layer enforces, which frees prose to
+   compact and shrinks every audit seat's read.
+4. LINES OF INQUIRY (item 3). Needs blue's record CLI, which exists; it also
+   gives the steelman duty (item 2) its surface.
+
+THEN the first run: smoke first (waves 1-2 + record dual-mode via binDir +
+petitions + law + scorecards end to end), then the reform-shakedown keeper.
