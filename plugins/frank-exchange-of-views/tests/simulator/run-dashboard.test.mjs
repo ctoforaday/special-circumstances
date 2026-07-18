@@ -21,14 +21,24 @@ function fixture() {
   writeFileSync(join(runDir, 'red', 'ledger.md'), '# ledger\n## open\nR2-1 | high | loc | problem\nR2-2 | medium | loc | problem\n## closure index\nR1-1 | closed | fixed | -\n')
   writeFileSync(join(runDir, 'red', 'archive.md'), '# archive\n## R1-1 — closed\nprose\n')
   writeFileSync(join(runDir, 'friction.md'), '# friction\n- seat-a: pain one\n- seat-b: pain two\n')
+  // Journal uses the REAL harness schema — {type, key, agentId}, NO labels (production
+  // divergence caught live 2026-07-17: the fixture had invented a label field).
   writeFileSync(join(transcriptDir, 'journal.jsonl'), [
-    JSON.stringify({ type: 'started', label: 'red-merge-r2 · demo', timestamp: '2026-07-17T20:00:00Z' }),
-    JSON.stringify({ type: 'result', label: 'blue-synthesize · demo', result: { claim_count: 100 } }),
-    JSON.stringify({ type: 'started', label: 'frontier · demo' }),
-    JSON.stringify({ type: 'result', label: 'frontier · demo', result: 'hypotheses' }),
+    JSON.stringify({ type: 'started', key: 'v2:a', agentId: 'idmerge' }),
+    JSON.stringify({ type: 'started', key: 'v2:b', agentId: 'idsynth' }),
+    JSON.stringify({ type: 'result', key: 'v2:b', agentId: 'idsynth', result: { claim_count: 100 } }),
+    JSON.stringify({ type: 'started', key: 'v2:c', agentId: 'idfront' }),
+    JSON.stringify({ type: 'result', key: 'v2:c', agentId: 'idfront', result: 'hypotheses' }),
   ].join('\n') + '\n')
-  writeFileSync(join(transcriptDir, 'agent-a1.jsonl'),
-    JSON.stringify({ message: { role: 'assistant', usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 1000000, cache_creation_input_tokens: 0 }, content: [] } }) + '\n')
+  // Seat identity comes from each transcript's first user message (cost-audit's method).
+  writeFileSync(join(transcriptDir, 'agent-idmerge.jsonl'), [
+    JSON.stringify({ message: { role: 'user', content: 'Red merge, round 2. FIRST ACTION...' } }),
+    JSON.stringify({ message: { role: 'assistant', usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 1000000, cache_creation_input_tokens: 0 }, content: [] } }),
+  ].join('\n') + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idsynth.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Blue synthesis for topic...' } }) + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idfront.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Research debate opening for topic: x. Formulate 3-5 frontier hypotheses...' } }) + '\n')
   return { runDir, transcriptDir }
 }
 
@@ -55,7 +65,7 @@ test('dashboard html: mass line + both round rows + live seat + dark-mode roles,
   const html = renderHtml(buildModel(runDir, transcriptDir))
   assert.ok(html.includes('polyline'), 'mass trend rendered')
   assert.ok(html.includes('118.75') && html.includes('81.5'), 'both telemetry rounds in the table')
-  assert.ok(html.includes('red-merge-r2'), 'live seat listed')
+  assert.ok(html.includes('red-merge-r2'), 'live seat listed (classified from transcript head)')
   assert.ok(html.includes('class="bar"'), 'progress bar rendered')
   assert.ok(html.includes('close rate'), 'open/close rates table')
   assert.ok(html.includes('friction entries'), 'friction as count tile')
