@@ -49,6 +49,22 @@ func parseCount(s string) any {
 	if err != nil {
 		return nil
 	}
+	// DEFECT FIXED: NaN and ±Inf were allowed through. Go's ParseFloat ACCEPTS
+	// "NaN", "Inf" and "+Inf", so `--claim-count NaN` produced a float64 the event
+	// could not be serialized with: encoding/json refuses non-finite values, the
+	// marshal failed, Append returned an error, and the revision was never
+	// recorded at all. That is the worst possible outcome for this particular
+	// verb — a revision missing from the record is exactly the run-5 failure the
+	// type comment above describes, reintroduced through a flag value.
+	//
+	// It is also an oracle divergence: JSON.stringify(NaN) is `null` in the mjs
+	// side, so the faithful serialization of a non-finite count is null, not a
+	// write failure. Returning nil here yields that same null AND satisfies this
+	// function's own stated contract — a value that is not a count becomes null,
+	// never a silent zero.
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return nil
+	}
 	if f == math.Trunc(f) && math.Abs(f) < 1e15 {
 		return int64(f)
 	}

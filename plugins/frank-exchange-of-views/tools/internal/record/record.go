@@ -242,13 +242,19 @@ func appendLine(shard string, ev Event) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(shard, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.WriteString(prefix + string(line) + "\n")
-	return err
+	// DEFECT FIXED: this wrote the event with a bare OpenFile+WriteString, so the
+	// ONLY append path in the package bypassed both guarantees safety.go was
+	// written to provide. durableAppend was defined there, documented as the append
+	// path ("a seat that reports success has a record that survives the machine
+	// dying"), and never called — Go does not flag an unused function, so it
+	// compiled clean while every event was written unsynced and unguarded. Two
+	// consequences, both the ones that file's header claims are closed: an event
+	// was never fsynced, so a crash could leave a shard that GREW without its
+	// bytes reaching disk; and the write sat outside enterCritical, so a SIGINT
+	// landing mid-WriteString could tear the line it was appending — "the cost of
+	// an interrupted seat is now a missing event, never a corrupt one" was not
+	// true of the append path. Routing through durableAppend makes it true.
+	return durableAppend(shard, prefix+string(line)+"\n")
 }
 
 // validate mirrors the oracle's append-time checks: enums, anchors, lineage
