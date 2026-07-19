@@ -25,7 +25,19 @@ import (
 // Version is stamped on register events and answered by --version. The setup
 // preflight compares it against the plugin manifest BEFORE the run-live marker
 // is written, so a skewed binary fails at setup rather than mid-round.
-const Version = "0.1.0"
+// Bumped when the EVENT CONTRACT changes, not when the plugin does. The plugin is at
+// 0.23.0 and this is 0.2.0 because they answer different questions: the plugin version
+// says what shipped, this says what shape the events on disk are in.
+//
+// 0.2.0 covers the 2026-07-19 schema work — events gained `ts` and replay orders by it,
+// findings gained a tool-assigned `finding_id`, four flags were renamed with the aliases
+// DELETED, and cross-references and state are now enforced at write time. A binary from
+// before that writes a materially different record.
+//
+// versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
+// is what setup preflights against. Without that test the two drift and the preflight
+// compares a stale number to itself.
+const Version = "0.2.0"
 
 func init() { record.ToolVersion = Version }
 
