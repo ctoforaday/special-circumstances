@@ -144,3 +144,47 @@ behaviour. An event is never lost to bookkeeping.
 separate process, so their origins are unrelated. Making them comparable means persisting a
 run-start origin and measuring against it — which is this, with extra steps and a worse
 failure mode.
+
+## VIII. Follow-up: read the tool, not the materialized markdown (noted 2026-07-19)
+
+The 2026-07-19 merge-seat migration redirected the `LEDGER`/`ARCHIVE` constants in debate.js
+to `records/render-shadow/*.md` — so blue, the judge, and assembly read the tool's RENDER
+instead of red-merge's hand-written markdown. That was a deliberate minimal-blast-radius
+move (one constant, no downstream prompt rewrites), but it is a WAYPOINT, not the end.
+
+**Why it is not the destination:** the materialized markdown is a cached projection —
+current only after a `render`, so a seat can read a stale board if the render lagged a
+mint. And it is still "learn a path, `cat` a file", the same two-readers-of-one-artifact
+surface the migration exists to remove.
+
+**The destination:** downstream seats run `feov-record <role> show --view board` (or
+`--view ledger`/`--view archive`) THEMSELVES — renders-and-returns fresh, atomically, one
+reader. The materialized `render-shadow/*.md` then exists only as a human/audit
+convenience, read by nobody in the loop.
+
+**Preserve when doing it:** blue's `cat ${LEDGER} debate.md patterns > workset` is a real
+read-batching optimization (one read vs several). The tool-direct version wants either a
+composite view or accepting one extra `show` call — minor, and worth it.
+
+Scope: blue (749), judge (772, 829), assembly (842) — the three seats that read
+`${LEDGER}`/`${ARCHIVE}`. red-merge already reads its board via `show`.
+
+## IX. The principle: active pull beats passive accept (noted 2026-07-19)
+
+Three 2026-07-19 findings are one principle. A consumer that must TRUST what it reads should
+ACTIVELY PULL from the authority, never passively accept a pushed projection:
+
+- **WebFetch** pushes a small-model SUMMARY. Red must not accept it for verification — it
+  actively pulls the source verbatim (`curl`/`gh`) or briefs a full-model verifier agent.
+  See plans/red-verbatim-citations.md.
+- **Materialized `render-shadow/*.md`** is a pushed snapshot, current only after a render.
+  Seats should not read it — they actively pull the board with `feov-record show --view
+  board`, which renders fresh and returns (§VIII).
+- **The merge envelope's self-reported counts/verdict** are a pushed self-report. The
+  workflow should not trust them — a seat pulls the board and the verdict is derived from
+  open-gap count (§ root of this plan).
+
+`show` renders-then-returns on every role, so an active pull is always fresh and atomic —
+one reader, no staleness window. red-merge already pulls its own board this way in the
+2026-07-19 migration; the follow-up is extending it to every downstream reader. All three
+edits land together AFTER a live run ends (editing debate.js mid-run busts replay).
