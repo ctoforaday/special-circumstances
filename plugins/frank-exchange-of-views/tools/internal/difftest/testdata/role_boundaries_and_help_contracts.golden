@@ -65,7 +65,7 @@ Usage:
   {TOOL} [command]
 
 Available Commands:
-  close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--prose-file f]
+  close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--file f]
   closing         a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>
   dispose         every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
   dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --rationale "..."
