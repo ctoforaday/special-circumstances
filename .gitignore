@@ -15,8 +15,17 @@ Thumbs.db
 .claude/spike/
 .claude/*.log
 
-# Built hook binaries + release artifacts (produced by /prosthetic-conscience:doctor or CI, never committed)
-plugins/*/bin/
+# Built hook binaries + release artifacts (produced by /prosthetic-conscience:doctor or CI, never committed).
+#
+# The BINARIES are ignored; the DIRECTORY is not. Claude Code injects each enabled
+# plugin's bin/ onto the Bash tool's PATH at ENABLE time, so a bin/ that does not exist
+# when the plugin is enabled is never injected — and creating it later (which is exactly
+# what doctor --fix does, ~an hour after install) does not retroactively add it. Ignoring
+# the directory itself is therefore what kept every shipped binary off PATH: feov-record
+# was checked by name, installed into bin/, and unreachable there. Keeping a tracked
+# .gitkeep costs nothing and makes the injection possible.
+plugins/*/bin/*
+!plugins/*/bin/.gitkeep
 plugins/*/tools/dist/
 **/trajectories/agent-transcripts.tar.gz
 
