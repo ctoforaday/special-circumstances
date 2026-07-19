@@ -74,7 +74,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "merge dispute-respond records red's answer",
 			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--id", "R1-1", "--as", "rejected", "--rationale", "the evidence does not reach it"},
+			args: []string{"--id", "R1-1", "--as", "rejected", "--basis", "the evidence does not reach it"},
 			typ:  "dispute-respond",
 			want: map[string]string{"gap_id": "R1-1", "response": "rejected",
 				"rationale": "the evidence does not reach it"},
@@ -119,7 +119,8 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue confidence records the calibration substrate",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--label", "C1", "--grade", "medium"},
+			// The flag words are --claim/--confidence; the payload keys stay label/grade.
+			args: []string{"--claim", "C1", "--confidence", "medium"},
 			typ:  "confidence",
 			want: map[string]string{"label": "C1", "grade": "medium"},
 			says: "confidence recorded for C1",
@@ -127,7 +128,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "bench petition-rule records the ruling and its opinion",
 			role: "bench", seatID: "judge-petition",
-			args: []string{"--petitioner", "red-lens-r1-L1", "--class", "safety",
+			args: []string{"--petitioner", "red-lens-r1-L1", "--petition-class", "safety",
 				"--as", "granted", "--text", "the written opinion"},
 			typ: "petition-rule",
 			want: map[string]string{"petitioner": "red-lens-r1-L1", "class": "safety",

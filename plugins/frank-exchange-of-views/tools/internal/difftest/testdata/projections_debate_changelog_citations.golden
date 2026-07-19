@@ -43,7 +43,7 @@ exit 0
 stdout:
 dispute filed on R1-1.likelihood
 
-$ blue confidence --run {RUN} --seat-id blue-respond-r1 --label C7 --grade medium
+$ blue confidence --run {RUN} --seat-id blue-respond-r1 --claim C7 --confidence medium
 exit 0
 stdout:
 confidence recorded for C7

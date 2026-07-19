@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -29,7 +30,7 @@ func newRevision() *cobra.Command {
 			p := record.NewPayload().Set("text", text)
 			// Absent and zero both drop: a claim_count of 0 is not a count, it is a
 			// seat that did not report one.
-			if cc := seat.Str(cmd, "claim-count"); cc != "" && cc != "0" {
+			if cc := seat.Str(cmd, flags.ClaimCount); cc != "" && cc != "0" {
 				p.Set("claim_count", parseCount(cc))
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "revision", p); err != nil {
@@ -38,7 +39,7 @@ func newRevision() *cobra.Command {
 			return "revision recorded — the round is on the record", nil
 		}))
 
-	c.Flags().String("claim-count", "", "FOOTNOTED declarative claims in the report (a footnoted sentence counts once)")
+	c.Flags().String(flags.ClaimCount, "", "FOOTNOTED declarative claims in the report (a footnoted sentence counts once)")
 	return c
 }
 

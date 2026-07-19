@@ -17,18 +17,22 @@ session were wrong on first telling and corrected only when checked.
 
 ## 1. BLOCKING — do this before any run
 
-**`debate.js` prompts may still teach flag spellings that no longer exist.** The tool
-renamed `--gap-id`→`--id`, `--disposition`→`--as`, `--evidence`→`--basis`,
-`--prose-file`→`--file`, and the aliases were DELETED, not hidden. A prompt still
-teaching an old name now produces a hard failure instead of a quiet fallback.
+~~**`debate.js` prompts may still teach flag spellings that no longer exist.**~~
+**SWEPT 2026-07-19. The prompts were clean** — no agent doc, skill, or `debate.js`
+prompt named a deleted spelling. The prediction was wrong.
 
-    grep -nE '\-\-(gap-id|disposition|evidence|prose-file)' \
-      plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js \
-      plugins/frank-exchange-of-views/agents/*.md \
-      plugins/frank-exchange-of-views/skills/**/*.md
+**But the sweep found the same defect one layer down, in the error messages.**
+`record.go` built the flag name in its `opinion requires --%s` errors by replacing the
+first underscore of the payload key with a hyphen. True until the audit renamed
+`--gap-id`→`--id` and `--disposition`→`--as`; the payload keys never moved, so the
+message kept teaching two flags the parser rejects. **The error string is the seat's only
+teacher, so a wrong one costs a turn.** Fixed by `flags.ForPayloadKey` — a stated map,
+not a derivation.
 
-Sweep every seat prompt, the `recordClause`, and any reference doc. This was found by
-reasoning at the end of the session and NOT verified — check it first.
+Two tests were holding it in place: one asserted the literal stale string, and one
+computed its expectation with *the same transform the code used*, so it asserted the code
+agreed with itself and sailed through the rename. Both now assert literals.
+**A test that reimplements its subject cannot indict it** — see §7.
 
 **Then the plugin update dance** (owed, never run): `/plugin update` + `/reload-plugins`,
 then `/prosthetic-conscience:doctor`.
@@ -155,3 +159,13 @@ for a binary name misses them. Parse shell structure, not strings.
   the two tiers I had a test for and left mutation-vs-mutation order filename-driven.
 - **Quoting a number without auditing it.** The $190 cost came from a tile I had not
   checked; it was wrong by 3.5x and was steering a spend decision.
+- **A test that reimplements its subject.** `TestValidateOpinionNamesEachMissingField`
+  computed the expected flag spelling with the same underscore-to-hyphen transform the
+  code used. It asserted the code agreed with itself, passed through a rename that broke
+  the message, and read as coverage the whole time. Expectations must be LITERALS
+  wherever the thing under test is itself a derivation.
+- **Building a chokepoint and routing nothing through it.** `internal/flags/names.go`
+  was written to make flag-name divergence require a deliberate act, but 20 of its 24
+  constants were never referenced — and it had already drifted (`Supersedes` held
+  `"supersedes"` while every call site registered `superseded-by`) without anything
+  noticing. An unused single-source-of-truth is a comment, not a constraint.

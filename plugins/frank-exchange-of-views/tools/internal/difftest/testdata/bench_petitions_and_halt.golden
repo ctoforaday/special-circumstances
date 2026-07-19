@@ -1,4 +1,4 @@
-$ lens petition --run {RUN} --seat-id red-lens-r1-L6 --class safety --basis the design erodes a consent gate --relief halt and escalate
+$ lens petition --run {RUN} --seat-id red-lens-r1-L6 --petition-class safety --basis the design erodes a consent gate --relief halt and escalate
 exit 0
 stdout:
 petition filed (safety) — the bench hears it before the debate continues
@@ -8,7 +8,7 @@ exit 0
 stdout:
 registered judge-petition (shard nonce NONCE002)
 
-$ bench petition-rule --run {RUN} --seat-id judge-petition --petitioner red-lens-r1-L6 --class safety --as granted --text the relief binds the coming seats
+$ bench petition-rule --run {RUN} --seat-id judge-petition --petitioner red-lens-r1-L6 --petition-class safety --as granted --text the relief binds the coming seats
 exit 0
 stdout:
 petition granted (red-lens-r1-L6)

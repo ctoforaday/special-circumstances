@@ -92,7 +92,11 @@ inline, since it already knows the role.
    when present. One place, so a new verb inherits it.
 2. `internal/cli/seat/seat.go` — payload resolution helper: `--text`, else `--file`
    (with `-` meaning stdin), else stdin when it is not a TTY.
-3. `internal/cli/merge/close.go` — accept `--file`; keep `--prose-file` as a hidden alias.
+3. `internal/cli/merge/close.go` — accept `--file`. ~~keep `--prose-file` as a hidden
+   alias~~ — **superseded: the aliases were DELETED, not hidden.** An alias preserves a
+   spelling for readers who remember the old one, and there are no humans in this loop:
+   every caller is a prompt we rewrite in the same commit. A hidden alias would only let
+   a stale prompt keep working silently, which is how the divergence lasted this long.
 4. Verbs with no prose channel — add `--file`/`--text` where a payload is meaningful
    (`cite`, `dispose`, `dispute-respond`, `regrade`, `confidence`, `dispute`).
 5. `debate.js` `recordClause` — inline the role's verb list.
@@ -119,3 +123,27 @@ inline, since it already knows the role.
 4. Re-run `record-parity-check.mjs` against a future run: the archive byte-gap
    (34,086 vs 7,527) is the metric this plan is judged on, and it must close.
 5. Goldens re-recorded in their own commit, with the help-text diff read line by line.
+
+## VI. What the implementation taught (2026-07-19)
+
+Three things the plan did not anticipate, all of the same shape — **a single source of
+truth that nothing reads is not a source of truth.**
+
+1. **The vocabulary chokepoint was inert.** `internal/flags/names.go` was written so a
+   verb could not invent a private spelling without editing it. 20 of its 24 constants
+   were never referenced; the verbs went on registering literals. It had already drifted
+   internally — `Supersedes` held `"supersedes"` while every call site registered
+   `superseded-by` — and nothing caught it, because nothing read it. Constants only bind
+   at the call site.
+2. **Error messages are a second, unaudited copy of the vocabulary.** `record.go` derived
+   the flag name in `opinion requires --%s` from the payload key. The derivation was true
+   when written and silently false after the rename. **The error string is the seat's
+   only teacher** — it belongs to the vocabulary and must come from the same place.
+3. **A test that reimplements its subject cannot indict it.** The test guarding those
+   messages computed the expected spelling with the same transform the code used, so it
+   asserted the code agreed with itself and passed straight through the rename.
+   Expectations are literals wherever the subject is itself a derivation.
+
+Verification note for the literal→constant sweep: **the goldens must not move.** No flag
+name or payload key value changes, so any golden diff means the substitution altered
+behaviour instead of expressing it — a bug to find, not a file to regenerate.

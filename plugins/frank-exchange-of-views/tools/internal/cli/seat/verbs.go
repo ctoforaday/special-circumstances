@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -47,15 +48,16 @@ func Friction(role, help string) *cobra.Command {
 // others: that the bench hears it before the debate continues.
 func Petition(role, help, suffix string) *cobra.Command {
 	c := New(role, "petition", help, func(s Context, cmd *cobra.Command) (string, error) {
-		p := SetSame(cmd, record.NewPayload(), "class", "basis", "relief")
+		p := SetSame(cmd, record.NewPayload(), flags.Basis, flags.Relief)
+		Set(cmd, p, "class", flags.PetitionClass)
 		if _, err := record.Append(s.RunDir, s.SeatID, "petition", p); err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("petition filed (%s)%s", Str(cmd, "class"), suffix), nil
+		return fmt.Sprintf("petition filed (%s)%s", Str(cmd, flags.PetitionClass), suffix), nil
 	})
-	c.Flags().String("class", "", "ethical | safety | integrity | constitutional")
-	c.Flags().String("basis", "", "what happened, and why it reaches the bench")
-	c.Flags().String("relief", "", "the relief sought, stated as it would bind the coming seats")
+	c.Flags().String(flags.PetitionClass, "", flags.DescPetitionClass)
+	c.Flags().String(flags.Basis, "", "what happened, and why it reaches the bench")
+	c.Flags().String(flags.Relief, "", "the relief sought, stated as it would bind the coming seats")
 	return c
 }
 
@@ -78,14 +80,14 @@ func Closing(role, help string) *cobra.Command {
 		if err != nil {
 			return "", err
 		}
-		p := Set(cmd, record.NewPayload(), "gap_id", "id")
+		p := Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 		p.Set("text", text)
 		if _, err := record.Append(s.RunDir, s.SeatID, "closing", p); err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("closing filed for %s", Str(cmd, "id")), nil
+		return fmt.Sprintf("closing filed for %s", Str(cmd, flags.ID)), nil
 	}))
-	c.Flags().String("id", "", "the gap id this closing argues")
+	c.Flags().String(flags.ID, "", "the gap id this closing argues")
 	return c
 }
 
@@ -98,7 +100,7 @@ func Render(role string) *cobra.Command {
 		SilenceUsage: true,
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
-		runDir := Str(cmd, "run")
+		runDir := Str(cmd, flags.Run)
 		if runDir == "" {
 			return fmt.Errorf("%s: --run <runDir> is required", role)
 		}

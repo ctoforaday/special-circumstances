@@ -856,7 +856,7 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 		t.Run("petition/"+tc.role, func(t *testing.T) {
 			runDir := t.TempDir()
 			out, err := run(t, tc.role, "petition", "--run", runDir, "--seat-id", tc.seatID,
-				"--class", "safety", "--basis", "what happened", "--relief", "the relief sought")
+				"--petition-class", "safety", "--basis", "what happened", "--relief", "the relief sought")
 			if err != nil {
 				t.Fatal(err)
 			}

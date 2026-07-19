@@ -22,19 +22,19 @@ func newDispute() *cobra.Command {
 	c := seat.New(role, "dispute",
 		`contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --basis "..."`,
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
-			p := seat.Set(cmd, record.NewPayload(), "gap_id", "id")
-			seat.SetSame(cmd, p, "dimension")
+			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
+			seat.SetSame(cmd, p, flags.Dimension)
 			seat.SetGrade(p, "proposed", &proposed)
 			flags.Set(p, "evidence", cmd, flags.Basis)
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute", p); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("dispute filed on %s.%s", seat.Str(cmd, "id"), seat.Str(cmd, "dimension")), nil
+			return fmt.Sprintf("dispute filed on %s.%s", seat.Str(cmd, flags.ID), seat.Str(cmd, flags.Dimension)), nil
 		})
 
-	c.Flags().String("id", "", "the gap id")
-	c.Flags().String("dimension", "", "severity | likelihood | impact | complexity_cost — the axis you contest")
-	c.Flags().Var(&proposed, "proposed", flags.GradeUsage("the grade you say it should be"))
+	c.Flags().String(flags.ID, "", "the gap id")
+	c.Flags().String(flags.Dimension, "", "severity | likelihood | impact | complexity_cost — the axis you contest")
+	c.Flags().Var(&proposed, flags.Proposed, flags.GradeUsage("the grade you say it should be"))
 	c.Flags().String(flags.Basis, "", "why, citing the exact section")
 	return c
 }

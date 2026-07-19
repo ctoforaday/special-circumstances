@@ -612,7 +612,10 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"a PURSUED avenue does not need a reason", "avenue", NewPayload().Set("status", "pursued").Set("line", "l"), ""},
 		{"a declined avenue with a reason", "avenue", NewPayload().Set("status", "declined").Set("line", "l").Set("reason", "why"), ""},
 
-		{"opinion missing every field", "opinion", NewPayload(), "opinion requires --gap-id"},
+		// The message must name the flag the PARSER accepts. It named --gap-id for as
+		// long as that flag existed and kept naming it after the rename, because the
+		// spelling was derived from the payload key rather than stated.
+		{"opinion missing every field", "opinion", NewPayload(), "opinion requires --id"},
 		{"an unknown verb is not validated here", "friction", NewPayload(), ""},
 	}
 	for _, tc := range cases {
@@ -636,7 +639,19 @@ func TestValidateVerbContracts(t *testing.T) {
 
 // opinion demands all five fields, and names the one that is missing with the
 // flag spelling the seat actually typed.
+// The expected spellings are LITERALS. This test used to compute them with the same
+// underscore-to-hyphen transform the code under test used, which made it a tautology: it
+// asserted the code agreed with itself, and passed happily while the message taught
+// --gap-id and --disposition, two flags the parser had stopped accepting. A test that
+// reimplements its subject cannot indict it.
 func TestValidateOpinionNamesEachMissingField(t *testing.T) {
+	wantFlag := map[string]string{
+		"gap_id":      "--id",
+		"disposition": "--as",
+		"principle":   "--principle",
+		"tension":     "--tension",
+		"review_flag": "--review-flag",
+	}
 	all := []string{"gap_id", "disposition", "principle", "tension", "review_flag"}
 	for _, missing := range all {
 		t.Run("missing "+missing, func(t *testing.T) {
@@ -650,9 +665,8 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 			if err == nil {
 				t.Fatalf("opinion accepted without %s", missing)
 			}
-			wantFlag := "--" + strings.Replace(missing, "_", "-", 1)
-			if !strings.Contains(err.Error(), wantFlag) {
-				t.Errorf("error %q does not name %q", err, wantFlag)
+			if !strings.Contains(err.Error(), wantFlag[missing]) {
+				t.Errorf("error %q does not name %q — the seat's only teacher is this string", err, wantFlag[missing])
 			}
 		})
 	}

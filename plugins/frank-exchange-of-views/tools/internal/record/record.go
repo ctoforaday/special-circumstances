@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 // GRADES mirrors the oracle's enum exactly, including order.
@@ -383,7 +385,7 @@ func validate(runDir, typ string, p *Payload) error {
 	case "opinion":
 		for _, f := range []string{"gap_id", "disposition", "principle", "tension", "review_flag"} {
 			if !p.Has(f) {
-				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", strings.Replace(f, "_", "-", 1))
+				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f))
 			}
 		}
 	}

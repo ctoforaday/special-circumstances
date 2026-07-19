@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -22,11 +23,11 @@ func newObserve() *cobra.Command {
 			if err != nil {
 				return "", err
 			}
-			kind := seat.Str(cmd, "kind")
+			kind := seat.Str(cmd, flags.Kind)
 			if kind == "" {
 				kind = "note"
 			}
-			p := seat.SetSame(cmd, record.NewPayload().Set("kind", kind), "label")
+			p := seat.SetSame(cmd, record.NewPayload().Set("kind", kind), flags.Label)
 			p.Set("text", text)
 			ev, err := record.Append(s.RunDir, s.SeatID, "observe", p)
 			if err != nil {
@@ -35,7 +36,7 @@ func newObserve() *cobra.Command {
 			return fmt.Sprintf("observation recorded (%s) — awaiting merge disposition", ev.Key), nil
 		}))
 
-	c.Flags().String("kind", "", "note | checked-held — an observation's flavour; the merge must still dispose it")
-	c.Flags().String("label", "", "a stable local label, so the merge can name this observation when disposing it")
+	c.Flags().String(flags.Kind, "", "note | checked-held — an observation's flavour; the merge must still dispose it")
+	c.Flags().String(flags.Label, "", "a stable local label, so the merge can name this observation when disposing it")
 	return c
 }

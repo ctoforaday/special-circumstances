@@ -28,7 +28,7 @@ exit 0
 stdout:
 spot-checked R1-1, R1-2
 
-$ merge dispute-respond --run {RUN} --seat-id red-merge-r2 --id R1-1 --as rejected --rationale the consequence stands
+$ merge dispute-respond --run {RUN} --seat-id red-merge-r2 --id R1-1 --as rejected --basis the consequence stands
 exit 0
 stdout:
 dispute on R1-1: rejected

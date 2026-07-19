@@ -51,11 +51,11 @@ type Context struct {
 // Of reads the seat context from the inherited persistent flags, inferring the run
 // directory when the flag is absent.
 func Of(cmd *cobra.Command, role string) Context {
-	runDir, _ := cmd.Flags().GetString("run")
+	runDir, _ := cmd.Flags().GetString(flags.Run)
 	if runDir == "" {
 		runDir = InferRunDir("")
 	}
-	seatID, _ := cmd.Flags().GetString("seat-id")
+	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	return Context{RunDir: runDir, SeatID: seatID, Role: role}
 }
 
@@ -179,22 +179,22 @@ func New(role, name, help string, run Handler) *cobra.Command {
 
 // Prose adds the shared payload channel to a verb that reads one.
 func Prose(c *cobra.Command) *cobra.Command {
-	c.Flags().String("file", "", "read the prose payload from a file — ALWAYS use this over --text for anything above ~2KB")
-	c.Flags().String("text", "", "the prose payload, inline (short values only)")
+	c.Flags().String(flags.File, "", "read the prose payload from a file — ALWAYS use this over --text for anything above ~2KB")
+	c.Flags().String(flags.Text, "", "the prose payload, inline (short values only)")
 	return c
 }
 
 // Text resolves that channel: --file (read whole) or --text, else empty.
 func Text(cmd *cobra.Command) (string, error) {
-	if Given(cmd, "file") {
-		b, err := os.ReadFile(Str(cmd, "file"))
+	if Given(cmd, flags.File) {
+		b, err := os.ReadFile(Str(cmd, flags.File))
 		if err != nil {
 			return "", err
 		}
 		return string(b), nil
 	}
-	if Given(cmd, "text") {
-		return Str(cmd, "text"), nil
+	if Given(cmd, flags.Text) {
+		return Str(cmd, flags.Text), nil
 	}
 	return "", nil
 }
