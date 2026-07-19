@@ -311,8 +311,10 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 			}
 			evs := events(t, runDir)
 			last := evs[len(evs)-1]
-			if got := last.Payload.Str(tc.key); got != body {
-				t.Errorf("payload[%q] = %q, want the file verbatim", tc.key, got)
+			// Less the file's terminating newline: that is a line terminator every
+			// editor appends, not content the seat chose to record.
+			if got := last.Payload.Str(tc.key); got != strings.TrimRight(body, "\n") {
+				t.Errorf("payload[%q] = %q, want the file's content without its terminator", tc.key, got)
 			}
 		})
 	}

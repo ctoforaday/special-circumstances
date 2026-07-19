@@ -21,7 +21,10 @@ func newDispose() *cobra.Command {
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Observation)
 			seat.Set(cmd, p, "disposition", flags.As)
-			seat.SetSame(cmd, p, flags.Into, flags.Reason)
+			seat.SetSame(cmd, p, flags.Into)
+			if err := seat.SetLongForm(cmd, p, "reason", flags.Reason); err != nil {
+				return "", err
+			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispose", p); err != nil {
 				return "", err
 			}
@@ -32,5 +35,5 @@ func newDispose() *cobra.Command {
 	c.Flags().String(flags.As, "", "minted-as | folded-into | declined | banked — the observation's fate")
 	c.Flags().String(flags.Into, "", "the gap id it was folded or minted into")
 	c.Flags().String(flags.Reason, "", "why, when the fate is declined or banked")
-	return c
+	return seat.Prose(c)
 }

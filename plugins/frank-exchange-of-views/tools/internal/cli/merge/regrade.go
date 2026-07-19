@@ -27,7 +27,9 @@ func newRegrade() *cobra.Command {
 			seat.SetGrade(p, "likelihood", &likelihood)
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetGrade(p, "complexity_cost", &cx)
-			seat.SetSame(cmd, p, flags.Basis)
+			if err := seat.SetLongForm(cmd, p, "basis", flags.Basis); err != nil {
+				return "", err
+			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "regrade", p); err != nil {
 				return "", err
 			}
@@ -40,5 +42,5 @@ func newRegrade() *cobra.Command {
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
 	c.Flags().Var(&cx, flags.Complexity, "complexity_cost — what fixing it costs, on the same scale")
 	c.Flags().String(flags.Basis, "", "why the grade moved — grade movement is recorded with its reason")
-	return c
+	return seat.Prose(c)
 }

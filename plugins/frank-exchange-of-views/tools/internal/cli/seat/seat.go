@@ -185,18 +185,49 @@ func Prose(c *cobra.Command) *cobra.Command {
 }
 
 // Text resolves that channel: --file (read whole) or --text, else empty.
+// Text resolves the payload channel through flags.ReadPayload — the ONE resolver.
+//
+// It used to do its own os.ReadFile, which made it a second reader of a concept the flags
+// package already owned, and the two had drifted exactly as that always does: ReadPayload
+// understood `--file -` as stdin, refused `--text` and `--file` together, and trimmed the
+// trailing newline a shell heredoc leaves behind. This one did none of those, so every
+// verb routed through it silently lacked stdin support while the capability sat one
+// package away, written and tested.
+//
+// That gap was measured in the run: 68 commands carrying escaped quotes, 9 heredocs, and
+// 37 staging a temp file first — two of which failed because the staged file was not there.
+// Prose into markdown costs nothing; prose through the tool meant fighting the shell.
 func Text(cmd *cobra.Command) (string, error) {
-	if Given(cmd, flags.File) {
-		b, err := os.ReadFile(Str(cmd, flags.File))
-		if err != nil {
-			return "", err
-		}
-		return string(b), nil
+	return flags.ReadPayload(cmd, cmd.InOrStdin())
+}
+
+// SetLongForm fills a verb's own justification field from EITHER its named flag or the
+// payload channel, and refuses both.
+//
+// The nine verbs with no payload channel were not a uniform gap. Six of them carry a field
+// that is genuinely long-form — a dispute's --basis, a disposal's --reason, a spot-check's
+// --notes — and those are exactly the values a seat had to inline, escape and quote,
+// because the only alternative was the markdown. `cite` and `confidence` carry short
+// values (a label, a grade) and want no payload; `verdict` is one word. Giving all nine
+// the same channel would have been symmetry for its own sake.
+//
+// So --file/--text here is ANOTHER SPELLING of the named field, not a second field. Both
+// given is refused rather than silently ranked, for the same reason ReadPayload refuses
+// --text with --file: a seat that passes two should be told which one this verb would have
+// ignored, not left to discover it in a projection three rounds later.
+func SetLongForm(cmd *cobra.Command, p *record.Payload, key, flag string) error {
+	named := Str(cmd, flag)
+	payload, err := Text(cmd)
+	if err != nil {
+		return err
 	}
-	if Given(cmd, flags.Text) {
-		return Str(cmd, flags.Text), nil
+	if named != "" && payload != "" {
+		return fmt.Errorf("--%s and --file/--text are two spellings of this verb's %s: pass exactly one", flag, key)
 	}
-	return "", nil
+	if v := named + payload; v != "" {
+		p.Set(key, v)
+	}
+	return nil
 }
 
 // Str reads a string flag.

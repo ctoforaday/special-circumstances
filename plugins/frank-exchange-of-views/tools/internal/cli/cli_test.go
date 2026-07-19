@@ -469,33 +469,46 @@ func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
 // --problem and the prose channel are alternatives; --problem wins when both
 // are given, and --file carries anything above trivial size.
 func TestProseChannelResolution(t *testing.T) {
-	t.Run("--file is read whole", func(t *testing.T) {
+	// ONE trailing newline is stripped, and that is deliberate normalization rather than
+	// mangling: a file's final newline is a line TERMINATOR that every editor and every
+	// heredoc appends, not content the seat chose to record. Keeping it meant a payload
+	// passed via --file ended with a stray blank line in every projection while the same
+	// text passed via --text did not — one value recorded two ways depending on which
+	// spelling the seat happened to use.
+	t.Run("--file is read whole, less its terminating newline", func(t *testing.T) {
 		runDir := t.TempDir()
-		body := "line one\nline two — with unicode ✓ and <angle> brackets\n"
+		body := "line one\nline two — with unicode ✓ and <angle> brackets"
 		f := filepath.Join(t.TempDir(), "prose.md")
-		if err := os.WriteFile(f, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(f, []byte(body+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1", "--file", f); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "position").Payload.Str("text"); got != body {
-			t.Errorf("text = %q, want the file verbatim %q", got, body)
+			t.Errorf("text = %q, want the file's content without its terminator %q", got, body)
 		}
 	})
 
-	t.Run("--file wins over --text when both are passed", func(t *testing.T) {
+	// BOTH SPELLINGS IS NOW AN ERROR, not a precedence rule.
+	//
+	// This used to assert that --file silently wins. Silent precedence means a seat
+	// passing both loses one payload without being told which, and the loss is invisible
+	// until someone reads a projection rounds later and finds the wrong prose recorded.
+	// Refusing costs the seat one turn and tells it exactly what to fix.
+	t.Run("--file and --text together are refused, not ranked", func(t *testing.T) {
 		runDir := t.TempDir()
 		f := filepath.Join(t.TempDir(), "prose.md")
 		if err := os.WriteFile(f, []byte("from the file"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--file", f, "--text", "from the flag"); err != nil {
-			t.Fatal(err)
+		_, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--file", f, "--text", "from the flag")
+		if err == nil {
+			t.Fatal("both spellings were accepted; one payload was silently dropped")
 		}
-		if got := lastOfType(t, runDir, "position").Payload.Str("text"); got != "from the file" {
-			t.Errorf("text = %q, want the file to win", got)
+		if !strings.Contains(err.Error(), "exactly one") {
+			t.Errorf("the refusal must say which rule was broken, got: %v", err)
 		}
 	})
 

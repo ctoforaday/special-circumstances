@@ -71,7 +71,7 @@ certification recorded
 ═══ EVENTS ═══
 -- events-blue-respond-r1-NONCE002.jsonl
 {"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"blue-respond-r1","seq":0,"ts":4,"type":"register"}
-{"key":"blue-respond-r1:position","nonce":"NONCE002","payload":{"text":"blue's round position\n"},"round":1,"seatId":"blue-respond-r1","seq":1,"ts":5,"type":"position"}
+{"key":"blue-respond-r1:position","nonce":"NONCE002","payload":{"text":"blue's round position"},"round":1,"seatId":"blue-respond-r1","seq":1,"ts":5,"type":"position"}
 {"key":"blue-respond-r1:closing:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","text":"blue's closing"},"round":1,"seatId":"blue-respond-r1","seq":2,"ts":6,"type":"closing"}
 {"key":"blue-respond-r1:revision","nonce":"NONCE002","payload":{"claim_count":88,"text":"repairs landed"},"round":1,"seatId":"blue-respond-r1","seq":3,"ts":7,"type":"revision"}
 {"key":"blue-respond-r1:manifest-row:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seatId":"blue-respond-r1","seq":4,"ts":8,"type":"manifest-row"}
@@ -86,7 +86,7 @@ certification recorded
 {"key":"red-lens-r1-L1:cite:https://example.invalid/paper","nonce":"NONCE003","payload":{"access_date":"2026-07-18","claim":"throughput doubled","confidence":"high","reference":"https://example.invalid/paper"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":12,"type":"cite"}
 -- events-red-merge-r1-NONCE001.jsonl
 {"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position\n"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
+{"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 {"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","text":"red's closing"},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"closing"}
 
@@ -115,13 +115,11 @@ throughput doubled | https://example.invalid/paper | high | r1 | 2026-07-18
 ### RED
 red's round position
 
-
 ### RED CLOSING (round 1) — R1-1
 red's closing
 
 ### BLUE
 blue's round position
-
 
 ### BLUE CLOSING (round 1) — R1-1
 blue's closing

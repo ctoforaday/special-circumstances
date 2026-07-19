@@ -51,7 +51,10 @@ func Friction(role, help string) *cobra.Command {
 // others: that the bench hears it before the debate continues.
 func Petition(role, help, suffix string) *cobra.Command {
 	c := New(role, "petition", help, func(s Context, cmd *cobra.Command) (string, error) {
-		p := SetSame(cmd, record.NewPayload(), flags.Basis, flags.Relief)
+		p := SetSame(cmd, record.NewPayload(), flags.Relief)
+		if err := SetLongForm(cmd, p, "basis", flags.Basis); err != nil {
+			return "", err
+		}
 		Set(cmd, p, "class", flags.PetitionClass)
 		if _, err := record.Append(s.RunDir, s.SeatID, "petition", p); err != nil {
 			return "", err
@@ -61,7 +64,7 @@ func Petition(role, help, suffix string) *cobra.Command {
 	c.Flags().String(flags.PetitionClass, "", flags.DescPetitionClass)
 	c.Flags().String(flags.Basis, "", "what happened, and why it reaches the bench")
 	c.Flags().String(flags.Relief, "", "the relief sought, stated as it would bind the coming seats")
-	return c
+	return Prose(c)
 }
 
 func Position(role, help string) *cobra.Command {
