@@ -135,7 +135,11 @@ func New(role, name, help string, run Handler) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Set before the verb runs, so every record.Append in this process carries it.
-			record.AmbientComment = Str(cmd, "comment")
+			comment, cerr := flags.ReadComment(cmd, cmd.InOrStdin())
+			if cerr != nil {
+				return fmt.Errorf("%s: %w", role, cerr)
+			}
+			record.AmbientComment = comment
 			out, err := run(Of(cmd, role), cmd)
 			if err != nil {
 				// The ROLE leads the message: a seat reading "close requires --id"
@@ -168,7 +172,7 @@ func New(role, name, help string, run Handler) *cobra.Command {
 	// --comment is the pressure valve. It is deliberately unstructured and deliberately
 	// everywhere, and it doubles as the backlog: a note that keeps recurring names a
 	// field the schema is missing, which is a better way to find them than guessing.
-	c.Flags().String("comment", "", "free text this verb has no field for — recorded on the event, and a recurring one is a schema gap")
+	flags.RegisterComment(c)
 
 	return c
 }
