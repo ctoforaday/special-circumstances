@@ -70,7 +70,12 @@ if (presentSuites.length) {
 
 // ---- go ----
 for (const mod of GO_MODULES) {
-  run(`go goldens in ${mod}${update ? ' (recording)' : ''}`, 'go', ['test', './...'], {
+  // -count=1 defeats Go's TEST CACHE. Without it an update run can be satisfied
+  // from cache — the leg reports ok, writes nothing, and the goldens on disk stay
+  // stale while the command says "recorded". That happened: CI, which has no
+  // cache, caught goldens this runner had just claimed to update. A check
+  // satisfiable without doing the work is not a check.
+  run(`go goldens in ${mod}${update ? ' (recording)' : ''}`, 'go', ['test', '-count=1', './...'], {
     cwd: join(repoRoot, mod),
     env: { ...process.env, UPDATE_GOLDENS: update ? '1' : '' },
   })
