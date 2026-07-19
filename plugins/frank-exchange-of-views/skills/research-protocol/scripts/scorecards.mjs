@@ -107,6 +107,35 @@ export function blueRows(runDir, results, telemetry) {
       note: 'needs at least two rounds reporting claim_count',
     }))
 
+  // LINES OF INQUIRY — what finally instruments think-around-problem.
+  //
+  // Count is a DIAGNOSTIC and never a benchmark: counting avenues invites
+  // avenue-padding, and a seat that learns to list five roads it never walked has
+  // made the record worse than empty. What the count explains is exploration
+  // BREADTH; what it must not become is a target.
+  const avenues = results.flatMap((r) => (Array.isArray(r.avenues) ? r.avenues : []))
+  const byStatus = avenues.reduce((m, a) => ({ ...m, [a.status]: (m[a.status] || 0) + 1 }), {})
+  rows.push(avenues.length
+    ? row({
+      clause: 'Alternatives explored', metric: 'lines_of_inquiry', cls: 'diagnostic',
+      value: byStatus,
+      joint: 'reads WITH the report: breadth means nothing if the pursued line was chosen before the others were weighed',
+    })
+    : row({
+      clause: 'Alternatives explored', metric: 'lines_of_inquiry', cls: 'diagnostic',
+      note: 'no avenues recorded — think-around-problem is back to self-attested for this run',
+    }))
+
+  // A declined avenue whose reason is a shrug is the decoration the verb exists
+  // to prevent. The tool already refuses an EMPTY reason; this catches the token
+  // one, the same way the rule-sweep gate rejects a one-word sibling sweep.
+  const thin = avenues.filter((a) => a.status !== 'pursued' && String(a.reason || '').trim().length < 20)
+  rows.push(row({
+    clause: 'Alternatives explored', metric: 'thin_avenue_reasons', cls: 'detector',
+    value: thin.length,
+    note: thin.length ? `${thin.map((a) => a.line).slice(0, 3).join('; ')}` : '',
+  }))
+
   rows.push(row({
     clause: 'Calibration is craft', metric: 'confidence_vs_survival', cls: 'benchmark',
     note: 'BLOCKED until per-claim confidence records exist (W2f) — calibration cannot be computed from prose',

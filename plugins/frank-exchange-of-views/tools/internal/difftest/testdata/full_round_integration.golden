@@ -116,3 +116,7 @@ acceptance_check: refetch and diff
 
 - red-lens-r1-L5 L5-F1: a leap of faith
 
+-- lines-of-inquiry.md
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

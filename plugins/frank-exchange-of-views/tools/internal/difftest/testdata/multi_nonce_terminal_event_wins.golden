@@ -67,3 +67,7 @@ acceptance_check: b
 - multi-nonce seat red-merge-r1: 2 dispatches (NONCE001, NONCE002); winner NONCE002 by terminal event
 
 
+-- lines-of-inquiry.md
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

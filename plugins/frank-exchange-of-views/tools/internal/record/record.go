@@ -311,6 +311,21 @@ func validate(runDir, typ string, p *Payload) error {
 		if !p.Has("reason") || p.Str("reason") == "" {
 			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
 		}
+	case "avenue":
+		// A status outside the three is a fourth meaning nobody defined, and the
+		// report section renders by status — an unknown one would simply vanish
+		// from the projection rather than fail loudly.
+		if st := p.Str("status"); st != "declined" && st != "abandoned" && st != "pursued" {
+			return fmt.Errorf("record: avenue requires --status declined|abandoned|pursued (got %s)", jsonish(p.Str("status")))
+		}
+		if !p.Has("line") || p.Str("line") == "" {
+			return fmt.Errorf("record: avenue requires --line (what you were going to try — an unnamed avenue teaches a future run nothing)")
+		}
+		// A declined or abandoned avenue with no reason is the decoration this verb
+		// exists to prevent: the road not taken is worthless without why.
+		if p.Str("status") != "pursued" && (!p.Has("reason") || p.Str("reason") == "") {
+			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
+		}
 	case "opinion":
 		for _, f := range []string{"gap_id", "disposition", "principle", "tension", "review_flag"} {
 			if !p.Has(f) {

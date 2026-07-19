@@ -1,0 +1,57 @@
+package blue
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+)
+
+// avenue: a line of inquiry, and what became of it.
+//
+// think-around-problem mandates exploring genuinely distinct alternatives before
+// a significant decision. terse-communication forbids narrating options. So the
+// exploration was required, invisible and unverifiable — a dead letter by the
+// standard scorecards.md sets out, and the same shape as "confidence
+// self-graded", which was mandated and practised five times in 1,892 lines.
+//
+// This is what instruments it. Exploration becomes a RECORD and the record
+// becomes a report section, so the rule stops being self-attested and starts
+// leaving artifacts.
+//
+// THREE STATUSES, each answering a different question:
+//
+//	declined   considered, not taken     — was the rejection REASONED, or decoration?
+//	abandoned  pursued, then died        — what killed it? (the negative result)
+//	pursued    became the report's spine — does the report reflect it honestly?
+//
+// `abandoned` is the most valuable and the most routinely lost: dead ends are
+// exactly what a future run needs so it does not re-walk them, and they are
+// direct feedstock for the sleeper service's subject mining. Nothing in the
+// engine preserved them before this verb — they died in a seat's context.
+func newAvenue() *cobra.Command {
+	c := seat.Prose(seat.New(role, "avenue",
+		`record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]`,
+		func(s seat.Context, cmd *cobra.Command) (string, error) {
+			text, err := seat.Text(cmd)
+			if err != nil {
+				return "", err
+			}
+			p := seat.SetSame(cmd, record.NewPayload(), "line", "status", "reason", "method")
+			if text != "" {
+				p.Set("detail", text)
+			}
+			if _, err := record.Append(s.RunDir, s.SeatID, "avenue", p); err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("avenue recorded (%s): %s", seat.Str(cmd, "status"), seat.Str(cmd, "line")), nil
+		}))
+
+	c.Flags().String("line", "", "the question or approach — what you were going to try")
+	c.Flags().String("status", "", "declined (considered, not taken) | abandoned (pursued, then died) | pursued (became the report's spine)")
+	c.Flags().String("reason", "", "why it was declined, or what killed it — the part a future run actually needs")
+	c.Flags().String("method", "", "the source class or technique it belonged to, when that is what distinguishes it")
+	return c
+}

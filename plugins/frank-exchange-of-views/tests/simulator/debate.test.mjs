@@ -983,3 +983,35 @@ test('memory-as-duty: patterns are deduped across gaps sharing a class', async (
   const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1')).prompt
   assert.equal((respond.match(/False universal/g) || []).length, 1, 'one pattern, once — a repeated duty reads as two duties')
 })
+
+// ---- Lines of Inquiry: exploration becomes a record, and a surface for red ----
+
+test('lines of inquiry: every blue seat is told to record avenues; red L5/L6 audit them', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, { ...ARGS, binDir: '/plug/bin' })
+  const p = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
+
+  for (const seat of ['blue-lane-1', 'blue-synthesize', 'blue-respond-r1']) {
+    assert.ok(/LINES OF INQUIRY/.test(p(seat)), `${seat} records avenues`)
+    assert.ok(/abandoned/.test(p(seat)), `${seat} is told the abandoned ones matter most`)
+  }
+
+  // The STEELMAN duty is the point of recording declines: E0.5h measured that the
+  // case AGAINST a design attracts no adversary, so it lands on the two lenses
+  // that audit arguments rather than sources.
+  assert.ok(/STEELMAN DUTY/.test(p('red-lens-5-r1')), 'the logic lens audits the declines')
+  assert.ok(/STEELMAN DUTY/.test(p('red-lens-6-r1')), 'so does dark-side')
+  assert.ok(!/STEELMAN DUTY/.test(p('red-lens-1-r1')), 'citation slices verify sources, not arguments')
+
+  // The exploration space reaches the reader, not just the record.
+  assert.ok(/Lines of Inquiry/.test(p('assemble')), 'assembly copies the section into the report')
+})
+
+test('lines of inquiry: no record tool -> no clause (the verb is the mechanism)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  assert.ok(!world.calls.some((c) => /LINES OF INQUIRY|STEELMAN DUTY/.test(c.prompt)),
+    'without the verb there is nothing to instruct — an unrecordable duty is the dead letter we are removing')
+})
