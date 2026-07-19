@@ -1,53 +1,50 @@
 # Handoff — pick up here in a fresh context
 
-Written 2026-07-19 at the end of a very long session. Everything below is either
-committed or explicitly flagged as not. Verify before trusting: several claims in this
-session were wrong on first telling and corrected only when checked.
+Written 2026-07-19, revised at the end of the second long session. Everything below is
+either committed or explicitly flagged as not. Verify before trusting: several claims in
+these sessions were wrong on first telling and corrected only when checked — twice by the
+human asking one more question, once by CI, once by a subagent refusing an instruction.
 
 ## 0. STATE RIGHT NOW
 
 | | |
 |---|---|
 | branch | `fix/command-surface`, pushed |
-| open PR | **#53** — command-surface audit, flags library, timestamps, integration tests |
-| merged today | #50, #51, #52 |
-| versions | frank-exchange-of-views **0.11.0**, prosthetic-conscience **0.10.1** |
-| plugin update dance | **NOT DONE** — deliberately held to the end and never reached |
-| the run | 2026-07-18_gray-area-telemetry — COMPLETE, verdict CEILING, captured, marker lifted |
+| open PR | **#53** — command surface, vocabulary, timestamps, read surface, cross-seat tests |
+| versions | frank-exchange-of-views **0.14.0**, prosthetic-conscience **0.10.1** |
+| CI on #53 | goldens / feov-record / test / debate-sim **PASS**; **rule-sweep FAILS** (see §1) |
+| plugin update dance | **STILL NOT DONE** — owed across two sessions now |
+| the run | 2026-07-18_gray-area-telemetry — COMPLETE, CEILING, and now COMMITTED as evidence |
 
-## 1. BLOCKING — do this before any run
+## 1. BLOCKING — the one thing standing between #53 and merge
 
-~~**`debate.js` prompts may still teach flag spellings that no longer exist.**~~
-**SWEPT 2026-07-19. The prompts were clean** — no agent doc, skill, or `debate.js`
-prompt named a deleted spelling. The prediction was wrong.
+**`rule-sweep` fails: four commits carry `Rule-Class: protocol-surface`, which is not a
+registry slug.** I invented a catch-all instead of using the real classes — the exact
+behaviour that registry exists to prevent. Each maps to a slug that already exists:
 
-**But the sweep found the same defect one layer down, in the error messages.**
-`record.go` built the flag name in its `opinion requires --%s` errors by replacing the
-first underscore of the payload key with a hyphen. True until the audit renamed
-`--gap-id`→`--id` and `--disposition`→`--as`; the payload keys never moved, so the
-message kept teaching two flags the parser rejects. **The error string is the seat's only
-teacher, so a wrong one costs a turn.** Fixed by `flags.ForPayloadKey` — a stated map,
-not a derivation.
+| commit | class |
+|---|---|
+| `0.12.0 — one word per intent` | `policy-without-mechanism` |
+| `test(feov): cross-seat sequences` | `adjacent-seat-omission` |
+| `0.13.0 — show` | `lossy-channel-substitution` |
+| `0.14.0 — board JSON` | `format-selects-audit-surface` |
 
-Two tests were holding it in place: one asserted the literal stale string, and one
-computed its expectation with *the same transform the code used*, so it asserted the code
-agreed with itself and sailed through the rename. Both now assert literals.
-**A test that reimplements its subject cannot indict it** — see §7.
+The fix is a message rewrite over `origin/main..HEAD` plus a force-push. **A permission
+classifier blocked the rewrite in-session and it was NOT worked around.** The human must
+allow it, or decide to register `protocol-surface` instead — the sweep's own error message
+permits that, but it is a surface name rather than a failure class, and adding a catch-all
+to a registry of failure modes defeats the sweep. Recommend the rewrite.
 
-**Then the plugin update dance** (owed, never run): `/plugin update` + `/reload-plugins`,
+**Then the plugin update dance** (owed twice over): `/plugin update` + `/reload-plugins`,
 then `/prosthetic-conscience:doctor`.
 
-**While reloading, settle the plugin-bin question.** A probe is armed in both active
-plugin `bin/` directories. After the reload run:
+**While reloading, settle the plugin-bin question.** A probe is armed in both active plugin
+`bin/` directories. After the reload run `command -v sc-path-probe`:
 
-    command -v sc-path-probe
-
-- resolves → a plugin's `bin/` IS injected onto the Bash PATH at enable time, and the
-  `.gitignore` fix (`plugins/*/bin/*` + a tracked `.gitkeep`, merged in #51) is what made
-  it possible. Shims for off-PATH tools then belong in the plugin's own `bin/`, NOT in
-  the user's home — scoped, no shadowing, uninstall-clean. `plans/tool-resolution.md`
-  currently adopts the user-bin approach and MUST be amended.
-- silent → the mechanism is unavailable in this CLI and the user-bin plan stands.
+- resolves → a plugin's `bin/` IS on the Bash PATH at enable time, and shims for off-PATH
+  tools belong in the plugin's own `bin/`, not the user's home. `plans/tool-resolution.md`
+  adopts the user-bin approach and MUST then be amended.
+- silent → the mechanism is unavailable and the user-bin plan stands.
 
 ## 2. QUEUE, in priority order
 
@@ -74,10 +71,28 @@ plugin `bin/` directories. After the reload run:
    model has been measured CORRUPTING (run-5: 6/7 catechism answers regressed). A script
    does the copy; a small model writes only the TL;DR and synopsis. Correctness lever,
    not a cost one — it is ~$2 of a $54 run.
-7. **Flip the ledger to the rendered projection.** Blocked until record-parity closes;
-   the archive gap is the metric (34,086 bytes hand-written vs 7,527 rendered).
+7. **Flip the ledger to the rendered projection.** NOW GOVERNED BY
+   `plans/tool-is-the-contract.md`, which supersedes this line. The 34,086-vs-7,527
+   archive metric is CONTAMINATED — see §3. Re-measure on the first post-timestamp run.
 8. **Gray Area** (4th plugin, PR #3). Its acceptance test already exists: a seat logged a
    failure it had ALREADY RECOVERED FROM, and only the trajectory can show that. See §5.
+
+## 2b. WHAT SHIPPED THIS SESSION (do not rebuild)
+
+- **One vocabulary, enforced.** 179 literal→constant substitutions; 55 flag names resolve
+  through `internal/flags`. Four collisions fixed: `--class`/`--petition-class`,
+  `--label`/`--claim`, `--grade`/`--confidence`, `--rationale`→`--basis`. The
+  `--reason` vs `--basis` line is now STATED: reason = why a thing happened, to a reader
+  not contesting it; basis = the grounds you argue FROM where another seat may answer.
+- **`vocabulary_test.go` walks the real command tree BOTH ways** — every registered flag
+  must be declared, every declared flag must be registered. The second direction is what
+  would have caught the original orphan state. Both proven to fail on purpose.
+- **`show`** — reads through the tool, six views, byte-identical to the projection files.
+- **`show --view board`** — the board as structured JSON, merge's default view. Closure
+  anchors as FIELDS, `disposed` stated per observation, counts, and anomalies surfaced.
+- **Nine cross-seat sequence tests** (`crossseat_test.go`), plus `close` gaining `--text`
+  and `opinion --as halt` being refused — both defects found by writing the tests.
+- **The run committed as evidence**, minus the gitignored transcript tarball.
 
 ## 3. WHAT THE RUN PROVED (do not re-derive)
 
@@ -92,6 +107,16 @@ plugin `bin/` directories. After the reload run:
   round count.**
 - **Wall clock is the real constraint**: 68% of 136 minutes was seven serial judgment
   seats. Fixed in #52 (`--smoke` now sets `judgmentModel`), unverified in practice.
+- **THE PARITY METRIC IS CONTAMINATED — this correction matters most.** A parity analysis
+  concluded the board misclassifies six gaps because `BoardState` honours only red's
+  `close` and ignores bench closures. That is FALSE; a cross-seat test disproves it.
+  Re-rendering the real events with today's binary still gives 9 open, for a different
+  reason: **zero of the run's 271 events carry `ts`**. The run predates the timestamp
+  schema, so ordering falls back to `(SeatID, Seq)`, `"judge-r2"` sorts before
+  `"red-merge-r1"`, and every judge opinion replays before the mint it references and is
+  dropped. Legacy-ordering damage from a defect ALREADY FIXED — not missing verbs. Do not
+  build verbs against that byte gap. The anomaly machinery names all 12 cases; nobody had
+  looked.
 - **Scorecard defects still open**: `blue_sections_citing_direction` reports 3/2 (a
   benchmark over 100%); `anchored_closures_pct` reads 0 against an 89 baseline because
   the metric parses hand-written prose while anchors go to events;
@@ -169,3 +194,19 @@ for a binary name misses them. Parse shell structure, not strings.
   constants were never referenced — and it had already drifted (`Supersedes` held
   `"supersedes"` while every call site registered `superseded-by`) without anything
   noticing. An unused single-source-of-truth is a comment, not a constraint.
+- **A normalizer that was reproducible on one machine only.** Goldens and the determinism
+  fuzz ranked DISTINCT CLOCK VALUES; when two events share a tick there is one fewer
+  distinct instant and every later rank shifts. Green locally, red in CI, no semantic
+  difference. It fixed machine-PATH dependence and left machine-SPEED dependence, and it
+  made the determinism test itself non-deterministic — the property it exists to assert,
+  broken in its own harness. Now ranked by POSITION in the canonical order.
+- **Inventing a class instead of reading the registry.** Four commits shipped
+  `Rule-Class: protocol-surface`, a surface name where a failure class was required. All
+  four had exact matches already in the registry. This is what blocks #53.
+- **Trusting a subagent's headline over my own test.** The parity report's top finding
+  contradicted a passing cross-seat test; checking took one command and reversed the
+  conclusion. When a report and a green test disagree, run the experiment.
+- **Instructing a subagent to make a change I had not verified.** I told one to "fix" the
+  `Supersedes` constant as a mismatch; it refused, correctly — `--supersedes` and
+  `--superseded-by` are different relations on different objects, and the change would
+  have broken a CSV invariant. The instruction was confident and wrong.
