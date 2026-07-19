@@ -6,12 +6,12 @@ feov-record: verb "mint" is outside this seat's role (available: register, findi
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, manifest-row, dispute, confidence, position, closing, friction, petition, render)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, revision, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "close" is outside this seat's role (available: register, revision, retire, manifest-row, dispute, confidence, position, closing, friction, petition, render)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
@@ -112,6 +112,7 @@ Available Commands:
   position     the round's ### BLUE section (prose via --file)
   register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render       read-only projection refresh (any seat may invoke)
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
   revision     the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land
 
 Flags:
