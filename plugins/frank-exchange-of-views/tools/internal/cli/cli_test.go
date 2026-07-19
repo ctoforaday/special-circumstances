@@ -148,7 +148,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	runDir := t.TempDir()
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--class", "x", "--check", "c", "--problem", "p")
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err == nil {
 		t.Fatal("a LENS seat minted a board gap through the merge role")
 	}
@@ -345,7 +345,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "scope-creep", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	ev := lastOfType(t, runDir, "mint")
@@ -370,7 +370,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 	runDir := t.TempDir()
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class", "x", "--check", "c", "--problem", "p", "--severity", "catastrophic")
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--severity", "catastrophic")
 	if err == nil {
 		t.Fatal("an invalid grade was accepted")
 	}
@@ -396,7 +396,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	mint := func(extra ...string) string {
 		t.Helper()
 		args := append([]string{"merge", "mint", "--run", runDir, "--seat-id", seatID,
-			"--class", "scope-creep", "--check", "c", "--problem", "p"}, extra...)
+			"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, extra...)
 		out, err := run(t, args...)
 		if err != nil {
 			t.Fatal(err)
@@ -427,7 +427,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--class", "scope-creep", "--check", "c", "--problem", "p")
+		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +444,7 @@ func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "ignored", "--class-new", "brand-new",
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "q",
-		"--check", "c", "--problem", "p")
+		"--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -542,7 +542,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("--problem beats the prose channel on mint", func(t *testing.T) {
 		runDir := t.TempDir()
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--class", "x", "--check", "c", "--problem", "from the flag", "--text", "from the prose channel"); err != nil {
+			"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--text", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the flag" {
@@ -553,7 +553,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("the prose channel fills problem when --problem is absent", func(t *testing.T) {
 		runDir := t.TempDir()
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--class", "x", "--check", "c", "--text", "from the prose channel"); err != nil {
+			"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--text", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the prose channel" {
@@ -568,7 +568,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -616,7 +616,7 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	base := []string{"merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
@@ -635,7 +635,7 @@ func TestCloseFile(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	f := filepath.Join(t.TempDir(), "closure.md")
@@ -667,7 +667,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		{"regrade without --basis", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "regrade requires --basis"},
 		{"dispose without --as", []string{"merge", "dispose", "--observation", "F1"}, "dispose requires --as"},
 		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "mint requires --check"},
-		{"mint without --class", []string{"merge", "mint", "--check", "c", "--problem", "p"}, "mint requires --class"},
+		{"mint without --class", []string{"merge", "mint", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -780,7 +780,7 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 func TestRenderVerbIsAvailableToEverySeatAndNeedsOnlyRun(t *testing.T) {
 	runDir := t.TempDir()
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	for _, role := range []string{"lens", "merge", "blue", "bench"} {
@@ -943,7 +943,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS")
@@ -1236,7 +1236,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	}
 	minted, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class-new", "some-class", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "sec 1", "--problem", "p", "--fix", "f", "--check", "c",
+		"--location", "sec 1", "--problem", "p", "--fix", "f", "--check", "c", "--likelihood", "medium", "--impact", "medium",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low")
 	if err != nil {
 		t.Fatalf("mint: %v", err)
@@ -1245,8 +1245,14 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	if id == "" {
 		t.Fatalf("could not read the minted id from %q", minted)
 	}
+	// A REAL ANCHOR, not --carried-from. This test's subject is --file, and it used the
+	// carry as a shortcut past the anchor requirement — which is exactly how a seat under
+	// pressure would use it, and why the carry is now checked against a real earlier
+	// closure rather than accepted on its say-so.
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "closed", "--carried-from", "1", "--file", prose); err != nil {
+		"--id", id, "--as", "closed",
+		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/x",
+		"--file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
 	}
 	if !payloadKeys(lastOfType(t, runDir, "close"))["prose"] {

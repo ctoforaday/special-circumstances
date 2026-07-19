@@ -25,7 +25,7 @@ package record
 // field's value, so it cannot be a static annotation and stays as logic in validate. Those
 // are documented in the flag's own description instead, where the condition can be stated.
 var RequiredFields = map[string][]string{
-	"mint":    {"acceptance_check", "class"},
+	"mint":    {"acceptance_check", "class", "likelihood", "impact"},
 	"close":   {"gap_id"},
 	"dispose": {"disposition"},
 	"regrade": {"basis"},

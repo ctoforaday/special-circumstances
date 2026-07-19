@@ -75,3 +75,89 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }
+
+// A CARRY IS A LINEAGE CLAIM. --carried-from was presence-only, so any value satisfied it
+// and satisfying it skipped the anchor — a fresh, unverified closure wearing a carry's
+// clothes, counted as closed by every projection and by anchored_closures_pct. The help
+// offers it exactly where a seat that cannot produce an anchor will read it.
+func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
+	runDir := t.TempDir()
+	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := MintGapID(runDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("class", "x").
+		Set("likelihood", "medium").Set("impact", "medium")
+	if _, err := Append(runDir, "red-merge-r1", "mint", mint); err != nil {
+		t.Fatal(err)
+	}
+
+	// No prior closure exists, so a carry is a false claim about the record.
+	p := NewPayload().Set("gap_id", id).Set("carried_from", "1")
+	if err := validate(runDir, "close", p); err == nil {
+		t.Error("an unanchored FIRST closure was accepted as a carry — that is the laundering path: no verification, no lineage, and it scores as closed")
+	}
+
+	// Anchored, it goes through — the escape hatch is closed, not the door.
+	anchored := NewPayload().Set("gap_id", id).
+		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x")
+	if err := validate(runDir, "close", anchored); err != nil {
+		t.Errorf("an anchored closure must still be accepted: %v", err)
+	}
+}
+
+// And a GENUINE carry still works: close once with an anchor, then restate it.
+func TestAGenuineCarryIsStillAccepted(t *testing.T) {
+	runDir := t.TempDir()
+	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := MintGapID(runDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
+		Set("acceptance_check", "c").Set("class", "x").
+		Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).
+		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x")); err != nil {
+		t.Fatal(err)
+	}
+	if err := validate(runDir, "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {
+		t.Errorf("a carry restating a real earlier closure must be accepted: %v", err)
+	}
+}
+
+// likelihood and impact MULTIPLY into GapMass, and an absent grade contributes zero — so
+// an ungraded gap reads as harmless rather than ungraded. Severity and cx are reported
+// rather than multiplied, so their absence is visible and they stay optional.
+func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
+	base := func() *Payload {
+		return NewPayload().Set("acceptance_check", "c").Set("class", "scope-creep").
+			Set("likelihood", "medium").Set("impact", "medium")
+	}
+	for _, missing := range []string{"likelihood", "impact"} {
+		p := NewPayload()
+		for _, k := range base().Keys() {
+			if k != missing {
+				v, _ := base().Get(k)
+				p.Set(k, v)
+			}
+		}
+		if err := validate(t.TempDir(), "mint", p); err == nil {
+			t.Errorf("mint without --%s was accepted; its mass computes to ZERO and the gap sinks to the bottom of every ranking as though it were harmless", missing)
+		}
+	}
+	// Severity and cx remain optional: absent, they are SHOWN absent.
+	if err := validate(t.TempDir(), "mint", base()); err != nil {
+		t.Errorf("severity and cx must stay optional — their absence is visible, not silently zero: %v", err)
+	}
+	if GapMass("", "medium") != 0 {
+		t.Error("the premise of this rule has changed: an absent grade no longer contributes zero")
+	}
+}

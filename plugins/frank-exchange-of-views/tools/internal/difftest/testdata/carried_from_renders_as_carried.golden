@@ -9,15 +9,14 @@ stdout:
 minted R2-1
 
 $ merge close --run {RUN} --seat-id red-merge-r2 --id R2-1 --carried-from 1
-exit 0
-stdout:
-closed R2-1 (closed)
+exit 2
+stderr:
+feov-record: merge: record: close --carried-from claims gap R2-1 was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so an unanchored first closure must instead carry --anchor-seat/--anchor-tool/--anchor-target
 
 ═══ EVENTS ═══
 -- events-red-merge-r2-NONCE001.jsonl
 {"key":"red-merge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.1.0"},"round":2,"seatId":"red-merge-r2","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r2:mint:R2-1","nonce":"NONCE001","payload":{"acceptance_check":"reread","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"medium","likelihood":"medium","problem":"carried case","severity":"medium","supersedes":[]},"round":2,"seatId":"red-merge-r2","seq":1,"ts":1,"type":"mint"}
-{"key":"red-merge-r2:close:R2-1","nonce":"NONCE001","payload":{"carried_from":"1","closure_class":"closed","gap_id":"R2-1"},"round":2,"seatId":"red-merge-r2","seq":2,"ts":2,"type":"close"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md
@@ -26,12 +25,8 @@ closed R2-1 (closed)
 -- archive.md
 # red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
 
-## R2-1 — closed
-carried case
-verification anchor: CARRIED from round 1
-
 -- board-telemetry.jsonl
-{"round":2,"mapping_version":"v1","open_count":0,"max_severity":null,"new_mint":{"count":1,"by_severity":{"medium":1}},"mass":0,"repair_regression":{"closures":1,"lineage_mints":0,"ratio":0},"edge_deltas":{"down_mass":0,"up_mass":0}}
+{"round":2,"mapping_version":"v1","open_count":1,"max_severity":"medium","new_mint":{"count":1,"by_severity":{"medium":1}},"mass":4,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
 
 -- citation-ledger.md
 # red citation-ledger — RENDERED PROJECTION
@@ -42,11 +37,16 @@ verification anchor: CARRIED from round 1
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 
-## OPEN GAPS (0)
+## OPEN GAPS (1)
+
+### R2-1 — carried case
+
+severity medium | medium x medium | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: reread
 
 ## CLOSURE INDEX
 
-R2-1 | closed | carried case | -
 
 
 -- lines-of-inquiry.md

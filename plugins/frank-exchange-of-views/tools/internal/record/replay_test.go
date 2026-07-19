@@ -391,7 +391,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
 		if _, err := Append(runDir, seatID, "mint", NewPayload().
-			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x")); err != nil {
+			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -418,7 +418,7 @@ func TestExistingMintByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, seatID, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x")); err != nil {
+		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -569,7 +569,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 		t.Run(field+"/accepts every canonical grade", func(t *testing.T) {
 			for _, g := range GRADES {
-				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x")
+				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
 				if err := validate(t.TempDir(), "mint", p); err != nil {
 					t.Errorf("%s=%s refused: %v", field, g, err)
 				}
@@ -592,7 +592,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"mint without --check", "mint", NewPayload().Set("class", "x"), "mint requires --check"},
 		{"mint with an empty --check", "mint", NewPayload().Set("class", "x").Set("acceptance_check", ""), "mint requires --check"},
 		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c"), "mint requires --class"},
-		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x"), ""},
+		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium"), ""},
 
 		{"close without --id", "close", NewPayload(), "close requires --id"},
 		{"dispose without --as", "dispose", NewPayload(), "dispose requires --as"},
@@ -695,7 +695,9 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
 	})
-	base := func() *Payload { return NewPayload().Set("acceptance_check", "c").Set("class", "x") }
+	base := func() *Payload {
+		return NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
+	}
 
 	if err := validate(runDir, "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
 		t.Errorf("a real ancestor was refused: %v", err)
@@ -733,7 +735,13 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		{"a PARTIAL anchor is not an anchor", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1"), "requires the attestation anchor"},
 		{"anchor missing its target", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1").Set("anchor_tool", "git show"), "requires the attestation anchor"},
 		{"a full anchor", anchored(), ""},
-		{"--carried-from is the honest alternative", NewPayload().Set("gap_id", "R1-1").Set("carried_from", "2"), ""},
+		// --carried-from remains the honest alternative to re-verifying, but it is a
+		// CLAIM ABOUT THE RECORD and is now checked like one. This gap has never been
+		// closed, so "carried from round 2" is simply false — and accepting it was a
+		// laundering path: an unanchored first closure that scores as closed, which is
+		// exactly what anchored_closures_pct exists to detect. The genuine case (close
+		// with an anchor, then restate) is covered in required_test.go.
+		{"--carried-from cannot invent an earlier closure", NewPayload().Set("gap_id", "R1-1").Set("carried_from", "2"), "no closure of it exists in the record"},
 		{"closed_with_regression needs a successor", anchored().Set("closure_class", "closed_with_regression"), "requires --successor"},
 		{"closed_with_regression with a successor", anchored().Set("closure_class", "closed_with_regression").Set("successor", "R2-1"), ""},
 	}
@@ -767,7 +775,9 @@ func TestValidateClassRegistry(t *testing.T) {
 		}
 	}
 	registry := `{"classes":[{"slug":"scope-creep"},{"slug":"unfalsifiable"},{"slug":"stale-source"}]}`
-	mint := func(p *Payload) *Payload { return p.Set("acceptance_check", "c") }
+	mint := func(p *Payload) *Payload {
+		return p.Set("acceptance_check", "c").Set("likelihood", "medium").Set("impact", "medium")
+	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
 		if err := validate(t.TempDir(), "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {

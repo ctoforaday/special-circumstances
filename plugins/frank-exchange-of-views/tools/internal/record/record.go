@@ -387,6 +387,29 @@ func validate(runDir, typ string, p *Payload) error {
 		if !p.Has("class") || p.Str("class") == "" {
 			return fmt.Errorf("record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)")
 		}
+		// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
+		// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
+		// A LEGITIMATE VALUE cannot be optional.
+		//
+		// GapMass is MASS[likelihood] * MASS[impact], and an absent grade contributes
+		// ZERO by design. So an ungraded gap has mass 0 and reads exactly like a harmless
+		// one: it sinks to the bottom of every telemetry line that ranks by mass, and
+		// nothing anywhere says a number is missing rather than small. That is the same
+		// silent-zero confusion that has produced several defects in this codebase.
+		//
+		// Severity and complexity_cost are reported, not multiplied. When they are absent
+		// the projection shows them absent, which a reader can see and act on, so the
+		// prompt can go on carrying them.
+		//
+		// Cost of requiring, measured: the 2026-07-18 run minted 18 gaps and ALL 18
+		// carried all four grades unprompted. No seat is inconvenienced today. This is
+		// insurance against the cheaper tier, where grading is exactly the step a seat
+		// under pressure would drop — and it drops silently, into a zero.
+		for _, g := range []string{"likelihood", "impact"} {
+			if !p.Has(g) || p.Str(g) == "" {
+				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g)
+			}
+		}
 		if err := validateClass(runDir, p); err != nil {
 			return err
 		}
@@ -413,6 +436,31 @@ func validate(runDir, typ string, p *Payload) error {
 		anchored := p.Str("anchor_seat") != "" && p.Str("anchor_tool") != "" && p.Str("anchor_target") != ""
 		if !anchored && !p.Has("carried_from") {
 			return fmt.Errorf("record: close requires the attestation anchor (--anchor-seat --anchor-tool --anchor-target) or --carried-from <round> — an unanchored closure is unauditable (E0.5a)")
+		}
+		// --carried-from IS A LINEAGE CLAIM, so it is checked like one.
+		//
+		// It was presence-only: any value at all satisfied it, and satisfying it skips
+		// the anchor. That made it a laundering path — a fresh, unverified closure
+		// wearing a carry's clothes, counted as closed by every projection and by
+		// anchored_closures_pct. The help offers it right where a seat that cannot
+		// produce an anchor will read it, which is precisely the seat that should not
+		// have an easy way out.
+		//
+		// A CARRY RESTATES AN EARLIER CLOSURE. If no earlier closure of this gap exists,
+		// the claim is false. Checked the same way mint already refuses dangling
+		// `supersedes` — the precedent is in this file.
+		//
+		// The run used it zero times out of nine closures, so this costs nothing today.
+		// It is here for the cheaper tier, where an anchor is exactly the work a seat
+		// under pressure would rather skip.
+		if !anchored && p.Has("carried_from") {
+			prior, err := priorClosureRounds(runDir, p.Str("gap_id"))
+			if err != nil {
+				return err
+			}
+			if len(prior) == 0 {
+				return fmt.Errorf("record: close --carried-from claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so an unanchored first closure must instead carry --anchor-seat/--anchor-tool/--anchor-target", p.Str("gap_id"))
+			}
 		}
 		if p.Str("closure_class") == "closed_with_regression" && !p.Has("successor") {
 			return fmt.Errorf("record: closed_with_regression requires --successor (lineage never drops)")

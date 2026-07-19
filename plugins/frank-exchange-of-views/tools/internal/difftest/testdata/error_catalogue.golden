@@ -8,15 +8,15 @@ feov-record: merge: record: mint requires --class (or --class-new with --definit
 
 ── mint with unknown class
 exit 2
-feov-record: merge: record: unknown class invented — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or mint the class with --class-new (definition + neighbor + distinguisher required)
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── class-new missing definition
 exit 2
-feov-record: merge: record: --class-new requires --definition, --neighbor <existing-slug>, and --distinguisher (the tie-break question)
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── class-new unknown neighbor
 exit 2
-feov-record: merge: record: --neighbor nope is not a known class
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── mint with bad grade
 exit 2
@@ -24,7 +24,7 @@ feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophi
 
 ── mint with dangling supersedes
 exit 2
-feov-record: merge: record: mint supersedes R7-7, which no mint event has created — dangling lineage refused
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── close unknown gap
 exit 2

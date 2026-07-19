@@ -421,6 +421,25 @@ func allGapIDs(runDir string) (map[string]bool, error) {
 	return out, nil
 }
 
+// priorClosureRounds returns the rounds in which this gap was already closed.
+//
+// A `--carried-from` closure claims to restate an earlier one, and a claim about the
+// record is checked against the record — the same rule mint applies to `supersedes`,
+// which refuses an ancestor no mint event created.
+func priorClosureRounds(runDir, gapID string) ([]int, error) {
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return nil, err
+	}
+	var out []int
+	for _, e := range m.Events {
+		if e.Type == "close" && e.Payload.Str("gap_id") == gapID {
+			out = append(out, e.Round)
+		}
+	}
+	return out, nil
+}
+
 // MintGapID assigns ids tool-side, sequentially per round — the collision class
 // that made four different "R5-1"s in one round simply cannot occur.
 func MintGapID(runDir string, round int) (string, error) {
