@@ -34,9 +34,9 @@ stdout:
 registered red-merge-r1 (shard nonce NONCE003)
 
 $ merge dispose --run {RUN} --seat-id red-merge-r1 --observation L1-F1 --as minted-as --into R1-1
-exit 0
-stdout:
-disposed L1-F1: minted-as
+exit 2
+stderr:
+feov-record: merge: record: dispose --into names gap R1-1, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 $ merge dispose --run {RUN} --seat-id red-merge-r1 --observation L5-N1 --as banked
 exit 0
@@ -44,9 +44,9 @@ stdout:
 disposed L5-N1: banked
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check refetch and diff --severity high --likelihood high --impact high --cx medium --location ## S2 --found-by L1,L5 --problem the cited source does not say this
-exit 0
-stdout:
-minted R1-1
+exit 2
+stderr:
+feov-record: merge: record: mint --found-by names finding L1, which no lens recorded — attribution to a finding nobody made inflates the lens-sourced count the capture estimate reads
 
 $ merge position --run {RUN} --seat-id red-merge-r1 --text round one: FAIL
 exit 0
@@ -56,7 +56,7 @@ position recorded
 $ merge verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
 exit 0
 stdout:
-verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
+verdict FAIL — rendered (0 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L1-NONCE001.jsonl
@@ -69,11 +69,9 @@ verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-lens-r1-L5:observe:L5-N1","nonce":"NONCE002","payload":{"kind":"checked-held","label":"L5-N1","text":"checked, held"},"round":1,"seatId":"red-lens-r1-L5","seq":2,"ts":5,"type":"observe"}
 -- events-red-merge-r1-NONCE003.jsonl
 {"key":"red-merge-r1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":6,"type":"register"}
-{"key":"red-merge-r1:dispose:L1-F1","nonce":"NONCE003","payload":{"disposition":"minted-as","into":"R1-1","observation":"L1-F1"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":7,"type":"dispose"}
-{"key":"red-merge-r1:dispose:L5-N1","nonce":"NONCE003","payload":{"disposition":"banked","observation":"L5-N1"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":8,"type":"dispose"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE003","payload":{"acceptance_check":"refetch and diff","class":"citation-drift","class_new":false,"complexity_cost":"medium","found_by":["L1","L5"],"gap_id":"R1-1","impact":"high","likelihood":"high","location":"## S2","problem":"the cited source does not say this","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"ts":9,"type":"mint"}
-{"key":"red-merge-r1:position","nonce":"NONCE003","payload":{"text":"round one: FAIL"},"round":1,"seatId":"red-merge-r1","seq":4,"ts":10,"type":"position"}
-{"key":"red-merge-r1:verdict","nonce":"NONCE003","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":5,"ts":11,"type":"verdict"}
+{"key":"red-merge-r1:dispose:L5-N1","nonce":"NONCE003","payload":{"disposition":"banked","observation":"L5-N1"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":7,"type":"dispose"}
+{"key":"red-merge-r1:position","nonce":"NONCE003","payload":{"text":"round one: FAIL"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":8,"type":"position"}
+{"key":"red-merge-r1:verdict","nonce":"NONCE003","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":3,"ts":9,"type":"verdict"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md
@@ -83,7 +81,6 @@ verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
 # red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
 
 -- board-telemetry.jsonl
-{"round":1,"mapping_version":"v1","open_count":1,"max_severity":"high","new_mint":{"count":1,"by_severity":{"high":1}},"mass":9,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
 
 -- citation-ledger.md
 # red citation-ledger — RENDERED PROJECTION
@@ -100,13 +97,7 @@ round one: FAIL
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 
-## OPEN GAPS (1)
-
-### R1-1 — the cited source does not say this
-## S2
-severity high | high x high | cx medium | class citation-drift | found_by L1,L5
-required_fix: 
-acceptance_check: refetch and diff
+## OPEN GAPS (0)
 
 ## CLOSURE INDEX
 
@@ -114,6 +105,7 @@ acceptance_check: refetch and diff
 
 ## undisposed lens observations (every observation demands a merge disposition)
 
+- red-lens-r1-L1 L1-F1: citation does not support
 - red-lens-r1-L5 L5-F1: a leap of faith
 
 -- lines-of-inquiry.md

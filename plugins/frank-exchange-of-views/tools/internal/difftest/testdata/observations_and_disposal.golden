@@ -24,14 +24,14 @@ stdout:
 disposed N1: declined
 
 $ merge dispose --run {RUN} --seat-id red-merge-r1 --observation N-missing --as banked
-exit 0
-stdout:
-disposed N-missing: banked
+exit 2
+stderr:
+feov-record: merge: record: dispose --observation names N-missing, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed
 
 $ merge dispose --run {RUN} --seat-id red-merge-r1 --observation N2
 exit 2
 stderr:
-feov-record: merge: record: dispose requires --as minted-as|folded-into|declined|banked
+feov-record: merge: record: dispose --observation names N2, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L5-NONCE001.jsonl
@@ -42,7 +42,6 @@ feov-record: merge: record: dispose requires --as minted-as|folded-into|declined
 -- events-red-merge-r1-NONCE002.jsonl
 {"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":4,"type":"register"}
 {"key":"red-merge-r1:dispose:N1","nonce":"NONCE002","payload":{"disposition":"declined","observation":"N1","reason":"covered by R1-1"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":5,"type":"dispose"}
-{"key":"red-merge-r1:dispose:N-missing","nonce":"NONCE002","payload":{"disposition":"banked","observation":"N-missing"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":6,"type":"dispose"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md

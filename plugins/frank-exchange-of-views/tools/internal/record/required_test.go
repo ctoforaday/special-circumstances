@@ -11,6 +11,27 @@ import "testing"
 //
 // So this is behavioural, not structural: for every field the table declares, a payload
 // missing exactly that field must actually be REFUSED by validate.
+
+// runWithGap is a run directory in which R1-1 actually exists. Since references are now
+// checked at write time, a fixture that names a gap must create it — which is the point.
+func runWithGap(t *testing.T) string {
+	t.Helper()
+	runDir := t.TempDir()
+	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := MintGapID(runDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
+		Set("acceptance_check", "c").Set("class", "x").
+		Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		t.Fatal(err)
+	}
+	return runDir
+}
+
 func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 	// full is a payload that satisfies each verb, from which one field is removed at a
 	// time. Values are placeholders — validate checks presence, not meaning.
@@ -38,7 +59,11 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 						p.Set(k, v)
 					}
 				}
-				if err := validate(t.TempDir(), typ, p); err == nil {
+				dir := t.TempDir()
+				if typ == "opinion" {
+					dir = runWithGap(t)
+				}
+				if err := validate(dir, typ, p); err == nil {
 					t.Errorf("RequiredFields says %s.%s is required, but validate ACCEPTED a payload without it — the help would mark a flag REQUIRED that the tool does not require", typ, missing)
 				}
 			})
@@ -58,7 +83,11 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
 			Set("principle", "p").Set("tension", "t").Set("review_flag", "no"),
 	} {
-		if err := validate(t.TempDir(), typ, p); err != nil {
+		dir := t.TempDir()
+		if typ == "opinion" {
+			dir = runWithGap(t)
+		}
+		if err := validate(dir, typ, p); err != nil {
 			t.Errorf("%s rejected a payload carrying every required field: %v", typ, err)
 		}
 	}
@@ -71,7 +100,7 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	p := NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
 		Set("principle", "p").Set("tension", "t").Set("review_flag", false)
-	if err := validate(t.TempDir(), "opinion", p); err != nil {
+	if err := validate(runWithGap(t), "opinion", p); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }

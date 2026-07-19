@@ -644,6 +644,26 @@ func TestValidateVerbContracts(t *testing.T) {
 // asserted the code agreed with itself, and passed happily while the message taught
 // --gap-id and --disposition, two flags the parser had stopped accepting. A test that
 // reimplements its subject cannot indict it.
+// opinionRunDir is a run in which R1-1 exists, so an opinion's reference resolves and the
+// test can be about the missing FIELD rather than the missing gap.
+func opinionRunDir(t *testing.T) string {
+	t.Helper()
+	runDir := t.TempDir()
+	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := MintGapID(runDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
+		Set("acceptance_check", "c").Set("class", "x").
+		Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		t.Fatal(err)
+	}
+	return runDir
+}
+
 func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	wantFlag := map[string]string{
 		"gap_id":      "--id",
@@ -655,13 +675,23 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	all := []string{"gap_id", "disposition", "principle", "tension", "review_flag"}
 	for _, missing := range all {
 		t.Run("missing "+missing, func(t *testing.T) {
+			// The gap must EXIST and be NAMED CORRECTLY: references are checked at
+			// write time now, so gap_id carries the real minted id rather than the
+			// "x" placeholder every other field uses. With a bogus id the reference
+			// check fires first and this test would assert on the wrong refusal.
+			runDir := opinionRunDir(t)
 			p := NewPayload()
 			for _, f := range all {
-				if f != missing {
-					p.Set(f, "x")
+				if f == missing {
+					continue
 				}
+				if f == "gap_id" {
+					p.Set(f, "R1-1")
+					continue
+				}
+				p.Set(f, "x")
 			}
-			err := validate(t.TempDir(), "opinion", p)
+			err := validate(runDir, "opinion", p)
 			if err == nil {
 				t.Fatalf("opinion accepted without %s", missing)
 			}
@@ -670,11 +700,16 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 			}
 		})
 	}
+	complete := opinionRunDir(t)
 	p := NewPayload()
 	for _, f := range all {
+		if f == "gap_id" {
+			p.Set(f, "R1-1")
+			continue
+		}
 		p.Set(f, "x")
 	}
-	if err := validate(t.TempDir(), "opinion", p); err != nil {
+	if err := validate(complete, "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
 	// An EMPTY value still counts as present: the check is Has, not non-empty.
@@ -682,7 +717,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	for _, f := range all {
 		q.Set(f, "")
 	}
-	if err := validate(t.TempDir(), "opinion", q); err != nil {
+	if err := validate(complete, "opinion", q); err != nil {
 		t.Errorf("opinion fields present-but-empty were refused: %v", err)
 	}
 }
@@ -718,8 +753,12 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
+	// BOTH gaps are minted: R1-1 is the one being closed, R2-1 the successor a
+	// closed_with_regression names. A successor is a reference like any other and is
+	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
+		ev(seatID, "aaaaaaaa", 1, 2, "mint", seatID+":mint:R2-1", NewPayload().Set("gap_id", "R2-1")),
 	})
 	anchored := func() *Payload {
 		return NewPayload().Set("gap_id", "R1-1").

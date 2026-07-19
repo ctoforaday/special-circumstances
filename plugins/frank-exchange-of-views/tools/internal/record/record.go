@@ -417,6 +417,9 @@ func validate(runDir, typ string, p *Payload) error {
 		if err != nil {
 			return err
 		}
+		if err := requireFindings(runDir, p.StrList("found_by"), "mint", "--found-by"); err != nil {
+			return err
+		}
 		for _, anc := range p.StrList("supersedes") {
 			if !ids[anc] {
 				return fmt.Errorf("record: mint supersedes %s, which no mint event has created — dangling lineage refused", anc)
@@ -462,14 +465,32 @@ func validate(runDir, typ string, p *Payload) error {
 				return fmt.Errorf("record: close --carried-from claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so an unanchored first closure must instead carry --anchor-seat/--anchor-tool/--anchor-target", p.Str("gap_id"))
 			}
 		}
+		if err := requireGap(runDir, p.Str("successor"), "close", "--successor"); err != nil {
+			return err
+		}
 		if p.Str("closure_class") == "closed_with_regression" && !p.Has("successor") {
 			return fmt.Errorf("record: closed_with_regression requires --successor (lineage never drops)")
 		}
+	case "dispute", "dispute-respond", "closing", "manifest-row":
+		// All name a gap and none checked it. Grouped because the reference is the same
+		// reference: the verb differs, the dangling failure does not.
+		if err := requireGap(runDir, p.Str("gap_id"), typ, "--id"); err != nil {
+			return err
+		}
 	case "dispose":
+		if err := requireObservation(runDir, p.Str("observation"), "dispose", "--observation"); err != nil {
+			return err
+		}
+		if err := requireGap(runDir, p.Str("into"), "dispose", "--into"); err != nil {
+			return err
+		}
 		if !p.Has("disposition") || p.Str("disposition") == "" {
 			return fmt.Errorf("record: dispose requires --as minted-as|folded-into|declined|banked")
 		}
 	case "regrade":
+		if err := requireGap(runDir, p.Str("gap_id"), "regrade", "--id"); err != nil {
+			return err
+		}
 		if !p.Has("basis") || p.Str("basis") == "" {
 			return fmt.Errorf("record: regrade requires --basis (grade movement is recorded with its reason)")
 		}
@@ -481,6 +502,10 @@ func validate(runDir, typ string, p *Payload) error {
 		}
 		if !p.Has("reason") || p.Str("reason") == "" {
 			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
+		}
+	case "spot-check":
+		if err := requireGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
+			return err
 		}
 	case "avenue":
 		// A status outside the three is a fourth meaning nobody defined, and the
@@ -497,7 +522,14 @@ func validate(runDir, typ string, p *Payload) error {
 		if p.Str("status") != "pursued" && (!p.Has("reason") || p.Str("reason") == "") {
 			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
 		}
+	case "petition-rule":
+		if err := requireSeat(runDir, p.Str("petitioner"), "petition-rule", "--petitioner"); err != nil {
+			return err
+		}
 	case "opinion":
+		if err := requireGap(runDir, p.Str("gap_id"), "opinion", "--id"); err != nil {
+			return err
+		}
 		for _, f := range []string{"gap_id", "disposition", "principle", "tension", "review_flag"} {
 			if !p.Has(f) {
 				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f))

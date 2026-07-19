@@ -2,6 +2,8 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -167,12 +169,26 @@ func TestBoardJSONStatesWhetherAnObservationHasAFate(t *testing.T) {
 func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
 	runDir := seatRun(t)
 
-	// A ruling on a gap that was never minted: the shape of the real failure, where the
-	// mint existed but replayed after the ruling that referenced it.
-	if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", "R9-9", "--as", "closed", "--principle", "p", "--tension", "t",
-		"--review-flag", "no"); err != nil {
-		t.Fatalf("the bench must be able to record the ruling it made; catching the dangling reference is the REPLAY's job, not the write path's: %v", err)
+	// WRITTEN STRAIGHT TO A SHARD, because the CLI now refuses to create one.
+	//
+	// This test first drove the dangling opinion through the CLI and asserted the write
+	// path let it through — "catching the dangling reference is the REPLAY's job". That
+	// was wrong, and it was wrong in the specific way that cost the 2026-07-18 run six
+	// gaps: an event accepted at write and dropped at replay looks recorded and does
+	// nothing, and the seat is long gone by the time anyone notices.
+	//
+	// The write path refuses it now. But shards like this EXIST — the run's own records
+	// carry twelve — so replay must still surface them rather than skip in silence, and
+	// that is what this asserts.
+	shard := filepath.Join(runDir, "records", "events-judge-r1-deadbeef.jsonl")
+	line := `{"seq":0,"ts":"2026-07-19T12:00:00.000000000Z","seatId":"judge-r1","nonce":"deadbeef","round":1,` +
+		`"type":"opinion","key":"judge-r1:opinion:R9-9","payload":{"gap_id":"R9-9","disposition":"closed",` +
+		`"principle":"p","tension":"t","review_flag":"no"}}` + "\n"
+	if err := os.WriteFile(shard, []byte(line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "records", ".active-judge-r1"), []byte("deadbeef"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 
 	b := board(t, runDir, "merge", "red-merge-r1")

@@ -619,13 +619,25 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
+	// The successor must EXIST: a successor is a reference like any other and is checked
+	// at write time now, so the fixture mints the gap it will name.
+	succOut, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+		"--key", "successor-gap", "--class", "x", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	successor := regexp.MustCompile(`R\d+-\d+`).FindString(succOut)
+	if successor == "" {
+		t.Fatalf("could not read the successor id from %q", succOut)
+	}
 	base := []string{"merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
 		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
 		"--as", "closed_with_regression"}
 	if _, err := run(t, base...); err == nil {
 		t.Fatal("closed_with_regression was accepted without a successor — lineage dropped")
 	}
-	if _, err := run(t, append(base, "--successor", "R2-1")...); err != nil {
+	if _, err := run(t, append(base, "--successor", successor)...); err != nil {
 		t.Fatalf("a successor'd regression close was refused: %v", err)
 	}
 }
@@ -673,6 +685,19 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			seatID := "red-merge-r1"
+			// The referenced gap and observation must EXIST, or the reference check
+			// fires first and this test asserts on the wrong refusal — it is about the
+			// missing REASON, not a missing referent.
+			if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+				"--key", "k", "--class", "x", "--check", "c",
+				"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+				"--label", "F1", "--location", "l", "--text", "t",
+				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+				t.Fatal(err)
+			}
 			args := append([]string{tc.args[0], tc.args[1], "--run", runDir, "--seat-id", seatID}, tc.args[2:]...)
 			_, err := run(t, args...)
 			if err == nil {
@@ -739,6 +764,14 @@ func TestBlueVerbContracts(t *testing.T) {
 func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "judge-r1"
+	// The gap must EXIST: --id is a reference and is checked at write time, so without
+	// a real gap this test would assert on the dangling-reference refusal instead of the
+	// missing-field one it is about.
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "k", "--class", "x", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatal(err)
+	}
 	full := map[string]string{
 		"id": "R1-1", "as": "carried", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
@@ -897,6 +930,15 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 func TestClosingIsKeyedPerGap(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
+	// Both gaps must EXIST: a closing names the gap it argues, and that reference is
+	// checked at write time.
+	for i := 0; i < 2; i++ {
+		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+			"--key", fmt.Sprintf("k%d", i), "--class", "x", "--check", "c",
+			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, id := range []string{"R1-1", "R1-2"} {
 		if _, err := run(t, "merge", "closing", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--text", "argued "+id); err != nil {
