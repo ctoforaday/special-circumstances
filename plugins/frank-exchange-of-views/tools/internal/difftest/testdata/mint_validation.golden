@@ -64,3 +64,7 @@ acceptance_check: grep the sites
 
 
 
+-- lines-of-inquiry.md
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

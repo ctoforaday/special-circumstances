@@ -407,6 +407,41 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		return RenderResult{}, err
 	}
 
+	// ---- lines-of-inquiry.md: the exploration space, not just its conclusions ----
+	//
+	// Grouped by fate rather than by seat, because the question a reader asks is
+	// "what did you rule out, and why" — and because ABANDONED is the section
+	// worth reading twice: a dead end recorded here is a dead end a future run
+	// does not re-walk. Nothing preserved these before; they died in a seat's
+	// context along with the reasoning that produced them.
+	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
+	for _, status := range []string{"pursued", "abandoned", "declined"} {
+		var rows []string
+		for _, e := range b.Events {
+			if e.Type != "avenue" || e.Payload.Str("status") != status {
+				continue
+			}
+			method := ""
+			if m := e.Payload.Str("method"); m != "" {
+				method = fmt.Sprintf(" _(%s)_", m)
+			}
+			reason := e.Payload.Str("reason")
+			if reason != "" {
+				reason = " — " + reason
+			}
+			rows = append(rows, fmt.Sprintf("- **%s**%s%s (%s)", e.Payload.Str("line"), method, reason, e.SeatID))
+		}
+		if len(rows) == 0 {
+			continue
+		}
+		inquiry = append(inquiry, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
+		inquiry = append(inquiry, rows...)
+		inquiry = append(inquiry, "")
+	}
+	if err := writeAtomic(filepath.Join(out, "lines-of-inquiry.md"), []byte(strings.Join(inquiry, "\n")+"\n")); err != nil {
+		return RenderResult{}, err
+	}
+
 	cites := []string{"# red citation-ledger — RENDERED PROJECTION"}
 	for _, e := range b.Events {
 		if e.Type != "cite" {

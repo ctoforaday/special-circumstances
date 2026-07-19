@@ -66,3 +66,7 @@ acceptance_check: a
 - duplicate key dedup'd: red-merge-r1:regrade:R1-1 (nonce NONCE001)
 
 
+-- lines-of-inquiry.md
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

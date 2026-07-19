@@ -6,12 +6,12 @@ feov-record: verb "mint" is outside this seat's role (available: register, findi
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, revision, retire, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
@@ -103,6 +103,7 @@ Usage:
   {TOOL} [command]
 
 Available Commands:
+  avenue       record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --file <prose>
   confidence   per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low
   dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."

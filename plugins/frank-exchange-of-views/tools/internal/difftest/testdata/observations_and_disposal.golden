@@ -73,3 +73,7 @@ feov-record: merge: record: dispose requires --as minted-as|folded-into|declined
 - red-lens-r1-L5 red-lens-r1-L5:observe:#2: unlabelled, ordinal-keyed
 - red-lens-r1-L5 red-lens-r1-L5:observe:#3: second unlabelled
 
+-- lines-of-inquiry.md
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+
