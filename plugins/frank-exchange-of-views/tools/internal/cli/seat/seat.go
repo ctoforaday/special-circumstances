@@ -113,6 +113,28 @@ func InferRunDir(start string) string {
 // Handler is a verb's work: everything cobra-shaped is handled around it.
 type Handler func(Context, *cobra.Command) (string, error)
 
+// markRequired annotates the flags a verb genuinely requires, reading record's single
+// declaration so the help and the enforcement cannot disagree.
+//
+// A seat's contract is `--help`, and it was a flat alphabetical list: --check and --class
+// (mandatory) sat indistinguishable from --comment and --found-by (optional). The only way
+// to discover a requirement was to omit it and read the error — one round trip per missing
+// flag, against a project whose binding constraint is wall clock.
+//
+// Applied AFTER the verb has registered its own flags, so a verb cannot forget to call it
+// and no verb has to remember what it requires twice.
+func markRequired(c *cobra.Command, verb string) {
+	for _, key := range record.RequiredFields[verb] {
+		f := c.Flags().Lookup(flags.ForPayloadKey(key))
+		if f == nil {
+			// The field is set by the verb rather than typed by the seat. Nothing to
+			// annotate, and nothing wrong: not every payload key has a flag.
+			continue
+		}
+		f.Usage = "REQUIRED — " + f.Usage
+	}
+}
+
 // New builds a verb command with the shared plumbing attached. The verb supplies
 // its own name, contract text, flags and handler; it never restates the
 // preconditions, the error prefix, or the render.

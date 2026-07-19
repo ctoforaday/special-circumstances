@@ -196,10 +196,11 @@ func ForPayloadKey(key string) string {
 // Only the keys whose flag is a DIFFERENT WORD need an entry. review_flag, principle,
 // tension and the rest are spelled by the fallback and would be noise here.
 var payloadFlag = map[string]string{
-	"gap_id":      ID,
-	"disposition": As,
-	"evidence":    Basis,
-	"prose":       File,
+	"gap_id":           ID,
+	"disposition":      As,
+	"evidence":         Basis,
+	"prose":            File,
+	"acceptance_check": Check,
 }
 
 // Canonical descriptions. The same word gets the same explanation wherever it appears —

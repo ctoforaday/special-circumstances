@@ -262,6 +262,11 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 	}
 	names := make([]string, 0, len(verbs)+1)
 	for _, v := range verbs {
+		// Applied HERE rather than in each verb: a verb that had to remember to mark its
+		// own required flags is a verb that can forget, and the forgetting is silent —
+		// the help simply looks like everything is optional. Every role passes through
+		// this loop, so every verb is annotated by construction.
+		markRequired(v, v.Name())
 		names = append(names, v.Name())
 		c.AddCommand(v)
 	}

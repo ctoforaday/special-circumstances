@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // THE CHOKEPOINT, ENFORCED.
@@ -97,4 +98,55 @@ func dedupe(in []string) []string {
 		}
 	}
 	return out
+}
+
+// EVERY REQUIRED FIELD MUST REACH THE HELP.
+//
+// markRequired maps a payload key to its flag and skips silently when no flag matches —
+// correct for fields a verb sets internally, and a silent hole for anything else. It hit
+// one immediately: `mint`'s acceptance_check spells as --check, the fallback guessed
+// --acceptance-check, no such flag existed, and the requirement simply never appeared in
+// the help. The seat's contract quietly omitted a mandatory field.
+//
+// So the mapping is asserted, not trusted: for every field record declares required, the
+// verb's help must actually say REQUIRED.
+func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
+	verbRole := map[string]string{
+		"mint": "merge", "close": "merge", "dispose": "merge", "regrade": "merge",
+		"retire": "blue", "avenue": "blue", "opinion": "bench",
+	}
+	for verb, required := range record.RequiredFields {
+		role, ok := verbRole[verb]
+		if !ok {
+			t.Errorf("record declares requirements for %q but this test does not know its role — the table grew and the check did not", verb)
+			continue
+		}
+		h := help(t, role, verb, "--help")
+		for _, key := range required {
+			flag := flags.ForPayloadKey(key)
+			t.Run(verb+"/"+flag, func(t *testing.T) {
+				if !strings.Contains(h, "--"+flag+" ") {
+					t.Fatalf("%s %s declares %q required, but no --%s flag exists — the payload key does not map to a real flag, so the requirement is invisible in the contract",
+						role, verb, key, flag)
+				}
+				// Only the FLAG TABLE lines, not the verb's usage sentence — that
+				// sentence names the flags too, and matching it made this test fail on
+				// prose rather than on the annotation it is checking.
+				var seen bool
+				for _, line := range strings.Split(h, "\n") {
+					trimmed := strings.TrimSpace(line)
+					if !strings.HasPrefix(trimmed, "--"+flag+" ") {
+						continue
+					}
+					seen = true
+					if !strings.Contains(trimmed, "REQUIRED") {
+						t.Errorf("%s %s: --%s is required but its flag line does not say so:\n%s", role, verb, flag, line)
+					}
+				}
+				if !seen {
+					t.Errorf("%s %s: --%s never appears in the flag table", role, verb, flag)
+				}
+			})
+		}
+	}
 }
