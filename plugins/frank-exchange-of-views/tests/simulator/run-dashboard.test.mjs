@@ -304,3 +304,48 @@ test('projectCompletion reports complete once assembly is done', async () => {
   assert.equal(p.state, 'complete')
   assert.equal(p.highMin, 0)
 })
+
+// The dashboard kept its own single price row at fable tier and applied it to every
+// seat regardless of model. With haiku bulk seats that read $189.59 against a true
+// $53.92 — a 3.5x overstatement on the number a human watches while deciding whether
+// to let an expensive run keep going. Both modules now price from one table.
+test('the dashboard prices each seat at its own model rate, agreeing with the cost audit', async () => {
+  const { buildModel } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const { PRICES, tier } = await import('../../skills/research-protocol/scripts/cost-audit.mjs')
+  const runDir = tmp(), tdir = tmp()
+  mkdirSync(join(runDir, 'trajectories'), { recursive: true })
+  const usage = { input_tokens: 1000, output_tokens: 2000, cache_read_input_tokens: 1e6, cache_creation_input_tokens: 5e4 }
+  writeFileSync(join(tdir, 'journal.jsonl'), JSON.stringify({ agentId: 'a1', result: 'ok' }) + '\n')
+  writeFileSync(join(tdir, 'agent-a1.jsonl'), [
+    JSON.stringify({ timestamp: '2026-07-19T00:00:00Z', message: { role: 'user', content: 'Blue lane 1' } }),
+    JSON.stringify({ message: { model: 'claude-haiku-4-5-20251001', usage } }),
+  ].join('\n') + '\n')
+
+  const [pin, pout, pcr, pcw] = PRICES[tier('claude-haiku-4-5-20251001')]
+  const expected = (usage.input_tokens * pin + usage.output_tokens * pout +
+    usage.cache_read_input_tokens * pcr + usage.cache_creation_input_tokens * pcw) / 1e6
+  const m = buildModel(runDir, tdir)
+  assert.ok(Math.abs(m.cost - expected) < 1e-9, `dashboard ${m.cost} should equal haiku-priced ${expected}`)
+
+  const fableRow = PRICES.fable
+  const asFable = (usage.input_tokens * fableRow[0] + usage.output_tokens * fableRow[1] +
+    usage.cache_read_input_tokens * fableRow[2] + usage.cache_creation_input_tokens * fableRow[3]) / 1e6
+  assert.ok(m.cost < asFable / 2, 'haiku traffic must not be billed at the dearest tier')
+})
+
+// An unknown model must over-report: a silently cheap estimate is the failure nobody
+// notices, and the cost tile is what a human uses to decide whether to stop a run.
+test('an unrecognised model is priced at the dearest tier, never the cheapest', async () => {
+  const { buildModel } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const { PRICES } = await import('../../skills/research-protocol/scripts/cost-audit.mjs')
+  const runDir = tmp(), tdir = tmp()
+  mkdirSync(join(runDir, 'trajectories'), { recursive: true })
+  const usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 1e6, cache_creation_input_tokens: 0 }
+  writeFileSync(join(tdir, 'journal.jsonl'), JSON.stringify({ agentId: 'a1', result: 'ok' }) + '\n')
+  writeFileSync(join(tdir, 'agent-a1.jsonl'), [
+    JSON.stringify({ timestamp: '2026-07-19T00:00:00Z', message: { role: 'user', content: 'Blue lane 1' } }),
+    JSON.stringify({ message: { model: 'claude-something-unreleased', usage } }),
+  ].join('\n') + '\n')
+  const m = buildModel(runDir, tdir)
+  assert.ok(Math.abs(m.cost - PRICES.fable[2]) < 1e-9, 'unknown model falls back to the fable row')
+})

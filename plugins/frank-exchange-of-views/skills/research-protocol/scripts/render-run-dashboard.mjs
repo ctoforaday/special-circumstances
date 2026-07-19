@@ -13,13 +13,19 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseRenderedRows, latestSection } from './scorecards.mjs'
 import { classifySeat } from './seat-classify.mjs'
+import { PRICES, tier } from './cost-audit.mjs'
 
 const jsonl = (p) => existsSync(p)
   ? readFileSync(p, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
   : []
 
-// Same list-rate arithmetic as cost-audit.mjs (kept tiny here: fable-tier default).
-const RATE = { in: 10, out: 50, cr: 1.0, cw: 12.5 }
+// Pricing comes from cost-audit.mjs, the module that owns it. The dashboard used to
+// keep its own single RATE row at fable-tier and apply it to EVERY seat regardless of
+// model — so a run with haiku bulk seats was billed as if all of it were the most
+// expensive tier. On the first live run that read $189.59 against a true $53.92: a
+// 3.5x overstatement on the one number a human watches while deciding whether to let a
+// run continue. Fourth instance in this codebase of two modules holding the same fact
+// and disagreeing; the fix is the same one each time.
 // Engine's pinned v1 mass mapping (for grade-migration arithmetic only).
 const MASSD = { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
 
@@ -141,8 +147,11 @@ export function buildModel(runDir, transcriptDir) {
         const u = j.message && j.message.usage
         if (!u) continue
         rounds++
-        cost += ((u.input_tokens || 0) * RATE.in + (u.output_tokens || 0) * RATE.out +
-          (u.cache_read_input_tokens || 0) * RATE.cr + (u.cache_creation_input_tokens || 0) * RATE.cw) / 1e6
+        // Price each turn at ITS OWN model's rate; an unrecognised model falls back to
+        // the dearest row, so an estimate errs upward rather than flattering the run.
+        const [pin, pout, pcr, pcw] = PRICES[tier((j.message && j.message.model) || '')]
+        cost += ((u.input_tokens || 0) * pin + (u.output_tokens || 0) * pout +
+          (u.cache_read_input_tokens || 0) * pcr + (u.cache_creation_input_tokens || 0) * pcw) / 1e6
       }
     }
   }
