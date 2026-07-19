@@ -46,9 +46,8 @@ const (
 	Text = "text"
 
 	// The universal free-text field, in its three interchangeable forms.
-	Comment      = "comment"
-	CommentFile  = "comment-file"
-	CommentStdin = "comment-stdin"
+	Comment     = "comment"
+	CommentFile = "comment-file"
 
 	// Identity and reference.
 	ID        = "id"
@@ -154,7 +153,7 @@ func All() []string {
 	return []string{
 		Run, SeatID,
 		File, Text,
-		Comment, CommentFile, CommentStdin,
+		Comment, CommentFile,
 		ID, IDs, Label, Claim, Key, Location, Reference, Row, View,
 		As, Reason, Basis, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
@@ -210,9 +209,8 @@ const (
 	DescFile = "read the payload from a file — ALWAYS use this over --text for anything above ~2KB"
 	DescText = "the payload, inline (short values only)"
 
-	DescComment      = "free text this verb has no field for — recorded on the event, and a recurring one is a schema gap"
-	DescCommentFile  = "read --comment from a file instead, for anything long or awkward to quote"
-	DescCommentStdin = "read --comment from stdin, so nothing has to survive shell quoting"
+	DescComment     = "free text this verb has no field for — recorded on the event, and a recurring one is a schema gap"
+	DescCommentFile = "read --comment from a file, or from stdin with `-` — for anything long or awkward to quote"
 
 	DescPetitionClass = "ethical | safety | integrity | constitutional"
 )

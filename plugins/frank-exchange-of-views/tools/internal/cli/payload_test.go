@@ -128,3 +128,42 @@ func runStdin(t *testing.T, stdin string, args ...string) (string, error) {
 	r.Close()
 	return buf.String(), err
 }
+
+// ONE CONVENTION FOR STDIN: a `-` where a path goes.
+//
+// The comment field used to carry a dedicated --comment-stdin boolean while the payload
+// spelled the same idea as `--file -`. Two spellings for one idea, in a package whose
+// entire purpose is that a word means one thing — and the two functions contradicted each
+// other in adjacent lines, RegisterPayload's comment saying stdin "costs no extra flag"
+// directly above RegisterComment registering exactly that flag.
+func TestCommentReadsStdinThroughTheSameDashConvention(t *testing.T) {
+	runDir := seatRun(t)
+	if _, err := runStdin(t, hostile, "lens", "friction", "--run", runDir,
+		"--seat-id", "red-lens-r1-L1", "--text", "the payload", "--comment-file", "-"); err != nil {
+		t.Fatalf("--comment-file -: %v", err)
+	}
+	ev := lastOfType(t, runDir, "friction")
+	if got := ev.Payload.Str("comment"); got != hostile {
+		t.Errorf("comment = %q, want the stdin content intact", got)
+	}
+	if got := ev.Payload.Str("text"); got != "the payload" {
+		t.Errorf("the payload was disturbed by the comment reading stdin: %q", got)
+	}
+}
+
+// THERE IS ONE STDIN. Two fields claiming it used to mean the first reader consumed
+// everything and the second reported "stdin was empty" — an error naming the wrong flag,
+// which sends a seat hunting a problem with its payload that does not exist.
+func TestTwoFieldsCannotBothClaimStdin(t *testing.T) {
+	runDir := seatRun(t)
+	_, err := runStdin(t, "shared", "lens", "friction", "--run", runDir,
+		"--seat-id", "red-lens-r1-L1", "--file", "-", "--comment-file", "-")
+	if err == nil {
+		t.Fatal("both fields read stdin and neither complained; one of them silently got nothing")
+	}
+	for _, want := range []string{"--file -", "--comment-file -", "only one"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name BOTH claimants and the reason, got: %v", err)
+		}
+	}
+}

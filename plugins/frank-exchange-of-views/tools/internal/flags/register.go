@@ -12,7 +12,7 @@ import (
 // RegisterComment attaches the universal free-text field in all three forms.
 //
 // Three spellings, one destination. --comment for a phrase, --comment-file for anything
-// long, --comment-stdin for anything that would have to survive shell quoting. The run's
+// long, and `--comment-file -` for anything that would have to survive shell quoting. The run's
 // transcripts showed why the third matters: 68 commands carried escaped quotes and 37
 // staged a temp file first, twice failing because the staged file was not there. A seat
 // should never be choosing between saying the thing and escaping the thing.
@@ -22,7 +22,21 @@ import (
 func RegisterComment(c *cobra.Command) {
 	c.Flags().String(Comment, "", DescComment)
 	c.Flags().String(CommentFile, "", DescCommentFile)
-	c.Flags().Bool(CommentStdin, false, DescCommentStdin)
+}
+
+// guardSingleStdinReader refuses an invocation in which two fields both claim stdin.
+//
+// There is ONE stdin. `--file -` with `--comment-file -` used to mean the first reader
+// consumed everything and the second reported "stdin was empty" — an error that blames the
+// wrong flag and sends a seat looking for a problem with its payload. Two claims on one
+// stream is a mistake in the command, and the command should say so.
+func guardSingleStdinReader(c *cobra.Command) error {
+	payload, _ := c.Flags().GetString(File)
+	comment, _ := c.Flags().GetString(CommentFile)
+	if payload == "-" && comment == "-" {
+		return fmt.Errorf("--%s - and --%s - both read stdin, and there is only one: pass one of them a path", File, CommentFile)
+	}
+	return nil
 }
 
 // RegisterPayload attaches the prose payload in its file and inline forms, with the
@@ -41,7 +55,13 @@ func RegisterPayload(c *cobra.Command) {
 func ReadComment(c *cobra.Command, stdin io.Reader) (string, error) {
 	inline, _ := c.Flags().GetString(Comment)
 	file, _ := c.Flags().GetString(CommentFile)
-	useStdin, _ := c.Flags().GetBool(CommentStdin)
+	useStdin := file == "-"
+	if useStdin {
+		file = ""
+	}
+	if err := guardSingleStdinReader(c); err != nil {
+		return "", err
+	}
 
 	given := 0
 	for _, on := range []bool{inline != "", file != "", useStdin} {
@@ -50,7 +70,7 @@ func ReadComment(c *cobra.Command, stdin io.Reader) (string, error) {
 		}
 	}
 	if given > 1 {
-		return "", fmt.Errorf("--%s, --%s and --%s are three spellings of one field: pass exactly one", Comment, CommentFile, CommentStdin)
+		return "", fmt.Errorf("--%s and --%s are two spellings of one field: pass exactly one", Comment, CommentFile)
 	}
 	switch {
 	case file != "":
@@ -62,11 +82,11 @@ func ReadComment(c *cobra.Command, stdin io.Reader) (string, error) {
 	case useStdin:
 		b, err := io.ReadAll(stdin)
 		if err != nil {
-			return "", fmt.Errorf("--%s: %w", CommentStdin, err)
+			return "", fmt.Errorf("--%s -: %w", CommentFile, err)
 		}
 		s := strings.TrimRight(string(b), "\n")
 		if s == "" {
-			return "", fmt.Errorf("--%s was given but stdin was empty", CommentStdin)
+			return "", fmt.Errorf("--%s - was given but stdin was empty", CommentFile)
 		}
 		return s, nil
 	default:
@@ -77,6 +97,9 @@ func ReadComment(c *cobra.Command, stdin io.Reader) (string, error) {
 // ReadPayload resolves the prose payload: --text inline, --file from disk, or `--file -`
 // from stdin. Same one-of rule and same reason as ReadComment.
 func ReadPayload(c *cobra.Command, stdin io.Reader) (string, error) {
+	if err := guardSingleStdinReader(c); err != nil {
+		return "", err
+	}
 	text, _ := c.Flags().GetString(Text)
 	file, _ := c.Flags().GetString(File)
 	if text != "" && file != "" {
