@@ -212,9 +212,28 @@ func deriveKey(seatID, typ string, p *Payload, shardEvents []Event) string {
 // into the difftest harness).
 var Now = func() time.Time { return time.Now().UTC() }
 
-// stamp formats an event time. Millisecond precision: seats act on a scale of seconds,
-// and a fixed width keeps the shard lines readable and diffable.
-func stamp() string { return Now().Format("2006-01-02T15:04:05.000Z") }
+// stamp formats an event time at NANOSECOND precision.
+//
+// It was milliseconds, justified as "seats act on a scale of seconds, and a fixed width
+// keeps the shard lines readable". That reasoning is for a field a human reads. This field
+// is the ORDERING KEY, and the cost of a coarse one is not readability.
+//
+// When two events share a stamp the sort falls through to (SeatID, Seq) — and ordering by
+// seat name is the exact defect that silently dropped the bench's closures, because
+// "judge-r2" sorts before "red-merge-r1" and every ruling replayed before the mint it
+// referenced. A millisecond clock reintroduces that defect for any two events inside the
+// same tick, which under a fast seat or a test is most of them. The test harness had been
+// papering over it by ranking positions instead of instants; the ties were real.
+//
+// Nanoseconds do not make ordering PERFECT across processes — wall clocks can skew or step
+// backwards, which is why (SeatID, Seq) remains the tiebreak — but they take ties from
+// routine to vanishing. The principled alternative is a logical clock (a per-run counter
+// under the append lock), which needs no wall clock at all; noted in
+// plans/tool-is-the-contract.md rather than built here, because a monotonic COUNTER is a
+// schema change and this is one line.
+//
+// Fixed width is preserved, so lexicographic order is still time order.
+func stamp() string { return Now().Format("2006-01-02T15:04:05.000000000Z") }
 
 // AmbientComment is the value of the universal --comment flag for THIS invocation.
 //
