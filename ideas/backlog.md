@@ -96,3 +96,45 @@ An honest observation that motivated the note: this session repeatedly reached
 for knowledge that exists outside the repo (cobra's own generator and how-to
 guides settled a design argument in minutes), and there is currently no mechanism
 that would have surfaced it without a human suggesting it.
+
+## A fourth plugin: the continuity/checkpointing behaviours (operator, 2026-07-18)
+
+PR #3 ("Memento") stays OPEN and is retargeted: not a plan to merge, not a
+proposal to close, but the seed of a DEDICATED OPERATIONAL PLUGIN with its own
+Culture ship name — the fourth alongside prosthetic-conscience,
+frank-exchange-of-views and sleeper-service.
+
+WHY A PLUGIN AND NOT A SKILL IN AN EXISTING ONE. The behaviours are operational
+rather than adversarial: they govern how a session SURVIVES — compaction,
+restart, handoff, resumption — which is orthogonal to prosthetic-conscience's
+rules-as-conscience and to the debate engine entirely. Folding them into
+prosthetic-conscience would make that plugin two things at once, which is the
+anti-pattern its own agent-guardrails skill forbids ("single-purpose; decompose
+instead").
+
+WHAT IT WOULD CARRY, all of it already proven in practice rather than theorized:
+
+- THE CHECKPOINT DISCIPLINE. One block only, each seal REPLACING the previous —
+  learned the hard way when accumulated checkpoints pushed the memory file past
+  the auto-recall inline threshold. The checkpoint carries in-flight background
+  task IDs, because a task handle is the only thread back to work that survives
+  compaction.
+- THE RESTORE PROTOCOL. Read-only until the ordered next-actions list; verify
+  every checkpoint claim against reality before acting on it. A checkpoint is a
+  memory, and this suite's whole stance is that memory is unverified until
+  checked.
+- HANDOFF AND RESUMPTION. What a session hands its successor, and how a
+  successor establishes what is actually true.
+- ARTIFACTS OVER REASONING. Phases exist to create recoverable moments:
+  compressed mid-implementation you work back from the written design;
+  compressed mid-verification you trust the written loop. context-efficiency
+  states this; nothing operationalizes it.
+
+THE LARGER POINT, and the reason this is recorded here rather than built now: a
+great deal of what this suite actually DOES lives in conversation and session
+memory rather than in a skill. The checkpoint discipline is one example; the
+identity dance for agent commits, the live-run git rules, and the update dance
+are others. Codifying them is not a one-off tidy-up, it is a standing job — and
+it is exactly what the sleeper service is for. Plotting WHICH behaviours deserve
+codification is a sleeper-service task (see the skill-discovery entry above),
+not a thing to guess at in one sitting.
