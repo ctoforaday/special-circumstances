@@ -154,7 +154,12 @@ export function mirrorScorecards(memoryDir, runDir) {
       .map((m) => `${m[1]} ${m[3]} [${m[2].toUpperCase()}]`)
     if (picks.length) headlines[chair] = picks.slice(0, 3)
   }
-  return { written: staged.length > 0, chairs: staged, headlines }
+  // A run-1 corpus legitimately has no scorecards: they are WRITTEN at capture and
+  // READ by the next run, so the visibility loop cannot close on its own first turn.
+  // That is an expected state, not a failure, and it must say so — the caller prints
+  // this reason, and an absent one printed a bare "undefined" that read like a bug.
+  if (!staged.length) return { written: false, reason: 'no scorecards yet — written at capture, consumed by the next run', chairs: [], headlines: {} }
+  return { written: true, chairs: staged, headlines }
 }
 
 // buildPatternIndex — the class join's lookup table.
@@ -179,8 +184,17 @@ export function buildPatternIndex(dirs) {
   const byClass = {}
   const unclassified = []
   const harnessLimit = []
+  // FIRST SOURCE WINS, exactly as mirrorGapPatterns does it — the promoted corpus is
+  // authoritative and the raw accrual path holds PRE-PROMOTION copies of the same
+  // filenames. Without this, every promoted pattern was counted twice: once classified
+  // from feov-memory/, once classless from .claude/agent-memory/, and setup reported a
+  // 55-item classification backlog that did not exist. Two readers of one corpus must
+  // agree on identity; when only one of them dedups, the other one lies.
+  const seen = new Set()
   for (const dir of (Array.isArray(dirs) ? dirs : [dirs]).filter((d) => d && existsSync(d))) {
     for (const f of readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md' && f !== 'MEMORY.md')) {
+      if (seen.has(f)) continue
+      seen.add(f)
       const body = readFileSync(join(dir, f), 'utf8')
       const fm = /^---\n([\s\S]*?)\n---/.exec(body)
       const title = (/^#\s+(.+)$/m.exec(body) || [, f])[1]

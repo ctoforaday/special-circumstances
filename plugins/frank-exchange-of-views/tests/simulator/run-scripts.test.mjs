@@ -364,3 +364,47 @@ test('W2e precedent harvest: rulings become PERSUASIVE proposals with defeasible
   assert.equal(noLaw.written, false)
   assert.ok(noLaw.reason.includes('law'))
 })
+
+// Two readers of one corpus must agree on identity. mirrorGapPatterns dedups
+// promoted-first; buildPatternIndex did not, so the raw accrual path's
+// PRE-PROMOTION copies were re-counted as an unclassified backlog. Found by
+// running setup for real: it reported 55 patterns needing classification when
+// the true number was zero.
+test('buildPatternIndex dedups promoted-first, like its sibling mirror', async () => {
+  const { buildPatternIndex } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+  const promoted = tmp(), raw = tmp()
+  // Same filename in both tiers: classified in the promoted corpus, classless in raw.
+  writeFileSync(join(promoted, 'p.md'), '---\nmetadata:\n  classes: [false-universal]\ndescription: hook\n---\n# P\n')
+  writeFileSync(join(raw, 'p.md'), '---\ndescription: pre-promotion copy\n---\n# P\n')
+  const r = buildPatternIndex([promoted, raw])
+  assert.deepEqual(r.unclassified, [], 'the raw copy must not resurrect as a backlog item')
+  assert.equal(r.byClass['false-universal'].length, 1, 'and must not double-deliver either')
+  // Order encodes authority: promoted first wins, so reversing it is a different answer.
+  const reversed = buildPatternIndex([raw, promoted])
+  assert.deepEqual(reversed.unclassified, ['p.md'], 'raw-first surfaces the unclassified copy — order is the policy')
+})
+
+// A harness-limit pattern is deliberately classless and is NOT unfinished work.
+test('buildPatternIndex keeps harness-limit distinct from unclassified', async () => {
+  const { buildPatternIndex } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+  const d = tmp()
+  writeFileSync(join(d, 'h.md'), '---\nmetadata:\n  classes: []\n  class_note: harness-limit — a tooling constraint\n---\n# H\n')
+  writeFileSync(join(d, 'u.md'), '---\nmetadata:\n  classes: []\n---\n# U\n')
+  const r = buildPatternIndex(d)
+  assert.deepEqual(r.harnessLimit, ['h.md'])
+  assert.deepEqual(r.unclassified, ['u.md'], 'only the genuinely unclassified counts as backlog')
+})
+
+// Run 1 has no scorecards by construction — they are written at capture and read
+// by the next run. The absent-reason printed a bare "undefined", which reads as a
+// defect in a feature that was working exactly as designed.
+test('mirrorScorecards explains an empty corpus instead of printing undefined', async () => {
+  const { mirrorScorecards } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
+  const mem = tmp(), runDir = tmp()
+  mkdirSync(join(runDir, 'inputs'), { recursive: true })
+  const r = mirrorScorecards(mem, runDir)
+  assert.equal(r.written, false)
+  assert.equal(typeof r.reason, 'string')
+  assert.ok(r.reason.length > 0, 'a false result must carry a printable reason')
+  assert.ok(/capture/.test(r.reason), 'and the reason should say where scorecards come from')
+})
