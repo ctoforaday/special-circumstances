@@ -563,6 +563,12 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if !p.Has("reason") || p.Str("reason") == "" {
 			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
 		}
+	case "verdict":
+		// The seat's terminal act is where completion duties belong: it is the last
+		// moment the seat is still there to discharge them.
+		if err := requireSupersededAreClosed(runDir); err != nil {
+			return err
+		}
 	case "spot-check":
 		if err := requireGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
 			return err

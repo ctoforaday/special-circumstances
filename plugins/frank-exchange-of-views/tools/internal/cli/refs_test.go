@@ -186,3 +186,53 @@ func TestAFindingCannotBeGivenASecondFate(t *testing.T) {
 		t.Errorf("the refusal must point at the channel for a missing capability, since there is no verb for revising a disposal: %v", err)
 	}
 }
+
+// SUPERSEDING IS A PROMISE TO REPLACE, and the promise is due at the seat's terminal act.
+//
+// INVESTIGATED, NOT ASSUMED. 9 mints in the 2026-07-18 run superseded an open gap, and the
+// frequency first read as proof it was intended. Tracing each one splits them:
+//
+//	7 are STRUCTURALLY REQUIRED — the protocol mints the successor, then closes the
+//	  ancestor naming it, so the ancestor MUST still be open at mint time.
+//	2 are a DEFECT — R3-1 superseded R2-1 and R2-5 and closed neither, so all three
+//	  finished open. The run reported 9 open gaps; 7 were distinct.
+//
+// So the rule is not about mint-time state, which would refuse all 9. It is a completion
+// duty, and this test holds both halves: the 7 stay legal, the 2 are caught.
+func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
+	runDir := seatRun(t)
+	ancestor := mintGap(t, runDir, "the-ancestor", "lineage-completion")
+
+	// THE LEGAL 7: mint a successor while the ancestor is still open.
+	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "the-successor", "--class", "lineage-completion", "--location", "l",
+		"--problem", "p", "--fix", "f", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
+		"--supersedes", ancestor)
+	if err != nil {
+		t.Fatalf("superseding an OPEN gap is what 7 of 9 real mints did, and the protocol requires it: %v", err)
+	}
+	successor := gapID(out)
+
+	// THE DEFECT: finish without closing the ancestor.
+	_, err = run(t, "merge", "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS")
+	if err == nil {
+		t.Fatal("the seat finished with a superseded gap still open — the same defect counted twice, which is how a board reported 9 open gaps for 7 distinct ones")
+	}
+	for _, want := range []string{ancestor, successor} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name the stranded ancestor AND what claimed to replace it, got: %v", err)
+		}
+	}
+
+	// KEEPING THE PROMISE clears it.
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", ancestor, "--as", "closed", "--successor", successor,
+		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x",
+		"--text", "replaced by its successor"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS"); err != nil {
+		t.Errorf("with the ancestor closed the verdict must go through: %v", err)
+	}
+}

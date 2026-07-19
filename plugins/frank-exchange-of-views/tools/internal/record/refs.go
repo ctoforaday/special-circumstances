@@ -1,6 +1,10 @@
 package record
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // EVERY REFERENCE IS CHECKED AGAINST THE THING IT REFERENCES.
 //
@@ -253,4 +257,53 @@ func requireUndisposed(runDir, target string) error {
 		}
 	}
 	return nil
+}
+
+// requireSupersededAreClosed is a COMPLETION duty, checked at the seat's terminal act.
+//
+// INVESTIGATED RATHER THAN ASSUMED. "Superseding an open gap" happened 9 times in the
+// 2026-07-18 run and I first read the frequency as proof it was intended. Tracing what each
+// one actually did splits them in two:
+//
+//	7 are STRUCTURALLY REQUIRED. The protocol is mint-the-successor, then close the
+//	  ancestor naming it — so the ancestor is necessarily still open at mint time, and it
+//	  cannot be otherwise, because the closure has to name a successor that already exists.
+//	2 are a DEFECT nobody caught. R3-1 superseded R2-1 and R2-5 and neither was ever
+//	  closed, so all three finished OPEN on the board. The run reported 9 open gaps; 7
+//	  were distinct defects and one was counted three times.
+//
+// That is why the rule is not "supersedes must name a closed gap" — that would refuse all
+// 9, including the 7 the protocol demands. The duty is that a superseded ancestor must not
+// still be open when the seat FINISHES: superseding is a promise to replace, and a promise
+// kept open inflates every count the board reports.
+//
+// Checked at verdict because that is the seat's terminal act and the last moment it is
+// still there to close them.
+func requireSupersededAreClosed(runDir string) error {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return err
+	}
+	superseded := map[string]string{} // ancestor -> the gap that claimed to replace it
+	for _, id := range b.GapOrder {
+		g := b.Gaps[id]
+		if g == nil || g.Mint == nil {
+			continue
+		}
+		for _, anc := range g.Mint.StrList("supersedes") {
+			superseded[anc] = id
+		}
+	}
+	var stranded []string
+	for anc, successor := range superseded {
+		if g, ok := b.Gaps[anc]; ok && g.Open {
+			stranded = append(stranded, fmt.Sprintf("%s (superseded by %s)", anc, successor))
+		}
+	}
+	if len(stranded) == 0 {
+		return nil
+	}
+	sort.Strings(stranded)
+	return fmt.Errorf("record: verdict refused — %d superseded gap(s) are still OPEN: %s. Superseding is a promise to replace, and an ancestor left open is the same defect counted twice: the 2026-07-18 run finished reporting 9 open gaps of which 7 were distinct. Close each ancestor (--successor names its replacement), or if it is genuinely still live, it was not superseded",
+		len(stranded), strings.Join(stranded, ", "))
 }
