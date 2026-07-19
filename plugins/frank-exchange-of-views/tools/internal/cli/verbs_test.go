@@ -31,6 +31,25 @@ func seedReferents(t *testing.T, runDir string) {
 		"--label", "SEED-O1", "--kind", "note", "--text", "a seeded observation"); err != nil {
 		t.Fatal(err)
 	}
+	// STATE, not just referents. A dispute-respond needs a dispute to answer, and a
+	// spot-check samples the ARCHIVE, so R1-3 is minted and closed to put something in
+	// it. Verbs are refused on the wrong state now, so the fixture has to build the
+	// world each verb actually operates in.
+	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
+		"--basis", "the seeded dispute this fixture answers"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "seed-archived", "--class", "x", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "R1-3", "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "go test",
+		"--anchor-target", "./x", "--text", "closed so the archive is not empty"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestVerbPayloads(t *testing.T) {
@@ -214,19 +233,19 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		runDir := t.TempDir()
 		seedReferents(t, runDir)
 		out, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--ids", "R1-1,R1-2", "--notes", "both still hold")
+			"--ids", "R1-3", "--notes", "it still holds")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(out, "spot-checked R1-1, R1-2") {
+		if !strings.Contains(out, "spot-checked R1-3") {
 			t.Errorf("stdout = %q", out)
 		}
 		ev := lastOfType(t, runDir, "spot-check")
 		got := ev.Payload.StrList("ids")
-		if len(got) != 2 || got[0] != "R1-1" || got[1] != "R1-2" {
-			t.Errorf("ids = %q, want [R1-1 R1-2]", got)
+		if len(got) != 1 || got[0] != "R1-3" {
+			t.Errorf("ids = %q, want [R1-3] — the only CLOSED gap, which is what a spot-check samples", got)
 		}
-		if ev.Payload.Str("notes") != "both still hold" {
+		if ev.Payload.Str("notes") != "it still holds" {
 			t.Errorf("notes = %q", ev.Payload.Str("notes"))
 		}
 	})
@@ -254,7 +273,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 func TestSpotCheckIsASingleton(t *testing.T) {
 	runDir := t.TempDir()
 	seedReferents(t, runDir)
-	for _, ids := range []string{"R1-1", "R1-2"} {
+	for _, ids := range []string{"R1-3", "R1-3"} {
 		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", ids); err != nil {
 			t.Fatal(err)
 		}

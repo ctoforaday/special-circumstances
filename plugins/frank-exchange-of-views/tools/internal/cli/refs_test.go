@@ -98,3 +98,91 @@ func TestValidReferencesStillResolve(t *testing.T) {
 		}
 	}
 }
+
+// STATE, not just existence. A reference can resolve and still be wrong: the thing exists,
+// but not in a state where the act means anything.
+//
+// Every rule here was measured against the 2026-07-18 run before being written, and one
+// candidate was DROPPED by that check: "supersedes must name a closed gap" sounded right
+// and would have refused NINE OF NINE real mints, because superseding a still-open
+// predecessor is the normal pattern. The rules that survived had zero violations.
+func TestActsAreRefusedOnTheWrongState(t *testing.T) {
+	runDir := seatRun(t)
+	open := mintGap(t, runDir, "stays-open", "state-checks")
+	closed := mintGap(t, runDir, "gets-closed", "state-checks")
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", closed, "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "go test",
+		"--anchor-target", "./x", "--text", "closed"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range []struct {
+		name, wants string
+		args        []string
+	}{
+		{"close a gap twice", "double-counts closure history", []string{"merge", "close",
+			"--seat-id", "red-merge-r1", "--id", closed, "--as", "closed",
+			"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x"}},
+		{"regrade a closed gap", "changes a number nobody reads", []string{"merge", "regrade",
+			"--seat-id", "red-merge-r1", "--id", closed, "--severity", "low", "--basis", "b"}},
+		{"dispute a closed gap", "disposition has already been made", []string{"blue", "dispute",
+			"--seat-id", "blue-respond-r1", "--id", closed, "--dimension", "severity",
+			"--proposed", "low", "--basis", "b"}},
+		{"answer a dispute nobody filed", "no dispute was filed", []string{"merge", "dispute-respond",
+			"--seat-id", "red-merge-r1", "--id", open, "--as", "accepted", "--basis", "b"}},
+		{"spot-check an OPEN gap", "still OPEN", []string{"merge", "spot-check",
+			"--seat-id", "red-merge-r1", "--ids", open}},
+		{"carry residue into a closed gap", "already finished", []string{"merge", "close",
+			"--seat-id", "red-merge-r1", "--id", open, "--as", "closed",
+			"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
+			"--successor", closed}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			args := append([]string{c.args[0], c.args[1], "--run", runDir}, c.args[2:]...)
+			_, err := run(t, args...)
+			if err == nil {
+				t.Fatalf("%s was accepted", c.name)
+			}
+			if !strings.Contains(err.Error(), c.wants) {
+				t.Errorf("the refusal must explain what the state makes meaningless, got: %v", err)
+			}
+		})
+	}
+}
+
+// The rule the evidence KILLED. Nine of nine mints in the run superseded a still-open
+// predecessor, so requiring a closed one would have refused every real lineage claim.
+func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
+	runDir := seatRun(t)
+	ancestor := mintGap(t, runDir, "the-ancestor", "state-checks")
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "the-successor", "--class", "state-checks", "--location", "l",
+		"--problem", "p", "--fix", "f", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
+		"--supersedes", ancestor); err != nil {
+		t.Errorf("superseding an OPEN gap must be accepted — it is what 9 of 9 real mints did: %v", err)
+	}
+}
+
+// ONE FINDING, ONE FATE — checkable only now that identity is assigned.
+func TestAFindingCannotBeGivenASecondFate(t *testing.T) {
+	runDir := seatRun(t)
+	out, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--label", "L1-O1", "--kind", "note", "--text", "worth noticing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := findingID.FindString(out)
+	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--observation", id, "--as", "declined", "--reason", "checked at the leaf"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--observation", id, "--as", "banked", "--reason", "changed my mind")
+	if err == nil {
+		t.Fatal("a finding was given a second fate; the first is already in the counts and the projection silently shows whichever replayed last")
+	}
+	if !strings.Contains(err.Error(), "friction") {
+		t.Errorf("the refusal must point at the channel for a missing capability, since there is no verb for revising a disposal: %v", err)
+	}
+}

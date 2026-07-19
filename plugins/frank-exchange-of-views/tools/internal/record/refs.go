@@ -143,3 +143,114 @@ func requireSeat(runDir, seatID, verb, flag string) error {
 	}
 	return fmt.Errorf("record: %s %s names seat %s, which has recorded nothing in this run — a ruling attributed to a seat that never sat cannot be matched to the petition it answers", verb, flag, seatID)
 }
+
+// ---- STATE, not just existence ----
+//
+// A reference can resolve and still be wrong: the thing exists, but it is not in a state
+// where the act makes sense. Regrading a closed gap moves a number nobody will read;
+// answering a dispute nobody filed records half an argument; re-closing a closed gap
+// double-counts closure history and, per replay.go, corrupts the repair_regression
+// denominator that the whole repair metric divides by.
+//
+// EVERY RULE BELOW WAS MEASURED AGAINST THE 2026-07-18 RUN FIRST, and one candidate was
+// DROPPED because of it: "supersedes must name a closed gap" sounded right and would have
+// refused NINE OF NINE real mints — superseding a still-open predecessor is the normal
+// pattern, not an error. The rules that survived had zero violations in the run, so they
+// cost nothing today and exist for the cheaper tier.
+
+// gapState answers what a gap IS, not merely whether it exists.
+func gapState(runDir, id string) (closed bool, err error) {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return false, err
+	}
+	g, ok := b.Gaps[id]
+	if !ok {
+		return false, nil
+	}
+	return !g.Open, nil
+}
+
+// requireOpenGap refuses an act that only makes sense on a live gap.
+func requireOpenGap(runDir, id, verb, flag, why string) error {
+	if id == "" {
+		return nil
+	}
+	closed, err := gapState(runDir, id)
+	if err != nil {
+		return err
+	}
+	if closed {
+		return fmt.Errorf("record: %s %s names gap %s, which is already CLOSED — %s", verb, flag, id, why)
+	}
+	return nil
+}
+
+// requireClosedGap is the mirror: spot-check re-verifies the ARCHIVE, so naming a gap that
+// was never closed is not a sample of anything.
+func requireClosedGaps(runDir string, ids []string, verb, flag string) error {
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+		closed, err := gapState(runDir, id)
+		if err != nil {
+			return err
+		}
+		if !closed {
+			return fmt.Errorf("record: %s %s names gap %s, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it", verb, flag, id)
+		}
+	}
+	return nil
+}
+
+// requirePriorDispute refuses an answer to an argument nobody made.
+//
+// The dispute channel fired ZERO times across two full runs, which is a finding about the
+// channel rather than evidence that nobody disagreed. When it does fire, a response with no
+// dispute behind it would record one half of an exchange and make the accounting — disputes
+// raised against disputes answered — silently wrong in the flattering direction.
+func requirePriorDispute(runDir, gapID string) error {
+	if gapID == "" {
+		return nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range m.Events {
+		if e.Type == "dispute" && e.Payload.Str("gap_id") == gapID {
+			return nil
+		}
+	}
+	return fmt.Errorf("record: dispute-respond --id names gap %s, on which no dispute was filed — answering an argument nobody made records half an exchange and inflates the answered-disputes count against a denominator of zero", gapID)
+}
+
+// requireUndisposed refuses giving one finding a SECOND fate.
+//
+// This was unmeasurable before ids existed: the run showed 16 observations "disposed more
+// than once", but every one was a label collision — three rounds of lens 5 each recording
+// an L5-F1, and three disposals landing on whichever replayed first. With identity assigned
+// by the tool, a second disposal of the same finding is unambiguous, and it is wrong: the
+// first fate is already on the record and in the counts, and a second silently overwrites
+// which one the projection shows.
+//
+// A seat that has changed its mind about a fate is describing a REGRADE of a judgement, and
+// there is no verb for that yet — which is a finding about the tooling, and the friction
+// verb is how it gets one.
+func requireUndisposed(runDir, target string) error {
+	if target == "" {
+		return nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range m.Events {
+		if e.Type == "dispose" && e.Payload.Str("observation") == target {
+			return fmt.Errorf("record: dispose --observation names %s, which %s already gave the fate %q — a finding has one fate, and a second silently replaces which one the projection shows. If the first was wrong, record it with the friction verb: there is no verb for revising a disposal, and that absence is itself the finding",
+				target, e.SeatID, e.Payload.Str("disposition"))
+		}
+	}
+	return nil
+}

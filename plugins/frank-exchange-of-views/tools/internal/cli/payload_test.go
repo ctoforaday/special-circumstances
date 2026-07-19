@@ -43,6 +43,21 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		"--label", "L1-O1", "--kind", "note", "--text", "o"); err != nil {
 		t.Fatal(err)
 	}
+	// The STATE each verb needs, not just the referent. dispute-respond answers a
+	// dispute, so one is filed; spot-check samples the ARCHIVE, so a second gap is
+	// minted and closed to put something in it.
+	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+		"--id", id, "--dimension", "severity", "--proposed", "low", "--basis", "b"); err != nil {
+		t.Fatal(err)
+	}
+	undisputed := mintGap(t, runDir, "undisputed", "payload-channel")
+	archived := mintGap(t, runDir, "archived", "payload-channel")
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", archived, "--as", "closed",
+		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x",
+		"--text", "closed so the archive has something to sample"); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, c := range []struct {
 		name, key string
@@ -51,8 +66,8 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		{"merge dispose --reason", "reason", []string{"merge", "dispose", "--seat-id", "red-merge-r1", "--observation", "L1-O1", "--as", "declined"}},
 		{"merge regrade --basis", "basis", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
 		{"merge dispute-respond --basis", "rationale", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1", "--id", id, "--as", "accepted"}},
-		{"blue dispute --basis", "evidence", []string{"blue", "dispute", "--seat-id", "blue-respond-r1", "--id", id, "--dimension", "severity", "--proposed", "low"}},
-		{"merge spot-check --notes", "notes", []string{"merge", "spot-check", "--seat-id", "red-merge-r1", "--ids", id}},
+		{"blue dispute --basis", "evidence", []string{"blue", "dispute", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"merge spot-check --notes", "notes", []string{"merge", "spot-check", "--seat-id", "red-merge-r1", "--ids", archived}},
 		{"lens petition --basis", "basis", []string{"lens", "petition", "--seat-id", "red-lens-r1-L1", "--petition-class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {

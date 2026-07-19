@@ -476,6 +476,22 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireGap(runDir, p.Str("successor"), "close", "--successor"); err != nil {
 			return err
 		}
+		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
+		// is a dead end wearing a forwarding address.
+		if err := requireOpenGap(runDir, p.Str("successor"), "close", "--successor",
+			"the unresolved remainder cannot be carried into a gap that is already finished"); err != nil {
+			return err
+		}
+		// A FRESH close of a closed gap double-counts closure history and corrupts the
+		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
+		// close is exempt: restating an earlier closure is exactly what it means, and it
+		// is separately checked against a real prior closure below.
+		if !p.Has("carried_from") {
+			if err := requireOpenGap(runDir, p.Str("gap_id"), "close", "--id",
+				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use --carried-from <round> to RESTATE an earlier closure"); err != nil {
+				return err
+			}
+		}
 		if p.Str("closure_class") == "closed_with_regression" && !p.Has("successor") {
 			return fmt.Errorf("record: closed_with_regression requires --successor (lineage never drops)")
 		}
@@ -484,6 +500,17 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// reference: the verb differs, the dangling failure does not.
 		if err := requireGap(runDir, p.Str("gap_id"), typ, "--id"); err != nil {
 			return err
+		}
+		if typ == "dispute" {
+			if err := requireOpenGap(runDir, p.Str("gap_id"), "dispute", "--id",
+				"a grade dispute asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
+				return err
+			}
+		}
+		if typ == "dispute-respond" {
+			if err := requirePriorDispute(runDir, p.Str("gap_id")); err != nil {
+				return err
+			}
 		}
 	case "finding", "observe":
 		// A finding with no label CANNOT BE DISPOSED, and every finding must get a fate.
@@ -505,6 +532,11 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		} else if err := requireObservation(runDir, id, seatID, "dispose", "--observation"); err != nil {
 			return err
 		}
+		// ONE FINDING, ONE FATE — checkable only now that identity is assigned. The 16
+		// apparent double-disposals in the run were label collisions, not repeats.
+		if err := requireUndisposed(runDir, p.Str("observation")); err != nil {
+			return err
+		}
 		if err := requireGap(runDir, p.Str("into"), "dispose", "--into"); err != nil {
 			return err
 		}
@@ -513,6 +545,10 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		}
 	case "regrade":
 		if err := requireGap(runDir, p.Str("gap_id"), "regrade", "--id"); err != nil {
+			return err
+		}
+		if err := requireOpenGap(runDir, p.Str("gap_id"), "regrade", "--id",
+			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
 			return err
 		}
 		if !p.Has("basis") || p.Str("basis") == "" {
@@ -529,6 +565,9 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		}
 	case "spot-check":
 		if err := requireGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
+			return err
+		}
+		if err := requireClosedGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
 			return err
 		}
 	case "avenue":

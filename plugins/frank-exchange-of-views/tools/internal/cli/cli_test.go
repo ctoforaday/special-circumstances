@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -77,9 +78,27 @@ func events(t *testing.T, runDir string) []record.Event {
 	return m.Events
 }
 
+// lastOfType is LAST IN TIME, not last in the slice.
+//
+// MergedEvents returns events in shard order, so "the tail of the slice" is whichever seat
+// file sorts last — fine while a test run dir held one seat's events, wrong the moment
+// fixtures seed events from several seats. It silently returned the SEEDED dispute instead
+// of the one the test had just filed, which reads as the verb writing the wrong payload.
+// The canonical order is (TS, SeatID, Seq), the same key replay uses.
 func lastOfType(t *testing.T, runDir, typ string) record.Event {
 	t.Helper()
-	for i, evs := len(events(t, runDir))-1, events(t, runDir); i >= 0; i-- {
+	evs := events(t, runDir)
+	sort.SliceStable(evs, func(i, j int) bool {
+		a, b := evs[i], evs[j]
+		if a.TS != b.TS {
+			return a.TS < b.TS
+		}
+		if a.SeatID != b.SeatID {
+			return a.SeatID < b.SeatID
+		}
+		return a.Seq < b.Seq
+	})
+	for i := len(evs) - 1; i >= 0; i-- {
 		if evs[i].Type == typ {
 			return evs[i]
 		}
