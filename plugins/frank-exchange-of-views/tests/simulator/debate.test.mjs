@@ -1015,3 +1015,26 @@ test('lines of inquiry: no record tool -> no clause (the verb is the mechanism)'
   assert.ok(!world.calls.some((c) => /LINES OF INQUIRY|STEELMAN DUTY/.test(c.prompt)),
     'without the verb there is nothing to instruct — an unrecordable duty is the dead letter we are removing')
 })
+
+// ---- integrity inspection: the bench may read trajectories, on two conditions ----
+
+test('integrity inspection arms only with transcriptDir, and binds integrity-not-merits', async () => {
+  const armed = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] })],
+  }))
+  await armed.run(script, { ...ARGS, transcriptDir: '/sess/wf-123' })
+  const bench = armed.calls.find((c) => c.opts.label.startsWith('judge')).prompt
+
+  assert.ok(/INTEGRITY INSPECTION/.test(bench), 'the bench is told it may read')
+  assert.ok(/\/sess\/wf-123\/agent-\*\.jsonl/.test(bench), 'and where')
+  // The separation is the whole reason this is oversight rather than surveillance.
+  assert.ok(/MUST NOT use trajectory material to decide the MERITS/.test(bench), 'integrity only, never merits')
+  assert.ok(/DECLARE every inspection/.test(bench), 'the finding goes on the record even though the looking did not')
+
+  // Without the path there is nothing to read: the capability is honest about
+  // when it exists rather than instructing a seat to reach for what is not there.
+  const unarmed = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await unarmed.run(script, ARGS)
+  assert.ok(!unarmed.calls.some((c) => /INTEGRITY INSPECTION/.test(c.prompt)), 'no transcriptDir -> no clause')
+})

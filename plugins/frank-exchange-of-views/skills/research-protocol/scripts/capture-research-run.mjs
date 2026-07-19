@@ -256,6 +256,92 @@ const verbOf = (type) => (type === 'class-new' ? 'mint' : type)
 // human enacts. Derivation is mechanical from journal envelopes (resolutions
 // + petition rulings); facts/scope stay stubs the reviewer fills from the
 // cited record — the harvest never invents.
+// INTEGRITY RECONCILIATION — the bench's mind-reading, mechanized.
+//
+// This exists because the question "did the seat actually do what it says it
+// did" cannot be answered from the artifacts: a performative repair and a
+// rigorous one look identical in the record, which is part of why the judicial
+// gate measured inert at 86/87 carried. E0.5a did this audit BY HAND across one
+// run and found ~11% of the record mechanically unauditable by format. This is
+// that audit as a script.
+//
+// WHY IT LIVES AT CAPTURE AND NOT AT THE BENCH. Verified, not assumed: the
+// workflow transcript directory is created BY the run and supplied to capture by
+// the operator afterwards, so debate.js cannot know it at dispatch and a bench
+// seat cannot reach it mid-run. Where the operator DOES know it (a resume), the
+// engine takes transcriptDir and the bench gains live inspection; otherwise the
+// reconciliation is post-hoc and its findings reach the next run.
+//
+// DESIGN CONSTRAINT, from the operator: production-by-the-party would propagate
+// the lie and party-demanded discovery would encourage fabrication. So this reads
+// the trajectory DIRECTLY and never asks the seat to hand over its own evidence.
+//
+// SEPARATION: this rules on whether the RECORD IS HONEST, never on the merits of
+// a gap. Sloppy reasoning that reached a sound conclusion is not a finding; a
+// clean conclusion contradicted by what the seat actually did is.
+export function attestationAudit(runDir, transcriptDir, agentFiles, sampleFloor = 5) {
+  const archive = existsSync(join(runDir, 'red', 'archive.md'))
+    ? readFileSync(join(runDir, 'red', 'archive.md'), 'utf8') : ''
+  const blocks = archive.split(/^## /m).slice(1)
+  if (!blocks.length) return { check: 'attestation-integrity', verdict: 'SKIP', detail: 'no archive records to reconcile' }
+
+  // What each closure CLAIMS was done: the anchor triple names a seat, a tool and
+  // a target. Every one of those is checkable against the transcript.
+  const claims = []
+  for (const b of blocks) {
+    const id = (/^(R\d+-\d+)/.exec(b) || [, '?'])[1]
+    const anchor = /verification anchor:\s*(.+)/.exec(b)
+    if (!anchor) continue
+    if (/CARRIED from round/i.test(anchor[1])) continue // carried closures assert no fresh act
+    const [seat, tool, target] = anchor[1].split('|').map((x) => x.trim())
+    if (seat && tool && target) claims.push({ id, seat, tool, target })
+  }
+  if (!claims.length) return { check: 'attestation-integrity', verdict: 'SKIP', detail: 'no anchored closures (all carried, or anchors absent)' }
+
+  // Every tool call any seat actually made, as text to match targets against.
+  const calls = []
+  for (const f of agentFiles) {
+    for (const l of readFileSync(join(transcriptDir, f), 'utf8').split('\n')) {
+      if (!l.trim()) continue
+      let j; try { j = JSON.parse(l) } catch { continue }
+      const content = j.message && j.message.content
+      if (!Array.isArray(content)) continue
+      for (const c of content) {
+        if (c.type !== 'tool_use') continue
+        calls.push({ agent: f, name: c.name || '', input: JSON.stringify(c.input || {}) })
+      }
+    }
+  }
+
+  // A RANDOM SPOT-CHECK FLOOR, not suspicion-only. Reconciling only what already
+  // looks wrong means a seat needs merely to avoid arousing suspicion; sampling
+  // regardless is what makes an unreconcilable claim risky to make at all. Same
+  // shape as W1.8's archive spot-check floor.
+  const sampled = claims.length <= sampleFloor ? claims : claims.filter((_, i) => i % Math.ceil(claims.length / sampleFloor) === 0)
+  const unreconciled = []
+  for (const c of sampled) {
+    // The target is the load-bearing part: a file, ref or URL the seat says it
+    // read. Match on its most distinctive fragment rather than the whole string,
+    // since a seat may reach the same artifact by a different path.
+    const needle = String(c.target).split(/[\s|]+/).filter((t) => t.length > 6).sort((a, b) => b.length - a.length)[0]
+    if (!needle) { unreconciled.push({ ...c, why: 'anchor target too vague to reconcile' }); continue }
+    if (!calls.some((k) => k.input.includes(needle))) {
+      unreconciled.push({ ...c, why: `no tool call in any transcript touches ${needle}` })
+    }
+  }
+
+  return {
+    check: 'attestation-integrity',
+    verdict: unreconciled.length ? 'FAIL' : 'PASS',
+    detail: unreconciled.length
+      ? `${unreconciled.length}/${sampled.length} sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n` +
+        unreconciled.map((u) => `    - ${u.id} (${u.seat} | ${u.tool}): ${u.why}`).join('\n') +
+        '\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.'
+      : `${sampled.length}/${claims.length} anchored closure(s) sampled and reconciled against actual tool calls`,
+    unreconciled,
+  }
+}
+
 export function harvestPrecedents(runDir, results, lawDir) {
   const slug = String(runDir).replace(/[\\/]+$/, '').split(/[\\/]/).pop()
   const rulings = []
@@ -332,6 +418,7 @@ export function capture(runDir, transcriptDir) {
     assemblyScreen(runDir),
     recordParityAudit(runDir),
     recordJoinAudit(runDir, transcriptDir, agentFiles),
+    attestationAudit(runDir, transcriptDir, agentFiles),
   ]
   // R2.5 parity gate: when the run carried the record tool (records/ exists),
   // run the hand-vs-shadow fact comparison and relay its verdict.

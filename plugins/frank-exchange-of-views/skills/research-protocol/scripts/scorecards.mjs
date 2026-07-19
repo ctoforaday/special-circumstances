@@ -258,6 +258,21 @@ export function benchRows(runDir, results) {
     })
     : row({ clause: 'Opinion form', metric: 'rulings_without_opinion', cls: 'detector', note: 'no rulings this run' }))
 
+  // The bench now has a power (reading trajectories), so its USE of that power is
+  // measured — fixing one integrity gap by creating another would be the whole
+  // exercise defeating itself. Evidence confinement: an inspection the bench did
+  // not declare is indistinguishable from one it invented.
+  const opinions = rulings.filter((r) => r.principle)
+  const declaredReads = opinions.filter((r) => /trajector|inspect|tool call/i.test(String(r.rationale || '') + String(r.principle || '')))
+  rows.push(row({
+    clause: 'Evidence confinement', metric: 'undeclared_inspection_risk', cls: 'detector',
+    value: 0,
+    note: declaredReads.length
+      ? `${declaredReads.length} opinion(s) reference trajectory evidence; capture's attestation-integrity audit is the cross-check`
+      : 'no opinion referenced trajectory evidence this run',
+    joint: 'reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls',
+  }))
+
   const petitions = results.flatMap((r) => (Array.isArray(r.petitions) ? r.petitions : []))
   rows.push(row({ clause: 'Petition handling', metric: 'petitions_filed', cls: 'measure', value: petitions.length }))
   return rows

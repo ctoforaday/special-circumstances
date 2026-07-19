@@ -130,6 +130,30 @@ WHAT IT WOULD CARRY, all of it already proven in practice rather than theorized:
   compressed mid-verification you trust the written loop. context-efficiency
   states this; nothing operationalizes it.
 
+SCOPE REFRAME (operator, 2026-07-18): this is NOT only about surviving context
+compression. The other half — and the half that names the plugin — is MINING
+TRAJECTORIES FOR INFORMATION. A session's transcript holds what actually happened
+as opposed to what was reported, and that is a general capability with several
+consumers already built or wanted:
+
+- the bench's INTEGRITY INSPECTION (shipped): reconciling what a seat claims it
+  did against the tool calls it actually made, because production-by-the-party
+  propagates the lie and party-demanded discovery encourages fabrication
+- capture's attestation-integrity audit and record-join audit, both of which
+  reduce to trajectory mining with a different question
+- E0.5a's attestation audit and E0.5e's friction mining, done BY HAND over
+  transcripts and never tooled
+- context-use telemetry, cost audit, and the wall-clock forensics
+
+Each was written separately against the same JSONL. Generalized trajectory-mining
+tooling is the plugin's spine, and the checkpoint discipline is one consumer of
+it rather than the whole point.
+
+GRAY AREA is the name that fits (GCU, Excession — verified canon): the Culture's
+mind-reader, the ship that establishes what happened by reading directly, and is
+shunned by other Minds for doing it. The capability being necessary and
+distasteful at once is exactly the intuition to preserve.
+
 THE LARGER POINT, and the reason this is recorded here rather than built now: a
 great deal of what this suite actually DOES lives in conversation and session
 memory rather than in a skill. The checkpoint discipline is one example; the
