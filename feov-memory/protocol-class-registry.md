@@ -108,6 +108,24 @@ A formatting or notation convention silently decides what gets audited.
 - **Sweep question**: what material does this convention EXCLUDE from the audit
   surface, and is that exclusion intended?
 
+### invariant-at-wrong-level
+An invariant is enforced at a surface COARSER than the thing it protects, so the
+rule costs more than it needs to and proves less than it claims. The enforcement
+is real; the altitude is wrong.
+- **Instance**: "never subtract substance" protected CLAIMS by forbidding edits
+  to PROSE. It stopped run 3's real failure (blue quietly dropping content under
+  repair pressure) at the price of a report that could only grow — 1178 to 1668
+  lines in one run — with every audit seat re-reading all of it every round. And
+  it still could not prove what it claimed: an edit could remove a claim
+  silently, because prose has no arithmetic.
+- **Sweep question**: what is the SMALLEST thing this invariant actually protects,
+  and can that thing carry the check itself?
+- **Neighbour**: `policy-without-mechanism` — there the rule has no enforcer at
+  all; here it has one, aimed at the wrong surface.
+- **Distinguisher**: is anything enforcing this today? If nothing is, it is
+  policy-without-mechanism. If something is, but it guards a coarser surface than
+  the invariant needs, it is this.
+
 ## Minting a new class
 
 Same discipline as the gap registry: a new class needs a slug, a one-line

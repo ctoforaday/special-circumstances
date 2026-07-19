@@ -87,6 +87,26 @@ export function blueRows(runDir, results, telemetry) {
     note: claimed ? '' : 'no envelope carried the attestation field',
   }))
 
+  // The additive invariant, now that it is claims-level rather than prose-level.
+  // Prose may compact freely; a claim leaves only through a retire record. So an
+  // unaccounted FALL in claim_count is the whole enforcement — arithmetic, not
+  // judgement, and detectable without reading a word of the report.
+  const counts = results.filter((r) => typeof r.claim_count === 'number').map((r) => r.claim_count)
+  const retires = results.reduce((n, r) => n + (Array.isArray(r.retired) ? r.retired.length : 0), 0)
+  let drop = 0
+  for (let i = 1; i < counts.length; i++) if (counts[i] < counts[i - 1]) drop += counts[i - 1] - counts[i]
+  rows.push(counts.length > 1
+    ? row({
+      clause: 'LOSS: additive violations', metric: 'unrecorded_claim_loss', cls: 'detector',
+      value: Math.max(0, drop - retires),
+      note: `${drop} claim(s) lost across rounds, ${retires} retired on the record`,
+      joint: 'a fall the retire events do not account for is substance leaving silently — the failure the old prose-level rule was written to stop',
+    })
+    : row({
+      clause: 'LOSS: additive violations', metric: 'unrecorded_claim_loss', cls: 'detector',
+      note: 'needs at least two rounds reporting claim_count',
+    }))
+
   rows.push(row({
     clause: 'Calibration is craft', metric: 'confidence_vs_survival', cls: 'benchmark',
     note: 'BLOCKED until per-claim confidence records exist (W2f) — calibration cannot be computed from prose',

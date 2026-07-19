@@ -19,6 +19,7 @@ func NewCommand() *cobra.Command {
 		"blue seats — revisions, manifest rows, disputes. No board verbs at all.",
 		seat.Register(role, "FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newRevision(),
+		newRetire(),
 		newManifestRow(),
 		newDispute(),
 		newConfidence(),

@@ -173,6 +173,7 @@ Available Commands:
   position     the round's ### BLUE section (prose via --file)
   register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render       read-only projection refresh (any seat may invoke)
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
   revision     the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land
 
 Flags:
