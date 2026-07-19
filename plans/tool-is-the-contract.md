@@ -113,3 +113,27 @@ Shipped: the read surface, the structured board, the vocabulary lock, cross-seat
 `lens-passes`, `gap-patterns` and `law` views do not exist, and none of the §IV.B gates are
 built. The next run is NOT yet path-free, and saying otherwise would be the kind of claim
 this document exists to make checkable.
+
+## VII. The logical clock (deferred, and why)
+
+`ts` is nanoseconds now, which takes ties from routine to vanishing. It does not make
+cross-process ordering *correct*: wall clocks skew, and NTP can step one backwards, so two
+seats can still stamp out of order. `(SeatID, Seq)` remains the tiebreak, and ordering by
+seat name is the failure this whole field exists to prevent.
+
+**The principled fix is a logical clock** — a per-run monotonic counter, incremented under
+the append lock the record layer already takes. Ordering is a LOGICAL property; deriving
+it from a physical clock is the category error underneath both the millisecond bug and the
+timing-dependent goldens. A counter needs no clock, cannot skew, and gives a total order by
+construction.
+
+Not built yet because it is a schema change on the hot path and the one-line precision fix
+retires the practical problem. Build it when the ordering key next causes an incident, or
+when the event schema is being revised for another reason. Do not build it as a
+free-standing task.
+
+**Related:** process-relative high-resolution timers (`process.hrtime.bigint`,
+`performance.now`) do not solve this. They are monotonic *within a process*, and every
+`feov-record` invocation is a separate process, so their origins are unrelated. Making them
+comparable would mean persisting a run-start origin and measuring against it — which is a
+logical clock wearing a stopwatch costume, with extra steps and a worse failure mode.
