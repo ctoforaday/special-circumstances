@@ -1063,3 +1063,70 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 		t.Fatalf("events should have landed in the explicit run dir: %v", err)
 	}
 }
+
+// The W1.8 spot-check floor keys on the archive's state at round START, so a round
+// entering with zero records has nothing to sample. --ids demanded a list, so this run's
+// red-merge-r1 could record the discharge only as prose in the ledger — which a later
+// audit has to take on trust. An unrecordable discharge is indistinguishable from a
+// skipped duty, which is precisely what the event stream exists to prevent.
+func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--none", "--reason", "archive empty at round start; floor not applicable")
+	if err != nil {
+		t.Fatalf("an empty archive must be recordable: %v", err)
+	}
+	if !strings.Contains(out, "nothing to sample") {
+		t.Errorf("output %q should say the discharge was empty", out)
+	}
+	ev := lastOfType(t, runDir, "spot-check")
+	keys := payloadKeys(ev)
+	if !keys["none"] || !keys["reason"] {
+		t.Errorf("the event must carry both the empty marker and its reason; got %v", keys)
+	}
+}
+
+func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--none"); err == nil ||
+		!strings.Contains(err.Error(), "--reason") {
+		t.Fatalf("--none with no reason must be refused, got %v", err)
+	}
+}
+
+func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--none", "--reason", "x", "--ids", "R1-4"); err == nil || !strings.Contains(err.Error(), "contradictory") {
+		t.Fatalf("claiming both nothing-to-sample and a sample must be refused, got %v", err)
+	}
+}
+
+// The bare form still works and still records an empty array. The friction claimed the
+// tool could not record an empty round; it could, and TestSpotCheckIdsAreAlwaysAnArray
+// caught the attempt to break that. What was missing was the REASON, not the record.
+func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		t.Fatalf("the bare form must keep working: %v", err)
+	}
+	if keys := payloadKeys(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
+		t.Error("ids must still be present as an empty array")
+	}
+}
