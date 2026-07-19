@@ -1,17 +1,17 @@
 $ lens observe --run {RUN} --seat-id red-lens-r1-L5 --kind note --label N1 --text below bar but real
 exit 0
 stdout:
-observation recorded (red-lens-r1-L5:observe:N1) — awaiting merge disposition
+observation recorded: FINDING001 (N1) — awaiting merge disposition, which names it by ID
 
 $ lens observe --run {RUN} --seat-id red-lens-r1-L5 --text unlabelled, ordinal-keyed
-exit 0
-stdout:
-observation recorded (red-lens-r1-L5:observe:#2) — awaiting merge disposition
+exit 2
+stderr:
+feov-record: lens: record: observe requires --label — the merge disposes findings BY LABEL, so an unlabelled one can never be given a fate and stays open forever
 
 $ lens observe --run {RUN} --seat-id red-lens-r1-L5 --text second unlabelled
-exit 0
-stdout:
-observation recorded (red-lens-r1-L5:observe:#3) — awaiting merge disposition
+exit 2
+stderr:
+feov-record: lens: record: observe requires --label — the merge disposes findings BY LABEL, so an unlabelled one can never be given a fate and stays open forever
 
 $ merge register --run {RUN} --seat-id red-merge-r1
 exit 0
@@ -26,22 +26,20 @@ disposed N1: declined
 $ merge dispose --run {RUN} --seat-id red-merge-r1 --observation N-missing --as banked
 exit 2
 stderr:
-feov-record: merge: record: dispose --observation names N-missing, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed
+feov-record: merge: record: dispose --observation names N-missing, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing
 
 $ merge dispose --run {RUN} --seat-id red-merge-r1 --observation N2
 exit 2
 stderr:
-feov-record: merge: record: dispose --observation names N2, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed
+feov-record: merge: record: dispose --observation names N2, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L5-NONCE001.jsonl
 {"key":"red-lens-r1-L5:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":0,"type":"register"}
-{"key":"red-lens-r1-L5:observe:N1","nonce":"NONCE001","payload":{"kind":"note","label":"N1","text":"below bar but real"},"round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":1,"type":"observe"}
-{"key":"red-lens-r1-L5:observe:#2","nonce":"NONCE001","payload":{"kind":"note","text":"unlabelled, ordinal-keyed"},"round":1,"seatId":"red-lens-r1-L5","seq":2,"ts":2,"type":"observe"}
-{"key":"red-lens-r1-L5:observe:#3","nonce":"NONCE001","payload":{"kind":"note","text":"second unlabelled"},"round":1,"seatId":"red-lens-r1-L5","seq":3,"ts":3,"type":"observe"}
+{"key":"red-lens-r1-L5:observe:N1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","kind":"note","label":"N1","text":"below bar but real"},"round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":1,"type":"observe"}
 -- events-red-merge-r1-NONCE002.jsonl
-{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":4,"type":"register"}
-{"key":"red-merge-r1:dispose:N1","nonce":"NONCE002","payload":{"disposition":"declined","observation":"N1","reason":"covered by R1-1"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":5,"type":"dispose"}
+{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
+{"key":"red-merge-r1:dispose:N1","nonce":"NONCE002","payload":{"disposition":"declined","observation":"N1","reason":"covered by R1-1"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"dispose"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md
@@ -66,11 +64,6 @@ feov-record: merge: record: dispose --observation names N2, which no observe or 
 ## CLOSURE INDEX
 
 
-
-## undisposed lens observations (every observation demands a merge disposition)
-
-- red-lens-r1-L5 red-lens-r1-L5:observe:#2: unlabelled, ordinal-keyed
-- red-lens-r1-L5 red-lens-r1-L5:observe:#3: second unlabelled
 
 -- lines-of-inquiry.md
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)

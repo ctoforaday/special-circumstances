@@ -391,15 +391,47 @@ func BoardState(runDir string) (*Board, error) {
 				SeatID: e.SeatID, Key: e.Key, Kind: e.Type, Payload: e.Payload,
 			})
 		case "dispose":
+			// BY ID FIRST, then by label within the SAME ROUND, then by label anywhere.
+			//
+			// "first match wins on the label" was the old rule, and it silently attached
+			// a disposal to whichever round's finding happened to replay first: 15
+			// labels in the 2026-07-18 run were used by more than one lens seat, so 39
+			// of 60 disposals were resolved by accident of ordering. The wrong finding
+			// got the fate and the right one stayed in the undisposed set forever.
 			target := e.Payload.Str("observation")
-			for _, o := range b.Observations { // find() — FIRST match wins
+			round := RoundOf(e.SeatID)
+			var byLabelSameRound, byLabelAny *Observation
+			var matched bool
+			for _, o := range b.Observations {
+				if o.Payload.Str("finding_id") == target && target != "" {
+					o.Disposition = e.Payload
+					matched = true
+					break
+				}
 				name := o.Payload.Str("label")
 				if name == "" {
 					name = o.Key
 				}
-				if name == target {
-					o.Disposition = e.Payload
-					break
+				if name != target {
+					continue
+				}
+				if byLabelAny == nil {
+					byLabelAny = o
+				}
+				if byLabelSameRound == nil && RoundOf(o.SeatID) == round {
+					byLabelSameRound = o
+				}
+			}
+			if !matched {
+				switch {
+				case byLabelSameRound != nil:
+					byLabelSameRound.Disposition = e.Payload
+				case byLabelAny != nil:
+					byLabelAny.Disposition = e.Payload
+				default:
+					b.Anomalies = append(b.Anomalies, fmt.Sprintf(
+						"dispose by %s referenced %s, which matches no finding or observation — the disposal was DROPPED and the intended one stays undisposed",
+						e.SeatID, target))
 				}
 			}
 		}

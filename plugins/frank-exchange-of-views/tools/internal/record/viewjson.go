@@ -74,6 +74,10 @@ type GapJSON struct {
 }
 
 type ObservationJSON struct {
+	// ID is the tool-assigned, unguessable identity — what a disposal names. It leads
+	// the struct because it is the field the merge seat acts on; the label below is
+	// description, and two lenses may both use "F1" without either being wrong.
+	ID     string         `json:"id"`
 	SeatID string         `json:"seat_id"`
 	Key    string         `json:"key"`
 	Kind   string         `json:"kind,omitempty"`
@@ -141,6 +145,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 			Disposed: o.Disposition != nil,
 		}
 		if o.Payload != nil {
+			oj.ID = o.Payload.Str("finding_id")
 			oj.Label = o.Payload.Str("label")
 			oj.Text = o.Payload.Str("text")
 		}

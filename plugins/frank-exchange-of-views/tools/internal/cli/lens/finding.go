@@ -31,10 +31,15 @@ func newFinding() *cobra.Command {
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetSame(cmd, p, flags.Location)
 			p.Set("text", text)
-			if _, err := record.Append(s.RunDir, s.SeatID, "finding", p); err != nil {
+			ev, err := record.Append(s.RunDir, s.SeatID, "finding", p)
+			if err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("finding %s recorded", seat.Str(cmd, flags.Label)), nil
+			// The ID IS THE ANSWER, so it leads. A seat that is told only "recorded" has
+			// to invent a way to refer to this later, and inventing is what produced
+			// nine disposals of findings that were never recorded.
+			return fmt.Sprintf("finding recorded: %s (%s) — the merge disposes it by ID, not by label",
+				ev.Payload.Str("finding_id"), seat.Str(cmd, flags.Label)), nil
 		}))
 
 	c.Flags().String(flags.Label, "", "your lens-scoped finding label (L3-F1). Stable R<round>-N ids are the merge's to assign, never a lens's")

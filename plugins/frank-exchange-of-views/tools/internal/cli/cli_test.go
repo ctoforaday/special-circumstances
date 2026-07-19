@@ -293,7 +293,9 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "finding L1-F1 recorded") {
+	// The ID leads the message now: it is what the merge will name, and a seat told only
+	// "recorded" has to invent a way to refer to this later.
+	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "L1-F1") {
 		t.Errorf("finding said %q", out)
 	}
 	// Render-on-mutation keeps projections current after every write.

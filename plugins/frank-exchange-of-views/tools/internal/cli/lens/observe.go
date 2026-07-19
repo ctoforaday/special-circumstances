@@ -33,7 +33,8 @@ func newObserve() *cobra.Command {
 			if err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("observation recorded (%s) — awaiting merge disposition", ev.Key), nil
+			return fmt.Sprintf("observation recorded: %s (%s) — awaiting merge disposition, which names it by ID",
+				ev.Payload.Str("finding_id"), seat.Str(cmd, flags.Label)), nil
 		}))
 
 	c.Flags().String(flags.Kind, "", "note | checked-held — an observation's flavour; the merge must still dispose it")

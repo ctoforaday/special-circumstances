@@ -114,6 +114,7 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	verbRole := map[string]string{
 		"mint": "merge", "close": "merge", "dispose": "merge", "regrade": "merge",
 		"retire": "blue", "avenue": "blue", "opinion": "bench",
+		"finding": "lens", "observe": "lens",
 	}
 	for verb, required := range record.RequiredFields {
 		role, ok := verbRole[verb]

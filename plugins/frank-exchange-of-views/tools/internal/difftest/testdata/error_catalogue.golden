@@ -44,7 +44,7 @@ feov-record: merge: record: closed_with_regression requires --successor (lineage
 
 ── dispose without disposition
 exit 2
-feov-record: merge: record: dispose --observation names L1-F1, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed
+feov-record: merge: record: dispose --observation names L1-F1, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing
 
 ── regrade without basis
 exit 2

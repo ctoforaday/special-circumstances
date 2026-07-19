@@ -26,6 +26,8 @@ package record
 // are documented in the flag's own description instead, where the condition can be stated.
 var RequiredFields = map[string][]string{
 	"mint":    {"acceptance_check", "class", "likelihood", "impact"},
+	"finding": {"label"},
+	"observe": {"label"},
 	"close":   {"gap_id"},
 	"dispose": {"disposition"},
 	"regrade": {"basis"},

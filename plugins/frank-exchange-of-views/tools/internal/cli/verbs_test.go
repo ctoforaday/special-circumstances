@@ -321,7 +321,7 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 		{"bench", "halt", "judge-terminal", "opinion", nil},
 		{"bench", "certify", "assemble", "statement", nil},
 		{"blue", "revision", "blue-lane-1", "text", nil},
-		{"lens", "observe", "red-lens-r1-L1", "text", nil},
+		{"lens", "observe", "red-lens-r1-L1", "text", []string{"--label", "PROSE-O1"}},
 		{"merge", "closing", "red-merge-r1", "text", []string{"--id", "R1-1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", []string{"--id", "R1-1"}},
 	}

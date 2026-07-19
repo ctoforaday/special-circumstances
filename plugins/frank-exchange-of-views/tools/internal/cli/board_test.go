@@ -21,6 +21,7 @@ type boardJSON struct {
 	Open         []map[string]any `json:"open"`
 	Closed       []map[string]any `json:"closed"`
 	Observations []struct {
+		ID       string         `json:"id"`
 		Label    string         `json:"label"`
 		Disposed bool           `json:"disposed"`
 		Fate     map[string]any `json:"fate"`

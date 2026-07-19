@@ -311,7 +311,15 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 	if err != nil {
 		return Event{}, err
 	}
-	if err := validate(runDir, typ, p); err != nil {
+	// IDENTITY IS ASSIGNED HERE, not chosen by the seat. A finding gets an unguessable
+	// id the moment it is recorded, so the only way to refer to it later is to have read
+	// it back — see findingid.go for what a guessable one cost.
+	if typ == "finding" || typ == "observe" {
+		if !p.Has("finding_id") {
+			p.Set("finding_id", NewFindingID())
+		}
+	}
+	if err := validate(runDir, seatID, typ, p); err != nil {
 		return Event{}, err
 	}
 	ev := Event{
@@ -368,7 +376,7 @@ func appendLine(shard string, ev Event) error {
 // validate mirrors the oracle's append-time checks: enums, anchors, lineage
 // existence, class registry. Error strings are matched verbatim — seats read
 // them, and the differential suite compares them.
-func validate(runDir, typ string, p *Payload) error {
+func validate(runDir, seatID, typ string, p *Payload) error {
 	for _, g := range []string{"severity", "likelihood", "impact", "complexity_cost"} {
 		v, ok := p.Get(g)
 		if !ok {
@@ -477,8 +485,24 @@ func validate(runDir, typ string, p *Payload) error {
 		if err := requireGap(runDir, p.Str("gap_id"), typ, "--id"); err != nil {
 			return err
 		}
+	case "finding", "observe":
+		// A finding with no label CANNOT BE DISPOSED, and every finding must get a fate.
+		// Measured on the 2026-07-18 run: 8 finding/observe events carried no label at
+		// all, so the merge could not name them even to decline them — they were
+		// unreferenceable from the moment they were written, and they sat in the
+		// undisposed set forever because nothing could ever address them.
+		if !p.Has("label") || p.Str("label") == "" {
+			return fmt.Errorf("record: %s requires --label — the merge disposes findings BY LABEL, so an unlabelled one can never be given a fate and stays open forever", typ)
+		}
 	case "dispose":
-		if err := requireObservation(runDir, p.Str("observation"), "dispose", "--observation"); err != nil {
+		// BY ID FIRST. A tool-assigned id is unambiguous by construction; the label
+		// path stays for prompts that have not been rewritten yet, and it refuses
+		// ambiguity rather than guessing.
+		if id := p.Str("observation"); strings.HasPrefix(id, "f-") {
+			if _, err := FindingByID(runDir, id); err != nil {
+				return err
+			}
+		} else if err := requireObservation(runDir, id, seatID, "dispose", "--observation"); err != nil {
 			return err
 		}
 		if err := requireGap(runDir, p.Str("into"), "dispose", "--into"); err != nil {

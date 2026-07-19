@@ -548,7 +548,7 @@ func TestBoardStateDispositionMatching(t *testing.T) {
 func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 	for _, field := range []string{"severity", "likelihood", "impact", "complexity_cost"} {
 		t.Run(field+"/rejects a non-grade", func(t *testing.T) {
-			err := validate(t.TempDir(), "mint", NewPayload().Set(field, "catastrophic"))
+			err := validate(t.TempDir(), "red-merge-r1", "mint", NewPayload().Set(field, "catastrophic"))
 			if err == nil {
 				t.Fatalf("%s=catastrophic was accepted", field)
 			}
@@ -559,7 +559,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 		t.Run(field+"/rejects a non-string", func(t *testing.T) {
 			// A bare boolean flag must fail the same way `true` does in the oracle.
-			err := validate(t.TempDir(), "mint", NewPayload().Set(field, true))
+			err := validate(t.TempDir(), "red-merge-r1", "mint", NewPayload().Set(field, true))
 			if err == nil {
 				t.Fatalf("%s=true was accepted", field)
 			}
@@ -570,14 +570,14 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		t.Run(field+"/accepts every canonical grade", func(t *testing.T) {
 			for _, g := range GRADES {
 				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
-				if err := validate(t.TempDir(), "mint", p); err != nil {
+				if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err != nil {
 					t.Errorf("%s=%s refused: %v", field, g, err)
 				}
 			}
 		})
 	}
 	// An ABSENT graded field is fine; only a present-and-wrong one is refused.
-	if err := validate(t.TempDir(), "regrade", NewPayload().Set("basis", "b")); err != nil {
+	if err := validate(t.TempDir(), "red-merge-r1", "regrade", NewPayload().Set("basis", "b")); err != nil {
 		t.Errorf("absent grades were refused: %v", err)
 	}
 }
@@ -620,7 +620,7 @@ func TestValidateVerbContracts(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(t.TempDir(), tc.typ, tc.p)
+			err := validate(t.TempDir(), "red-merge-r1", tc.typ, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -691,7 +691,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 				}
 				p.Set(f, "x")
 			}
-			err := validate(runDir, "opinion", p)
+			err := validate(runDir, "judge-r1", "opinion", p)
 			if err == nil {
 				t.Fatalf("opinion accepted without %s", missing)
 			}
@@ -709,7 +709,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		}
 		p.Set(f, "x")
 	}
-	if err := validate(complete, "opinion", p); err != nil {
+	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
 	// An EMPTY value still counts as present: the check is Has, not non-empty.
@@ -717,7 +717,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	for _, f := range all {
 		q.Set(f, "")
 	}
-	if err := validate(complete, "opinion", q); err != nil {
+	if err := validate(complete, "judge-r1", "opinion", q); err != nil {
 		t.Errorf("opinion fields present-but-empty were refused: %v", err)
 	}
 }
@@ -734,10 +734,10 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		return NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
 	}
 
-	if err := validate(runDir, "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
+	if err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
 		t.Errorf("a real ancestor was refused: %v", err)
 	}
-	err := validate(runDir, "mint", base().Set("supersedes", []string{"R1-1", "R9-9"}))
+	err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{"R1-1", "R9-9"}))
 	if err == nil {
 		t.Fatal("a dangling ancestor was accepted")
 	}
@@ -745,7 +745,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		t.Errorf("error must name the dangling id: %v", err)
 	}
 	// An empty lineage is not a dangling one.
-	if err := validate(runDir, "mint", base().Set("supersedes", []string{})); err != nil {
+	if err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{})); err != nil {
 		t.Errorf("an empty lineage was refused: %v", err)
 	}
 }
@@ -786,7 +786,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(runDir, "close", tc.p)
+			err := validate(runDir, "red-merge-r1", "close", tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -819,7 +819,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
-		if err := validate(t.TempDir(), "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
+		if err := validate(t.TempDir(), "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
 			t.Errorf("advisory mode refused a class: %v", err)
 		}
 	})
@@ -827,7 +827,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unparseable registry degrades to advisory", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, "{not json")
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
 			t.Errorf("an unparseable registry made validation strict: %v", err)
 		}
 	})
@@ -835,7 +835,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a known slug passes", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "scope-creep"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "scope-creep"))); err != nil {
 			t.Errorf("a registry slug was refused: %v", err)
 		}
 	})
@@ -843,7 +843,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unknown slug is refused with a hint", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		err := validate(runDir, "mint", mint(NewPayload().Set("class", "invented")))
+		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented")))
 		if err == nil {
 			t.Fatal("an unknown class was accepted")
 		}
@@ -867,7 +867,7 @@ func TestValidateClassRegistry(t *testing.T) {
 				}
 				p.Set(f, v)
 			}
-			err := validate(runDir, "mint", p)
+			err := validate(runDir, "red-merge-r1", "mint", p)
 			if err == nil {
 				t.Errorf("--class-new accepted without --%s", missing)
 				continue
@@ -883,7 +883,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeRegistry(t, runDir, registry)
 		p := mint(NewPayload().Set("class", "brand-new").Set("class_new", true).
 			Set("definition", "d").Set("neighbor", "not-a-class").Set("distinguisher", "q"))
-		err := validate(runDir, "mint", p)
+		err := validate(runDir, "red-merge-r1", "mint", p)
 		if err == nil {
 			t.Fatal("an invented neighbor was accepted")
 		}
@@ -899,13 +899,13 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 			ev(seatID, "aaaaaaaa", 0, 1, "class-new", seatID+":class-new:x", NewPayload().Set("slug", "run-local-class")),
 		})
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "run-local-class"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "run-local-class"))); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
 		p := mint(NewPayload().Set("class", "another").Set("class_new", true).
 			Set("definition", "d").Set("neighbor", "run-local-class").Set("distinguisher", "q"))
-		if err := validate(runDir, "mint", p); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", p); err != nil {
 			t.Errorf("a run-local class was not a valid neighbor: %v", err)
 		}
 	})
@@ -913,7 +913,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one"}]}`)
-		err := validate(runDir, "mint", mint(NewPayload().Set("class", "invented")))
+		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented")))
 		if err == nil {
 			t.Fatal("expected a refusal")
 		}
@@ -925,7 +925,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an EMPTY registry is still strict and does not panic", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[]}`)
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "invented"))); err == nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented"))); err == nil {
 			t.Error("an empty registry accepted an invented class")
 		}
 	})

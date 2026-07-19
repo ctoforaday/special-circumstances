@@ -47,12 +47,23 @@ func requireGaps(runDir string, ids []string, verb, flag string) error {
 	return nil
 }
 
-// requireObservation refuses a disposal of an observation that was never made.
+// requireObservation resolves a disposal's target, ROUND-SCOPED, and refuses ambiguity.
 //
-// The label is a LENS's word, minted in a different seat's shard, which is exactly the
-// cross-seat reference most likely to be mistyped and least likely to be noticed: an
-// unmatched disposal leaves the real observation looking undisposed forever.
-func requireObservation(runDir, label, verb, flag string) error {
+// The label is not a key. Measured on the 2026-07-18 run: 15 labels were used by more than
+// one lens seat (L5-F1 exists in rounds 1, 2 and 3), so 39 of 60 disposals named something
+// that matched several findings; 13 named a label no event ever created; and 8 finding
+// events carried no label at all, making them impossible to dispose by name.
+//
+// Round scoping is what makes the common case unambiguous, and it is what the seats
+// already meant: red-merge-r3 disposing L5-F1 means the L5-F1 that red-lens-r3-L5 found
+// THIS round, not the one from round 1. Measured, that resolves 38 of 60 cleanly with zero
+// same-round collisions.
+//
+// Where it still cannot tell, it REFUSES AND NAMES THE CANDIDATES rather than picking. A
+// silent wrong pick writes the wrong finding's fate into the record and leaves the right
+// one looking undisposed forever — invisible, and exactly the class of defect the whole
+// tool exists to remove.
+func requireObservation(runDir, label, seatID, verb, flag string) error {
 	if label == "" {
 		return nil
 	}
@@ -60,15 +71,31 @@ func requireObservation(runDir, label, verb, flag string) error {
 	if err != nil {
 		return err
 	}
+	round := RoundOf(seatID)
+	var sameRound, anyRound []string
 	for _, e := range m.Events {
 		if e.Type != "observe" && e.Type != "finding" {
 			continue
 		}
-		if e.Payload.Str("label") == label || e.Key == label {
-			return nil
+		if e.Payload.Str("label") != label {
+			continue
+		}
+		anyRound = append(anyRound, e.SeatID)
+		if RoundOf(e.SeatID) == round {
+			sameRound = append(sameRound, e.SeatID)
 		}
 	}
-	return fmt.Errorf("record: %s %s names %s, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed", verb, flag, label)
+	switch {
+	case len(sameRound) == 1:
+		return nil
+	case len(sameRound) > 1:
+		return fmt.Errorf("record: %s %s names %s, which %d seats recorded THIS ROUND (%v) — the label does not identify one finding, so the disposal would write the wrong one's fate and leave the right one looking undisposed", verb, flag, label, len(sameRound), sameRound)
+	case len(anyRound) == 1:
+		return nil
+	case len(anyRound) > 1:
+		return fmt.Errorf("record: %s %s names %s, recorded by %v in other rounds and by nobody this round — name the finding from your own round, or the disposal is guesswork", verb, flag, label, anyRound)
+	}
+	return fmt.Errorf("record: %s %s names %s, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing", verb, flag, label)
 }
 
 // requireFindings refuses found_by attribution to a finding that does not exist.

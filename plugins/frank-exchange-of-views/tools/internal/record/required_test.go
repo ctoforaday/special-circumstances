@@ -14,6 +14,19 @@ import "testing"
 
 // runWithGap is a run directory in which R1-1 actually exists. Since references are now
 // checked at write time, a fixture that names a gap must create it — which is the point.
+// seatFor picks a seat of the role that owns each verb, since validate now resolves
+// round-scoped references and needs to know who is writing.
+func seatFor(typ string) string {
+	switch typ {
+	case "opinion", "petition-rule", "halt", "certify":
+		return "judge-r1"
+	case "retire", "avenue", "dispute", "manifest-row", "revision", "confidence":
+		return "blue-respond-r1"
+	default:
+		return "red-merge-r1"
+	}
+}
+
 func runWithGap(t *testing.T) string {
 	t.Helper()
 	runDir := t.TempDir()
@@ -43,6 +56,8 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"retire":  {"claim": "c", "reason": "r"},
 		"avenue":  {"status": "pursued", "line": "l"},
 		"opinion": {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no"},
+		"finding": {"label": "L1-F1"},
+		"observe": {"label": "L1-O1"},
 	}
 
 	for typ, required := range RequiredFields {
@@ -63,7 +78,7 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 				if typ == "opinion" {
 					dir = runWithGap(t)
 				}
-				if err := validate(dir, typ, p); err == nil {
+				if err := validate(dir, seatFor(typ), typ, p); err == nil {
 					t.Errorf("RequiredFields says %s.%s is required, but validate ACCEPTED a payload without it — the help would mark a flag REQUIRED that the tool does not require", typ, missing)
 				}
 			})
@@ -87,7 +102,7 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 		if typ == "opinion" {
 			dir = runWithGap(t)
 		}
-		if err := validate(dir, typ, p); err != nil {
+		if err := validate(dir, seatFor(typ), typ, p); err != nil {
 			t.Errorf("%s rejected a payload carrying every required field: %v", typ, err)
 		}
 	}
@@ -100,7 +115,7 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	p := NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
 		Set("principle", "p").Set("tension", "t").Set("review_flag", false)
-	if err := validate(runWithGap(t), "opinion", p); err != nil {
+	if err := validate(runWithGap(t), "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }
@@ -126,14 +141,14 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 
 	// No prior closure exists, so a carry is a false claim about the record.
 	p := NewPayload().Set("gap_id", id).Set("carried_from", "1")
-	if err := validate(runDir, "close", p); err == nil {
+	if err := validate(runDir, "red-merge-r1", "close", p); err == nil {
 		t.Error("an unanchored FIRST closure was accepted as a carry — that is the laundering path: no verification, no lineage, and it scores as closed")
 	}
 
 	// Anchored, it goes through — the escape hatch is closed, not the door.
 	anchored := NewPayload().Set("gap_id", id).
 		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x")
-	if err := validate(runDir, "close", anchored); err != nil {
+	if err := validate(runDir, "red-merge-r1", "close", anchored); err != nil {
 		t.Errorf("an anchored closure must still be accepted: %v", err)
 	}
 }
@@ -157,7 +172,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x")); err != nil {
 		t.Fatal(err)
 	}
-	if err := validate(runDir, "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {
+	if err := validate(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {
 		t.Errorf("a carry restating a real earlier closure must be accepted: %v", err)
 	}
 }
@@ -178,12 +193,12 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 				p.Set(k, v)
 			}
 		}
-		if err := validate(t.TempDir(), "mint", p); err == nil {
+		if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err == nil {
 			t.Errorf("mint without --%s was accepted; its mass computes to ZERO and the gap sinks to the bottom of every ranking as though it were harmless", missing)
 		}
 	}
 	// Severity and cx remain optional: absent, they are SHOWN absent.
-	if err := validate(t.TempDir(), "mint", base()); err != nil {
+	if err := validate(t.TempDir(), "red-merge-r1", "mint", base()); err != nil {
 		t.Errorf("severity and cx must stay optional — their absence is visible, not silently zero: %v", err)
 	}
 	if GapMass("", "medium") != 0 {
