@@ -26,6 +26,8 @@ import (
 // is written, so a skewed binary fails at setup rather than mid-round.
 const Version = "0.1.0"
 
+func init() { record.ToolVersion = Version }
+
 func newRoot() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "feov-record",
