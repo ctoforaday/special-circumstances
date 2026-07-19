@@ -25,7 +25,7 @@ func newDispute() *cobra.Command {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", "id")
 			seat.SetSame(cmd, p, "dimension")
 			seat.SetGrade(p, "proposed", &proposed)
-			flags.SetEither(p, "evidence", cmd, flags.Basis, "evidence")
+			flags.Set(p, "evidence", cmd, flags.Basis)
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute", p); err != nil {
 				return "", err
 			}
@@ -35,6 +35,6 @@ func newDispute() *cobra.Command {
 	c.Flags().String("id", "", "the gap id")
 	c.Flags().String("dimension", "", "severity | likelihood | impact | complexity_cost — the axis you contest")
 	c.Flags().Var(&proposed, "proposed", flags.GradeUsage("the grade you say it should be"))
-	flags.AliasString(c, flags.Basis, "evidence", "why, citing the exact section")
+	c.Flags().String(flags.Basis, "", "why, citing the exact section")
 	return c
 }

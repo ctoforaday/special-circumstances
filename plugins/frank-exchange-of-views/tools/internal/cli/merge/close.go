@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -32,13 +33,7 @@ func newClose() *cobra.Command {
 			seat.Set(cmd, p, "anchor_target", "anchor-target")
 			seat.Set(cmd, p, "carried_from", "carried-from")
 			seat.SetSame(cmd, p, "successor")
-			// --file is the vocabulary every other prose-bearing verb uses; --prose-file
-			// was this verb's private spelling of the same idea, and the run's seats
-			// typed --file here twice and were refused. One name, one destination.
-			f := seat.Str(cmd, "file")
-			if f == "" {
-				f = seat.Str(cmd, "prose-file")
-			}
+			f := seat.Str(cmd, flags.File)
 			if f != "" {
 				b, err := os.ReadFile(f)
 				if err != nil {
@@ -59,10 +54,6 @@ func newClose() *cobra.Command {
 	c.Flags().String("anchor-target", "", "AGAINST WHAT — the exact file, ref or URL read")
 	c.Flags().String("carried-from", "", "the round this closure was carried from, when it is not a fresh act")
 	c.Flags().String("successor", "", "the gap id carrying the unresolved remainder forward")
-	c.Flags().String("file", "", "the full closure record, from a file")
-	// Retained so a prompt or habit carrying the old spelling keeps working; hidden so
-	// help teaches only the shared vocabulary.
-	c.Flags().String("prose-file", "", "deprecated alias for --file")
-	_ = c.Flags().MarkHidden("prose-file")
+	c.Flags().String(flags.File, "", "the full closure record, from a file")
 	return c
 }

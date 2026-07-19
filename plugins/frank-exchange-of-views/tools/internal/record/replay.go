@@ -237,6 +237,18 @@ func benchClosesGap(disposition string) bool {
 	}
 }
 
+// missingGap describes a mutation that referenced a gap the replay has never seen.
+//
+// This used to be a bare `continue`, and that silence is what let the bench's closures
+// vanish for an entire run: the events were recorded correctly, the replay dropped them,
+// and every projection downstream reported a board that had never existed. Anomalies are
+// rendered into the projection and never silently normalized, so the same failure now
+// announces itself in the artifact a human reads.
+func missingGap(verb string, e Event) string {
+	return fmt.Sprintf("%s by %s referenced unknown gap %s (event %s) — the mutation was DROPPED, not applied",
+		verb, e.SeatID, e.Payload.Str("gap_id"), e.Key)
+}
+
 // payloadVal returns the raw value, or nil when the key is absent — nil is the
 // port's spelling of JavaScript `undefined`.
 func payloadVal(p *Payload, key string) any {
@@ -282,34 +294,29 @@ func BoardState(runDir string) (*Board, error) {
 	}
 	b := &Board{Events: m.Events, Anomalies: m.Anomalies, Gaps: map[string]*Gap{}}
 
-	// TWO PASSES: everything that CREATES a thing, then everything that CHANGES one.
+	// ORDERED BY WHEN IT HAPPENED, not by what the shard file is called.
 	//
-	// Events merge by shard filename, so a whole seat replays before the next seat
-	// starts. That made every CROSS-SEAT reference depend on how seat names happen to
-	// sort. The bench closing a gap red minted is the case that broke: judge-r1 sorts
-	// before red-merge-r1, so the opinion was replayed at index 1 and the mint at index
-	// 3 — the gap did not exist yet, the lookup returned nil, and the closure was
-	// silently dropped. That is the defect red-merge-r3 reported as "the render says 9
-	// open, 9 closed against the board's 3 open / 15 closed".
+	// Events merge per shard, so before this an entire seat replayed before the next
+	// seat began, and every cross-seat reference was ordered by how seat names sort.
+	// The bench closing a gap red minted was dropped SILENTLY because the gap did not
+	// exist yet; the merge seat disposing a lens observation worked only because
+	// red-lens sorts before red-merge — one rename from the same failure.
 	//
-	// The merge seat disposing a lens observation worked only by luck of the alphabet:
-	// red-lens sorts before red-merge. One rename and it would have broken the same way.
-	//
-	// Creation before mutation is the causal order the protocol actually has — a gap
-	// must be minted before it can be regraded, closed or ruled on — and it makes the
-	// projection independent of what seats are called.
-	creates := func(t string) bool { return t == "mint" || t == "finding" || t == "observe" }
-	ordered := make([]Event, 0, len(m.Events))
-	for _, e := range m.Events {
-		if creates(e.Type) {
-			ordered = append(ordered, e)
+	// (TS, SeatID, Seq) is the full key. Wall clock from many short-lived processes is
+	// not monotonic and can go backwards, so time alone is not enough; the tail makes
+	// ties and skew deterministic instead of arbitrary.
+	ordered := make([]Event, len(m.Events))
+	copy(ordered, m.Events)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		a, b := ordered[i], ordered[j]
+		if a.TS != b.TS {
+			return a.TS < b.TS
 		}
-	}
-	for _, e := range m.Events {
-		if !creates(e.Type) {
-			ordered = append(ordered, e)
+		if a.SeatID != b.SeatID {
+			return a.SeatID < b.SeatID
 		}
-	}
+		return a.Seq < b.Seq
+	})
 
 	for _, e := range ordered {
 		switch e.Type {
@@ -329,6 +336,7 @@ func BoardState(runDir string) (*Board, error) {
 		case "regrade":
 			g := b.Gaps[e.Payload.Str("gap_id")]
 			if g == nil {
+				b.Anomalies = append(b.Anomalies, missingGap("regrade", e))
 				continue
 			}
 			// Object.assign(g, pickGrades(payload)) — only the grade keys present move.
@@ -348,6 +356,7 @@ func BoardState(runDir string) (*Board, error) {
 		case "close":
 			g := b.Gaps[e.Payload.Str("gap_id")]
 			if g == nil {
+				b.Anomalies = append(b.Anomalies, missingGap("close", e))
 				continue
 			}
 			g.Open = false
@@ -365,7 +374,11 @@ func BoardState(runDir string) (*Board, error) {
 			// six gaps judge-r2 had closed. Nothing carried them across, and red could
 			// not close them itself without corrupting its own closure history.
 			g := b.Gaps[e.Payload.Str("gap_id")]
-			if g == nil || !benchClosesGap(e.Payload.Str("disposition")) {
+			if g == nil {
+				b.Anomalies = append(b.Anomalies, missingGap("opinion", e))
+				continue
+			}
+			if !benchClosesGap(e.Payload.Str("disposition")) {
 				continue
 			}
 			g.Open = false

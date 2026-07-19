@@ -103,40 +103,14 @@ func ReadPayload(c *cobra.Command, stdin io.Reader) (string, error) {
 	return text, nil
 }
 
-// AliasString registers a legacy spelling of a canonical flag: same destination, hidden
-// from help so the vocabulary taught is the shared one.
-//
-// The audit found three concepts with two names each — the gap being acted on was --id on
-// four verbs and --gap-id on the bench's; the fate was --as on five verbs and
-// --disposition on the bench's; the justification was --basis on four and --evidence on
-// blue's dispute. Each is individually sensible and collectively a dialect, and a seat
-// generalises from whichever verb it learned first. Renaming outright would break every
-// prompt at once, so the canonical name is taught and the old one keeps working.
-func AliasString(c *cobra.Command, canonical, legacy, usage string) {
-	c.Flags().String(canonical, "", usage)
-	c.Flags().String(legacy, "", "deprecated alias for --"+canonical)
-	_ = c.Flags().MarkHidden(legacy)
-}
-
-// Either reads a canonical flag, falling back to its legacy alias.
-func Either(c *cobra.Command, canonical, legacy string) string {
-	if v, _ := c.Flags().GetString(canonical); v != "" {
-		return v
-	}
-	v, _ := c.Flags().GetString(legacy)
-	return v
-}
-
-// SetEither writes the canonical-or-legacy value under a payload key, ONLY when it is
-// non-empty.
+// Set writes a flag's value under a payload key, ONLY when it is non-empty.
 //
 // Setting it unconditionally is a trap worth naming: required-field validation asks
 // whether the key is PRESENT, so writing an empty string makes a missing flag look
 // supplied and the check passes on nothing. That regression was introduced while
-// canonicalising --gap-id to --id and caught by the bench's own required-fields test.
-// Callers get the guard for free rather than having to remember it.
-func SetEither[P interface{ Set(string, any) P }](p P, key string, c *cobra.Command, canonical, legacy string) {
-	if v := Either(c, canonical, legacy); v != "" {
+// renaming --gap-id to --id and caught by the bench's own required-fields test.
+func Set[P interface{ Set(string, any) P }](p P, key string, c *cobra.Command, flag string) {
+	if v, _ := c.Flags().GetString(flag); v != "" {
 		p.Set(key, v)
 	}
 }

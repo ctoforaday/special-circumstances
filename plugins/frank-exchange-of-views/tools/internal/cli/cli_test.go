@@ -617,8 +617,8 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	}
 }
 
-// close --prose-file carries the full closure record; a missing one is an error.
-func TestCloseProseFile(t *testing.T) {
+// close --file carries the full closure record; a missing one is an error.
+func TestCloseFile(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
@@ -630,7 +630,7 @@ func TestCloseProseFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
-		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--prose-file", f); err != nil {
+		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--file", f); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastOfType(t, runDir, "close").Payload.Str("prose"); got != "the whole closure record" {
@@ -639,9 +639,9 @@ func TestCloseProseFile(t *testing.T) {
 
 	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
 		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
-		"--prose-file", filepath.Join(t.TempDir(), "gone.md"))
+		"--file", filepath.Join(t.TempDir(), "gone.md"))
 	if err == nil {
-		t.Fatal("a missing --prose-file was ignored")
+		t.Fatal("a missing --file was ignored")
 	}
 }
 
@@ -727,7 +727,7 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "judge-r1"
 	full := map[string]string{
-		"gap-id": "R1-1", "disposition": "carried", "principle": "correctness first",
+		"id": "R1-1", "as": "carried", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 	}
 	for missing := range full {

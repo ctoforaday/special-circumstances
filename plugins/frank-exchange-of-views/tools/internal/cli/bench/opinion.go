@@ -26,19 +26,19 @@ func newOpinion() *cobra.Command {
 				return "", err
 			}
 			p := record.NewPayload()
-			flags.SetEither(p, "gap_id", cmd, flags.ID, "gap-id")
-			flags.SetEither(p, "disposition", cmd, flags.As, "disposition")
+			flags.Set(p, "gap_id", cmd, flags.ID)
+			flags.Set(p, "disposition", cmd, flags.As)
 			seat.SetSame(cmd, p, "principle", "tension")
 			seat.Set(cmd, p, "review_flag", "review-flag")
 			p.Set("rationale", text)
 			if _, err := record.Append(s.RunDir, s.SeatID, "opinion", p); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("opinion recorded: %s %s", flags.Either(cmd, flags.ID, "gap-id"), flags.Either(cmd, flags.As, "disposition")), nil
+			return fmt.Sprintf("opinion recorded: %s %s", seat.Str(cmd, flags.ID), seat.Str(cmd, flags.As)), nil
 		}))
 
-	flags.AliasString(c, flags.ID, "gap-id", "the gap being ruled on")
-	flags.AliasString(c, flags.As, "disposition", "carried | closed | rebuttal_sustained | risk_accepted | routed_to_infrastructure | ...")
+	c.Flags().String(flags.ID, "", "the gap being ruled on")
+	c.Flags().String(flags.As, "", "carried | closed | rebuttal_sustained | risk_accepted | routed_to_infrastructure | ...")
 	c.Flags().String("principle", "", "the principle applied — a ruling is an OPINION, not a disposition")
 	c.Flags().String("tension", "", "the values in tension (e.g. correctness vs economy)")
 	c.Flags().String("review-flag", "", "why a human should, or should not, look at this")

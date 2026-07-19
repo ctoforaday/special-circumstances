@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // GRADES mirrors the oracle's enum exactly, including order.
@@ -101,7 +102,19 @@ func randomNonce() string {
 // Event is the log line. Field order matches the oracle's object literal so the
 // serialized form is byte-comparable, not merely structurally equal.
 type Event struct {
-	Seq     int      `json:"seq"`
+	Seq int `json:"seq"`
+	// TS is when the event happened, and it is what replay ORDERS BY.
+	//
+	// Without it, events merged by shard FILENAME, so a whole seat replayed before the
+	// next seat began and every cross-seat reference was ordered by how seat names
+	// happen to sort. The bench closing a gap red minted was dropped silently because
+	// the gap did not exist yet at replay time; the merge seat disposing a lens
+	// observation worked only because red-lens sorts before red-merge.
+	//
+	// Wall clock from many short-lived processes is not monotonic and can go backwards,
+	// so it is never sufficient ALONE — (TS, SeatID, Seq) is the full ordering key, and
+	// the tail of it is deterministic when clocks tie or skew.
+	TS      string   `json:"ts"`
 	SeatID  string   `json:"seatId"`
 	Nonce   string   `json:"nonce"`
 	Round   int      `json:"round"`
@@ -140,7 +153,7 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 	// says so in its own record instead of producing events whose difference
 	// nobody can explain afterwards.
 	ev := Event{
-		Seq: 0, SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
+		Seq: 0, TS: stamp(), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
 		Type: "register", Key: seatID + ":register:" + nonce,
 		Payload: NewPayload().Set("tool_version", ToolVersion),
 	}
@@ -190,6 +203,17 @@ func deriveKey(seatID, typ string, p *Payload, shardEvents []Event) string {
 
 // Append is the ONLY write path. It validates, derives the idempotency key, and
 // assigns the per-shard sequence number.
+// Now is the clock every event is stamped from. It is a variable so the golden harness
+// can pin it: a raw wall-clock in a recorded artifact makes every golden
+// non-reproducible, which is the machine-dependence that has already bitten this repo
+// twice (a developer's home directory baked into goldens, and a live-run marker leaking
+// into the difftest harness).
+var Now = func() time.Time { return time.Now().UTC() }
+
+// stamp formats an event time. Millisecond precision: seats act on a scale of seconds,
+// and a fixed width keeps the shard lines readable and diffable.
+func stamp() string { return Now().Format("2006-01-02T15:04:05.000Z") }
+
 // AmbientComment is the value of the universal --comment flag for THIS invocation.
 //
 // A package variable is safe here and nowhere else: feov-record is a CLI that parses one
@@ -222,7 +246,7 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 		return Event{}, err
 	}
 	ev := Event{
-		Seq: len(events), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
+		Seq: len(events), TS: stamp(), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
 		Type: typ, Key: deriveKey(seatID, typ, p, events), Payload: p,
 	}
 	if err := appendLine(shard, ev); err != nil {

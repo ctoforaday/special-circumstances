@@ -83,7 +83,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue dispute contests a grade through the accounted channel",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--evidence", "§4 says otherwise"},
+			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--basis", "§4 says otherwise"},
 			typ:  "dispute",
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
 				"proposed": "low", "evidence": "§4 says otherwise"},

@@ -336,8 +336,12 @@ func TestEventRoundTripsThroughShardEncoding(t *testing.T) {
 	if got := back.Payload.StrList("supersedes"); len(got) != 1 || got[0] != "R0-1" {
 		t.Errorf("lineage did not round-trip: %q", got)
 	}
-	// Field order on the wire mirrors the oracle's object literal.
-	if !strings.HasPrefix(string(b), `{"seq":7,"seatId":"red-merge-r1","nonce":"deadbeef","round":1,"type":"mint",`) {
+	// Field order on the wire is now OURS to choose. It mirrored the retired oracle's
+	// object literal; `ts` is inserted straight after `seq` because the two together are
+	// the ordering key replay sorts by, and a reader scanning a shard wants them
+	// adjacent. The order is still PINNED — a silent reshuffle would be a byte-level
+	// divergence in every golden, which is the class this test exists to catch.
+	if !strings.HasPrefix(string(b), `{"seq":7,"ts":"","seatId":"red-merge-r1","nonce":"deadbeef","round":1,"type":"mint",`) {
 		t.Errorf("event field order changed:\n%s", b)
 	}
 }
