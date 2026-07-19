@@ -181,16 +181,32 @@ func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
 	// The write path refuses it now. But shards like this EXIST — the run's own records
 	// carry twelve — so replay must still surface them rather than skip in silence, and
 	// that is what this asserts.
-	shard := filepath.Join(runDir, "records", "events-judge-r1-deadbeef.jsonl")
-	line := `{"seq":0,"ts":"2026-07-19T12:00:00.000000000Z","seatId":"judge-r1","nonce":"deadbeef","round":1,` +
+	// APPENDED TO THE SEAT'S OWN SHARD, not a second one.
+	//
+	// The first version wrote events-judge-r1-deadbeef.jsonl beside the shard seatRun had
+	// already registered, which made judge-r1 multi-nonce and left the winner to mtime.
+	// It passed here and failed in CI, where the registered shard won and the dangling
+	// opinion never replayed at all — a test whose outcome depended on filesystem
+	// timestamp granularity, which is the exact defect this morning's golden fix removed.
+	// One shard, one nonce, no race.
+	nonce, err := os.ReadFile(filepath.Join(runDir, "records", ".active-judge-r1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	shard := filepath.Join(runDir, "records",
+		"events-judge-r1-"+strings.TrimSpace(string(nonce))+".jsonl")
+	line := `{"seq":1,"ts":"2026-07-19T12:00:00.000000000Z","seatId":"judge-r1","nonce":"` +
+		strings.TrimSpace(string(nonce)) + `","round":1,` +
 		`"type":"opinion","key":"judge-r1:opinion:R9-9","payload":{"gap_id":"R9-9","disposition":"closed",` +
 		`"principle":"p","tension":"t","review_flag":"no"}}` + "\n"
-	if err := os.WriteFile(shard, []byte(line), 0o644); err != nil {
+	f, err := os.OpenFile(shard, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(runDir, "records", ".active-judge-r1"), []byte("deadbeef"), 0o644); err != nil {
+	if _, err := f.WriteString(line); err != nil {
 		t.Fatal(err)
 	}
+	f.Close()
 
 	b := board(t, runDir, "merge", "red-merge-r1")
 	if b.Counts.Anomalies == 0 {
