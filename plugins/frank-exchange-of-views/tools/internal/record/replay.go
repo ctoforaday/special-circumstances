@@ -212,6 +212,29 @@ type Gap struct {
 	Likelihood     any
 	Impact         any
 	ComplexityCost any
+	// ClosedByBench distinguishes a JUDICIAL closure from one red made. Red cannot
+	// close a bench-closed gap itself without double-counting closure history and
+	// corrupting the repair_regression denominator, so the projection has to record WHO
+	// closed it, not merely that it is closed.
+	ClosedByBench bool
+}
+
+// benchClosesGap says which dispositions end a gap's life on the board.
+//
+// `carried` is the one that does NOT: it defers the question to a later round, and
+// treating it as a closure would silently retire gaps the bench deliberately kept alive
+// — the opposite of the defect this function exists to fix, and worse.
+//
+// The rest all end the dispute, by different routes: the defect is gone, the risk is
+// accepted as it stands, blue's rebuttal was sustained, or the work moved to the lead's
+// infrastructure debt. Each leaves the board with nothing further to adjudicate.
+func benchClosesGap(disposition string) bool {
+	switch disposition {
+	case "closed", "risk_accepted", "rebuttal_sustained", "routed_to_infrastructure":
+		return true
+	default:
+		return false
+	}
 }
 
 // payloadVal returns the raw value, or nil when the key is absent — nil is the
@@ -258,7 +281,37 @@ func BoardState(runDir string) (*Board, error) {
 		return nil, err
 	}
 	b := &Board{Events: m.Events, Anomalies: m.Anomalies, Gaps: map[string]*Gap{}}
+
+	// TWO PASSES: everything that CREATES a thing, then everything that CHANGES one.
+	//
+	// Events merge by shard filename, so a whole seat replays before the next seat
+	// starts. That made every CROSS-SEAT reference depend on how seat names happen to
+	// sort. The bench closing a gap red minted is the case that broke: judge-r1 sorts
+	// before red-merge-r1, so the opinion was replayed at index 1 and the mint at index
+	// 3 — the gap did not exist yet, the lookup returned nil, and the closure was
+	// silently dropped. That is the defect red-merge-r3 reported as "the render says 9
+	// open, 9 closed against the board's 3 open / 15 closed".
+	//
+	// The merge seat disposing a lens observation worked only by luck of the alphabet:
+	// red-lens sorts before red-merge. One rename and it would have broken the same way.
+	//
+	// Creation before mutation is the causal order the protocol actually has — a gap
+	// must be minted before it can be regraded, closed or ruled on — and it makes the
+	// projection independent of what seats are called.
+	creates := func(t string) bool { return t == "mint" || t == "finding" || t == "observe" }
+	ordered := make([]Event, 0, len(m.Events))
 	for _, e := range m.Events {
+		if creates(e.Type) {
+			ordered = append(ordered, e)
+		}
+	}
+	for _, e := range m.Events {
+		if !creates(e.Type) {
+			ordered = append(ordered, e)
+		}
+	}
+
+	for _, e := range ordered {
 		switch e.Type {
 		case "mint":
 			id := e.Payload.Str("gap_id")
@@ -301,6 +354,25 @@ func BoardState(runDir string) (*Board, error) {
 			g.Closure = e.Payload
 			g.ClosedRound = e.Round
 			g.HasClosed = true
+		case "opinion":
+			// THE BENCH'S RULINGS REACH RED'S BOARD.
+			//
+			// Bench dispositions lived only in the judge's event stream, so the
+			// projection over-reported open gaps by the number of bench closures after
+			// every sitting and diverged further each round. The 2026-07-18 run's
+			// red-merge-r3 measured it: the render said 9 open / 9 closed against a
+			// hand-written board of 3 open / 15 closed, the difference being exactly the
+			// six gaps judge-r2 had closed. Nothing carried them across, and red could
+			// not close them itself without corrupting its own closure history.
+			g := b.Gaps[e.Payload.Str("gap_id")]
+			if g == nil || !benchClosesGap(e.Payload.Str("disposition")) {
+				continue
+			}
+			g.Open = false
+			g.Closure = e.Payload
+			g.ClosedRound = e.Round
+			g.HasClosed = true
+			g.ClosedByBench = true
 		case "finding", "observe":
 			b.Observations = append(b.Observations, &Observation{
 				SeatID: e.SeatID, Key: e.Key, Kind: e.Type, Payload: e.Payload,

@@ -20,12 +20,12 @@ func newDispute() *cobra.Command {
 	var proposed flags.GradeValue
 
 	c := seat.New(role, "dispute",
-		`contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."`,
+		`contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --basis "..."`,
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", "id")
 			seat.SetSame(cmd, p, "dimension")
 			seat.SetGrade(p, "proposed", &proposed)
-			seat.SetSame(cmd, p, "evidence")
+			flags.SetEither(p, "evidence", cmd, flags.Basis, "evidence")
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute", p); err != nil {
 				return "", err
 			}
@@ -35,6 +35,6 @@ func newDispute() *cobra.Command {
 	c.Flags().String("id", "", "the gap id")
 	c.Flags().String("dimension", "", "severity | likelihood | impact | complexity_cost — the axis you contest")
 	c.Flags().Var(&proposed, "proposed", flags.GradeUsage("the grade you say it should be"))
-	c.Flags().String("evidence", "", "why, citing the exact section")
+	flags.AliasString(c, flags.Basis, "evidence", "why, citing the exact section")
 	return c
 }
