@@ -84,7 +84,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"regression close without successor", []string{"merge", "close", "--id", "R1-1", "--as", "closed_with_regression", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t"}},
 		{"dispose without disposition", []string{"merge", "dispose", "--observation", "L1-F1"}},
 		{"regrade without basis", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}},
-		{"opinion missing fields", []string{"bench", "opinion", "--gap-id", "R1-1", "--disposition", "carried"}},
+		{"opinion missing fields", []string{"bench", "opinion", "--id", "R1-1", "--as", "carried"}},
 		{"invalid seat id", []string{"merge", "mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check", "x", "--problem", "p"}},
 		{"verb outside the lens role", []string{"lens", "mint", "--class", "scope-creep"}},
 		{"verb outside the blue role", []string{"blue", "close", "--id", "R1-1"}},

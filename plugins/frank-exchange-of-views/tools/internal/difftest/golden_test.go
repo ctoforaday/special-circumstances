@@ -36,6 +36,30 @@ import (
 // on that.
 var update = os.Getenv("UPDATE_GOLDENS") == "1"
 
+// timestampRanks maps every distinct timestamp in a capture to its position in time,
+// counting from zero. The stamp format is lexicographically ordered by design, so a
+// string sort is a time sort.
+func timestampRanks(events map[string][]map[string]any) map[string]int {
+	seen := map[string]bool{}
+	for _, evs := range events {
+		for _, ev := range evs {
+			if ts, ok := ev["ts"].(string); ok {
+				seen[ts] = true
+			}
+		}
+	}
+	all := make([]string, 0, len(seen))
+	for ts := range seen {
+		all = append(all, ts)
+	}
+	sort.Strings(all)
+	rank := make(map[string]int, len(all))
+	for i, ts := range all {
+		rank[ts] = i
+	}
+	return rank
+}
+
 func TestGolden(t *testing.T) {
 	bin := buildBinary(t)
 	for _, sc := range scenarios() {
@@ -61,10 +85,29 @@ func TestGolden(t *testing.T) {
 			}
 
 			st := collect(t, runDir, m)
+
+			// TIMESTAMPS BECOME THEIR RANK, not a placeholder.
+			//
+			// Every event carries the wall clock, which differs on every run, so a raw
+			// value makes the golden unreproducible — the machine-dependence that once
+			// baked a developer's home directory into these files. Blanking it to a
+			// constant would fix that and throw away the ORDER, which is precisely what
+			// this field was added to establish after replay-by-filename silently
+			// dropped the bench's closures. Ranking keeps it: the Nth distinct instant
+			// is written as N, so two events swapping places CHANGES the golden and a
+			// reordering cannot slip past as "just the clock".
+			//
+			// Normalized here rather than faked in the binary: a production code path
+			// whose only purpose is to lie about the clock is the worse trade.
+			rank := timestampRanks(st.events)
+
 			transcript.WriteString("═══ EVENTS ═══\n")
 			for _, name := range sortedKeys(st.events) {
 				fmt.Fprintf(&transcript, "-- %s\n", name)
 				for _, ev := range st.events[name] {
+					if ts, ok := ev["ts"].(string); ok {
+						ev["ts"] = rank[ts]
+					}
 					b, _ := json.Marshal(ev)
 					transcript.Write(b)
 					transcript.WriteString("\n")

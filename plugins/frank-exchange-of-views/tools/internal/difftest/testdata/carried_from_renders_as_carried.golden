@@ -15,9 +15,9 @@ closed R2-1 (closed)
 
 ═══ EVENTS ═══
 -- events-red-merge-r2-NONCE001.jsonl
-{"key":"red-merge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.1.0"},"round":2,"seatId":"red-merge-r2","seq":0,"type":"register"}
-{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE001","payload":{"acceptance_check":"reread","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"medium","likelihood":"medium","problem":"carried case","severity":"medium","supersedes":[]},"round":2,"seatId":"red-merge-r2","seq":1,"type":"mint"}
-{"key":"red-merge-r2:close:R2-1","nonce":"NONCE001","payload":{"carried_from":"1","closure_class":"closed","gap_id":"R2-1"},"round":2,"seatId":"red-merge-r2","seq":2,"type":"close"}
+{"key":"red-merge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.1.0"},"round":2,"seatId":"red-merge-r2","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE001","payload":{"acceptance_check":"reread","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"medium","likelihood":"medium","problem":"carried case","severity":"medium","supersedes":[]},"round":2,"seatId":"red-merge-r2","seq":1,"ts":1,"type":"mint"}
+{"key":"red-merge-r2:close:R2-1","nonce":"NONCE001","payload":{"carried_from":"1","closure_class":"closed","gap_id":"R2-1"},"round":2,"seatId":"red-merge-r2","seq":2,"ts":2,"type":"close"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md

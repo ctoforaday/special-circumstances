@@ -50,16 +50,16 @@ stdout:
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-merge-r1","seq":0,"type":"register"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"citation-drift","class_new":false,"complexity_cost":"medium","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"first","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"type":"mint"}
-{"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"b","class":"scope-creep","class_new":false,"complexity_cost":"low","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"trivial","problem":"second","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"type":"mint"}
-{"key":"red-merge-r1:mint:R1-3","nonce":"NONCE001","payload":{"acceptance_check":"c","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-3","impact":"medium","likelihood":"certain","problem":"third","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"type":"mint"}
-{"key":"red-merge-r1:close:R1-2","nonce":"NONCE001","payload":{"anchor_seat":"L4","anchor_target":"report.md#S3","anchor_tool":"Read","closure_class":"closed","gap_id":"R1-2"},"round":1,"seatId":"red-merge-r1","seq":4,"type":"close"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.1.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"citation-drift","class_new":false,"complexity_cost":"medium","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"first","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
+{"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"b","class":"scope-creep","class_new":false,"complexity_cost":"low","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"trivial","problem":"second","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
+{"key":"red-merge-r1:mint:R1-3","nonce":"NONCE001","payload":{"acceptance_check":"c","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-3","impact":"medium","likelihood":"certain","problem":"third","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"mint"}
+{"key":"red-merge-r1:close:R1-2","nonce":"NONCE001","payload":{"anchor_seat":"L4","anchor_target":"report.md#S3","anchor_tool":"Read","closure_class":"closed","gap_id":"R1-2"},"round":1,"seatId":"red-merge-r1","seq":4,"ts":4,"type":"close"}
 -- events-red-merge-r2-NONCE002.jsonl
-{"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.1.0"},"round":2,"seatId":"red-merge-r2","seq":0,"type":"register"}
-{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE002","payload":{"acceptance_check":"d","class":"citation-drift","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"low","likelihood":"medium","problem":"successor, shrunk","severity":"medium","supersedes":["R1-1"]},"round":2,"seatId":"red-merge-r2","seq":1,"type":"mint"}
-{"key":"red-merge-r2:mint:R2-2","nonce":"NONCE002","payload":{"acceptance_check":"e","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R2-2","impact":"high","likelihood":"high","problem":"successor, grown","severity":"high","supersedes":["R1-3"]},"round":2,"seatId":"red-merge-r2","seq":2,"type":"mint"}
-{"key":"red-merge-r2:close:R1-1","nonce":"NONCE002","payload":{"anchor_seat":"L5","anchor_target":"report.md","anchor_tool":"Grep","closure_class":"closed","gap_id":"R1-1"},"round":2,"seatId":"red-merge-r2","seq":3,"type":"close"}
+{"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.1.0"},"round":2,"seatId":"red-merge-r2","seq":0,"ts":5,"type":"register"}
+{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE002","payload":{"acceptance_check":"d","class":"citation-drift","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"low","likelihood":"medium","problem":"successor, shrunk","severity":"medium","supersedes":["R1-1"]},"round":2,"seatId":"red-merge-r2","seq":1,"ts":6,"type":"mint"}
+{"key":"red-merge-r2:mint:R2-2","nonce":"NONCE002","payload":{"acceptance_check":"e","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R2-2","impact":"high","likelihood":"high","problem":"successor, grown","severity":"high","supersedes":["R1-3"]},"round":2,"seatId":"red-merge-r2","seq":2,"ts":7,"type":"mint"}
+{"key":"red-merge-r2:close:R1-1","nonce":"NONCE002","payload":{"anchor_seat":"L5","anchor_target":"report.md","anchor_tool":"Grep","closure_class":"closed","gap_id":"R1-1"},"round":2,"seatId":"red-merge-r2","seq":3,"ts":8,"type":"close"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md
