@@ -155,7 +155,7 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 	// says so in its own record instead of producing events whose difference
 	// nobody can explain afterwards.
 	ev := Event{
-		Seq: 0, TS: stamp(), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
+		Seq: 0, TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
 		Type: "register", Key: seatID + ":register:" + nonce,
 		Payload: NewPayload().Set("tool_version", ToolVersion),
 	}
@@ -233,7 +233,55 @@ var Now = func() time.Time { return time.Now().UTC() }
 // schema change and this is one line.
 //
 // Fixed width is preserved, so lexicographic order is still time order.
-func stamp() string { return Now().Format("2006-01-02T15:04:05.000000000Z") }
+func stamp() string { return Now().Format(stampLayout) }
+
+const stampLayout = "2006-01-02T15:04:05.000000000Z"
+
+// nextStamp issues a stamp that is STRICTLY GREATER than the last one issued for this run.
+//
+// Precision alone still leaves ordering to luck: it narrows the window in which two events
+// can tie, but two seats CAN stamp the same instant, and a wall clock can step backwards
+// under NTP and issue a stamp earlier than one already written. Both land in the same place
+// — a tie or an inversion in the ordering key — and the sort then falls through to seat
+// name, which is the defect that dropped the bench's closures.
+//
+// So monotonicity is GUARANTEED IN CODE rather than hoped for from the hardware. The last
+// issued stamp is kept in the run, and a stamp that would not advance is nudged to
+// last + 1ns. It is a logical clock wearing a timestamp's clothes: no schema change, the
+// field stays a time, and the ORDER is now a property of the code instead of a property of
+// the machine.
+//
+// THE TRADE, stated: under a backwards clock step the stamps stop tracking wall time and
+// become an ordinal sequence until real time catches up. That is the right way to lose —
+// this field's job is order, and a timestamp that is slightly wrong about WHEN is strictly
+// better than one that is wrong about WHAT CAME FIRST.
+//
+// Contention is survivable by the same rule withLock already uses: if the lock cannot be
+// taken, or the clock file is unreadable or corrupt, fall back to the raw clock. That
+// degrades to the previous behaviour — ties possible, tiebreak by (SeatID, Seq) — rather
+// than failing an append. An event is never lost to bookkeeping.
+func nextStamp(runDir string) string {
+	var out string
+	withLock(runDir, "clock", func() {
+		now := Now()
+		p := filepath.Join(recordsDir(runDir), ".clock")
+		if b, err := os.ReadFile(p); err == nil {
+			if prev, err := time.Parse(stampLayout, strings.TrimSpace(string(b))); err == nil && !now.After(prev) {
+				now = prev.Add(time.Nanosecond)
+			}
+		}
+		out = now.Format(stampLayout)
+		if err := os.WriteFile(p, []byte(out), 0o644); err != nil {
+			// The stamp already issued is still valid and strictly increasing for THIS
+			// event; only the next one loses the guarantee. Not worth failing a write.
+			return
+		}
+	})
+	if out == "" {
+		return stamp()
+	}
+	return out
+}
 
 // AmbientComment is the value of the universal --comment flag for THIS invocation.
 //
@@ -267,7 +315,7 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 		return Event{}, err
 	}
 	ev := Event{
-		Seq: len(events), TS: stamp(), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
+		Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
 		Type: typ, Key: deriveKey(seatID, typ, p, events), Payload: p,
 	}
 	if err := appendLine(shard, ev); err != nil {

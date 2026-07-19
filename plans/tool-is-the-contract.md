@@ -114,26 +114,33 @@ Shipped: the read surface, the structured board, the vocabulary lock, cross-seat
 built. The next run is NOT yet path-free, and saying otherwise would be the kind of claim
 this document exists to make checkable.
 
-## VII. The logical clock (deferred, and why)
+## VII. The clock: monotonicity guaranteed in code
 
-`ts` is nanoseconds now, which takes ties from routine to vanishing. It does not make
-cross-process ordering *correct*: wall clocks skew, and NTP can step one backwards, so two
-seats can still stamp out of order. `(SeatID, Seq)` remains the tiebreak, and ordering by
-seat name is the failure this whole field exists to prevent.
+`ts` is nanoseconds AND strictly increasing per run, enforced in `nextStamp`: the last
+issued stamp is kept in the run directory and a stamp that would not advance is nudged to
+last + 1ns, under the same lock discipline the record layer already uses.
 
-**The principled fix is a logical clock** — a per-run monotonic counter, incremented under
-the append lock the record layer already takes. Ordering is a LOGICAL property; deriving
-it from a physical clock is the category error underneath both the millisecond bug and the
-timing-dependent goldens. A counter needs no clock, cannot skew, and gives a total order by
-construction.
+**Precision alone was not enough, and "defer the logical clock" was the wrong call.** It
+narrows the tie window; it does not close it. Two seats can stamp one instant, and NTP can
+step a clock backwards and issue a stamp earlier than one already on disk. Both are a tie
+or an inversion in the ordering key, and the sort then falls through to seat name — the
+defect that dropped the bench's closures. Order is now a property of the CODE, not of the
+machine.
 
-Not built yet because it is a schema change on the hot path and the one-line precision fix
-retires the practical problem. Build it when the ordering key next causes an incident, or
-when the event schema is being revised for another reason. Do not build it as a
-free-standing task.
+It needed no schema change. That was the mistaken premise behind deferring it: a logical
+clock does not have to look like a counter. It can wear a timestamp's clothes, and then the
+field stays a time, every existing reader keeps working, and the guarantee comes for free.
 
-**Related:** process-relative high-resolution timers (`process.hrtime.bigint`,
-`performance.now`) do not solve this. They are monotonic *within a process*, and every
-`feov-record` invocation is a separate process, so their origins are unrelated. Making them
-comparable would mean persisting a run-start origin and measuring against it — which is a
-logical clock wearing a stopwatch costume, with extra steps and a worse failure mode.
+**The trade, stated:** under a backwards step the stamps drift from wall time and become an
+ordinal sequence until real time catches up. That is the right way to lose — this field's
+job is order, and being slightly wrong about WHEN beats being wrong about WHAT CAME FIRST.
+
+**Degradation:** if the lock cannot be taken or the clock file is unreadable, fall back to
+the raw clock — ties possible, tiebreak by `(SeatID, Seq)`, i.e. exactly the previous
+behaviour. An event is never lost to bookkeeping.
+
+**Why process-relative timers do not apply.** `process.hrtime.bigint` and
+`performance.now()` are monotonic WITHIN a process, and every `feov-record` invocation is a
+separate process, so their origins are unrelated. Making them comparable means persisting a
+run-start origin and measuring against it — which is this, with extra steps and a worse
+failure mode.
