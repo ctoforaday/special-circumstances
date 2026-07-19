@@ -5,7 +5,7 @@
 // unenforced good-faith contract — the exact failure class red keeps catching in the engine.
 //
 // Usage:
-//   node setup-research-run.mjs <runDir> --topic "<topic>" [--cite <path>[@<pin>]]... [--memory-dir <dir>] [--no-qmd]
+//   node setup-research-run.mjs <runDir> --topic "<topic>" [--cite <path>[@<pin>]]... [--bin-dir <dir>] [--memory-dir <dir>] [--no-qmd]
 //
 // Idempotent: existing files are never overwritten (pre-staged inputs survive). Creates the
 // blackboard skeleton (NOT red/ledger.md, red/archive.md, or board-telemetry.jsonl — those
@@ -278,7 +278,7 @@ export function qmdRefresh(bin = 'qmd') {
 function main() {
   const [runDir, ...rest] = process.argv.slice(2)
   if (!runDir || runDir.startsWith('--')) {
-    console.error('usage: node setup-research-run.mjs <runDir> --topic "<topic>" [--cite <path>[@pin]]... [--memory-dir <dir>] [--no-qmd]')
+    console.error('usage: node setup-research-run.mjs <runDir> --topic "<topic>" [--cite <path>[@pin]]... [--bin-dir <dir>] [--memory-dir <dir>] [--no-qmd]')
     process.exit(1)
   }
   const arg = (name) => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : null }
@@ -292,7 +292,10 @@ function main() {
     console.error('run-setup: PIN VALIDATION FAILED — refusing to create the run:')
     for (const m of pv.missing) console.error(`  - ${m.path} does not exist at pin ${m.pin} (git cat-file -e ${m.pin}:${m.path})`)
     console.error('  remedies: fix the cite (right path / right pin), or stage the artifact into')
-    console.error('  <runDir>/inputs/ BEFORE setup and cite the staged copy (setup keeps pre-staged files).')
+    console.error('  <runDir>/inputs/ AND COMMIT IT before setup, then cite the committed copy.')
+    console.error('  Staging alone is NOT enough: an uncommitted file exists at no pin, so it')
+    console.error('  cannot be cited — evidence that can still change underneath the run is not')
+    console.error('  evidence. (setup keeps pre-staged files; committing is the missing step.)')
     process.exit(2)
   }
 
