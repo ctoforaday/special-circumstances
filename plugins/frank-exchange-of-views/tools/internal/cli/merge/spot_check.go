@@ -22,18 +22,47 @@ func newSpotCheck() *cobra.Command {
 	var ids flags.CSV
 
 	c := seat.New(role, "spot-check",
-		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."]`,
+		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start`,
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
+			none := seat.Given(cmd, "none")
+			if none && len(ids.Value()) > 0 {
+				return "", fmt.Errorf("--none and --ids are contradictory: either you sampled closures or there were none to sample")
+			}
+			if none && strings.TrimSpace(seat.Str(cmd, "reason")) == "" {
+				return "", fmt.Errorf("--none requires --reason: an empty discharge that does not say WHY is indistinguishable from a skipped duty")
+			}
 			p := record.NewPayload()
 			seat.SetList(p, "ids", &ids)
 			seat.SetSame(cmd, p, "notes")
+			if none {
+				p.Set("none", true)
+				seat.SetSame(cmd, p, "reason")
+			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "spot-check", p); err != nil {
 				return "", err
+			}
+			if none {
+				return "spot-check: nothing to sample, recorded with its reason", nil
 			}
 			return fmt.Sprintf("spot-checked %s", strings.Join(ids.Value(), ", ")), nil
 		})
 
 	c.Flags().Var(&ids, "ids", "comma-separated archived closures you re-verified this round")
 	c.Flags().String("notes", "", "what the spot-check found")
+	// AN HONESTLY-EMPTY ROUND IS A DISCHARGE, NOT A SKIP.
+	//
+	// This run's red-merge-r1 reported in friction that spot-check "cannot record an
+	// honestly-empty round" because --ids requires a list. That is NOT what the tool
+	// did: a bare spot-check was always accepted and recorded ids as an empty array —
+	// TestSpotCheckIdsAreAlwaysAnArray pins exactly that, and caught the attempt to
+	// make the bare form an error. The friction was self-report that did not survive
+	// checking, the second such entry in this run.
+	//
+	// What the seat actually lacked was EXPRESSIVENESS: an empty array records that
+	// nothing was sampled but not WHY, so a later audit cannot tell "the archive was
+	// empty at round start, floor not applicable" from "the seat skipped its duty".
+	// --none --reason says which, and the bare form keeps working.
+	c.Flags().Bool("none", false, "the archive was empty at round start, so there was nothing to sample (requires --reason)")
+	c.Flags().String("reason", "", "why there was nothing to sample")
 	return c
 }

@@ -1062,3 +1062,44 @@ test('CEILING is distinct from UNVERIFIED: a judged deadlock and a PASS keep the
   assert.ok(/never audited by a red pass/.test(asm), 'the unaudited final revision is named')
   assert.ok(/re-audit obligation this carries OUT of the run/.test(asm), 'the debt leaves the run on the record')
 })
+
+// The docket carries PERSISTING disputes: re-raised, or descending by supersedes. A gap
+// minted fresh this round is not docket-bound by that rule — but both seats file closing
+// arguments by their own reading of the prose contract, and in the 2026-07-18 run red and
+// blue both argued R3-2 to closing while the engine never docketed it. It reached no
+// ruling and returned to red's verdict pool as though nobody had considered it. The
+// engine cannot pre-compute the docket (it depends on red's own output from the same
+// turn), so nothing may be withheld SILENTLY.
+test('a fresh gap kept off the docket still reaches the bench, with the reason', async () => {
+  const persisting = gap({ id: 'R1-1', severity: 'high' })
+  const fresh = gap({ id: 'R2-9', severity: 'medium' })
+  const world = makeWorld(makeResponder({
+    red: [
+      redEnv({ verdict: 'FAIL', gaps: [persisting] }),
+      redEnv({ verdict: 'FAIL', gaps: [persisting, fresh] }),
+      redEnv({ verdict: 'PASS' }),
+    ],
+  }))
+  await world.run(script, JSON.stringify({ ...ARGS, maxRounds: 3 }))
+  const judgePrompt = world.calls.filter((c) => c.opts.label.startsWith('judge-r')).map((c) => c.prompt).join('\n')
+  assert.ok(judgePrompt.includes('WITHHELD FROM THE DOCKET'), 'the bench is told what was withheld')
+  assert.ok(judgePrompt.includes('R2-9'), 'the fresh gap is named rather than silently dropped')
+  assert.ok(/minted fresh this round/.test(judgePrompt), 'and the reason it was withheld is given')
+  assert.ok(/docket defect, not a decision/.test(judgePrompt), 'the bench may rule on one it judges wrongly withheld')
+})
+
+// Docket text is snapshotted when red merges; blue repairs afterwards, in the same round.
+// In the 2026-07-18 run BOTH docketed premises asserted "blue took no round-3 turn" and
+// were false by the time the bench sat — a bench that credited the problem statement
+// instead of re-running the check would have carried two already-discharged gaps.
+test('the bench is told the docket premise may be stale and to re-check the live artifact', async () => {
+  const g = gap({ id: 'R1-1', severity: 'high' })
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ verdict: 'FAIL', gaps: [g] }), redEnv({ verdict: 'FAIL', gaps: [g] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, JSON.stringify({ ...ARGS, maxRounds: 3 }))
+  const judgePrompt = world.calls.filter((c) => c.opts.label.startsWith('judge-r')).map((c) => c.prompt).join('\n')
+  assert.ok(/STALENESS/.test(judgePrompt))
+  assert.ok(/AS IT NOW STANDS/.test(judgePrompt), 'rule on the artifact as it stands, not as the docket describes it')
+  assert.ok(/DOCUMENT-PROBE acceptance check/.test(judgePrompt), 'and re-run the checks that can be re-run')
+})
