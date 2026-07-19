@@ -18,6 +18,7 @@ import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { parseRenderedRows } from './scorecards.mjs'
 
 // Stub files with a one-line header each — the write-guard workaround (agents append to
 // existing artifacts; the guard is filename-keyed and path-independent, run-3 experiment).
@@ -158,12 +159,14 @@ export function mirrorScorecards(memoryDir, runDir) {
       headlines[chair] = emitted[1].split(' · ').map((s) => s.trim()).filter(Boolean).slice(0, 3)
       continue
     }
-    // FALLBACK for scorecards written before the HEADLINE line existed. The lazy
-    // match runs to the first ": **" rather than the first colon, because real
-    // clauses contain colons ("LOSS: additive violations") and the greedy-to-colon
-    // form dropped those metrics from the prompt entirely.
-    const picks = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic)\][^\n]*?:\s*\*\*([^*]+)\*\*/g)]
-      .map((m) => `${m[1]} ${m[3]} [${m[2].toUpperCase()}]`)
+    // FALLBACK for scorecards written before the HEADLINE line existed. It uses
+    // scorecards.mjs's parser rather than a fourth private regex — that
+    // duplication is what hid a detector from every prompt in the first place.
+    // `measure` is dropped here on purpose: it is recorded, never targeted, so it
+    // is not headline material (headline() makes the same exclusion).
+    const picks = parseRenderedRows(latest)
+      .filter((r) => r.value !== null && r.cls !== 'measure')
+      .map((r) => `${r.metric} ${r.value.trim()} [${r.cls.toUpperCase()}]`)
     if (picks.length) headlines[chair] = picks.slice(0, 3)
   }
   // A run-1 corpus legitimately has no scorecards: they are WRITTEN at capture and

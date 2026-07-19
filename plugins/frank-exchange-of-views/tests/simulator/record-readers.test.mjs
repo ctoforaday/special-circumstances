@@ -66,6 +66,109 @@ test('parity check refuses to pass over an absent shadow (a gate with nothing to
   assert.throws(() => compare(tmp()), /no shadow renders/)
 })
 
+test('ledger facts: the closure index splits open from closed, and a supersedes reference is not an open gap', async () => {
+  const { extractLedgerFacts } = await import('../../skills/research-protocol/scripts/record-parity-check.mjs')
+  // Both closure-row shapes the hand artifacts use in the wild: a table row and a
+  // heading. Hand formats vary by seat and round, which is exactly why the parity
+  // gate compares extracted FACTS rather than text.
+  const f = extractLedgerFacts([
+    '# ledger', '## OPEN GAPS', 'R2-1 | high | loc | problem | supersedes R1-1',
+    'R2-2 | medium | loc | problem', '', '## CLOSURE INDEX',
+    'R1-1 | closed | fixed | -', '### R1-2 — closed_with_regression', '',
+  ].join('\n'))
+  assert.deepEqual([...f.openIds].sort(), ['R2-1', 'R2-2'])
+  assert.deepEqual([...f.closedIds].sort(), ['R1-1', 'R1-2'])
+  assert.ok(!f.openIds.has('R1-1'), 'an id named in a supersedes column is a reference, not a second open gap')
+
+  // No closure index at all: every id is open. A run before its first closure is
+  // the normal state at round 1, not a malformed ledger.
+  const early = extractLedgerFacts('## OPEN\nR1-1 | high | loc\nR1-2 | low | loc\n')
+  assert.deepEqual([...early.openIds].sort(), ['R1-1', 'R1-2'])
+  assert.equal(early.closedIds.size, 0)
+
+  // Absence and emptiness are different facts — see the compare() test below.
+  assert.equal(extractLedgerFacts(null), null, 'an absent file has no facts to extract')
+  const empty = extractLedgerFacts('')
+  assert.deepEqual([empty.openIds.size, empty.closedIds.size], [0, 0], 'an empty file has facts: zero of them')
+})
+
+test('DEFECT: an EMPTY hand ledger diverges from a populated shadow instead of passing parity', async () => {
+  const { compare } = await import('../../skills/research-protocol/scripts/record-parity-check.mjs')
+  const run = tmp()
+  mkdirSync(join(run, 'red'), { recursive: true })
+  writeShadow(run, { 'ledger.md': '# ledger\n\n## OPEN GAPS (2)\n\n### R1-1 — a gap\n\n### R1-2 — another\n\n## CLOSURE INDEX\n\n' })
+  // A run killed mid-append leaves a zero-byte artifact. `if (!text) return null`
+  // made that indistinguishable from "no file", and compare()'s `if (hl && sl)`
+  // guard then skipped the ledger check entirely — so a truncated ledger reported
+  // parity PASS against a shadow full of open gaps. A gate that measures nothing
+  // is not a passing gate; this file already refuses that for a missing shadow.
+  writeFileSync(join(run, 'red', 'ledger.md'), '')
+  const d = compare(run)
+  assert.ok(d.some((x) => x.includes('R1-1') && x.includes('missing from hand')), `truncated ledger flagged: ${d.join('; ')}`)
+  assert.ok(d.some((x) => x.includes('R1-2')), 'every shadow gap the hand lost is named, not counted')
+
+  // A genuinely ABSENT hand artifact is still skipped: the run may not have that
+  // shard at all, and inventing divergences for it would make the gate unusable.
+  const noHand = tmp()
+  mkdirSync(join(noHand, 'red'), { recursive: true })
+  writeShadow(noHand, { 'ledger.md': '# ledger\n\n### R1-1 — a gap\n' })
+  assert.equal(compare(noHand).length, 0, 'no hand ledger written yet is not a divergence')
+})
+
+test('telemetry facts: rounds are keyed and compared, and a half-written final line is skipped not fatal', async () => {
+  const { extractTelemetryFacts, compare } = await import('../../skills/research-protocol/scripts/record-parity-check.mjs')
+  const t = extractTelemetryFacts([
+    JSON.stringify({ round: 1, open_count: 30, mass: 118.75, max_severity: 'high' }),
+    JSON.stringify({ round: 2, open_count: 23, mass: 81.5, max_severity: 'high' }),
+    '{"round":3,"open_count":1', // killed mid-append — the shape every live run risks
+  ].join('\n'))
+  assert.equal(t.size, 2, 'the truncated line is dropped, the good lines survive')
+  assert.deepEqual(t.get(2), { open_count: 23, mass: 81.5, max_severity: 'high' })
+
+  // A field DISAGREEING between hand and shadow is the failure this audit exists
+  // for — a present-but-wrong line passes every presence check.
+  const run = tmp()
+  mkdirSync(join(run, 'trajectories'), { recursive: true })
+  writeFileSync(join(run, 'trajectories', 'board-telemetry.jsonl'),
+    JSON.stringify({ round: 1, open_count: 30, mass: 118.75, max_severity: 'high' }) + '\n')
+  writeShadow(run, {
+    'ledger.md': '',
+    'board-telemetry.jsonl': JSON.stringify({ round: 1, open_count: 29, mass: 118.75, max_severity: 'high' }) + '\n',
+  })
+  const d = compare(run)
+  assert.ok(d.some((x) => x.includes('round 1 open_count') && x.includes('30') && x.includes('29')), `both values named: ${d.join('; ')}`)
+  assert.ok(!d.some((x) => x.includes('mass')), 'an agreeing field is not reported')
+})
+
+test('scorecards are APPENDED run over run — the series is the point, a single number says nothing', async () => {
+  const { writeScorecards } = await import('../../skills/research-protocol/scripts/capture-research-run.mjs')
+  const memory = tmp()
+  const runA = join(tmp(), '2026-07-01_first-run')
+  const runB = join(tmp(), '2026-07-18_second-run')
+  mkdirSync(runA, { recursive: true }); mkdirSync(runB, { recursive: true })
+
+  const a = writeScorecards(runA, [], memory)
+  assert.equal(a.written, true)
+  assert.ok(a.chairs >= 1, 'every chair gets a card')
+  const card = join(memory, 'red-scorecard.md')
+  const first = readFileSync(card, 'utf8')
+  assert.ok(first.startsWith('# red scorecard'), 'a card born this run gets its header')
+  assert.ok(first.includes('## 2026-07-01_first-run'), 'the run DIRECTORY name labels the series — dated and unique, so no clock is trusted')
+
+  writeScorecards(runB, [], memory)
+  const second = readFileSync(card, 'utf8')
+  assert.ok(second.includes('## 2026-07-01_first-run'), 'the earlier run survives — overwriting would destroy the series')
+  assert.ok(second.includes('## 2026-07-18_second-run'), 'and this run is appended after it')
+  assert.equal(second.split('# red scorecard').length, 2, 'the header is written once, not re-stamped every run')
+  assert.ok(second.indexOf('2026-07-01_first-run') < second.indexOf('2026-07-18_second-run'), 'chronological, because appended')
+
+  // Without the tracked memory dir there is nowhere a series could accumulate, so
+  // writing anywhere else would be a silently discarded scorecard.
+  const r = writeScorecards(runA, [], join(memory, 'no-such-dir'))
+  assert.equal(r.written, false)
+  assert.match(r.reason, /scorecards need the tracked memory dir/)
+})
+
 test('setup: records/ is created; stale mirrors purge at 30 days and fresh ones survive', async () => {
   const { buildSkeleton, purgeStaleMirrors } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
   const run = tmp()

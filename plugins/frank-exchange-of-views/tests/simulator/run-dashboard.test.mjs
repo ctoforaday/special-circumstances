@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildModel, renderHtml } from '../../skills/research-protocol/scripts/render-run-dashboard.mjs'
+import { buildModel, renderHtml, classifySeat, scorecardSection } from '../../skills/research-protocol/scripts/render-run-dashboard.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'feov-dash-'))
 
@@ -125,6 +125,94 @@ test('phone UX pass: severity codes, live-seat grouping, summarized envelopes, t
   assert.ok(html.includes('class="scrollx"'), 'rates table scrolls in its own container')
   assert.ok(html.includes('title="frontier"') && html.includes('>front<'), 'short bar labels with full-name tooltips')
   assert.ok(html.includes('100 claims'), 'completions summarize the raw envelope end-to-end (untruncated at capture)')
+})
+
+test('classifySeat: every prompt shape maps to its seat; an unknown head is `other`, never a guess', () => {
+  // Seat identity is recovered by regex over prose, so the failure mode is silent
+  // misattribution: a head that matches nothing must land in `other` rather than
+  // in whichever branch happens to be last.
+  assert.deepEqual(classifySeat('Red audit, round 3, lens: citations'), { seat: 'red-lens', round: 3 })
+  assert.deepEqual(classifySeat('Red merge, round 12. FIRST ACTION'), { seat: 'red-merge', round: 12 })
+  assert.deepEqual(classifySeat('Blue response, round 2.'), { seat: 'blue-respond', round: 2 })
+  assert.deepEqual(classifySeat('Adjudication, round 1. Contested docket'), { seat: 'judge', round: 1 })
+  assert.deepEqual(classifySeat('Terminal dispute disposition for the run'), { seat: 'judge-terminal', round: 0 })
+  assert.deepEqual(classifySeat('Blue synthesis for topic x'), { seat: 'blue-synthesize', round: 0 })
+  assert.deepEqual(classifySeat('Blue lane 3: prior art'), { seat: 'blue-lane', round: 0 })
+  assert.deepEqual(classifySeat('Formulate 3-5 frontier hypotheses'), { seat: 'frontier', round: 0 })
+  assert.deepEqual(classifySeat('Final assembly of the report'), { seat: 'assemble', round: 0 })
+  assert.deepEqual(classifySeat(''), { seat: 'other', round: 0 })
+  assert.deepEqual(classifySeat('some unrelated preamble'), { seat: 'other', round: 0 })
+  // Round-bearing prompts win over round-0 markers that appear in their body —
+  // a red merge prompt quoting "Blue synthesis" is still a red merge.
+  assert.deepEqual(classifySeat('Red merge, round 4. Prior step was Blue synthesis.'), { seat: 'red-merge', round: 4 })
+})
+
+test('DEFECT: compound grades are counted as themselves, not as the simple grade they contain', () => {
+  // `medium-high` contains the substring `high`, and `low-medium` contains
+  // `medium`. With the grade list ordered simple-first, the substring match
+  // classified every compound row as the simple grade — inflating the
+  // high-severity count on the tile a human reads to decide whether the board is
+  // getting worse. The list is now ordered most-specific-first.
+  const runDir = tmp(), transcriptDir = tmp()
+  mkdirSync(join(runDir, 'red'), { recursive: true })
+  writeFileSync(join(runDir, 'red', 'ledger.md'),
+    '# ledger\n## open\nR1-1 | medium-high | loc | p\nR1-2 | low-medium | loc | p\nR1-3 | high | loc | p\n## closure index\n')
+  const m = buildModel(runDir, transcriptDir)
+  assert.equal(m.shards.openRows, 3)
+  assert.deepEqual(m.shards.openBySeverity, { 'medium-high': 1, 'low-medium': 1, high: 1 })
+})
+
+test('DEFECT: scorecard rows whose CLAUSE contains a colon reach the dashboard', () => {
+  // `[^:]+` cannot backtrack past a colon, so `LOSS: additive violations` never
+  // matched and the row vanished from the dashboard entirely — and that row is
+  // `unrecorded_claim_loss`, a DETECTOR carrying the whole additive invariant.
+  // The same defect was just repaired in scorecards.mjs; this is its twin.
+  const runDir = tmp()
+  mkdirSync(join(runDir, 'inputs'), { recursive: true })
+  writeFileSync(join(runDir, 'inputs', 'red-scorecard.md'), [
+    '# red scorecard', '',
+    '## 2026-07-01_old-run', '',
+    '- `stale_metric` [benchmark] — An earlier run: **99**', '',
+    '## 2026-07-18_this-run', '',
+    '- `unrecorded_claim_loss` [detector] — LOSS: additive violations: **2**',
+    '- `round_parity_failures` [detector] — Round on the record: **0**',
+    '- `finding_precision` [benchmark] — Certification: earned PASS/FAIL: **0.8**',
+    '- `lines_of_inquiry` [diagnostic] — Alternatives explored: **7**',
+    '- `carried_share` [benchmark] — Not a router: _not computed_ — the bench did not sit',
+    '',
+  ].join('\n'))
+  const html = scorecardSection(runDir)
+
+  assert.ok(html.includes('unrecorded_claim_loss'), 'the colon-bearing detector row is rendered')
+  assert.ok(html.includes('LOSS: additive violations'), 'the clause is rendered WHOLE, not truncated at its colon')
+  assert.ok(html.includes('Certification: earned PASS/FAIL'), 'the second colon-bearing clause too')
+  assert.ok(!html.includes('stale_metric'), 'only the LATEST capture is shown — the series lives in the file')
+  // A tripped detector is an alarm; a detector reading 0 is not. Class, not value,
+  // drives the styling — treating a diagnostic as a target is the defect this guards.
+  const rowOf = (metric) => html.split('<tr>').find((r) => r.includes(metric))
+  assert.ok(rowOf('unrecorded_claim_loss').includes('#b00'), 'nonzero detector reads as an alarm')
+  assert.ok(!rowOf('round_parity_failures').includes('#b00'), 'a detector at 0 has not fired')
+  assert.ok(rowOf('finding_precision').includes('font-weight:700'), 'benchmarks read bold')
+  assert.ok(rowOf('lines_of_inquiry').includes('opacity:.65'), 'diagnostics read muted — not a target')
+  assert.ok(rowOf('carried_share').includes('not computed'), 'an uncomputed metric is stated, not dropped')
+})
+
+test('scorecardSection: absent inputs, no scorecards, and unparseable rows all render nothing (never a crash)', () => {
+  // The dashboard runs as a live watcher over a run in progress, so every one of
+  // these states is reached on a normal run before the first capture exists.
+  assert.equal(scorecardSection(tmp()), '', 'no inputs/ yet')
+  const noCards = tmp(); mkdirSync(join(noCards, 'inputs'), { recursive: true })
+  assert.equal(scorecardSection(noCards), '', 'inputs/ exists but holds no scorecards')
+  const junk = tmp(); mkdirSync(join(junk, 'inputs'), { recursive: true })
+  writeFileSync(join(junk, 'inputs', 'blue-scorecard.md'), '# blue scorecard\n\n## run\n\nprose, no rows\n')
+  assert.equal(scorecardSection(junk), '', 'a card with no parseable rows contributes no empty table')
+  // Chair names and values are escaped — the file is machine-written, but it is
+  // still untrusted input to an HTML document.
+  const esc = tmp(); mkdirSync(join(esc, 'inputs'), { recursive: true })
+  writeFileSync(join(esc, 'inputs', 'red-scorecard.md'), '## r\n\n- `m` [benchmark] — Clause: **<script>x</script>**\n')
+  const out = scorecardSection(esc)
+  assert.ok(!out.includes('<script>'), 'values are escaped, never injected')
+  assert.ok(out.includes('&lt;script&gt;'))
 })
 
 test('W1.5: telemetry is authoritative when the ledger parse under-reads the open count', () => {

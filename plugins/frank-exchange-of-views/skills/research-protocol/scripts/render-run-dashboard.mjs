@@ -11,6 +11,8 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { parseRenderedRows, latestSection } from './scorecards.mjs'
+import { classifySeat } from './seat-classify.mjs'
 
 const jsonl = (p) => existsSync(p)
   ? readFileSync(p, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
@@ -25,19 +27,9 @@ const MASSD = { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high
 // {type, key, agentId} (no labels; labels are a panel affordance the harness does not
 // persist), so seat identity is recovered exactly the way cost-audit.mjs recovers it. A
 // flat-files lesson in miniature: structured state living in prose, parsed by regex.
-export function classifySeat(head) {
-  let m
-  if ((m = head.match(/Red audit, round (\d+)/))) return { seat: 'red-lens', round: +m[1] }
-  if ((m = head.match(/Red merge, round (\d+)/))) return { seat: 'red-merge', round: +m[1] }
-  if ((m = head.match(/Blue response, round (\d+)/))) return { seat: 'blue-respond', round: +m[1] }
-  if ((m = head.match(/Adjudication, round (\d+)/))) return { seat: 'judge', round: +m[1] }
-  if (head.includes('Terminal dispute disposition')) return { seat: 'judge-terminal', round: 0 }
-  if (head.includes('Blue synthesis')) return { seat: 'blue-synthesize', round: 0 }
-  if (head.includes('Blue lane')) return { seat: 'blue-lane', round: 0 }
-  if (head.includes('frontier hypotheses')) return { seat: 'frontier', round: 0 }
-  if (head.includes('Final assembly')) return { seat: 'assemble', round: 0 }
-  return { seat: 'other', round: 0 }
-}
+// Re-exported from seat-classify.mjs, the single seat table. This used to be a
+// private copy that had already drifted from cost-audit's.
+export { classifySeat } from './seat-classify.mjs'
 
 export function buildModel(runDir, transcriptDir) {
   const telemetry = jsonl(join(runDir, 'trajectories', 'board-telemetry.jsonl'))
@@ -90,7 +82,13 @@ export function buildModel(runDir, transcriptDir) {
   }
   const ledgerTxt = readIf('red/ledger.md')
   const archiveTxt = readIf('red/archive.md')
-  const GRADES = ['certain', 'high', 'medium-high', 'medium', 'low-medium', 'low', 'trivial', 'realized']
+  // Ordered MOST SPECIFIC FIRST, and it must stay that way: the match below is a
+  // substring test, so listing `high` before `medium-high` made every
+  // medium-high row report as high (and every low-medium row as medium) —
+  // the compound grades have the simple ones as substrings. That silently
+  // inflated the high-severity count on the tile a human uses to judge whether
+  // the board is getting worse.
+  const GRADES = ['medium-high', 'low-medium', 'certain', 'high', 'medium', 'low', 'trivial', 'realized']
   const idLine = /R\d+-\d+/
   let openRows = 0
   const openBySeverity = {}
@@ -257,12 +255,13 @@ export function scorecardSection(runDir) {
   for (const f of cards) {
     const chair = f.replace('-scorecard.md', '')
     const body = readFileSync(join(inputs, f), 'utf8')
-    const sections = body.split(/^## /m)
-    const latest = sections[sections.length - 1] || ''
-    const rows = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic|measure)\]\s*—\s*([^:]+):\s*(?:\*\*([^*]+)\*\*|_not computed_)/g)]
+    // Parsed by scorecards.mjs, which owns the format it renders. Three
+    // hand-rolled copies of this parser each carried the same colon defect.
+    const latest = latestSection(body)
+    const rows = parseRenderedRows(latest)
     if (!rows.length) continue
     blocks.push(`<h3>${esc(chair)}</h3><table>` + rows.map((r) => {
-      const [, metric, cls, clause, value] = r
+      const { metric, cls, clause, value } = r
       const fired = cls === 'detector' && value && value.trim() !== '0'
       const style = fired ? 'color:#b00;font-weight:700'
         : cls === 'benchmark' ? 'font-weight:700'

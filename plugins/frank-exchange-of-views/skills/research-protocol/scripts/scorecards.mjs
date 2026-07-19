@@ -346,6 +346,36 @@ export function headline(rows, max = 3) {
   })
 }
 
+// THE parser for a rendered scorecard. It lives here, beside renderChair, because
+// the module that WRITES a format is the only place that can be trusted to read it.
+//
+// This exists because the same defect was found three times in three hand-rolled
+// copies: setup's headline mirror, the dashboard's table, and (by construction)
+// anything written next. Each used a colon-excluding class for the clause, and a
+// character class cannot backtrack past the delimiter it excludes — so every row
+// whose CLAUSE contains a colon silently failed to match. The casualty each time
+// was `unrecorded_claim_loss`, a DETECTOR and the entire enforcement of the
+// additive invariant: computed, rendered, and invisible to both the seat and the
+// human. Three readers of one artifact, disagreeing about it, is the defect —
+// fixing the regex in three places would only have reset the clock.
+//
+// Lazy (.+?) terminates at the first colon actually followed by a value, which is
+// the real end of a clause. A row that is `_not computed_` yields value null, so
+// callers can tell "measured zero" from "never measured" — a distinction the
+// detector classes depend on.
+export function parseRenderedRows(section) {
+  const re = /`([a-z_]+)`\s*\[(benchmark|detector|diagnostic|measure)\]\s*—\s*(.+?):\s*(?:\*\*([^*]+)\*\*|_not computed_)/g
+  return [...String(section || '').matchAll(re)].map((m) => ({
+    metric: m[1], cls: m[2], clause: m[3], value: m[4] === undefined ? null : m[4],
+  }))
+}
+
+// A scorecard is APPENDED run over run, so the last '## ' block is this run's.
+export function latestSection(body) {
+  const s = String(body || '').split(/^## /m)
+  return s[s.length - 1] || ''
+}
+
 export function chairHeader(chair) {
   return [
     `# ${chair} scorecard — the numbers this chair is measured against`,

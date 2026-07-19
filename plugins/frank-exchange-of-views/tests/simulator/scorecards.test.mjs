@@ -233,3 +233,71 @@ test('a pre-HEADLINE scorecard still yields a prompt headline', async () => {
   assert.ok(r.headlines.red.some((h) => h.startsWith('unrecorded_claim_loss 4')), 'the colon-bearing clause is readable by the fallback')
   assert.ok(r.headlines.red.some((h) => h.startsWith('anchored_closures_pct 89')))
 })
+
+// ---- one parser, one authority ----
+
+test('parseRenderedRows reads a colon-bearing clause and distinguishes zero from unmeasured', async () => {
+  const { parseRenderedRows } = await import('../../skills/research-protocol/scripts/scorecards.mjs')
+  const rows = [
+    row({ clause: 'LOSS: additive violations', metric: 'unrecorded_claim_loss', cls: 'detector', value: 0 }),
+    row({ clause: 'Certification: earned PASS/FAIL', metric: 'finding_precision', cls: 'benchmark', note: 'needs adjudication outcomes' }),
+    row({ clause: 'Petition handling', metric: 'petitions_filed', cls: 'measure', value: 2 }),
+  ]
+  const parsed = parseRenderedRows(renderChair('red', rows, 'run-6'))
+  const byMetric = Object.fromEntries(parsed.map((r) => [r.metric, r]))
+  assert.equal(byMetric.unrecorded_claim_loss.value.trim(), '0', 'a detector reading zero is MEASURED, not missing')
+  assert.equal(byMetric.unrecorded_claim_loss.clause, 'LOSS: additive violations', 'the clause survives its own colon intact')
+  assert.equal(byMetric.finding_precision.value, null, 'an uncomputed row parses to null, never to a string')
+  assert.ok(byMetric.petitions_filed, 'measure rows are parsed; excluding them is the caller\'s choice, not the parser\'s')
+})
+
+// STRUCTURAL GUARD. The colon defect was found three times in three private copies
+// of this regex — setup's headline mirror, the dashboard's table, and the renderer
+// itself. Fixing it three times would only have reset the clock, so the parser now
+// lives in one place and this test fails if a fourth copy appears.
+test('no module re-implements the scorecard row parser', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs')
+  const dir = new URL('../../skills/research-protocol/scripts/', import.meta.url)
+  const offenders = []
+  for (const f of readdirSync(dir).filter((f) => /\.(mjs|js)$/.test(f))) {
+    if (f === 'scorecards.mjs') continue // the owner of the format may parse it
+    const body = readFileSync(new URL(f, dir), 'utf8')
+    if (/\[\(benchmark\|detector\|diagnostic/.test(body)) offenders.push(f)
+  }
+  assert.deepEqual(offenders, [], 'import parseRenderedRows from scorecards.mjs instead of re-deriving the row format')
+})
+
+// ---- one seat table ----
+
+// The dashboard and the cost audit each carried a private copy of the seat
+// classifier, and they had already drifted: cost-audit lacked the
+// `Terminal dispute disposition` case, so those transcripts were filed as `other`
+// and their spend was misattributed in the report the bench's economics decisions
+// rest on. Both now re-export one table, and this test fails if they diverge again.
+test('the dashboard and the cost audit classify every seat identically', async () => {
+  const { classifySeat, KNOWN_SEATS } = await import('../../skills/research-protocol/scripts/seat-classify.mjs')
+  const { classifySeat: dash } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const { classifyTranscript: cost } = await import('../../skills/research-protocol/scripts/cost-audit.mjs')
+  const heads = [
+    'Red audit, round 3 — verify at the leaf',
+    'Red merge, round 2', 'Blue response, round 4', 'Adjudication, round 1',
+    'Terminal dispute disposition', 'Blue synthesis', 'Blue lane 2',
+    'frontier hypotheses', 'Final assembly', 'something unrecognised',
+  ]
+  for (const h of heads) {
+    assert.deepEqual(dash(h), classifySeat(h), `dashboard agrees on: ${h}`)
+    assert.deepEqual(cost(h), classifySeat(h), `cost audit agrees on: ${h}`)
+  }
+  assert.deepEqual(cost('Terminal dispute disposition'), { seat: 'judge-terminal', round: 0 },
+    'the case cost-audit was missing — its absence misattributed real spend')
+  const named = new Set(heads.map((h) => classifySeat(h).seat))
+  for (const s of KNOWN_SEATS) assert.ok(named.has(s), `${s} is exercised by this test`)
+})
+
+test('a seat table entry carries its round; an unrounded seat reports round 0', async () => {
+  const { classifySeat } = await import('../../skills/research-protocol/scripts/seat-classify.mjs')
+  assert.deepEqual(classifySeat('Red audit, round 11'), { seat: 'red-lens', round: 11 }, 'a two-digit round is not truncated')
+  assert.deepEqual(classifySeat('Blue synthesis'), { seat: 'blue-synthesize', round: 0 })
+  assert.deepEqual(classifySeat(''), { seat: 'other', round: 0 }, 'empty input is other, not a throw')
+  assert.deepEqual(classifySeat(undefined), { seat: 'other', round: 0 }, 'undefined is other, not a throw')
+})

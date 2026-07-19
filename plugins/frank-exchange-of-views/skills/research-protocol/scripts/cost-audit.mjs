@@ -11,34 +11,40 @@
 //
 // Pricing is LIST-RATE arithmetic ($/MTok below) — plan meters typically observe less.
 // Run 3 calibration: the meter drew ~0.6x of these figures.
+import { classifySeat as classifyTranscript } from './seat-classify.mjs'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
-const PRICES = {
+export const PRICES = {
   //         input  output cache-read cache-write
   haiku:  [   1,     5,    0.10,      1.25 ],
   sonnet: [   2,    10,    0.20,      2.50 ], // intro pricing through 2026-08-31; list is 3/15/0.3/3.75
   opus:   [   5,    25,    0.50,      6.25 ],
   fable:  [  10,    50,    1.00,     12.50 ],
 }
-const tier = (m) => Object.keys(PRICES).find((k) => (m || '').toLowerCase().includes(k)) || 'fable'
+// tier picks the price row by substring. An UNRECOGNIZED model falls back to
+// `fable`, the most expensive row: an unknown model must over-report, never
+// under-report, since a silently cheap estimate is the failure that goes
+// unnoticed.
+export const tier = (m) => Object.keys(PRICES).find((k) => (m || '').toLowerCase().includes(k)) || 'fable'
 
-const wf = process.argv[2]
-if (!wf) { console.error('usage: node cost-audit.mjs <workflow-transcript-dir>'); process.exit(1) }
+// Seat identity is recovered from the transcript's first user message — the
+// harness journal carries no seat labels. Round-bearing prompts are matched
+// first because a round-0 marker can also appear in a round-bearing prompt's
+// preamble.
+// classifyTranscript is the shared seat table. The private copy it replaced was
+// missing the `Terminal dispute disposition` case, so terminal-disposition
+// transcripts were filed as `other` and their spend was misattributed in the
+// cost report. Adding the case CHANGES this report's output — deliberately:
+// the previous output was wrong.
+export { classifySeat as classifyTranscript } from './seat-classify.mjs'
 
-const rows = []
-for (const f of readdirSync(wf).filter((f) => f.startsWith('agent-') && f.endsWith('.jsonl'))) {
-  const txt = readFileSync(join(wf, f), 'utf8')
-  const head = txt.slice(0, 2000)
-  let seat = 'other', round = 0, m
-  if ((m = head.match(/Red audit, round (\d+)/))) { seat = 'red-lens'; round = +m[1] }
-  else if ((m = head.match(/Red merge, round (\d+)/))) { seat = 'red-merge'; round = +m[1] }
-  else if ((m = head.match(/Blue response, round (\d+)/))) { seat = 'blue-respond'; round = +m[1] }
-  else if ((m = head.match(/Adjudication, round (\d+)/))) { seat = 'judge'; round = +m[1] }
-  else if (head.includes('Blue synthesis')) seat = 'blue-synthesize'
-  else if (head.includes('Blue lane')) seat = 'blue-lane'
-  else if (head.includes('frontier hypotheses')) seat = 'frontier'
-  else if (head.includes('Final assembly')) seat = 'assemble'
+// scanTranscript sums one agent's usage records and prices them. Non-JSON lines
+// are skipped rather than fatal: a run killed mid-append leaves a half-written
+// final line, and a cost report that throws on it reports nothing at all.
+export function scanTranscript(txt) {
+  const { seat, round } = classifyTranscript(txt.slice(0, 2000))
   let model = null, inp = 0, out = 0, cr = 0, cw = 0, turns = 0
   for (const line of txt.split('\n')) {
     if (!line.trim()) continue
@@ -51,17 +57,40 @@ for (const f of readdirSync(wf).filter((f) => f.startsWith('agent-') && f.endsWi
     }
   }
   const t = tier(model), p = PRICES[t]
-  rows.push({ seat, round, t, turns, inp, out, cr, cw, cost: (inp * p[0] + out * p[1] + cr * p[2] + cw * p[3]) / 1e6 })
+  return { seat, round, t, turns, inp, out, cr, cw, cost: (inp * p[0] + out * p[1] + cr * p[2] + cw * p[3]) / 1e6 }
+}
+
+// aggregate groups rows into seat-round-tier buckets. The key is zero-padded so
+// plain lexicographic sort orders rounds numerically (round 2 before round 10).
+export function aggregate(rows) {
+  const agg = {}
+  for (const r of rows) {
+    const k = `${String(r.round).padStart(2, '0')}|${r.seat}|${r.t}`
+    agg[k] = agg[k] || { n: 0, turns: 0, inp: 0, out: 0, cr: 0, cw: 0, cost: 0 }
+    const a = agg[k]
+    a.n++; a.turns += r.turns; a.inp += r.inp; a.out += r.out; a.cr += r.cr; a.cw += r.cw; a.cost += r.cost
+  }
+  return agg
+}
+
+// Share of all tokens that is cache traffic. The `|| 1` guards an empty run:
+// division by zero would print NaN% into a run record.
+export const cacheShare = (T) => Math.round((100 * (T.cr + T.cw)) / (T.inp + T.out + T.cr + T.cw || 1))
+
+// The report is emitted from main(), which runs only when this file IS the
+// entry point — the pure functions above are importable without a CLI run
+// firing (and calling process.exit) as a side effect of the import.
+function main() {
+const wf = process.argv[2]
+if (!wf) { console.error('usage: node cost-audit.mjs <workflow-transcript-dir>'); process.exit(1) }
+
+const rows = []
+for (const f of readdirSync(wf).filter((f) => f.startsWith('agent-') && f.endsWith('.jsonl'))) {
+  rows.push(scanTranscript(readFileSync(join(wf, f), 'utf8')))
 }
 
 const M = (n) => (n / 1e6).toFixed(2) + 'M'
-const agg = {}
-for (const r of rows) {
-  const k = `${String(r.round).padStart(2, '0')}|${r.seat}|${r.t}`
-  agg[k] = agg[k] || { n: 0, turns: 0, inp: 0, out: 0, cr: 0, cw: 0, cost: 0 }
-  const a = agg[k]
-  a.n++; a.turns += r.turns; a.inp += r.inp; a.out += r.out; a.cr += r.cr; a.cw += r.cw; a.cost += r.cost
-}
+const agg = aggregate(rows)
 
 console.log('# Cost audit\n')
 console.log(`Measured from ${rows.length} per-agent API transcripts in \`${wf}\`. List-rate arithmetic; see the price table in cost-audit.mjs.\n`)
@@ -75,7 +104,7 @@ for (const k of Object.keys(agg).sort()) {
   T.n += a.n; T.turns += a.turns; T.inp += a.inp; T.out += a.out; T.cr += a.cr; T.cw += a.cw; T.cost += a.cost
 }
 console.log(`| | **TOTAL** | | ${T.n} | ${T.turns} | ${M(T.inp)} | ${M(T.out)} | ${M(T.cr)} | ${M(T.cw)} | **$${T.cost.toFixed(2)}** |`)
-const cachePct = Math.round((100 * (T.cr + T.cw)) / (T.inp + T.out + T.cr + T.cw || 1))
+const cachePct = cacheShare(T)
 console.log('\n## Notes\n')
 console.log(`- Cache traffic is ${cachePct}% of all tokens; harness panel counters (input+output only) understate real flow accordingly.`)
 // Findings text corrected per run-4 report §6.4 item 1: (a) merge cost tracks the CUMULATIVE
@@ -107,3 +136,6 @@ if (runDir) {
     console.log('\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never appended: check run-record-audit.md)')
   }
 }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()
