@@ -92,7 +92,10 @@ test('citationYieldByRole buckets by ROLE, not by position', () => {
     'red/candidates/round-1-lens-6.md': '### L6-F1 finding\n',
     'red/candidates/notes.md': '### L9-F9 not a lens file\n',
   })
-  assert.deepEqual(citationYieldByRole(d), { 1: { citation: 2, logic: 1, darkside: 1 } })
+  const y = citationYieldByRole(d)
+  assert.equal(y[1].citation, 2); assert.equal(y[1].logic, 1); assert.equal(y[1].darkside, 1)
+  assert.deepEqual(y[1].seats, { citation: 1, logic: 1, darkside: 1 }, 'one seat per role dispatched')
+  assert.deepEqual(y[1].per_seat, { citation: 2, logic: 1, darkside: 1 })
   assert.equal(citationYieldByRole(tmp()), null, 'no candidates dir is null, not an empty answer')
 })
 
@@ -300,4 +303,28 @@ test('a seat table entry carries its round; an unrounded seat reports round 0', 
   assert.deepEqual(classifySeat('Blue synthesis'), { seat: 'blue-synthesize', round: 0 })
   assert.deepEqual(classifySeat(''), { seat: 'other', round: 0 }, 'empty input is other, not a throw')
   assert.deepEqual(classifySeat(undefined), { seat: 'other', round: 0 }, 'undefined is other, not a throw')
+})
+
+// W2i dispatches FEWER citation lenses in later rounds. A raw round-over-round
+// comparison therefore measures the CUT as though it were the collapse that
+// justified the cut. This fixture is the first live run's actual shape: citation
+// 3 findings over 2 seats in r1, 1 over 1 seat in r2. Raw reads -67%; per seat it
+// is -33%, while L5 (one seat in both rounds) really did fall -67%.
+test('citationYieldByRole reports per-seat yield, so a dispatch cut is not read as a collapse', async () => {
+  const { citationYieldByRole } = await import('../../skills/research-protocol/scripts/scorecards.mjs')
+  const d = runWith({
+    'red/candidates/round-1-lens-1.md': '### L1-F1 a\n### L1-F2 b\n',
+    'red/candidates/round-1-lens-2.md': '### L2-F1 c\n',
+    'red/candidates/round-1-lens-5.md': Array.from({ length: 9 }, (_, i) => `### L5-F${i + 1} x`).join('\n'),
+    'red/candidates/round-2-lens-1.md': '### L1-F1 d\n',
+    'red/candidates/round-2-lens-5.md': '### L5-F1 y\n### L5-F2 y\n### L5-F3 y\n',
+  })
+  const y = citationYieldByRole(d)
+  assert.equal(y[1].citation, 3); assert.equal(y[1].seats.citation, 2)
+  assert.equal(y[2].citation, 1); assert.equal(y[2].seats.citation, 1)
+  assert.equal(y[1].per_seat.citation, 1.5, 'r1 citation: 3 findings over 2 dispatched seats')
+  assert.equal(y[2].per_seat.citation, 1, 'r2 citation: 1 over 1 — a 33% decline, not the 67% the raw count shows')
+  assert.equal(y[1].per_seat.logic, 9)
+  assert.equal(y[2].per_seat.logic, 3, 'L5 held one seat in both rounds, so its fall is real and unconfounded')
+  assert.equal(y[1].per_seat.darkside, null, 'a role that did not sit reports null, never 0 — absence is not a measurement')
 })

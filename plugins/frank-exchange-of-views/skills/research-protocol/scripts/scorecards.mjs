@@ -180,7 +180,7 @@ export function redRows(runDir, results, telemetry) {
     ? row({
       clause: 'Lens economics (W2i assumption)', metric: 'citation_yield_by_round', cls: 'diagnostic',
       value: byRole,
-      joint: 'RETUNE TRIGGER: if rounds 2+ citation yield stops collapsing versus round 1, the consolidation cap is wrong',
+      joint: 'RETUNE TRIGGER: compare PER_SEAT yield across rounds, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens',
     })
     : row({
       clause: 'Lens economics (W2i assumption)', metric: 'citation_yield_by_round', cls: 'diagnostic',
@@ -208,10 +208,23 @@ export function citationYieldByRole(runDir) {
     const [, round, role] = m
     const body = read(join(dir, f)) || ''
     const findings = (body.match(/^\s*(?:###\s*)?L\d+-F\d+\b/gm) || []).length
-    const bucket = (perRound[round] ||= { citation: 0, logic: 0, darkside: 0 })
-    if (+role <= 4) bucket.citation += findings
-    else if (+role === 5) bucket.logic += findings
-    else bucket.darkside += findings
+    const bucket = (perRound[round] ||= { citation: 0, logic: 0, darkside: 0, seats: { citation: 0, logic: 0, darkside: 0 } })
+    const kind = +role <= 4 ? 'citation' : +role === 5 ? 'logic' : 'darkside'
+    bucket[kind] += findings
+    bucket.seats[kind] += 1
+  }
+  // PER-SEAT YIELD, not just raw count. W2i dispatches FEWER citation lenses in
+  // later rounds, so a raw round-over-round comparison measures the cut as if it
+  // were the collapse that justified the cut — the intervention manufactures its
+  // own evidence, and the retune trigger keyed on it cannot detect the error.
+  // First live run: citation fell 3->1 raw (-67%), but 2 seats -> 1 seat, so per
+  // seat it was 1.5 -> 1.0 (-33%). L5 (one seat both rounds) fell 9 -> 3, a real
+  // -67%. The lens that actually collapsed was not the one being rationed.
+  for (const r of Object.values(perRound)) {
+    r.per_seat = {}
+    for (const k of ['citation', 'logic', 'darkside']) {
+      r.per_seat[k] = r.seats[k] ? +(r[k] / r.seats[k]).toFixed(2) : null
+    }
   }
   return Object.keys(perRound).length ? perRound : null
 }
