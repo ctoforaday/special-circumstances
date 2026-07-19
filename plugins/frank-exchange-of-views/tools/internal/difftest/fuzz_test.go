@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"path/filepath"
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -42,24 +41,17 @@ import (
 // DROPPING the timestamp instead would also make the comparison pass, and would stop it
 // noticing a REORDER — the one failure this schema exists to catch. Ranking keeps order
 // under test while letting the absolute clock differ, which is the only part that may.
+// rankTimestamps replaces each event's clock with its POSITION in the canonical
+// (TS, SeatID, Seq) order, via the same eventRanks the goldens use.
+//
+// It ranked DISTINCT CLOCK VALUES until CI caught it: two events landing inside one clock
+// tick leave one fewer distinct instant, every later rank shifts, and two runs of the same
+// commands disagree for no reason but speed. That made this determinism test itself
+// non-deterministic — the exact property it exists to assert, broken in its own harness.
+// Position in the merge order is stable however coarse the clock is, and a genuine
+// reordering still shows up as a diff.
 func rankTimestamps(m map[string][]map[string]any) map[string][]map[string]any {
-	seen := map[string]bool{}
-	for _, evs := range m {
-		for _, ev := range evs {
-			if ts, ok := ev["ts"].(string); ok {
-				seen[ts] = true
-			}
-		}
-	}
-	all := make([]string, 0, len(seen))
-	for ts := range seen {
-		all = append(all, ts)
-	}
-	sort.Strings(all)
-	rank := make(map[string]int, len(all))
-	for i, ts := range all {
-		rank[ts] = i
-	}
+	rank := eventRanks(m)
 	out := make(map[string][]map[string]any, len(m))
 	for k, evs := range m {
 		cp := make([]map[string]any, len(evs))
@@ -68,8 +60,8 @@ func rankTimestamps(m map[string][]map[string]any) map[string][]map[string]any {
 			for key, v := range ev {
 				c[key] = v
 			}
-			if ts, ok := c["ts"].(string); ok {
-				c["ts"] = rank[ts]
+			if _, ok := c["ts"]; ok {
+				c["ts"] = rank[fmt.Sprintf("%s#%v", k, ev["seq"])]
 			}
 			cp[i] = c
 		}

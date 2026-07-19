@@ -36,26 +36,52 @@ import (
 // on that.
 var update = os.Getenv("UPDATE_GOLDENS") == "1"
 
-// timestampRanks maps every distinct timestamp in a capture to its position in time,
-// counting from zero. The stamp format is lexicographically ordered by design, so a
-// string sort is a time sort.
-func timestampRanks(events map[string][]map[string]any) map[string]int {
-	seen := map[string]bool{}
-	for _, evs := range events {
+// eventRanks maps each event to its position in the canonical merge order, counting from
+// zero, keyed by the event's identity (shard file + seq).
+//
+// RANKED BY POSITION, NOT BY DISTINCT TIMESTAMP. The first version ranked the set of
+// distinct clock values, which was reproducible on one machine and NOT on another: when
+// two events land inside the same clock tick there is one fewer distinct instant, so every
+// later rank shifts by one and the whole golden moves. CI found it immediately — `ts:9`
+// locally against `ts:8` on the runner — and the cause was speed, not semantics. Ranking
+// distinct instants fixed the machine-PATH dependence these goldens used to have and left
+// a machine-SPEED dependence in its place.
+//
+// The canonical order is (TS, SeatID, Seq), the same key BoardState replays by. Ranking
+// position in THAT order is stable no matter how coarse the clock is: events sharing a
+// tick are separated by seat and sequence, deterministically. A real reordering still
+// changes the golden, which is the property this field was added to protect after
+// replay-by-filename silently dropped the bench's closures.
+func eventRanks(events map[string][]map[string]any) map[string]int {
+	type ref struct {
+		ts, seat string
+		seq      float64
+		id       string
+	}
+	var all []ref
+	for name, evs := range events {
 		for _, ev := range evs {
-			if ts, ok := ev["ts"].(string); ok {
-				seen[ts] = true
-			}
+			r := ref{id: name}
+			r.ts, _ = ev["ts"].(string)
+			r.seat, _ = ev["seatId"].(string)
+			r.seq, _ = ev["seq"].(float64)
+			r.id = fmt.Sprintf("%s#%v", name, ev["seq"])
+			all = append(all, r)
 		}
 	}
-	all := make([]string, 0, len(seen))
-	for ts := range seen {
-		all = append(all, ts)
-	}
-	sort.Strings(all)
+	sort.Slice(all, func(i, j int) bool {
+		a, b := all[i], all[j]
+		if a.ts != b.ts {
+			return a.ts < b.ts
+		}
+		if a.seat != b.seat {
+			return a.seat < b.seat
+		}
+		return a.seq < b.seq
+	})
 	rank := make(map[string]int, len(all))
-	for i, ts := range all {
-		rank[ts] = i
+	for i, r := range all {
+		rank[r.id] = i
 	}
 	return rank
 }
@@ -93,20 +119,21 @@ func TestGolden(t *testing.T) {
 			// baked a developer's home directory into these files. Blanking it to a
 			// constant would fix that and throw away the ORDER, which is precisely what
 			// this field was added to establish after replay-by-filename silently
-			// dropped the bench's closures. Ranking keeps it: the Nth distinct instant
-			// is written as N, so two events swapping places CHANGES the golden and a
-			// reordering cannot slip past as "just the clock".
+			// dropped the bench's closures. Ranking keeps it: an event's POSITION in
+			// the canonical (TS, SeatID, Seq) order is written in place of its clock,
+			// so two events swapping places CHANGES the golden and a reordering cannot
+			// slip past as "just the clock".
 			//
 			// Normalized here rather than faked in the binary: a production code path
 			// whose only purpose is to lie about the clock is the worse trade.
-			rank := timestampRanks(st.events)
+			rank := eventRanks(st.events)
 
 			transcript.WriteString("═══ EVENTS ═══\n")
 			for _, name := range sortedKeys(st.events) {
 				fmt.Fprintf(&transcript, "-- %s\n", name)
 				for _, ev := range st.events[name] {
-					if ts, ok := ev["ts"].(string); ok {
-						ev["ts"] = rank[ts]
+					if _, ok := ev["ts"]; ok {
+						ev["ts"] = rank[fmt.Sprintf("%s#%v", name, ev["seq"])]
 					}
 					b, _ := json.Marshal(ev)
 					transcript.Write(b)
