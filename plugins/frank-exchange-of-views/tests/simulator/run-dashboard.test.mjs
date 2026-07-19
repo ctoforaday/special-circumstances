@@ -253,3 +253,54 @@ test('an empty friction log still reports zero rather than throwing', async () =
   assert.equal(m.friction.count, 0, 'a header-only file is genuinely empty')
   assert.equal(m.friction.last, null)
 })
+
+// A run's pace depends on its model tier, its report size and how hard red is working,
+// so the only honest basis for "how much longer" is THIS run's own measured seats.
+test('projectCompletion ranges over measured spans and never returns a point estimate', async () => {
+  const { projectCompletion } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const t = (min) => min * 60000
+  const now = t(100)
+  const seats = [
+    { seat: 'red-merge', label: 'red-merge-r1', done: true, startedMs: t(0), endedMs: t(11) },
+    { seat: 'red-merge', label: 'red-merge-r2', done: true, startedMs: t(20), endedMs: t(37) },
+    { seat: 'blue-synthesize', label: 'blue-synthesize', done: true, startedMs: t(40), endedMs: t(58) },
+    { seat: 'red-merge', label: 'red-merge-r3', done: false, startedMs: t(95) },
+  ]
+  const p = projectCompletion(seats, now)
+  // The live merge is 5 minutes in: 11-5 low, 17-5 high, plus assembly's 18 (no
+  // assemble precedent, so blue-synthesize stands in).
+  assert.equal(p.lowMin, 24)
+  assert.equal(p.highMin, 30)
+  assert.ok(p.highMin > p.lowMin, 'merge seats slowed 11 -> 17 as the board grew; one number would be wrong in a predictable direction')
+  assert.match(p.basis, /3 completed seat/)
+})
+
+test('projectCompletion reports what an extra round costs, since it cannot know the ceiling', async () => {
+  const { projectCompletion } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const t = (min) => min * 60000
+  const seats = [
+    { seat: 'red-lens', label: 'red-lens-r1', done: true, startedMs: t(0), endedMs: t(4) },
+    { seat: 'red-merge', label: 'red-merge-r1', done: true, startedMs: t(4), endedMs: t(15) },
+    { seat: 'blue-respond', label: 'blue-respond-r1', done: true, startedMs: t(15), endedMs: t(20) },
+  ]
+  const p = projectCompletion(seats, t(20))
+  assert.equal(p.perRoundLowMin, 20, 'lens + merge + respond is what one more round adds')
+  assert.equal(p.perRoundHighMin, 20)
+})
+
+// An estimate that quietly omits an unmeasured phase reads as more confident than it is.
+test('projectCompletion names the phases it has no precedent for', async () => {
+  const { projectCompletion } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const t = (min) => min * 60000
+  const p = projectCompletion([{ seat: 'red-lens', label: 'red-lens-r1', done: false, startedMs: t(0) }], t(1))
+  assert.ok(p.unmeasured.includes('red-lens-r1'), 'a live seat with no completed sibling cannot be projected')
+  assert.ok(p.unmeasured.includes('assembly'), 'and neither can assembly on a first run')
+})
+
+test('projectCompletion reports complete once assembly is done', async () => {
+  const { projectCompletion } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const t = (min) => min * 60000
+  const p = projectCompletion([{ seat: 'assemble', label: 'assemble', done: true, startedMs: t(0), endedMs: t(10) }], t(11))
+  assert.equal(p.state, 'complete')
+  assert.equal(p.highMin, 0)
+})

@@ -31,6 +31,63 @@ const MASSD = { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high
 // private copy that had already drifted from cost-audit's.
 export { classifySeat } from './seat-classify.mjs'
 
+// projectCompletion answers "how much longer?" from THIS run's own measured seat
+// durations — the only honest basis, since a run's pace depends on its model tier, its
+// report size, and how hard red is working.
+//
+// It reports a RANGE from the fastest and slowest completed seat of each class, never a
+// point estimate: merge seats in the first live run took 11.4, 16.2 and 16.7 minutes as
+// the board grew, so a single number would have been wrong in a predictable direction.
+//
+// It also states its ASSUMPTION rather than hiding it. The run's round ceiling is a
+// launch argument the engine never writes down, so the dashboard cannot know how many
+// rounds remain; this projects the work now in flight plus assembly, and reports what
+// one more round would add so the reader can do the arithmetic the tool cannot.
+export function projectCompletion(seats, nowMs = Date.now()) {
+  // Number.isFinite, not truthiness: a timestamp of 0 is a legitimate value and a
+  // falsy one, so `s.startedMs &&` silently drops the seat. That is the same defect
+  // this run found in the bench's review_flag, where `false` meant "no review needed"
+  // and was scored as no opinion at all.
+  const ms = (v) => Number.isFinite(v)
+  const done = [...seats].filter((s) => ms(s.startedMs) && ms(s.endedMs) && s.endedMs > s.startedMs)
+  const live = [...seats].filter((s) => !s.done && ms(s.startedMs))
+  if (done.length && [...seats].some((s) => s.seat === 'assemble' && s.done)) {
+    return { state: 'complete', lowMin: 0, highMin: 0, basis: 'assembly finished' }
+  }
+  const byClass = {}
+  for (const s of done) (byClass[s.seat] ||= []).push((s.endedMs - s.startedMs) / 60000)
+  const span = (seat) => {
+    const v = byClass[seat]
+    return v && v.length ? { lo: Math.min(...v), hi: Math.max(...v) } : null
+  }
+  // Assembly has no precedent on a first run; blue-synthesize is the nearest analogue
+  // (one seat, reads everything, writes the long document).
+  const assembly = span('assemble') || span('blue-synthesize')
+  let lo = 0, hi = 0
+  const missing = []
+  for (const s of live) {
+    const sp = span(s.seat)
+    const elapsed = (nowMs - s.startedMs) / 60000
+    if (!sp) { missing.push(s.label); continue }
+    lo += Math.max(0, sp.lo - elapsed)
+    hi += Math.max(0, sp.hi - elapsed)
+  }
+  if (![...seats].some((s) => s.seat === 'assemble')) {
+    if (assembly) { lo += assembly.lo; hi += assembly.hi } else missing.push('assembly')
+  }
+  const roundCost = ['red-lens', 'red-merge', 'blue-respond']
+    .map((c) => span(c)).filter(Boolean)
+    .reduce((a, sp) => ({ lo: a.lo + sp.lo, hi: a.hi + sp.hi }), { lo: 0, hi: 0 })
+  return {
+    state: live.length || !byClass.assemble ? 'running' : 'complete',
+    lowMin: Math.round(lo), highMin: Math.round(hi),
+    perRoundLowMin: Math.round(roundCost.lo), perRoundHighMin: Math.round(roundCost.hi),
+    basis: `${done.length} completed seat(s) in this run`,
+    // Named so the reader can discount the estimate rather than trust it blindly.
+    unmeasured: missing,
+  }
+}
+
 export function buildModel(runDir, transcriptDir) {
   const telemetry = jsonl(join(runDir, 'trajectories', 'board-telemetry.jsonl'))
   const journal = jsonl(join(transcriptDir, 'journal.jsonl'))
@@ -50,12 +107,29 @@ export function buildModel(runDir, transcriptDir) {
     const tp = join(transcriptDir, `agent-${id}.jsonl`)
     let head = ''
     try { head = readFileSync(tp, 'utf8').slice(0, 3000) } catch {}
-    // Start time lives on the transcript's first line (the journal carries no timestamps).
+    // Start and end come from the FILE, not its contents.
+    //
+    // The old form parsed head.slice(0, head.indexOf('\n')) as JSON to read a
+    // "timestamp" field. It returned null for 22 of 23 seats in the first live run and
+    // failed silently, because a transcript's first record serialises the seat's entire
+    // opening prompt BEFORE its timestamp — many thousands of characters — so within a
+    // 3000-byte head there is no newline (indexOf gives -1, slice(0,-1) is invalid
+    // JSON) and no timestamp to find either. Only `frontier`, whose prompt is short,
+    // ever worked. Reading far enough into 23 multi-megabyte files to reach the field
+    // would make the dashboard the most expensive process in the run.
+    //
+    // birthtime is when the harness created the transcript, which is when the seat
+    // started; mtime is its last write, which for a finished seat is when it ended.
     let startedMs = null
-    try { startedMs = Date.parse(JSON.parse(head.slice(0, head.indexOf('\n'))).timestamp) || null } catch {}
+    let endedMs = null
+    try {
+      const st = statSync(tp)
+      startedMs = st.birthtimeMs || st.ctimeMs || null
+      if (s.done) endedMs = st.mtimeMs
+    } catch {}
     const c = classifySeat(head)
     const label = c.round ? `${c.seat}-r${c.round}` : c.seat
-    seats.set(id, { ...s, label, seat: c.seat, round: c.round, startedMs })
+    seats.set(id, { ...s, label, seat: c.seat, round: c.round, startedMs, endedMs })
   }
 
   // Cost so far from transcripts (usage records).
@@ -205,7 +279,8 @@ export function buildModel(runDir, transcriptDir) {
   })
 
   const latest = telemetry[telemetry.length - 1] || null
-  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, generated: new Date().toISOString() }
+  const eta = projectCompletion(seatList)
+  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, eta, generated: new Date().toISOString() }
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -322,6 +397,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <h1>FEOV run · ${esc(m.runDir.split(/[\\/]/).pop())}</h1>
 <p class="muted">generated ${esc(m.generated)} · auto-refreshes every 20s · dollars are list-rate estimates</p>
 <h2>Progress (rounds segmented by the ceiling — judged termination may end the run earlier)</h2>
+${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin) ? `<p class="muted">projected <b>${m.eta.lowMin}–${m.eta.highMin} min</b> remaining for the work now in flight plus assembly, from ${esc(m.eta.basis)}. Each ADDITIONAL round would add roughly ${m.eta.perRoundLowMin}–${m.eta.perRoundHighMin} min: the round ceiling is a launch argument this run never writes down, so the estimate cannot know how many remain.${m.eta.unmeasured && m.eta.unmeasured.length ? ` No completed precedent yet for: ${esc(m.eta.unmeasured.join(', '))} — discount accordingly.` : ''}</p>` : ''}
 <div class="bar">${m.steps.map((s) => `<div class="seg ${s.state}" title="${esc(s.name)}: ${esc(s.state)}"></div>`).join('')}</div>
 <div class="barlabels">${m.steps.map((s) => `<span title="${esc(s.name)}">${esc(SHORT[s.name] || s.name.replace('round ', 'r'))}</span>`).join('')}</div>
 <div class="tiles" style="margin-top:12px">
@@ -330,6 +406,9 @@ td, th { font-variant-numeric: tabular-nums; }
 <div class="tile"><b>${m.latest ? esc(m.latest.max_severity) : '—'}</b><span>max severity</span></div>
 <div class="tile"><b>${m.blueClaims ?? '—'}</b><span>blue claims</span></div>
 <div class="tile"><b>${m.friction.count}</b><span>friction entries</span></div>
+${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin)
+  ? `<div class="tile"><b>${m.eta.lowMin}–${m.eta.highMin}m</b><span>projected remaining</span></div>`
+  : ''}
 <div class="tile"><b>$${m.cost.toFixed(2)}</b><span>cost so far (est.)</span></div>
 <div class="tile"><b>${done.length}/${m.agents}</b><span>seats done</span></div>
 </div>
