@@ -20,8 +20,10 @@
 package seat
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -46,11 +48,66 @@ type Context struct {
 	Role   string
 }
 
-// Of reads the seat context from the inherited persistent flags.
+// Of reads the seat context from the inherited persistent flags, inferring the run
+// directory when the flag is absent.
 func Of(cmd *cobra.Command, role string) Context {
 	runDir, _ := cmd.Flags().GetString("run")
+	if runDir == "" {
+		runDir = InferRunDir("")
+	}
 	seatID, _ := cmd.Flags().GetString("seat-id")
 	return Context{RunDir: runDir, SeatID: seatID, Role: role}
+}
+
+// InferRunDir answers "which run am I in?" from the live-run marker instead of
+// requiring every call to say so.
+//
+// The first live run measured 55 tool-call errors in 534 executions, and TEN of them
+// were this one flag: a seat copies the engine's `register --run <dir> --seat-id <id>`
+// line, then improvises later verbs and drops the flags. Shell state does not persist
+// between tool calls, so the seat cannot export it once; there is no per-agent
+// environment variable to carry it; and the engine is a sandboxed script that cannot
+// set one. But the answer is already on disk — setup writes .claude/run-live.json with
+// the runDir, and the hook guards already read it.
+//
+// An explicit --run always wins: inference is a fallback for the seat that forgot, not
+// a new source of truth. The marker's runDir is project-relative, so it resolves
+// against the directory holding .claude/, and an inferred directory that does not
+// exist is discarded rather than passed on — a wrong answer here would attach a seat's
+// events to the wrong run, which is worse than the error it replaces.
+func InferRunDir(start string) string {
+	dir := start
+	if dir == "" {
+		if p := os.Getenv("CLAUDE_PROJECT_DIR"); p != "" {
+			dir = p
+		} else if wd, err := os.Getwd(); err == nil {
+			dir = wd
+		}
+	}
+	for i := 0; dir != "" && i < 12; i++ {
+		marker := filepath.Join(dir, ".claude", "run-live.json")
+		if b, err := os.ReadFile(marker); err == nil {
+			var m struct {
+				RunDir string `json:"runDir"`
+			}
+			if json.Unmarshal(b, &m) == nil && m.RunDir != "" {
+				resolved := m.RunDir
+				if !filepath.IsAbs(resolved) {
+					resolved = filepath.Join(dir, resolved)
+				}
+				if st, err := os.Stat(resolved); err == nil && st.IsDir() {
+					return resolved
+				}
+			}
+			return "" // marker present but unusable: say nothing rather than guess
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
 }
 
 // Handler is a verb's work: everything cobra-shaped is handled around it.

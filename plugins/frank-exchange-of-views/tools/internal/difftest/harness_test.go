@@ -96,6 +96,14 @@ func substitute(args []string, runDir string) []string {
 func capture(c *exec.Cmd) invocation {
 	var so, se strings.Builder
 	c.Stdout, c.Stderr = &so, &se
+	// HERMETIC. --run is inferred from .claude/run-live.json when the flag is absent,
+	// walking up from CLAUDE_PROJECT_DIR or cwd. The harness runs inside this repo, so
+	// a live research run on the developer's machine would satisfy the flag and change
+	// what the binary prints — the `missing_required_flags` case passed on CI and
+	// failed locally, which is the same machine-dependence that once put a developer's
+	// home directory into the goldens. Point the binary at a directory with no marker
+	// so the recorded behaviour is a property of the tool, not of the machine.
+	c.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+os.TempDir())
 	err := c.Run()
 	code := 0
 	if ee, ok := err.(*exec.ExitError); ok {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -114,6 +115,14 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// HERMETIC. --run is now INFERRED from .claude/run-live.json when the flag
+			// is absent, and the inference walks up from CLAUDE_PROJECT_DIR (or cwd).
+			// Without this, the test's cwd is inside this repo and the walk finds
+			// whatever run happens to be live on the developer's machine — the verb
+			// then runs, the precondition looks broken, and the suite passes or fails
+			// by ambient state. Point it at an empty directory so "no run is live"
+			// is a fact of the test rather than of the machine.
+			t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 			args := make([]string, len(tc.args))
 			copy(args, tc.args)
 			for i, a := range args {
@@ -997,4 +1006,60 @@ func writeTemp(t *testing.T, body string) string {
 func boardState(t *testing.T, runDir string) (*record.Board, error) {
 	t.Helper()
 	return record.BoardState(runDir)
+}
+
+// The other half of the contract: when a run IS live, a seat that forgot --run is
+// served rather than refused. Ten of the first live run's 55 tool-call errors were
+// this flag alone, and it cannot be carried in the environment — shell state does not
+// persist between tool calls and every subagent shares the parent's session id.
+func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
+	proj := t.TempDir()
+	runDir := filepath.Join(proj, "research", "live-run")
+	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(proj, ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, ".claude", "run-live.json"),
+		[]byte(`{"runDir":"research/live-run"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_PROJECT_DIR", proj)
+
+	// No --run. The precondition must pass, so any error is about the verb's own
+	// flags rather than the missing run directory.
+	_, err := run(t, "lens", "register", "--seat-id", "red-lens-r1-L1")
+	if err != nil && strings.Contains(err.Error(), "--run <runDir> is required") {
+		t.Fatalf("run dir was not inferred: %v", err)
+	}
+}
+
+// An explicit --run always beats the marker: inference is a fallback for the seat
+// that forgot, never a second source of truth that can override what it was told.
+func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
+	proj := t.TempDir()
+	marker := filepath.Join(proj, "research", "marker-run")
+	explicit := filepath.Join(proj, "research", "explicit-run")
+	for _, d := range []string{marker, explicit, filepath.Join(proj, ".claude")} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(proj, ".claude", "run-live.json"),
+		[]byte(`{"runDir":"research/marker-run"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_PROJECT_DIR", proj)
+
+	if got := seat.InferRunDir(proj); got != marker {
+		t.Fatalf("precondition: marker should resolve to %q, got %q", marker, got)
+	}
+	// With the flag present the marker must not be consulted at all.
+	if _, err := run(t, "lens", "register", "--run", explicit, "--seat-id", "red-lens-r1-L1"); err != nil {
+		t.Fatalf("explicit --run should be honoured: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(explicit, "records")); err != nil {
+		t.Fatalf("events should have landed in the explicit run dir: %v", err)
+	}
 }
