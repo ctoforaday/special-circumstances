@@ -92,6 +92,13 @@ RISKS TO DESIGN AGAINST, not discovered later:
   risk. Sometimes the right verdict is "they solved it, here is the idea, we
   write our own" — and the record should say which was chosen and why.
 
+PRIOR ART FOUND (2026-07-18): **OpenSkillEval — Automatically Auditing the Open
+Skill Ecosystem for LLM Agents** (https://arxiv.org/pdf/2606.19245). Auditing the
+open skill ecosystem is precisely the DISCOVERY half of this entry, already
+studied. Read it before designing the discovery mechanism — the point of this
+entry is that the ecosystem is a body of knowledge we currently rediscover by
+hand, and that applies to the research on it as much as to the skills themselves.
+
 An honest observation that motivated the note: this session repeatedly reached
 for knowledge that exists outside the repo (cobra's own generator and how-to
 guides settled a design argument in minutes), and there is currently no mechanism
