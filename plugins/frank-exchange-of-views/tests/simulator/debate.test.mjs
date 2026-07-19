@@ -260,7 +260,23 @@ test('blue response reads transcript RED/LEAD sections first and must propagate 
   const resp = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1'))
   assert.ok(resp.prompt.includes('lossy summary'), 'gap JSON must be flagged as lossy')
   assert.ok(resp.prompt.includes('### LEAD'), 'carried-gap rationale delivery missing')
-  assert.ok(resp.prompt.includes('propagate every correction to ALL sites'), 'propagation clause missing')
+  assert.ok(/[Pp]ropagate every correction to ALL sites/.test(resp.prompt), 'propagation clause missing')
+})
+
+test('additive is a CLAIMS invariant, not a prose one: compaction is free, removal is recorded', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const resp = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1')).prompt
+  const synth = world.calls.find((c) => c.opts.label.startsWith('blue-synthesize')).prompt
+
+  // The old rule forbade rewriting to prevent silent deletion, and paid for it in
+  // a report that could only grow. Both halves must now be stated at both seats.
+  assert.ok(/compact and reorganize prose/i.test(resp), 'respond may compact')
+  assert.ok(/reorganize freely/i.test(synth), 'synthesis may reorganize')
+  assert.ok(/retire verb/.test(resp) && /retire verb/.test(synth), 'both seats name the one exit for substance')
+  assert.ok(/claim_count fall against the retire events|unaccounted drop/.test(resp), 'the seat is told the arithmetic is checked')
 })
 
 test('citation lens ledger clause includes time and access-date drift triggers, not prose-only (row 10)', async () => {

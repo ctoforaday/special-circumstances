@@ -1,8 +1,10 @@
-prompt sha256: 0c192644b2807cd0e083c26da8081a8419194dd002eeacf50954555deba0c236
+prompt sha256: 21b8346e8cd88299ee175ca5c9554cd4afb2ea07a19c88a5cf35376562b08f4d
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
-Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize, and never drop substantive content — structural merge (append + dedup), not a free-form rewrite.
+Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record — structural merge (append + dedup).
+Compacting and reorganizing prose is not subtraction: substance leaves only through the retire verb, which names the claim, why it goes, and what replaces it.
+Rewriting for density is encouraged; losing a claim in the rewrite is the failure.
 CLAIM PROVENANCE (cheap manifest): while merging, tag every claim that appears in exactly ONE lane's draft with its lane marker (e.g.
 "[minority: lane-2/practitioner]") — single-lane claims are minority reports red must weigh differently from convergent ones; the set-difference exists transiently in this merge and must not be discarded.
 Lane footnote labels arrive lane-prefixed; when two lanes cite the SAME source, merge to one label and note both lanes.

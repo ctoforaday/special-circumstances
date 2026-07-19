@@ -302,6 +302,15 @@ func validate(runDir, typ string, p *Payload) error {
 		if !p.Has("basis") || p.Str("basis") == "" {
 			return fmt.Errorf("record: regrade requires --basis (grade movement is recorded with its reason)")
 		}
+	case "retire":
+		// A removal with no stated reason is the failure this verb exists to make
+		// visible, so it is refused at the tool rather than noticed at capture.
+		if !p.Has("claim") || p.Str("claim") == "" {
+			return fmt.Errorf("record: retire requires --claim (quote the claim as it stood — a removal nobody can identify is not on the record)")
+		}
+		if !p.Has("reason") || p.Str("reason") == "" {
+			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
+		}
 	case "opinion":
 		for _, f := range []string{"gap_id", "disposition", "principle", "tension", "review_flag"} {
 			if !p.Has(f) {
