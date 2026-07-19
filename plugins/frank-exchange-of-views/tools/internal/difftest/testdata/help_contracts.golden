@@ -167,7 +167,7 @@ Available Commands:
   avenue       record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --file <prose>
   confidence   per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low
-  dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --evidence "..."
+  dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --basis "..."
   friction     attributed friction (survives aborts as an event): --text|--file
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
   petition     petition the bench (never sanctioned; does not pause your duties): --class ethical|safety|integrity|constitutional --basis "..." --relief "..."
@@ -204,7 +204,7 @@ Available Commands:
   certify       the run-end certification statement ("what I would want a human to re-examine"): --file <statement>
   friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file
   halt          the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>
-  opinion       a ruling as an OPINION: --gap-id R3-2 --disposition carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]
+  opinion       a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]
   petition-rule rule on a petition: --petitioner <seatId> --class <class> --as granted|denied --file <opinion> (a halt is its own verb)
   register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render        read-only projection refresh (any seat may invoke)
