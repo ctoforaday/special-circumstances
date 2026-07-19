@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -99,27 +98,17 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 		t.Fatalf("the bench must be able to rule on a gap by id: %v", err)
 	}
 
-	out, err := run(t, "merge", "render", "--run", runDir, "--seat-id", "red-merge-r1")
-	if err != nil {
-		t.Fatalf("render: %v", err)
-	}
-	ledger := readProjection(t, runDir, "ledger.md")
-
 	// WHICH SECTION the gap sits in is the whole question. The first form of this
 	// assertion only checked that the ledger mentioned a closure index SOMEWHERE, which
 	// would pass with the gap still sitting in the open set — a test too weak to catch
 	// the defect it was written for, which is how the projection shipped blind.
-	lower := strings.ToLower(ledger)
-	cut := strings.Index(lower, "closure index")
-	if cut < 0 {
-		t.Fatalf("the projection has no closure index, so no closure can be represented.\nrender said: %s\nledger:\n%s", out, ledger)
-	}
-	openSection, closedSection := ledger[:cut], ledger[cut:]
-	if strings.Contains(openSection, id) {
-		t.Errorf("gap %s is STILL IN THE OPEN SET after the bench closed it — the defect red-merge-r3 reported, where the board over-reports open gaps by the number of bench closures.\nopen section:\n%s", id, openSection)
-	}
-	if !strings.Contains(closedSection, id) {
-		t.Errorf("gap %s never reached the closure index; a bench closure must be RECORDED on red's board, not merely absent from the open set.\nclosure section:\n%s", id, closedSection)
+	//
+	// It now goes through gapIsOpen (crossseat_test.go), which asserts on ENTRIES rather
+	// than substrings and fails loudly if a gap is in both sections or neither. Two
+	// readers of one artifact disagreeing is the defect class this whole tool exists to
+	// remove; the tests do not get an exemption from it.
+	if gapIsOpen(t, runDir, id) {
+		t.Errorf("gap %s is STILL IN THE OPEN SET after the bench closed it — the defect red-merge-r3 reported, where the board over-reports open gaps by exactly the number of bench closures and diverges further every round", id)
 	}
 }
 

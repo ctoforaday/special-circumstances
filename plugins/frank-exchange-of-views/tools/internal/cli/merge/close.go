@@ -2,7 +2,6 @@ package merge
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -20,7 +19,7 @@ import (
 // round's, restated.
 func newClose() *cobra.Command {
 	c := seat.New(role, "close",
-		`close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--file f]`,
+		`close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--file f|--text "..."]`,
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
 			class := seat.Str(cmd, flags.As)
 			if class == "" {
@@ -33,13 +32,16 @@ func newClose() *cobra.Command {
 			seat.Set(cmd, p, "anchor_target", flags.AnchorTarget)
 			seat.Set(cmd, p, "carried_from", flags.CarriedFrom)
 			seat.SetSame(cmd, p, flags.Successor)
-			f := seat.Str(cmd, flags.File)
-			if f != "" {
-				b, err := os.ReadFile(f)
-				if err != nil {
-					return "", err
-				}
-				p.Set("prose", string(b))
+			// The SHARED prose channel, not a private one. close hand-rolled its own
+			// --file read and so was the only prose-bearing verb with no --text at all —
+			// the same shape as the --prose-file divergence, one layer down: a verb that
+			// opts out of the shared helper drifts from it by construction.
+			prose, err := seat.Text(cmd)
+			if err != nil {
+				return "", err
+			}
+			if prose != "" {
+				p.Set("prose", prose)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "close", p); err != nil {
 				return "", err
@@ -54,6 +56,5 @@ func newClose() *cobra.Command {
 	c.Flags().String(flags.AnchorTarget, "", "AGAINST WHAT — the exact file, ref or URL read")
 	c.Flags().String(flags.CarriedFrom, "", "the round this closure was carried from, when it is not a fresh act")
 	c.Flags().String(flags.Successor, "", "the gap id carrying the unresolved remainder forward")
-	c.Flags().String(flags.File, "", "the full closure record, from a file")
-	return c
+	return seat.Prose(c)
 }

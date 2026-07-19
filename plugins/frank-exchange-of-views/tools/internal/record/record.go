@@ -388,6 +388,18 @@ func validate(runDir, typ string, p *Payload) error {
 				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f))
 			}
 		}
+		// A verb that owns an act must OWN it. petition_rule.go states the safety
+		// property plainly — "a halt is deliberately NOT a value of --as ... giving it
+		// its own verb means it can never be reached by a typo in an enum" — and that
+		// was untrue: --as took any string, so `opinion --as halt` recorded an opinion
+		// whose disposition reads like the run's terminal act and stops nothing.
+		//
+		// The enum stays OPEN otherwise (its help ends in "...", and closing it would
+		// mean a legitimate ruling failing hard mid-round). Only the words that are
+		// somebody else's verb are refused, which is the whole of the claimed property.
+		if d := p.Str("disposition"); d == "halt" {
+			return fmt.Errorf("record: `halt` is not a disposition — it is the bench's own verb, so that the run's terminal act cannot be reached by a typo in a ruling. Use `bench halt` if you mean to stop the run")
+		}
 	}
 	return nil
 }
