@@ -238,7 +238,11 @@ export function benchRows(runDir, results) {
   // blue acted on the direction a carried ruling stated.
   const debate = read(join(runDir, 'debate.md')) || ''
   const leadSections = (debate.match(/^### LEAD/gm) || []).length
-  const blueCitesLead = (debate.match(/^### BLUE[\s\S]*?(?=^### |\Z)/gm) || [])
+  // (?![\s\S]) is end-of-input. \Z is NOT an anchor in JavaScript — it is an
+  // identity escape matching a literal 'Z', so the lazy body stopped at the first
+  // capital Z in the prose. The LAST blue section has no '### ' after it, so it was
+  // truncated at a letter and then filtered for words the truncation had removed.
+  const blueCitesLead = (debate.match(/^### BLUE[\s\S]*?(?=^### |(?![\s\S]))/gm) || [])
     .filter((s) => /lead|judge|direction|carried/i.test(s)).length
   rows.push(leadSections
     ? row({
@@ -250,7 +254,12 @@ export function benchRows(runDir, results) {
 
   // Opinion form: a ruling that states no principle is a disposition wearing a
   // ruling's name.
-  const opinionated = rulings.filter((r) => r.principle && r.tension && r.review_flag).length
+  // review_flag is tested for PRESENCE, not truth. It is a boolean, and `false`
+  // — "this needs no further review" — is a complete opinion honestly recorded.
+  // Testing it for truthiness scored the bench as opinionless every time it gave
+  // the clean answer, which is precisely backwards for a metric whose point is
+  // that a ruling stating no principle is a disposition wearing a ruling's name.
+  const opinionated = rulings.filter((r) => r.principle && r.tension && 'review_flag' in r).length
   rows.push(rulings.length
     ? row({
       clause: 'Opinion form', metric: 'rulings_without_opinion', cls: 'detector',
@@ -308,6 +317,15 @@ export function renderChair(chair, rows, runLabel) {
     out.push(`- \`${r.metric}\` [${r.cls}] — ${r.clause}: ${v}`)
     if (r.joint) out.push(`  - ${r.joint}`)
   }
+  // The headline is EMITTED, not re-derived downstream. Setup previously rebuilt it
+  // by re-parsing these rendered rows, which made two implementations of "what a
+  // seat sees" — and they disagreed twice over: setup took the first three rows in
+  // FILE order rather than headline()'s ranking (a tripped detector could lose its
+  // slot to a benchmark above it), and its parser broke on any clause containing a
+  // colon, which silently hid `unrecorded_claim_loss` — a detector, and the entire
+  // enforcement of the additive invariant — from every prompt.
+  const h = headline(rows)
+  if (h.length) out.push('', `HEADLINE: ${h.join(' · ')}`)
   out.push('')
   return out.join('\n')
 }

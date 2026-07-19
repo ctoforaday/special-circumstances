@@ -150,7 +150,19 @@ export function mirrorScorecards(memoryDir, runDir) {
     // seat sees exactly what the dashboard and the human see.
     const sections = body.split(/^## /m)
     const latest = sections[sections.length - 1] || ''
-    const picks = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic)\][^:]*:\s*\*\*([^*]+)\*\*/g)]
+    // PREFERRED: the emitted HEADLINE line, which scorecards.mjs computes with
+    // headline() — one authority for what a seat sees, correctly RANKED (a tripped
+    // detector first, never displaced by a benchmark that merely sits higher).
+    const emitted = /^HEADLINE:\s*(.+)$/m.exec(latest)
+    if (emitted) {
+      headlines[chair] = emitted[1].split(' · ').map((s) => s.trim()).filter(Boolean).slice(0, 3)
+      continue
+    }
+    // FALLBACK for scorecards written before the HEADLINE line existed. The lazy
+    // match runs to the first ": **" rather than the first colon, because real
+    // clauses contain colons ("LOSS: additive violations") and the greedy-to-colon
+    // form dropped those metrics from the prompt entirely.
+    const picks = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic)\][^\n]*?:\s*\*\*([^*]+)\*\*/g)]
       .map((m) => `${m[1]} ${m[3]} [${m[2].toUpperCase()}]`)
     if (picks.length) headlines[chair] = picks.slice(0, 3)
   }
