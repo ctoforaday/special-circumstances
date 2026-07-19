@@ -190,9 +190,24 @@ func deriveKey(seatID, typ string, p *Payload, shardEvents []Event) string {
 
 // Append is the ONLY write path. It validates, derives the idempotency key, and
 // assigns the per-shard sequence number.
+// AmbientComment is the value of the universal --comment flag for THIS invocation.
+//
+// A package variable is safe here and nowhere else: feov-record is a CLI that parses one
+// command, records it, and exits — one process, one verb, no concurrency. The
+// alternative was threading a comment parameter through thirty verb handlers, each of
+// which would then be able to forget it. The point of a universal field is that it
+// cannot be forgotten, so it is applied at the single choke point every verb passes
+// through rather than at thirty call sites.
+var AmbientComment string
+
 func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 	if p == nil {
 		p = NewPayload()
+	}
+	// Recorded only when given: an empty comment key on every event would be noise in
+	// the shard and in every projection that reads it.
+	if AmbientComment != "" {
+		p.Set("comment", AmbientComment)
 	}
 	nonce, err := activeNonce(runDir, seatID)
 	if err != nil {

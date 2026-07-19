@@ -134,6 +134,8 @@ func New(role, name, help string, run Handler) *cobra.Command {
 			return record.CheckSeatRole(role, s.SeatID)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			// Set before the verb runs, so every record.Append in this process carries it.
+			record.AmbientComment = Str(cmd, "comment")
 			out, err := run(Of(cmd, role), cmd)
 			if err != nil {
 				// The ROLE leads the message: a seat reading "close requires --id"
@@ -155,6 +157,19 @@ func New(role, name, help string, run Handler) *cobra.Command {
 			return err
 		}
 	}
+	// A UNIVERSAL FREE-TEXT FIELD, attached here so no verb can ship without one.
+	//
+	// The 2026-07-18 run's seats reached for --note, --detail, --target and --line and
+	// were refused every time. That knowledge did not evaporate: it went into the
+	// hand-written markdown, which is why the archive rendered from events was 7,527
+	// bytes against the hand copy's 34,086. Every schema gap pushes evidence out of the
+	// queryable channel and into the one nothing can query.
+	//
+	// --comment is the pressure valve. It is deliberately unstructured and deliberately
+	// everywhere, and it doubles as the backlog: a note that keeps recurring names a
+	// field the schema is missing, which is a better way to find them than guessing.
+	c.Flags().String("comment", "", "free text this verb has no field for — recorded on the event, and a recurring one is a schema gap")
+
 	return c
 }
 

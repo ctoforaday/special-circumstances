@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -1128,5 +1129,109 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	}
 	if keys := payloadKeys(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
 		t.Error("ids must still be present as an empty array")
+	}
+}
+
+// EVERY verb carries --comment. Enumerated rather than sampled, so a verb added later
+// without it fails here: the point of a universal field is that it cannot be forgotten.
+//
+// The 2026-07-18 run's seats reached for --note, --detail, --target and --line and were
+// refused each time. That knowledge went into the hand-written markdown instead, which is
+// why the archive rendered from events was 7,527 bytes against the hand copy's 34,086.
+func TestEveryVerbAcceptsAComment(t *testing.T) {
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		// The role's own refusal enumerates its verbs — the tool is the source of the
+		// list, so a verb added later is covered without editing this test.
+		_, err := run(t, role)
+		if err == nil {
+			t.Fatalf("%s with no verb should refuse and list its verbs", role)
+		}
+		inside := regexp.MustCompile(`\(([^)]+)\)`).FindStringSubmatch(err.Error())
+		if inside == nil {
+			t.Fatalf("%s: could not read the verb list from %q", role, err)
+		}
+		for _, verb := range strings.Split(inside[1], ",") {
+			verb = strings.TrimSpace(verb)
+			// render is the one exemption and it is a real distinction, not a gap: it
+			// refreshes a projection and records NO event, so a comment would have
+			// nowhere to land. Every verb that writes to the record carries one.
+			if verb == "render" {
+				continue
+			}
+			t.Run(role+"/"+verb, func(t *testing.T) {
+				// --help, not a bare invocation: the verb would otherwise run and fail
+				// its preconditions before printing anything.
+				if vh := help(t, role, verb, "--help"); !strings.Contains(vh, "--comment") {
+					t.Errorf("%s %s has no --comment: a verb with no free-text field pushes evidence into the markdown", role, verb)
+				}
+			})
+		}
+	}
+}
+
+// The comment reaches the EVENT, not just the flag set — an accepted flag that records
+// nothing would be worse than refusing it.
+func TestCommentIsRecordedOnTheEvent(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--label", "L1-F1", "--text", "a finding",
+		"--comment", "the schema has no slot for which arm of the experiment this figure came from"); err != nil {
+		t.Fatal(err)
+	}
+	ev := lastOfType(t, runDir, "finding")
+	if !payloadKeys(ev)["comment"] {
+		t.Fatal("the comment must be on the event, or the flag is decoration")
+	}
+}
+
+// An absent comment must not litter every event with an empty key.
+func TestNoCommentMeansNoCommentKey(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--label", "L1-F1", "--text", "a finding"); err != nil {
+		t.Fatal(err)
+	}
+	if payloadKeys(lastOfType(t, runDir, "finding"))["comment"] {
+		t.Error("an empty comment key on every event is noise in the shard and every projection")
+	}
+}
+
+// `merge close` called its payload --prose-file while every other prose-bearing verb
+// calls it --file. Seats typed --file here and were refused, twice, in one run.
+func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	prose := filepath.Join(t.TempDir(), "closure.md")
+	if err := os.WriteFile(prose, []byte("verified at the leaf; digits match the cited arm"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	minted, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--class-new", "some-class", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
+		"--location", "sec 1", "--problem", "p", "--fix", "f", "--check", "c",
+		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low")
+	if err != nil {
+		t.Fatalf("mint: %v", err)
+	}
+	id := regexp.MustCompile(`R\d+-\d+`).FindString(minted)
+	if id == "" {
+		t.Fatalf("could not read the minted id from %q", minted)
+	}
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", id, "--as", "closed", "--carried-from", "1", "--file", prose); err != nil {
+		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
+	}
+	if !payloadKeys(lastOfType(t, runDir, "close"))["prose"] {
+		t.Error("the prose from --file must reach the event")
 	}
 }
