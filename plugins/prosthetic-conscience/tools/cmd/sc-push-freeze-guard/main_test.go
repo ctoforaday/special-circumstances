@@ -35,6 +35,24 @@ func TestDecide(t *testing.T) {
 		{"live + plain stash push is silent (tracked-only)", live, "git stash push -m wip", false, ""},
 		{"no marker is silent on add -A", nil, "git add -A", false, ""},
 		{"flag in a LATER command never leaks into the git verb", live, "git add file.md && rm -A", false, ""},
+
+		// DEFECT 1 — global git options hid the verb from the guard. `git -C repo
+		// checkout main` deletes the untracked blackboard exactly like the bare form,
+		// but the old positional check only ever looked at the token right after `git`.
+		{"live + -C checkout warns", live, "git -C repo checkout main", true, "worktree"},
+		{"live + -C add -A warns", live, "git -C repo add -A", true, "sweeping"},
+		{"live + -C push warns", live, "git -C repo push origin main", true, "FROZEN"},
+		{"live + -c option checkout warns", live, "git -c core.pager=cat checkout main", true, "worktree"},
+		{"live + --no-pager switch warns", live, "git --no-pager switch main", true, "worktree"},
+		{"live + --git-dir stash -u warns", live, "git --git-dir=/x stash -u", true, "untracked"},
+		{"-C value is never mistaken for the verb", live, "git -C checkout status", false, ""},
+		{"-b still exempt behind a global option", live, "git -C repo checkout -b feat/x", false, ""},
+
+		// DEFECT 2 — shell separators had to be space-padded to be seen.
+		{"unpadded semicolon still warns", live, "git add -A;git commit -m x", true, "sweeping"},
+		{"unpadded && still warns", live, "cd repo&&git checkout main", true, "worktree"},
+		{"unpadded separator no longer leaks a later flag in", live, "git add file.md&&rm -A", false, ""},
+		{"pipe ends the git verb's arguments", live, "git add file.md|grep -A 2 x", false, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

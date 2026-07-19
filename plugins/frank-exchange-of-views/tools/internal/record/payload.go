@@ -97,6 +97,29 @@ func (p *Payload) StrList(k string) []string {
 	return nil
 }
 
+// noEscape marshals one value with JSON.stringify's escaping rules.
+//
+// DEFECT FIXED: this used plain json.Marshal, which escapes <, > and & to
+// <, > and &. marshalEvent sets SetEscapeHTML(false) on the OUTER
+// encoder and its comment calls that "mandatory" — but encoding/json only
+// COMPACTS the bytes a Marshaler returns, it never un-escapes them. So the outer
+// setting reached the Event's own fields (seatId, key, type) while every payload
+// key and value stayed escaped: one shard line, two different encodings, and the
+// escaped half was the seat's PROSE — the exact text the comment says "routinely
+// contains angle brackets". The golden harness could not see it either, because
+// golden_test.go re-marshals each parsed event with the default encoder before
+// comparing, normalizing the difference away. Escaping has to be turned off where
+// the bytes are actually produced.
+func noEscape(v any) ([]byte, error) {
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(b.Bytes(), "\n"), nil
+}
+
 func (p Payload) MarshalJSON() ([]byte, error) {
 	if len(p.keys) == 0 {
 		return []byte("{}"), nil
@@ -107,13 +130,13 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		kb, err := json.Marshal(k)
+		kb, err := noEscape(k)
 		if err != nil {
 			return nil, err
 		}
 		b.Write(kb)
 		b.WriteByte(':')
-		vb, err := json.Marshal(p.m[k])
+		vb, err := noEscape(p.m[k])
 		if err != nil {
 			return nil, fmt.Errorf("payload key %q: %w", k, err)
 		}

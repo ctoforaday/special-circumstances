@@ -18,6 +18,7 @@ import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { parseRenderedRows } from './scorecards.mjs'
 
 // Stub files with a one-line header each — the write-guard workaround (agents append to
 // existing artifacts; the guard is filename-keyed and path-independent, run-3 experiment).
@@ -150,11 +151,30 @@ export function mirrorScorecards(memoryDir, runDir) {
     // seat sees exactly what the dashboard and the human see.
     const sections = body.split(/^## /m)
     const latest = sections[sections.length - 1] || ''
-    const picks = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic)\][^:]*:\s*\*\*([^*]+)\*\*/g)]
-      .map((m) => `${m[1]} ${m[3]} [${m[2].toUpperCase()}]`)
+    // PREFERRED: the emitted HEADLINE line, which scorecards.mjs computes with
+    // headline() — one authority for what a seat sees, correctly RANKED (a tripped
+    // detector first, never displaced by a benchmark that merely sits higher).
+    const emitted = /^HEADLINE:\s*(.+)$/m.exec(latest)
+    if (emitted) {
+      headlines[chair] = emitted[1].split(' · ').map((s) => s.trim()).filter(Boolean).slice(0, 3)
+      continue
+    }
+    // FALLBACK for scorecards written before the HEADLINE line existed. It uses
+    // scorecards.mjs's parser rather than a fourth private regex — that
+    // duplication is what hid a detector from every prompt in the first place.
+    // `measure` is dropped here on purpose: it is recorded, never targeted, so it
+    // is not headline material (headline() makes the same exclusion).
+    const picks = parseRenderedRows(latest)
+      .filter((r) => r.value !== null && r.cls !== 'measure')
+      .map((r) => `${r.metric} ${r.value.trim()} [${r.cls.toUpperCase()}]`)
     if (picks.length) headlines[chair] = picks.slice(0, 3)
   }
-  return { written: staged.length > 0, chairs: staged, headlines }
+  // A run-1 corpus legitimately has no scorecards: they are WRITTEN at capture and
+  // READ by the next run, so the visibility loop cannot close on its own first turn.
+  // That is an expected state, not a failure, and it must say so — the caller prints
+  // this reason, and an absent one printed a bare "undefined" that read like a bug.
+  if (!staged.length) return { written: false, reason: 'no scorecards yet — written at capture, consumed by the next run', chairs: [], headlines: {} }
+  return { written: true, chairs: staged, headlines }
 }
 
 // buildPatternIndex — the class join's lookup table.
@@ -179,8 +199,17 @@ export function buildPatternIndex(dirs) {
   const byClass = {}
   const unclassified = []
   const harnessLimit = []
+  // FIRST SOURCE WINS, exactly as mirrorGapPatterns does it — the promoted corpus is
+  // authoritative and the raw accrual path holds PRE-PROMOTION copies of the same
+  // filenames. Without this, every promoted pattern was counted twice: once classified
+  // from feov-memory/, once classless from .claude/agent-memory/, and setup reported a
+  // 55-item classification backlog that did not exist. Two readers of one corpus must
+  // agree on identity; when only one of them dedups, the other one lies.
+  const seen = new Set()
   for (const dir of (Array.isArray(dirs) ? dirs : [dirs]).filter((d) => d && existsSync(d))) {
     for (const f of readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md' && f !== 'MEMORY.md')) {
+      if (seen.has(f)) continue
+      seen.add(f)
       const body = readFileSync(join(dir, f), 'utf8')
       const fm = /^---\n([\s\S]*?)\n---/.exec(body)
       const title = (/^#\s+(.+)$/m.exec(body) || [, f])[1]

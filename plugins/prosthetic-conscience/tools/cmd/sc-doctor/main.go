@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -352,35 +353,50 @@ func fix(bins []binStatus) []string {
 	return report
 }
 
-func main() {
-	doFix := flag.Bool("fix", false, "build/fetch missing hook binaries")
-	showVersion := flag.Bool("version", false, "print version and exit")
-	rootFlag := flag.String("root", "", "plugin root (default: CLAUDE_PLUGIN_ROOT or the binary's parent dir)")
-	flag.Parse()
+// resolveRoot picks the plugin root: the -root flag wins, then CLAUDE_PLUGIN_ROOT,
+// then the binary's own grandparent (bin/sc-doctor -> plugin root). executable is a
+// parameter so the fallback is reachable in a test.
+func resolveRoot(rootFlag, envRoot string, executable func() (string, error)) string {
+	if rootFlag != "" {
+		return rootFlag
+	}
+	if envRoot != "" {
+		return envRoot
+	}
+	if exe, err := executable(); err == nil {
+		return filepath.Dir(filepath.Dir(exe))
+	}
+	return ""
+}
+
+// run is the doctor with its process boundary passed in. fixFn is a parameter because
+// the real one reaches the network and the local Go toolchain; a preflight's REPORTING
+// must be testable without either.
+func run(args []string, stdout io.Writer, envRoot string, executable func() (string, error), fixFn func([]binStatus) []string) int {
+	fs := flag.NewFlagSet("sc-doctor", flag.ContinueOnError)
+	fs.SetOutput(stdout)
+	doFix := fs.Bool("fix", false, "build/fetch missing hook binaries")
+	showVersion := fs.Bool("version", false, "print version and exit")
+	rootFlag := fs.String("root", "", "plugin root (default: CLAUDE_PLUGIN_ROOT or the binary's parent dir)")
+	if err := fs.Parse(args); err != nil {
+		return 0
+	}
 	if *showVersion {
-		fmt.Println("sc-doctor", version)
-		return
+		fmt.Fprintln(stdout, "sc-doctor", version)
+		return 0
 	}
 
-	root := *rootFlag
-	if root == "" {
-		root = os.Getenv("CLAUDE_PLUGIN_ROOT")
-	}
-	if root == "" {
-		if exe, err := os.Executable(); err == nil {
-			root = filepath.Dir(filepath.Dir(exe)) // bin/sc-doctor -> plugin root
-		}
-	}
+	root := resolveRoot(*rootFlag, envRoot, executable)
 
 	raw, err := os.ReadFile(filepath.Join(root, "requirements.json"))
 	if err != nil {
-		fmt.Printf("sc-doctor: cannot read requirements.json under %q: %v\n", root, err)
-		os.Exit(0)
+		fmt.Fprintf(stdout, "sc-doctor: cannot read requirements.json under %q: %v\n", root, err)
+		return 0
 	}
 	var req requirements
 	if err := json.Unmarshal(raw, &req); err != nil {
-		fmt.Printf("sc-doctor: malformed requirements.json: %v\n", err)
-		os.Exit(0)
+		fmt.Fprintf(stdout, "sc-doctor: malformed requirements.json: %v\n", err)
+		return 0
 	}
 
 	tools := toolchain.Probe(req.Tools)
@@ -391,28 +407,33 @@ func main() {
 	bins := allBins()
 
 	if *doFix {
-		for _, line := range fix(bins) {
-			fmt.Println(line)
+		for _, line := range fixFn(bins) {
+			fmt.Fprintln(stdout, line)
 		}
 		bins = allBins() // re-probe
 	}
 
-	fmt.Print(table(tools, bins))
+	fmt.Fprint(stdout, table(tools, bins))
 
 	// Cross-plugin aggregation: every installed SC plugin's own requirements.json,
 	// probed and reported here — one preflight for the whole suite.
 	for _, pr := range siblingRequirements(root) {
-		fmt.Printf("-- %s --\n", pr.Plugin)
-		fmt.Print(table(toolchain.Probe(pr.Tools), nil))
+		fmt.Fprintf(stdout, "-- %s --\n", pr.Plugin)
+		fmt.Fprint(stdout, table(toolchain.Probe(pr.Tools), nil))
 	}
 
 	warnings := danceWarnings(root)
 	for _, w := range warnings {
-		fmt.Println(w)
+		fmt.Fprintln(stdout, w)
 	}
 	v := verdict(tools, bins)
 	if v == "READY" && len(warnings) > 0 {
 		v = "DEGRADED"
 	}
-	fmt.Println("VERDICT:", v)
+	fmt.Fprintln(stdout, "VERDICT:", v)
+	return 0
+}
+
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdout, os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Executable, fix))
 }

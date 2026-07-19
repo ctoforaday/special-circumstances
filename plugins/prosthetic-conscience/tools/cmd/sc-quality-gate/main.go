@@ -50,39 +50,61 @@ func fileFrom(in hookInput) string {
 	return "unknown"
 }
 
-func main() {
-	showVersion := flag.Bool("version", false, "print version and exit")
-	flag.Parse()
-	if *showVersion {
-		fmt.Println("sc-quality-gate", version)
+// appendHookLog records one firing under projectDir/.claude. Instrumentation is
+// best-effort by design: a log that cannot be written must never cost the tool call,
+// so every error here is deliberately swallowed. An empty projectDir disables it
+// rather than writing a relative .claude/ wherever the process happens to be.
+func appendHookLog(projectDir, line string) {
+	if projectDir == "" {
 		return
 	}
+	logDir := filepath.Join(projectDir, ".claude")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return
+	}
+	f, err := os.OpenFile(filepath.Join(logDir, "prosthetic-conscience-hook.log"),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	_, _ = f.WriteString(line)
+	_ = f.Close()
+}
 
-	raw, _ := io.ReadAll(os.Stdin)
+// run is the hook with its process boundary passed in. qltyPresent is a parameter
+// rather than a lookup so the degraded and healthy branches are both reachable in a
+// test regardless of what is installed on the machine running it.
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, qltyPresent bool) int {
+	fs := flag.NewFlagSet("sc-quality-gate", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	showVersion := fs.Bool("version", false, "print version and exit")
+	if err := fs.Parse(args); err != nil {
+		return 0 // a bad flag is never worth failing the Edit/Write over
+	}
+	if *showVersion {
+		fmt.Fprintln(stdout, "sc-quality-gate", version)
+		return 0
+	}
+
+	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 	file := fileFrom(in)
 
-	qlty := toolchain.Present("qlty")
-	msg := gate(qlty, file)
+	msg := gate(qltyPresent, file)
 
 	// Instrumentation: record every firing (proves the hook reaches here, incl. subagents).
-	if dir := os.Getenv("CLAUDE_PROJECT_DIR"); dir != "" {
-		logDir := filepath.Join(dir, ".claude")
-		if err := os.MkdirAll(logDir, 0o755); err == nil {
-			line := fmt.Sprintf("%s sc-quality-gate %s -> %s | %s\n",
-				time.Now().UTC().Format(time.RFC3339), in.ToolName, file, msg)
-			if f, err := os.OpenFile(filepath.Join(logDir, "prosthetic-conscience-hook.log"),
-				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-				_, _ = f.WriteString(line)
-				_ = f.Close()
-			}
-		}
-	}
+	appendHookLog(projectDir, fmt.Sprintf("%s sc-quality-gate %s -> %s | %s\n",
+		time.Now().UTC().Format(time.RFC3339), in.ToolName, file, msg))
 
 	// Terse warning to stderr only when degraded; never block the tool call.
-	if !qlty {
-		fmt.Fprintln(os.Stderr, msg)
+	if !qltyPresent {
+		fmt.Fprintln(stderr, msg)
 	}
-	os.Exit(0)
+	return 0
+}
+
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
+		os.Getenv("CLAUDE_PROJECT_DIR"), toolchain.Present("qlty")))
 }

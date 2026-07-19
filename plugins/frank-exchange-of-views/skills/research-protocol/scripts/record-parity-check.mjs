@@ -13,7 +13,14 @@ const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null)
 const idRe = /R\d+-\d+/g
 
 export function extractLedgerFacts(text) {
-  if (!text) return null
+  // ABSENT (null from read) and EMPTY (a present, zero-byte file) are different
+  // facts and must not collapse. `!text` treated an empty ledger as "nothing to
+  // compare", and compare()'s `if (hl && sl)` guard then skipped the ledger
+  // check entirely — so a run whose ledger was truncated to zero bytes (killed
+  // mid-append, the exact failure this repo keeps hitting) reported parity PASS
+  // against a shadow full of open gaps. That is the same "gate with nothing to
+  // compare" this file already refuses to do for a missing shadow.
+  if (text == null) return null
   const cut = text.search(/closure index/i)
   const openSec = cut >= 0 ? text.slice(0, cut) : text
   const closeSec = cut >= 0 ? text.slice(cut) : ''
@@ -32,7 +39,10 @@ export function extractLedgerFacts(text) {
 }
 
 export function extractTelemetryFacts(text) {
-  if (!text) return null
+  // Same absent-vs-empty distinction as extractLedgerFacts: an empty telemetry
+  // file is a run that recorded nothing, which must be COMPARED against the
+  // shadow (and diverge), not waved through.
+  if (text == null) return null
   const rounds = new Map()
   for (const l of text.split('\n').filter(Boolean)) {
     try { const j = JSON.parse(l); rounds.set(j.round, { open_count: j.open_count, mass: j.mass, max_severity: j.max_severity }) } catch {}

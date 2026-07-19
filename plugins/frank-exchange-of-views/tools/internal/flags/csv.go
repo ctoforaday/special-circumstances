@@ -27,7 +27,15 @@ func (c *CSV) String() string {
 }
 
 func (c *CSV) Set(s string) error {
-	c.items = c.items[:0]
+	// DEFECT FIXED: this was `c.items = c.items[:0]`, which truncates but REUSES
+	// the backing array. Value() hands that array out without copying, and
+	// seat.SetList stores the result straight into the record payload — so a
+	// second Set (pflag calls Set once per OCCURRENCE, and a repeated
+	// --supersedes is a seat retrying its own command) rewrote a slice the
+	// payload was already holding, in place, after the fact. The record would
+	// then serialize a lineage the seat never passed, with no event marking the
+	// change. Allocating fresh makes each Set's result immutable to the next.
+	c.items = nil
 	for _, part := range strings.Split(s, ",") {
 		if t := strings.TrimSpace(part); t != "" {
 			c.items = append(c.items, t)

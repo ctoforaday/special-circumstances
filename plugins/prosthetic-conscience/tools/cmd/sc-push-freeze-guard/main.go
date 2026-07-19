@@ -30,23 +30,95 @@ type hookInput struct {
 	} `json:"tool_input"`
 }
 
+// isSeparator reports whether a token ends one command in a compound shell line.
+func isSeparator(tok string) bool {
+	switch tok {
+	case "&&", "||", ";", "|", "&":
+		return true
+	}
+	return false
+}
+
+// tokenize splits a shell command into fields, breaking the separators &&, ||, ;, |
+// and & out as their OWN tokens.
+//
+// FIX (defect): the previous strings.Fields tokenization only saw a separator when the
+// operator had padded it with spaces. That broke the guard in both directions:
+// `git add -A;git commit` left the token "-A;", which matches no flag, so a sweeping
+// add went UNWARNED; and `git add file.md|grep -A 2` put "-A" in the add's argument
+// list, so a harmless add warned. Splitting on the separator characters themselves
+// makes the argument list actually stop at the end of the git command, which is what
+// the surrounding code already assumed.
+func tokenize(command string) []string {
+	var out []string
+	var cur strings.Builder
+	flush := func() {
+		if cur.Len() > 0 {
+			out = append(out, cur.String())
+			cur.Reset()
+		}
+	}
+	for i := 0; i < len(command); i++ {
+		c := command[i]
+		switch c {
+		case ' ', '\t', '\n', '\r':
+			flush()
+		case '&', '|', ';':
+			flush()
+			sep := string(c)
+			if c != ';' && i+1 < len(command) && command[i+1] == c {
+				sep += string(c)
+				i++
+			}
+			out = append(out, sep)
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	flush()
+	return out
+}
+
+// globalValueFlags are git's global options that consume the FOLLOWING token; the
+// verb search must step over both, or the option's value is read as the verb.
+var globalValueFlags = map[string]bool{
+	"-C": true, "-c": true, "--git-dir": true, "--work-tree": true,
+	"--namespace": true, "--exec-path": true,
+}
+
 // gitArgs returns the argument tokens following the first `git <verb>` in the command,
 // stopping at a shell separator — so `cd x && git add -A && ls` yields ["-A"] for verb
 // "add", and flags buried in OTHER commands never false-positive.
+//
+// FIX (defect): the verb used to be matched positionally, at exactly one token after
+// `git`. Any global option in between hid it, so `git -C repo checkout main` and
+// `git -c core.pager=cat add -A` produced NO warning at all — while doing precisely
+// the working-tree damage the guard's contract says the operator MUST be warned about.
+// The verb is now found by skipping git's global options first.
 func gitArgs(command, verb string) ([]string, bool) {
-	t := strings.Fields(command)
-	for i := 0; i+1 < len(t); i++ {
-		if t[i] == "git" && t[i+1] == verb {
-			var args []string
-			for j := i + 2; j < len(t); j++ {
-				switch t[j] {
-				case "&&", ";", "|", "||":
-					return args, true
-				}
-				args = append(args, t[j])
-			}
-			return args, true
+	t := tokenize(command)
+	for i := 0; i < len(t); i++ {
+		if t[i] != "git" {
+			continue
 		}
+		j := i + 1
+		for j < len(t) && strings.HasPrefix(t[j], "-") {
+			if globalValueFlags[t[j]] {
+				j++ // the option's value is not the verb either
+			}
+			j++
+		}
+		if j >= len(t) || isSeparator(t[j]) || t[j] != verb {
+			continue
+		}
+		var args []string
+		for k := j + 1; k < len(t); k++ {
+			if isSeparator(t[k]) {
+				return args, true
+			}
+			args = append(args, t[k])
+		}
+		return args, true
 	}
 	return nil, false
 }
@@ -71,7 +143,12 @@ func decide(m *runlive.Marker, command string) string {
 		return ""
 	}
 	live := fmt.Sprintf("a research run is LIVE (%s, started %s)", m.RunDir, m.Started)
-	if strings.Contains(command, "git push") {
+	// The substring check is kept as a widening union with the token-based one: it
+	// catches forms the tokenizer does not model (quoting, aliases), while gitArgs
+	// catches `git -C repo push`, which the substring check cannot see. A guard that
+	// only ever warns is allowed to be generous.
+	_, tokenPush := gitArgs(command, "push")
+	if tokenPush || strings.Contains(command, "git push") {
 		return fmt.Sprintf("sc-push-freeze-guard: %s — pinned paths are FROZEN: %s. Push only if it touches none of them (run-capture lifts the freeze).",
 			live, strings.Join(m.PinnedPaths, ", "))
 	}

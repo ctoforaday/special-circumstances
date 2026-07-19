@@ -180,7 +180,7 @@ export function redRows(runDir, results, telemetry) {
     ? row({
       clause: 'Lens economics (W2i assumption)', metric: 'citation_yield_by_round', cls: 'diagnostic',
       value: byRole,
-      joint: 'RETUNE TRIGGER: if rounds 2+ citation yield stops collapsing versus round 1, the consolidation cap is wrong',
+      joint: 'RETUNE TRIGGER: compare PER_SEAT yield across rounds, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens',
     })
     : row({
       clause: 'Lens economics (W2i assumption)', metric: 'citation_yield_by_round', cls: 'diagnostic',
@@ -208,10 +208,23 @@ export function citationYieldByRole(runDir) {
     const [, round, role] = m
     const body = read(join(dir, f)) || ''
     const findings = (body.match(/^\s*(?:###\s*)?L\d+-F\d+\b/gm) || []).length
-    const bucket = (perRound[round] ||= { citation: 0, logic: 0, darkside: 0 })
-    if (+role <= 4) bucket.citation += findings
-    else if (+role === 5) bucket.logic += findings
-    else bucket.darkside += findings
+    const bucket = (perRound[round] ||= { citation: 0, logic: 0, darkside: 0, seats: { citation: 0, logic: 0, darkside: 0 } })
+    const kind = +role <= 4 ? 'citation' : +role === 5 ? 'logic' : 'darkside'
+    bucket[kind] += findings
+    bucket.seats[kind] += 1
+  }
+  // PER-SEAT YIELD, not just raw count. W2i dispatches FEWER citation lenses in
+  // later rounds, so a raw round-over-round comparison measures the cut as if it
+  // were the collapse that justified the cut — the intervention manufactures its
+  // own evidence, and the retune trigger keyed on it cannot detect the error.
+  // First live run: citation fell 3->1 raw (-67%), but 2 seats -> 1 seat, so per
+  // seat it was 1.5 -> 1.0 (-33%). L5 (one seat both rounds) fell 9 -> 3, a real
+  // -67%. The lens that actually collapsed was not the one being rationed.
+  for (const r of Object.values(perRound)) {
+    r.per_seat = {}
+    for (const k of ['citation', 'logic', 'darkside']) {
+      r.per_seat[k] = r.seats[k] ? +(r[k] / r.seats[k]).toFixed(2) : null
+    }
   }
   return Object.keys(perRound).length ? perRound : null
 }
@@ -238,7 +251,11 @@ export function benchRows(runDir, results) {
   // blue acted on the direction a carried ruling stated.
   const debate = read(join(runDir, 'debate.md')) || ''
   const leadSections = (debate.match(/^### LEAD/gm) || []).length
-  const blueCitesLead = (debate.match(/^### BLUE[\s\S]*?(?=^### |\Z)/gm) || [])
+  // (?![\s\S]) is end-of-input. \Z is NOT an anchor in JavaScript — it is an
+  // identity escape matching a literal 'Z', so the lazy body stopped at the first
+  // capital Z in the prose. The LAST blue section has no '### ' after it, so it was
+  // truncated at a letter and then filtered for words the truncation had removed.
+  const blueCitesLead = (debate.match(/^### BLUE[\s\S]*?(?=^### |(?![\s\S]))/gm) || [])
     .filter((s) => /lead|judge|direction|carried/i.test(s)).length
   rows.push(leadSections
     ? row({
@@ -250,7 +267,12 @@ export function benchRows(runDir, results) {
 
   // Opinion form: a ruling that states no principle is a disposition wearing a
   // ruling's name.
-  const opinionated = rulings.filter((r) => r.principle && r.tension && r.review_flag).length
+  // review_flag is tested for PRESENCE, not truth. It is a boolean, and `false`
+  // — "this needs no further review" — is a complete opinion honestly recorded.
+  // Testing it for truthiness scored the bench as opinionless every time it gave
+  // the clean answer, which is precisely backwards for a metric whose point is
+  // that a ruling stating no principle is a disposition wearing a ruling's name.
+  const opinionated = rulings.filter((r) => r.principle && r.tension && 'review_flag' in r).length
   rows.push(rulings.length
     ? row({
       clause: 'Opinion form', metric: 'rulings_without_opinion', cls: 'detector',
@@ -308,6 +330,15 @@ export function renderChair(chair, rows, runLabel) {
     out.push(`- \`${r.metric}\` [${r.cls}] — ${r.clause}: ${v}`)
     if (r.joint) out.push(`  - ${r.joint}`)
   }
+  // The headline is EMITTED, not re-derived downstream. Setup previously rebuilt it
+  // by re-parsing these rendered rows, which made two implementations of "what a
+  // seat sees" — and they disagreed twice over: setup took the first three rows in
+  // FILE order rather than headline()'s ranking (a tripped detector could lose its
+  // slot to a benchmark above it), and its parser broke on any clause containing a
+  // colon, which silently hid `unrecorded_claim_loss` — a detector, and the entire
+  // enforcement of the additive invariant — from every prompt.
+  const h = headline(rows)
+  if (h.length) out.push('', `HEADLINE: ${h.join(' · ')}`)
   out.push('')
   return out.join('\n')
 }
@@ -326,6 +357,36 @@ export function headline(rows, max = 3) {
     const v = typeof r.value === 'object' ? JSON.stringify(r.value) : r.value
     return `${r.metric} ${v} [${CLASS_NOTE[r.cls].split(' —')[0]}]`
   })
+}
+
+// THE parser for a rendered scorecard. It lives here, beside renderChair, because
+// the module that WRITES a format is the only place that can be trusted to read it.
+//
+// This exists because the same defect was found three times in three hand-rolled
+// copies: setup's headline mirror, the dashboard's table, and (by construction)
+// anything written next. Each used a colon-excluding class for the clause, and a
+// character class cannot backtrack past the delimiter it excludes — so every row
+// whose CLAUSE contains a colon silently failed to match. The casualty each time
+// was `unrecorded_claim_loss`, a DETECTOR and the entire enforcement of the
+// additive invariant: computed, rendered, and invisible to both the seat and the
+// human. Three readers of one artifact, disagreeing about it, is the defect —
+// fixing the regex in three places would only have reset the clock.
+//
+// Lazy (.+?) terminates at the first colon actually followed by a value, which is
+// the real end of a clause. A row that is `_not computed_` yields value null, so
+// callers can tell "measured zero" from "never measured" — a distinction the
+// detector classes depend on.
+export function parseRenderedRows(section) {
+  const re = /`([a-z_]+)`\s*\[(benchmark|detector|diagnostic|measure)\]\s*—\s*(.+?):\s*(?:\*\*([^*]+)\*\*|_not computed_)/g
+  return [...String(section || '').matchAll(re)].map((m) => ({
+    metric: m[1], cls: m[2], clause: m[3], value: m[4] === undefined ? null : m[4],
+  }))
+}
+
+// A scorecard is APPENDED run over run, so the last '## ' block is this run's.
+export function latestSection(body) {
+  const s = String(body || '').split(/^## /m)
+  return s[s.length - 1] || ''
 }
 
 export function chairHeader(chair) {

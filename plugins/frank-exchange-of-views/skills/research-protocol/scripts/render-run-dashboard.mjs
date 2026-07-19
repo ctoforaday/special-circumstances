@@ -11,13 +11,21 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { parseRenderedRows, latestSection } from './scorecards.mjs'
+import { classifySeat } from './seat-classify.mjs'
+import { PRICES, tier } from './cost-audit.mjs'
 
 const jsonl = (p) => existsSync(p)
   ? readFileSync(p, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
   : []
 
-// Same list-rate arithmetic as cost-audit.mjs (kept tiny here: fable-tier default).
-const RATE = { in: 10, out: 50, cr: 1.0, cw: 12.5 }
+// Pricing comes from cost-audit.mjs, the module that owns it. The dashboard used to
+// keep its own single RATE row at fable-tier and apply it to EVERY seat regardless of
+// model — so a run with haiku bulk seats was billed as if all of it were the most
+// expensive tier. On the first live run that read $189.59 against a true $53.92: a
+// 3.5x overstatement on the one number a human watches while deciding whether to let a
+// run continue. Fourth instance in this codebase of two modules holding the same fact
+// and disagreeing; the fix is the same one each time.
 // Engine's pinned v1 mass mapping (for grade-migration arithmetic only).
 const MASSD = { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
 
@@ -25,18 +33,65 @@ const MASSD = { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high
 // {type, key, agentId} (no labels; labels are a panel affordance the harness does not
 // persist), so seat identity is recovered exactly the way cost-audit.mjs recovers it. A
 // flat-files lesson in miniature: structured state living in prose, parsed by regex.
-export function classifySeat(head) {
-  let m
-  if ((m = head.match(/Red audit, round (\d+)/))) return { seat: 'red-lens', round: +m[1] }
-  if ((m = head.match(/Red merge, round (\d+)/))) return { seat: 'red-merge', round: +m[1] }
-  if ((m = head.match(/Blue response, round (\d+)/))) return { seat: 'blue-respond', round: +m[1] }
-  if ((m = head.match(/Adjudication, round (\d+)/))) return { seat: 'judge', round: +m[1] }
-  if (head.includes('Terminal dispute disposition')) return { seat: 'judge-terminal', round: 0 }
-  if (head.includes('Blue synthesis')) return { seat: 'blue-synthesize', round: 0 }
-  if (head.includes('Blue lane')) return { seat: 'blue-lane', round: 0 }
-  if (head.includes('frontier hypotheses')) return { seat: 'frontier', round: 0 }
-  if (head.includes('Final assembly')) return { seat: 'assemble', round: 0 }
-  return { seat: 'other', round: 0 }
+// Re-exported from seat-classify.mjs, the single seat table. This used to be a
+// private copy that had already drifted from cost-audit's.
+export { classifySeat } from './seat-classify.mjs'
+
+// projectCompletion answers "how much longer?" from THIS run's own measured seat
+// durations — the only honest basis, since a run's pace depends on its model tier, its
+// report size, and how hard red is working.
+//
+// It reports a RANGE from the fastest and slowest completed seat of each class, never a
+// point estimate: merge seats in the first live run took 11.4, 16.2 and 16.7 minutes as
+// the board grew, so a single number would have been wrong in a predictable direction.
+//
+// It also states its ASSUMPTION rather than hiding it. The run's round ceiling is a
+// launch argument the engine never writes down, so the dashboard cannot know how many
+// rounds remain; this projects the work now in flight plus assembly, and reports what
+// one more round would add so the reader can do the arithmetic the tool cannot.
+export function projectCompletion(seats, nowMs = Date.now()) {
+  // Number.isFinite, not truthiness: a timestamp of 0 is a legitimate value and a
+  // falsy one, so `s.startedMs &&` silently drops the seat. That is the same defect
+  // this run found in the bench's review_flag, where `false` meant "no review needed"
+  // and was scored as no opinion at all.
+  const ms = (v) => Number.isFinite(v)
+  const done = [...seats].filter((s) => ms(s.startedMs) && ms(s.endedMs) && s.endedMs > s.startedMs)
+  const live = [...seats].filter((s) => !s.done && ms(s.startedMs))
+  if (done.length && [...seats].some((s) => s.seat === 'assemble' && s.done)) {
+    return { state: 'complete', lowMin: 0, highMin: 0, basis: 'assembly finished' }
+  }
+  const byClass = {}
+  for (const s of done) (byClass[s.seat] ||= []).push((s.endedMs - s.startedMs) / 60000)
+  const span = (seat) => {
+    const v = byClass[seat]
+    return v && v.length ? { lo: Math.min(...v), hi: Math.max(...v) } : null
+  }
+  // Assembly has no precedent on a first run; blue-synthesize is the nearest analogue
+  // (one seat, reads everything, writes the long document).
+  const assembly = span('assemble') || span('blue-synthesize')
+  let lo = 0, hi = 0
+  const missing = []
+  for (const s of live) {
+    const sp = span(s.seat)
+    const elapsed = (nowMs - s.startedMs) / 60000
+    if (!sp) { missing.push(s.label); continue }
+    lo += Math.max(0, sp.lo - elapsed)
+    hi += Math.max(0, sp.hi - elapsed)
+  }
+  if (![...seats].some((s) => s.seat === 'assemble')) {
+    if (assembly) { lo += assembly.lo; hi += assembly.hi } else missing.push('assembly')
+  }
+  const roundCost = ['red-lens', 'red-merge', 'blue-respond']
+    .map((c) => span(c)).filter(Boolean)
+    .reduce((a, sp) => ({ lo: a.lo + sp.lo, hi: a.hi + sp.hi }), { lo: 0, hi: 0 })
+  return {
+    state: live.length || !byClass.assemble ? 'running' : 'complete',
+    lowMin: Math.round(lo), highMin: Math.round(hi),
+    perRoundLowMin: Math.round(roundCost.lo), perRoundHighMin: Math.round(roundCost.hi),
+    basis: `${done.length} completed seat(s) in this run`,
+    // Named so the reader can discount the estimate rather than trust it blindly.
+    unmeasured: missing,
+  }
 }
 
 export function buildModel(runDir, transcriptDir) {
@@ -58,12 +113,29 @@ export function buildModel(runDir, transcriptDir) {
     const tp = join(transcriptDir, `agent-${id}.jsonl`)
     let head = ''
     try { head = readFileSync(tp, 'utf8').slice(0, 3000) } catch {}
-    // Start time lives on the transcript's first line (the journal carries no timestamps).
+    // Start and end come from the FILE, not its contents.
+    //
+    // The old form parsed head.slice(0, head.indexOf('\n')) as JSON to read a
+    // "timestamp" field. It returned null for 22 of 23 seats in the first live run and
+    // failed silently, because a transcript's first record serialises the seat's entire
+    // opening prompt BEFORE its timestamp — many thousands of characters — so within a
+    // 3000-byte head there is no newline (indexOf gives -1, slice(0,-1) is invalid
+    // JSON) and no timestamp to find either. Only `frontier`, whose prompt is short,
+    // ever worked. Reading far enough into 23 multi-megabyte files to reach the field
+    // would make the dashboard the most expensive process in the run.
+    //
+    // birthtime is when the harness created the transcript, which is when the seat
+    // started; mtime is its last write, which for a finished seat is when it ended.
     let startedMs = null
-    try { startedMs = Date.parse(JSON.parse(head.slice(0, head.indexOf('\n'))).timestamp) || null } catch {}
+    let endedMs = null
+    try {
+      const st = statSync(tp)
+      startedMs = st.birthtimeMs || st.ctimeMs || null
+      if (s.done) endedMs = st.mtimeMs
+    } catch {}
     const c = classifySeat(head)
     const label = c.round ? `${c.seat}-r${c.round}` : c.seat
-    seats.set(id, { ...s, label, seat: c.seat, round: c.round, startedMs })
+    seats.set(id, { ...s, label, seat: c.seat, round: c.round, startedMs, endedMs })
   }
 
   // Cost so far from transcripts (usage records).
@@ -75,8 +147,11 @@ export function buildModel(runDir, transcriptDir) {
         const u = j.message && j.message.usage
         if (!u) continue
         rounds++
-        cost += ((u.input_tokens || 0) * RATE.in + (u.output_tokens || 0) * RATE.out +
-          (u.cache_read_input_tokens || 0) * RATE.cr + (u.cache_creation_input_tokens || 0) * RATE.cw) / 1e6
+        // Price each turn at ITS OWN model's rate; an unrecognised model falls back to
+        // the dearest row, so an estimate errs upward rather than flattering the run.
+        const [pin, pout, pcr, pcw] = PRICES[tier((j.message && j.message.model) || '')]
+        cost += ((u.input_tokens || 0) * pin + (u.output_tokens || 0) * pout +
+          (u.cache_read_input_tokens || 0) * pcr + (u.cache_creation_input_tokens || 0) * pcw) / 1e6
       }
     }
   }
@@ -84,13 +159,29 @@ export function buildModel(runDir, transcriptDir) {
   // CONTENTS over bytes (review feedback): counts and states, not file sizes.
   const readIf = (rel) => { const p = join(runDir, rel); return existsSync(p) ? readFileSync(p, 'utf8') : null }
   const frictionTxt = readIf('friction.md')
+  // Entries are ATTRIBUTED LINES ("blue-synthesize: ...", "red-merge-r2: ..."), not
+  // markdown bullets. Counting /^- / found zero of the seven real entries in the first
+  // live run and the dashboard reported "none logged yet" — the writer and the reader
+  // disagreeing about the format, which is the same defect class as the scorecard
+  // parser and the seat table. What it hid was the entire tool-failure surface of the
+  // run: a Write guard blocking the one seat whose deliverable is a file, `merge mint`
+  // having no amend path, `spot-check` unable to record an honestly-empty round.
+  const frictionLines = frictionTxt
+    ? frictionTxt.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
+    : []
   const friction = {
-    count: frictionTxt ? (frictionTxt.match(/^- /gm) || []).length : 0,
-    last: frictionTxt ? (frictionTxt.match(/^- .*$/gm) || []).slice(-1)[0] || null : null,
+    count: frictionLines.length,
+    last: frictionLines.length ? frictionLines[frictionLines.length - 1] : null,
   }
   const ledgerTxt = readIf('red/ledger.md')
   const archiveTxt = readIf('red/archive.md')
-  const GRADES = ['certain', 'high', 'medium-high', 'medium', 'low-medium', 'low', 'trivial', 'realized']
+  // Ordered MOST SPECIFIC FIRST, and it must stay that way: the match below is a
+  // substring test, so listing `high` before `medium-high` made every
+  // medium-high row report as high (and every low-medium row as medium) —
+  // the compound grades have the simple ones as substrings. That silently
+  // inflated the high-severity count on the tile a human uses to judge whether
+  // the board is getting worse.
+  const GRADES = ['medium-high', 'low-medium', 'certain', 'high', 'medium', 'low', 'trivial', 'realized']
   const idLine = /R\d+-\d+/
   let openRows = 0
   const openBySeverity = {}
@@ -197,7 +288,8 @@ export function buildModel(runDir, transcriptDir) {
   })
 
   const latest = telemetry[telemetry.length - 1] || null
-  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, generated: new Date().toISOString() }
+  const eta = projectCompletion(seatList)
+  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, eta, generated: new Date().toISOString() }
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -257,12 +349,13 @@ export function scorecardSection(runDir) {
   for (const f of cards) {
     const chair = f.replace('-scorecard.md', '')
     const body = readFileSync(join(inputs, f), 'utf8')
-    const sections = body.split(/^## /m)
-    const latest = sections[sections.length - 1] || ''
-    const rows = [...latest.matchAll(/`([a-z_]+)`\s*\[(benchmark|detector|diagnostic|measure)\]\s*—\s*([^:]+):\s*(?:\*\*([^*]+)\*\*|_not computed_)/g)]
+    // Parsed by scorecards.mjs, which owns the format it renders. Three
+    // hand-rolled copies of this parser each carried the same colon defect.
+    const latest = latestSection(body)
+    const rows = parseRenderedRows(latest)
     if (!rows.length) continue
     blocks.push(`<h3>${esc(chair)}</h3><table>` + rows.map((r) => {
-      const [, metric, cls, clause, value] = r
+      const { metric, cls, clause, value } = r
       const fired = cls === 'detector' && value && value.trim() !== '0'
       const style = fired ? 'color:#b00;font-weight:700'
         : cls === 'benchmark' ? 'font-weight:700'
@@ -313,6 +406,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <h1>FEOV run · ${esc(m.runDir.split(/[\\/]/).pop())}</h1>
 <p class="muted">generated ${esc(m.generated)} · auto-refreshes every 20s · dollars are list-rate estimates</p>
 <h2>Progress (rounds segmented by the ceiling — judged termination may end the run earlier)</h2>
+${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin) ? `<p class="muted">projected <b>${m.eta.lowMin}–${m.eta.highMin} min</b> remaining for the work now in flight plus assembly, from ${esc(m.eta.basis)}. Each ADDITIONAL round would add roughly ${m.eta.perRoundLowMin}–${m.eta.perRoundHighMin} min: the round ceiling is a launch argument this run never writes down, so the estimate cannot know how many remain.${m.eta.unmeasured && m.eta.unmeasured.length ? ` No completed precedent yet for: ${esc(m.eta.unmeasured.join(', '))} — discount accordingly.` : ''}</p>` : ''}
 <div class="bar">${m.steps.map((s) => `<div class="seg ${s.state}" title="${esc(s.name)}: ${esc(s.state)}"></div>`).join('')}</div>
 <div class="barlabels">${m.steps.map((s) => `<span title="${esc(s.name)}">${esc(SHORT[s.name] || s.name.replace('round ', 'r'))}</span>`).join('')}</div>
 <div class="tiles" style="margin-top:12px">
@@ -321,6 +415,9 @@ td, th { font-variant-numeric: tabular-nums; }
 <div class="tile"><b>${m.latest ? esc(m.latest.max_severity) : '—'}</b><span>max severity</span></div>
 <div class="tile"><b>${m.blueClaims ?? '—'}</b><span>blue claims</span></div>
 <div class="tile"><b>${m.friction.count}</b><span>friction entries</span></div>
+${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin)
+  ? `<div class="tile"><b>${m.eta.lowMin}–${m.eta.highMin}m</b><span>projected remaining</span></div>`
+  : ''}
 <div class="tile"><b>$${m.cost.toFixed(2)}</b><span>cost so far (est.)</span></div>
 <div class="tile"><b>${done.length}/${m.agents}</b><span>seats done</span></div>
 </div>
