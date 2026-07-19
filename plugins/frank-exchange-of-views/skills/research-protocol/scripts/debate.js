@@ -43,7 +43,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null } = a
+const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null, transcriptDir = null } = a
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
@@ -153,6 +153,28 @@ const patternDutyClause = (gaps) => {
 }
 
 const CHAIR = { 'red-lens': 'red', 'red-merge': 'red', blue: 'blue', bench: 'bench' }
+// INTEGRITY INSPECTION (the bench's mind-reading, live half).
+//
+// The bench rules on artifacts and closings, where a performative repair and a
+// rigorous one look identical — part of why the gate measured inert at 86/87
+// carried. Detecting DECEPTION needs the trajectory itself: asking a party to
+// produce its own evidence propagates the lie, and letting parties demand
+// inspection of each other encourages fabrication. So the bench reads directly.
+//
+// Available only when the operator supplies transcriptDir, which is knowable
+// after launch rather than at dispatch (the directory is created by the run) —
+// so this arms on a RESUME, and every run is reconciled post-hoc at capture
+// regardless.
+//
+// TWO CONSTRAINTS make this oversight rather than surveillance. The looking need
+// not be on the record, but the FINDING must be: what the bench relies on is
+// quoted into the opinion so the party can answer it. And integrity is separated
+// from merits — sloppy reasoning that reached a sound conclusion is not a
+// finding; a clean conclusion contradicted by what the seat actually did is.
+const inspectionClause = transcriptDir
+  ? ` INTEGRITY INSPECTION: the seats' trajectories are at ${transcriptDir}/agent-*.jsonl, and you MAY read them. Use this to answer ONE question — is the record honest? Reconcile what a seat CLAIMS it did (a closure's anchor, an attestation, a manifest row) against the tool calls it actually made. You MUST NOT use trajectory material to decide the MERITS of a gap: untidy reasoning that reached a sound conclusion is not a finding, while a clean conclusion contradicted by what the seat actually did is. DECLARE every inspection in your opinion — what you read, why, and what you found — and quote anything you rely on, because a party must be able to answer a finding it could not watch you make. An inspection you do not declare is indistinguishable from one you invented.`
+  : ''
+
 const scorecardClause = (tool) => {
   const chair = CHAIR[tool]
   const rows = scorecards && chair && scorecards[chair]
@@ -452,7 +474,7 @@ async function hearPetitions(env, who) {
   if (!petitions.length) return false
   log(`petition(s) filed by ${who} (${petitions.map((x) => x.class).join(', ')}) — bench sitting before the debate continues`)
   const sitting = await agent(
-    `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted (state the relief as it will bind the coming seats) | denied (with opinion) | halt (ONLY where continuing would compromise safety, consent gates, corpus integrity, or participant integrity — a halt ends the run and your opinion is relayed to the human verbatim). Every ruling is a written OPINION: the principle applied, the values in tension, and why a human should or should not look. Read ${runDir}/debate.md for context; append your rulings under "### LEAD (petitions)".${lawClause}${frictionClause('judge-petition')}${speedClause}${recordClause('judge-petition', 'bench')} Return the petition-ruling envelope.`,
+    `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted (state the relief as it will bind the coming seats) | denied (with opinion) | halt (ONLY where continuing would compromise safety, consent gates, corpus integrity, or participant integrity — a halt ends the run and your opinion is relayed to the human verbatim). Every ruling is a written OPINION: the principle applied, the values in tension, and why a human should or should not look. Read ${runDir}/debate.md for context; append your rulings under "### LEAD (petitions)".${lawClause}${inspectionClause}${frictionClause('judge-petition')}${speedClause}${recordClause('judge-petition', 'bench')} Return the petition-ruling envelope.`,
     { ...judgment, label: `judge-petition · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
   if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
   takeFriction('judge-petition', sitting)
@@ -765,7 +787,7 @@ const terminalDisputes = [
 ]
 if (terminalDisputes.length > 0) {
   const terminalJudge = await agent(
-    `Terminal dispute disposition for topic "${topic}" (debate ended ${verdict} after round ${round}; this docket fires at the exit boundary). Undisposed grade disputes: ${JSON.stringify(terminalDisputes)}. Read ${runDir}/debate.md and ${LEDGER} in full. ${lawClause} The resolution set at a terminal exit EXCLUDES carried — rule each dispute grade_adjusted (state the corrected grade in the rationale; assembly records the delta) or unresolved (the contested grade ships, recorded as contested in the report). deadlock: false. Append your "### LEAD (terminal disputes)" ruling to ${runDir}/debate.md.${frictionClause('judge-terminal')}${speedClause}${recordClause('judge-terminal', 'bench')} Return the judge envelope.`,
+    `Terminal dispute disposition for topic "${topic}" (debate ended ${verdict} after round ${round}; this docket fires at the exit boundary). Undisposed grade disputes: ${JSON.stringify(terminalDisputes)}. Read ${runDir}/debate.md and ${LEDGER} in full. ${lawClause}${inspectionClause} The resolution set at a terminal exit EXCLUDES carried — rule each dispute grade_adjusted (state the corrected grade in the rationale; assembly records the delta) or unresolved (the contested grade ships, recorded as contested in the report). deadlock: false. Append your "### LEAD (terminal disputes)" ruling to ${runDir}/debate.md.${frictionClause('judge-terminal')}${speedClause}${recordClause('judge-terminal', 'bench')} Return the judge envelope.`,
     { ...judgment, label: `judge-terminal · ${slug}`, phase: 'Assemble', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
   if (terminalJudge) {
     takeFriction('judge-terminal', terminalJudge)

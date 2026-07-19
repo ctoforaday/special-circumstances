@@ -178,3 +178,26 @@ test('gap-pattern mirror: promoted corpus wins, raw accrual fills gaps, duplicat
   assert.ok(!staged.includes('the corpus doc'), 'the README is documentation, not a pattern')
   assert.equal(r.files, 2)
 })
+
+test('attestation integrity: a claimed act with no matching tool call is FLAGGED, a reconciled one passes', async () => {
+  const { attestationAudit } = await import('../../skills/research-protocol/scripts/capture-research-run.mjs')
+  const run = tmp(); const tr = tmp()
+  mkdirSync(join(run, 'red'), { recursive: true })
+  writeFileSync(join(run, 'red', 'archive.md'),
+    '# archive\n\n## R1-1 — closed\nthe problem\nverification anchor: L1 | Read | report.md#SectionTwo\n' +
+    '\n## R1-2 — closed\nother\nverification anchor: L5 | git show | 7bc501e:plans/record-tool.md\n')
+  writeFileSync(join(tr, 'agent-a.jsonl'),
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Read', input: { file_path: 'report.md#SectionTwo' } }] } }) + '\n')
+
+  const r = attestationAudit(run, tr, ['agent-a.jsonl'], 5)
+  assert.equal(r.verdict, 'FAIL')
+  assert.equal(r.unreconciled.length, 1)
+  assert.equal(r.unreconciled[0].id, 'R1-2', 'the claim nothing supports is the one named')
+  assert.match(r.detail, /RECORD IS HONEST, never on the merits/, 'the separation is stated in the finding itself')
+
+  // A CARRIED closure asserts no fresh act, so reconciling it would manufacture a
+  // finding out of an honest statement that this round did nothing new.
+  writeFileSync(join(run, 'red', 'archive.md'),
+    '# archive\n\n## R2-1 — closed\np\nverification anchor: CARRIED from round 1\n')
+  assert.equal(attestationAudit(run, tr, ['agent-a.jsonl'], 5).verdict, 'SKIP')
+})
