@@ -2,6 +2,9 @@ package seat
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -118,6 +121,100 @@ func Render(role string) *cobra.Command {
 	return c
 }
 
+// views are the projections a seat may read, and the role whose view each one is by
+// default. The default exists so a seat can type `show` and get the artifact it works
+// against, without having to learn the file layout of a directory it should not be
+// reading directly in the first place.
+var views = []struct {
+	name, desc, defaultFor string
+}{
+	{"ledger", "the board: open gaps with their grades, then the closure index", "merge"},
+	{"archive", "closed gaps with their closure records and anchors", ""},
+	{"debate", "the round-by-round transcript, every seat's sections in order", "bench"},
+	{"changelog", "blue's revision record, per round", "blue"},
+	{"citation-ledger", "verified claims with source, confidence and access date", "lens"},
+	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned", ""},
+}
+
+func viewNames() []string {
+	out := make([]string, 0, len(views))
+	for _, v := range views {
+		out = append(out, v.name)
+	}
+	return out
+}
+
+// Show prints a projection to STDOUT.
+//
+// READS BELONG IN THE TOOL. Every seat could already WRITE through the tool while still
+// having to READ the run by opening markdown files at paths it learned from a prompt —
+// which is how a seat comes to trust a hand-written artifact over the event log, and how
+// the two came to disagree. A seat that asks the tool gets the answer the events support.
+//
+// It does NOT re-derive the markdown. It renders through the exact path `render` uses and
+// then prints the resulting file, so the bytes on stdout and the bytes on disk cannot
+// differ. A second renderer would be a second reader of one artifact, which is the defect
+// class this whole tool exists to remove — writing one to serve reads would reintroduce it
+// at the read surface.
+func Show(role string) *cobra.Command {
+	c := &cobra.Command{
+		Use:          "show",
+		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view " + strings.Join(viewNames(), "|"),
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+	}
+	c.RunE = func(cmd *cobra.Command, _ []string) error {
+		runDir := Str(cmd, flags.Run)
+		if runDir == "" {
+			return fmt.Errorf("%s: --run <runDir> is required", role)
+		}
+		want := Str(cmd, flags.View)
+		if want == "" {
+			for _, v := range views {
+				if v.defaultFor == role {
+					want = v.name
+				}
+			}
+		}
+		if want == "" {
+			return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
+		}
+		var file string
+		for _, v := range views {
+			if v.name == want {
+				file = viewFile(v.name)
+			}
+		}
+		if file == "" {
+			return fmt.Errorf("%s show: unknown view %q (one of: %s)", role, want, strings.Join(viewNames(), ", "))
+		}
+
+		r, err := record.Render(runDir, "")
+		if err != nil {
+			return err
+		}
+		b, err := os.ReadFile(filepath.Join(r.Out, file))
+		if err != nil {
+			return fmt.Errorf("%s show: the %s projection is not on disk after a render — this is a renderer defect, not a missing artifact: %w", role, want, err)
+		}
+		os.Stdout.Write(b)
+		return nil
+	}
+	c.Flags().String(flags.View, "", "which projection to read: "+strings.Join(viewNames(), " | ")+" (defaults to this role's own)")
+	return c
+}
+
+// viewFile maps a view name to the file the renderer writes. The renderer's filenames
+// are its own business; a seat should never have to know them.
+func viewFile(view string) string {
+	switch view {
+	case "changelog":
+		return "CHANGELOG.md"
+	default:
+		return view + ".md"
+	}
+}
+
 // Role assembles a role's command from the verbs it was given.
 //
 // The role knows only its own name, its own one-line contract, and which verbs
@@ -145,6 +242,8 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 	}
 	c.AddCommand(Render(role))
 	names = append(names, "render")
+	c.AddCommand(Show(role))
+	names = append(names, "show")
 	available := join(names)
 
 	c.RunE = func(cmd *cobra.Command, args []string) error {

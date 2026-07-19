@@ -59,6 +59,7 @@ const (
 	Location  = "location"
 	Reference = "reference"
 	Row       = "row"
+	View      = "view"
 
 	// Disposition and justification.
 	//
@@ -154,7 +155,7 @@ func All() []string {
 		Run, SeatID,
 		File, Text,
 		Comment, CommentFile, CommentStdin,
-		ID, IDs, Label, Claim, Key, Location, Reference, Row,
+		ID, IDs, Label, Claim, Key, Location, Reference, Row, View,
 		As, Reason, Basis, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,

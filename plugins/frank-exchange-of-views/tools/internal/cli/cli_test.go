@@ -1152,10 +1152,15 @@ func TestEveryVerbAcceptsAComment(t *testing.T) {
 		}
 		for _, verb := range strings.Split(inside[1], ",") {
 			verb = strings.TrimSpace(verb)
-			// render is the one exemption and it is a real distinction, not a gap: it
-			// refreshes a projection and records NO event, so a comment would have
-			// nowhere to land. Every verb that writes to the record carries one.
-			if verb == "render" {
+			// The READ verbs are the exemption, and it is a real distinction rather than
+			// a gap: render refreshes a projection and show prints one, and NEITHER
+			// records an event, so a comment would have nowhere to land. Every verb that
+			// writes to the record carries one.
+			//
+			// Kept as an explicit list, not a name pattern: a future verb called
+			// "show-something" that DID write would slip through a prefix match, and the
+			// silent exemption is worse than the annoyance of adding a line here.
+			if verb == "render" || verb == "show" {
 				continue
 			}
 			t.Run(role+"/"+verb, func(t *testing.T) {

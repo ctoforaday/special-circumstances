@@ -1,22 +1,22 @@
 $ lens mint --run {RUN} --seat-id red-lens-r1-L1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, petition, render)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, petition, render, show)
 
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render, show)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render, show)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render)
+feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render, show)
 
 $ lens help
 exit 0
@@ -40,6 +40,7 @@ Available Commands:
   petition    petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render      read-only projection refresh (any seat may invoke)
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for lens
@@ -76,6 +77,7 @@ Available Commands:
   register        FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."
   render          read-only projection refresh (any seat may invoke)
+  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror
 
@@ -115,6 +117,7 @@ Available Commands:
   render       read-only projection refresh (any seat may invoke)
   retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
   revision     the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for blue
@@ -147,6 +150,7 @@ Available Commands:
   petition-rule rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --file <opinion> (a halt is its own verb)
   register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render        read-only projection refresh (any seat may invoke)
+  show          read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for bench
