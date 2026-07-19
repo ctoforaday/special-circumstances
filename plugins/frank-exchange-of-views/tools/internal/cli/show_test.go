@@ -57,8 +57,11 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 	runDir := seatRun(t)
 	mintGap(t, runDir, "role-views", "read-surface")
 
+	// merge's own view is the structured BOARD, not the markdown ledger: the merge seat
+	// is the one that acts on gap state, and it should get it in the form it acts on
+	// rather than prose it has to parse back.
 	for _, c := range []struct{ role, marker string }{
-		{"merge", "ledger.md"},
+		{"merge", `"counts"`},
 		{"blue", "CHANGELOG"},
 		{"lens", "citation-ledger"},
 		{"bench", "debate.md"},

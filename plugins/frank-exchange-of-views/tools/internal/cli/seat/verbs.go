@@ -128,7 +128,8 @@ func Render(role string) *cobra.Command {
 var views = []struct {
 	name, desc, defaultFor string
 }{
-	{"ledger", "the board: open gaps with their grades, then the closure index", "merge"},
+	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on", "merge"},
+	{"ledger", "the board as markdown, for a human verification pass", ""},
 	{"archive", "closed gaps with their closure records and anchors", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order", "bench"},
 	{"changelog", "blue's revision record, per round", "blue"},
@@ -175,6 +176,27 @@ func Show(role string) *cobra.Command {
 					want = v.name
 				}
 			}
+		}
+
+		// The BOARD is served as structured JSON, because a seat ACTS on it.
+		//
+		// Every other view is prose a seat reads; the board is state a seat has to make
+		// decisions against — which gap is open, what its grades are, whether a closure
+		// carried its anchor. Parsing that back out of markdown is precisely where the
+		// scorecard defects came from (anchored_closures_pct read 0 against an 89
+		// baseline because it parsed sentences while the anchors sat in structured
+		// fields). Markdown for the same state stays available behind --view ledger.
+		//
+		// Resolved AFTER the role default, not before: `merge show` with no flags must
+		// reach this branch, and checking the raw flag first sent the merge seat's own
+		// default view looking for a board.md that no renderer writes.
+		if want == "board" {
+			b, err := record.BoardJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			os.Stdout.Write(b)
+			return nil
 		}
 		if want == "" {
 			return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
