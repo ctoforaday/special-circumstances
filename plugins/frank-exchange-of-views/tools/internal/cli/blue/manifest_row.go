@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -22,19 +23,19 @@ func newManifestRow() *cobra.Command {
 			if err != nil {
 				return "", err
 			}
-			row := seat.Str(cmd, "row")
+			row := seat.Str(cmd, flags.Row)
 			if row == "" {
 				row = text
 			}
-			p := seat.Set(cmd, record.NewPayload(), "gap_id", "id")
+			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			p.Set("row", row)
 			if _, err := record.Append(s.RunDir, s.SeatID, "manifest-row", p); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("manifest row recorded for %s", seat.Str(cmd, "id")), nil
+			return fmt.Sprintf("manifest row recorded for %s", seat.Str(cmd, flags.ID)), nil
 		}))
 
-	c.Flags().String("id", "", "the gap id this receipt covers")
-	c.Flags().String("row", "", "what you checked and what it showed, compressed to one line")
+	c.Flags().String(flags.ID, "", "the gap id this receipt covers")
+	c.Flags().String(flags.Row, "", "what you checked and what it showed, compressed to one line")
 	return c
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -39,19 +40,19 @@ func newAvenue() *cobra.Command {
 			if err != nil {
 				return "", err
 			}
-			p := seat.SetSame(cmd, record.NewPayload(), "line", "status", "reason", "method")
+			p := seat.SetSame(cmd, record.NewPayload(), flags.Line, flags.Status, flags.Reason, flags.Method)
 			if text != "" {
 				p.Set("detail", text)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "avenue", p); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("avenue recorded (%s): %s", seat.Str(cmd, "status"), seat.Str(cmd, "line")), nil
+			return fmt.Sprintf("avenue recorded (%s): %s", seat.Str(cmd, flags.Status), seat.Str(cmd, flags.Line)), nil
 		}))
 
-	c.Flags().String("line", "", "the question or approach — what you were going to try")
-	c.Flags().String("status", "", "declined (considered, not taken) | abandoned (pursued, then died) | pursued (became the report's spine)")
-	c.Flags().String("reason", "", "why it was declined, or what killed it — the part a future run actually needs")
-	c.Flags().String("method", "", "the source class or technique it belonged to, when that is what distinguishes it")
+	c.Flags().String(flags.Line, "", "the question or approach — what you were going to try")
+	c.Flags().String(flags.Status, "", "declined (considered, not taken) | abandoned (pursued, then died) | pursued (became the report's spine)")
+	c.Flags().String(flags.Reason, "", "why it was declined, or what killed it — the part a future run actually needs")
+	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }

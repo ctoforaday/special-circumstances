@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -17,19 +18,23 @@ import (
 // event rather than settled in prose.
 func newDisputeRespond() *cobra.Command {
 	c := seat.New(role, "dispute-respond",
-		`red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --rationale "..."`,
+		`red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --basis "..."`,
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
-			p := seat.Set(cmd, record.NewPayload(), "gap_id", "id")
-			seat.Set(cmd, p, "response", "as")
-			seat.SetSame(cmd, p, "rationale")
+			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
+			seat.Set(cmd, p, "response", flags.As)
+			// Flag word --basis (the grounds you argue from, as on dispute/regrade/
+			// petition); payload key stays rationale.
+			if err := seat.SetLongForm(cmd, p, "rationale", flags.Basis); err != nil {
+				return "", err
+			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute-respond", p); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("dispute on %s: %s", seat.Str(cmd, "id"), seat.Str(cmd, "as")), nil
+			return fmt.Sprintf("dispute on %s: %s", seat.Str(cmd, flags.ID), seat.Str(cmd, flags.As)), nil
 		})
 
-	c.Flags().String("id", "", "the gap id")
-	c.Flags().String("as", "", "accepted | rejected — your answer to blue's grade dispute")
-	c.Flags().String("rationale", "", "the reasoning behind the answer")
-	return c
+	c.Flags().String(flags.ID, "", "the gap id")
+	c.Flags().String(flags.As, "", "accepted | rejected — your answer to blue's grade dispute")
+	c.Flags().String(flags.Basis, "", "the grounds for the answer — why blue's proposed grade is accepted or refused")
+	return seat.Prose(c)
 }

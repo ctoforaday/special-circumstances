@@ -391,7 +391,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
 		if _, err := Append(runDir, seatID, "mint", NewPayload().
-			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x")); err != nil {
+			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -418,7 +418,7 @@ func TestExistingMintByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, seatID, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x")); err != nil {
+		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -548,7 +548,7 @@ func TestBoardStateDispositionMatching(t *testing.T) {
 func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 	for _, field := range []string{"severity", "likelihood", "impact", "complexity_cost"} {
 		t.Run(field+"/rejects a non-grade", func(t *testing.T) {
-			err := validate(t.TempDir(), "mint", NewPayload().Set(field, "catastrophic"))
+			err := validate(t.TempDir(), "red-merge-r1", "mint", NewPayload().Set(field, "catastrophic"))
 			if err == nil {
 				t.Fatalf("%s=catastrophic was accepted", field)
 			}
@@ -559,7 +559,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 		t.Run(field+"/rejects a non-string", func(t *testing.T) {
 			// A bare boolean flag must fail the same way `true` does in the oracle.
-			err := validate(t.TempDir(), "mint", NewPayload().Set(field, true))
+			err := validate(t.TempDir(), "red-merge-r1", "mint", NewPayload().Set(field, true))
 			if err == nil {
 				t.Fatalf("%s=true was accepted", field)
 			}
@@ -569,15 +569,15 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 		t.Run(field+"/accepts every canonical grade", func(t *testing.T) {
 			for _, g := range GRADES {
-				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x")
-				if err := validate(t.TempDir(), "mint", p); err != nil {
+				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
+				if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err != nil {
 					t.Errorf("%s=%s refused: %v", field, g, err)
 				}
 			}
 		})
 	}
 	// An ABSENT graded field is fine; only a present-and-wrong one is refused.
-	if err := validate(t.TempDir(), "regrade", NewPayload().Set("basis", "b")); err != nil {
+	if err := validate(t.TempDir(), "red-merge-r1", "regrade", NewPayload().Set("basis", "b")); err != nil {
 		t.Errorf("absent grades were refused: %v", err)
 	}
 }
@@ -592,7 +592,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"mint without --check", "mint", NewPayload().Set("class", "x"), "mint requires --check"},
 		{"mint with an empty --check", "mint", NewPayload().Set("class", "x").Set("acceptance_check", ""), "mint requires --check"},
 		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c"), "mint requires --class"},
-		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x"), ""},
+		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium"), ""},
 
 		{"close without --id", "close", NewPayload(), "close requires --id"},
 		{"dispose without --as", "dispose", NewPayload(), "dispose requires --as"},
@@ -612,12 +612,15 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"a PURSUED avenue does not need a reason", "avenue", NewPayload().Set("status", "pursued").Set("line", "l"), ""},
 		{"a declined avenue with a reason", "avenue", NewPayload().Set("status", "declined").Set("line", "l").Set("reason", "why"), ""},
 
-		{"opinion missing every field", "opinion", NewPayload(), "opinion requires --gap-id"},
+		// The message must name the flag the PARSER accepts. It named --gap-id for as
+		// long as that flag existed and kept naming it after the rename, because the
+		// spelling was derived from the payload key rather than stated.
+		{"opinion missing every field", "opinion", NewPayload(), "opinion requires --id"},
 		{"an unknown verb is not validated here", "friction", NewPayload(), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(t.TempDir(), tc.typ, tc.p)
+			err := validate(t.TempDir(), "red-merge-r1", tc.typ, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -636,31 +639,77 @@ func TestValidateVerbContracts(t *testing.T) {
 
 // opinion demands all five fields, and names the one that is missing with the
 // flag spelling the seat actually typed.
+// The expected spellings are LITERALS. This test used to compute them with the same
+// underscore-to-hyphen transform the code under test used, which made it a tautology: it
+// asserted the code agreed with itself, and passed happily while the message taught
+// --gap-id and --disposition, two flags the parser had stopped accepting. A test that
+// reimplements its subject cannot indict it.
+// opinionRunDir is a run in which R1-1 exists, so an opinion's reference resolves and the
+// test can be about the missing FIELD rather than the missing gap.
+func opinionRunDir(t *testing.T) string {
+	t.Helper()
+	runDir := t.TempDir()
+	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := MintGapID(runDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
+		Set("acceptance_check", "c").Set("class", "x").
+		Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		t.Fatal(err)
+	}
+	return runDir
+}
+
 func TestValidateOpinionNamesEachMissingField(t *testing.T) {
+	wantFlag := map[string]string{
+		"gap_id":      "--id",
+		"disposition": "--as",
+		"principle":   "--principle",
+		"tension":     "--tension",
+		"review_flag": "--review-flag",
+	}
 	all := []string{"gap_id", "disposition", "principle", "tension", "review_flag"}
 	for _, missing := range all {
 		t.Run("missing "+missing, func(t *testing.T) {
+			// The gap must EXIST and be NAMED CORRECTLY: references are checked at
+			// write time now, so gap_id carries the real minted id rather than the
+			// "x" placeholder every other field uses. With a bogus id the reference
+			// check fires first and this test would assert on the wrong refusal.
+			runDir := opinionRunDir(t)
 			p := NewPayload()
 			for _, f := range all {
-				if f != missing {
-					p.Set(f, "x")
+				if f == missing {
+					continue
 				}
+				if f == "gap_id" {
+					p.Set(f, "R1-1")
+					continue
+				}
+				p.Set(f, "x")
 			}
-			err := validate(t.TempDir(), "opinion", p)
+			err := validate(runDir, "judge-r1", "opinion", p)
 			if err == nil {
 				t.Fatalf("opinion accepted without %s", missing)
 			}
-			wantFlag := "--" + strings.Replace(missing, "_", "-", 1)
-			if !strings.Contains(err.Error(), wantFlag) {
-				t.Errorf("error %q does not name %q", err, wantFlag)
+			if !strings.Contains(err.Error(), wantFlag[missing]) {
+				t.Errorf("error %q does not name %q — the seat's only teacher is this string", err, wantFlag[missing])
 			}
 		})
 	}
+	complete := opinionRunDir(t)
 	p := NewPayload()
 	for _, f := range all {
+		if f == "gap_id" {
+			p.Set(f, "R1-1")
+			continue
+		}
 		p.Set(f, "x")
 	}
-	if err := validate(t.TempDir(), "opinion", p); err != nil {
+	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
 	// An EMPTY value still counts as present: the check is Has, not non-empty.
@@ -668,7 +717,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	for _, f := range all {
 		q.Set(f, "")
 	}
-	if err := validate(t.TempDir(), "opinion", q); err != nil {
+	if err := validate(complete, "judge-r1", "opinion", q); err != nil {
 		t.Errorf("opinion fields present-but-empty were refused: %v", err)
 	}
 }
@@ -681,12 +730,14 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
 	})
-	base := func() *Payload { return NewPayload().Set("acceptance_check", "c").Set("class", "x") }
+	base := func() *Payload {
+		return NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
+	}
 
-	if err := validate(runDir, "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
+	if err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
 		t.Errorf("a real ancestor was refused: %v", err)
 	}
-	err := validate(runDir, "mint", base().Set("supersedes", []string{"R1-1", "R9-9"}))
+	err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{"R1-1", "R9-9"}))
 	if err == nil {
 		t.Fatal("a dangling ancestor was accepted")
 	}
@@ -694,7 +745,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		t.Errorf("error must name the dangling id: %v", err)
 	}
 	// An empty lineage is not a dangling one.
-	if err := validate(runDir, "mint", base().Set("supersedes", []string{})); err != nil {
+	if err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{})); err != nil {
 		t.Errorf("an empty lineage was refused: %v", err)
 	}
 }
@@ -702,8 +753,12 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
+	// BOTH gaps are minted: R1-1 is the one being closed, R2-1 the successor a
+	// closed_with_regression names. A successor is a reference like any other and is
+	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
+		ev(seatID, "aaaaaaaa", 1, 2, "mint", seatID+":mint:R2-1", NewPayload().Set("gap_id", "R2-1")),
 	})
 	anchored := func() *Payload {
 		return NewPayload().Set("gap_id", "R1-1").
@@ -719,13 +774,19 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		{"a PARTIAL anchor is not an anchor", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1"), "requires the attestation anchor"},
 		{"anchor missing its target", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1").Set("anchor_tool", "git show"), "requires the attestation anchor"},
 		{"a full anchor", anchored(), ""},
-		{"--carried-from is the honest alternative", NewPayload().Set("gap_id", "R1-1").Set("carried_from", "2"), ""},
+		// --carried-from remains the honest alternative to re-verifying, but it is a
+		// CLAIM ABOUT THE RECORD and is now checked like one. This gap has never been
+		// closed, so "carried from round 2" is simply false — and accepting it was a
+		// laundering path: an unanchored first closure that scores as closed, which is
+		// exactly what anchored_closures_pct exists to detect. The genuine case (close
+		// with an anchor, then restate) is covered in required_test.go.
+		{"--carried-from cannot invent an earlier closure", NewPayload().Set("gap_id", "R1-1").Set("carried_from", "2"), "no closure of it exists in the record"},
 		{"closed_with_regression needs a successor", anchored().Set("closure_class", "closed_with_regression"), "requires --successor"},
 		{"closed_with_regression with a successor", anchored().Set("closure_class", "closed_with_regression").Set("successor", "R2-1"), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(runDir, "close", tc.p)
+			err := validate(runDir, "red-merge-r1", "close", tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -753,10 +814,12 @@ func TestValidateClassRegistry(t *testing.T) {
 		}
 	}
 	registry := `{"classes":[{"slug":"scope-creep"},{"slug":"unfalsifiable"},{"slug":"stale-source"}]}`
-	mint := func(p *Payload) *Payload { return p.Set("acceptance_check", "c") }
+	mint := func(p *Payload) *Payload {
+		return p.Set("acceptance_check", "c").Set("likelihood", "medium").Set("impact", "medium")
+	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
-		if err := validate(t.TempDir(), "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
+		if err := validate(t.TempDir(), "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
 			t.Errorf("advisory mode refused a class: %v", err)
 		}
 	})
@@ -764,7 +827,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unparseable registry degrades to advisory", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, "{not json")
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
 			t.Errorf("an unparseable registry made validation strict: %v", err)
 		}
 	})
@@ -772,7 +835,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a known slug passes", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "scope-creep"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "scope-creep"))); err != nil {
 			t.Errorf("a registry slug was refused: %v", err)
 		}
 	})
@@ -780,7 +843,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unknown slug is refused with a hint", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		err := validate(runDir, "mint", mint(NewPayload().Set("class", "invented")))
+		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented")))
 		if err == nil {
 			t.Fatal("an unknown class was accepted")
 		}
@@ -804,7 +867,7 @@ func TestValidateClassRegistry(t *testing.T) {
 				}
 				p.Set(f, v)
 			}
-			err := validate(runDir, "mint", p)
+			err := validate(runDir, "red-merge-r1", "mint", p)
 			if err == nil {
 				t.Errorf("--class-new accepted without --%s", missing)
 				continue
@@ -820,7 +883,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeRegistry(t, runDir, registry)
 		p := mint(NewPayload().Set("class", "brand-new").Set("class_new", true).
 			Set("definition", "d").Set("neighbor", "not-a-class").Set("distinguisher", "q"))
-		err := validate(runDir, "mint", p)
+		err := validate(runDir, "red-merge-r1", "mint", p)
 		if err == nil {
 			t.Fatal("an invented neighbor was accepted")
 		}
@@ -836,13 +899,13 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 			ev(seatID, "aaaaaaaa", 0, 1, "class-new", seatID+":class-new:x", NewPayload().Set("slug", "run-local-class")),
 		})
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "run-local-class"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "run-local-class"))); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
 		p := mint(NewPayload().Set("class", "another").Set("class_new", true).
 			Set("definition", "d").Set("neighbor", "run-local-class").Set("distinguisher", "q"))
-		if err := validate(runDir, "mint", p); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", p); err != nil {
 			t.Errorf("a run-local class was not a valid neighbor: %v", err)
 		}
 	})
@@ -850,7 +913,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one"}]}`)
-		err := validate(runDir, "mint", mint(NewPayload().Set("class", "invented")))
+		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented")))
 		if err == nil {
 			t.Fatal("expected a refusal")
 		}
@@ -862,7 +925,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an EMPTY registry is still strict and does not panic", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[]}`)
-		if err := validate(runDir, "mint", mint(NewPayload().Set("class", "invented"))); err == nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented"))); err == nil {
 			t.Error("an empty registry accepted an invented class")
 		}
 	})

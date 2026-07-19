@@ -33,6 +33,43 @@ import (
 // Sequences are valid-ISH by construction rather than valid: a refusal is as
 // interesting as an acceptance, because the error text is part of the contract a
 // seat reads, and it must be as reproducible as a success.
+// withoutTimestamps strips the clock from a captured event log so two runs can be
+// compared for the things that must not vary.
+// rankTimestamps replaces each event's clock with its position in time, counting from
+// zero, so two runs can be compared for everything that must not vary.
+//
+// DROPPING the timestamp instead would also make the comparison pass, and would stop it
+// noticing a REORDER — the one failure this schema exists to catch. Ranking keeps order
+// under test while letting the absolute clock differ, which is the only part that may.
+// rankTimestamps replaces each event's clock with its POSITION in the canonical
+// (TS, SeatID, Seq) order, via the same eventRanks the goldens use.
+//
+// It ranked DISTINCT CLOCK VALUES until CI caught it: two events landing inside one clock
+// tick leave one fewer distinct instant, every later rank shifts, and two runs of the same
+// commands disagree for no reason but speed. That made this determinism test itself
+// non-deterministic — the exact property it exists to assert, broken in its own harness.
+// Position in the merge order is stable however coarse the clock is, and a genuine
+// reordering still shows up as a diff.
+func rankTimestamps(m map[string][]map[string]any) map[string][]map[string]any {
+	rank := eventRanks(m)
+	out := make(map[string][]map[string]any, len(m))
+	for k, evs := range m {
+		cp := make([]map[string]any, len(evs))
+		for i, ev := range evs {
+			c := make(map[string]any, len(ev))
+			for key, v := range ev {
+				c[key] = v
+			}
+			if _, ok := c["ts"]; ok {
+				c["ts"] = rank[fmt.Sprintf("%s#%v", k, ev["seq"])]
+			}
+			cp[i] = c
+		}
+		out[k] = cp
+	}
+	return out
+}
+
 func TestReplayDeterminism(t *testing.T) {
 	if testing.Short() {
 		t.Skip("determinism fuzz spawns two processes per command; skipped under -short")
@@ -49,7 +86,13 @@ func TestReplayDeterminism(t *testing.T) {
 			first := replay(t, bin, cmds)
 			second := replay(t, bin, cmds)
 
-			if diff := cmp.Diff(first.events, second.events); diff != "" {
+			// The log now carries a wall clock, so two identical runs can never be
+			// byte-identical — that is the clock working, not a determinism failure.
+			// Determinism here means the same commands produce the same events, in the
+			// same ORDER, with the same content. Each timestamp is compared as its RANK
+			// rather than dropped, so a reorder still fails while the absolute instant
+			// is free to differ.
+			if diff := cmp.Diff(rankTimestamps(first.events), rankTimestamps(second.events)); diff != "" {
 				t.Errorf("event log is not reproducible across identical runs\nsequence: %s\n%s", dumpSeq(cmds), diff)
 			}
 			if diff := cmp.Diff(first.renders, second.renders); diff != "" {
@@ -183,11 +226,11 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 				args = []string{"manifest-row", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs), "--row", "checked"}
 			case 2:
 				args = []string{"dispute", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
-					"--dimension", "likelihood", "--proposed", pick(rng, fuzzGrades), "--evidence", "why"}
+					"--dimension", "likelihood", "--proposed", pick(rng, fuzzGrades), "--basis", "why"}
 			}
 		case "bench":
-			args = []string{"opinion", "--run", "{RUN}", "--seat-id", s, "--gap-id", pick(rng, fuzzIDs),
-				"--disposition", "carried", "--principle", "p", "--tension", "t", "--review-flag", "r"}
+			args = []string{"opinion", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
+				"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "r"}
 			if rng.Intn(4) == 0 {
 				args = args[:len(args)-2] // drop the review flag: the validation path
 			}

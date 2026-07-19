@@ -51,11 +51,11 @@ type Context struct {
 // Of reads the seat context from the inherited persistent flags, inferring the run
 // directory when the flag is absent.
 func Of(cmd *cobra.Command, role string) Context {
-	runDir, _ := cmd.Flags().GetString("run")
+	runDir, _ := cmd.Flags().GetString(flags.Run)
 	if runDir == "" {
 		runDir = InferRunDir("")
 	}
-	seatID, _ := cmd.Flags().GetString("seat-id")
+	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	return Context{RunDir: runDir, SeatID: seatID, Role: role}
 }
 
@@ -113,6 +113,28 @@ func InferRunDir(start string) string {
 // Handler is a verb's work: everything cobra-shaped is handled around it.
 type Handler func(Context, *cobra.Command) (string, error)
 
+// markRequired annotates the flags a verb genuinely requires, reading record's single
+// declaration so the help and the enforcement cannot disagree.
+//
+// A seat's contract is `--help`, and it was a flat alphabetical list: --check and --class
+// (mandatory) sat indistinguishable from --comment and --found-by (optional). The only way
+// to discover a requirement was to omit it and read the error — one round trip per missing
+// flag, against a project whose binding constraint is wall clock.
+//
+// Applied AFTER the verb has registered its own flags, so a verb cannot forget to call it
+// and no verb has to remember what it requires twice.
+func markRequired(c *cobra.Command, verb string) {
+	for _, key := range record.RequiredFields[verb] {
+		f := c.Flags().Lookup(flags.ForPayloadKey(key))
+		if f == nil {
+			// The field is set by the verb rather than typed by the seat. Nothing to
+			// annotate, and nothing wrong: not every payload key has a flag.
+			continue
+		}
+		f.Usage = "REQUIRED — " + f.Usage
+	}
+}
+
 // New builds a verb command with the shared plumbing attached. The verb supplies
 // its own name, contract text, flags and handler; it never restates the
 // preconditions, the error prefix, or the render.
@@ -134,6 +156,12 @@ func New(role, name, help string, run Handler) *cobra.Command {
 			return record.CheckSeatRole(role, s.SeatID)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			// Set before the verb runs, so every record.Append in this process carries it.
+			comment, cerr := flags.ReadComment(cmd, cmd.InOrStdin())
+			if cerr != nil {
+				return fmt.Errorf("%s: %w", role, cerr)
+			}
+			record.AmbientComment = comment
 			out, err := run(Of(cmd, role), cmd)
 			if err != nil {
 				// The ROLE leads the message: a seat reading "close requires --id"
@@ -155,29 +183,73 @@ func New(role, name, help string, run Handler) *cobra.Command {
 			return err
 		}
 	}
+	// A UNIVERSAL FREE-TEXT FIELD, attached here so no verb can ship without one.
+	//
+	// The 2026-07-18 run's seats reached for --note, --detail, --target and --line and
+	// were refused every time. That knowledge did not evaporate: it went into the
+	// hand-written markdown, which is why the archive rendered from events was 7,527
+	// bytes against the hand copy's 34,086. Every schema gap pushes evidence out of the
+	// queryable channel and into the one nothing can query.
+	//
+	// --comment is the pressure valve. It is deliberately unstructured and deliberately
+	// everywhere, and it doubles as the backlog: a note that keeps recurring names a
+	// field the schema is missing, which is a better way to find them than guessing.
+	flags.RegisterComment(c)
+
 	return c
 }
 
 // Prose adds the shared payload channel to a verb that reads one.
 func Prose(c *cobra.Command) *cobra.Command {
-	c.Flags().String("file", "", "read the prose payload from a file — ALWAYS use this over --text for anything above ~2KB")
-	c.Flags().String("text", "", "the prose payload, inline (short values only)")
+	c.Flags().String(flags.File, "", "read the prose payload from a file — ALWAYS use this over --text for anything above ~2KB")
+	c.Flags().String(flags.Text, "", "the prose payload, inline (short values only)")
 	return c
 }
 
 // Text resolves that channel: --file (read whole) or --text, else empty.
+// Text resolves the payload channel through flags.ReadPayload — the ONE resolver.
+//
+// It used to do its own os.ReadFile, which made it a second reader of a concept the flags
+// package already owned, and the two had drifted exactly as that always does: ReadPayload
+// understood `--file -` as stdin, refused `--text` and `--file` together, and trimmed the
+// trailing newline a shell heredoc leaves behind. This one did none of those, so every
+// verb routed through it silently lacked stdin support while the capability sat one
+// package away, written and tested.
+//
+// That gap was measured in the run: 68 commands carrying escaped quotes, 9 heredocs, and
+// 37 staging a temp file first — two of which failed because the staged file was not there.
+// Prose into markdown costs nothing; prose through the tool meant fighting the shell.
 func Text(cmd *cobra.Command) (string, error) {
-	if Given(cmd, "file") {
-		b, err := os.ReadFile(Str(cmd, "file"))
-		if err != nil {
-			return "", err
-		}
-		return string(b), nil
+	return flags.ReadPayload(cmd, cmd.InOrStdin())
+}
+
+// SetLongForm fills a verb's own justification field from EITHER its named flag or the
+// payload channel, and refuses both.
+//
+// The nine verbs with no payload channel were not a uniform gap. Six of them carry a field
+// that is genuinely long-form — a dispute's --basis, a disposal's --reason, a spot-check's
+// --notes — and those are exactly the values a seat had to inline, escape and quote,
+// because the only alternative was the markdown. `cite` and `confidence` carry short
+// values (a label, a grade) and want no payload; `verdict` is one word. Giving all nine
+// the same channel would have been symmetry for its own sake.
+//
+// So --file/--text here is ANOTHER SPELLING of the named field, not a second field. Both
+// given is refused rather than silently ranked, for the same reason ReadPayload refuses
+// --text with --file: a seat that passes two should be told which one this verb would have
+// ignored, not left to discover it in a projection three rounds later.
+func SetLongForm(cmd *cobra.Command, p *record.Payload, key, flag string) error {
+	named := Str(cmd, flag)
+	payload, err := Text(cmd)
+	if err != nil {
+		return err
 	}
-	if Given(cmd, "text") {
-		return Str(cmd, "text"), nil
+	if named != "" && payload != "" {
+		return fmt.Errorf("--%s and --file/--text are two spellings of this verb's %s: pass exactly one", flag, key)
 	}
-	return "", nil
+	if v := named + payload; v != "" {
+		p.Set(key, v)
+	}
+	return nil
 }
 
 // Str reads a string flag.

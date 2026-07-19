@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -34,19 +35,19 @@ func newRetire() *cobra.Command {
 			if err != nil {
 				return "", err
 			}
-			p := seat.SetSame(cmd, record.NewPayload(), "claim", "reason")
-			seat.Set(cmd, p, "superseded_by", "superseded-by")
+			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reason)
+			seat.Set(cmd, p, "superseded_by", flags.SupersededBy)
 			if text != "" {
 				p.Set("detail", text)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "retire", p); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("retired: %s", seat.Str(cmd, "claim")), nil
+			return fmt.Sprintf("retired: %s", seat.Str(cmd, flags.Claim)), nil
 		}))
 
-	c.Flags().String("claim", "", "the claim being removed, quoted from the report as it stood")
-	c.Flags().String("reason", "", "why it goes: refuted, superseded, merged, or out of scope — a removal with no stated reason is the failure this verb exists to make visible")
-	c.Flags().String("superseded-by", "", "the claim that replaces it, when one does")
+	c.Flags().String(flags.Claim, "", "the claim being removed, quoted from the report as it stood")
+	c.Flags().String(flags.Reason, "", "why it goes: refuted, superseded, merged, or out of scope — a removal with no stated reason is the failure this verb exists to make visible")
+	c.Flags().String(flags.SupersededBy, "", "the claim that replaces it, when one does")
 	return c
 }

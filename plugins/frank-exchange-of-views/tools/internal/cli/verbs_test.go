@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -10,6 +11,46 @@ import (
 // what the verb RECORDS, not merely that it exited zero: the payload key names
 // are the record format, and a verb that writes the right message with the wrong
 // key is a verb whose events no projection will find.
+
+// seedReferents creates the entities these cases NAME: two gaps and an observation.
+//
+// Every cross-reference is checked at write time now, so a case that disposes O1 or rules
+// on R1-1 must have an O1 and an R1-1 to point at. Before the checks landed these were
+// invented ids that resolved to nothing, which is exactly the state the checks exist to
+// refuse — the fixtures were demonstrating the bug.
+func seedReferents(t *testing.T, runDir string) {
+	t.Helper()
+	for i := 0; i < 2; i++ {
+		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check", "c",
+			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--label", "SEED-O1", "--kind", "note", "--text", "a seeded observation"); err != nil {
+		t.Fatal(err)
+	}
+	// STATE, not just referents. A dispute-respond needs a dispute to answer, and a
+	// spot-check samples the ARCHIVE, so R1-3 is minted and closed to put something in
+	// it. Verbs are refused on the wrong state now, so the fixture has to build the
+	// world each verb actually operates in.
+	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
+		"--basis", "the seeded dispute this fixture answers"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "seed-archived", "--class", "x", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "R1-3", "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "go test",
+		"--anchor-target", "./x", "--text", "closed so the archive is not empty"); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestVerbPayloads(t *testing.T) {
 	cases := []struct {
@@ -65,16 +106,16 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "merge dispose gives an observation its fate",
 			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--observation", "O1", "--as", "folded-into", "--into", "R1-2", "--reason", "same root cause"},
+			args: []string{"--observation", "SEED-O1", "--as", "folded-into", "--into", "R1-2", "--reason", "same root cause"},
 			typ:  "dispose",
-			want: map[string]string{"observation": "O1", "disposition": "folded-into",
+			want: map[string]string{"observation": "SEED-O1", "disposition": "folded-into",
 				"into": "R1-2", "reason": "same root cause"},
-			says: "disposed O1: folded-into",
+			says: "disposed SEED-O1: folded-into",
 		},
 		{
 			name: "merge dispute-respond records red's answer",
 			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--id", "R1-1", "--as", "rejected", "--rationale", "the evidence does not reach it"},
+			args: []string{"--id", "R1-1", "--as", "rejected", "--basis", "the evidence does not reach it"},
 			typ:  "dispute-respond",
 			want: map[string]string{"gap_id": "R1-1", "response": "rejected",
 				"rationale": "the evidence does not reach it"},
@@ -83,7 +124,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue dispute contests a grade through the accounted channel",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--evidence", "§4 says otherwise"},
+			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--basis", "§4 says otherwise"},
 			typ:  "dispute",
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
 				"proposed": "low", "evidence": "§4 says otherwise"},
@@ -92,10 +133,10 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue manifest-row records the receipt",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--id", "R2-3", "--row", "figures recomputed; acceptance check run: pass"},
+			args: []string{"--id", "R1-2", "--row", "figures recomputed; acceptance check run: pass"},
 			typ:  "manifest-row",
-			want: map[string]string{"gap_id": "R2-3", "row": "figures recomputed; acceptance check run: pass"},
-			says: "manifest row recorded for R2-3",
+			want: map[string]string{"gap_id": "R1-2", "row": "figures recomputed; acceptance check run: pass"},
+			says: "manifest row recorded for R1-2",
 		},
 		{
 			name: "blue retire records what left and why",
@@ -119,7 +160,8 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue confidence records the calibration substrate",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--label", "C1", "--grade", "medium"},
+			// The flag words are --claim/--confidence; the payload keys stay label/grade.
+			args: []string{"--claim", "C1", "--confidence", "medium"},
 			typ:  "confidence",
 			want: map[string]string{"label": "C1", "grade": "medium"},
 			says: "confidence recorded for C1",
@@ -127,7 +169,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "bench petition-rule records the ruling and its opinion",
 			role: "bench", seatID: "judge-petition",
-			args: []string{"--petitioner", "red-lens-r1-L1", "--class", "safety",
+			args: []string{"--petitioner", "red-lens-r1-L1", "--petition-class", "safety",
 				"--as", "granted", "--text", "the written opinion"},
 			typ: "petition-rule",
 			want: map[string]string{"petitioner": "red-lens-r1-L1", "class": "safety",
@@ -155,6 +197,7 @@ func TestVerbPayloads(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
+			seedReferents(t, runDir)
 			verb := strings.SplitN(tc.name, " ", 3)[1]
 			args := append([]string{tc.role, verb, "--run", runDir, "--seat-id", tc.seatID}, tc.args...)
 			out, err := run(t, args...)
@@ -188,20 +231,21 @@ func TestVerbPayloads(t *testing.T) {
 func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	t.Run("with ids", func(t *testing.T) {
 		runDir := t.TempDir()
+		seedReferents(t, runDir)
 		out, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--ids", "R1-4,R2-7", "--notes", "both still hold")
+			"--ids", "R1-3", "--notes", "it still holds")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(out, "spot-checked R1-4, R2-7") {
+		if !strings.Contains(out, "spot-checked R1-3") {
 			t.Errorf("stdout = %q", out)
 		}
 		ev := lastOfType(t, runDir, "spot-check")
 		got := ev.Payload.StrList("ids")
-		if len(got) != 2 || got[0] != "R1-4" || got[1] != "R2-7" {
-			t.Errorf("ids = %q, want [R1-4 R2-7]", got)
+		if len(got) != 1 || got[0] != "R1-3" {
+			t.Errorf("ids = %q, want [R1-3] — the only CLOSED gap, which is what a spot-check samples", got)
 		}
-		if ev.Payload.Str("notes") != "both still hold" {
+		if ev.Payload.Str("notes") != "it still holds" {
 			t.Errorf("notes = %q", ev.Payload.Str("notes"))
 		}
 	})
@@ -228,7 +272,8 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 // spot-check is a singleton per seat: the round's duty is discharged once.
 func TestSpotCheckIsASingleton(t *testing.T) {
 	runDir := t.TempDir()
-	for _, ids := range []string{"R1-1", "R1-2"} {
+	seedReferents(t, runDir)
+	for _, ids := range []string{"R1-3", "R1-3"} {
 		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", ids); err != nil {
 			t.Fatal(err)
 		}
@@ -295,7 +340,7 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 		{"bench", "halt", "judge-terminal", "opinion", nil},
 		{"bench", "certify", "assemble", "statement", nil},
 		{"blue", "revision", "blue-lane-1", "text", nil},
-		{"lens", "observe", "red-lens-r1-L1", "text", nil},
+		{"lens", "observe", "red-lens-r1-L1", "text", []string{"--label", "PROSE-O1"}},
 		{"merge", "closing", "red-merge-r1", "text", []string{"--id", "R1-1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", []string{"--id", "R1-1"}},
 	}
@@ -303,15 +348,21 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.role+"/"+tc.verb, func(t *testing.T) {
 			runDir := t.TempDir()
+			seedReferents(t, runDir)
 			args := append([]string{tc.role, tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--file", writeTemp(t, body)}, tc.extra...)
 			if _, err := run(t, args...); err != nil {
 				t.Fatal(err)
 			}
-			evs := events(t, runDir)
-			last := evs[len(evs)-1]
-			if got := last.Payload.Str(tc.key); got != body {
-				t.Errorf("payload[%q] = %q, want the file verbatim", tc.key, got)
+			// BY TYPE, not "the last event in the log". That only worked while the run
+			// dir was otherwise empty: MergedEvents is not time-ordered, so once the
+			// fixture seeds referents the tail of the slice is whichever shard sorts
+			// last, not whichever event happened last.
+			last := lastOfType(t, runDir, tc.verb)
+			// Less the file's terminating newline: that is a line terminator every
+			// editor appends, not content the seat chose to record.
+			if got := last.Payload.Str(tc.key); got != strings.TrimRight(body, "\n") {
+				t.Errorf("payload[%q] = %q, want the file's content without its terminator", tc.key, got)
 			}
 		})
 	}

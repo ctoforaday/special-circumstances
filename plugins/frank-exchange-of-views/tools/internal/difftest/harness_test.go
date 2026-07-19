@@ -163,7 +163,24 @@ func (m *nonceMapper) normalize(s string) string {
 	for raw, placeholder := range m.seen {
 		s = strings.ReplaceAll(s, raw, placeholder)
 	}
-	return sortNonceLists(s)
+	return sortNonceLists(normalizeFindingIDs(s))
+}
+
+// findingIDRe matches the tool-assigned finding id, which is RANDOM by design — an id a
+// seat cannot guess is one it has to look up. Random is also unreproducible, so goldens
+// see it in order of first appearance rather than raw, the same trade the nonces make.
+var findingIDRe = regexp.MustCompile(`f-[0-9a-f]{8}`)
+
+func normalizeFindingIDs(s string) string {
+	seen := map[string]string{}
+	return findingIDRe.ReplaceAllStringFunc(s, func(id string) string {
+		if p, ok := seen[id]; ok {
+			return p
+		}
+		p := fmt.Sprintf("FINDING%03d", len(seen)+1)
+		seen[id] = p
+		return p
+	})
 }
 
 // nonceListRe matches the anomaly footer's dispatch list: "(NONCE001, NONCE002)".

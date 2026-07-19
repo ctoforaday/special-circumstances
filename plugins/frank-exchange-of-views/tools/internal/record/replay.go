@@ -212,6 +212,41 @@ type Gap struct {
 	Likelihood     any
 	Impact         any
 	ComplexityCost any
+	// ClosedByBench distinguishes a JUDICIAL closure from one red made. Red cannot
+	// close a bench-closed gap itself without double-counting closure history and
+	// corrupting the repair_regression denominator, so the projection has to record WHO
+	// closed it, not merely that it is closed.
+	ClosedByBench bool
+}
+
+// benchClosesGap says which dispositions end a gap's life on the board.
+//
+// `carried` is the one that does NOT: it defers the question to a later round, and
+// treating it as a closure would silently retire gaps the bench deliberately kept alive
+// — the opposite of the defect this function exists to fix, and worse.
+//
+// The rest all end the dispute, by different routes: the defect is gone, the risk is
+// accepted as it stands, blue's rebuttal was sustained, or the work moved to the lead's
+// infrastructure debt. Each leaves the board with nothing further to adjudicate.
+func benchClosesGap(disposition string) bool {
+	switch disposition {
+	case "closed", "risk_accepted", "rebuttal_sustained", "routed_to_infrastructure":
+		return true
+	default:
+		return false
+	}
+}
+
+// missingGap describes a mutation that referenced a gap the replay has never seen.
+//
+// This used to be a bare `continue`, and that silence is what let the bench's closures
+// vanish for an entire run: the events were recorded correctly, the replay dropped them,
+// and every projection downstream reported a board that had never existed. Anomalies are
+// rendered into the projection and never silently normalized, so the same failure now
+// announces itself in the artifact a human reads.
+func missingGap(verb string, e Event) string {
+	return fmt.Sprintf("%s by %s referenced unknown gap %s (event %s) — the mutation was DROPPED, not applied",
+		verb, e.SeatID, e.Payload.Str("gap_id"), e.Key)
 }
 
 // payloadVal returns the raw value, or nil when the key is absent — nil is the
@@ -258,7 +293,32 @@ func BoardState(runDir string) (*Board, error) {
 		return nil, err
 	}
 	b := &Board{Events: m.Events, Anomalies: m.Anomalies, Gaps: map[string]*Gap{}}
-	for _, e := range m.Events {
+
+	// ORDERED BY WHEN IT HAPPENED, not by what the shard file is called.
+	//
+	// Events merge per shard, so before this an entire seat replayed before the next
+	// seat began, and every cross-seat reference was ordered by how seat names sort.
+	// The bench closing a gap red minted was dropped SILENTLY because the gap did not
+	// exist yet; the merge seat disposing a lens observation worked only because
+	// red-lens sorts before red-merge — one rename from the same failure.
+	//
+	// (TS, SeatID, Seq) is the full key. Wall clock from many short-lived processes is
+	// not monotonic and can go backwards, so time alone is not enough; the tail makes
+	// ties and skew deterministic instead of arbitrary.
+	ordered := make([]Event, len(m.Events))
+	copy(ordered, m.Events)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		a, b := ordered[i], ordered[j]
+		if a.TS != b.TS {
+			return a.TS < b.TS
+		}
+		if a.SeatID != b.SeatID {
+			return a.SeatID < b.SeatID
+		}
+		return a.Seq < b.Seq
+	})
+
+	for _, e := range ordered {
 		switch e.Type {
 		case "mint":
 			id := e.Payload.Str("gap_id")
@@ -276,6 +336,7 @@ func BoardState(runDir string) (*Board, error) {
 		case "regrade":
 			g := b.Gaps[e.Payload.Str("gap_id")]
 			if g == nil {
+				b.Anomalies = append(b.Anomalies, missingGap("regrade", e))
 				continue
 			}
 			// Object.assign(g, pickGrades(payload)) — only the grade keys present move.
@@ -295,26 +356,82 @@ func BoardState(runDir string) (*Board, error) {
 		case "close":
 			g := b.Gaps[e.Payload.Str("gap_id")]
 			if g == nil {
+				b.Anomalies = append(b.Anomalies, missingGap("close", e))
 				continue
 			}
 			g.Open = false
 			g.Closure = e.Payload
 			g.ClosedRound = e.Round
 			g.HasClosed = true
+		case "opinion":
+			// THE BENCH'S RULINGS REACH RED'S BOARD.
+			//
+			// Bench dispositions lived only in the judge's event stream, so the
+			// projection over-reported open gaps by the number of bench closures after
+			// every sitting and diverged further each round. The 2026-07-18 run's
+			// red-merge-r3 measured it: the render said 9 open / 9 closed against a
+			// hand-written board of 3 open / 15 closed, the difference being exactly the
+			// six gaps judge-r2 had closed. Nothing carried them across, and red could
+			// not close them itself without corrupting its own closure history.
+			g := b.Gaps[e.Payload.Str("gap_id")]
+			if g == nil {
+				b.Anomalies = append(b.Anomalies, missingGap("opinion", e))
+				continue
+			}
+			if !benchClosesGap(e.Payload.Str("disposition")) {
+				continue
+			}
+			g.Open = false
+			g.Closure = e.Payload
+			g.ClosedRound = e.Round
+			g.HasClosed = true
+			g.ClosedByBench = true
 		case "finding", "observe":
 			b.Observations = append(b.Observations, &Observation{
 				SeatID: e.SeatID, Key: e.Key, Kind: e.Type, Payload: e.Payload,
 			})
 		case "dispose":
+			// BY ID FIRST, then by label within the SAME ROUND, then by label anywhere.
+			//
+			// "first match wins on the label" was the old rule, and it silently attached
+			// a disposal to whichever round's finding happened to replay first: 15
+			// labels in the 2026-07-18 run were used by more than one lens seat, so 39
+			// of 60 disposals were resolved by accident of ordering. The wrong finding
+			// got the fate and the right one stayed in the undisposed set forever.
 			target := e.Payload.Str("observation")
-			for _, o := range b.Observations { // find() — FIRST match wins
+			round := RoundOf(e.SeatID)
+			var byLabelSameRound, byLabelAny *Observation
+			var matched bool
+			for _, o := range b.Observations {
+				if o.Payload.Str("finding_id") == target && target != "" {
+					o.Disposition = e.Payload
+					matched = true
+					break
+				}
 				name := o.Payload.Str("label")
 				if name == "" {
 					name = o.Key
 				}
-				if name == target {
-					o.Disposition = e.Payload
-					break
+				if name != target {
+					continue
+				}
+				if byLabelAny == nil {
+					byLabelAny = o
+				}
+				if byLabelSameRound == nil && RoundOf(o.SeatID) == round {
+					byLabelSameRound = o
+				}
+			}
+			if !matched {
+				switch {
+				case byLabelSameRound != nil:
+					byLabelSameRound.Disposition = e.Payload
+				case byLabelAny != nil:
+					byLabelAny.Disposition = e.Payload
+				default:
+					b.Anomalies = append(b.Anomalies, fmt.Sprintf(
+						"dispose by %s referenced %s, which matches no finding or observation — the disposal was DROPPED and the intended one stays undisposed",
+						e.SeatID, target))
 				}
 			}
 		}
@@ -331,6 +448,25 @@ func allGapIDs(runDir string) (map[string]bool, error) {
 	for _, e := range m.Events {
 		if e.Type == "mint" {
 			out[e.Payload.Str("gap_id")] = true
+		}
+	}
+	return out, nil
+}
+
+// priorClosureRounds returns the rounds in which this gap was already closed.
+//
+// A `--carried-from` closure claims to restate an earlier one, and a claim about the
+// record is checked against the record — the same rule mint applies to `supersedes`,
+// which refuses an ancestor no mint event created.
+func priorClosureRounds(runDir, gapID string) ([]int, error) {
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return nil, err
+	}
+	var out []int
+	for _, e := range m.Events {
+		if e.Type == "close" && e.Payload.Str("gap_id") == gapID {
+			out = append(out, e.Round)
 		}
 	}
 	return out, nil

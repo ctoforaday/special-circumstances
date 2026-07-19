@@ -211,12 +211,12 @@ func scenarios() []scenario {
 				base("blue", "revision", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--text", "repairs landed", "--claim-count", "88"),
 				base("blue", "manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--row", "figures recomputed; check run: pass"),
 				base("blue", "dispute", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1",
-					"--dimension", "likelihood", "--proposed", "low", "--evidence", "the harm needs two failures"),
-				base("blue", "confidence", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--label", "C7", "--grade", "medium"),
+					"--dimension", "likelihood", "--proposed", "low", "--basis", "the harm needs two failures"),
+				base("blue", "confidence", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--claim", "C7", "--confidence", "medium"),
 				base("lens", "cite", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--claim", "throughput doubled",
 					"--reference", "https://example.invalid/paper", "--confidence", "high", "--access-date", "2026-07-18"),
 				base("bench", "register", "--run", "{RUN}", "--seat-id", "judge-r1"),
-				base("bench", "opinion", "--run", "{RUN}", "--seat-id", "judge-r1", "--gap-id", "R1-1", "--disposition", "carried",
+				base("bench", "opinion", "--run", "{RUN}", "--seat-id", "judge-r1", "--id", "R1-1", "--as", "carried",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--text", "the rationale body"),
 				base("bench", "certify", "--run", "{RUN}", "--seat-id", "judge-r1", "--text", "what a human should re-examine"),
@@ -225,11 +225,11 @@ func scenarios() []scenario {
 		{
 			name: "bench_petitions_and_halt", // oracle: W2c verbs
 			cmds: []cmd{
-				base("lens", "petition", "--run", "{RUN}", "--seat-id", "red-lens-r1-L6", "--class", "safety",
+				base("lens", "petition", "--run", "{RUN}", "--seat-id", "red-lens-r1-L6", "--petition-class", "safety",
 					"--basis", "the design erodes a consent gate", "--relief", "halt and escalate"),
 				base("bench", "register", "--run", "{RUN}", "--seat-id", "judge-petition"),
 				base("bench", "petition-rule", "--run", "{RUN}", "--seat-id", "judge-petition", "--petitioner", "red-lens-r1-L6",
-					"--class", "safety", "--as", "granted", "--text", "the relief binds the coming seats"),
+					"--petition-class", "safety", "--as", "granted", "--text", "the relief binds the coming seats"),
 				base("bench", "halt", "--run", "{RUN}", "--seat-id", "judge-petition", "--text", "continuing would compromise the consent gate"),
 			},
 		},
@@ -237,8 +237,8 @@ func scenarios() []scenario {
 			name: "opinion_requires_all_five_fields", // oracle: opinions, not dispositions
 			cmds: []cmd{
 				base("bench", "register", "--run", "{RUN}", "--seat-id", "judge-r2"),
-				base("bench", "opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--gap-id", "R2-1", "--disposition", "closed"),
-				base("bench", "opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--gap-id", "R2-1", "--disposition", "closed",
+				base("bench", "opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "closed"),
+				base("bench", "opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "closed",
 					"--principle", "p", "--tension", "t"),
 			},
 		},
@@ -276,7 +276,7 @@ func scenarios() []scenario {
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r2 first"),
 				base("merge", "spot-check", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--ids", "R1-1, R1-2", "--notes", "both re-read"),
 				base("merge", "dispute-respond", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--id", "R1-1", "--as", "rejected",
-					"--rationale", "the consequence stands"),
+					"--basis", "the consequence stands"),
 			},
 		},
 		{

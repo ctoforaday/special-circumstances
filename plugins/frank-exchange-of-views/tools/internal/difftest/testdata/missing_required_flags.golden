@@ -11,7 +11,7 @@ feov-record: merge: --seat-id is required (the engine assigns it; it is in your 
 $ merge not-a-verb --run {RUN} --seat-id red-merge-r1
 exit 2
 stderr:
-feov-record: verb "not-a-verb" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render)
+feov-record: verb "not-a-verb" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render, show)
 
 ═══ EVENTS ═══
 

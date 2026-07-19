@@ -291,3 +291,21 @@ func TestCSVStringRoundTrips(t *testing.T) {
 		t.Errorf("String() is not stable across a round trip: %q then %q", want, got)
 	}
 }
+
+// A payload key's flag is a STATEMENT, not a derivation. Four keys are spelled
+// differently from the flag that sets them, and every one of those four was renamed by
+// the command-surface audit — the exact renames that made the old string transform lie.
+func TestForPayloadKeyNamesTheFlagTheParserAccepts(t *testing.T) {
+	for key, want := range map[string]string{
+		"gap_id":      "id",
+		"disposition": "as",
+		"evidence":    "basis",
+		"prose":       "file",
+		"review_flag": "review-flag", // fallback territory: same word, different punctuation
+		"principle":   "principle",
+	} {
+		if got := ForPayloadKey(key); got != want {
+			t.Errorf("ForPayloadKey(%q) = %q, want %q — an error message naming a flag the parser rejects costs a seat a whole turn", key, got, want)
+		}
+	}
+}

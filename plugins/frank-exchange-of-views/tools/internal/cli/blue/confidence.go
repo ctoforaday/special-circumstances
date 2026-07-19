@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -17,16 +18,24 @@ import (
 // measurement.
 func newConfidence() *cobra.Command {
 	c := seat.New(role, "confidence",
-		"per-claim confidence (the calibration substrate): --label <claim-label> --grade high|medium|low",
+		"per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low",
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
-			p := seat.SetSame(cmd, record.NewPayload(), "label", "grade")
+			// The FLAG WORDS are --claim and --confidence, matching `lens cite`; the
+			// PAYLOAD KEYS stay label/grade, which is the event schema and moves on its
+			// own schedule. Set rather than SetSame is what lets the two differ.
+			p := record.NewPayload()
+			seat.Set(cmd, p, "label", flags.Claim)
+			seat.Set(cmd, p, "grade", flags.Confidence)
 			if _, err := record.Append(s.RunDir, s.SeatID, "confidence", p); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("confidence recorded for %s", seat.Str(cmd, "label")), nil
+			return fmt.Sprintf("confidence recorded for %s", seat.Str(cmd, flags.Claim)), nil
 		})
 
-	c.Flags().String("label", "", "the claim this confidence attaches to")
-	c.Flags().String("grade", "", "high | medium | low — your confidence in the claim")
+	// --label meant "your lens-scoped finding label" on two other verbs and "the claim
+	// this attaches to" here: one word, two intents, and a seat generalises from the one
+	// it met first. This is the claim, so it is --claim.
+	c.Flags().String(flags.Claim, "", "the claim this confidence attaches to")
+	c.Flags().String(flags.Confidence, "", "high | medium | low — your confidence in the claim")
 	return c
 }

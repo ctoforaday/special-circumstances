@@ -27,6 +27,6 @@ func NewCommand() *cobra.Command {
 		seat.Closing(role, "a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>"),
 		newVerdict(),
 		seat.Friction(role, "attributed friction: --text|--file"),
-		seat.Petition(role, `petition the bench: --class ethical|safety|integrity|constitutional --basis "..." --relief "..."`, ""),
+		seat.Petition(role, `petition the bench: --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."`, ""),
 	)
 }

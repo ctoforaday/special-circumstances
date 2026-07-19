@@ -8,15 +8,15 @@ feov-record: merge: record: mint requires --class (or --class-new with --definit
 
 ── mint with unknown class
 exit 2
-feov-record: merge: record: unknown class invented — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or mint the class with --class-new (definition + neighbor + distinguisher required)
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── class-new missing definition
 exit 2
-feov-record: merge: record: --class-new requires --definition, --neighbor <existing-slug>, and --distinguisher (the tie-break question)
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── class-new unknown neighbor
 exit 2
-feov-record: merge: record: --neighbor nope is not a known class
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── mint with bad grade
 exit 2
@@ -24,7 +24,7 @@ feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophi
 
 ── mint with dangling supersedes
 exit 2
-feov-record: merge: record: mint supersedes R7-7, which no mint event has created — dangling lineage refused
+feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
 ── close unknown gap
 exit 2
@@ -44,7 +44,7 @@ feov-record: merge: record: closed_with_regression requires --successor (lineage
 
 ── dispose without disposition
 exit 2
-feov-record: merge: record: dispose requires --as minted-as|folded-into|declined|banked
+feov-record: merge: record: dispose --observation names L1-F1, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing
 
 ── regrade without basis
 exit 2
@@ -60,19 +60,19 @@ feov-record: merge: seat "not a seat id" does not belong to any role namespace (
 
 ── verb outside the lens role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, petition, render)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, petition, render, show)
 
 ── verb outside the blue role
 exit 2
-feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render)
+feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, render, show)
 
 ── verb outside the bench role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render)
+feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render, show)
 
 ── unknown verb
 exit 2
-feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render)
+feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render, show)
 
 ── unknown role
 exit 2

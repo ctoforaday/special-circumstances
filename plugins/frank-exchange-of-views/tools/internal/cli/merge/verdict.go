@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -25,7 +26,7 @@ func newVerdict() *cobra.Command {
 	c := seat.New(role, "verdict",
 		"the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror",
 		func(s seat.Context, cmd *cobra.Command) (string, error) {
-			p := seat.Set(cmd, record.NewPayload(), "verdict", "as")
+			p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
 			if _, err := record.Append(s.RunDir, s.SeatID, "verdict", p); err != nil {
 				return "", err
 			}
@@ -38,10 +39,10 @@ func newVerdict() *cobra.Command {
 				return "", err
 			}
 			return fmt.Sprintf("verdict %s — rendered (%d open, %d closed) and checkpointed to %s",
-				seat.Str(cmd, "as"), r.Open, r.Closed, mirror), nil
+				seat.Str(cmd, flags.As), r.Open, r.Closed, mirror), nil
 		})
 
-	c.Flags().String("as", "", "PASS | FAIL — the seat's terminal act")
+	c.Flags().String(flags.As, "", "PASS | FAIL — the seat's terminal act")
 	return c
 }
 

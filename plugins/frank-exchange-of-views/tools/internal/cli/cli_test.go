@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -76,9 +78,27 @@ func events(t *testing.T, runDir string) []record.Event {
 	return m.Events
 }
 
+// lastOfType is LAST IN TIME, not last in the slice.
+//
+// MergedEvents returns events in shard order, so "the tail of the slice" is whichever seat
+// file sorts last — fine while a test run dir held one seat's events, wrong the moment
+// fixtures seed events from several seats. It silently returned the SEEDED dispute instead
+// of the one the test had just filed, which reads as the verb writing the wrong payload.
+// The canonical order is (TS, SeatID, Seq), the same key replay uses.
 func lastOfType(t *testing.T, runDir, typ string) record.Event {
 	t.Helper()
-	for i, evs := len(events(t, runDir))-1, events(t, runDir); i >= 0; i-- {
+	evs := events(t, runDir)
+	sort.SliceStable(evs, func(i, j int) bool {
+		a, b := evs[i], evs[j]
+		if a.TS != b.TS {
+			return a.TS < b.TS
+		}
+		if a.SeatID != b.SeatID {
+			return a.SeatID < b.SeatID
+		}
+		return a.Seq < b.Seq
+	})
+	for i := len(evs) - 1; i >= 0; i-- {
 		if evs[i].Type == typ {
 			return evs[i]
 		}
@@ -147,7 +167,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	runDir := t.TempDir()
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--class", "x", "--check", "c", "--problem", "p")
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err == nil {
 		t.Fatal("a LENS seat minted a board gap through the merge role")
 	}
@@ -292,7 +312,9 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "finding L1-F1 recorded") {
+	// The ID leads the message now: it is what the merge will name, and a seat told only
+	// "recorded" has to invent a way to refer to this later.
+	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "L1-F1") {
 		t.Errorf("finding said %q", out)
 	}
 	// Render-on-mutation keeps projections current after every write.
@@ -344,7 +366,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "scope-creep", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	ev := lastOfType(t, runDir, "mint")
@@ -369,7 +391,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 	runDir := t.TempDir()
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class", "x", "--check", "c", "--problem", "p", "--severity", "catastrophic")
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--severity", "catastrophic")
 	if err == nil {
 		t.Fatal("an invalid grade was accepted")
 	}
@@ -395,7 +417,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	mint := func(extra ...string) string {
 		t.Helper()
 		args := append([]string{"merge", "mint", "--run", runDir, "--seat-id", seatID,
-			"--class", "scope-creep", "--check", "c", "--problem", "p"}, extra...)
+			"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, extra...)
 		out, err := run(t, args...)
 		if err != nil {
 			t.Fatal(err)
@@ -426,7 +448,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--class", "scope-creep", "--check", "c", "--problem", "p")
+		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +465,7 @@ func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "ignored", "--class-new", "brand-new",
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "q",
-		"--check", "c", "--problem", "p")
+		"--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -468,33 +490,46 @@ func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
 // --problem and the prose channel are alternatives; --problem wins when both
 // are given, and --file carries anything above trivial size.
 func TestProseChannelResolution(t *testing.T) {
-	t.Run("--file is read whole", func(t *testing.T) {
+	// ONE trailing newline is stripped, and that is deliberate normalization rather than
+	// mangling: a file's final newline is a line TERMINATOR that every editor and every
+	// heredoc appends, not content the seat chose to record. Keeping it meant a payload
+	// passed via --file ended with a stray blank line in every projection while the same
+	// text passed via --text did not — one value recorded two ways depending on which
+	// spelling the seat happened to use.
+	t.Run("--file is read whole, less its terminating newline", func(t *testing.T) {
 		runDir := t.TempDir()
-		body := "line one\nline two — with unicode ✓ and <angle> brackets\n"
+		body := "line one\nline two — with unicode ✓ and <angle> brackets"
 		f := filepath.Join(t.TempDir(), "prose.md")
-		if err := os.WriteFile(f, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(f, []byte(body+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1", "--file", f); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "position").Payload.Str("text"); got != body {
-			t.Errorf("text = %q, want the file verbatim %q", got, body)
+			t.Errorf("text = %q, want the file's content without its terminator %q", got, body)
 		}
 	})
 
-	t.Run("--file wins over --text when both are passed", func(t *testing.T) {
+	// BOTH SPELLINGS IS NOW AN ERROR, not a precedence rule.
+	//
+	// This used to assert that --file silently wins. Silent precedence means a seat
+	// passing both loses one payload without being told which, and the loss is invisible
+	// until someone reads a projection rounds later and finds the wrong prose recorded.
+	// Refusing costs the seat one turn and tells it exactly what to fix.
+	t.Run("--file and --text together are refused, not ranked", func(t *testing.T) {
 		runDir := t.TempDir()
 		f := filepath.Join(t.TempDir(), "prose.md")
 		if err := os.WriteFile(f, []byte("from the file"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--file", f, "--text", "from the flag"); err != nil {
-			t.Fatal(err)
+		_, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--file", f, "--text", "from the flag")
+		if err == nil {
+			t.Fatal("both spellings were accepted; one payload was silently dropped")
 		}
-		if got := lastOfType(t, runDir, "position").Payload.Str("text"); got != "from the file" {
-			t.Errorf("text = %q, want the file to win", got)
+		if !strings.Contains(err.Error(), "exactly one") {
+			t.Errorf("the refusal must say which rule was broken, got: %v", err)
 		}
 	})
 
@@ -528,7 +563,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("--problem beats the prose channel on mint", func(t *testing.T) {
 		runDir := t.TempDir()
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--class", "x", "--check", "c", "--problem", "from the flag", "--text", "from the prose channel"); err != nil {
+			"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--text", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the flag" {
@@ -539,7 +574,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("the prose channel fills problem when --problem is absent", func(t *testing.T) {
 		runDir := t.TempDir()
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--class", "x", "--check", "c", "--text", "from the prose channel"); err != nil {
+			"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--text", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the prose channel" {
@@ -554,7 +589,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -602,8 +637,20 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
+	}
+	// The successor must EXIST: a successor is a reference like any other and is checked
+	// at write time now, so the fixture mints the gap it will name.
+	succOut, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+		"--key", "successor-gap", "--class", "x", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	successor := regexp.MustCompile(`R\d+-\d+`).FindString(succOut)
+	if successor == "" {
+		t.Fatalf("could not read the successor id from %q", succOut)
 	}
 	base := []string{"merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
 		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
@@ -611,17 +658,17 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	if _, err := run(t, base...); err == nil {
 		t.Fatal("closed_with_regression was accepted without a successor — lineage dropped")
 	}
-	if _, err := run(t, append(base, "--successor", "R2-1")...); err != nil {
+	if _, err := run(t, append(base, "--successor", successor)...); err != nil {
 		t.Fatalf("a successor'd regression close was refused: %v", err)
 	}
 }
 
-// close --prose-file carries the full closure record; a missing one is an error.
-func TestCloseProseFile(t *testing.T) {
+// close --file carries the full closure record; a missing one is an error.
+func TestCloseFile(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	f := filepath.Join(t.TempDir(), "closure.md")
@@ -629,7 +676,7 @@ func TestCloseProseFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
-		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--prose-file", f); err != nil {
+		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--file", f); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastOfType(t, runDir, "close").Payload.Str("prose"); got != "the whole closure record" {
@@ -638,9 +685,9 @@ func TestCloseProseFile(t *testing.T) {
 
 	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
 		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
-		"--prose-file", filepath.Join(t.TempDir(), "gone.md"))
+		"--file", filepath.Join(t.TempDir(), "gone.md"))
 	if err == nil {
-		t.Fatal("a missing --prose-file was ignored")
+		t.Fatal("a missing --file was ignored")
 	}
 }
 
@@ -653,12 +700,25 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		{"regrade without --basis", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "regrade requires --basis"},
 		{"dispose without --as", []string{"merge", "dispose", "--observation", "F1"}, "dispose requires --as"},
 		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "mint requires --check"},
-		{"mint without --class", []string{"merge", "mint", "--check", "c", "--problem", "p"}, "mint requires --class"},
+		{"mint without --class", []string{"merge", "mint", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			seatID := "red-merge-r1"
+			// The referenced gap and observation must EXIST, or the reference check
+			// fires first and this test asserts on the wrong refusal — it is about the
+			// missing REASON, not a missing referent.
+			if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+				"--key", "k", "--class", "x", "--check", "c",
+				"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+				"--label", "F1", "--location", "l", "--text", "t",
+				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+				t.Fatal(err)
+			}
 			args := append([]string{tc.args[0], tc.args[1], "--run", runDir, "--seat-id", seatID}, tc.args[2:]...)
 			_, err := run(t, args...)
 			if err == nil {
@@ -725,8 +785,16 @@ func TestBlueVerbContracts(t *testing.T) {
 func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "judge-r1"
+	// The gap must EXIST: --id is a reference and is checked at write time, so without
+	// a real gap this test would assert on the dangling-reference refusal instead of the
+	// missing-field one it is about.
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "k", "--class", "x", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatal(err)
+	}
 	full := map[string]string{
-		"gap-id": "R1-1", "disposition": "carried", "principle": "correctness first",
+		"id": "R1-1", "as": "carried", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 	}
 	for missing := range full {
@@ -766,7 +834,7 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 func TestRenderVerbIsAvailableToEverySeatAndNeedsOnlyRun(t *testing.T) {
 	runDir := t.TempDir()
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	for _, role := range []string{"lens", "merge", "blue", "bench"} {
@@ -855,7 +923,7 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 		t.Run("petition/"+tc.role, func(t *testing.T) {
 			runDir := t.TempDir()
 			out, err := run(t, tc.role, "petition", "--run", runDir, "--seat-id", tc.seatID,
-				"--class", "safety", "--basis", "what happened", "--relief", "the relief sought")
+				"--petition-class", "safety", "--basis", "what happened", "--relief", "the relief sought")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -883,6 +951,15 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 func TestClosingIsKeyedPerGap(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
+	// Both gaps must EXIST: a closing names the gap it argues, and that reference is
+	// checked at write time.
+	for i := 0; i < 2; i++ {
+		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+			"--key", fmt.Sprintf("k%d", i), "--class", "x", "--check", "c",
+			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, id := range []string{"R1-1", "R1-2"} {
 		if _, err := run(t, "merge", "closing", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--text", "argued "+id); err != nil {
@@ -929,7 +1006,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p"); err != nil {
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS")
@@ -1128,5 +1205,120 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	}
 	if keys := payloadKeys(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
 		t.Error("ids must still be present as an empty array")
+	}
+}
+
+// EVERY verb carries --comment. Enumerated rather than sampled, so a verb added later
+// without it fails here: the point of a universal field is that it cannot be forgotten.
+//
+// The 2026-07-18 run's seats reached for --note, --detail, --target and --line and were
+// refused each time. That knowledge went into the hand-written markdown instead, which is
+// why the archive rendered from events was 7,527 bytes against the hand copy's 34,086.
+func TestEveryVerbAcceptsAComment(t *testing.T) {
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		// The role's own refusal enumerates its verbs — the tool is the source of the
+		// list, so a verb added later is covered without editing this test.
+		_, err := run(t, role)
+		if err == nil {
+			t.Fatalf("%s with no verb should refuse and list its verbs", role)
+		}
+		inside := regexp.MustCompile(`\(([^)]+)\)`).FindStringSubmatch(err.Error())
+		if inside == nil {
+			t.Fatalf("%s: could not read the verb list from %q", role, err)
+		}
+		for _, verb := range strings.Split(inside[1], ",") {
+			verb = strings.TrimSpace(verb)
+			// The READ verbs are the exemption, and it is a real distinction rather than
+			// a gap: render refreshes a projection and show prints one, and NEITHER
+			// records an event, so a comment would have nowhere to land. Every verb that
+			// writes to the record carries one.
+			//
+			// Kept as an explicit list, not a name pattern: a future verb called
+			// "show-something" that DID write would slip through a prefix match, and the
+			// silent exemption is worse than the annoyance of adding a line here.
+			if verb == "render" || verb == "show" {
+				continue
+			}
+			t.Run(role+"/"+verb, func(t *testing.T) {
+				// --help, not a bare invocation: the verb would otherwise run and fail
+				// its preconditions before printing anything.
+				if vh := help(t, role, verb, "--help"); !strings.Contains(vh, "--comment") {
+					t.Errorf("%s %s has no --comment: a verb with no free-text field pushes evidence into the markdown", role, verb)
+				}
+			})
+		}
+	}
+}
+
+// The comment reaches the EVENT, not just the flag set — an accepted flag that records
+// nothing would be worse than refusing it.
+func TestCommentIsRecordedOnTheEvent(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--label", "L1-F1", "--text", "a finding",
+		"--comment", "the schema has no slot for which arm of the experiment this figure came from"); err != nil {
+		t.Fatal(err)
+	}
+	ev := lastOfType(t, runDir, "finding")
+	if !payloadKeys(ev)["comment"] {
+		t.Fatal("the comment must be on the event, or the flag is decoration")
+	}
+}
+
+// An absent comment must not litter every event with an empty key.
+func TestNoCommentMeansNoCommentKey(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--label", "L1-F1", "--text", "a finding"); err != nil {
+		t.Fatal(err)
+	}
+	if payloadKeys(lastOfType(t, runDir, "finding"))["comment"] {
+		t.Error("an empty comment key on every event is noise in the shard and every projection")
+	}
+}
+
+// `merge close` called its payload --prose-file while every other prose-bearing verb
+// calls it --file. Seats typed --file here and were refused, twice, in one run.
+func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := t.TempDir()
+	prose := filepath.Join(t.TempDir(), "closure.md")
+	if err := os.WriteFile(prose, []byte("verified at the leaf; digits match the cited arm"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	minted, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--class-new", "some-class", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
+		"--location", "sec 1", "--problem", "p", "--fix", "f", "--check", "c", "--likelihood", "medium", "--impact", "medium",
+		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low")
+	if err != nil {
+		t.Fatalf("mint: %v", err)
+	}
+	id := regexp.MustCompile(`R\d+-\d+`).FindString(minted)
+	if id == "" {
+		t.Fatalf("could not read the minted id from %q", minted)
+	}
+	// A REAL ANCHOR, not --carried-from. This test's subject is --file, and it used the
+	// carry as a shortcut past the anchor requirement — which is exactly how a seat under
+	// pressure would use it, and why the carry is now checked against a real earlier
+	// closure rather than accepted on its say-so.
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", id, "--as", "closed",
+		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/x",
+		"--file", prose); err != nil {
+		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
+	}
+	if !payloadKeys(lastOfType(t, runDir, "close"))["prose"] {
+		t.Error("the prose from --file must reach the event")
 	}
 }
