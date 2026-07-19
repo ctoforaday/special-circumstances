@@ -76,9 +76,19 @@ export function buildModel(runDir, transcriptDir) {
   // CONTENTS over bytes (review feedback): counts and states, not file sizes.
   const readIf = (rel) => { const p = join(runDir, rel); return existsSync(p) ? readFileSync(p, 'utf8') : null }
   const frictionTxt = readIf('friction.md')
+  // Entries are ATTRIBUTED LINES ("blue-synthesize: ...", "red-merge-r2: ..."), not
+  // markdown bullets. Counting /^- / found zero of the seven real entries in the first
+  // live run and the dashboard reported "none logged yet" — the writer and the reader
+  // disagreeing about the format, which is the same defect class as the scorecard
+  // parser and the seat table. What it hid was the entire tool-failure surface of the
+  // run: a Write guard blocking the one seat whose deliverable is a file, `merge mint`
+  // having no amend path, `spot-check` unable to record an honestly-empty round.
+  const frictionLines = frictionTxt
+    ? frictionTxt.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
+    : []
   const friction = {
-    count: frictionTxt ? (frictionTxt.match(/^- /gm) || []).length : 0,
-    last: frictionTxt ? (frictionTxt.match(/^- .*$/gm) || []).slice(-1)[0] || null : null,
+    count: frictionLines.length,
+    last: frictionLines.length ? frictionLines[frictionLines.length - 1] : null,
   }
   const ledgerTxt = readIf('red/ledger.md')
   const archiveTxt = readIf('red/archive.md')

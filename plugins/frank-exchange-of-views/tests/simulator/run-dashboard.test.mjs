@@ -223,3 +223,33 @@ test('W1.5: telemetry is authoritative when the ledger parse under-reads the ope
   assert.ok(html.includes('23 <span class="muted">(from telemetry'), 'under-read parse defers to telemetry')
   assert.ok(html.includes('found 2 row(s)'), 'the parse count is disclosed, not hidden')
 })
+
+// friction.md holds ATTRIBUTED LINES, not markdown bullets. The dashboard counted
+// /^- / and therefore reported "none logged yet" while seven real entries sat in the
+// file — including every tool failure the run hit. Fixture is the real format.
+test('friction entries are counted in the format seats actually write', async () => {
+  const { buildModel } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const runDir = tmp()
+  mkdirSync(join(runDir, 'trajectories'), { recursive: true })
+  writeFileSync(join(runDir, 'friction.md'), [
+    '# friction.md — some topic',
+    '',
+    'blue-synthesize: the Write tool refused to create blue/report.md, a generic subagent guard.',
+    'red-merge-r1: `merge mint` has no amend path — a first mint with placeholder payload is permanent.',
+    'red-merge-r2: acceptance-check contracts have no field for CONDITION-PINNING.',
+    '',
+  ].join('\n'))
+  const m = buildModel(runDir, tmp())
+  assert.equal(m.friction.count, 3, 'three attributed lines, none of them bullets')
+  assert.match(m.friction.last, /CONDITION-PINNING/, 'the latest entry is the last one written')
+})
+
+test('an empty friction log still reports zero rather than throwing', async () => {
+  const { buildModel } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
+  const runDir = tmp()
+  mkdirSync(join(runDir, 'trajectories'), { recursive: true })
+  writeFileSync(join(runDir, 'friction.md'), '# friction.md — topic\n\n')
+  const m = buildModel(runDir, tmp())
+  assert.equal(m.friction.count, 0, 'a header-only file is genuinely empty')
+  assert.equal(m.friction.last, null)
+})
