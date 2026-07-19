@@ -711,6 +711,28 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
     contested.push({ ...g, traffic_class: reRaised ? 're_raised' : 'first_raise_successor' })
   }
   contested.push(...disputeDocket)
+  // WITHHELD, WITH A REASON. The docket carries gaps that PERSIST (re-raised from a prior
+  // round, or descending from one by supersedes). A gap minted fresh this round is not
+  // docket-bound by that rule — but red and blue file CLOSING ARGUMENTS by their own
+  // reading of the prose contract, and in the 2026-07-18 run both sides argued R3-2 to
+  // closing while the engine never docketed it. It reached no ruling and returned to
+  // red's verdict pool unadjudicated, and the bench had no way to know it existed.
+  //
+  // Two computations of one fact, disagreeing — the defect class this codebase keeps
+  // finding. The engine cannot pre-compute the docket (it depends on red's own output,
+  // produced in the same turn as the closings), so instead nothing is withheld SILENTLY:
+  // the bench is handed every open gap the docket excluded, with the reason, and may
+  // rule on one it judges was wrongly withheld.
+  const withheld = (redEnv.gaps || [])
+    .filter((g) => !contested.some((c) => c.id === g.id))
+    .map((g) => ({
+      id: g.id,
+      severity: g.severity,
+      reason: allPriorGapIds.has(g.id) || (g.supersedes || []).some((id) => allPriorGapIds.has(id))
+        ? 'persistent but not carried onto the docket — report this as a docket defect'
+        : 'minted fresh this round, so not a persisting dispute',
+    }))
+
   const hasNew = redEnv.gaps.some(g => !allPriorGapIds.has(g.id) && !(g.supersedes || []).some(id => allPriorGapIds.has(id)))
   for (const g of redEnv.gaps) allPriorGapIds.add(g.id)
 
@@ -740,7 +762,7 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
   if (contested.length > 0) {
     log(`round ${round}: docket — ${contested.length} contested item(s) to the judge (closings filed)`)
     const judge = await agent(
-      `Adjudication, round ${round}, topic "${topic}". Contested docket: ${JSON.stringify(contested)}. Both sides have filed closings for this docket: red's "### RED CLOSING (round ${round})" and blue's "### BLUE CLOSING (round ${round})" in ${runDir}/debate.md. YOUR RULING BASIS IS CONFINED TO: (1) the two closings, (2) the full transcript ${runDir}/debate.md, and (3) the final state of the artifacts — ${LEDGER} and ${runDir}/blue/report.md as they now stand. Weigh the closings as each side's best case; a claim in a closing that the record does not support counts AGAINST the side that made it.${lawClause} Resolution set (full, for every gap class — blue has answered everything docketed): closed (blue's response resolves it) | rebuttal_sustained (blue's evidence beats the challenge) | risk_accepted (valid, rejected on likelihood x impact x complexity) | carried (still live — state what further research blue owes) | unresolved | moot (the predicate expired — the claim or artifact it attached to no longer exists in the report) | grade_adjusted (for grade_dispute_* items: state the corrected grade in the rationale; red applies it next round) | routed_to_infrastructure (valid finding whose FIX is owned outside the debate — run tooling, harness, or the lead; state the owed fix in the rationale; it leaves red's verdict pool and ships as a named infrastructure debt, recorded never dropped). DEMANDED READS: for every ruling on a gap with a supersedes chain, you MUST read the named ancestors' records in ${ARCHIVE} first and NAME the records read in your rationale. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. Append your "### LEAD" resolutions to ${runDir}/debate.md.${frictionClause(`judge-r${round}`)}${speedClause}${recordClause(`judge-r${round}`, 'bench')} Return the judge envelope.`,
+      `Adjudication, round ${round}, topic "${topic}". Contested docket: ${JSON.stringify(contested)}.${withheld.length ? ` OPEN GAPS WITHHELD FROM THE DOCKET (with the reason each was withheld): ${JSON.stringify(withheld)}. These are NOT docketed, and you are not obliged to rule on them — but a gap BOTH SIDES argued to closing that reached no ruling is a docket defect, not a decision. If you find one, say so in your opinion and rule on it: an unadjudicated gap returns to red’s verdict pool as though nobody had considered it.` : ''} STALENESS: every docketed gap’s problem text and acceptance check were SNAPSHOTTED when red merged, and blue may have repaired afterwards — in the 2026-07-18 run both docketed premises asserted "blue took no round-3 turn" and were false by the time the bench sat. Re-run each DOCUMENT-PROBE acceptance check against the artifact AS IT NOW STANDS before ruling, and rule on what you find rather than on what the docket asserts. Both sides have filed closings for this docket: red's "### RED CLOSING (round ${round})" and blue's "### BLUE CLOSING (round ${round})" in ${runDir}/debate.md. YOUR RULING BASIS IS CONFINED TO: (1) the two closings, (2) the full transcript ${runDir}/debate.md, and (3) the final state of the artifacts — ${LEDGER} and ${runDir}/blue/report.md as they now stand. Weigh the closings as each side's best case; a claim in a closing that the record does not support counts AGAINST the side that made it.${lawClause} Resolution set (full, for every gap class — blue has answered everything docketed): closed (blue's response resolves it) | rebuttal_sustained (blue's evidence beats the challenge) | risk_accepted (valid, rejected on likelihood x impact x complexity) | carried (still live — state what further research blue owes) | unresolved | moot (the predicate expired — the claim or artifact it attached to no longer exists in the report) | grade_adjusted (for grade_dispute_* items: state the corrected grade in the rationale; red applies it next round) | routed_to_infrastructure (valid finding whose FIX is owned outside the debate — run tooling, harness, or the lead; state the owed fix in the rationale; it leaves red's verdict pool and ships as a named infrastructure debt, recorded never dropped). DEMANDED READS: for every ruling on a gap with a supersedes chain, you MUST read the named ancestors' records in ${ARCHIVE} first and NAME the records read in your rationale. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. Append your "### LEAD" resolutions to ${runDir}/debate.md.${frictionClause(`judge-r${round}`)}${speedClause}${recordClause(`judge-r${round}`, 'bench')} Return the judge envelope.`,
       { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`judge round ${round} returned null (agent failed) — aborting cleanly`)
     for (const r of judge.resolutions) {
