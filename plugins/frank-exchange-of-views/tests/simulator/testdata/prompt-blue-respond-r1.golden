@@ -1,10 +1,12 @@
-prompt sha256: 6fcf588f91a47218ba1dbfe7f5769dbc741aace2574009193334ba91bb0c7ced
+prompt sha256: 704d71c5316ce163508ec9e79f26a5f0725a9728c1dd5619c805136ca95f10db
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
 FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `cat research/2026-01-01_golden/red/ledger.md research/2026-01-01_golden/debate.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden) — then read that one file instead of three separate reads; report.md you edit in place as usual.
 PRE-FLIGHT: re-check your planned repairs against red's gap patterns (in the workset).
 Open gaps (adjudicated ones excluded): [{"id":"R1-1","location":"loc","problem":"p","required_fix":"f","acceptance_check":"grep the corrected figure at the anchor","existence":"verified","severity":"medium","likelihood":"medium","impact":"medium","complexity_cost":"low"}].
+GRADING SEMANTICS (mapping v2, and NOT inferable from the JSON above — the map is self-describing as structure and silent on meaning): the likelihood field grades the CONSEQUENCE ONLY, and a gap's existence field (verified|suspected) is the separate axis saying whether the defect was checked at the leaf.
+A verified typo whose harm is trivial is existence: verified with a LOW likelihood; reading likelihood as confidence-that-it-exists is the v1 semantics this mapping replaced.
 Corroboration flags: [].
 BEFORE drafting, read the latest "### RED" section of research/2026-01-01_golden/debate.md — the gap JSON above is a lossy summary of the transcript, and it lists any accepted grade-dispute deltas pending their contest window — and the latest "### LEAD" section if one exists: any gap the judge CARRIED comes with a stated research direction you owe.
 Address every open gap ADDITIVELY in research/2026-01-01_golden/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; compact and reorganize prose as freely as clarity demands — but a CLAIM leaves only through the retire verb (--claim --reason [--superseded-by]), never by quietly not being there any more; capture compares the claim_count fall against the retire events and an unaccounted drop is a detector hit.

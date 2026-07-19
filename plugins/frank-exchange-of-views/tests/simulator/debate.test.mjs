@@ -350,7 +350,13 @@ test('safety ceiling: fresh unrelated gaps every round never trigger the judge; 
     return makeResponder()(p, o)
   })
   const out = await world.run(script, { ...ARGS, maxRounds: 2 })
-  assert.equal(out.verdict, 'UNVERIFIED')
+  // CEILING, not UNVERIFIED (rulebook audit item 7). The protocol named two
+  // terminators and this is the third: the run did not fail to converge, it ran
+  // out of budget mid-flight. Run 5 ended exactly here — the bench had ruled
+  // deadlock FALSE and the final blue revision was never audited — and the
+  // taxonomy had no way to say so, which is how the obligation left the run by
+  // hand instead of on the record.
+  assert.equal(out.verdict, 'CEILING')
   assert.equal(out.rounds, 2)
   assert.equal(out.deadlocked, false)
   assert.equal(world.calls.filter((c) => c.opts.label.startsWith('judge')).length, 0)
@@ -1037,4 +1043,22 @@ test('integrity inspection arms only with transcriptDir, and binds integrity-not
   const unarmed = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await unarmed.run(script, ARGS)
   assert.ok(!unarmed.calls.some((c) => /INTEGRITY INSPECTION/.test(c.prompt)), 'no transcriptDir -> no clause')
+})
+
+test('CEILING is distinct from UNVERIFIED: a judged deadlock and a PASS keep their own names', async () => {
+  // A ceiling exit must not be read as a judged failure to verify, and the two
+  // real terminators must not be swallowed by the new class.
+  const passing = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  assert.equal((await passing.run(script, ARGS)).verdict, 'VERIFIED')
+
+  const ceiling = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'owed' }] })],
+  }))
+  const out = await ceiling.run(script, { ...ARGS, maxRounds: 2 })
+  assert.equal(out.verdict, 'CEILING')
+  const asm = ceiling.calls.find((c) => c.opts.label.startsWith('assemble')).prompt
+  assert.ok(/CEILING-TERMINATED/.test(asm), 'assembly stamps it')
+  assert.ok(/never audited by a red pass/.test(asm), 'the unaudited final revision is named')
+  assert.ok(/re-audit obligation this carries OUT of the run/.test(asm), 'the debt leaves the run on the record')
 })

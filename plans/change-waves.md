@@ -59,6 +59,15 @@ Prosthetic-conscience (Go; tag next PC bump):
 - [x] W1.15 Doctor cross-plugin aggregation: each plugin ships requirements.json,
       doctor walks every installed SC plugin. [backlog; PR #17 debt]
 
+## WAVE 2 — SUPERSEDED (kept for the record, not for planning)
+
+RE-SEQUENCED 2026-07-18 (below): the debate was DEMOTED from ratifier to first
+shakedown, so W2.1-W2.4 are no longer open work — they were SUBJECTS for a
+debate that was cancelled on evidence. Their content shipped under the
+implement-first names: W2.1 -> W2a, W2.2 -> W2d, W2.3 -> W2f/R2g, W2.4 -> W2g.
+Left unchecked they read as a dozen unstarted tasks, which is how a tracker
+starts lying to the next person planning from it.
+
 ## WAVE 2 — the debate (plan-audit gate first; the old constitution's last case)
 
 Subject packages, pinned as evidence with the run-5 report + delta review +
@@ -74,6 +83,22 @@ catechism audit + the metrics-archaeology baselines:
 - [ ] W2.4 MASS mapping v2: split defect-existence from consequence-likelihood
       ('certain' conflation outweighs high-likelihood design flaws today).
       [red-merge-r1 friction; semantic change → debated, not slipped in]
+
+## WAVE 3 — RECONCILED 2026-07-18 (verified against the code, not recalled)
+
+Shipped under the re-sequenced names: W3.1 -> W2a (constitutions), W3.2 -> W2c
+(petitions, judicial_halt, JUDICIAL RECORD — verified present in debate.js),
+W3.5 -> W2e + memory-as-duty (law/, feov-memory/, memory compiled to duty lines),
+W3.6 -> W2g (catechism into blue's round-0 — verified present), W3.7 -> the
+judiciary dashboard section + W2h per-chair scorecards.
+
+PARTIAL, and honestly so: W3.3 (class field and registry exist; the recurrence
+escalator and class_mass telemetry need within-run data), W3.4 (record writers
+shipped at R2g; capture's audits are still heuristic parses), W3.8 (calibration
+BLOCKED until per-claim confidence records exist).
+
+The boxes below are left as originally written for the record. Do not plan from
+them — plan from the pre-run gate section at the end of this file.
 
 ## WAVE 3 — 0.10.0: implement what the debate ratifies
 

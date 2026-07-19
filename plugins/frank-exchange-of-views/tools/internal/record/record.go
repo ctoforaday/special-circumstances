@@ -36,6 +36,10 @@ var GRADES = []string{"low", "low-medium", "medium", "medium-high", "high", "cer
 // side alone (plans/record-tool.md, ORACLE FREEZE).
 const MassMappingVersion = "v1"
 
+// ToolVersion is stamped on register events and answered by --version; setup
+// preflights it against the plugin manifest before the run exists.
+var ToolVersion = "0.1.0"
+
 var MASS = map[string]float64{
 	"trivial": 0.5, "low": 1, "low-medium": 1.5, "medium": 2,
 	"medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
@@ -131,9 +135,14 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 		return "", "", writeErr
 	}
 	shard = shardPath(runDir, seatID, nonce)
+	// tool_version is stamped on the seat's FIRST act (R2g.2). The
+	// never-update-mid-run rule stands, but a run that somehow mixes binaries now
+	// says so in its own record instead of producing events whose difference
+	// nobody can explain afterwards.
 	ev := Event{
 		Seq: 0, SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
-		Type: "register", Key: seatID + ":register:" + nonce, Payload: NewPayload(),
+		Type: "register", Key: seatID + ":register:" + nonce,
+		Payload: NewPayload().Set("tool_version", ToolVersion),
 	}
 	if err := appendLine(shard, ev); err != nil {
 		return "", "", err
