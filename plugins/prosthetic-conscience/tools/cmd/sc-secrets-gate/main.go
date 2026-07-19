@@ -45,28 +45,33 @@ func deny(reason string) decision {
 	return d
 }
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "-version" {
-		fmt.Println("sc-secrets-gate", version)
-		return
+// run is the whole gate, with the process boundary passed in so the contract can be
+// unit-tested: silence means allow, a decision document on stdout means deny, and the
+// exit code is ALWAYS 0 — the block travels in the JSON, never in the status.
+func run(args []string, stdin io.Reader, stdout io.Writer) int {
+	if len(args) > 0 && args[0] == "-version" {
+		fmt.Fprintln(stdout, "sc-secrets-gate", version)
+		return 0
 	}
 
-	raw, _ := io.ReadAll(os.Stdin)
+	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	if err := json.Unmarshal(raw, &in); err != nil {
 		// Malformed input: never block the tool call over instrumentation trouble.
-		os.Exit(0)
+		return 0
 	}
 
 	found := secrets.Scan(string(in.ToolInput))
 	if len(found) == 0 {
-		os.Exit(0) // allow
+		return 0 // allow
 	}
 
 	reason := fmt.Sprintf(
 		"sc-secrets-gate: blocked %s payload — matched secret pattern(s): %s. Remove the secret material and retry; secrets never leave the box (agent-guardrails).",
 		in.ToolName, strings.Join(found, ", "))
 	out, _ := json.Marshal(deny(reason))
-	fmt.Println(string(out))
-	os.Exit(0)
+	fmt.Fprintln(stdout, string(out))
+	return 0
 }
+
+func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout)) }

@@ -3,13 +3,18 @@
 // Contract (Design by Contract):
 //
 //	AFTER a session starts, the operator MUST see ONE non-blocking line when a
-//	recommended tool is missing — and nothing at all when the toolchain is healthy.
-//	It never blocks, never errors the session, and prints at most one line.
+//	recommended tool is missing, and ONE more when a research run is live — and
+//	nothing at all when the toolchain is healthy and no run is live. It never blocks
+//	and never errors the session; each nudge is exactly one line.
+//
+// (The "at most one line" wording predates the live-run nudge, which is a second,
+// independent line; the invariant that survived is one line PER nudge.)
 package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,30 +55,37 @@ func liveNudge(m *runlive.Marker) string {
 		m.RunDir, m.Started)
 }
 
+// run is the hook with its process boundary passed in. probe is a parameter rather
+// than a direct toolchain.Probe call so a test's verdict does not depend on what
+// happens to be installed on the machine running it.
+func run(args []string, stdout io.Writer, pluginRoot, projectDir string, probe func([]toolchain.Tool) []toolchain.Status) int {
+	if len(args) > 0 && args[0] == "-version" {
+		fmt.Fprintln(stdout, "sc-toolchain-nudge", version)
+		return 0
+	}
+
+	// A missing/unreadable/malformed manifest degrades to silence, never to an error:
+	// a SessionStart hook that fails is a session that fails.
+	if pluginRoot != "" {
+		if raw, err := os.ReadFile(filepath.Join(pluginRoot, "requirements.json")); err == nil {
+			var req requirements
+			if err := json.Unmarshal(raw, &req); err == nil {
+				if line := nudge(probe(req.Tools)); line != "" {
+					fmt.Fprintln(stdout, line) // SessionStart stdout reaches the session
+				}
+			}
+		}
+	}
+
+	// The live-run nudge is INDEPENDENT of the manifest: a live research run must be
+	// announced even when there is no plugin root to read requirements from.
+	if line := liveNudge(runlive.Read(projectDir)); line != "" {
+		fmt.Fprintln(stdout, line)
+	}
+	return 0
+}
+
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "-version" {
-		fmt.Println("sc-toolchain-nudge", version)
-		return
-	}
-
-	root := os.Getenv("CLAUDE_PLUGIN_ROOT")
-	if root == "" {
-		os.Exit(0) // no plugin context — stay silent
-	}
-	raw, err := os.ReadFile(filepath.Join(root, "requirements.json"))
-	if err != nil {
-		os.Exit(0)
-	}
-	var req requirements
-	if err := json.Unmarshal(raw, &req); err != nil {
-		os.Exit(0)
-	}
-
-	if line := nudge(toolchain.Probe(req.Tools)); line != "" {
-		fmt.Println(line) // SessionStart stdout is surfaced to the session
-	}
-	if line := liveNudge(runlive.Read(os.Getenv("CLAUDE_PROJECT_DIR"))); line != "" {
-		fmt.Println(line)
-	}
-	os.Exit(0)
+	os.Exit(run(os.Args[1:], os.Stdout,
+		os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Getenv("CLAUDE_PROJECT_DIR"), toolchain.Probe))
 }
