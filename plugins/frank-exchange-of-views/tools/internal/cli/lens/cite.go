@@ -15,7 +15,7 @@ import (
 // or its source is volatile. The access date is not bookkeeping: it drives that
 // staleness trigger, which is why it is a flag rather than something inferred.
 func newCite() *cobra.Command {
-	c := seat.New(role, "cite",
+	c := seat.New("cite",
 		`citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reference, flags.Confidence)

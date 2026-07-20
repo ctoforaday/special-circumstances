@@ -24,8 +24,8 @@ import (
 // while the guidance is not: a lens is told petitions do not pause its duties,
 // the bench is told the same verb from the other side.
 
-func Register(role, help string) *cobra.Command {
-	return New(role, "register", help, func(s Context, _ *cobra.Command) (Result, error) {
+func Register(help string) *cobra.Command {
+	return New("register", help, func(s Context, _ *cobra.Command) (Result, error) {
 		nonce, _, err := record.RegisterSeat(s.RunDir, s.SeatID)
 		if err != nil {
 			return nil, err
@@ -34,8 +34,8 @@ func Register(role, help string) *cobra.Command {
 	})
 }
 
-func Friction(role, help string) *cobra.Command {
-	return Prose(New(role, "friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Friction(help string) *cobra.Command {
+	return Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Text(cmd)
 		if err != nil {
 			return nil, err
@@ -49,8 +49,8 @@ func Friction(role, help string) *cobra.Command {
 
 // Petition takes a suffix because the lens is told one more thing than the
 // others: that the bench hears it before the debate continues.
-func Petition(role, help, suffix string) *cobra.Command {
-	c := New(role, "petition", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Petition(help, suffix string) *cobra.Command {
+	c := New("petition", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		p := SetSame(cmd, record.NewPayload(), flags.Relief)
 		if err := SetLongForm(cmd, p, "basis", flags.Basis); err != nil {
 			return nil, err
@@ -67,8 +67,8 @@ func Petition(role, help, suffix string) *cobra.Command {
 	return Prose(c)
 }
 
-func Position(role, help string) *cobra.Command {
-	return Prose(New(role, "position", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Position(help string) *cobra.Command {
+	return Prose(New("position", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Text(cmd)
 		if err != nil {
 			return nil, err
@@ -80,8 +80,8 @@ func Position(role, help string) *cobra.Command {
 	}))
 }
 
-func Closing(role, help string) *cobra.Command {
-	c := Prose(New(role, "closing", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Closing(help string) *cobra.Command {
+	c := Prose(New("closing", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Text(cmd)
 		if err != nil {
 			return nil, err
@@ -98,7 +98,7 @@ func Closing(role, help string) *cobra.Command {
 }
 
 // Render is available to every seat and mutates nothing.
-func Render(role string) *cobra.Command {
+func Render() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "render",
 		Short:        "read-only projection refresh (any seat may invoke)",
@@ -106,6 +106,7 @@ func Render(role string) *cobra.Command {
 		SilenceUsage: true,
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
+		role := roleOf(cmd)
 		runDir := Str(cmd, flags.Run)
 		if runDir == "" {
 			return fmt.Errorf("%s: --run <runDir> is required", role)
@@ -160,7 +161,7 @@ func viewNames() []string {
 // differ. A second renderer would be a second reader of one artifact, which is the defect
 // class this whole tool exists to remove — writing one to serve reads would reintroduce it
 // at the read surface.
-func Show(role string) *cobra.Command {
+func Show() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "show",
 		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view " + strings.Join(viewNames(), "|"),
@@ -168,6 +169,7 @@ func Show(role string) *cobra.Command {
 		SilenceUsage: true,
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
+		role := roleOf(cmd)
 		runDir := Str(cmd, flags.Run)
 		if runDir == "" {
 			return fmt.Errorf("%s: --run <runDir> is required", role)
@@ -270,9 +272,9 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 		names = append(names, v.Name())
 		c.AddCommand(v)
 	}
-	c.AddCommand(Render(role))
+	c.AddCommand(Render())
 	names = append(names, "render")
-	c.AddCommand(Show(role))
+	c.AddCommand(Show())
 	names = append(names, "show")
 	available := join(names)
 

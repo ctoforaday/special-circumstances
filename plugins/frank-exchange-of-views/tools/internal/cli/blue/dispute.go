@@ -17,7 +17,7 @@ import (
 func newDispute() *cobra.Command {
 	var proposed flags.GradeValue
 
-	c := seat.New(role, "dispute",
+	c := seat.New("dispute",
 		`contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --basis "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)

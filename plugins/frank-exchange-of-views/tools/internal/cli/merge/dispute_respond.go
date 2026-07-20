@@ -15,7 +15,7 @@ import (
 // evidence that nobody ever disagreed, and it is why the answer is recorded as an
 // event rather than settled in prose.
 func newDisputeRespond() *cobra.Command {
-	c := seat.New(role, "dispute-respond",
+	c := seat.New("dispute-respond",
 		`red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --basis "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)

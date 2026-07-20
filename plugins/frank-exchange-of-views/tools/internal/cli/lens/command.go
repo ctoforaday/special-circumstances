@@ -18,12 +18,12 @@ const role = "lens"
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
 		"red lens seats — findings, observations, citations. Cannot mint or close.",
-		seat.Register(role, "FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
+		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newFinding(),
 		newObserve(),
 		newCite(),
-		seat.Friction(role, "attributed friction (survives aborts as an event): --text|--file"),
-		seat.Petition(role,
+		seat.Friction("attributed friction (survives aborts as an event): --text|--file"),
+		seat.Petition(
 			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."`,
 			" — the bench hears it before the debate continues"),
 	)

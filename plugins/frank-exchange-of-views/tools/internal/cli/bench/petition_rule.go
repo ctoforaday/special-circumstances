@@ -14,7 +14,7 @@ import (
 // of act from granting relief, and giving it its own verb means it can never be
 // reached by a typo in an enum.
 func newPetitionRule() *cobra.Command {
-	c := seat.Prose(seat.New(role, "petition-rule",
+	c := seat.Prose(seat.New("petition-rule",
 		"rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --file <opinion> (a halt is its own verb)",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

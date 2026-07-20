@@ -110,6 +110,13 @@ func TestGolden(t *testing.T) {
 				transcript.WriteString("\n")
 			}
 
+			// Auto-render is gone (2026-07-19): mutations no longer refresh the projections.
+			// A run produces its markdown by rendering EXPLICITLY — the debate prompt does it,
+			// and capture does it at end-of-run. Mirror that here with one final render so the
+			// RENDERS section reflects the final state. Its stdout is intentionally NOT added
+			// to the transcript (the command loop above is done), so only the files change.
+			runGo(bin, runDir, cmd{role: "merge", args: []string{"render", "--run", runDir}})
+
 			st := collect(t, runDir, m)
 
 			// TIMESTAMPS BECOME THEIR RANK, not a placeholder.

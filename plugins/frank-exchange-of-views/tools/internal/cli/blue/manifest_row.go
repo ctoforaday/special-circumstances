@@ -14,7 +14,7 @@ import (
 // anyone else: an unmanifested repair is unchecked by blue's OWN standard, which
 // is a stronger thing to be able to say than "we think it was checked".
 func newManifestRow() *cobra.Command {
-	c := seat.Prose(seat.New(role, "manifest-row",
+	c := seat.Prose(seat.New("manifest-row",
 		`one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

@@ -26,7 +26,7 @@ import (
 // capture detects, because claim_count falling further than the retire events
 // account for is arithmetic, not judgement.
 func newRetire() *cobra.Command {
-	c := seat.Prose(seat.New(role, "retire",
+	c := seat.Prose(seat.New("retire",
 		`remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

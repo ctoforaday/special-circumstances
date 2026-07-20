@@ -31,7 +31,7 @@ import (
 // direct feedstock for the sleeper service's subject mining. Nothing in the
 // engine preserved them before this verb — they died in a seat's context.
 func newAvenue() *cobra.Command {
-	c := seat.Prose(seat.New(role, "avenue",
+	c := seat.Prose(seat.New("avenue",
 		`record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

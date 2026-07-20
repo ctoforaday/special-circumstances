@@ -90,3 +90,29 @@ func Errorf(code Code, format string, a ...any) *Error { return &Error{Code: cod
 3. `feov.Error` + enum + mint; convert the domain errors; edge reads `Code` structurally.
 
 Off a clean `main` (after #57 + #58 merge), as #59 — "this is how feov-record is actually shaped."
+
+## OUTCOME (#59, 2026-07-19) — and where I changed the plan
+
+Cut 1 and cut 3 landed as written. **Cut 2 changed shape while building it**, and the change is
+worth recording because it contradicts the plan above:
+
+- **Cut 1 — role from the tree.** Done. `Of(cmd)`; `roleOf` = `cmd.Parent().Name()`; the `role`
+  param is gone from `New`, `Begin` and every shared verb. `Role(role, …)` keeps it — it is the
+  node's `Use`. Behavior-preserving (goldens unchanged).
+- **Cut 2 — render-on-mutation.** Dropped, per operator call. It was O(events) per write and
+  hidden; `show` renders on read, the prompt renders explicitly, verdict and capture render at
+  the end. The difftest now renders once at end-of-run (mirroring capture).
+- **Cut 2, the OTHER half — verbs own RunE — was NOT done, on purpose.** Working it through, the
+  `--json` result contract is a genuine thing Cobra doesn't provide (its `RunE` returns only
+  `error`), and the cohesive spot for it is "handler returns `(Result, error)`, one wrapper
+  renders both success and error." Fully decollapsing into per-verb `RunE`s either recreates a
+  `New`-shaped wrapper or copies the cobra scaffolding into all ~28 verbs (replication). So the
+  prouder move was to make `New` **hook-free** — preconditions in `Begin(cmd)` called at the top
+  of the one `RunE`, no `PreRunE`/`PostRunE` — rather than to dissolve it. `New` is now a thin,
+  linear, no-chaining command builder, not the god-factory we were rightly suspicious of.
+- **Cut 3 — `feov.Error`.** Done. One `Error` type + `Code` enum, minted inline; `feov.CodeOf`
+  (errors.As over `%w`) at the edge, no type switch. `Emit` is the single success/error renderer
+  and the single code-reader. Envelope carries `role` (both outcomes) and `code` (errors).
+  Two domain faults coded as examples (role_violation, not_found); the rest stay plain.
+
+Versions: cli.Version + recordToolVersion → 0.5.0; plugin → 0.28.0.

@@ -1,7 +1,7 @@
 package record
 
 import (
-	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"strings"
 )
 
@@ -63,11 +63,11 @@ func CheckSeatRole(role, seatID string) error {
 	// malicious, and telling it where its own capability lives is the difference
 	// between a refusal it can act on and one it will retry.
 	if own := roleOfSeat(seatID); own != "" {
-		return fmt.Errorf("%s: seat %q belongs to the %s role and may not write through %s — "+
+		return feov.Errorf(feov.RoleViolation, "seat %q belongs to the %s role and may not write through %s — "+
 			"the verb set is the role boundary, and a seat that could cross it would make the record evidence of nothing "+
-			"(use: feov-record %s <verb>)", role, seatID, own, role, own)
+			"(use: feov-record %s <verb>)", seatID, own, role, own)
 	}
-	return fmt.Errorf("%s: seat %q does not belong to any role namespace (expected one of %s) — "+
+	return feov.Errorf(feov.RoleViolation, "seat %q does not belong to any role namespace (expected one of %s) — "+
 		"the engine assigns the seat id; a hand-invented one records under an identity no dispatch created",
-		role, seatID, strings.Join(prefixes, ", "))
+		seatID, strings.Join(prefixes, ", "))
 }

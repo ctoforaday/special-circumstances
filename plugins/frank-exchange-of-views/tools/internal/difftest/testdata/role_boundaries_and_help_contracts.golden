@@ -168,3 +168,30 @@ Use "{TOOL} [command] --help" for more information about a command.
 ═══ EVENTS ═══
 
 ═══ RENDERS ═══
+-- CHANGELOG.md
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- archive.md
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- board-telemetry.jsonl
+
+-- citation-ledger.md
+# red citation-ledger — RENDERED PROJECTION
+
+-- debate.md
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- ledger.md
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (0)
+
+## CLOSURE INDEX
+
+
+
+-- lines-of-inquiry.md
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

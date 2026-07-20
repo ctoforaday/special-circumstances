@@ -21,7 +21,7 @@ import (
 func newSpotCheck() *cobra.Command {
 	var ids flags.CSV
 
-	c := seat.New(role, "spot-check",
+	c := seat.New("spot-check",
 		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			none := seat.Given(cmd, flags.None)

@@ -306,9 +306,17 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "L1-F1") {
 		t.Errorf("finding said %q", out)
 	}
-	// Render-on-mutation keeps projections current after every write.
-	if _, serr := os.Stat(filepath.Join(runDir, "records", "render-shadow", "ledger.md")); serr != nil {
-		t.Errorf("a mutating verb did not render: %v", serr)
+	// Auto-render is GONE: a mutation no longer refreshes the projections on every write.
+	ledger := filepath.Join(runDir, "records", "render-shadow", "ledger.md")
+	if _, serr := os.Stat(ledger); serr == nil {
+		t.Error("a mutation rendered — auto-render was dropped; render is explicit now")
+	}
+	// An EXPLICIT render produces the projection, the way the prompt and capture do.
+	if _, rerr := run(t, "lens", "render", "--run", runDir); rerr != nil {
+		t.Fatal(rerr)
+	}
+	if _, serr := os.Stat(ledger); serr != nil {
+		t.Errorf("explicit render did not produce the ledger projection: %v", serr)
 	}
 
 	ev := lastOfType(t, runDir, "finding")
@@ -492,6 +500,21 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	}
 	if _, has := fail["error"]; !has {
 		t.Errorf("error --json missing an 'error' field: %v", fail)
+	}
+	if _, has := fail["code"]; !has {
+		t.Errorf("error --json missing a 'code' field: %v", fail)
+	}
+
+	// A coded domain fault carries its SPECIFIC code, so a consumer branches on the KIND of
+	// failure, not the message. A seat-id from another role is a role_violation.
+	rv, _ := run(t, "--json", "merge", "mint", "--run", runDir, "--seat-id", "blue-synthesize",
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
+	var viol map[string]any
+	if e := json.Unmarshal([]byte(strings.TrimSpace(rv)), &viol); e != nil {
+		t.Fatalf("role-violation --json is not valid JSON (%v): %s", e, rv)
+	}
+	if viol["code"] != "role_violation" {
+		t.Errorf("role-violation --json code = %v, want role_violation (env %v)", viol["code"], viol)
 	}
 }
 
