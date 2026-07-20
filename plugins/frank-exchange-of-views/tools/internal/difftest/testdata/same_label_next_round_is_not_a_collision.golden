@@ -10,10 +10,10 @@ finding recorded: FINDING001 (L1-F1) — the merge disposes it by ID, not by lab
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L1-NONCE001.jsonl
-{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.2.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
+{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.3.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
 {"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","impact":"medium","label":"L1-F1","likelihood":"medium","severity":"medium","text":"round one"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":1,"type":"finding"}
 -- events-red-lens-r2-L1-NONCE002.jsonl
-{"key":"red-lens-r2-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.2.0"},"round":2,"seatId":"red-lens-r2-L1","seq":0,"ts":2,"type":"register"}
+{"key":"red-lens-r2-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.3.0"},"round":2,"seatId":"red-lens-r2-L1","seq":0,"ts":2,"type":"register"}
 {"key":"red-lens-r2-L1:finding:L1-F1","nonce":"NONCE002","payload":{"finding_id":"FINDING001","impact":"medium","label":"L1-F1","likelihood":"medium","severity":"medium","text":"round two"},"round":2,"seatId":"red-lens-r2-L1","seq":1,"ts":3,"type":"finding"}
 
 ═══ RENDERS ═══
