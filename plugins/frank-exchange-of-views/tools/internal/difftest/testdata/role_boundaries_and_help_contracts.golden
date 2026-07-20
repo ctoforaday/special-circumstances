@@ -16,7 +16,7 @@ feov-record: verb "close" is outside this seat's role (available: register, revi
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, friction, render, show)
+feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, assemble, friction, render, show)
 
 $ lens help
 exit 0
@@ -146,6 +146,7 @@ Usage:
   {TOOL} [command]
 
 Available Commands:
+  assemble      assemble <run>/report.md by union — verbatim sections + board risk matrix + verdict stamp; the seat hands in only the TL;DR and synopsis via --inputs
   certify       the run-end certification statement ("what I would want a human to re-examine"): --file <statement>
   friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file
   halt          the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>

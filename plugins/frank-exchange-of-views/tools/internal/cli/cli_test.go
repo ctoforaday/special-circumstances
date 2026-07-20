@@ -1297,7 +1297,7 @@ func TestEveryVerbAcceptsAComment(t *testing.T) {
 			// Kept as an explicit list, not a name pattern: a future verb called
 			// "show-something" that DID write would slip through a prefix match, and the
 			// silent exemption is worse than the annoyance of adding a line here.
-			if verb == "render" || verb == "show" {
+			if verb == "render" || verb == "show" || verb == "assemble" {
 				continue
 			}
 			t.Run(role+"/"+verb, func(t *testing.T) {

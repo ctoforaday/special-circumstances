@@ -45,6 +45,10 @@ const (
 	// result (and structured errors) for machine consumers; the default is human text.
 	JSON = "json"
 
+	// The report assembler's judgment inputs (verdict, TL;DR, synopsis, open questions),
+	// handed in as a JSON file by the assemble seat.
+	Inputs = "inputs"
+
 	// The prose payload, in its three interchangeable forms.
 	File = "file"
 	Text = "text"
@@ -155,7 +159,7 @@ const (
 // close it. Adding a constant without adding it here fails the round-trip.
 func All() []string {
 	return []string{
-		Run, SeatID, JSON,
+		Run, SeatID, JSON, Inputs,
 		File, Text,
 		Comment, CommentFile,
 		ID, IDs, Label, Claim, Key, Location, Reference, Row, View,

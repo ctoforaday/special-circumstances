@@ -35,11 +35,11 @@ feov-record: merge: record: dispute-respond --id names gap R1-1, on which no dis
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.5.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.6.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"a","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"low","likelihood":"low","problem":"r1 first","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"a","class_new":false,"found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"low","problem":"r1 second","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 -- events-red-merge-r2-NONCE002.jsonl
-{"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.5.0"},"round":2,"seatId":"red-merge-r2","seq":0,"ts":3,"type":"register"}
+{"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.6.0"},"round":2,"seatId":"red-merge-r2","seq":0,"ts":3,"type":"register"}
 {"key":"red-merge-r2:mint:R2-1","nonce":"NONCE002","payload":{"acceptance_check":"x","class":"a","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"low","likelihood":"low","problem":"r2 first","severity":"low","supersedes":[]},"round":2,"seatId":"red-merge-r2","seq":1,"ts":4,"type":"mint"}
 
 ═══ RENDERS ═══

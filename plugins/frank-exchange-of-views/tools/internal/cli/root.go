@@ -40,11 +40,13 @@ import (
 //	       so a machine consumer a prompt drives needs the binary that speaks it.
 //	0.5.0  the --json envelope carries `role` and, on failure, a `code` (feov.Error) a
 //	       consumer branches on — a wire-shape change a stale binary would not produce.
+//	0.6.0  `bench assemble` writes report.md in-tool (verbatim sections + board risk matrix);
+//	       a prompt that drives it needs the binary that has the verb.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.5.0"
+const Version = "0.6.0"
 
 func init() { record.ToolVersion = Version }
 

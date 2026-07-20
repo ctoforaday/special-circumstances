@@ -21,6 +21,7 @@ func NewCommand() *cobra.Command {
 		newPetitionRule(),
 		newHalt(),
 		newCertify(),
+		newAssemble(),
 		seat.Friction("attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file"),
 	)
 }
