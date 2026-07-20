@@ -232,7 +232,14 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 		"--text", "replaced by its successor"); err != nil {
 		t.Fatal(err)
 	}
+	// The successor is now the live gap; PASS still requires it closed (the all-gaps guard).
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", successor, "--as", "closed",
+		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./y",
+		"--text", "successor resolved"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS"); err != nil {
-		t.Errorf("with the ancestor closed the verdict must go through: %v", err)
+		t.Errorf("with the ancestor and successor both closed the verdict must go through: %v", err)
 	}
 }

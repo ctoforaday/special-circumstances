@@ -46,11 +46,14 @@ import (
 //	       drops --inputs entirely: the report is composed from the record (event log +
 //	       board) and blue's audited report, so a driving prompt needs the inputs-free verb
 //	       and the outcome verb it now depends on.
+//	0.8.0  `merge verdict --as PASS` is REFUSED while any gap is still open — the gate is
+//	       enforced at the tool, not trusted to the seat. A prompt that drives it sees a new
+//	       failure it must handle (close the gaps or issue FAIL).
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.7.0"
+const Version = "0.8.0"
 
 func init() { record.ToolVersion = Version }
 

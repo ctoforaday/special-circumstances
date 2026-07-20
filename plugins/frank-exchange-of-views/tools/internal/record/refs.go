@@ -307,3 +307,29 @@ func requireSupersededAreClosed(runDir string) error {
 	return fmt.Errorf("record: verdict refused — %d superseded gap(s) are still OPEN: %s. Superseding is a promise to replace, and an ancestor left open is the same defect counted twice: the 2026-07-18 run finished reporting 9 open gaps of which 7 were distinct. Close each ancestor (--successor names its replacement), or if it is genuinely still live, it was not superseded",
 		len(stranded), strings.Join(stranded, ", "))
 }
+
+// requirePassClosesAllGaps refuses a PASS while ANY gap is still open. The protocol is "PASS
+// only when every remaining gap is closed, evidence-rebutted, or risk-accepted", and all of
+// those resolutions go through `close` (which sets the gap not-open) — so an open gap at PASS
+// is an unadjudicated one. requireSupersededAreClosed catches only the lineage subset; the
+// 2026-07-20 run recorded PASS with 9 PLAIN open gaps (one HIGH) that no lineage check saw,
+// and the envelope then reported 0 outstanding. This is the complete enforcement, at the
+// write path so no verdict route can bypass it. A FAIL is always allowed.
+func requirePassClosesAllGaps(runDir string) error {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return err
+	}
+	var open []string
+	for _, id := range b.GapOrder {
+		if g := b.Gaps[id]; g != nil && g.Open {
+			open = append(open, id)
+		}
+	}
+	if len(open) == 0 {
+		return nil
+	}
+	sort.Strings(open)
+	return fmt.Errorf("record: verdict PASS refused — %d gap(s) still OPEN: %s. PASS requires every gap resolved through `close --id <id> --as closed|risk_accepted|rebuttal_sustained|routed_to_infrastructure`; close them, or issue `--as FAIL`",
+		len(open), strings.Join(open, ", "))
+}

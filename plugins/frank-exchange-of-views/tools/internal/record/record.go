@@ -569,6 +569,14 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireSupersededAreClosed(runDir); err != nil {
 			return err
 		}
+		// A PASS is a claim that nothing is left open. Enforce it here, at the one write
+		// path, so no verdict route can record a PASS over an unadjudicated board (the
+		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
+		if p.Str("verdict") == "PASS" {
+			if err := requirePassClosesAllGaps(runDir); err != nil {
+				return err
+			}
+		}
 	case "spot-check":
 		if err := requireGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
 			return err

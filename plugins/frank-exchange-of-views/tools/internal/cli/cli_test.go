@@ -1062,6 +1062,49 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 	}
 }
 
+// A PASS is a claim that nothing is left open; the tool refuses one over an open board —
+// the 2026-07-20 rubber-stamp (PASS with 9 open gaps) made structurally impossible. FAIL is
+// always allowed.
+func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
+	seatID := "red-merge-r1"
+	mint2 := func(runDir string) {
+		for i := 0; i < 2; i++ {
+			if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+				"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	failDir := t.TempDir()
+	mint2(failDir)
+	if _, err := run(t, "merge", "verdict", "--run", failDir, "--seat-id", seatID, "--as", "FAIL"); err != nil {
+		t.Fatalf("FAIL must be allowed with open gaps: %v", err)
+	}
+
+	runDir := t.TempDir()
+	mint2(runDir)
+	_, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS")
+	if err == nil {
+		t.Fatal("PASS was recorded over 2 open gaps — the rubber-stamp the guard exists to stop")
+	}
+	for _, want := range []string{"R1-1", "R1-2", "PASS refused"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name the open gaps, got: %v", err)
+		}
+	}
+	for _, id := range []string{"R1-1", "R1-2"} {
+		if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID,
+			"--id", id, "--as", "closed",
+			"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x", "--text", "resolved"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS"); err != nil {
+		t.Errorf("PASS must go through once every gap is closed: %v", err)
+	}
+}
+
 // verdict is the merge seat's terminal act: it renders and checkpoints.
 func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	runDir := t.TempDir()
@@ -1070,11 +1113,18 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
+	// A PASS is refused over an open gap, so close it first (the guard is exercised in its
+	// own test); this test is about render + checkpoint on a legitimate PASS.
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID,
+		"--id", "R1-1", "--as", "closed",
+		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x", "--text", "resolved"); err != nil {
+		t.Fatal(err)
+	}
 	out, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "verdict PASS") || !strings.Contains(out, "(1 open, 0 closed)") {
+	if !strings.Contains(out, "verdict PASS") || !strings.Contains(out, "(0 open, 1 closed)") {
 		t.Errorf("verdict said %q", out)
 	}
 	if !strings.Contains(out, "checkpointed to ") {
