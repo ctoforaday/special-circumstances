@@ -114,6 +114,29 @@ round)` (unit-testable with a hand-built board) + `Telemetry(runDir, round)`.
   script-side detector (645-670) STAYS (sandboxed, orchestrator's own control signal).
 - Bump plugin.json + recordToolVersion; versionsync.
 
+### B1 IMPLEMENTED (2026-07-19) — key finding: render already computed it
+
+The tool ALREADY computed the per-round telemetry inline in `render.go` (the `render`
+verb writes `records/render-shadow/board-telemetry.jsonl`, with all the JS-parity nuances
+— insertion-ordered by_severity, round2, SliceStable max-severity). A standalone
+`telemetry.go` module + `merge telemetry` verb would have been a SECOND computer of the
+same fact — the exact defect this codebase forbids — so I deleted the module I'd started
+and EXTENDED the canonical render computation instead:
+
+- render.go telemetry now also emits `realized_open` (board-derivable). Difftest goldens
+  regenerated (only that field added).
+- debate.js: the merge seat's hand-written BOARD TELEMETRY line (~1,100 B) is replaced
+  with a note that the tool computes it on `merge render` (which the seat already runs).
+  The `TELEMETRY` const is gone.
+- Consumers repointed to render-shadow with a trajectories/ fallback: `scorecards.mjs`
+  readTelemetry and `cost-audit.mjs`.
+- `accepted_deltas` is DEFERRED: it is dispute-flow state (which grade-disputes the
+  orchestrator accepted that round), not board-derivable without threading dispute events
+  into render. render omits it; the dashboard's deltas column reads 0 until it is added.
+  `excluded_mass_memo`/`found_by_summary` are dropped (no consumer).
+- Versions: cli.Version + recordToolVersion 0.2.0 → 0.3.0 (tool behavior changed);
+  plugin 0.25.0 → 0.26.0.
+
 ### Phase B2 — scorecard in-run read (JS, not Go)
 Thin CLI on scorecards.mjs: `node scorecards.mjs --run <dir> --chair <role>` prints the
 chair's computed rows; the chair's prompt (recordClause / scorecardClause) instructs it to

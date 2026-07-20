@@ -43,7 +43,7 @@ minted R1-2
 # red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
 
 -- board-telemetry.jsonl
-{"round":1,"mapping_version":"v1","open_count":2,"max_severity":"medium","new_mint":{"count":2,"by_severity":{"medium":1,"low":1}},"mass":7,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
+{"round":1,"mapping_version":"v1","open_count":2,"max_severity":"medium","new_mint":{"count":2,"by_severity":{"medium":1,"low":1}},"mass":7,"realized_open":0,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
 
 -- citation-ledger.md
 # red citation-ledger — RENDERED PROJECTION

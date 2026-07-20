@@ -40,7 +40,7 @@ verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
 # red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
 
 -- board-telemetry.jsonl
-{"round":1,"mapping_version":"v1","open_count":1,"max_severity":"high","new_mint":{"count":1,"by_severity":{"high":1}},"mass":9,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
+{"round":1,"mapping_version":"v1","open_count":1,"max_severity":"high","new_mint":{"count":1,"by_severity":{"high":1}},"mass":9,"realized_open":0,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
 
 -- citation-ledger.md
 # red citation-ledger — RENDERED PROJECTION

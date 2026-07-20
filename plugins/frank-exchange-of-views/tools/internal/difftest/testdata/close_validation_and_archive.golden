@@ -46,7 +46,7 @@ source moved
 verification anchor: L1 | WebFetch | https://example.invalid/spec#s3
 
 -- board-telemetry.jsonl
-{"round":1,"mapping_version":"v1","open_count":0,"max_severity":null,"new_mint":{"count":1,"by_severity":{"high":1}},"mass":0,"repair_regression":{"closures":1,"lineage_mints":0,"ratio":0},"edge_deltas":{"down_mass":0,"up_mass":0}}
+{"round":1,"mapping_version":"v1","open_count":0,"max_severity":null,"new_mint":{"count":1,"by_severity":{"high":1}},"mass":0,"realized_open":0,"repair_regression":{"closures":1,"lineage_mints":0,"ratio":0},"edge_deltas":{"down_mass":0,"up_mass":0}}
 
 -- citation-ledger.md
 # red citation-ledger — RENDERED PROJECTION

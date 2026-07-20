@@ -77,8 +77,8 @@ second
 verification anchor: L4 | Read | report.md#S3
 
 -- board-telemetry.jsonl
-{"round":1,"mapping_version":"v1","open_count":2,"max_severity":"high","new_mint":{"count":3,"by_severity":{"high":1,"low":1,"medium":1}},"mass":16,"repair_regression":{"closures":1,"lineage_mints":0,"ratio":0},"edge_deltas":{"down_mass":0,"up_mass":0}}
-{"round":2,"mapping_version":"v1","open_count":3,"max_severity":"high","new_mint":{"count":2,"by_severity":{"medium":1,"high":1}},"mass":18,"repair_regression":{"closures":1,"lineage_mints":2,"ratio":2},"edge_deltas":{"down_mass":7,"up_mass":2}}
+{"round":1,"mapping_version":"v1","open_count":2,"max_severity":"high","new_mint":{"count":3,"by_severity":{"high":1,"low":1,"medium":1}},"mass":16,"realized_open":0,"repair_regression":{"closures":1,"lineage_mints":0,"ratio":0},"edge_deltas":{"down_mass":0,"up_mass":0}}
+{"round":2,"mapping_version":"v1","open_count":3,"max_severity":"high","new_mint":{"count":2,"by_severity":{"medium":1,"high":1}},"mass":18,"realized_open":0,"repair_regression":{"closures":1,"lineage_mints":2,"ratio":2},"edge_deltas":{"down_mass":7,"up_mass":2}}
 
 -- citation-ledger.md
 # red citation-ledger — RENDERED PROJECTION

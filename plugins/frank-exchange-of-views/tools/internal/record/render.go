@@ -239,6 +239,7 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 	var telemetry []string
 	for _, r := range rounds {
 		var openAtR, minted, closedAtR, lineage []*Gap
+		realizedOpen := 0
 		for _, id := range b.GapOrder {
 			g := b.Gaps[id]
 			closedRound := 99 // mirrors `g.closedRound ?? 99`
@@ -247,6 +248,11 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 			}
 			if g.Round <= r && (g.Open || closedRound > r) {
 				openAtR = append(openAtR, g)
+				// realized: a materialized risk contributes 0 mass (it is no longer a
+				// probability), so it is counted here rather than lost in the mass sum.
+				if GradeStr(g.Likelihood) == "realized" {
+					realizedOpen++
+				}
 			}
 			if g.Round == r {
 				minted = append(minted, g)
@@ -314,6 +320,7 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 			Set("max_severity", maxSeverity).
 			Set("new_mint", NewPayload().Set("count", len(minted)).Set("by_severity", bySev)).
 			Set("mass", massSum(openAtR)).
+			Set("realized_open", realizedOpen).
 			Set("repair_regression", NewPayload().
 				Set("closures", len(closedAtR)).
 				Set("lineage_mints", len(lineage)).
