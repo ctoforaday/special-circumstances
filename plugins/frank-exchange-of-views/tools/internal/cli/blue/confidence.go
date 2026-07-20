@@ -15,7 +15,7 @@ import (
 // lines. A structured per-claim grade is the difference between a clause and a
 // measurement.
 func newConfidence() *cobra.Command {
-	c := seat.New(role, "confidence",
+	c := seat.New("confidence",
 		"per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// The FLAG WORDS are --claim and --confidence, matching `lens cite`; the

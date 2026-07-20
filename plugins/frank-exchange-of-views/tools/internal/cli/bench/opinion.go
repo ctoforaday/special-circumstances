@@ -16,7 +16,7 @@ import (
 // a judge — and a disposition with no stated principle is indistinguishable from
 // a default. Requiring the reasoning is what makes the difference visible.
 func newOpinion() *cobra.Command {
-	c := seat.Prose(seat.New(role, "opinion",
+	c := seat.Prose(seat.New("opinion",
 		`a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

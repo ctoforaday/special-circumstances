@@ -50,13 +50,23 @@ type Context struct {
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
 // directory when the flag is absent.
-func Of(cmd *cobra.Command, role string) Context {
+func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
 	if runDir == "" {
 		runDir = InferRunDir("")
 	}
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
-	return Context{RunDir: runDir, SeatID: seatID, Role: role}
+	return Context{RunDir: runDir, SeatID: seatID, Role: roleOf(cmd)}
+}
+
+// roleOf reads the role from the command's POSITION in the tree: a verb's parent is its
+// role node (Role sets the node's Use to the role name), so `merge mint`'s role is `merge`
+// without anyone threading the string. Role is structure, not an argument.
+func roleOf(cmd *cobra.Command) string {
+	if p := cmd.Parent(); p != nil {
+		return p.Name()
+	}
+	return ""
 }
 
 // InferRunDir answers "which run am I in?" from the live-run marker instead of
@@ -176,7 +186,7 @@ func markRequired(c *cobra.Command, verb string) {
 // New builds a verb command with the shared plumbing attached. The verb supplies
 // its own name, contract text, flags and handler; it never restates the
 // preconditions, the error prefix, or the render.
-func New(role, name, help string, run Handler) *cobra.Command {
+func New(name, help string, run Handler) *cobra.Command {
 	c := &cobra.Command{
 		Use:          name,
 		Short:        help,
@@ -184,30 +194,31 @@ func New(role, name, help string, run Handler) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			s := Of(cmd, role)
+			s := Of(cmd)
 			if s.RunDir == "" {
-				return fmt.Errorf("%s: --run <runDir> is required", role)
+				return fmt.Errorf("%s: --run <runDir> is required", s.Role)
 			}
 			if s.SeatID == "" {
-				return fmt.Errorf("%s: --seat-id is required (the engine assigns it; it is in your prompt)", role)
+				return fmt.Errorf("%s: --seat-id is required (the engine assigns it; it is in your prompt)", s.Role)
 			}
-			return record.CheckSeatRole(role, s.SeatID)
+			return record.CheckSeatRole(s.Role, s.SeatID)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := Of(cmd)
 			// Set before the verb runs, so every record.Append in this process carries it.
 			comment, cerr := flags.ReadComment(cmd, cmd.InOrStdin())
 			if cerr != nil {
-				return fmt.Errorf("%s: %w", role, cerr)
+				return fmt.Errorf("%s: %w", ctx.Role, cerr)
 			}
 			record.AmbientComment = comment
-			res, err := run(Of(cmd, role), cmd)
+			res, err := run(ctx, cmd)
 			if err != nil {
 				// The ROLE leads the message: a seat reading "close requires --id"
 				// learns less than one reading "merge: close requires --id", because
 				// the role names which contract it is being held to. Under --json the
 				// same message rides a structured error, so a machine consumer branches
 				// on ok:false instead of parsing prose.
-				prefixed := fmt.Errorf("%s: %w", role, err)
+				prefixed := fmt.Errorf("%s: %w", ctx.Role, err)
 				if jsonMode(cmd) {
 					return json.NewEncoder(cmd.OutOrStdout()).Encode(errEnvelope{Verb: cmd.Name(), Error: prefixed.Error()})
 				}
@@ -226,7 +237,7 @@ func New(role, name, help string, run Handler) *cobra.Command {
 	// exempt: it creates the seat rather than changing the board.
 	if name != "register" {
 		c.PostRunE = func(cmd *cobra.Command, _ []string) error {
-			_, err := record.Render(Of(cmd, role).RunDir, "")
+			_, err := record.Render(Of(cmd).RunDir, "")
 			return err
 		}
 	}

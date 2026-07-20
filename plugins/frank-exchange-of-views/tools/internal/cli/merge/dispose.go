@@ -14,7 +14,7 @@ import (
 // agreed to be minor" — it is unaccounted for, and it appears in the render's
 // undisposed footer saying so.
 func newDispose() *cobra.Command {
-	c := seat.New(role, "dispose",
+	c := seat.New("dispose",
 		`every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Observation)

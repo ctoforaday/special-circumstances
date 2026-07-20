@@ -16,7 +16,7 @@ import (
 func newFinding() *cobra.Command {
 	var severity, likelihood, impact flags.GradeValue
 
-	c := seat.Prose(seat.New(role, "finding",
+	c := seat.Prose(seat.New("finding",
 		`a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--text "..."|--file f] [--location "..."]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

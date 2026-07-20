@@ -20,7 +20,7 @@ import (
 // absence, and the judge had to reconstruct blue's whole position from red's
 // ledger. This event is the machine-checkable half of that fix.
 func newRevision() *cobra.Command {
-	c := seat.Prose(seat.New(role, "revision",
+	c := seat.Prose(seat.New("revision",
 		"the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

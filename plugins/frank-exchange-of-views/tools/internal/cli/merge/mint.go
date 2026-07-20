@@ -17,7 +17,7 @@ func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 	var supersedes, foundBy flags.CSV
 
-	c := seat.Prose(seat.New(role, "mint",
+	c := seat.Prose(seat.New("mint",
 		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// Crash-retry idempotency: --key (the stable local label, e.g. the source

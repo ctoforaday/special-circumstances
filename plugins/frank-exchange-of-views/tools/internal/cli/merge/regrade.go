@@ -17,7 +17,7 @@ import (
 func newRegrade() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 
-	c := seat.New(role, "regrade",
+	c := seat.New("regrade",
 		`same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)

@@ -14,7 +14,7 @@ import (
 // rather than prose in a candidate file: an observation nobody disposed shows in
 // the render's undisposed footer, where a note that quietly evaporated would not.
 func newObserve() *cobra.Command {
-	c := seat.Prose(seat.New(role, "observe",
+	c := seat.Prose(seat.New("observe",
 		"a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)

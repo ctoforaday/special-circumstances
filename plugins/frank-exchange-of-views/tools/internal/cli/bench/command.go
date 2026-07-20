@@ -16,11 +16,11 @@ const role = "bench"
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
 		"the bench — opinions, petition rulings, halt, certification. Never originates.",
-		seat.Register(role, "FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
+		seat.Register("FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newOpinion(),
 		newPetitionRule(),
 		newHalt(),
 		newCertify(),
-		seat.Friction(role, "attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file"),
+		seat.Friction("attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file"),
 	)
 }

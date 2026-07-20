@@ -16,7 +16,7 @@ import (
 // from is the honest alternative: this closure is not a fresh act, it is last
 // round's, restated.
 func newClose() *cobra.Command {
-	c := seat.New(role, "close",
+	c := seat.New("close",
 		`close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--file f|--text "..."]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			class := seat.Str(cmd, flags.As)

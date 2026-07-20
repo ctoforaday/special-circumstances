@@ -16,17 +16,17 @@ const role = "merge"
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
 		"the red merge seat — the board's only writer.",
-		seat.Register(role, "FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>"),
+		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>"),
 		newMint(),
 		newClose(),
 		newDispose(),
 		newRegrade(),
 		newDisputeRespond(),
 		newSpotCheck(),
-		seat.Position(role, "the round's ### RED section (prose via --file)"),
-		seat.Closing(role, "a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>"),
+		seat.Position("the round's ### RED section (prose via --file)"),
+		seat.Closing("a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>"),
 		newVerdict(),
-		seat.Friction(role, "attributed friction: --text|--file"),
-		seat.Petition(role, `petition the bench: --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."`, ""),
+		seat.Friction("attributed friction: --text|--file"),
+		seat.Petition(`petition the bench: --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."`, ""),
 	)
 }
