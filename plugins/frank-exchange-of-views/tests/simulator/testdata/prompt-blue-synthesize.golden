@@ -1,4 +1,4 @@
-prompt sha256: 1988e26cfea10eee3c9539717b9351695137ce2912ac4ec4ce8d2f37d09b43cb
+prompt sha256: e8665842d60e6783637c65faa5925482884ac0663a09c5a675046d3f6ac805b7
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -12,6 +12,8 @@ THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authore
 It lives inside red's mandatory full re-read and is audited every round like any other claim surface.
 THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON (a synthesis surface authored at assembly is authored AFTER red's final audit, so nothing checks it — that is how the TL;DR used to ship unaudited): report.md OPENS with the H1 title `# the seat prompt contract — research report`, then `## TL;DR` (3-6 sentences — the answer, the confidence, the sharpest caveat), and carries `## Open questions` (what the debate could not resolve, one per line; a question nobody could answer inside the debate is a finding, not noise).
 Assembly LIFTS these verbatim and composes everything else from the record — you write them once, here, inside the audited document, and red audits them every round like any claim.
+YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, technical foundations, analysis, open questions, and your own footnotes — and NOTHING assembly composes from the record.
+Do NOT write "## Risk matrix", "## Red team findings", "## The debate", or a "## Blue team report" wrapper into report.md: assembly builds each of those from the event log, a "## Red team findings" section you author is FABRICATION (you cannot know red's findings), and writing a whole final-report-shaped document makes every tool-owned section appear twice.
 Follow the report conventions (semantic footnotes with access dates).
 CITATION HYGIENE (red must be able to VERIFY every footnote at the leaf): a GitHub reference carries its FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo; every QUOTED span records a locating anchor (its section heading or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.
