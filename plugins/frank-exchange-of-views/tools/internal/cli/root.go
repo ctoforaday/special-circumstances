@@ -25,19 +25,24 @@ import (
 // Version is stamped on register events and answered by --version. The setup
 // preflight compares it against the plugin manifest BEFORE the run-live marker
 // is written, so a skewed binary fails at setup rather than mid-round.
-// Bumped when the EVENT CONTRACT changes, not when the plugin does. The plugin is at
-// 0.23.0 and this is 0.2.0 because they answer different questions: the plugin version
-// says what shipped, this says what shape the events on disk are in.
 //
-// 0.2.0 covers the 2026-07-19 schema work — events gained `ts` and replay orders by it,
-// findings gained a tool-assigned `finding_id`, four flags were renamed with the aliases
-// DELETED, and cross-references and state are now enforced at write time. A binary from
-// before that writes a materially different record.
+// It tracks the binary's OBSERVABLE CONTRACT, not the plugin release: bump it when a run
+// would behave differently against a stale binary — the events on disk, the projections
+// render writes, or the verb/flag surface a prompt may call. It is deliberately decoupled
+// from the plugin version, which says what shipped.
+//
+//	0.2.0  the 2026-07-19 schema work — events gained `ts` and replay orders by it,
+//	       findings gained a tool-assigned `finding_id`, four flags were renamed with
+//	       aliases deleted, cross-references enforced at write time.
+//	0.3.0  render computes `realized_open` in the board telemetry (Phase B1) — a stale
+//	       binary renders telemetry a downstream reader now expects.
+//	0.4.0  the global `--json` flag: mutating verbs emit a structured result and errors,
+//	       so a machine consumer a prompt drives needs the binary that speaks it.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.3.0"
+const Version = "0.4.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -59,6 +64,10 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// re-declaring --run and --seat-id on all sixteen verbs.
 	root.PersistentFlags().String(flags.Run, "", "the run directory (the engine passes it; it is in your prompt)")
 	root.PersistentFlags().String(flags.SeatID, "", "your seat id, assigned by the engine and bound to this role's namespace")
+	// --json makes every mutating verb emit a structured result and every failure a
+	// structured error, so a machine consumer parses fields instead of prose. Reads keep
+	// their own format contract (`show --view`), which is view-selected, not flag-selected.
+	root.PersistentFlags().Bool(flags.JSON, false, "emit a structured JSON result (and structured errors) instead of human text")
 
 	root.AddCommand(
 		lens.NewCommand(),

@@ -15,14 +15,14 @@ import (
 func newCertify() *cobra.Command {
 	return seat.Prose(seat.New(role, "certify",
 		`the run-end certification statement ("what I would want a human to re-examine"): --file <statement>`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "certify", record.NewPayload().Set("statement", text)); err != nil {
-				return "", err
+				return nil, err
 			}
-			return "certification recorded", nil
+			return seat.Msg{Message: "certification recorded"}, nil
 		}))
 }

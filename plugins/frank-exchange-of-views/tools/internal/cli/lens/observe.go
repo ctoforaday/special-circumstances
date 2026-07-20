@@ -1,8 +1,6 @@
 package lens
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -18,10 +16,10 @@ import (
 func newObserve() *cobra.Command {
 	c := seat.Prose(seat.New(role, "observe",
 		"a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file",
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			kind := seat.Str(cmd, flags.Kind)
 			if kind == "" {
@@ -31,13 +29,21 @@ func newObserve() *cobra.Command {
 			p.Set("text", text)
 			ev, err := record.Append(s.RunDir, s.SeatID, "observe", p)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("observation recorded: %s (%s) — awaiting merge disposition, which names it by ID",
-				ev.Payload.Str("finding_id"), seat.Str(cmd, flags.Label)), nil
+			return observeResult{FindingID: ev.Payload.Str("finding_id"), Label: seat.Str(cmd, flags.Label)}, nil
 		}))
 
 	c.Flags().String(flags.Kind, "", "note | checked-held — an observation's flavour; the merge must still dispose it")
 	c.Flags().String(flags.Label, "", "a stable local label, so the merge can name this observation when disposing it")
 	return c
+}
+
+type observeResult struct {
+	FindingID string `json:"finding_id"`
+	Label     string `json:"label"`
+}
+
+func (r observeResult) Human() string {
+	return "observation recorded: " + r.FindingID + " (" + r.Label + ") — awaiting merge disposition, which names it by ID"
 }

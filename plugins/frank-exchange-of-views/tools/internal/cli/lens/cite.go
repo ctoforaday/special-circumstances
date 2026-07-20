@@ -1,8 +1,6 @@
 package lens
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -19,13 +17,13 @@ import (
 func newCite() *cobra.Command {
 	c := seat.New(role, "cite",
 		`citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reference, flags.Confidence)
 			seat.Set(cmd, p, "access_date", flags.AccessDate)
 			if _, err := record.Append(s.RunDir, s.SeatID, "cite", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("citation recorded: %s", seat.Str(cmd, flags.Reference)), nil
+			return citeResult{Reference: seat.Str(cmd, flags.Reference)}, nil
 		})
 
 	c.Flags().String(flags.Claim, "", "the claim being verified, quoted from the report")
@@ -34,3 +32,9 @@ func newCite() *cobra.Command {
 	c.Flags().String(flags.AccessDate, "", "YYYY-MM-DD you actually fetched it; drives the staleness re-fetch trigger")
 	return c
 }
+
+type citeResult struct {
+	Reference string `json:"reference"`
+}
+
+func (r citeResult) Human() string { return "citation recorded: " + r.Reference }

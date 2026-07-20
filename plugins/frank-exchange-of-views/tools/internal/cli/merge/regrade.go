@@ -1,8 +1,6 @@
 package merge
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -21,19 +19,19 @@ func newRegrade() *cobra.Command {
 
 	c := seat.New(role, "regrade",
 		`same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			seat.SetGrade(p, "severity", &severity)
 			seat.SetGrade(p, "likelihood", &likelihood)
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetGrade(p, "complexity_cost", &cx)
 			if err := seat.SetLongForm(cmd, p, "basis", flags.Basis); err != nil {
-				return "", err
+				return nil, err
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "regrade", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("regraded %s", seat.Str(cmd, flags.ID)), nil
+			return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil
 		})
 
 	c.Flags().String(flags.ID, "", "the gap id")
@@ -44,3 +42,9 @@ func newRegrade() *cobra.Command {
 	c.Flags().String(flags.Basis, "", "why the grade moved — grade movement is recorded with its reason")
 	return seat.Prose(c)
 }
+
+type regradeResult struct {
+	GapID string `json:"gap_id"`
+}
+
+func (r regradeResult) Human() string { return "regraded " + r.GapID }

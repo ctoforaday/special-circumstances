@@ -41,6 +41,10 @@ const (
 	Run    = "run"
 	SeatID = "seat-id"
 
+	// Output format, on the root as a persistent flag: --json emits a structured
+	// result (and structured errors) for machine consumers; the default is human text.
+	JSON = "json"
+
 	// The prose payload, in its three interchangeable forms.
 	File = "file"
 	Text = "text"
@@ -151,7 +155,7 @@ const (
 // close it. Adding a constant without adding it here fails the round-trip.
 func All() []string {
 	return []string{
-		Run, SeatID,
+		Run, SeatID, JSON,
 		File, Text,
 		Comment, CommentFile,
 		ID, IDs, Label, Claim, Key, Location, Reference, Row, View,

@@ -1,8 +1,6 @@
 package merge
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -20,7 +18,7 @@ import (
 func newClose() *cobra.Command {
 	c := seat.New(role, "close",
 		`close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--file f|--text "..."]`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			class := seat.Str(cmd, flags.As)
 			if class == "" {
 				class = "closed"
@@ -38,15 +36,15 @@ func newClose() *cobra.Command {
 			// opts out of the shared helper drifts from it by construction.
 			prose, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			if prose != "" {
 				p.Set("prose", prose)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "close", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("closed %s (%s)", seat.Str(cmd, flags.ID), class), nil
+			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: class}, nil
 		})
 
 	c.Flags().String(flags.ID, "", "the gap id")
@@ -58,3 +56,11 @@ func newClose() *cobra.Command {
 	c.Flags().String(flags.Successor, "", "the gap id carrying the unresolved remainder forward")
 	return seat.Prose(c)
 }
+
+// closeResult names the closed gap and the closure class it was retired under.
+type closeResult struct {
+	GapID string `json:"gap_id"`
+	Class string `json:"class"`
+}
+
+func (r closeResult) Human() string { return "closed " + r.GapID + " (" + r.Class + ")" }

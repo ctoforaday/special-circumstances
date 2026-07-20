@@ -110,8 +110,46 @@ func InferRunDir(start string) string {
 	return ""
 }
 
-// Handler is a verb's work: everything cobra-shaped is handled around it.
-type Handler func(Context, *cobra.Command) (string, error)
+// Result is a verb's outcome: its OWN typed value, defined in the verb's own file, that
+// renders itself as a human line. The value's json tags ARE the --json body; the verb name
+// and the ok flag are supplied by the renderer below, so no result restates them. A handler
+// returns a nil Result to say nothing.
+type Result interface {
+	Human() string
+}
+
+// Msg is the shared result for verbs that only CONFIRM — they carry no command-specific
+// data. A verb WITH data defines its own struct instead; "a bare confirmation" is the one
+// outcome genuinely common across verbs, so it is the one shared Result type.
+type Msg struct {
+	Message string `json:"message"`
+}
+
+// Human renders Msg as itself.
+func (m Msg) Human() string { return m.Message }
+
+// okEnvelope / errEnvelope are the --json wire shape. The Result nests under "result" so the
+// envelope stays fully typed end to end — no map merging, no result restating verb/ok.
+type okEnvelope struct {
+	Verb   string `json:"verb"`
+	OK     bool   `json:"ok"`
+	Result Result `json:"result,omitempty"`
+}
+
+type errEnvelope struct {
+	Verb  string `json:"verb"`
+	OK    bool   `json:"ok"`
+	Error string `json:"error"`
+}
+
+func jsonMode(cmd *cobra.Command) bool {
+	b, _ := cmd.Flags().GetBool(flags.JSON)
+	return b
+}
+
+// Handler is a verb's work: everything cobra-shaped is handled around it. It returns a
+// Result (nil to say nothing); New renders it as human text or --json.
+type Handler func(Context, *cobra.Command) (Result, error)
 
 // markRequired annotates the flags a verb genuinely requires, reading record's single
 // declaration so the help and the enforcement cannot disagree.
@@ -162,15 +200,24 @@ func New(role, name, help string, run Handler) *cobra.Command {
 				return fmt.Errorf("%s: %w", role, cerr)
 			}
 			record.AmbientComment = comment
-			out, err := run(Of(cmd, role), cmd)
+			res, err := run(Of(cmd, role), cmd)
 			if err != nil {
 				// The ROLE leads the message: a seat reading "close requires --id"
 				// learns less than one reading "merge: close requires --id", because
-				// the role names which contract it is being held to.
-				return fmt.Errorf("%s: %w", role, err)
+				// the role names which contract it is being held to. Under --json the
+				// same message rides a structured error, so a machine consumer branches
+				// on ok:false instead of parsing prose.
+				prefixed := fmt.Errorf("%s: %w", role, err)
+				if jsonMode(cmd) {
+					return json.NewEncoder(cmd.OutOrStdout()).Encode(errEnvelope{Verb: cmd.Name(), Error: prefixed.Error()})
+				}
+				return prefixed
 			}
-			if out != "" {
-				fmt.Println(out)
+			if jsonMode(cmd) {
+				return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{Verb: cmd.Name(), OK: true, Result: res})
+			}
+			if res != nil {
+				fmt.Fprintln(cmd.OutOrStdout(), res.Human())
 			}
 			return nil
 		},

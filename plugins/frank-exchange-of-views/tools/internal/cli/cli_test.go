@@ -31,27 +31,16 @@ import (
 // rather than taken from cobra's writer.
 func run(t *testing.T, args ...string) (stdout string, err error) {
 	t.Helper()
-	r, w, perr := os.Pipe()
-	if perr != nil {
-		t.Fatal(perr)
-	}
-	saved := os.Stdout
-	os.Stdout = w
-
+	// Output goes through cmd.OutOrStdout(), so a buffer set on the root captures every
+	// verb's stdout — no os.Stdout swap, no pipe. Errors are returned (SilenceErrors), so
+	// stderr carries nothing the tests read.
 	root := newRoot()
-	root.SetOut(&bytes.Buffer{})
-	root.SetErr(&bytes.Buffer{})
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
 	root.SetArgs(args)
 	err = root.Execute()
-
-	os.Stdout = saved
-	w.Close()
-	var buf bytes.Buffer
-	if _, cerr := buf.ReadFrom(r); cerr != nil {
-		t.Fatal(cerr)
-	}
-	r.Close()
-	return buf.String(), err
+	return out.String(), err
 }
 
 // help captures a command's own help output, which cobra writes to its writer.
@@ -454,6 +443,55 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	}
 	if !strings.Contains(out, "minted R2-1") {
 		t.Errorf("round 2's first mint said %q, want R2-1", out)
+	}
+}
+
+// --json is the machine contract: a success is a structured ack (read the id from a field,
+// not by parsing prose), a failure is a structured error (branch on ok:false), and the
+// default mode stays byte-identical prose because the template renders the same fields.
+func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
+	runDir := t.TempDir()
+	seatID := "red-merge-r1"
+	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", seatID); err != nil {
+		t.Fatal(err)
+	}
+	mintArgs := []string{"merge", "mint", "--run", runDir, "--seat-id", seatID,
+		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}
+
+	out, err := run(t, append([]string{"--json"}, mintArgs...)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ok map[string]any
+	if e := json.Unmarshal([]byte(strings.TrimSpace(out)), &ok); e != nil {
+		t.Fatalf("mint --json is not valid JSON (%v): %s", e, out)
+	}
+	result, _ := ok["result"].(map[string]any)
+	if ok["verb"] != "mint" || ok["ok"] != true || result["gap_id"] != "R1-1" {
+		t.Errorf("mint --json = %v, want {verb:mint, ok:true, result:{gap_id:R1-1}}", ok)
+	}
+
+	// Default mode is the unchanged prose — the template reproduces it byte for byte.
+	plain, err := run(t, append(mintArgs, "--key", "K2")...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(plain) != "minted R1-2" {
+		t.Errorf("default mint = %q, want unchanged prose 'minted R1-2'", plain)
+	}
+
+	// A handler failure under --json is structured: ok:false and a message, not a bare exit.
+	// Closing a nonexistent gap with no verification anchor fails inside the handler.
+	bad, _ := run(t, "--json", "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "NOPE")
+	var fail map[string]any
+	if e := json.Unmarshal([]byte(strings.TrimSpace(bad)), &fail); e != nil {
+		t.Fatalf("mint --json error is not valid JSON (%v): %s", e, bad)
+	}
+	if fail["ok"] != false {
+		t.Errorf("error --json = %v, want ok:false", fail)
+	}
+	if _, has := fail["error"]; !has {
+		t.Errorf("error --json missing an 'error' field: %v", fail)
 	}
 }
 

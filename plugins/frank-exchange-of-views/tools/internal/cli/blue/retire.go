@@ -1,8 +1,6 @@
 package blue
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -30,10 +28,10 @@ import (
 func newRetire() *cobra.Command {
 	c := seat.Prose(seat.New(role, "retire",
 		`remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reason)
 			seat.Set(cmd, p, "superseded_by", flags.SupersededBy)
@@ -41,9 +39,9 @@ func newRetire() *cobra.Command {
 				p.Set("detail", text)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "retire", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("retired: %s", seat.Str(cmd, flags.Claim)), nil
+			return retireResult{Claim: seat.Str(cmd, flags.Claim)}, nil
 		}))
 
 	c.Flags().String(flags.Claim, "", "the claim being removed, quoted from the report as it stood")
@@ -51,3 +49,9 @@ func newRetire() *cobra.Command {
 	c.Flags().String(flags.SupersededBy, "", "the claim that replaces it, when one does")
 	return c
 }
+
+type retireResult struct {
+	Claim string `json:"claim"`
+}
+
+func (r retireResult) Human() string { return "retired: " + r.Claim }

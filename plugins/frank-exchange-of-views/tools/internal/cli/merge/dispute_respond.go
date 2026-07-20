@@ -1,8 +1,6 @@
 package merge
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -19,18 +17,18 @@ import (
 func newDisputeRespond() *cobra.Command {
 	c := seat.New(role, "dispute-respond",
 		`red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --basis "..."`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			seat.Set(cmd, p, "response", flags.As)
 			// Flag word --basis (the grounds you argue from, as on dispute/regrade/
 			// petition); payload key stays rationale.
 			if err := seat.SetLongForm(cmd, p, "rationale", flags.Basis); err != nil {
-				return "", err
+				return nil, err
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute-respond", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("dispute on %s: %s", seat.Str(cmd, flags.ID), seat.Str(cmd, flags.As)), nil
+			return disputeRespondResult{GapID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
 		})
 
 	c.Flags().String(flags.ID, "", "the gap id")
@@ -38,3 +36,10 @@ func newDisputeRespond() *cobra.Command {
 	c.Flags().String(flags.Basis, "", "the grounds for the answer — why blue's proposed grade is accepted or refused")
 	return seat.Prose(c)
 }
+
+type disputeRespondResult struct {
+	GapID string `json:"gap_id"`
+	As    string `json:"as"`
+}
+
+func (r disputeRespondResult) Human() string { return "dispute on " + r.GapID + ": " + r.As }

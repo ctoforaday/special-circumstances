@@ -1,8 +1,6 @@
 package bench
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -20,10 +18,10 @@ import (
 func newOpinion() *cobra.Command {
 	c := seat.Prose(seat.New(role, "opinion",
 		`a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			p := record.NewPayload()
 			flags.Set(p, "gap_id", cmd, flags.ID)
@@ -32,9 +30,9 @@ func newOpinion() *cobra.Command {
 			seat.Set(cmd, p, "review_flag", flags.ReviewFlag)
 			p.Set("rationale", text)
 			if _, err := record.Append(s.RunDir, s.SeatID, "opinion", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("opinion recorded: %s %s", seat.Str(cmd, flags.ID), seat.Str(cmd, flags.As)), nil
+			return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
 		}))
 
 	c.Flags().String(flags.ID, "", "the gap being ruled on")
@@ -44,3 +42,10 @@ func newOpinion() *cobra.Command {
 	c.Flags().String(flags.ReviewFlag, "", "why a human should, or should not, look at this")
 	return c
 }
+
+type opinionResult struct {
+	ID string `json:"id"`
+	As string `json:"as"`
+}
+
+func (r opinionResult) Human() string { return "opinion recorded: " + r.ID + " " + r.As }

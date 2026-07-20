@@ -1,8 +1,6 @@
 package blue
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -35,19 +33,19 @@ import (
 func newAvenue() *cobra.Command {
 	c := seat.Prose(seat.New(role, "avenue",
 		`record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Line, flags.Status, flags.Reason, flags.Method)
 			if text != "" {
 				p.Set("detail", text)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "avenue", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("avenue recorded (%s): %s", seat.Str(cmd, flags.Status), seat.Str(cmd, flags.Line)), nil
+			return avenueResult{Status: seat.Str(cmd, flags.Status), Line: seat.Str(cmd, flags.Line)}, nil
 		}))
 
 	c.Flags().String(flags.Line, "", "the question or approach — what you were going to try")
@@ -56,3 +54,10 @@ func newAvenue() *cobra.Command {
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }
+
+type avenueResult struct {
+	Status string `json:"status"`
+	Line   string `json:"line"`
+}
+
+func (r avenueResult) Human() string { return "avenue recorded (" + r.Status + "): " + r.Line }
