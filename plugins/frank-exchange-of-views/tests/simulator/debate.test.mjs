@@ -389,14 +389,12 @@ test('friction aggregates from every seat with attribution', async () => {
 
 // ---- Efficiency phase (run-4 ratified levers; plans/efficiency-phase.md PR-A) ----
 
-test('telemetry: red-merge prompt carries the board-telemetry append with the pinned v2 mapping', async () => {
+test('telemetry: red-merge is told the line is TOOL-COMPUTED (via render), not hand-written', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
-  assert.ok(merge.prompt.includes('trajectories/board-telemetry.jsonl'), 'telemetry sink named')
-  assert.ok(merge.prompt.includes('"mapping_version": "v2"'), 'mapping version pinned in the line spec')
-  assert.ok(merge.prompt.includes('"realized":0'), 'realized pinned to 0 in the mapping (excluded from mass)')
-  assert.ok(merge.prompt.includes('"trivial":0.5'), 'trivial assigned, not left to seat convention')
+  assert.ok(merge.prompt.includes('COMPUTED BY THE TOOL') && merge.prompt.includes('feov-record merge render'), 'telemetry is computed by render, not appended by the seat')
+  assert.ok(!merge.prompt.includes('trajectories/board-telemetry.jsonl'), 'the seat no longer hand-writes a telemetry sink — the self-report is retired')
 })
 
 test('batching: merge concatenates lens passes to an absolute scratchpad path, never under the run dir', async () => {
@@ -598,8 +596,9 @@ test('GRADE enum carries compound grades and the pinned mass mapping is total ov
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
   const en = merge.opts.schema.properties.gaps.items.properties.likelihood.enum
   assert.deepEqual(en, ['low', 'low-medium', 'medium', 'medium-high', 'high', 'certain', 'realized', 'trivial'])
-  const mapping = JSON.parse(merge.prompt.match(/pinned mapping (\{.*?\})/)[1])
-  for (const g of en) assert.ok(g in mapping, `mass mapping not total: ${g} unmapped`)
+  // The mass mapping no longer rides in the prompt — the tool computes telemetry, and the
+  // Go MASS table (record.go) is total over this enum, asserted by the record package tests.
+  assert.ok(!/pinned mapping \{/.test(merge.prompt), 'the MASS json no longer bloats the merge prompt (retired with the hand-written telemetry line)')
 })
 
 test('shard creator: round-1 merge creates both shards; round 2 updates, never recreates (R4-6 one-creator)', async () => {
@@ -884,13 +883,12 @@ test('W2e: every bench sitting carries the law clause — precedent is argument,
 
 // ---- W2g: MASS v2 (existence/consequence split) + catechism into blue's template ----
 
-test('W2g: mapping version is v2; gaps carry existence; merge prompt redefines likelihood as consequence-only', async () => {
+test('W2g: gaps carry existence; merge prompt redefines likelihood as consequence-only', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const merge = world.calls.find((c) => c.opts.label.startsWith('red-merge-r1'))
-  assert.ok(merge.prompt.includes('"mapping_version": "v2"'), 'telemetry line spec carries v2')
   assert.ok(merge.prompt.includes('existence (verified') && merge.prompt.includes('CONSEQUENCE ONLY'), 'grading redefinition stated')
 })
 

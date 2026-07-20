@@ -64,19 +64,83 @@ seat self-report — the distinction that matters).
 - friction ①②③.
 - Regen seat-prompt goldens; review diff line-by-line; simulator suite green.
 
-### Phase B — Go telemetry + scorecard
-- `internal/record` (or a new `internal/telemetry`): `MASS` map + `Mass(gap)` +
-  `Telemetry(runDir, round)` computing open_count, max_severity, new_mint,
-  mass, realized_open, repair_regression{closures,lineage_mints,ratio},
-  edge_deltas{down,up} over `BoardJSON` at rounds N and N-1.
-- `merge telemetry --round N` verb: compute + append the line to
-  render-shadow/board-telemetry.jsonl.
-- `show --view scorecard`: the calling role's live in-run scorecard.
-- Go tests: a golden record → assert the tool's telemetry equals the debate.js
-  computation for the same gaps (parity test, the anti-drift gate).
-- debate.js: replace the seat's `cat >>` telemetry instruction with the verb;
-  delete the hand-computed schema spec; wire chairs to `show --view scorecard`.
+### CORRECTION (2026-07-19, during Phase B scoping)
+
+**`show --view scorecard` must NOT be a Go view.** The scorecard is computed by
+`scorecards.mjs` — a rich JS module that reads telemetry, envelopes, archive.md,
+debate.md and the candidate files, and whose OWN doctrine (its lines 362-373) is
+that the module writing a format is the only place allowed to read it: "three
+readers of one artifact, disagreeing about it, is the defect." A Go re-implementation
+is exactly that defect. So the in-run scorecard read (priors half-2) is a **thin JS
+CLI on scorecards.mjs** (`node scorecards.mjs --run <dir> --chair <role>`), which the
+seat invokes via Bash — reusing the single implementation. B1 (telemetry-in-tool) is
+unaffected: the tool becomes the ONE computer of the telemetry LINE; scorecards.mjs
+still only READS it. Split Phase B into B1 (telemetry, Go) and B2 (scorecard CLI, JS).
+
+### Phase B1 — Go telemetry (the self-report retirement)
+
+**Field taxonomy (from the 2026-07-19 consumer read).** Two kinds of field:
+
+- **Board-derived (tool computes authoritatively — THIS is the self-report being
+  retired):** `open_count`, `mass` (Σ over open gaps of MASS[likelihood]×MASS[impact];
+  realized→0), `max_severity` (the grade STRING of the highest-severity open gap —
+  dashboard 430/443 renders it raw, not a number), `realized_open` (count of open
+  gaps graded `realized`), `new_mint{count, by_severity}` (gaps with Round==N),
+  `repair_regression{closures = gaps with ClosedRound==N, lineage_mints = Round==N
+  gaps whose supersedes names a ClosedRound==N gap, ratio}`, `edge_deltas{down_mass,
+  up_mass}` (Σ|mass(succ)−mass(anc)| over Round==N supersedes edges, split by sign),
+  `mapping_version` = "v2", `round`.
+- **Flow-derived (NOT board-derivable — passed IN, not a made-up metric):**
+  `accepted_deltas` is the orchestrator's record of grade-disputes ACCEPTED that
+  round (debate.js 677-692). The tool cannot see it in the record. `found_by_summary`
+  and `excluded_mass_memo` are consumed by NO script — drop them.
+
+**MASS (mirror debate.js v2 exactly):** trivial 0.5, low 1, low-medium 1.5, medium 2,
+medium-high 2.5, high 3, certain 3.5, realized 0. mass(g)=MASS[L]×MASS[I].
+
+**Design:** `merge telemetry --round N [--accepted-deltas <json>]` — the tool computes
+every board-derived field from `BoardJSONOf(BoardState(runDir))` (per-round state via
+Round/ClosedRound filtering), merges the passed-in flow fields, and appends the line to
+`records/render-shadow/board-telemetry.jsonl` (where the dashboard already reads post-#54).
+`scorecards.mjs` readTelemetry (line 44) must be pointed at render-shadow with a
+trajectories/ fallback. `internal/record/telemetry.go`: pure `computeTelemetry(BoardJSON,
+round)` (unit-testable with a hand-built board) + `Telemetry(runDir, round)`.
+
+- Go tests: hand-built board → assert each field; a parity fixture vs the debate.js
+  formulas. The pure function is the anti-drift gate.
+- debate.js: replace the seat's `cat >>` telemetry instruction (line 606, ~1,100 B) with
+  `feov-record merge telemetry --round N --accepted-deltas <the deltas the script/seat
+  holds>`; delete the hand-computed schema spec; remove the TELEMETRY const. The
+  script-side detector (645-670) STAYS (sandboxed, orchestrator's own control signal).
 - Bump plugin.json + recordToolVersion; versionsync.
+
+### B1 IMPLEMENTED (2026-07-19) — key finding: render already computed it
+
+The tool ALREADY computed the per-round telemetry inline in `render.go` (the `render`
+verb writes `records/render-shadow/board-telemetry.jsonl`, with all the JS-parity nuances
+— insertion-ordered by_severity, round2, SliceStable max-severity). A standalone
+`telemetry.go` module + `merge telemetry` verb would have been a SECOND computer of the
+same fact — the exact defect this codebase forbids — so I deleted the module I'd started
+and EXTENDED the canonical render computation instead:
+
+- render.go telemetry now also emits `realized_open` (board-derivable). Difftest goldens
+  regenerated (only that field added).
+- debate.js: the merge seat's hand-written BOARD TELEMETRY line (~1,100 B) is replaced
+  with a note that the tool computes it on `merge render` (which the seat already runs).
+  The `TELEMETRY` const is gone.
+- Consumers repointed to render-shadow with a trajectories/ fallback: `scorecards.mjs`
+  readTelemetry and `cost-audit.mjs`.
+- `accepted_deltas` is DEFERRED: it is dispute-flow state (which grade-disputes the
+  orchestrator accepted that round), not board-derivable without threading dispute events
+  into render. render omits it; the dashboard's deltas column reads 0 until it is added.
+  `excluded_mass_memo`/`found_by_summary` are dropped (no consumer).
+- Versions: cli.Version + recordToolVersion 0.2.0 → 0.3.0 (tool behavior changed);
+  plugin 0.25.0 → 0.26.0.
+
+### Phase B2 — scorecard in-run read (JS, not Go)
+Thin CLI on scorecards.mjs: `node scorecards.mjs --run <dir> --chair <role>` prints the
+chair's computed rows; the chair's prompt (recordClause / scorecardClause) instructs it to
+run that before the open docket. Reuses the ONE scorecard implementation (§CORRECTION).
 
 ## IV. §V Verification loop (written, run every phase)
 

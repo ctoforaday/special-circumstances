@@ -12,7 +12,7 @@
 // Pricing is LIST-RATE arithmetic ($/MTok below) — plan meters typically observe less.
 // Run 3 calibration: the meter drew ~0.6x of these figures.
 import { classifySeat as classifyTranscript } from './seat-classify.mjs'
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -119,7 +119,8 @@ console.log('- Known physics (runs 3-4 baseline): lens cost tracks CORPUS size (
 const runDir = process.argv[3]
 if (runDir) {
   try {
-    const lines = readFileSync(join(runDir, 'trajectories', 'board-telemetry.jsonl'), 'utf8')
+    const telPath = [join(runDir, 'records', 'render-shadow', 'board-telemetry.jsonl'), join(runDir, 'trajectories', 'board-telemetry.jsonl')].find(existsSync)
+    const lines = (telPath ? readFileSync(telPath, 'utf8') : '')
       .split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
     if (lines.length) {
       console.log('\n## Board telemetry (per round)\n')
@@ -130,7 +131,9 @@ if (runDir) {
       }
       console.log('\nTelemetry is the convenience copy, never the evidence of record — actuation reviews recompute from the git-tracked ledger.')
     } else {
-      console.log('\n## Board telemetry\n\n(board-telemetry.jsonl present but empty)')
+      console.log(telPath
+        ? '\n## Board telemetry\n\n(board-telemetry.jsonl present but empty)'
+        : '\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never rendered: check run-record-audit.md)')
     }
   } catch {
     console.log('\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never appended: check run-record-audit.md)')

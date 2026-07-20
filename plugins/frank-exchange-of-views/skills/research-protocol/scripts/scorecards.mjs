@@ -41,7 +41,11 @@ export function row({ clause, metric, cls, value = null, note = '', joint = '' }
 }
 
 export function readTelemetry(runDir) {
-  const t = read(join(runDir, 'trajectories', 'board-telemetry.jsonl'))
+  // The tool computes telemetry into records/render-shadow on `merge render` (2026-07-19,
+  // Phase B1). trajectories/ is the fallback for pre-migration runs, when the merge seat
+  // still hand-wrote the line.
+  const t = read(join(runDir, 'records', 'render-shadow', 'board-telemetry.jsonl'))
+    ?? read(join(runDir, 'trajectories', 'board-telemetry.jsonl'))
   if (!t) return []
   return t.split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
 }
