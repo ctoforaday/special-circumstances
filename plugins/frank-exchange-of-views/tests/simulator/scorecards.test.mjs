@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   row, readTelemetry, blueRows, redRows, citationYieldByRole,
-  benchRows, computeScorecards, renderChair, headline, chairHeader,
+  benchRows, computeScorecards, renderChair, headline, chairHeader, readResults,
 } from '../../skills/research-protocol/scripts/scorecards.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'sc-'))
@@ -327,4 +327,30 @@ test('citationYieldByRole reports per-seat yield, so a dispatch cut is not read 
   assert.equal(y[1].per_seat.logic, 9)
   assert.equal(y[2].per_seat.logic, 3, 'L5 held one seat in both rounds, so its fall is real and unconfounded')
   assert.equal(y[1].per_seat.darkside, null, 'a role that did not sit reports null, never 0 — absence is not a measurement')
+})
+
+// The in-run self-read (priors-are-poison half-2): a chair reads its OWN scorecard for THIS
+// run before its docket. Mid-run there is no journal, so envelope rows read "not computed"
+// and the file-derived headline still computes — never a stale cross-run number.
+test('in-run scorecard: file-derived headline computes without a journal; a journal parses when present', () => {
+  const d = tmp()
+  mkdirSync(join(d, 'records', 'render-shadow'), { recursive: true })
+  writeFileSync(join(d, 'records', 'render-shadow', 'board-telemetry.jsonl'),
+    JSON.stringify({ round: 2, repair_regression: { closures: 2, lineage_mints: 1, ratio: 0.5 } }) + '\n')
+
+  // No journal yet (mid-run) — not an error.
+  assert.deepEqual(readResults(d), [], 'no journal mid-run yields empty results, not a throw')
+  const cards = computeScorecards(d, readResults(d))
+  const repair = cards.blue.find((r) => r.metric === 'repair_regression_ratio')
+  assert.equal(repair.value, 0.5, 'blue reads its headline from telemetry alone, mid-run')
+  const manifest = cards.blue.find((r) => r.metric === 'manifest_coverage')
+  assert.equal(manifest.value, 0, 'an envelope-derived row is present (0/not-computed), never a stale number')
+
+  // A journal, once assembled, is parsed into results — junk lines skipped.
+  mkdirSync(join(d, 'trajectories'), { recursive: true })
+  writeFileSync(join(d, 'trajectories', 'journal.jsonl'),
+    JSON.stringify({ result: { claim_count: 20 } }) + '\nnot json\n' + JSON.stringify({ result: { claim_count: 22 } }) + '\n')
+  const parsed = readResults(d)
+  assert.equal(parsed.length, 2, 'readResults collects result objects and skips unparseable lines')
+  assert.equal(parsed[1].claim_count, 22)
 })
