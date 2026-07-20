@@ -68,7 +68,7 @@ feov-record: verb "close" is outside this seat's role (available: register, revi
 
 ── verb outside the bench role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, assemble, friction, render, show)
+feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, outcome, assemble, friction, render, show)
 
 ── unknown verb
 exit 2

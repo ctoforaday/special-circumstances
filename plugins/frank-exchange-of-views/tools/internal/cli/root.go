@@ -42,11 +42,15 @@ import (
 //	       consumer branches on — a wire-shape change a stale binary would not produce.
 //	0.6.0  `bench assemble` writes report.md in-tool (verbatim sections + board risk matrix);
 //	       a prompt that drives it needs the binary that has the verb.
+//	0.7.0  `bench outcome` records the terminal verdict as an event, and `bench assemble`
+//	       drops --inputs entirely: the report is composed from the record (event log +
+//	       board) and blue's audited report, so a driving prompt needs the inputs-free verb
+//	       and the outcome verb it now depends on.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.6.0"
+const Version = "0.7.0"
 
 func init() { record.ToolVersion = Version }
 

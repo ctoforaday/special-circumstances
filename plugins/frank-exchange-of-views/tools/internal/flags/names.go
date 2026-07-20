@@ -45,10 +45,6 @@ const (
 	// result (and structured errors) for machine consumers; the default is human text.
 	JSON = "json"
 
-	// The report assembler's judgment inputs (verdict, TL;DR, synopsis, open questions),
-	// handed in as a JSON file by the assemble seat.
-	Inputs = "inputs"
-
 	// The prose payload, in its three interchangeable forms.
 	File = "file"
 	Text = "text"
@@ -139,6 +135,11 @@ const (
 	Petitioner = "petitioner"
 	Relief     = "relief"
 
+	// The run's terminal determination (bench outcome). The verdict rides on --as; these
+	// two say HOW a non-pass ended, and are booleans because each is present-or-not.
+	Deadlocked = "deadlocked"
+	Exhausted  = "exhausted"
+
 	// Blue's process record.
 	Line        = "line"
 	Method      = "method"
@@ -159,7 +160,7 @@ const (
 // close it. Adding a constant without adding it here fails the round-trip.
 func All() []string {
 	return []string{
-		Run, SeatID, JSON, Inputs,
+		Run, SeatID, JSON,
 		File, Text,
 		Comment, CommentFile,
 		ID, IDs, Label, Claim, Key, Location, Reference, Row, View,
@@ -170,6 +171,7 @@ func All() []string {
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,
+		Deadlocked, Exhausted,
 		Line, Method, ClaimCount, AccessDate, Observation,
 	}
 }

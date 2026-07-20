@@ -241,15 +241,16 @@ test('synthesis prompt demands minority-claim provenance tagging (row 5, cheap m
   assert.ok(synth.prompt.includes('exactly ONE lane') && synth.prompt.includes('minority'), 'provenance tagging missing from synthesis')
 })
 
-test('assembly receives blue open_questions for the template section (row 9)', async () => {
+test('blue authors ## Open questions inside the audited report; assembly lifts it, never receives it as input', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ open_questions: ['does the schema guarantee conformance-or-null?'] })],
     red: [redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
+  const synth = world.calls.find((c) => c.opts.label.startsWith('blue-synthesize'))
+  assert.ok(synth.prompt.includes('## Open questions'), 'blue authors the open-questions section inside the audited report')
   const asm = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(asm.prompt.includes('open_questions'), 'open_questions is carried into the assemble inputs')
-  assert.ok(asm.prompt.includes('conformance-or-null'))
+  assert.ok(!asm.prompt.includes('open_questions'), 'assembly does not receive open_questions as an input — it lifts blue’s audited section verbatim')
 })
 
 test('blue response reads transcript RED/LEAD sections first and must propagate corrections everywhere (row 22)', async () => {
@@ -712,7 +713,7 @@ test('W1.9: routed_to_infrastructure leaves red verdict pool and ships as a name
   const judgePrompt = world.calls.find((c) => c.opts.label.startsWith('judge-r'))
   assert.ok(judgePrompt.prompt.includes('routed_to_infrastructure'), 'the disposition is offered in the resolution set')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(assemble.prompt.includes('infra_debts'), 'the infra debts are carried into the assemble inputs')
+  assert.ok(assemble.prompt.includes('opinions and petition rulings'), 'infra debts ship as routed_to_infrastructure opinions the tool composes from the debate record — not hand-carried inputs')
 })
 
 test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset batching, large-source rule', async () => {
@@ -849,7 +850,7 @@ test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbat
   assert.ok(result.halt_opinion.includes('the human must decide'))
   assert.ok(!world.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'the round never continued past the halt')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(assemble.prompt.includes('halt_opinion') && assemble.prompt.includes('the human must decide'), 'the halt opinion is carried verbatim into the assemble inputs (the tool quotes it)')
+  assert.ok(assemble.prompt.includes('--as HALTED') && assemble.prompt.includes('terminal halt'), 'the halt is recorded via bench outcome (verdict HALTED) and the tool composes the terminal halt from the record')
 })
 
 test('W2c: no petitions -> no sitting (zero cost); granted relief binds subsequent seats', async () => {
@@ -901,7 +902,7 @@ test('W2g: blue authors the catechism at round 0 inside the audited report; asse
   assert.ok(synth.prompt.includes('THE CATECHISM IS YOURS') && synth.prompt.includes('## The Catechism'), 'catechism is blue round-0 duty')
   assert.ok(synth.prompt.includes('every risk-accepted residual'), 'against-case at full strength demanded (the E0.5h/catechism-audit omission class)')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(assemble.prompt.includes('CANNOT mis-author the catechism') && assemble.prompt.includes('do NOT copy sections yourself'), 'the tool does the union-copy; the seat is told not to hand-write')
+  assert.ok(assemble.prompt.includes('cannot mis-author a synthesis surface') && assemble.prompt.includes('do not copy anything yourself'), 'the tool composes/lifts; the seat is told to author nothing and copy nothing')
 })
 
 // ---- W2h: the scorecard visibility loop reaches the seat ----
@@ -1020,7 +1021,7 @@ test('lines of inquiry: every blue seat is told to record avenues; red L5/L6 aud
   assert.ok(!/STEELMAN DUTY/.test(p('red-lens-1-r1')), 'citation slices verify sources, not arguments')
 
   // The exploration space reaches the reader, not just the record.
-  assert.ok(/lines-of-inquiry/.test(p('assemble')), 'the tool carries the lines-of-inquiry into the report')
+  assert.ok(/expansions and alternatives-considered/.test(p('assemble')), 'the avenues reach the report as the expansions (pursued) and the alternatives considered (abandoned/declined)')
 })
 
 test('lines of inquiry: no record tool -> no clause (the verb is the mechanism)', async () => {
@@ -1066,7 +1067,7 @@ test('CEILING is distinct from UNVERIFIED: a judged deadlock and a PASS keep the
   const out = await ceiling.run(script, { ...ARGS, maxRounds: 2 })
   assert.equal(out.verdict, 'CEILING')
   const asm = ceiling.calls.find((c) => c.opts.label.startsWith('assemble')).prompt
-  assert.ok(/"verdict":"CEILING"/.test(asm), 'the tool is driven with the CEILING verdict; the stamp text (never red-audited, re-audit debt OUT of the run) is tested in internal/report')
+  assert.ok(/--as CEILING/.test(asm), 'the tool is driven to record the CEILING verdict via bench outcome; the stamp text (never red-audited, re-audit debt OUT of the run) is tested in internal/report')
 })
 
 // The docket carries PERSISTING disputes: re-raised, or descending by supersedes. A gap

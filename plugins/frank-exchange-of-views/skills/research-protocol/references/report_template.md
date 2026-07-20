@@ -1,49 +1,48 @@
-# <Topic> — research report
+<!--
+  report.md is ASSEMBLED FROM THE RECORD by `feov-record bench assemble`. Nothing is
+  authored at assembly. Two ownership classes, marked per section below:
 
-**Verdict:** VERIFIED | UNVERIFIED (after <N> debate rounds) · **Run:** `research/<date>_<slug>/`
-**TL;DR:** <3–6 sentences: the answer, the confidence, the sharpest caveat.>
+    [BLUE] — authored by blue INSIDE blue/report.md, audited by red every round (red
+             re-reads the full report each round), and LIFTED VERBATIM here. A synthesis
+             surface authored at assembly would be authored after red's last audit, so it
+             lives in the audited document instead. A missing one is flagged, never filled.
 
-## The Catechism
+    [RECORD] — composed by the tool from the event log + board. The source of truth is the
+               records/ event log, never the rendered projection .md files.
 
-<The agreed answers — see catechism_template.md (the worth-our-time decision: the case against, of-interest-vs-interesting, cost and stopping points). After the summary, before the meat.>
+  This file is the map, not a form to fill in.
+-->
 
-## Technical foundations
+# <Topic> — research report            <!-- [BLUE] the H1 title -->
 
-<What is established, with leaf-node citations.>
+**Verdict:** VERIFIED | UNVERIFIED | CEILING | HALTED   <!-- [RECORD] the terminal `outcome` event -->
 
-## Analysis
+## TL;DR                                <!-- [BLUE] 3–6 sentences: the answer, the confidence, the sharpest caveat -->
 
-<The argument from foundations to conclusions. Alternatives considered and why the conclusion beat them.>
+## The Catechism                        <!-- [BLUE] the agreed answers, the case against at full strength (see catechism_template.md) -->
 
-## Risk matrix
+## Technical foundations                <!-- [BLUE] what is established, with leaf-node citations -->
+
+## Analysis                             <!-- [BLUE] the argument from foundations to conclusions -->
+
+## Risk matrix                          <!-- [RECORD] every open gap's grades, from the board -->
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| <risk> | low/med/high | low/med/high | low/med/high | <mitigation, partial mitigation, or `risk_accepted` + rationale> |
+| <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `risk_accepted` + rationale> |
 
-Risk-accepted items are recorded here with their rejection rationale — elevated, never dropped.
+## The expansions                       <!-- [RECORD] avenues PURSUED — a concept expansion accepted -->
 
-## Blue team report (in full)
+## Alternatives considered              <!-- [RECORD] avenues abandoned/declined — the alternative and its reason (the counter) -->
 
-<blue/report.md embedded verbatim — union, not summary.>
+## Open questions                       <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
 
-## Red team findings (in full)
+## Blue team report (in full)           <!-- [BLUE] blue/report.md embedded verbatim — union, not summary -->
 
-<red/ledger.md then red/archive.md embedded verbatim — final verdict, every open gap, and the full closure record.>
+## Red team findings (in full)          <!-- [RECORD] open gaps with grades + the closure index, from the board -->
 
-## Debate record
+## The debate                           <!-- [RECORD] ONE transcript: per round the parties' positions, closings and grade
+                                              disputes, then the bench's opinions and petition rulings; then the terminal
+                                              bench disposition (halt / certification) -->
 
-<Per-round one-line synopsis + pointer to debate.md for the literal transcript.>
-
-## Open questions carried past this run
-
-<Blue's final open_questions, verbatim — the envelope carries them every round and this is
-their home; a question nobody could answer inside the debate is a finding, not noise. Feed
-candidates back to /research or /self-improve.>
-
-## Footnotes
-
-<Semantic word-based footnotes: [^WordLabel]: Title — Source URL — Accessed date. For living
-sources (issue trackers, READMEs, other runs' findings files), also note volatility and the
-round last verified — access-date deltas are how drift is caught (a source can move while the
-citing prose stands still).>
+## Footnotes                            <!-- [RECORD] the consolidated bibliography from the citation record (forthcoming) -->

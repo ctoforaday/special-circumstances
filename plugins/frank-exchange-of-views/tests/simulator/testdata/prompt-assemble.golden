@@ -1,14 +1,13 @@
-prompt sha256: 3c6ff41e22fae370a92c2ded4261f367398c241dec41f8b29502a1da91b49231
+prompt sha256: a220222f64d5442a20606da643420ea01f67dc22d7a9c7196103c7d55f5c30bb
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
-THE TOOL ASSEMBLES THE REPORT NOW: "null/feov-record" bench assemble copies the verbatim sections (Catechism, technical foundations, analysis) from blue/report.md, embeds blue's report and red's board IN FULL, generates the graded risk matrix from the board's open gaps, stamps the verdict (including the CEILING/HALTED terminal states), and carries the lines-of-inquiry and open questions.
-A tool CANNOT mis-author the catechism — the run-5 defect (an assembly-authored catechism regressed 6/7 answers) is made structurally impossible.
-You do NOT hand-write report.md and you do NOT copy sections yourself.
-YOUR JUDGMENT is TWO things only: (1) the TL;DR — read research/2026-01-01_golden/blue/report.md and write 3-6 sentences (the answer, the confidence, the sharpest caveat); (2) the per-round synopsis — read the "### LEAD"/"### RED"/"### BLUE" sections of research/2026-01-01_golden/debate.md and write ONE line per round (the literal transcript stays in debate.md).
-Write your assembly inputs as JSON to <your session scratchpad>/assembly-inputs.json (ABSOLUTE scratchpad path, never under research/2026-01-01_golden), filling ONLY the two <FILL> string fields and changing nothing else: {"verdict":"VERIFIED","topic":"the seat prompt contract","rounds":2,"deadlocked":false,"exhausted":false,"open_questions":[],"tldr":"<FILL: your 3-6 sentence TL;DR>","synopsis":"<FILL: one line per round>"}.
-Then run "null/feov-record" bench assemble --run research/2026-01-01_golden --inputs <your scratchpad>/assembly-inputs.json — it writes research/2026-01-01_golden/report.md.
-Verify report.md exists and read its top; the stamp and the risk matrix are the tool's, not yours.
+THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs.
+After registering, exactly two tool calls in order: (1) record the terminal verdict as a fact — "null/feov-record" bench outcome --run research/2026-01-01_golden --seat-id <your SEAT_ID> --as VERIFIED; (2) "null/feov-record" bench assemble --run research/2026-01-01_golden.
+The assembler composes research/2026-01-01_golden/report.md FROM THE EVENT LOG (the verdict stamp from the outcome event you just wrote, the graded risk matrix, the expansions and alternatives-considered from the avenue record, red's findings in full, and the entire debate transcript — positions, closings, grade disputes, the bench's opinions and petition rulings, the terminal halt/certification) and LIFTS blue's audited sections VERBATIM from blue/report.md (the title, the TL;DR, the Catechism, the technical foundations, the analysis, the open questions).
+A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report.
+There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself.
+Verify research/2026-01-01_golden/report.md exists and read its top — the verdict stamp is the outcome event's, the sections are blue's and the record's.
 Collated friction so far (report any of your own as well): [].
 FRICTION (assemble): report any friction in the envelope's friction field AND through the tool's friction verb — the verb is the durable record that survives a later phase abort.
 Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
