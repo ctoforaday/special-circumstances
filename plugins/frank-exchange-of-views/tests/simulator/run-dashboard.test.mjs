@@ -168,8 +168,8 @@ test('DEFECT: scorecard rows whose CLAUSE contains a colon reach the dashboard',
   // `unrecorded_claim_loss`, a DETECTOR carrying the whole additive invariant.
   // The same defect was just repaired in scorecards.mjs; this is its twin.
   const runDir = tmp()
-  mkdirSync(join(runDir, 'inputs'), { recursive: true })
-  writeFileSync(join(runDir, 'inputs', 'red-scorecard.md'), [
+  mkdirSync(join(runDir, 'records', 'render-shadow', 'scorecards'), { recursive: true })
+  writeFileSync(join(runDir, 'records', 'render-shadow', 'scorecards', 'red-scorecard.md'), [
     '# red scorecard', '',
     '## 2026-07-01_old-run', '',
     '- `stale_metric` [benchmark] — An earlier run: **99**', '',
@@ -208,8 +208,8 @@ test('scorecardSection: absent inputs, no scorecards, and unparseable rows all r
   assert.equal(scorecardSection(junk), '', 'a card with no parseable rows contributes no empty table')
   // Chair names and values are escaped — the file is machine-written, but it is
   // still untrusted input to an HTML document.
-  const esc = tmp(); mkdirSync(join(esc, 'inputs'), { recursive: true })
-  writeFileSync(join(esc, 'inputs', 'red-scorecard.md'), '## r\n\n- `m` [benchmark] — Clause: **<script>x</script>**\n')
+  const esc = tmp(); mkdirSync(join(esc, 'records', 'render-shadow', 'scorecards'), { recursive: true })
+  writeFileSync(join(esc, 'records', 'render-shadow', 'scorecards', 'red-scorecard.md'), '## r\n\n- `m` [benchmark] — Clause: **<script>x</script>**\n')
   const out = scorecardSection(esc)
   assert.ok(!out.includes('<script>'), 'values are escaped, never injected')
   assert.ok(out.includes('&lt;script&gt;'))

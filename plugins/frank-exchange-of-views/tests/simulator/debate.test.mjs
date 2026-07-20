@@ -415,11 +415,11 @@ test('sharding: ledger+archive replace findings.md in every seat prompt', async 
   await world.run(script, { ...ARGS, maxRounds: 2 })
   for (const c of world.calls) assert.ok(!c.prompt.includes('red/findings.md'), `findings.md leaked into: ${c.opts.label}`)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
-  assert.ok(merge.prompt.includes('red/ledger.md') && merge.prompt.includes('red/archive.md'), 'merge maintains both shards')
+  assert.ok(merge.prompt.includes('MINT each open gap') && merge.prompt.includes('feov-record merge'), 'merge writes the board through the tool, not hand-written markdown')
   assert.ok(merge.prompt.includes('NEAR-MATCH RULE'), 'near-match forces the archive read before a fresh id (§4.5 cond 3)')
   assert.ok(merge.prompt.includes('drift triggers'), 'volatile-source closures inherit drift re-checks (§4.5 cond 4)')
   const judge = world.calls.find(c => c.opts.label.startsWith('judge'))
-  assert.ok(judge.prompt.includes('red/ledger.md') && judge.prompt.includes('DEMANDED READS'), 'judge reads ledger + demanded ancestor archive reads')
+  assert.ok(judge.prompt.includes('render-shadow/ledger.md') && judge.prompt.includes('DEMANDED READS'), 'judge reads the tool-rendered ledger + demanded ancestor archive reads')
 })
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
@@ -427,14 +427,14 @@ test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 
     red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [], ledger_closure_lines: 1, archive_blocks: 1 }),
           redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] })],
   }))
-  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 3 }), /round 2 reported no archive spot-checks/)
+  await assert.doesNotReject(world.run(script, { ...ARGS, maxRounds: 3 }), 'RETIRED: the spot-check floor trusted red-merge self-report; the tool board is authoritative now')
 })
 
 test('shard counts: closure-index lines != archive blocks is a self-inconsistent self-report and aborts', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ verdict: 'PASS', ledger_closure_lines: 3, archive_blocks: 2 })],
   }))
-  await assert.rejects(world.run(script, ARGS), /self-inconsistent shard self-report/)
+  await assert.doesNotReject(world.run(script, ARGS), 'RETIRED: the count gate compared two self-reported numbers; the tool board is authoritative now')
 })
 
 test('dispute routing: an UNADDRESSED dispute auto-dockets (default-to-docket punishes silence)', async () => {
@@ -605,9 +605,9 @@ test('GRADE enum carries compound grades and the pinned mass mapping is total ov
 test('shard creator: round-1 merge creates both shards; round 2 updates, never recreates (R4-6 one-creator)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  assert.ok(world.calls.find(c => c.opts.label.startsWith('red-merge-r1')).prompt.includes('ROUND 1: create BOTH files'))
+  assert.ok(world.calls.find(c => c.opts.label.startsWith('red-merge-r1')).prompt.includes('MINT each open gap'), 'round-1 merge mints through the tool, does not hand-write shards')
   const m2 = world.calls.find(c => c.opts.label.startsWith('red-merge-r2'))
-  assert.ok(m2.prompt.includes('Update the ledger in place') && !m2.prompt.includes('ROUND 1: create BOTH'), 'round 2 must not recreate')
+  assert.ok(m2.prompt.includes('MINT each open gap') && !m2.prompt.includes('create BOTH'), 'round 2 also mints through the tool, never hand-writes')
 })
 
 test('gap-pattern memory: all three blue seat classes are pointed at the staged inventory (GAP-33)', async () => {
@@ -696,9 +696,7 @@ test('W1.8: empty spot-checks are EXEMPT when the archive entered the round with
           redEnv({ verdict: 'PASS', archive_spot_checks: [], ledger_closure_lines: 0, archive_blocks: 0 })],
   }))
   const result = await world.run(script, { ...ARGS, maxRounds: 3 })
-  assert.equal(result.verdict, 'VERIFIED', 'run completes — the floor keys on round-START archive state, not the round number')
-  const merge2 = world.calls.find((c) => c.opts.label.startsWith('red-merge-r2'))
-  assert.ok(merge2.prompt.includes('round-START archive state'), 'merge prompt states the keying rule')
+  assert.equal(result.verdict, 'VERIFIED', 'run completes — the spot-check floor gate is RETIRED, so empty spot-checks never abort')
 })
 
 test('W1.9: routed_to_infrastructure leaves red verdict pool and ships as a named infra debt', async () => {
@@ -731,7 +729,7 @@ test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset
   assert.ok(lens.prompt.includes('KNOWN HARNESS LIMIT') && lens.prompt.includes('SANCTIONED fallback'), 'Glob/Grep fallback sanctioned everywhere via speedClause (W1.11)')
   assert.ok(respond.prompt.includes('respond-1-workset'), 'respond FIRST ACTION batches its working set (W1.12)')
   const citLens = world.calls.filter((c) => c.opts.label.startsWith('red-lens')).find((c) => c.prompt.includes('CITATION LEDGER'))
-  assert.ok(citLens && citLens.prompt.includes('LARGE SOURCES') && citLens.prompt.includes('--comments'), 'citation lens carries the truncation rule (W1.12)')
+  assert.ok(citLens && citLens.prompt.includes('VERBATIM READS ONLY') && citLens.prompt.includes('--comments'), 'citation lens carries the verbatim-reads rule (no WebFetch, curl/gh only)')
 })
 
 // ---- W2b engine mechanics ----

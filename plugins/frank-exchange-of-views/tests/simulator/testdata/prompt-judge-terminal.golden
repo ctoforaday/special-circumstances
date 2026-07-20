@@ -1,8 +1,8 @@
-prompt sha256: 1978f289be6524fffd4e469b93a50eb33692f3b577044ecef6c1d24e0ddde1f8
+prompt sha256: 6a37df906f4b13f3ccae471410d811c2f02d6ef23b597fa7a67494875c9da819
 
 Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
 Undisposed grade disputes: [{"gap_id":"R1-1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
-Read research/2026-01-01_golden/debate.md and research/2026-01-01_golden/red/ledger.md in full.
+Read research/2026-01-01_golden/debate.md and research/2026-01-01_golden/records/render-shadow/ledger.md in full.
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 The resolution set at a terminal exit EXCLUDES carried — rule each dispute grade_adjusted (state the corrected grade in the rationale; assembly records the delta) or unresolved (the contested grade ships, recorded as contested in the report). deadlock: false.
 Append your "### LEAD (terminal disputes)" ruling to research/2026-01-01_golden/debate.md.

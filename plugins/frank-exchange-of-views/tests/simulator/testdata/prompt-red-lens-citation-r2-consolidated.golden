@@ -1,10 +1,14 @@
-prompt sha256: e28ba21f7fa0b527bc4d97a95d305ff03d96c6f85b9f10a755b479d93185abc0
+prompt sha256: 03f7e8d72db9ed68ea0c575b1c952e499c25339e3d23cbc218c9af623620bd7f
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 CITATION LEDGER: read research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
 Append every claim you verify to the ledger (one line: claim | reference | confidence | round | access-date).
 MUST-TRY OBSERVABLE: every citation you grade DOWN (below high) MUST carry an attempt-or-impossibility line in your pass — which extraction tool or path you tried, or why none was triable; an untried "unable to corroborate" is an incomplete audit (run 4 caught a false "paywalled" on an open-access paper this clause would have exposed at round 0).
-LARGE SOURCES (W1.12): a truncated fetch is NOT a read — for GitHub issues/PRs default to `gh issue view <n> --comments` via Bash (WebFetch is lossy on threads, run-5 friction); if a source exceeds one fetch, fetch it in sections and say so; never grade from a truncated body without stating the truncation in your pass.
+VERBATIM READS ONLY — you have no WebFetch, by design (it returns a small model's SUMMARY, not the source).
+Citation verification reads the SOURCE: pull it verbatim with Bash — `curl -sL <url>` for a page, `gh issue view <n> --comments` for a GitHub thread, `pdftotext`/pandoc for a PDF — and read it YOURSELF.
+WebSearch is for DISCOVERY (find the URL); the read that GRADES a claim is always verbatim.
+If a source is too large for your context, read it in SECTIONS (paginate, curl byte ranges, or pdftotext then grep the region) and name the sections you read.
+A truncated read is NOT a read: state truncation in your pass, and never grade a body you could not fully read.
 CONSOLIDATED CITATION SEAT (W2i): from round 2 the citation seats are deliberately fewer, because the ledger means a claim verified HIGH does not un-verify — your round's work is the NEW and the STALE surface, not the whole corpus again.
 Your duty is three things, in order: (1) verify every claim in your slice that is NEW or whose section CHANGED this round (blue's CHANGELOG names them); (2) re-fetch everything in your slice the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of your slice's already-verified pairs — your discretion which, and reopen any that has drifted.
 COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep, and the consolidation is only sound while the gap is visible..

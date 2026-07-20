@@ -1,11 +1,15 @@
-prompt sha256: 0f928871bd23581412b0cf49774caf3d3f45462b383745759c2329e4217091b0
+prompt sha256: 6174b0b2f3d1711abcde12679055333ba8f2366ae7840ec0766d58df720efa09
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; footnote-block ownership follows the slice (instance 1 owns the footnote definitions its sections reference).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
 CITATION LEDGER: read research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
 Append every claim you verify to the ledger (one line: claim | reference | confidence | round | access-date).
 MUST-TRY OBSERVABLE: every citation you grade DOWN (below high) MUST carry an attempt-or-impossibility line in your pass — which extraction tool or path you tried, or why none was triable; an untried "unable to corroborate" is an incomplete audit (run 4 caught a false "paywalled" on an open-access paper this clause would have exposed at round 0).
-LARGE SOURCES (W1.12): a truncated fetch is NOT a read — for GitHub issues/PRs default to `gh issue view <n> --comments` via Bash (WebFetch is lossy on threads, run-5 friction); if a source exceeds one fetch, fetch it in sections and say so; never grade from a truncated body without stating the truncation in your pass..
+VERBATIM READS ONLY — you have no WebFetch, by design (it returns a small model's SUMMARY, not the source).
+Citation verification reads the SOURCE: pull it verbatim with Bash — `curl -sL <url>` for a page, `gh issue view <n> --comments` for a GitHub thread, `pdftotext`/pandoc for a PDF — and read it YOURSELF.
+WebSearch is for DISCOVERY (find the URL); the read that GRADES a claim is always verbatim.
+If a source is too large for your context, read it in SECTIONS (paginate, curl byte ranges, or pdftotext then grep the region) and name the sections you read.
+A truncated read is NOT a read: state truncation in your pass, and never grade a body you could not fully read..
 Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
 Anchor every finding to a section heading plus a quoted sentence.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.

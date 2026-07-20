@@ -95,7 +95,12 @@ export function projectCompletion(seats, nowMs = Date.now()) {
 }
 
 export function buildModel(runDir, transcriptDir) {
-  const telemetry = jsonl(join(runDir, 'trajectories', 'board-telemetry.jsonl'))
+  // Live board ground truth comes from the TOOL's render (migrated 2026-07-19), with the
+  // legacy trajectories/ path as a fallback for pre-migration runs. Reading only the old
+  // path left the live panel blank while the seed panel looked populated — backwards.
+  const renderTel = join(runDir, 'records', 'render-shadow', 'board-telemetry.jsonl')
+  const legacyTel = join(runDir, 'trajectories', 'board-telemetry.jsonl')
+  const telemetry = jsonl(existsSync(renderTel) ? renderTel : legacyTel)
   const journal = jsonl(join(transcriptDir, 'journal.jsonl'))
 
   // Lifecycle by agentId from the journal; identity by prompt classification from the
@@ -341,7 +346,17 @@ export function summarizeResult(raw) {
 // bold, diagnostics muted, and a detector that has fired reads as an alarm
 // because any nonzero detector is a finding.
 export function scorecardSection(runDir) {
-  const inputs = join(runDir, 'inputs')
+  // GROUND TRUTH NOW, or nothing. The dashboard used to render inputs/*-scorecard.md —
+  // but those are the PRIOR run's scorecards, staged as the chairs' SEED (their memory,
+  // shown in their prompts). Rendering the seed on the live dashboard reported a
+  // predecessor's numbers as this run's, so a fresh run showed a populated bench and a
+  // repair_regression_ratio before anything had been repaired — limbo, not ground truth.
+  //
+  // The seed belongs in the chairs' prompts; this run's own scorecards do not exist until
+  // CAPTURE (post-run) computes them. So the live dashboard shows THIS run's computed
+  // scorecards when they exist, and a clean blank slate otherwise — never the seed.
+  const captured = join(runDir, 'records', 'render-shadow', 'scorecards')
+  const inputs = captured
   if (!existsSync(inputs)) return ''
   const cards = readdirSync(inputs).filter((f) => f.endsWith('-scorecard.md'))
   if (!cards.length) return ''
@@ -364,7 +379,7 @@ export function scorecardSection(runDir) {
         `<td style="${style}">${esc(value || 'not computed')}</td><td>${esc(clause.trim())}</td></tr>`
     }).join('') + '</table>')
   }
-  return blocks.length ? `<h2>scorecards — last capture</h2>${blocks.join('')}` : ''
+  return blocks.length ? `<h2>scorecards — this run</h2>${blocks.join('')}` : ''
 }
 
 export function renderHtml(m) {
