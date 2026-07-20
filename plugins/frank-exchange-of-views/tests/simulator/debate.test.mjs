@@ -197,14 +197,14 @@ test('blue-synthesize friction reaches the aggregate (row 21)', async () => {
   assert.ok(out.friction.includes('blue-synthesize: write-block on blue/report.md'))
 })
 
-test('every seat prompt carries the friction-to-file clause (row 24); lenses are transcript-forbidden and lens-scoped', async () => {
+test('every seat prompt carries the friction clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and lens-scoped', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
-    assert.ok(c.prompt.includes('append each entry to') && c.prompt.includes('friction.md'), `${seat} missing friction-persist clause`)
+    assert.ok(c.prompt.includes('friction verb') && c.prompt.includes("envelope's friction field"), `${seat} missing friction-report clause (envelope + verb)`)
   }
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
   assert.ok(lens.prompt.includes('MUST NOT write to') && lens.prompt.includes('debate.md'), 'lens must be transcript-forbidden')
@@ -408,7 +408,7 @@ test('batching: merge concatenates lens passes to an absolute scratchpad path, n
   assert.ok(merge.prompt.includes('never under research/2026-01-01_test'), 'run dir explicitly excluded')
 })
 
-test('sharding: ledger+archive replace findings.md in every seat prompt', async () => {
+test('the board is the tool: merge mints through feov-record, downstream seats pull via show, no findings.md', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
   }))
@@ -419,7 +419,7 @@ test('sharding: ledger+archive replace findings.md in every seat prompt', async 
   assert.ok(merge.prompt.includes('NEAR-MATCH RULE'), 'near-match forces the archive read before a fresh id (§4.5 cond 3)')
   assert.ok(merge.prompt.includes('drift triggers'), 'volatile-source closures inherit drift re-checks (§4.5 cond 4)')
   const judge = world.calls.find(c => c.opts.label.startsWith('judge'))
-  assert.ok(judge.prompt.includes('render-shadow/ledger.md') && judge.prompt.includes('DEMANDED READS'), 'judge reads the tool-rendered ledger + demanded ancestor archive reads')
+  assert.ok(judge.prompt.includes('--view ledger') && judge.prompt.includes('--view archive') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board via show --view ledger/archive (no materialized-path read)')
 })
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
@@ -908,7 +908,7 @@ test('W2g: blue authors the catechism at round 0 inside the audited report; asse
 
 // ---- W2h: the scorecard visibility loop reaches the seat ----
 
-test('W2h: each chair sees ITS OWN scorecard headline, with the class attached', async () => {
+test('priors-are-poison: the cross-run scorecard SEED is not injected into any chair prompt, even when scorecards are supplied', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, {
     ...ARGS,
@@ -920,17 +920,14 @@ test('W2h: each chair sees ITS OWN scorecard headline, with the class attached',
   })
   const promptOf = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
 
-  // Chair routing: a seat sees its own chair's numbers and no one else's. Handing
-  // red blue's ratio would be worse than handing it nothing.
-  assert.ok(promptOf('blue-synthesize').includes('repair_regression_ratio 0.63'), 'blue sees blue')
-  assert.ok(!promptOf('blue-synthesize').includes('anchored_closures_pct'), 'blue does not see red')
-  assert.ok(promptOf('red-lens').includes('anchored_closures_pct 89'), 'lenses are the red chair')
-  assert.ok(promptOf('red-merge-r1').includes('anchored_closures_pct 89'), 'so is the merge')
-  assert.ok(promptOf('assemble').includes('carried_share 0.98'), 'assembly is the bench chair')
-
-  // The GOODHART GUARD travels with the number: a diagnostic optimized is a
-  // defect, and a bare figure invites exactly that.
-  assert.ok(/gaming it is itself a defect/.test(promptOf('blue-synthesize')), 'the class semantics are stated')
+  // A prior run's numbers are Goodhart bait, topic-confounded, cross-model, and
+  // salience-priming (plans/priors-are-poison.md). No chair prompt carries the seed —
+  // the `scorecards` arg feeds operator analytics only. A chair reads its OWN in-run
+  // scorecard via `show --view scorecard` (Phase B), never a predecessor's numbers.
+  assert.ok(!promptOf('blue-synthesize').includes('repair_regression_ratio 0.63'), 'blue is not seeded with its prior number')
+  assert.ok(!promptOf('red-merge-r1').includes('anchored_closures_pct 89'), 'the merge is not seeded')
+  assert.ok(!promptOf('assemble').includes('carried_share 0.98'), 'assembly is not seeded')
+  assert.ok(!world.calls.some((c) => /YOUR CHAIR'S SCORECARD/.test(c.prompt)), 'the seed clause is gone entirely')
 })
 
 test('W2h: no scorecards -> no clause (a first run is not told it scored nothing)', async () => {
