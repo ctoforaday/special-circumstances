@@ -49,16 +49,19 @@ func TestTitleLiftedOrFlagged(t *testing.T) {
 }
 
 func TestRiskMatrixFromBoard(t *testing.T) {
+	longProblem := "Blue claims JSON float-loss above 2^53 causes H1 failure. Event logs serialize timestamps as ISO 8601 strings, so it does not manifest."
 	bj := record.BoardJSON{Open: []record.GapJSON{
 		{ID: "R1-1", Problem: "overclaims capture", Likelihood: "high", Impact: "medium", RequiredFix: "grep the sites"},
-		{ID: "R1-2", Problem: "cost model rough", Likelihood: "low", Impact: "low", Class: "risk_accepted", RequiredFix: "accepted: low blast radius"},
+		{ID: "R1-2", Problem: longProblem, Likelihood: "low", Impact: "low", RequiredFix: "verify serialization"},
 	}}
 	m := riskMatrix(bj)
 	if !strings.Contains(m, "| overclaims capture | high | medium | — | grep the sites |") {
-		t.Errorf("open gap row wrong:\n%s", m)
+		t.Errorf("short open gap row wrong:\n%s", m)
 	}
-	if !strings.Contains(m, "risk_accepted — accepted: low blast radius") {
-		t.Errorf("risk_accepted disposition not marked:\n%s", m)
+	// A long problem is distilled to its FIRST SENTENCE in the cell; the full text lives in
+	// Red team findings, so the matrix stays a scan surface.
+	if !strings.Contains(m, "Blue claims JSON float-loss above 2^53 causes H1 failure.") || strings.Contains(m, "does not manifest") {
+		t.Errorf("long problem not distilled to first sentence in the matrix cell:\n%s", m)
 	}
 	if !strings.Contains(m, "| — |") {
 		t.Errorf("absent complexity grade should render as a dash:\n%s", m)

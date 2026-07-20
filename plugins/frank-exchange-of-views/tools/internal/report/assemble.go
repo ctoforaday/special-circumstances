@@ -186,15 +186,26 @@ func riskMatrix(bj record.BoardJSON) string {
 		if strings.TrimSpace(risk) == "" {
 			risk = g.ID
 		}
-		disp := g.RequiredFix
-		if g.Class == "risk_accepted" || g.Class == "risk_argued" {
-			disp = "risk_accepted — " + disp
-		}
 		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
-			cell(risk), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(disp)))
+			cell(concise(risk)), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(concise(g.RequiredFix))))
 	}
-	b.WriteString("\nRisk-accepted items are recorded here with their rationale — elevated, never dropped.")
+	b.WriteString("\nThe matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.")
 	return b.String()
+}
+
+// concise returns a scannable one-line version of a long field — its first sentence, or a
+// hard-truncated head. A risk matrix is scanned, not read; the tool cannot summarize a
+// 60-word gap description, so it takes the lead sentence and leaves the full text in Red
+// team findings, where nothing is lost.
+func concise(s string) string {
+	s = strings.Join(strings.Fields(s), " ") // collapse internal whitespace/newlines
+	if i := strings.IndexAny(s, ".!?"); i > 0 && i <= 100 {
+		return strings.TrimSpace(s[:i+1])
+	}
+	if len(s) > 100 {
+		return strings.TrimSpace(s[:100]) + "…"
+	}
+	return s
 }
 
 // avenue fate: the user's mapping — an avenue PURSUED is a concept expansion accepted; an
