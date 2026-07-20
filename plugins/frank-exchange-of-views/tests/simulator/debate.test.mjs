@@ -248,7 +248,7 @@ test('assembly receives blue open_questions for the template section (row 9)', a
   }))
   await world.run(script, ARGS)
   const asm = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(asm.prompt.includes('Open questions carried past this run'))
+  assert.ok(asm.prompt.includes('open_questions'), 'open_questions is carried into the assemble inputs')
   assert.ok(asm.prompt.includes('conformance-or-null'))
 })
 
@@ -712,7 +712,7 @@ test('W1.9: routed_to_infrastructure leaves red verdict pool and ships as a name
   const judgePrompt = world.calls.find((c) => c.opts.label.startsWith('judge-r'))
   assert.ok(judgePrompt.prompt.includes('routed_to_infrastructure'), 'the disposition is offered in the resolution set')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(assemble.prompt.includes('INFRASTRUCTURE DEBTS'), 'assembly surfaces the debts section')
+  assert.ok(assemble.prompt.includes('infra_debts'), 'the infra debts are carried into the assemble inputs')
 })
 
 test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset batching, large-source rule', async () => {
@@ -849,7 +849,7 @@ test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbat
   assert.ok(result.halt_opinion.includes('the human must decide'))
   assert.ok(!world.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'the round never continued past the halt')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(assemble.prompt.includes('Stamp HALTED') && assemble.prompt.includes('VERBATIM') && assemble.prompt.includes('the human must decide'), 'assembly quotes the opinion in full, never smoothed')
+  assert.ok(assemble.prompt.includes('halt_opinion') && assemble.prompt.includes('the human must decide'), 'the halt opinion is carried verbatim into the assemble inputs (the tool quotes it)')
 })
 
 test('W2c: no petitions -> no sitting (zero cost); granted relief binds subsequent seats', async () => {
@@ -901,7 +901,7 @@ test('W2g: blue authors the catechism at round 0 inside the audited report; asse
   assert.ok(synth.prompt.includes('THE CATECHISM IS YOURS') && synth.prompt.includes('## The Catechism'), 'catechism is blue round-0 duty')
   assert.ok(synth.prompt.includes('every risk-accepted residual'), 'against-case at full strength demanded (the E0.5h/catechism-audit omission class)')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(assemble.prompt.includes('COPIED VERBATIM') && assemble.prompt.includes('DO NOT write one yourself'), 'assembly is union-copy with a stated refusal path')
+  assert.ok(assemble.prompt.includes('CANNOT mis-author the catechism') && assemble.prompt.includes('do NOT copy sections yourself'), 'the tool does the union-copy; the seat is told not to hand-write')
 })
 
 // ---- W2h: the scorecard visibility loop reaches the seat ----
@@ -1020,7 +1020,7 @@ test('lines of inquiry: every blue seat is told to record avenues; red L5/L6 aud
   assert.ok(!/STEELMAN DUTY/.test(p('red-lens-1-r1')), 'citation slices verify sources, not arguments')
 
   // The exploration space reaches the reader, not just the record.
-  assert.ok(/Lines of Inquiry/.test(p('assemble')), 'assembly copies the section into the report')
+  assert.ok(/lines-of-inquiry/.test(p('assemble')), 'the tool carries the lines-of-inquiry into the report')
 })
 
 test('lines of inquiry: no record tool -> no clause (the verb is the mechanism)', async () => {
@@ -1066,9 +1066,7 @@ test('CEILING is distinct from UNVERIFIED: a judged deadlock and a PASS keep the
   const out = await ceiling.run(script, { ...ARGS, maxRounds: 2 })
   assert.equal(out.verdict, 'CEILING')
   const asm = ceiling.calls.find((c) => c.opts.label.startsWith('assemble')).prompt
-  assert.ok(/CEILING-TERMINATED/.test(asm), 'assembly stamps it')
-  assert.ok(/never audited by a red pass/.test(asm), 'the unaudited final revision is named')
-  assert.ok(/re-audit obligation this carries OUT of the run/.test(asm), 'the debt leaves the run on the record')
+  assert.ok(/"verdict":"CEILING"/.test(asm), 'the tool is driven with the CEILING verdict; the stamp text (never red-audited, re-audit debt OUT of the run) is tested in internal/report')
 })
 
 // The docket carries PERSISTING disputes: re-raised, or descending by supersedes. A gap

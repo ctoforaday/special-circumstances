@@ -62,8 +62,8 @@ func TestStampVariesByVerdict(t *testing.T) {
 		t.Errorf("UNVERIFIED stamp: %q", s)
 	}
 	base.Verdict = "CEILING"
-	if s := stamp("/run", base); !strings.Contains(s, "CEILING-TERMINATED") || !strings.Contains(s, "judged failure") {
-		t.Errorf("CEILING stamp must not read as a failure: %q", s)
+	if s := stamp("/run", base); !strings.Contains(s, "CEILING-TERMINATED") || !strings.Contains(s, "judged failure") || !strings.Contains(s, "never audited by a red pass") || !strings.Contains(s, "travels OUT of the run") {
+		t.Errorf("CEILING stamp must name the re-audit debt and not read as a failure: %q", s)
 	}
 	base.Verdict = "HALTED"
 	if s := stamp("/run", base); !strings.Contains(s, "HALTED") {
