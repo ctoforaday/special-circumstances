@@ -23,30 +23,30 @@ func newSpotCheck() *cobra.Command {
 
 	c := seat.New(role, "spot-check",
 		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			none := seat.Given(cmd, flags.None)
 			if none && len(ids.Value()) > 0 {
-				return "", fmt.Errorf("--none and --ids are contradictory: either you sampled closures or there were none to sample")
+				return nil, fmt.Errorf("--none and --ids are contradictory: either you sampled closures or there were none to sample")
 			}
 			if none && strings.TrimSpace(seat.Str(cmd, flags.Reason)) == "" {
-				return "", fmt.Errorf("--none requires --reason: an empty discharge that does not say WHY is indistinguishable from a skipped duty")
+				return nil, fmt.Errorf("--none requires --reason: an empty discharge that does not say WHY is indistinguishable from a skipped duty")
 			}
 			p := record.NewPayload()
 			seat.SetList(p, "ids", &ids)
 			if err := seat.SetLongForm(cmd, p, "notes", flags.Notes); err != nil {
-				return "", err
+				return nil, err
 			}
 			if none {
 				p.Set("none", true)
 				seat.SetSame(cmd, p, flags.Reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "spot-check", p); err != nil {
-				return "", err
+				return nil, err
 			}
 			if none {
-				return "spot-check: nothing to sample, recorded with its reason", nil
+				return spotCheckResult{}, nil
 			}
-			return fmt.Sprintf("spot-checked %s", strings.Join(ids.Value(), ", ")), nil
+			return spotCheckResult{Sampled: ids.Value()}, nil
 		})
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this round")
@@ -67,4 +67,15 @@ func newSpotCheck() *cobra.Command {
 	c.Flags().Bool(flags.None, false, "the archive was empty at round start, so there was nothing to sample (requires --reason)")
 	c.Flags().String(flags.Reason, "", "why there was nothing to sample")
 	return seat.Prose(c)
+}
+
+type spotCheckResult struct {
+	Sampled []string `json:"sampled"`
+}
+
+func (r spotCheckResult) Human() string {
+	if len(r.Sampled) == 0 {
+		return "spot-check: nothing to sample, recorded with its reason"
+	}
+	return "spot-checked " + strings.Join(r.Sampled, ", ")
 }

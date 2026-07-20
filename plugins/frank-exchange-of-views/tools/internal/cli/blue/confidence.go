@@ -1,8 +1,6 @@
 package blue
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -19,7 +17,7 @@ import (
 func newConfidence() *cobra.Command {
 	c := seat.New(role, "confidence",
 		"per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low",
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// The FLAG WORDS are --claim and --confidence, matching `lens cite`; the
 			// PAYLOAD KEYS stay label/grade, which is the event schema and moves on its
 			// own schedule. Set rather than SetSame is what lets the two differ.
@@ -27,9 +25,9 @@ func newConfidence() *cobra.Command {
 			seat.Set(cmd, p, "label", flags.Claim)
 			seat.Set(cmd, p, "grade", flags.Confidence)
 			if _, err := record.Append(s.RunDir, s.SeatID, "confidence", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("confidence recorded for %s", seat.Str(cmd, flags.Claim)), nil
+			return confidenceResult{Claim: seat.Str(cmd, flags.Claim)}, nil
 		})
 
 	// --label meant "your lens-scoped finding label" on two other verbs and "the claim
@@ -39,3 +37,9 @@ func newConfidence() *cobra.Command {
 	c.Flags().String(flags.Confidence, "", "high | medium | low — your confidence in the claim")
 	return c
 }
+
+type confidenceResult struct {
+	Claim string `json:"claim"`
+}
+
+func (r confidenceResult) Human() string { return "confidence recorded for " + r.Claim }

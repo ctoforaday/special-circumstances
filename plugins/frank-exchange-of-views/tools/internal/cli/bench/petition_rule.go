@@ -1,8 +1,6 @@
 package bench
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -18,19 +16,19 @@ import (
 func newPetitionRule() *cobra.Command {
 	c := seat.Prose(seat.New(role, "petition-rule",
 		"rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --file <opinion> (a halt is its own verb)",
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Petitioner)
 			seat.Set(cmd, p, "class", flags.PetitionClass)
 			seat.Set(cmd, p, "ruling", flags.As)
 			p.Set("opinion", text)
 			if _, err := record.Append(s.RunDir, s.SeatID, "petition-rule", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("petition %s (%s)", seat.Str(cmd, flags.As), seat.Str(cmd, flags.Petitioner)), nil
+			return petitionRuleResult{Ruling: seat.Str(cmd, flags.As), Petitioner: seat.Str(cmd, flags.Petitioner)}, nil
 		}))
 
 	c.Flags().String(flags.Petitioner, "", "the seat that filed the petition")
@@ -38,3 +36,10 @@ func newPetitionRule() *cobra.Command {
 	c.Flags().String(flags.As, "", "granted | denied — a halt is its own verb")
 	return c
 }
+
+type petitionRuleResult struct {
+	Ruling     string `json:"ruling"`
+	Petitioner string `json:"petitioner"`
+}
+
+func (r petitionRuleResult) Human() string { return "petition " + r.Ruling + " (" + r.Petitioner + ")" }

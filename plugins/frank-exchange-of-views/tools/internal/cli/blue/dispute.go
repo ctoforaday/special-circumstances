@@ -1,8 +1,6 @@
 package blue
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -21,17 +19,17 @@ func newDispute() *cobra.Command {
 
 	c := seat.New(role, "dispute",
 		`contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --basis "..."`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			seat.SetSame(cmd, p, flags.Dimension)
 			seat.SetGrade(p, "proposed", &proposed)
 			if err := seat.SetLongForm(cmd, p, "evidence", flags.Basis); err != nil {
-				return "", err
+				return nil, err
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("dispute filed on %s.%s", seat.Str(cmd, flags.ID), seat.Str(cmd, flags.Dimension)), nil
+			return disputeResult{GapID: seat.Str(cmd, flags.ID), Dimension: seat.Str(cmd, flags.Dimension)}, nil
 		})
 
 	c.Flags().String(flags.ID, "", "the gap id")
@@ -40,3 +38,10 @@ func newDispute() *cobra.Command {
 	c.Flags().String(flags.Basis, "", "why, citing the exact section")
 	return seat.Prose(c)
 }
+
+type disputeResult struct {
+	GapID     string `json:"gap_id"`
+	Dimension string `json:"dimension"`
+}
+
+func (r disputeResult) Human() string { return "dispute filed on " + r.GapID + "." + r.Dimension }

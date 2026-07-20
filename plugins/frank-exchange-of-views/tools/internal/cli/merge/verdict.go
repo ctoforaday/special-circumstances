@@ -25,21 +25,20 @@ import (
 func newVerdict() *cobra.Command {
 	c := seat.New(role, "verdict",
 		"the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror",
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
 			if _, err := record.Append(s.RunDir, s.SeatID, "verdict", p); err != nil {
-				return "", err
+				return nil, err
 			}
 			r, err := record.Render(s.RunDir, "")
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			mirror, err := checkpoint(s.RunDir)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("verdict %s — rendered (%d open, %d closed) and checkpointed to %s",
-				seat.Str(cmd, flags.As), r.Open, r.Closed, mirror), nil
+			return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: r.Open, Closed: r.Closed, Checkpoint: mirror}, nil
 		})
 
 	c.Flags().String(flags.As, "", "PASS | FAIL — the seat's terminal act")
@@ -103,4 +102,15 @@ func copyFile(src, dst string) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+type verdictResult struct {
+	Verdict    string `json:"verdict"`
+	Open       int    `json:"open"`
+	Closed     int    `json:"closed"`
+	Checkpoint string `json:"checkpoint"`
+}
+
+func (r verdictResult) Human() string {
+	return fmt.Sprintf("verdict %s — rendered (%d open, %d closed) and checkpointed to %s", r.Verdict, r.Open, r.Closed, r.Checkpoint)
 }

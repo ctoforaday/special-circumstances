@@ -15,14 +15,14 @@ import (
 func newHalt() *cobra.Command {
 	return seat.Prose(seat.New(role, "halt",
 		"the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>",
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "halt", record.NewPayload().Set("opinion", text)); err != nil {
-				return "", err
+				return nil, err
 			}
-			return "JUDICIAL HALT recorded — capture relays this verbatim", nil
+			return seat.Msg{Message: "JUDICIAL HALT recorded — capture relays this verbatim"}, nil
 		}))
 }

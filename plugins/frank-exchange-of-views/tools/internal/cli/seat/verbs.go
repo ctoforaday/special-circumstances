@@ -25,41 +25,41 @@ import (
 // the bench is told the same verb from the other side.
 
 func Register(role, help string) *cobra.Command {
-	return New(role, "register", help, func(s Context, _ *cobra.Command) (string, error) {
+	return New(role, "register", help, func(s Context, _ *cobra.Command) (Result, error) {
 		nonce, _, err := record.RegisterSeat(s.RunDir, s.SeatID)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		return fmt.Sprintf("registered %s (shard nonce %s)", s.SeatID, nonce), nil
+		return registerResult{SeatID: s.SeatID, Nonce: nonce}, nil
 	})
 }
 
 func Friction(role, help string) *cobra.Command {
-	return Prose(New(role, "friction", help, func(s Context, cmd *cobra.Command) (string, error) {
+	return Prose(New(role, "friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Text(cmd)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if _, err := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", text)); err != nil {
-			return "", err
+			return nil, err
 		}
-		return "friction recorded", nil
+		return Msg{Message: "friction recorded"}, nil
 	}))
 }
 
 // Petition takes a suffix because the lens is told one more thing than the
 // others: that the bench hears it before the debate continues.
 func Petition(role, help, suffix string) *cobra.Command {
-	c := New(role, "petition", help, func(s Context, cmd *cobra.Command) (string, error) {
+	c := New(role, "petition", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		p := SetSame(cmd, record.NewPayload(), flags.Relief)
 		if err := SetLongForm(cmd, p, "basis", flags.Basis); err != nil {
-			return "", err
+			return nil, err
 		}
 		Set(cmd, p, "class", flags.PetitionClass)
 		if _, err := record.Append(s.RunDir, s.SeatID, "petition", p); err != nil {
-			return "", err
+			return nil, err
 		}
-		return fmt.Sprintf("petition filed (%s)%s", Str(cmd, flags.PetitionClass), suffix), nil
+		return petitionResult{Class: Str(cmd, flags.PetitionClass), Suffix: suffix}, nil
 	})
 	c.Flags().String(flags.PetitionClass, "", flags.DescPetitionClass)
 	c.Flags().String(flags.Basis, "", "what happened, and why it reaches the bench")
@@ -68,30 +68,30 @@ func Petition(role, help, suffix string) *cobra.Command {
 }
 
 func Position(role, help string) *cobra.Command {
-	return Prose(New(role, "position", help, func(s Context, cmd *cobra.Command) (string, error) {
+	return Prose(New(role, "position", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Text(cmd)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if _, err := record.Append(s.RunDir, s.SeatID, "position", record.NewPayload().Set("text", text)); err != nil {
-			return "", err
+			return nil, err
 		}
-		return "position recorded", nil
+		return Msg{Message: "position recorded"}, nil
 	}))
 }
 
 func Closing(role, help string) *cobra.Command {
-	c := Prose(New(role, "closing", help, func(s Context, cmd *cobra.Command) (string, error) {
+	c := Prose(New(role, "closing", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Text(cmd)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		p := Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 		p.Set("text", text)
 		if _, err := record.Append(s.RunDir, s.SeatID, "closing", p); err != nil {
-			return "", err
+			return nil, err
 		}
-		return fmt.Sprintf("closing filed for %s", Str(cmd, flags.ID)), nil
+		return closingResult{ID: Str(cmd, flags.ID)}, nil
 	}))
 	c.Flags().String(flags.ID, "", "the gap id this closing argues")
 	return c
@@ -118,7 +118,7 @@ func Render(role string) *cobra.Command {
 		if r.Anomalies > 0 {
 			extra = fmt.Sprintf(", %d anomalies", r.Anomalies)
 		}
-		fmt.Printf("feov-record %s: rendered to %s (%d open, %d closed%s)\n", role, r.Out, r.Open, r.Closed, extra)
+		fmt.Fprintf(cmd.OutOrStdout(), "feov-record %s: rendered to %s (%d open, %d closed%s)\n", role, r.Out, r.Open, r.Closed, extra)
 		return nil
 	}
 	return c
@@ -198,7 +198,7 @@ func Show(role string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			os.Stdout.Write(b)
+			cmd.OutOrStdout().Write(b)
 			return nil
 		}
 		if want == "" {
@@ -222,7 +222,7 @@ func Show(role string) *cobra.Command {
 		if err != nil {
 			return fmt.Errorf("%s show: the %s projection is not on disk after a render — this is a renderer defect, not a missing artifact: %w", role, want, err)
 		}
-		os.Stdout.Write(b)
+		cmd.OutOrStdout().Write(b)
 		return nil
 	}
 	c.Flags().String(flags.View, "", "which projection to read: "+strings.Join(viewNames(), " | ")+" (defaults to this role's own)")
@@ -302,3 +302,27 @@ func join(names []string) string {
 	}
 	return out
 }
+
+// registerResult, petitionResult and closingResult are the shared-verb results: these
+// three verbs are built by seat for every role, so their result types live beside them.
+type registerResult struct {
+	SeatID string `json:"seat_id"`
+	Nonce  string `json:"nonce"`
+}
+
+func (r registerResult) Human() string {
+	return "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
+}
+
+type petitionResult struct {
+	Class  string `json:"class"`
+	Suffix string `json:"suffix,omitempty"`
+}
+
+func (r petitionResult) Human() string { return "petition filed (" + r.Class + ")" + r.Suffix }
+
+type closingResult struct {
+	ID string `json:"id"`
+}
+
+func (r closingResult) Human() string { return "closing filed for " + r.ID }

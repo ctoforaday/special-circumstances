@@ -1,8 +1,6 @@
 package merge
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -21,23 +19,23 @@ func newMint() *cobra.Command {
 
 	c := seat.Prose(seat.New(role, "mint",
 		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// Crash-retry idempotency: --key (the stable local label, e.g. the source
 			// lens finding) makes a retried mint return the EXISTING id.
 			prior, err := record.ExistingMintByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key))
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			if prior != "" {
-				return fmt.Sprintf("minted %s (idempotent retry — existing id returned)", prior), nil
+				return mintResult{GapID: prior, Idempotent: true}, nil
 			}
 			gapID, err := record.MintGapID(s.RunDir, record.RoundOf(s.SeatID))
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			problem := seat.Str(cmd, flags.Problem)
 			if problem == "" {
@@ -65,16 +63,16 @@ func newMint() *cobra.Command {
 			seat.SetList(p, "found_by", &foundBy)
 
 			if _, err := record.Append(s.RunDir, s.SeatID, "mint", p); err != nil {
-				return "", err
+				return nil, err
 			}
 			if seat.Given(cmd, flags.ClassNew) {
 				cn := record.NewPayload().Set("slug", seat.Str(cmd, flags.ClassNew))
 				seat.SetSame(cmd, cn, flags.Definition, flags.Neighbor, flags.Distinguisher)
 				if _, err := record.Append(s.RunDir, s.SeatID, "class-new", cn); err != nil {
-					return "", err
+					return nil, err
 				}
 			}
-			return fmt.Sprintf("minted %s", gapID), nil
+			return mintResult{GapID: gapID}, nil
 		}))
 
 	c.Flags().String(flags.Key, "", "a stable local label (e.g. the source lens finding) making a retried mint idempotent")
@@ -94,4 +92,17 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
 	return c
+}
+
+// mintResult reports the tool-assigned gap id; a retry returns the existing one.
+type mintResult struct {
+	GapID      string `json:"gap_id"`
+	Idempotent bool   `json:"idempotent,omitempty"`
+}
+
+func (r mintResult) Human() string {
+	if r.Idempotent {
+		return "minted " + r.GapID + " (idempotent retry — existing id returned)"
+	}
+	return "minted " + r.GapID
 }

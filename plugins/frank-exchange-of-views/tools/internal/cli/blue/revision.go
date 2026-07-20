@@ -22,10 +22,10 @@ import (
 func newRevision() *cobra.Command {
 	c := seat.Prose(seat.New(role, "revision",
 		"the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land",
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			p := record.NewPayload().Set("text", text)
 			// Absent and zero both drop: a claim_count of 0 is not a count, it is a
@@ -34,9 +34,9 @@ func newRevision() *cobra.Command {
 				p.Set("claim_count", parseCount(cc))
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "revision", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return "revision recorded — the round is on the record", nil
+			return seat.Msg{Message: "revision recorded — the round is on the record"}, nil
 		}))
 
 	c.Flags().String(flags.ClaimCount, "", "FOOTNOTED declarative claims in the report (a footnoted sentence counts once)")

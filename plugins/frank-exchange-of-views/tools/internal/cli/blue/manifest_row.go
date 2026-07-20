@@ -1,8 +1,6 @@
 package blue
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -18,10 +16,10 @@ import (
 func newManifestRow() *cobra.Command {
 	c := seat.Prose(seat.New(role, "manifest-row",
 		`one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"`,
-		func(s seat.Context, cmd *cobra.Command) (string, error) {
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Text(cmd)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			row := seat.Str(cmd, flags.Row)
 			if row == "" {
@@ -30,12 +28,18 @@ func newManifestRow() *cobra.Command {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			p.Set("row", row)
 			if _, err := record.Append(s.RunDir, s.SeatID, "manifest-row", p); err != nil {
-				return "", err
+				return nil, err
 			}
-			return fmt.Sprintf("manifest row recorded for %s", seat.Str(cmd, flags.ID)), nil
+			return manifestRowResult{GapID: seat.Str(cmd, flags.ID)}, nil
 		}))
 
 	c.Flags().String(flags.ID, "", "the gap id this receipt covers")
 	c.Flags().String(flags.Row, "", "what you checked and what it showed, compressed to one line")
 	return c
 }
+
+type manifestRowResult struct {
+	GapID string `json:"gap_id"`
+}
+
+func (r manifestRowResult) Human() string { return "manifest row recorded for " + r.GapID }
