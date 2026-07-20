@@ -27,6 +27,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -138,17 +139,21 @@ type Msg struct {
 // Human renders Msg as itself.
 func (m Msg) Human() string { return m.Message }
 
-// okEnvelope / errEnvelope are the --json wire shape. The Result nests under "result" so the
-// envelope stays fully typed end to end — no map merging, no result restating verb/ok.
+// okEnvelope / errEnvelope are the --json wire shape. verb and role come from the command's
+// position (not string-mashed into the message); the Result nests under "result" so the
+// envelope stays fully typed end to end. An error carries a `code` a consumer switches on.
 type okEnvelope struct {
 	Verb   string `json:"verb"`
+	Role   string `json:"role"`
 	OK     bool   `json:"ok"`
 	Result Result `json:"result,omitempty"`
 }
 
 type errEnvelope struct {
 	Verb  string `json:"verb"`
+	Role  string `json:"role"`
 	OK    bool   `json:"ok"`
+	Code  string `json:"code"`
 	Error string `json:"error"`
 }
 
@@ -183,9 +188,62 @@ func markRequired(c *cobra.Command, verb string) {
 	}
 }
 
-// New builds a verb command with the shared plumbing attached. The verb supplies
-// its own name, contract text, flags and handler; it never restates the
-// preconditions, the error prefix, or the render.
+// Begin runs a verb's preconditions and returns its seat context. It is a plain function
+// called at the TOP of the one RunE — NOT a PreRunE hook — so there is no lifecycle chaining
+// to reason about. It requires the run dir and seat id, holds the seat to its role, and sets
+// the ambient comment that every record.Append in this process carries.
+func Begin(cmd *cobra.Command) (Context, error) {
+	s := Of(cmd)
+	if s.RunDir == "" {
+		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")
+	}
+	if s.SeatID == "" {
+		return s, feov.Errorf(feov.MissingField, "--seat-id is required (the engine assigns it; it is in your prompt)")
+	}
+	if err := record.CheckSeatRole(s.Role, s.SeatID); err != nil {
+		return s, err
+	}
+	comment, err := flags.ReadComment(cmd, cmd.InOrStdin())
+	if err != nil {
+		return s, err
+	}
+	record.AmbientComment = comment
+	return s, nil
+}
+
+// Emit renders a verb's outcome. It is the ONE place both a success and a failure are
+// rendered, so they cannot disagree, and the ONE place a --json error's code is read — from
+// the error's own type via feov.CodeOf, with no switch on concrete error types. verb and
+// role come from the command's POSITION, not from string-mashing the message.
+func Emit(cmd *cobra.Command, res Result, err error) error {
+	role := roleOf(cmd)
+	if err != nil {
+		// The ROLE leads the human message ("merge: close requires --id") — it names which
+		// contract is being held. Under --json the role is a field, the code is the machine
+		// handle a consumer branches on, and the message stays the clean domain sentence.
+		prefixed := fmt.Errorf("%s: %w", role, err)
+		if jsonMode(cmd) {
+			return json.NewEncoder(cmd.OutOrStdout()).Encode(errEnvelope{
+				Verb: cmd.Name(), Role: role, Code: feov.CodeOf(err), Error: prefixed.Error(),
+			})
+		}
+		return prefixed
+	}
+	if jsonMode(cmd) {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{
+			Verb: cmd.Name(), Role: role, OK: true, Result: res,
+		})
+	}
+	if res != nil {
+		fmt.Fprintln(cmd.OutOrStdout(), res.Human())
+	}
+	return nil
+}
+
+// New builds a verb command. The verb supplies its name, contract text, flags and work; New
+// wires the ONE hook-free RunE that shape holds: Begin (preconditions) -> the work -> Emit
+// (render). No PreRunE, no PostRunE — nothing chains, and a precondition failure renders
+// through the same Emit as any other error.
 func New(name, help string, run Handler) *cobra.Command {
 	c := &cobra.Command{
 		Use:          name,
@@ -193,44 +251,13 @@ func New(name, help string, run Handler) *cobra.Command {
 		Long:         help + "\n" + FrictionFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
-		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			s := Of(cmd)
-			if s.RunDir == "" {
-				return fmt.Errorf("%s: --run <runDir> is required", s.Role)
-			}
-			if s.SeatID == "" {
-				return fmt.Errorf("%s: --seat-id is required (the engine assigns it; it is in your prompt)", s.Role)
-			}
-			return record.CheckSeatRole(s.Role, s.SeatID)
-		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := Of(cmd)
-			// Set before the verb runs, so every record.Append in this process carries it.
-			comment, cerr := flags.ReadComment(cmd, cmd.InOrStdin())
-			if cerr != nil {
-				return fmt.Errorf("%s: %w", ctx.Role, cerr)
-			}
-			record.AmbientComment = comment
-			res, err := run(ctx, cmd)
+			s, err := Begin(cmd)
 			if err != nil {
-				// The ROLE leads the message: a seat reading "close requires --id"
-				// learns less than one reading "merge: close requires --id", because
-				// the role names which contract it is being held to. Under --json the
-				// same message rides a structured error, so a machine consumer branches
-				// on ok:false instead of parsing prose.
-				prefixed := fmt.Errorf("%s: %w", ctx.Role, err)
-				if jsonMode(cmd) {
-					return json.NewEncoder(cmd.OutOrStdout()).Encode(errEnvelope{Verb: cmd.Name(), Error: prefixed.Error()})
-				}
-				return prefixed
+				return Emit(cmd, nil, err)
 			}
-			if jsonMode(cmd) {
-				return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{Verb: cmd.Name(), OK: true, Result: res})
-			}
-			if res != nil {
-				fmt.Fprintln(cmd.OutOrStdout(), res.Human())
-			}
-			return nil
+			res, werr := run(s, cmd)
+			return Emit(cmd, res, werr)
 		},
 	}
 	// Render-on-mutation is GONE (2026-07-19). It re-rendered every projection from the full

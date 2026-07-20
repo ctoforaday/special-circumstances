@@ -501,6 +501,21 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	if _, has := fail["error"]; !has {
 		t.Errorf("error --json missing an 'error' field: %v", fail)
 	}
+	if _, has := fail["code"]; !has {
+		t.Errorf("error --json missing a 'code' field: %v", fail)
+	}
+
+	// A coded domain fault carries its SPECIFIC code, so a consumer branches on the KIND of
+	// failure, not the message. A seat-id from another role is a role_violation.
+	rv, _ := run(t, "--json", "merge", "mint", "--run", runDir, "--seat-id", "blue-synthesize",
+		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
+	var viol map[string]any
+	if e := json.Unmarshal([]byte(strings.TrimSpace(rv)), &viol); e != nil {
+		t.Fatalf("role-violation --json is not valid JSON (%v): %s", e, rv)
+	}
+	if viol["code"] != "role_violation" {
+		t.Errorf("role-violation --json code = %v, want role_violation (env %v)", viol["code"], viol)
+	}
 }
 
 // --class-new both names the class and mints it, so it wins over --class and

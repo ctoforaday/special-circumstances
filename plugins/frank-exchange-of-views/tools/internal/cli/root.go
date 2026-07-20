@@ -38,11 +38,13 @@ import (
 //	       binary renders telemetry a downstream reader now expects.
 //	0.4.0  the global `--json` flag: mutating verbs emit a structured result and errors,
 //	       so a machine consumer a prompt drives needs the binary that speaks it.
+//	0.5.0  the --json envelope carries `role` and, on failure, a `code` (feov.Error) a
+//	       consumer branches on — a wire-shape change a stale binary would not produce.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.4.0"
+const Version = "0.5.0"
 
 func init() { record.ToolVersion = Version }
 
