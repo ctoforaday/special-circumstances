@@ -1,0 +1,399 @@
+// Package report assembles the final research report from the RECORD — mechanically, in-tool.
+//
+// The report is f(event log, blue/report.md). Nothing is authored at assembly; two classes
+// of content are combined:
+//
+//   - BLUE-AUTHORED, RED-AUDITED, LIFTED VERBATIM: the title, the TL;DR, the Catechism, the
+//     technical foundations, the analysis, the open questions. These are synthesis surfaces,
+//     and a synthesis surface authored at assembly is authored AFTER red's last audit — the
+//     run-5 catechism defect (6/7 answers regressed) and, unfixed until now, the TL;DR that
+//     nothing ever checked. They live inside blue/report.md, which red re-reads in full every
+//     round, so moving them there makes them audited. The assembler copies them; it never
+//     writes them. A missing one is FLAGGED, never filled in.
+//
+//   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
+//     matrix (the board), the expansions and alternatives (avenue events by fate), the red
+//     findings (the board's gaps), and the debate transcript (position/closing/dispute/
+//     opinion/petition-rule/halt/certify events). The event log is the source of truth; the
+//     rendered projection .md files are in-run artifacts for the seats, NOT read here.
+//
+// The blue sections are RAW-SLICED, never parsed-and-rendered: round-tripping markdown through
+// an AST normalises whitespace and reflows, which is authorship. A fence-aware scan finds the
+// true heading boundaries so a "## " line inside a code block is not mistaken for one.
+package report
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+)
+
+// Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
+// carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
+// the report from those two — no --inputs, no render-shadow round-trip.
+func Assemble(runDir string) (string, error) {
+	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
+
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		return "", fmt.Errorf("assemble: board: %w", err)
+	}
+	bj := record.BoardJSONOf(board)
+	evs := board.Events
+
+	var b strings.Builder
+	p := func(s string) { b.WriteString(strings.TrimRight(s, "\n")); b.WriteString("\n\n") }
+
+	// Blue-authored head (lifted) + the tool's verdict stamp between the title and the TL;DR.
+	p(titleOr(blue))
+	p(verdictStamp(outcomeOf(evs)))
+	p(sectionOr(blue, "TL;DR"))
+	p(sectionOr(blue, "The Catechism"))
+	p(sectionOr(blue, "Technical foundations"))
+	p(sectionOr(blue, "Analysis"))
+
+	// Tool-composed from the record.
+	p(riskMatrix(bj))
+	p(avenues(evs, "The expansions", accepted))
+	p(avenues(evs, "Alternatives considered", rejected))
+	p(sectionOr(blue, "Open questions"))
+	p("## Blue team report (in full)\n\n" + orMissing(blue, "blue/report.md"))
+	p(redFindings(board))
+	p(debate(evs))
+
+	out := collapseBlanks(b.String())
+	path := filepath.Join(runDir, "report.md")
+	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
+		return "", fmt.Errorf("assemble: write report.md: %w", err)
+	}
+	return path, nil
+}
+
+func readOr(path, fallback string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return fallback
+	}
+	return string(b)
+}
+
+func orMissing(md, name string) string {
+	if strings.TrimSpace(md) == "" {
+		return "_(" + name + " is missing)_"
+	}
+	return md
+}
+
+// titleOr lifts blue's H1 (the "# <Topic> — research report" line), or flags it missing.
+func titleOr(blue string) string {
+	for _, ln := range strings.Split(blue, "\n") {
+		if t := strings.TrimSpace(ln); strings.HasPrefix(t, "# ") {
+			return t
+		}
+	}
+	return "# _(blue/report.md has no title — not authored here)_"
+}
+
+// section returns the "## heading" block verbatim (heading included), or "" if absent. It
+// tracks fenced code blocks so a "## " line inside ``` or ~~~ is not read as a heading.
+func section(md, heading string) string {
+	lines := strings.Split(md, "\n")
+	start, end := -1, len(lines)
+	fence := false
+	for i, ln := range lines {
+		t := strings.TrimSpace(ln)
+		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
+			fence = !fence
+			continue
+		}
+		if fence {
+			continue
+		}
+		if start < 0 {
+			if t == "## "+heading {
+				start = i
+			}
+		} else if strings.HasPrefix(t, "## ") {
+			end = i
+			break
+		}
+	}
+	if start < 0 {
+		return ""
+	}
+	return strings.TrimRight(strings.Join(lines[start:end], "\n"), " \t\n")
+}
+
+// sectionOr copies blue's section verbatim, or says in one line that it is missing — NEVER
+// authoring a replacement (the union-copy invariant, made structural).
+func sectionOr(blue, heading string) string {
+	if s := section(blue, heading); s != "" {
+		return s
+	}
+	return fmt.Sprintf("## %s\n\n_(blue/report.md has no \"## %s\" section — not authored here; blue owns this surface and red audits it.)_", heading, heading)
+}
+
+// outcomeOf returns the LAST terminal outcome event's payload, or nil if none was recorded.
+func outcomeOf(evs []record.Event) *record.Payload {
+	var last *record.Payload
+	for _, e := range evs {
+		if e.Type == "outcome" {
+			last = e.Payload
+		}
+	}
+	return last
+}
+
+// verdictStamp composes the verdict line from the terminal outcome event. A missing outcome
+// is flagged, never invented — the same invariant as a missing blue section.
+func verdictStamp(o *record.Payload) string {
+	if o == nil {
+		return "**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_"
+	}
+	switch o.Str("verdict") {
+	case "CEILING":
+		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+	case "HALTED":
+		return "**Verdict:** HALTED — the bench ended this run. The halt opinion is on the record below (Bench disposition) and is relayed to the human verbatim, never smoothed."
+	default:
+		by := ""
+		switch {
+		case payloadBool(o, "deadlocked"):
+			by = " by judged deadlock"
+		case payloadBool(o, "exhausted"):
+			by = " by safety ceiling"
+		}
+		return fmt.Sprintf("**Verdict:** %s%s", o.Str("verdict"), by)
+	}
+}
+
+func riskMatrix(bj record.BoardJSON) string {
+	var b strings.Builder
+	b.WriteString("## Risk matrix\n\n")
+	b.WriteString("| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |\n")
+	b.WriteString("|---|---|---|---|---|\n")
+	if len(bj.Open) == 0 {
+		b.WriteString("| _(no open gaps)_ |  |  |  |  |\n")
+	}
+	for _, g := range bj.Open {
+		risk := g.Problem
+		if strings.TrimSpace(risk) == "" {
+			risk = g.ID
+		}
+		disp := g.RequiredFix
+		if g.Class == "risk_accepted" || g.Class == "risk_argued" {
+			disp = "risk_accepted — " + disp
+		}
+		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
+			cell(risk), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(disp)))
+	}
+	b.WriteString("\nRisk-accepted items are recorded here with their rationale — elevated, never dropped.")
+	return b.String()
+}
+
+// avenue fate: the user's mapping — an avenue PURSUED is a concept expansion accepted; an
+// avenue abandoned or declined is an alternative considered, its reason the counter.
+func accepted(status string) bool { return status == "pursued" }
+func rejected(status string) bool { return status == "abandoned" || status == "declined" }
+
+// avenues renders the avenue events whose status matches want, under the given heading.
+func avenues(evs []record.Event, heading string, want func(string) bool) string {
+	var rows []string
+	for _, e := range evs {
+		if e.Type != "avenue" || !want(e.Payload.Str("status")) {
+			continue
+		}
+		method := ""
+		if m := e.Payload.Str("method"); m != "" {
+			method = fmt.Sprintf(" _(%s)_", m)
+		}
+		reason := ""
+		if r := e.Payload.Str("reason"); r != "" {
+			reason = " — " + r
+		}
+		status := ""
+		if s := e.Payload.Str("status"); s != "pursued" {
+			status = fmt.Sprintf(" [%s]", s) // abandoned vs declined is the shape of the counter
+		}
+		rows = append(rows, fmt.Sprintf("- **%s**%s%s%s (%s)", e.Payload.Str("line"), method, status, reason, e.SeatID))
+	}
+	body := "_(none on the record)_"
+	if len(rows) > 0 {
+		body = strings.Join(rows, "\n")
+	}
+	return "## " + heading + "\n\n" + body
+}
+
+// redFindings composes the full findings from the board's gaps: every open gap with its
+// grades and required fix, then the closure index. This is the ledger's content, drawn from
+// the replayed board rather than read back from the projection file.
+func redFindings(board *record.Board) string {
+	var open, closed []string
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g == nil {
+			continue
+		}
+		if g.Open {
+			regraded := ""
+			if n := len(g.Regrades); n > 0 {
+				regraded = fmt.Sprintf(" · regraded x%d (latest basis: %s)", n, g.Regrades[n-1].Str("basis"))
+			}
+			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s",
+				g.ID, g.Mint.Str("problem"),
+				g.Mint.Str("location"),
+				grade(g.Severity), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), grade(g.Mint.Str("class")),
+				regraded,
+				g.Mint.Str("required_fix"),
+				g.Mint.Str("acceptance_check")))
+		} else {
+			cc := g.Closure.Str("closure_class")
+			if cc == "" {
+				cc = "closed"
+			}
+			succ := g.Closure.Str("successor")
+			if succ == "" {
+				succ = "-"
+			}
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s", g.ID, cc, g.Mint.Str("problem"), succ))
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "## Red team findings (in full)\n\n### Open gaps (%d)\n\n", len(open))
+	if len(open) == 0 {
+		b.WriteString("_(none open)_\n")
+	} else {
+		b.WriteString(strings.Join(open, "\n\n"))
+		b.WriteString("\n")
+	}
+	fmt.Fprintf(&b, "\n### Closure index (%d)\n\n", len(closed))
+	if len(closed) == 0 {
+		b.WriteString("_(nothing closed)_")
+	} else {
+		b.WriteString(strings.Join(closed, "\n"))
+	}
+	return b.String()
+}
+
+// debate composes the one transcript from the event log: per round, the parties' positions
+// and closings, the grade disputes and their answers, then the bench's opinions and petition
+// rulings; then the terminal bench disposition (halt / certify). Everything the parties and
+// the bench put on the record, in one place — the seat re-narrated none of it.
+func debate(evs []record.Event) string {
+	var order []int
+	byRound := map[int][]record.Event{}
+	for _, e := range evs {
+		if _, seen := byRound[e.Round]; !seen {
+			order = append(order, e.Round)
+		}
+		byRound[e.Round] = append(byRound[e.Round], e)
+	}
+
+	var parts []string
+	for _, r := range order {
+		re := byRound[r]
+		var round []string
+		for _, e := range re {
+			switch {
+			case e.Type == "position" && strings.HasPrefix(e.SeatID, "red-merge"):
+				round = append(round, "### RED\n"+e.Payload.Str("text"))
+			case e.Type == "closing" && strings.HasPrefix(e.SeatID, "red-merge"):
+				round = append(round, fmt.Sprintf("### RED CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
+			case e.Type == "position" && strings.HasPrefix(e.SeatID, "blue"):
+				round = append(round, "### BLUE\n"+e.Payload.Str("text"))
+			case e.Type == "closing" && strings.HasPrefix(e.SeatID, "blue"):
+				round = append(round, fmt.Sprintf("### BLUE CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
+			}
+		}
+		// Grade disputes and their answers — the claim-level alternative and its counter.
+		var disp []string
+		for _, e := range re {
+			switch e.Type {
+			case "dispute":
+				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s", e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("basis")))
+			case "dispute-respond":
+				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("as"), e.Payload.Str("basis")))
+			}
+		}
+		if len(disp) > 0 {
+			round = append(round, "### Grade disputes\n"+strings.Join(disp, "\n"))
+		}
+		// The bench's in-round acts: opinions and petition rulings.
+		var lead []string
+		for _, e := range re {
+			switch e.Type {
+			case "opinion":
+				lead = append(lead, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
+					e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
+					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("rationale")))
+			case "petition-rule":
+				lead = append(lead, fmt.Sprintf("- petition %s: %s — %s", e.Payload.Str("petitioner"), e.Payload.Str("ruling"), e.Payload.Str("rationale")))
+			}
+		}
+		if len(lead) > 0 {
+			round = append(round, "### LEAD\n"+strings.Join(lead, "\n"))
+		}
+		if len(round) > 0 {
+			parts = append(parts, fmt.Sprintf("### Round %d\n\n%s", r, strings.Join(round, "\n\n")))
+		}
+	}
+
+	// Terminal bench disposition: halt and certify are run-level, not a round's.
+	var disp []string
+	for _, e := range evs {
+		switch e.Type {
+		case "halt":
+			disp = append(disp, "**HALT** — "+e.Payload.Str("opinion"))
+		case "certify":
+			disp = append(disp, "**Certification** — "+e.Payload.Str("statement"))
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString("## The debate\n\n")
+	if len(parts) == 0 {
+		b.WriteString("_(no debate on the record)_")
+	} else {
+		b.WriteString(strings.Join(parts, "\n\n"))
+	}
+	if len(disp) > 0 {
+		b.WriteString("\n\n### Bench disposition\n\n" + strings.Join(disp, "\n\n"))
+	}
+	return b.String()
+}
+
+func grade(v any) string {
+	if s, ok := v.(string); ok && s != "" {
+		return s
+	}
+	return "—"
+}
+
+func payloadBool(p *record.Payload, k string) bool {
+	if v, ok := p.Get(k); ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
+// cell keeps a value on one table row: pipes and newlines would break the markdown table.
+func cell(s string) string {
+	s = strings.ReplaceAll(s, "|", "\\|")
+	s = strings.ReplaceAll(s, "\n", " ")
+	if strings.TrimSpace(s) == "" {
+		return "—"
+	}
+	return s
+}
+
+func collapseBlanks(s string) string {
+	for strings.Contains(s, "\n\n\n") {
+		s = strings.ReplaceAll(s, "\n\n\n", "\n\n")
+	}
+	return strings.TrimRight(s, "\n") + "\n"
+}

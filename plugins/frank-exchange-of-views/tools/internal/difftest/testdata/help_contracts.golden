@@ -210,10 +210,12 @@ Usage:
   feov-record bench [command]
 
 Available Commands:
+  assemble      assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
   certify       the run-end certification statement ("what I would want a human to re-examine"): --file <statement>
   friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file
   halt          the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>
   opinion       a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]
+  outcome       record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]
   petition-rule rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --file <opinion> (a halt is its own verb)
   register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render        read-only projection refresh (any seat may invoke)
@@ -232,7 +234,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.5.0
+feov-record version 0.7.0
 
 $ feov-record nonsuch help
 exit 2

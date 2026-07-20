@@ -135,6 +135,11 @@ const (
 	Petitioner = "petitioner"
 	Relief     = "relief"
 
+	// The run's terminal determination (bench outcome). The verdict rides on --as; these
+	// two say HOW a non-pass ended, and are booleans because each is present-or-not.
+	Deadlocked = "deadlocked"
+	Exhausted  = "exhausted"
+
 	// Blue's process record.
 	Line        = "line"
 	Method      = "method"
@@ -166,6 +171,7 @@ func All() []string {
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,
+		Deadlocked, Exhausted,
 		Line, Method, ClaimCount, AccessDate, Observation,
 	}
 }
