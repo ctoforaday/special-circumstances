@@ -1,4 +1,4 @@
-prompt sha256: 53f74a1145036f1a557964e48dab415201a4218c522cbfe0af0c8edd44709184
+prompt sha256: e2233a7b1f213fd0397152ee3e32ddd21533563aa4a63b33a4c6234ebcf5b7f5
 
 Red merge, round 1.
 FIRST ACTION (read batching — run-4 §4.6): concatenate this round's lens passes with a single bash call, `cat research/2026-01-01_golden/red/candidates/round-1-lens-*.md > <your session scratchpad>/round-1-all.md` — the output path MUST be the ABSOLUTE path of your own session scratchpad directory, never under research/2026-01-01_golden (a stray file in red/candidates/ corrupts every downstream glob and convergence count) — then read that one file instead of 6 separate reads.
@@ -30,7 +30,8 @@ Append the round-1 "### RED" section to research/2026-01-01_golden/debate.md per
 CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, also append a "### RED CLOSING (round 1)" entry to research/2026-01-01_golden/debate.md — max 120 words per item: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far.
 The judge rules AFTER blue responds this round, on the closings, the transcript, and the final artifact state only — your closing is your case; overstatement the record does not support counts against you.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as red-merge-r1).
-FRICTION: if you report any friction, ALSO append each entry to research/2026-01-01_golden/friction.md as one attributed line ("red-merge-r1: ...") in addition to the envelope's friction field, so the complaint survives even if a later phase aborts.
+FRICTION (red-merge-r1): report any friction in the envelope's friction field AND through the tool's friction verb — the verb is the durable record that survives a later phase abort.
+Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
