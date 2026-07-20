@@ -65,3 +65,27 @@ NOT available yet: red-auditor's tool allowlist has no Task/Agent tool, so a sea
 spawn a sub-agent. Enabling it means (a) adding Task to red-auditor, and (b) verifying a
 WORKFLOW-spawned seat can nest-spawn an agent at all — unconfirmed. Until then the prompt
 says: read large sources in sections (curl ranges / pdftotext) and name what you read.
+
+## Follow-up: red needs a VERBATIM JS renderer (smoke-c finding)
+
+Removing WebFetch killed summaries AND removed the only tool that renders JavaScript. `curl`
+returns the SPA shell for JS-rendered pages — and `platform.claude.com` (the Claude docs, a
+PRIMARY source for the telemetry topic) is JS-rendered. In smoke-c red hit this on 4 sources,
+did the RIGHT thing (graded them LOW confidence, filed a capability-gap friction, did not
+fake a verified grade), and named the fix itself.
+
+The fix is NOT WebFetch back — it is a verbatim JS-render path:
+- Add a browser tool to ALL THREE allowlists that lost WebFetch — red-auditor,
+  blue-researcher, AND lead-judge. Blue is not exempt: it BUILDS claims from these
+  sources (platform.claude.com is JS-rendered and primary for this topic), so without a
+  JS renderer blue's own sourcing is crippled the same way red's verification is.
+  `claude-in-chrome` `read_page` /
+  `get_page_text` renders the DOM and returns the actual page text (not a small-model
+  summary), which is verbatim-for-JS. Verify it returns raw text, not a processed answer.
+- VERIFY reachability: MCP servers may be absent in headless/workflow seats, and
+  claude-in-chrome needs the extension + a running browser. If unreachable in a workflow
+  seat, red's honest "verification impossible for JS-rendered sources" friction is the
+  correct floor — flagged, never faked.
+
+The friction channel worked exactly as designed: silent hearsay became a visible, honest,
+actionable capability gap. That is the system succeeding, not failing.

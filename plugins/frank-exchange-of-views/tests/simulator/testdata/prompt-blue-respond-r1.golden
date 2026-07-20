@@ -1,8 +1,8 @@
-prompt sha256: 704d71c5316ce163508ec9e79f26a5f0725a9728c1dd5619c805136ca95f10db
+prompt sha256: 5c8a9b9e509b7eee04844a1d05d09ba8b7a118e6c349fa88af396dc0db010094
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
-FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `cat research/2026-01-01_golden/red/ledger.md research/2026-01-01_golden/debate.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden) — then read that one file instead of three separate reads; report.md you edit in place as usual.
+FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `cat research/2026-01-01_golden/records/render-shadow/ledger.md research/2026-01-01_golden/debate.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden) — then read that one file instead of three separate reads; report.md you edit in place as usual.
 PRE-FLIGHT: re-check your planned repairs against red's gap patterns (in the workset).
 Open gaps (adjudicated ones excluded): [{"id":"R1-1","location":"loc","problem":"p","required_fix":"f","acceptance_check":"grep the corrected figure at the anchor","existence":"verified","severity":"medium","likelihood":"medium","impact":"medium","complexity_cost":"low"}].
 GRADING SEMANTICS (mapping v2, and NOT inferable from the JSON above — the map is self-describing as structure and silent on meaning): the likelihood field grades the CONSEQUENCE ONLY, and a gap's existence field (verified|suspected) is the separate axis saying whether the defect was checked at the leaf.

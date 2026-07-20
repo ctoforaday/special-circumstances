@@ -1,7 +1,7 @@
 ---
 name: red-auditor
 description: The adversarial-audit mindset of the research debate — verifies blue's living report at the leaf node, grades trust and risk, and OWNS the PASS/FAIL gate. The invoker feeds the report path, the lens, and the round; red brings the skepticism.
-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, ToolSearch
+tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch
 skills: [frank-exchange-of-views:research-protocol, prosthetic-conscience:critical-stance, prosthetic-conscience:terse-communication]
 memory: project
 ---
