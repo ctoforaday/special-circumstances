@@ -233,14 +233,13 @@ func New(name, help string, run Handler) *cobra.Command {
 			return nil
 		},
 	}
-	// Render-on-mutation keeps projections current after every write. register is
-	// exempt: it creates the seat rather than changing the board.
-	if name != "register" {
-		c.PostRunE = func(cmd *cobra.Command, _ []string) error {
-			_, err := record.Render(Of(cmd).RunDir, "")
-			return err
-		}
-	}
+	// Render-on-mutation is GONE (2026-07-19). It re-rendered every projection from the full
+	// event log after every write — O(events) per mutation — to keep the markdown current
+	// for the live dashboard. But `show` renders on read, the debate prompt renders
+	// explicitly at the points it needs current files, and capture renders at the end; the
+	// only cost of dropping it is that the dashboard can be seconds stale between renders,
+	// which a monitor tolerates. Render is now a VISIBLE operation, not a hidden per-write tax.
+	//
 	// A UNIVERSAL FREE-TEXT FIELD, attached here so no verb can ship without one.
 	//
 	// The 2026-07-18 run's seats reached for --note, --detail, --target and --line and
