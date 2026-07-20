@@ -113,7 +113,10 @@ func section(md, heading string) string {
 			continue
 		}
 		if start < 0 {
-			if t == "## "+heading {
+			// Case-insensitive: blue titled sections "## Technical Foundations" while the
+			// template says "## Technical foundations". An exact match declared a present
+			// section absent and dropped it — the union invariant lost to a capital letter.
+			if strings.EqualFold(t, "## "+heading) {
 				start = i
 			}
 		} else if strings.HasPrefix(t, "## ") {

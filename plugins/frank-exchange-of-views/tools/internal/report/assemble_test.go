@@ -31,6 +31,12 @@ func TestSectionCopiesVerbatimAndIsFenceAware(t *testing.T) {
 	if !strings.Contains(sectionOr(md, "Technical foundations"), "not authored here") {
 		t.Error("a missing section must be flagged, never authored")
 	}
+	// Case-insensitive: blue title-cased "## Open Questions" must still be lifted, not
+	// declared absent against the template's lowercase "## Open questions".
+	caseMd := "intro\n## Open Questions\n\nwhat remains.\n"
+	if got := section(caseMd, "Open questions"); !strings.Contains(got, "what remains") {
+		t.Errorf("case-insensitive heading match failed — a present section was declared absent: %q", got)
+	}
 }
 
 func TestTitleLiftedOrFlagged(t *testing.T) {
