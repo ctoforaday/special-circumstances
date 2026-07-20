@@ -43,7 +43,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null, transcriptDir = null } = a
+const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null, transcriptDir = null, scriptsDir = null } = a
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
@@ -175,15 +175,15 @@ const inspectionClause = transcriptDir
   ? ` INTEGRITY INSPECTION: the seats' trajectories are at ${transcriptDir}/agent-*.jsonl, and you MAY read them. Use this to answer ONE question — is the record honest? Reconcile what a seat CLAIMS it did (a closure's anchor, an attestation, a manifest row) against the tool calls it actually made. You MUST NOT use trajectory material to decide the MERITS of a gap: untidy reasoning that reached a sound conclusion is not a finding, while a clean conclusion contradicted by what the seat actually did is. DECLARE every inspection in your opinion — what you read, why, and what you found — and quote anything you rely on, because a party must be able to answer a finding it could not watch you make. An inspection you do not declare is indistinguishable from one you invented.`
   : ''
 
-const scorecardClause = (_tool) => {
-  // priors-are-poison (2026-07-19): the cross-run scorecard SEED is REMOVED from chair
-  // prompts. Seeding a chair with a PRIOR run's numbers is Goodhart bait (perform the
-  // metric instead of the duty), topic-confounded (the metric measures the task, not the
-  // chair), cross-model (a haiku chair primed with an opus run's numbers), and
-  // salience-priming ("you failed at X" makes X more available). A chair reads its OWN
-  // in-run scorecard via `show --view scorecard` (Phase B), never a predecessor's numbers.
-  // The `scorecards` arg now feeds operator analytics only. See plans/priors-are-poison.md.
-  return ''
+const scorecardClause = (tool) => {
+  // priors-are-poison (2026-07-19). Half-1 removed the cross-run SEED — a prior run's numbers
+  // were Goodhart bait, topic-confounded, cross-model and salience-priming. Half-2 (here) gives
+  // the chair its OWN in-run scorecard for THIS question, computed live from this run's record
+  // by scorecards.mjs (the one computation; no re-derivation). The `scorecards` arg now feeds
+  // operator analytics only. Gated on scriptsDir, so a run without it simply omits the clause.
+  const chair = CHAIR[tool]
+  if (!scriptsDir || !chair) return ''
+  return ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  node ${scriptsDir}/scorecards.mjs --run ${runDir} --chair ${chair}  and read how this chair is doing on the question in front of you so far. It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding). Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.`
 }
 
 const RECORD_ROLE = { 'red-lens': 'lens', 'red-merge': 'merge', blue: 'blue', bench: 'bench' }

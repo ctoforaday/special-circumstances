@@ -26,6 +26,7 @@
 //     the failure this whole exercise is a response to.
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null)
 
@@ -406,3 +407,47 @@ export function chairHeader(chair) {
     '',
   ].join('\n')
 }
+
+// ---- in-run CLI (priors-are-poison half-2) ----
+//
+// `node scorecards.mjs --run <dir> --chair blue|red|bench` prints THAT chair's scorecard for
+// THIS run — the self-read a seat runs before its docket, replacing the retired cross-run
+// seed. It reuses the ONE computation (computeScorecards); it re-derives nothing. The
+// envelope-derived rows read "not computed" until capture assembles the journal, so mid-run a
+// chair sees its file-derived headline (repair_regression, anchored_closures, direction-uptake)
+// and honest "not computed" for the rest — never a stale number from another question.
+
+// readResults gathers the run's envelopes from the journal if it has been assembled
+// (post-capture). Mid-run it returns [] — not an error: the file-derived rows still compute,
+// and the envelope rows say why they cannot.
+export function readResults(runDir) {
+  const p = join(runDir, 'trajectories', 'journal.jsonl')
+  if (!existsSync(p)) return []
+  const results = []
+  for (const line of readFileSync(p, 'utf8').split('\n')) {
+    if (!line.trim()) continue
+    let j
+    try { j = JSON.parse(line) } catch { continue }
+    if (j.result && typeof j.result === 'object') results.push(j.result)
+  }
+  return results
+}
+
+function flag(argv, name) {
+  const i = argv.indexOf(name)
+  return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null
+}
+
+export function cli(argv) {
+  const runDir = flag(argv, '--run')
+  const chair = flag(argv, '--chair')
+  const cards = runDir ? computeScorecards(runDir, readResults(runDir)) : null
+  if (!runDir || !cards || !cards[chair]) {
+    process.stderr.write('usage: node scorecards.mjs --run <runDir> --chair blue|red|bench\n')
+    process.exitCode = 2
+    return
+  }
+  process.stdout.write(renderChair(chair, cards[chair], 'this run') + '\n')
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) cli(process.argv.slice(2))
