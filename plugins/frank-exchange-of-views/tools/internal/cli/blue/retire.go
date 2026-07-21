@@ -29,15 +29,17 @@ func newRetire() *cobra.Command {
 	c := seat.Prose(seat.New("retire",
 		`remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Text(cmd)
+			// --reason is the prose channel (Prose provides it); it lands under `reason`,
+			// which validate requires — substance leaves the report only with its reason.
+			reason, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}
-			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reason)
-			seat.Set(cmd, p, "superseded_by", flags.SupersededBy)
-			if text != "" {
-				p.Set("detail", text)
+			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim)
+			if reason != "" {
+				p.Set("reason", reason)
 			}
+			seat.Set(cmd, p, "superseded_by", flags.SupersededBy)
 			if _, err := record.Append(s.RunDir, s.SeatID, "retire", p); err != nil {
 				return nil, err
 			}
@@ -45,7 +47,6 @@ func newRetire() *cobra.Command {
 		}))
 
 	c.Flags().String(flags.Claim, "", "the claim being removed, quoted from the report as it stood")
-	c.Flags().String(flags.Reason, "", "why it goes: refuted, superseded, merged, or out of scope — a removal with no stated reason is the failure this verb exists to make visible")
 	c.Flags().String(flags.SupersededBy, "", "the claim that replaces it, when one does")
 	return c
 }

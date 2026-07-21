@@ -20,8 +20,14 @@ func newDispose() *cobra.Command {
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Observation)
 			seat.Set(cmd, p, "disposition", flags.As)
 			seat.SetSame(cmd, p, flags.Into)
-			if err := seat.SetLongForm(cmd, p, "reason", flags.Reason); err != nil {
+			// --reason is the prose channel (Prose provides it); it lands under `reason`,
+			// stated when the fate is declined or banked.
+			reason, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
+			}
+			if reason != "" {
+				p.Set("reason", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispose", p); err != nil {
 				return nil, err
@@ -32,7 +38,6 @@ func newDispose() *cobra.Command {
 	c.Flags().String(flags.Observation, "", "the lens observation being disposed, by label or key")
 	c.Flags().String(flags.As, "", "minted-as | folded-into | declined | banked — the observation's fate")
 	c.Flags().String(flags.Into, "", "the gap id it was folded or minted into")
-	c.Flags().String(flags.Reason, "", "why, when the fate is declined or banked")
 	return seat.Prose(c)
 }
 

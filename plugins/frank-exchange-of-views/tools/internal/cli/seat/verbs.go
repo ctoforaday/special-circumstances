@@ -36,7 +36,7 @@ func Register(help string) *cobra.Command {
 
 func Friction(help string) *cobra.Command {
 	return Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
-		text, err := Text(cmd)
+		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
 		}
@@ -52,8 +52,13 @@ func Friction(help string) *cobra.Command {
 func Petition(help, suffix string) *cobra.Command {
 	c := New("petition", help, func(s Context, cmd *cobra.Command) (Result, error) {
 		p := SetSame(cmd, record.NewPayload(), flags.Relief)
-		if err := SetLongForm(cmd, p, "basis", flags.Basis); err != nil {
+		// Flag word --reason (the one prose word), payload key stays basis.
+		reason, err := Reason(cmd)
+		if err != nil {
 			return nil, err
+		}
+		if reason != "" {
+			p.Set("basis", reason)
 		}
 		Set(cmd, p, "class", flags.PetitionClass)
 		if _, err := record.Append(s.RunDir, s.SeatID, "petition", p); err != nil {
@@ -62,14 +67,13 @@ func Petition(help, suffix string) *cobra.Command {
 		return petitionResult{Class: Str(cmd, flags.PetitionClass), Suffix: suffix}, nil
 	})
 	c.Flags().String(flags.PetitionClass, "", flags.DescPetitionClass)
-	c.Flags().String(flags.Basis, "", "what happened, and why it reaches the bench")
 	c.Flags().String(flags.Relief, "", "the relief sought, stated as it would bind the coming seats")
 	return Prose(c)
 }
 
 func Position(help string) *cobra.Command {
 	return Prose(New("position", help, func(s Context, cmd *cobra.Command) (Result, error) {
-		text, err := Text(cmd)
+		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +86,7 @@ func Position(help string) *cobra.Command {
 
 func Closing(help string) *cobra.Command {
 	c := Prose(New("closing", help, func(s Context, cmd *cobra.Command) (Result, error) {
-		text, err := Text(cmd)
+		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
 		}

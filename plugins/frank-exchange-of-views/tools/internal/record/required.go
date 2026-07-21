@@ -24,16 +24,27 @@ package record
 // requires --successor" or "a declined avenue requires --reason" depends on another
 // field's value, so it cannot be a static annotation and stays as logic in validate. Those
 // are documented in the flag's own description instead, where the condition can be stated.
+// KEYS ARE PAYLOAD KEYS. The prose key differs per verb — a close stores `prose`, a
+// dispute `evidence`, an opinion `rationale`, a certify `statement` — but the flag a seat
+// types to fill any of them is the one word `--reason` (flags.ForPayloadKey maps each key
+// back to it). The 2026-07-20 vocabulary collapse made every claim/judgment act require
+// that prose: a ruling, a closure, a removal or a dispute with no stated reasoning is
+// indistinguishable from a default, and the tool refuses it rather than let it through.
 var RequiredFields = map[string][]string{
-	"mint":    {"acceptance_check", "class", "likelihood", "impact"},
-	"finding": {"label"},
-	"observe": {"label"},
-	"close":   {"gap_id"},
-	"dispose": {"disposition"},
-	"regrade": {"basis"},
-	"retire":  {"claim", "reason"},
-	"avenue":  {"status", "line"},
-	"opinion": {"gap_id", "disposition", "principle", "tension", "review_flag"},
+	"mint":            {"acceptance_check", "class", "likelihood", "impact", "problem"},
+	"finding":         {"label"},
+	"observe":         {"label"},
+	"close":           {"gap_id", "prose"},
+	"closing":         {"text"},
+	"dispose":         {"disposition"},
+	"regrade":         {"basis"},
+	"dispute":         {"evidence"},
+	"dispute-respond": {"rationale"},
+	"retire":          {"claim", "reason"},
+	"avenue":          {"status", "line"},
+	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
+	"halt":            {"opinion"},
+	"certify":         {"statement"},
 }
 
 // THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its

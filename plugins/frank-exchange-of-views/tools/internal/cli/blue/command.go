@@ -24,11 +24,11 @@ func NewCommand() *cobra.Command {
 		newManifestRow(),
 		newDispute(),
 		newConfidence(),
-		seat.Position("the round's ### BLUE section (prose via --file)"),
-		seat.Closing("a ### BLUE CLOSING entry per docketed gap: --id <gap> --file <prose>"),
-		seat.Friction("attributed friction (survives aborts as an event): --text|--file"),
+		seat.Position("the round's ### BLUE section (prose via --reason)"),
+		seat.Closing("a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
+		seat.Friction("attributed friction (survives aborts as an event): --reason"),
 		seat.Petition(
-			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."`,
+			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."`,
 			""),
 	)
 }

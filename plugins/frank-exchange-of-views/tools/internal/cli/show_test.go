@@ -25,7 +25,7 @@ func TestShowPrintsExactlyWhatTheProjectionFileContains(t *testing.T) {
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
 		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/x",
-		"--text", "the check passes at the named site"); err != nil {
+		"--reason", "the check passes at the named site"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 

@@ -17,7 +17,7 @@ import (
 // round's, restated.
 func newClose() *cobra.Command {
 	c := seat.New("close",
-		`close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--file f|--text "..."]`,
+		`close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			class := seat.Str(cmd, flags.As)
 			if class == "" {
@@ -34,7 +34,7 @@ func newClose() *cobra.Command {
 			// --file read and so was the only prose-bearing verb with no --text at all —
 			// the same shape as the --prose-file divergence, one layer down: a verb that
 			// opts out of the shared helper drifts from it by construction.
-			prose, err := seat.Text(cmd)
+			prose, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}

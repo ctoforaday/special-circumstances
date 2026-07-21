@@ -34,13 +34,15 @@ func newAvenue() *cobra.Command {
 	c := seat.Prose(seat.New("avenue",
 		`record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Text(cmd)
+			// --reason is the prose channel (Prose provides it); it lands under `reason`,
+			// which validate requires for a declined or abandoned avenue.
+			reason, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}
-			p := seat.SetSame(cmd, record.NewPayload(), flags.Line, flags.Status, flags.Reason, flags.Method)
-			if text != "" {
-				p.Set("detail", text)
+			p := seat.SetSame(cmd, record.NewPayload(), flags.Line, flags.Status, flags.Method)
+			if reason != "" {
+				p.Set("reason", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "avenue", p); err != nil {
 				return nil, err
@@ -50,7 +52,6 @@ func newAvenue() *cobra.Command {
 
 	c.Flags().String(flags.Line, "", "the question or approach — what you were going to try")
 	c.Flags().String(flags.Status, "", "declined (considered, not taken) | abandoned (pursued, then died) | pursued (became the report's spine)")
-	c.Flags().String(flags.Reason, "", "why it was declined, or what killed it — the part a future run actually needs")
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }

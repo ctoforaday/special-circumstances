@@ -98,10 +98,10 @@ Usage:
 
 Available Commands:
   cite        citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
-  finding     a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--text "..."|--file f] [--location "..."]
-  friction    attributed friction (survives aborts as an event): --text|--file
-  observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --text|--file
-  petition    petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."
+  finding     a lens-scoped finding: --label L3-F1 --severity <g> --likelihood <g> --impact <g> [--reason "..."] [--location "..."]
+  friction    attributed friction (survives aborts as an event): --reason
+  observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason
+  petition    petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render      read-only projection refresh (any seat may invoke)
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
@@ -131,16 +131,16 @@ Usage:
   feov-record merge [command]
 
 Available Commands:
-  close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] [--file f|--text "..."]
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>
+  close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
+  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
   dispose         every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
-  dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --basis "..."
-  friction        attributed friction: --text|--file
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
-  petition        petition the bench: --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."
-  position        the round's ### RED section (prose via --file)
+  dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --reason "..."
+  friction        attributed friction: --reason
+  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  petition        petition the bench: --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
+  position        the round's ### RED section (prose via --reason)
   register        FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."
+  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
   render          read-only projection refresh (any seat may invoke)
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
@@ -172,17 +172,17 @@ Usage:
 
 Available Commands:
   avenue       record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]
-  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --file <prose>
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
-  dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --basis "..."
-  friction     attributed friction (survives aborts as an event): --text|--file
+  dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --reason "..."
+  friction     attributed friction (survives aborts as an event): --reason
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  petition     petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."
-  position     the round's ### BLUE section (prose via --file)
+  petition     petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
+  position     the round's ### BLUE section (prose via --reason)
   register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render       read-only projection refresh (any seat may invoke)
   retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
-  revision     the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land
+  revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
   show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
 
 Flags:
@@ -211,12 +211,12 @@ Usage:
 
 Available Commands:
   assemble      assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
-  certify       the run-end certification statement ("what I would want a human to re-examine"): --file <statement>
-  friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file
-  halt          the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>
-  opinion       a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]
+  certify       the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
+  friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --reason
+  halt          the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
+  opinion       a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
   outcome       record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]
-  petition-rule rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --file <opinion> (a halt is its own verb)
+  petition-rule rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --reason <opinion> (a halt is its own verb)
   register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render        read-only projection refresh (any seat may invoke)
   show          read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
@@ -234,7 +234,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.8.0
+feov-record version 0.9.0
 
 $ feov-record nonsuch help
 exit 2

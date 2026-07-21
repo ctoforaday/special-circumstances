@@ -49,11 +49,15 @@ import (
 //	0.8.0  `merge verdict --as PASS` is REFUSED while any gap is still open — the gate is
 //	       enforced at the tool, not trusted to the seat. A prompt that drives it sees a new
 //	       failure it must handle (close the gaps or issue FAIL).
+//	0.9.0  the prose vocabulary collapses to --reason (+ --reason-file); --file/--text/
+//	       --comment/--basis are retired, and every claim/judgment act (mint, close,
+//	       closing, dispute, dispute-respond, opinion, retire, halt, certify) now requires
+//	       its prose. A prompt driving the old flags sees unknown-flag and new refusals.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.8.0"
+const Version = "0.9.0"
 
 func init() { record.ToolVersion = Version }
 

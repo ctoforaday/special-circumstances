@@ -48,7 +48,7 @@ feov-record: merge: record: dispose --observation names L1-F1, which no observe 
 
 ── regrade without basis
 exit 2
-feov-record: merge: record: regrade requires --basis (grade movement is recorded with its reason)
+feov-record: merge: record: regrade requires --reason (grade movement is recorded with its reason)
 
 ── opinion missing fields
 exit 2

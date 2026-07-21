@@ -283,24 +283,9 @@ func nextStamp(runDir string) string {
 	return out
 }
 
-// AmbientComment is the value of the universal --comment flag for THIS invocation.
-//
-// A package variable is safe here and nowhere else: feov-record is a CLI that parses one
-// command, records it, and exits — one process, one verb, no concurrency. The
-// alternative was threading a comment parameter through thirty verb handlers, each of
-// which would then be able to forget it. The point of a universal field is that it
-// cannot be forgotten, so it is applied at the single choke point every verb passes
-// through rather than at thirty call sites.
-var AmbientComment string
-
 func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 	if p == nil {
 		p = NewPayload()
-	}
-	// Recorded only when given: an empty comment key on every event would be noise in
-	// the shard and in every projection that reads it.
-	if AmbientComment != "" {
-		p.Set("comment", AmbientComment)
 	}
 	nonce, err := activeNonce(runDir, seatID)
 	if err != nil {
@@ -418,6 +403,11 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g)
 			}
 		}
+		// The defect the gap records. Checked after check/class/grades so those more
+		// specific refusals lead; --problem is structural and --reason fills it too.
+		if !p.Has("problem") || p.Str("problem") == "" {
+			return fmt.Errorf("record: mint requires --problem (what is wrong; --reason fills it too) — a gap with no stated problem cannot be repaired or re-audited")
+		}
 		if err := validateClass(runDir, p); err != nil {
 			return err
 		}
@@ -495,6 +485,14 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if p.Str("closure_class") == "closed_with_regression" && !p.Has("successor") {
 			return fmt.Errorf("record: closed_with_regression requires --successor (lineage never drops)")
 		}
+		// A closure is a claim, and the claim's substance is its argument: what was
+		// verified and why it holds. Checked after the anchor so the more specific
+		// refusal (an unauditable closure) leads when both are absent, and EXEMPT for a
+		// carry — a --carried-from close restates an earlier closure that already stated
+		// its reason, so demanding a fresh one would be asking the same argument twice.
+		if !p.Has("carried_from") && (!p.Has("prose") || p.Str("prose") == "") {
+			return fmt.Errorf("record: close requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
+		}
 	case "dispute", "dispute-respond", "closing", "manifest-row":
 		// All name a gap and none checked it. Grouped because the reference is the same
 		// reference: the verb differs, the dangling failure does not.
@@ -506,11 +504,20 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				"a grade dispute asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
 				return err
 			}
+			if p.Str("evidence") == "" {
+				return fmt.Errorf("record: dispute requires --reason (the grounds you contest the grade FROM, citing the exact section — a dispute the other side cannot answer is not on the record)")
+			}
 		}
 		if typ == "dispute-respond" {
 			if err := requirePriorDispute(runDir, p.Str("gap_id")); err != nil {
 				return err
 			}
+			if p.Str("rationale") == "" {
+				return fmt.Errorf("record: dispute-respond requires --reason (why blue's proposed grade is accepted or refused — the answering half of the argument)")
+			}
+		}
+		if typ == "closing" && p.Str("text") == "" {
+			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
 		}
 	case "finding", "observe":
 		// A finding with no label CANNOT BE DISPOSED, and every finding must get a fate.
@@ -552,7 +559,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			return err
 		}
 		if !p.Has("basis") || p.Str("basis") == "" {
-			return fmt.Errorf("record: regrade requires --basis (grade movement is recorded with its reason)")
+			return fmt.Errorf("record: regrade requires --reason (grade movement is recorded with its reason)")
 		}
 	case "retire":
 		// A removal with no stated reason is the failure this verb exists to make
@@ -599,6 +606,16 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if p.Str("status") != "pursued" && (!p.Has("reason") || p.Str("reason") == "") {
 			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
 		}
+	case "halt":
+		// The safety boundary reaches the human as the words the bench chose, relayed
+		// verbatim — so a halt with no written opinion cannot do its one job.
+		if p.Str("opinion") == "" {
+			return fmt.Errorf("record: halt requires --reason (the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause)")
+		}
+	case "certify":
+		if p.Str("statement") == "" {
+			return fmt.Errorf("record: certify requires --reason (what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity)")
+		}
 	case "petition-rule":
 		if err := requireSeat(runDir, p.Str("petitioner"), "petition-rule", "--petitioner"); err != nil {
 			return err
@@ -611,6 +628,9 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			if !p.Has(f) {
 				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f))
 			}
+		}
+		if p.Str("rationale") == "" {
+			return fmt.Errorf("record: opinion requires --reason (the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default)")
 		}
 		// A verb that owns an act must OWN it. petition_rule.go states the safety
 		// property plainly — "a halt is deliberately NOT a value of --as ... giving it

@@ -39,7 +39,7 @@ func runWithGap(t *testing.T) string {
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
 		Set("acceptance_check", "c").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
@@ -49,15 +49,20 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 	// full is a payload that satisfies each verb, from which one field is removed at a
 	// time. Values are placeholders — validate checks presence, not meaning.
 	full := map[string]map[string]any{
-		"mint":    {"acceptance_check": "c", "class": "scope-creep"},
-		"close":   {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x"},
-		"dispose": {"disposition": "declined", "reason": "r"},
-		"regrade": {"basis": "b"},
-		"retire":  {"claim": "c", "reason": "r"},
-		"avenue":  {"status": "pursued", "line": "l"},
-		"opinion": {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no"},
-		"finding": {"label": "L1-F1"},
-		"observe": {"label": "L1-O1"},
+		"mint":            {"acceptance_check": "c", "class": "scope-creep"},
+		"close":           {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x", "prose": "p"},
+		"closing":         {"gap_id": "R1-1", "text": "t"},
+		"dispose":         {"disposition": "declined", "reason": "r"},
+		"regrade":         {"basis": "b"},
+		"dispute":         {"gap_id": "R1-1", "evidence": "e"},
+		"dispute-respond": {"gap_id": "R1-1", "rationale": "r"},
+		"retire":          {"claim": "c", "reason": "r"},
+		"avenue":          {"status": "pursued", "line": "l"},
+		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "rationale": "r"},
+		"halt":            {"opinion": "o"},
+		"certify":         {"statement": "s"},
+		"finding":         {"label": "L1-F1"},
+		"observe":         {"label": "L1-O1"},
 	}
 
 	for typ, required := range RequiredFields {
@@ -96,7 +101,7 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
 		"avenue":  NewPayload().Set("status", "pursued").Set("line", "l"),
 		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-			Set("principle", "p").Set("tension", "t").Set("review_flag", "no"),
+			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("rationale", "r"),
 	} {
 		dir := t.TempDir()
 		if typ == "opinion" {
@@ -114,7 +119,7 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 // defects in this codebase have come from treating a falsy value as an absent one.
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	p := NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-		Set("principle", "p").Set("tension", "t").Set("review_flag", false)
+		Set("principle", "p").Set("tension", "t").Set("review_flag", false).Set("rationale", "r")
 	if err := validate(runWithGap(t), "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
@@ -134,7 +139,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 		t.Fatal(err)
 	}
 	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium")
+		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	if _, err := Append(runDir, "red-merge-r1", "mint", mint); err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +152,8 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 
 	// Anchored, it goes through — the escape hatch is closed, not the door.
 	anchored := NewPayload().Set("gap_id", id).
-		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x")
+		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
+		Set("prose", "verified and holds")
 	if err := validate(runDir, "red-merge-r1", "close", anchored); err != nil {
 		t.Errorf("an anchored closure must still be accepted: %v", err)
 	}
@@ -165,11 +171,12 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
 		Set("acceptance_check", "c").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).
-		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x")); err != nil {
+		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
+		Set("prose", "verified and holds")); err != nil {
 		t.Fatal(err)
 	}
 	if err := validate(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {
@@ -183,7 +190,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 	base := func() *Payload {
 		return NewPayload().Set("acceptance_check", "c").Set("class", "scope-creep").
-			Set("likelihood", "medium").Set("impact", "medium")
+			Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 	for _, missing := range []string{"likelihood", "impact"} {
 		p := NewPayload()

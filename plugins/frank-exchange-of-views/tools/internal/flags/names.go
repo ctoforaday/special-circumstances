@@ -45,13 +45,12 @@ const (
 	// result (and structured errors) for machine consumers; the default is human text.
 	JSON = "json"
 
-	// The prose payload, in its three interchangeable forms.
-	File = "file"
-	Text = "text"
-
-	// The universal free-text field, in its three interchangeable forms.
-	Comment     = "comment"
-	CommentFile = "comment-file"
+	// The prose payload — one word for the reasoning a seat argues from, inline
+	// (--reason) or from a file/stdin (--reason-file). It replaced the split
+	// --file/--text payload channel, the universal --comment junk drawer, and the
+	// contested-exchange --basis; every prose argument a verb records now lands here.
+	Reason     = "reason"
+	ReasonFile = "reason-file"
 
 	// Identity and reference.
 	ID        = "id"
@@ -66,18 +65,13 @@ const (
 
 	// Disposition and justification.
 	//
-	// Reason and Basis are TWO WORDS FOR TWO INTENTS, and the line between them is
-	// whether anyone is being argued with:
-	//   --reason ... why a thing happened or was not done, stated to a reader who is not
-	//               contesting it (an avenue declined, a claim retired, an empty sample).
-	//   --basis  ... the grounds you argue FROM in a contested exchange, where another
-	//               seat may answer (dispute, dispute-respond, regrade, petition).
-	// A third word, --rationale, existed on dispute-respond alone for exactly the intent
-	// --basis already carried on the dispute it was answering; the two halves of one
-	// argument used different words. It is gone.
+	// --reason (declared above with the prose payload) is now the ONE word for every
+	// prose argument, whether or not it is contested. It absorbed --basis (the grounds
+	// argued FROM in a dispute/regrade/dispute-respond/petition) and the --rationale
+	// that briefly split one argument's two halves: a seat learns a single word and
+	// reaches for it everywhere, and the event schema keeps its own distinct keys
+	// (evidence, basis, rationale) underneath.
 	As     = "as"
-	Reason = "reason"
-	Basis  = "basis"
 	Notes  = "notes"
 	Status = "status"
 	Into   = "into"
@@ -161,10 +155,9 @@ const (
 func All() []string {
 	return []string{
 		Run, SeatID, JSON,
-		File, Text,
-		Comment, CommentFile,
+		Reason, ReasonFile,
 		ID, IDs, Label, Claim, Key, Location, Reference, Row, View,
-		As, Reason, Basis, Notes, Status, Into, None,
+		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
 		Problem, Fix, Check,
@@ -208,20 +201,27 @@ func ForPayloadKey(key string) string {
 var payloadFlag = map[string]string{
 	"gap_id":           ID,
 	"disposition":      As,
-	"evidence":         Basis,
-	"prose":            File,
 	"acceptance_check": Check,
+	// Every prose payload key now funnels through the one --reason flag, so each maps
+	// to it. The keys stay distinct in the event schema — a dispute stores `evidence`,
+	// a regrade `basis`, an opinion `rationale`, a close `prose` — while the WORD a
+	// seat types collapsed to `reason`. None of these keys is spelled by any other flag,
+	// so the global map stays unambiguous (see the LIMIT note above).
+	"prose":     Reason,
+	"text":      Reason,
+	"evidence":  Reason,
+	"rationale": Reason,
+	"opinion":   Reason,
+	"statement": Reason,
+	"basis":     Reason,
 }
 
 // Canonical descriptions. The same word gets the same explanation wherever it appears —
 // the audit found --file described two ways and --id three ways, which teaches a seat
 // that they might be different things.
 const (
-	DescFile = "read the payload from a file — ALWAYS use this over --text for anything above ~2KB"
-	DescText = "the payload, inline (short values only)"
-
-	DescComment     = "free text this verb has no field for — recorded on the event, and a recurring one is a schema gap"
-	DescCommentFile = "read --comment from a file, or from stdin with `-` — for anything long or awkward to quote"
+	DescReason     = "your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -"
+	DescReasonFile = "read --reason from a file, or from stdin with `-` — the same field as --reason, for anything long or that would fight shell quoting"
 
 	DescPetitionClass = "ethical | safety | integrity | constitutional"
 )

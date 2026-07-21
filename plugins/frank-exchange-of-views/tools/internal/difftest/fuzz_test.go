@@ -192,7 +192,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 				args = []string{"regrade", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
 					"--severity", pick(rng, fuzzGrades)}
 				if rng.Intn(2) == 0 {
-					args = append(args, "--basis", "movement reason")
+					args = append(args, "--reason", "movement reason")
 				}
 			case 5:
 				args = []string{"dispose", "--run", "{RUN}", "--seat-id", s,
@@ -211,9 +211,9 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 				args = []string{"finding", "--run", "{RUN}", "--seat-id", s,
 					"--label", fmt.Sprintf("L%d-F%d", 1+rng.Intn(6), 1+rng.Intn(4)),
 					"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
-					"--impact", pick(rng, fuzzGrades), "--text", "a finding"}
+					"--impact", pick(rng, fuzzGrades), "--reason", "a finding"}
 			case 3:
-				args = []string{"observe", "--run", "{RUN}", "--seat-id", s, "--text", "an observation"}
+				args = []string{"observe", "--run", "{RUN}", "--seat-id", s, "--reason", "an observation"}
 				if rng.Intn(2) == 0 {
 					args = append(args, "--label", fmt.Sprintf("N%d", rng.Intn(3)))
 				}
@@ -221,16 +221,16 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 		case "blue":
 			switch rng.Intn(3) {
 			case 0:
-				args = []string{"revision", "--run", "{RUN}", "--seat-id", s, "--text", "revised", "--claim-count", fmt.Sprint(rng.Intn(300))}
+				args = []string{"revision", "--run", "{RUN}", "--seat-id", s, "--reason", "revised", "--claim-count", fmt.Sprint(rng.Intn(300))}
 			case 1:
 				args = []string{"manifest-row", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs), "--row", "checked"}
 			case 2:
 				args = []string{"dispute", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
-					"--dimension", "likelihood", "--proposed", pick(rng, fuzzGrades), "--basis", "why"}
+					"--dimension", "likelihood", "--proposed", pick(rng, fuzzGrades), "--reason", "why"}
 			}
 		case "bench":
 			args = []string{"opinion", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
-				"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "r"}
+				"--as", "carried", "--principle", "p", "--tension", "t", "--reason", "the ruling", "--review-flag", "r"}
 			if rng.Intn(4) == 0 {
 				args = args[:len(args)-2] // drop the review flag: the validation path
 			}
