@@ -18,7 +18,7 @@ func newMint() *cobra.Command {
 	var supersedes, foundBy flags.CSV
 
 	c := seat.Prose(seat.New("mint",
-		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--file --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
+		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// Crash-retry idempotency: --key (the stable local label, e.g. the source
 			// lens finding) makes a retried mint return the EXISTING id.
@@ -33,7 +33,7 @@ func newMint() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			text, err := seat.Text(cmd)
+			text, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}
@@ -82,7 +82,7 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.Neighbor, "", "the existing class this one sits closest to")
 	c.Flags().String(flags.Distinguisher, "", "the tie-break question that tells the two apart")
 	c.Flags().String(flags.Location, "", "where the defect lives: a section heading plus a quoted sentence")
-	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --file)")
+	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix")
 	c.Flags().String(flags.Check, "", "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))

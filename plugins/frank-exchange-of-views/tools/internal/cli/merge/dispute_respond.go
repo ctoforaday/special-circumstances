@@ -16,14 +16,17 @@ import (
 // event rather than settled in prose.
 func newDisputeRespond() *cobra.Command {
 	c := seat.New("dispute-respond",
-		`red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --basis "..."`,
+		`red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --reason "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			seat.Set(cmd, p, "response", flags.As)
-			// Flag word --basis (the grounds you argue from, as on dispute/regrade/
-			// petition); payload key stays rationale.
-			if err := seat.SetLongForm(cmd, p, "rationale", flags.Basis); err != nil {
+			// Flag word --reason (the one prose word), payload key stays rationale.
+			reason, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
+			}
+			if reason != "" {
+				p.Set("rationale", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute-respond", p); err != nil {
 				return nil, err
@@ -33,7 +36,6 @@ func newDisputeRespond() *cobra.Command {
 
 	c.Flags().String(flags.ID, "", "the gap id")
 	c.Flags().String(flags.As, "", "accepted | rejected — your answer to blue's grade dispute")
-	c.Flags().String(flags.Basis, "", "the grounds for the answer — why blue's proposed grade is accepted or refused")
 	return seat.Prose(c)
 }
 

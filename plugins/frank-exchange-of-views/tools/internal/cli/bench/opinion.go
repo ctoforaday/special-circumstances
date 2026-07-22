@@ -17,9 +17,9 @@ import (
 // a default. Requiring the reasoning is what makes the difference visible.
 func newOpinion() *cobra.Command {
 	c := seat.Prose(seat.New("opinion",
-		`a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" [--file rationale]`,
+		`a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Text(cmd)
+			text, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}

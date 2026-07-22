@@ -33,9 +33,7 @@ func newSpotCheck() *cobra.Command {
 			}
 			p := record.NewPayload()
 			seat.SetList(p, "ids", &ids)
-			if err := seat.SetLongForm(cmd, p, "notes", flags.Notes); err != nil {
-				return nil, err
-			}
+			seat.Set(cmd, p, "notes", flags.Notes)
 			if none {
 				p.Set("none", true)
 				seat.SetSame(cmd, p, flags.Reason)
@@ -66,7 +64,7 @@ func newSpotCheck() *cobra.Command {
 	// --none --reason says which, and the bare form keeps working.
 	c.Flags().Bool(flags.None, false, "the archive was empty at round start, so there was nothing to sample (requires --reason)")
 	c.Flags().String(flags.Reason, "", "why there was nothing to sample")
-	return seat.Prose(c)
+	return c
 }
 
 type spotCheckResult struct {

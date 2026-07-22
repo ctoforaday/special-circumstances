@@ -23,6 +23,6 @@ func NewCommand() *cobra.Command {
 		newCertify(),
 		newOutcome(),
 		newAssemble(),
-		seat.Friction("attributed friction (the bench seats had no event path before — the abort-surviving copy): --text|--file"),
+		seat.Friction("attributed friction (the bench seats had no event path before — the abort-surviving copy): --reason"),
 	)
 }

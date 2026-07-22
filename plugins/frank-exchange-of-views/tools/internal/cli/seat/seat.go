@@ -190,8 +190,7 @@ func markRequired(c *cobra.Command, verb string) {
 
 // Begin runs a verb's preconditions and returns its seat context. It is a plain function
 // called at the TOP of the one RunE — NOT a PreRunE hook — so there is no lifecycle chaining
-// to reason about. It requires the run dir and seat id, holds the seat to its role, and sets
-// the ambient comment that every record.Append in this process carries.
+// to reason about. It requires the run dir and seat id and holds the seat to its role.
 func Begin(cmd *cobra.Command) (Context, error) {
 	s := Of(cmd)
 	if s.RunDir == "" {
@@ -203,11 +202,6 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if err := record.CheckSeatRole(s.Role, s.SeatID); err != nil {
 		return s, err
 	}
-	comment, err := flags.ReadComment(cmd, cmd.InOrStdin())
-	if err != nil {
-		return s, err
-	}
-	record.AmbientComment = comment
 	return s, nil
 }
 
@@ -267,73 +261,35 @@ func New(name, help string, run Handler) *cobra.Command {
 	// only cost of dropping it is that the dashboard can be seconds stale between renders,
 	// which a monitor tolerates. Render is now a VISIBLE operation, not a hidden per-write tax.
 	//
-	// A UNIVERSAL FREE-TEXT FIELD, attached here so no verb can ship without one.
-	//
-	// The 2026-07-18 run's seats reached for --note, --detail, --target and --line and
-	// were refused every time. That knowledge did not evaporate: it went into the
-	// hand-written markdown, which is why the archive rendered from events was 7,527
-	// bytes against the hand copy's 34,086. Every schema gap pushes evidence out of the
-	// queryable channel and into the one nothing can query.
-	//
-	// --comment is the pressure valve. It is deliberately unstructured and deliberately
-	// everywhere, and it doubles as the backlog: a note that keeps recurring names a
-	// field the schema is missing, which is a better way to find them than guessing.
-	flags.RegisterComment(c)
+	// The universal --comment field is GONE too (2026-07-20). It was the pressure valve for
+	// "what this verb has no field for", but a comment was never surfaced in any report, so
+	// prose put there was lost to the reader — a junk drawer that taught seats to record
+	// substance where nothing could read it. A missing field is now a friction entry (a
+	// finding about the tooling) rather than text dropped into an unqueryable channel.
 
 	return c
 }
 
-// Prose adds the shared payload channel to a verb that reads one.
+// Prose adds the shared prose payload channel — --reason / --reason-file — to a verb that
+// reads one. It routes through flags.RegisterPayload rather than registering the flags by
+// hand, so a verb cannot register one form and forget the other; `close` shipped exactly
+// that leak (a private --file, no --text) before the channel was centralized here.
 func Prose(c *cobra.Command) *cobra.Command {
-	c.Flags().String(flags.File, "", "read the prose payload from a file — ALWAYS use this over --text for anything above ~2KB")
-	c.Flags().String(flags.Text, "", "the prose payload, inline (short values only)")
+	flags.RegisterPayload(c)
 	return c
 }
 
-// Text resolves that channel: --file (read whole) or --text, else empty.
-// Text resolves the payload channel through flags.ReadPayload — the ONE resolver.
+// Reason resolves that channel through flags.ReadPayload — the ONE resolver: --reason
+// inline, --reason-file from disk, or `--reason-file -` from stdin, with both-given refused
+// and the trailing newline a shell heredoc leaves behind trimmed off.
 //
-// It used to do its own os.ReadFile, which made it a second reader of a concept the flags
-// package already owned, and the two had drifted exactly as that always does: ReadPayload
-// understood `--file -` as stdin, refused `--text` and `--file` together, and trimmed the
-// trailing newline a shell heredoc leaves behind. This one did none of those, so every
-// verb routed through it silently lacked stdin support while the capability sat one
-// package away, written and tested.
-//
-// That gap was measured in the run: 68 commands carrying escaped quotes, 9 heredocs, and
-// 37 staging a temp file first — two of which failed because the staged file was not there.
-// Prose into markdown costs nothing; prose through the tool meant fighting the shell.
-func Text(cmd *cobra.Command) (string, error) {
+// Routing every verb through the one resolver is what gives them all stdin support for free.
+// The gap it closed was measured in the 2026-07-18 run: 68 commands carrying escaped quotes,
+// 9 heredocs, and 37 staging a temp file first — two of which failed because the staged file
+// was not there. Prose into markdown costs nothing; prose through the tool meant fighting
+// the shell.
+func Reason(cmd *cobra.Command) (string, error) {
 	return flags.ReadPayload(cmd, cmd.InOrStdin())
-}
-
-// SetLongForm fills a verb's own justification field from EITHER its named flag or the
-// payload channel, and refuses both.
-//
-// The nine verbs with no payload channel were not a uniform gap. Six of them carry a field
-// that is genuinely long-form — a dispute's --basis, a disposal's --reason, a spot-check's
-// --notes — and those are exactly the values a seat had to inline, escape and quote,
-// because the only alternative was the markdown. `cite` and `confidence` carry short
-// values (a label, a grade) and want no payload; `verdict` is one word. Giving all nine
-// the same channel would have been symmetry for its own sake.
-//
-// So --file/--text here is ANOTHER SPELLING of the named field, not a second field. Both
-// given is refused rather than silently ranked, for the same reason ReadPayload refuses
-// --text with --file: a seat that passes two should be told which one this verb would have
-// ignored, not left to discover it in a projection three rounds later.
-func SetLongForm(cmd *cobra.Command, p *record.Payload, key, flag string) error {
-	named := Str(cmd, flag)
-	payload, err := Text(cmd)
-	if err != nil {
-		return err
-	}
-	if named != "" && payload != "" {
-		return fmt.Errorf("--%s and --file/--text are two spellings of this verb's %s: pass exactly one", flag, key)
-	}
-	if v := named + payload; v != "" {
-		p.Set(key, v)
-	}
-	return nil
 }
 
 // Str reads a string flag.

@@ -17,7 +17,7 @@ func newManifestRow() *cobra.Command {
 	c := seat.Prose(seat.New("manifest-row",
 		`one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Text(cmd)
+			text, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}

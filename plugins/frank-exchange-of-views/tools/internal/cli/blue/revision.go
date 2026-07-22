@@ -21,9 +21,9 @@ import (
 // ledger. This event is the machine-checkable half of that fix.
 func newRevision() *cobra.Command {
 	c := seat.Prose(seat.New("revision",
-		"the round-record event (the CHANGELOG entry body via --file) — singleton per seat-round; emit AFTER your report edits land",
+		"the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Text(cmd)
+			text, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}

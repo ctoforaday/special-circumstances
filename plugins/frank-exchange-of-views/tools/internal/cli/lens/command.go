@@ -22,9 +22,9 @@ func NewCommand() *cobra.Command {
 		newFinding(),
 		newObserve(),
 		newCite(),
-		seat.Friction("attributed friction (survives aborts as an event): --text|--file"),
+		seat.Friction("attributed friction (survives aborts as an event): --reason"),
 		seat.Petition(
-			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."`,
+			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."`,
 			" — the bench hears it before the debate continues"),
 	)
 }

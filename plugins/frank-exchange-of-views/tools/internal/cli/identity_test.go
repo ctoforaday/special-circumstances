@@ -22,7 +22,7 @@ var findingID = regexp.MustCompile(`f-[0-9a-f]{8}`)
 func TestARecordedFindingIsToldItsID(t *testing.T) {
 	runDir := seatRun(t)
 	out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-F1", "--location", "§1", "--text", "a finding",
+		"--label", "L1-F1", "--location", "§1", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestARecordedFindingIsToldItsID(t *testing.T) {
 func TestTheMergeDisposesByTheIDTheBoardLists(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--text", "worth noticing"); err != nil {
+		"--label", "L1-O1", "--kind", "note", "--reason", "worth noticing"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -64,7 +64,7 @@ func TestTheMergeDisposesByTheIDTheBoardLists(t *testing.T) {
 func TestAComposedFindingIDIsRefused(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--text", "o"); err != nil {
+		"--label", "L1-O1", "--kind", "note", "--reason", "o"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
@@ -87,7 +87,7 @@ func TestTwoSeatsMayShareALabelWithoutColliding(t *testing.T) {
 	ids := map[string]bool{}
 	for _, seat := range []string{"red-lens-r1-L1", "red-lens-r1-L2"} {
 		out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seat,
-			"--label", "F1", "--location", "§1", "--text", "a finding",
+			"--label", "F1", "--location", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low")
 		if err != nil {
 			t.Fatal(err)
@@ -104,7 +104,7 @@ func TestTwoSeatsMayShareALabelWithoutColliding(t *testing.T) {
 func TestAFindingStillRequiresItsDescriptiveLabel(t *testing.T) {
 	runDir := seatRun(t)
 	_, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--location", "§1", "--text", "a finding with no label",
+		"--location", "§1", "--reason", "a finding with no label",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err == nil {
 		t.Fatal("an unlabelled finding was accepted; 8 of these in one run sat unreferenceable forever")

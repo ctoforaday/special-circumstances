@@ -191,7 +191,7 @@ test('record-join audit: an event no transcript invoked is FLAGGED; the binary i
   // Transcript carrying the ROLE-SUBCOMMAND form the binary is invoked with.
   writeFileSync(join(transcripts, 'agent-aaa.jsonl'), [
     JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'feov-record lens register --run x --seat-id red-lens-r1-L1' } }] } }),
-    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'feov-record lens finding --label L1-F1 --text "x" --run x --seat-id red-lens-r1-L1' } }] } }),
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'feov-record lens finding --label L1-F1 --reason "x" --run x --seat-id red-lens-r1-L1' } }] } }),
   ].join('\n') + '\n')
   const pass = recordJoinAudit(run, transcripts, ['agent-aaa.jsonl'])
   assert.equal(pass.verdict, 'PASS', pass.detail)

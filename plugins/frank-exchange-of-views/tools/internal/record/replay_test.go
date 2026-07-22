@@ -391,7 +391,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
 		if _, err := Append(runDir, seatID, "mint", NewPayload().
-			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -418,7 +418,7 @@ func TestExistingMintByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, seatID, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -569,7 +569,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 		t.Run(field+"/accepts every canonical grade", func(t *testing.T) {
 			for _, g := range GRADES {
-				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
+				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 				if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err != nil {
 					t.Errorf("%s=%s refused: %v", field, g, err)
 				}
@@ -592,12 +592,12 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"mint without --check", "mint", NewPayload().Set("class", "x"), "mint requires --check"},
 		{"mint with an empty --check", "mint", NewPayload().Set("class", "x").Set("acceptance_check", ""), "mint requires --check"},
 		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c"), "mint requires --class"},
-		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium"), ""},
+		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p"), ""},
 
 		{"close without --id", "close", NewPayload(), "close requires --id"},
 		{"dispose without --as", "dispose", NewPayload(), "dispose requires --as"},
 		{"dispose complete", "dispose", NewPayload().Set("disposition", "declined"), ""},
-		{"regrade without --basis", "regrade", NewPayload(), "regrade requires --basis"},
+		{"regrade without --basis", "regrade", NewPayload(), "regrade requires --reason"},
 		{"regrade complete", "regrade", NewPayload().Set("basis", "b"), ""},
 
 		{"retire without --claim", "retire", NewPayload().Set("reason", "r"), "retire requires --claim"},
@@ -658,7 +658,7 @@ func opinionRunDir(t *testing.T) string {
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
 		Set("acceptance_check", "c").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium")); err != nil {
+		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
@@ -709,14 +709,18 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		}
 		p.Set(f, "x")
 	}
+	p.Set("rationale", "the ruling's reasoning")
 	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
-	// An EMPTY value still counts as present: the check is Has, not non-empty.
+	// An EMPTY value still counts as present for the five Has-checked fields: the check
+	// is Has, not non-empty (a --review-flag false is a legitimate ruling). rationale is
+	// the exception — it is prose the ruling turns on, so it is required non-empty.
 	q := NewPayload()
 	for _, f := range all {
 		q.Set(f, "")
 	}
+	q.Set("rationale", "the ruling's reasoning")
 	if err := validate(complete, "judge-r1", "opinion", q); err != nil {
 		t.Errorf("opinion fields present-but-empty were refused: %v", err)
 	}
@@ -731,7 +735,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
 	})
 	base := func() *Payload {
-		return NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium")
+		return NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 
 	if err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
@@ -762,7 +766,8 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	})
 	anchored := func() *Payload {
 		return NewPayload().Set("gap_id", "R1-1").
-			Set("anchor_seat", "L1").Set("anchor_tool", "git show").Set("anchor_target", "7bc501e:path")
+			Set("anchor_seat", "L1").Set("anchor_tool", "git show").Set("anchor_target", "7bc501e:path").
+			Set("prose", "verified against the ref; the claim now holds")
 	}
 	cases := []struct {
 		name    string
@@ -815,7 +820,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	}
 	registry := `{"classes":[{"slug":"scope-creep"},{"slug":"unfalsifiable"},{"slug":"stale-source"}]}`
 	mint := func(p *Payload) *Payload {
-		return p.Set("acceptance_check", "c").Set("likelihood", "medium").Set("impact", "medium")
+		return p.Set("acceptance_check", "c").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {

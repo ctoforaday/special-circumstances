@@ -71,12 +71,12 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", closedByRed, "--as", "closed",
 		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/x",
-		"--text", "the check passes"); err != nil {
+		"--reason", "the check passes"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
 		"--id", closedByBench, "--as", "closed", "--principle", "p", "--tension", "t",
-		"--review-flag", "no"); err != nil {
+		"--review-flag", "no", "--reason", "closed on the merits"); err != nil {
 		t.Fatalf("bench opinion: %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
 		"--anchor-seat", "L4", "--anchor-tool", "git show", "--anchor-target", "7bc501e:report.md",
-		"--text", "re-read the cited source"); err != nil {
+		"--reason", "re-read the cited source"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 
@@ -136,7 +136,7 @@ func TestBoardJSONStatesWhetherAnObservationHasAFate(t *testing.T) {
 	runDir := seatRun(t)
 	for _, l := range []string{"L1-O1", "L1-O2"} {
 		if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-			"--label", l, "--kind", "note", "--text", "a thing worth noticing"); err != nil {
+			"--label", l, "--kind", "note", "--reason", "a thing worth noticing"); err != nil {
 			t.Fatalf("observe %s: %v", l, err)
 		}
 	}

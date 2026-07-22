@@ -23,10 +23,10 @@ func NewCommand() *cobra.Command {
 		newRegrade(),
 		newDisputeRespond(),
 		newSpotCheck(),
-		seat.Position("the round's ### RED section (prose via --file)"),
-		seat.Closing("a ### RED CLOSING entry per docketed gap: --id <gap> --file <prose>"),
+		seat.Position("the round's ### RED section (prose via --reason)"),
+		seat.Closing("a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
 		newVerdict(),
-		seat.Friction("attributed friction: --text|--file"),
-		seat.Petition(`petition the bench: --petition-class ethical|safety|integrity|constitutional --basis "..." --relief "..."`, ""),
+		seat.Friction("attributed friction: --reason"),
+		seat.Petition(`petition the bench: --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."`, ""),
 	)
 }

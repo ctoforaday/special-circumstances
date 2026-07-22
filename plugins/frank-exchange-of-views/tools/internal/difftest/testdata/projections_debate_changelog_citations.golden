@@ -3,7 +3,7 @@ exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge position --run {RUN} --seat-id red-merge-r1 --file {RUN}/red.md
+$ merge position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/red.md
 exit 0
 stdout:
 position recorded
@@ -13,22 +13,22 @@ exit 0
 stdout:
 minted R1-1
 
-$ merge closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --text red's closing
+$ merge closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason red's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ blue position --run {RUN} --seat-id blue-respond-r1 --file {RUN}/blue.md
+$ blue position --run {RUN} --seat-id blue-respond-r1 --reason-file {RUN}/blue.md
 exit 0
 stdout:
 position recorded
 
-$ blue closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --text blue's closing
+$ blue closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason blue's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ blue revision --run {RUN} --seat-id blue-respond-r1 --text repairs landed --claim-count 88
+$ blue revision --run {RUN} --seat-id blue-respond-r1 --reason repairs landed --claim-count 88
 exit 0
 stdout:
 revision recorded — the round is on the record
@@ -38,7 +38,7 @@ exit 0
 stdout:
 manifest row recorded for R1-1
 
-$ blue dispute --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --basis the harm needs two failures
+$ blue dispute --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 0
 stdout:
 dispute filed on R1-1.likelihood
@@ -58,19 +58,19 @@ exit 0
 stdout:
 registered judge-r1 (shard nonce NONCE004)
 
-$ bench opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --text the rationale body
+$ bench opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --reason the rationale body
 exit 0
 stdout:
 opinion recorded: R1-1 carried
 
-$ bench certify --run {RUN} --seat-id judge-r1 --text what a human should re-examine
+$ bench certify --run {RUN} --seat-id judge-r1 --reason what a human should re-examine
 exit 0
 stdout:
 certification recorded
 
 ═══ EVENTS ═══
 -- events-blue-respond-r1-NONCE002.jsonl
-{"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.8.0"},"round":1,"seatId":"blue-respond-r1","seq":0,"ts":4,"type":"register"}
+{"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.9.0"},"round":1,"seatId":"blue-respond-r1","seq":0,"ts":4,"type":"register"}
 {"key":"blue-respond-r1:position","nonce":"NONCE002","payload":{"text":"blue's round position"},"round":1,"seatId":"blue-respond-r1","seq":1,"ts":5,"type":"position"}
 {"key":"blue-respond-r1:closing:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","text":"blue's closing"},"round":1,"seatId":"blue-respond-r1","seq":2,"ts":6,"type":"closing"}
 {"key":"blue-respond-r1:revision","nonce":"NONCE002","payload":{"claim_count":88,"text":"repairs landed"},"round":1,"seatId":"blue-respond-r1","seq":3,"ts":7,"type":"revision"}
@@ -78,14 +78,14 @@ certification recorded
 {"key":"blue-respond-r1:dispute:R1-1","nonce":"NONCE002","payload":{"dimension":"likelihood","evidence":"the harm needs two failures","gap_id":"R1-1","proposed":"low"},"round":1,"seatId":"blue-respond-r1","seq":5,"ts":9,"type":"dispute"}
 {"key":"blue-respond-r1:confidence:C7","nonce":"NONCE002","payload":{"grade":"medium","label":"C7"},"round":1,"seatId":"blue-respond-r1","seq":6,"ts":10,"type":"confidence"}
 -- events-judge-r1-NONCE004.jsonl
-{"key":"judge-r1:register:NONCE004","nonce":"NONCE004","payload":{"tool_version":"0.8.0"},"round":1,"seatId":"judge-r1","seq":0,"ts":13,"type":"register"}
+{"key":"judge-r1:register:NONCE004","nonce":"NONCE004","payload":{"tool_version":"0.9.0"},"round":1,"seatId":"judge-r1","seq":0,"ts":13,"type":"register"}
 {"key":"judge-r1:opinion:R1-1","nonce":"NONCE004","payload":{"disposition":"carried","gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","tension":"thoroughness vs cost"},"round":1,"seatId":"judge-r1","seq":1,"ts":14,"type":"opinion"}
 {"key":"judge-r1:certify:#1","nonce":"NONCE004","payload":{"statement":"what a human should re-examine"},"round":1,"seatId":"judge-r1","seq":2,"ts":15,"type":"certify"}
 -- events-red-lens-r1-L1-NONCE003.jsonl
-{"key":"red-lens-r1-L1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.8.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":11,"type":"register"}
+{"key":"red-lens-r1-L1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.9.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":11,"type":"register"}
 {"key":"red-lens-r1-L1:cite:https://example.invalid/paper","nonce":"NONCE003","payload":{"access_date":"2026-07-18","claim":"throughput doubled","confidence":"high","reference":"https://example.invalid/paper"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":12,"type":"cite"}
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.8.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.9.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 {"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","text":"red's closing"},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"closing"}

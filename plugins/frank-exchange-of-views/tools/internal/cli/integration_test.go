@@ -91,7 +91,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 		"--principle", "the repair discharges the defect at the leaf",
 		"--tension", "thoroughness against ceremony",
 		"--review-flag", "no — the closure is mechanical and the anchor is checkable",
-		"--comment", "closed at the bench, not by red"); err != nil {
+		"--reason", "closed at the bench, not by red"); err != nil {
 		// NEVER skip here. A skip would excuse exactly the defect this test exists to
 		// catch, and a suite that excuses its own subject is how the projection shipped
 		// blind to bench closures in the first place.
@@ -120,12 +120,12 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 
 	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
-		"--basis", "the consequence is bounded by the caller's own validation"); err != nil {
+		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("blue dispute: %v", err)
 	}
 	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "accepted",
-		"--basis", "the bound holds; regrading"); err != nil {
+		"--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("red dispute-respond: %v", err)
 	}
 
@@ -158,7 +158,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
 		"--anchor-seat", "L1", "--anchor-tool", "git show", "--anchor-target", "7bc501e:report.md",
-		"--file", prose); err != nil {
+		"--reason-file", prose); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 
@@ -180,7 +180,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 func TestMergeCanDisposeALensObservationByItsLabel(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--text", "a thing worth noticing but not yet a gap"); err != nil {
+		"--label", "L1-O1", "--reason", "a thing worth noticing but not yet a gap"); err != nil {
 		t.Fatalf("lens observe: %v", err)
 	}
 	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
@@ -199,7 +199,7 @@ func TestMergeCanDisposeALensObservationByItsLabel(t *testing.T) {
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-F1", "--location", "§2", "--text", "a finding",
+		"--label", "L1-F1", "--location", "§2", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}

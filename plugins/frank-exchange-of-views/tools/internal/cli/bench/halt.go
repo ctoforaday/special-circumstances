@@ -14,9 +14,9 @@ import (
 // smoothed, so a halt reaches the human in the words the bench chose.
 func newHalt() *cobra.Command {
 	return seat.Prose(seat.New("halt",
-		"the safety boundary: --file <written opinion — capture relays it like a FAIL, never smoothed>",
+		"the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Text(cmd)
+			text, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}

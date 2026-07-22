@@ -18,15 +18,20 @@ func newRegrade() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 
 	c := seat.New("regrade",
-		`same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --basis "..."`,
+		`same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			seat.SetGrade(p, "severity", &severity)
 			seat.SetGrade(p, "likelihood", &likelihood)
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetGrade(p, "complexity_cost", &cx)
-			if err := seat.SetLongForm(cmd, p, "basis", flags.Basis); err != nil {
+			// Flag word --reason (the one prose word), payload key stays basis.
+			reason, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
+			}
+			if reason != "" {
+				p.Set("basis", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "regrade", p); err != nil {
 				return nil, err
@@ -39,7 +44,6 @@ func newRegrade() *cobra.Command {
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
 	c.Flags().Var(&cx, flags.Complexity, "complexity_cost — what fixing it costs, on the same scale")
-	c.Flags().String(flags.Basis, "", "why the grade moved — grade movement is recorded with its reason")
 	return seat.Prose(c)
 }
 

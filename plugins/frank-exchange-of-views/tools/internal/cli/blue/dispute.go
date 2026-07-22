@@ -18,13 +18,18 @@ func newDispute() *cobra.Command {
 	var proposed flags.GradeValue
 
 	c := seat.New("dispute",
-		`contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --basis "..."`,
+		`contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --reason "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			seat.SetSame(cmd, p, flags.Dimension)
 			seat.SetGrade(p, "proposed", &proposed)
-			if err := seat.SetLongForm(cmd, p, "evidence", flags.Basis); err != nil {
+			// Flag word --reason (the one prose word), payload key stays evidence.
+			reason, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
+			}
+			if reason != "" {
+				p.Set("evidence", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute", p); err != nil {
 				return nil, err
@@ -35,7 +40,6 @@ func newDispute() *cobra.Command {
 	c.Flags().String(flags.ID, "", "the gap id")
 	c.Flags().String(flags.Dimension, "", "severity | likelihood | impact | complexity_cost — the axis you contest")
 	c.Flags().Var(&proposed, flags.Proposed, flags.GradeUsage("the grade you say it should be"))
-	c.Flags().String(flags.Basis, "", "why, citing the exact section")
 	return seat.Prose(c)
 }
 

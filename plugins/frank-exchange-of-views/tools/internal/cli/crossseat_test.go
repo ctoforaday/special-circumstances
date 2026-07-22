@@ -73,7 +73,8 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 		if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
 			"--id", c.id, "--as", c.as, "--principle", c.principle,
 			"--tension", "thoroughness against ceremony",
-			"--review-flag", "no — the ruling is mechanical"); err != nil {
+			"--review-flag", "no — the ruling is mechanical",
+			"--reason", "the ruling as reasoned"); err != nil {
 			t.Fatalf("bench opinion %s: %v", c.as, err)
 		}
 	}
@@ -95,16 +96,16 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 
 	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
-		"--basis", "the consequence is bounded by the caller's own validation"); err != nil {
+		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("blue dispute: %v", err)
 	}
 	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "accepted", "--basis", "the bound holds; regrading"); err != nil {
+		"--id", id, "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("red dispute-respond: %v", err)
 	}
 	if _, err := run(t, "merge", "regrade", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--severity", "low",
-		"--basis", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
+		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
 		t.Fatalf("red regrade: %v", err)
 	}
 
@@ -124,13 +125,13 @@ func TestLensWorkReachesTheBoardAndEveryObservationGetsAFate(t *testing.T) {
 
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--label", "L1-F1", "--location", "§3 \"the parser accepts an empty body\"",
-		"--text", "an empty body is accepted where the grammar requires one element",
+		"--reason", "an empty body is accepted where the grammar requires one element",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("lens finding: %v", err)
 	}
 	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--label", "L1-O1", "--kind", "note",
-		"--text", "the neighbouring function has the same shape but validates first"); err != nil {
+		"--reason", "the neighbouring function has the same shape but validates first"); err != nil {
 		t.Fatalf("lens observe: %v", err)
 	}
 
@@ -173,13 +174,13 @@ func TestPetitionCrossesFromLensToBenchAndItsReliefIsRecorded(t *testing.T) {
 
 	if _, err := run(t, "lens", "petition", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--petition-class", "safety",
-		"--basis", "continuing would require asserting a consent gate exists where it does not",
+		"--reason", "continuing would require asserting a consent gate exists where it does not",
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
 		t.Fatalf("lens petition: %v", err)
 	}
 	if _, err := run(t, "bench", "petition-rule", "--run", runDir, "--seat-id", "judge-r1",
 		"--petitioner", "red-lens-r1-L1", "--petition-class", "safety", "--as", "granted",
-		"--text", "the relief binds the coming seats"); err != nil {
+		"--reason", "the relief binds the coming seats"); err != nil {
 		t.Fatalf("bench petition-rule: %v", err)
 	}
 
@@ -249,7 +250,7 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 		{"red-lens-r1-L2", "L2-F1"},
 	} {
 		if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", l.seat,
-			"--label", l.label, "--location", "§1", "--text", "a finding",
+			"--label", l.label, "--location", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 			t.Fatalf("finding %s: %v", l.label, err)
 		}
@@ -277,7 +278,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 		"--id", first, "--as", "closed",
 		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/parser",
 		"--successor", next,
-		"--text", "the named site is repaired; the same class survives at the sibling site"); err != nil {
+		"--reason", "the named site is repaired; the same class survives at the sibling site"); err != nil {
 		t.Fatalf("close with successor: %v", err)
 	}
 
@@ -299,7 +300,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "bench", "halt", "--run", runDir, "--seat-id", "judge-r1",
-		"--text", "continuing would compromise the consent gate"); err != nil {
+		"--reason", "continuing would compromise the consent gate"); err != nil {
 		t.Fatalf("bench halt: %v", err)
 	}
 	if got := lastOfType(t, runDir, "halt").SeatID; got != "judge-r1" {
@@ -311,7 +312,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	id := mintGap(t, runDir, "not-haltable", "halt-is-its-own-verb")
 	if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
 		"--id", id, "--as", "halt", "--principle", "p", "--tension", "t",
-		"--review-flag", "no"); err == nil {
+		"--review-flag", "no", "--reason", "attempting to halt via a disposition"); err == nil {
 		t.Error("`opinion --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
 	}
 }

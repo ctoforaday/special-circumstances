@@ -292,15 +292,18 @@ func TestCSVStringRoundTrips(t *testing.T) {
 	}
 }
 
-// A payload key's flag is a STATEMENT, not a derivation. Four keys are spelled
-// differently from the flag that sets them, and every one of those four was renamed by
-// the command-surface audit — the exact renames that made the old string transform lie.
+// A payload key's flag is a STATEMENT, not a derivation. Several keys are spelled
+// differently from the flag that sets them: --id/--as were renamed by the command-surface
+// audit, and after the 2026-07-20 prose collapse every prose key (evidence, prose,
+// rationale, statement, basis, ...) is typed as the one word --reason.
 func TestForPayloadKeyNamesTheFlagTheParserAccepts(t *testing.T) {
 	for key, want := range map[string]string{
 		"gap_id":      "id",
 		"disposition": "as",
-		"evidence":    "basis",
-		"prose":       "file",
+		"evidence":    "reason",
+		"prose":       "reason",
+		"rationale":   "reason",
+		"statement":   "reason",
 		"review_flag": "review-flag", // fallback territory: same word, different punctuation
 		"principle":   "principle",
 	} {

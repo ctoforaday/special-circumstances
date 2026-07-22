@@ -28,7 +28,7 @@ func seedReferents(t *testing.T, runDir string) {
 		}
 	}
 	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "SEED-O1", "--kind", "note", "--text", "a seeded observation"); err != nil {
+		"--label", "SEED-O1", "--kind", "note", "--reason", "a seeded observation"); err != nil {
 		t.Fatal(err)
 	}
 	// STATE, not just referents. A dispute-respond needs a dispute to answer, and a
@@ -37,7 +37,7 @@ func seedReferents(t *testing.T, runDir string) {
 	// world each verb actually operates in.
 	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
-		"--basis", "the seeded dispute this fixture answers"); err != nil {
+		"--reason", "the seeded dispute this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
@@ -47,7 +47,7 @@ func seedReferents(t *testing.T, runDir string) {
 	}
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", "R1-3", "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "go test",
-		"--anchor-target", "./x", "--text", "closed so the archive is not empty"); err != nil {
+		"--anchor-target", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -69,7 +69,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "lens observe defaults its kind to note",
 			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--label", "O1", "--text", "a below-bar note"},
+			args: []string{"--label", "O1", "--reason", "a below-bar note"},
 			typ:  "observe",
 			want: map[string]string{"kind": "note", "label": "O1", "text": "a below-bar note"},
 			says: "observation recorded",
@@ -77,7 +77,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "lens observe takes an explicit kind",
 			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--kind", "checked-held", "--label", "O2", "--text", "checked and held"},
+			args: []string{"--kind", "checked-held", "--label", "O2", "--reason", "checked and held"},
 			typ:  "observe",
 			want: map[string]string{"kind": "checked-held", "label": "O2"},
 			says: "awaiting merge disposition",
@@ -115,7 +115,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "merge dispute-respond records red's answer",
 			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--id", "R1-1", "--as", "rejected", "--basis", "the evidence does not reach it"},
+			args: []string{"--id", "R1-1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  "dispute-respond",
 			want: map[string]string{"gap_id": "R1-1", "response": "rejected",
 				"rationale": "the evidence does not reach it"},
@@ -124,7 +124,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue dispute contests a grade through the accounted channel",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--basis", "§4 says otherwise"},
+			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
 			typ:  "dispute",
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
 				"proposed": "low", "evidence": "§4 says otherwise"},
@@ -170,7 +170,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "bench petition-rule records the ruling and its opinion",
 			role: "bench", seatID: "judge-petition",
 			args: []string{"--petitioner", "red-lens-r1-L1", "--petition-class", "safety",
-				"--as", "granted", "--text", "the written opinion"},
+				"--as", "granted", "--reason", "the written opinion"},
 			typ: "petition-rule",
 			want: map[string]string{"petitioner": "red-lens-r1-L1", "class": "safety",
 				"ruling": "granted", "opinion": "the written opinion"},
@@ -179,7 +179,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "bench halt is the safety boundary",
 			role: "bench", seatID: "judge-terminal",
-			args: []string{"--text", "the run must stop, and here is why"},
+			args: []string{"--reason", "the run must stop, and here is why"},
 			typ:  "halt",
 			want: map[string]string{"opinion": "the run must stop, and here is why"},
 			says: "JUDICIAL HALT recorded — capture relays this verbatim",
@@ -187,7 +187,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "bench certify is the run-end statement",
 			role: "bench", seatID: "assemble",
-			args: []string{"--text", "what I would want a human to re-examine"},
+			args: []string{"--reason", "what I would want a human to re-examine"},
 			typ:  "certify",
 			want: map[string]string{"statement": "what I would want a human to re-examine"},
 			says: "certification recorded",
@@ -299,7 +299,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "regrade", "--run", runDir, "--seat-id", seatID,
-		"--id", "R1-1", "--severity", "certain", "--basis", "new evidence in §4"); err != nil {
+		"--id", "R1-1", "--severity", "certain", "--reason", "new evidence in §4"); err != nil {
 		t.Fatal(err)
 	}
 	ev := lastOfType(t, runDir, "regrade")
@@ -350,7 +350,7 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 			runDir := t.TempDir()
 			seedReferents(t, runDir)
 			args := append([]string{tc.role, tc.verb, "--run", runDir, "--seat-id", tc.seatID,
-				"--file", writeTemp(t, body)}, tc.extra...)
+				"--reason-file", writeTemp(t, body)}, tc.extra...)
 			if _, err := run(t, args...); err != nil {
 				t.Fatal(err)
 			}
@@ -386,7 +386,7 @@ func TestRevisionClaimCount(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
-			args := append([]string{"blue", "revision", "--run", runDir, "--seat-id", "blue-lane-1", "--text", "what changed"}, tc.flag...)
+			args := append([]string{"blue", "revision", "--run", runDir, "--seat-id", "blue-lane-1", "--reason", "what changed"}, tc.flag...)
 			if _, err := run(t, args...); err != nil {
 				t.Fatalf("the revision was not recorded at all: %v", err)
 			}
