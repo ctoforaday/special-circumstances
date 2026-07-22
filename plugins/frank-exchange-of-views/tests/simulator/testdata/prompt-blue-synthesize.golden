@@ -1,4 +1,4 @@
-prompt sha256: e8665842d60e6783637c65faa5925482884ac0663a09c5a675046d3f6ac805b7
+prompt sha256: 0e04f69a2c2a9b2f85bfb1be8623828f196b721ba21400f3cab8f0f78829bf24
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -14,6 +14,7 @@ THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON (a s
 Assembly LIFTS these verbatim and composes everything else from the record — you write them once, here, inside the audited document, and red audits them every round like any claim.
 YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, technical foundations, analysis, open questions, and your own footnotes — and NOTHING assembly composes from the record.
 Do NOT write "## Risk matrix", "## Red team findings", "## The debate", or a "## Blue team report" wrapper into report.md: assembly builds each of those from the event log, a "## Red team findings" section you author is FABRICATION (you cannot know red's findings), and writing a whole final-report-shaped document makes every tool-owned section appear twice.
+Do NOT write a `**Verdict:**` line ANYWHERE in report.md either — you cannot know the run's outcome (it is decided after your last audit), and assembly stamps the verdict from the terminal outcome event; a verdict you author only lands stale beside the real one and gets stripped.
 Follow the report conventions (semantic footnotes with access dates).
 CITATION HYGIENE (red must be able to VERIFY every footnote at the leaf): a GitHub reference carries its FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo; every QUOTED span records a locating anchor (its section heading or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.
