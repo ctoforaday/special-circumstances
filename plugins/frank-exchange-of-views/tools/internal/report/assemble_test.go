@@ -148,6 +148,97 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	}
 }
 
+func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
+	blue := strings.Join([]string{
+		"# A topic — research report",
+		"**Verdict:** UNVERIFIED (Round 0)", // blue cannot author a verdict — must be stripped
+		"",
+		"## TL;DR", "lifted to the top.", "",
+		"## Analysis", "also lifted.", "",
+		"## Risk Matrix", "blue fabricated a risk matrix.", "", // tool-owned — dropped
+		"## Red Team Findings (in full)", "blue cannot know red's findings.", "", // dropped
+		"## Blue Team Report (in full)", "[to be filled]", "", // recursive stub — dropped
+		"## Footnotes", "[^a]: a real citation blue authored.", "", // KEPT — no bibliography composer yet
+		"## Appendix: raw benchmarks", "novel blue content.", "", // KEPT — genuinely additional
+	}, "\n")
+	got := blueEmbed(blue)
+
+	for _, kept := range []string{"## Footnotes", "a real citation", "## Appendix: raw benchmarks", "novel blue content."} {
+		if !strings.Contains(got, kept) {
+			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
+		}
+	}
+	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED"} {
+		if strings.Contains(got, dropped) {
+			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
+		}
+	}
+	// A perfectly-scoped blue doc (only lifted sections) leaves nothing to embed.
+	scoped := "# t\n\n## TL;DR\nx\n\n## Analysis\ny\n"
+	if e := blueEmbed(scoped); e != "" {
+		t.Errorf("a correctly-scoped blue doc should yield an empty embed, got:\n%s", e)
+	}
+}
+
+func TestOrientationRanksAndPromotesBench(t *testing.T) {
+	board := &record.Board{
+		GapOrder: []string{"R1-1", "R1-2", "R1-3"},
+		Gaps: map[string]*record.Gap{
+			"R1-1": {ID: "R1-1", Open: true, Severity: "low", Impact: "low", Likelihood: "low",
+				Mint: record.NewPayload().Set("problem", "a minor nit.").Set("required_fix", "tidy it")},
+			"R1-2": {ID: "R1-2", Open: true, Severity: "critical", Impact: "high", Likelihood: "high",
+				Mint: record.NewPayload().Set("problem", "a load-bearing flaw.").Set("required_fix", "fix the core")},
+			"R1-3": {ID: "R1-3", Open: false, Severity: "high", // closed — must not appear
+				Mint: record.NewPayload().Set("problem", "already closed.")},
+		},
+	}
+	evs := []record.Event{
+		{Type: "certify", Payload: record.NewPayload().Set("statement", "re-examine the cost model before shipping")},
+	}
+	o := orientation(board, evs)
+	// The bench's certify is promoted to the top.
+	if !strings.Contains(o, "re-examine the cost model before shipping") {
+		t.Errorf("orientation must promote the bench's certify statement:\n%s", o)
+	}
+	// Critical ranks above the minor nit, and the closed gap is absent.
+	ci := strings.Index(o, "a load-bearing flaw")
+	ni := strings.Index(o, "a minor nit")
+	if ci < 0 || ni < 0 || ci > ni {
+		t.Errorf("open gaps must be ranked most-severe first:\n%s", o)
+	}
+	if strings.Contains(o, "already closed") {
+		t.Errorf("a closed gap must not appear in Read this first:\n%s", o)
+	}
+	// Empty board says so, invents nothing.
+	empty := orientation(&record.Board{}, nil)
+	if !strings.Contains(empty, "no open gaps remain") {
+		t.Errorf("an empty board should say nothing is outstanding:\n%s", empty)
+	}
+}
+
+func TestUnmintedFindingsSurfaced(t *testing.T) {
+	board := &record.Board{
+		Gaps: map[string]*record.Gap{
+			"R1-1": {ID: "R1-1", Mint: record.NewPayload().Set("found_by", []string{"L5-F1", "L6-F2"})},
+		},
+		Events: []record.Event{
+			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F1").Set("text", "minted — omit")},
+			{Type: "finding", SeatID: "red-lens-r1-L6", Payload: record.NewPayload().Set("label", "L6-F2").Set("text", "also minted — omit")},
+			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F3").Set("location", "§H1").Set("text", "un-minted red reasoning kept for the record")},
+		},
+	}
+	got := redFindings(board)
+	if !strings.Contains(got, "Lens findings not raised to a gap (1)") {
+		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
+	}
+	if !strings.Contains(got, "L5-F3") || !strings.Contains(got, "un-minted red reasoning kept") {
+		t.Errorf("the un-minted finding's substance must be surfaced:\n%s", got)
+	}
+	if strings.Contains(got, "minted — omit") || strings.Contains(got, "also minted") {
+		t.Errorf("a finding credited by a gap's found_by must NOT be re-listed:\n%s", got)
+	}
+}
+
 func TestCellEscapesTableBreakers(t *testing.T) {
 	if got := cell("a | b\nc"); strings.ContainsAny(got, "\n") || strings.Contains(got, " | ") {
 		t.Errorf("cell did not neutralise a pipe/newline: %q", got)

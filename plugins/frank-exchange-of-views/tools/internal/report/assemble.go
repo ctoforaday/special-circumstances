@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -47,9 +48,11 @@ func Assemble(runDir string) (string, error) {
 	var b strings.Builder
 	p := func(s string) { b.WriteString(strings.TrimRight(s, "\n")); b.WriteString("\n\n") }
 
-	// Blue-authored head (lifted) + the tool's verdict stamp between the title and the TL;DR.
+	// Blue-authored head (lifted) + the tool's verdict stamp between the title and the TL;DR,
+	// then the reviewer-facing "read this first" composed from the board and the bench's voice.
 	p(titleOr(blue))
 	p(verdictStamp(outcomeOf(evs)))
+	p(orientation(board, evs))
 	p(sectionOr(blue, "TL;DR"))
 	p(sectionOr(blue, "The Catechism"))
 	p(sectionOr(blue, "Technical foundations"))
@@ -60,7 +63,12 @@ func Assemble(runDir string) (string, error) {
 	p(avenues(evs, "The expansions", accepted))
 	p(avenues(evs, "Alternatives considered", rejected))
 	p(sectionOr(blue, "Open questions"))
-	p("## Blue team report (in full)\n\n" + orMissing(blue, "blue/report.md"))
+	// The embed carries ONLY blue content not already composed above — its lifted synthesis
+	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
+	// If nothing genuinely additional survives, the section is omitted rather than left empty.
+	if extra := blueEmbed(blue); extra != "" {
+		p("## Blue team report (sections not composed above)\n\n" + extra)
+	}
 	p(redFindings(board))
 	p(debate(evs))
 
@@ -80,11 +88,65 @@ func readOr(path, fallback string) string {
 	return string(b)
 }
 
-func orMissing(md, name string) string {
-	if strings.TrimSpace(md) == "" {
-		return "_(" + name + " is missing)_"
+// blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
+// synthesis surfaces are dropped (they appear at the top), and the sections blue must never
+// author — the risk matrix, red findings, the debate, a verdict — are dropped as fabrication
+// (the tool composes those from the record; blue cannot know red's findings or the run's
+// outcome). What survives is genuinely ADDITIONAL blue content — including blue's Footnotes,
+// its citation apparatus, which the tool does not yet compose a bibliography for, so they are
+// KEPT here rather than lost. Empty output means blue authored only what it should; the caller
+// then omits the embed entirely rather than lift-AND-embed the same sections twice.
+func blueEmbed(blue string) string {
+	drop := map[string]bool{
+		// lifted to the top verbatim
+		"tl;dr": true, "the catechism": true, "technical foundations": true,
+		"analysis": true, "open questions": true,
+		// tool-owned — composed from the record, never blue's to author. NOTE: footnotes are
+		// NOT here — they are blue's own citations and nothing else composes them yet.
+		"risk matrix": true, "the expansions": true, "expansions": true,
+		"alternatives considered": true, "red team findings": true,
+		"the debate": true, "blue team report": true, "verdict": true,
 	}
-	return md
+	var out []string
+	fence, keep, inPreamble := false, false, true
+	for _, ln := range strings.Split(blue, "\n") {
+		t := strings.TrimSpace(ln)
+		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
+			fence = !fence
+			if keep {
+				out = append(out, ln)
+			}
+			continue
+		}
+		if !fence && strings.HasPrefix(t, "## ") {
+			inPreamble = false
+			keep = !drop[normalizeHeading(strings.TrimPrefix(t, "## "))]
+			if keep {
+				out = append(out, ln)
+			}
+			continue
+		}
+		if inPreamble {
+			// Preamble before the first "## ": drop blue's H1 title (lifted) and any Verdict
+			// line (blue cannot author a verdict — #79), keep any genuine prose.
+			if strings.HasPrefix(t, "# ") || strings.HasPrefix(strings.ToLower(t), "**verdict:") {
+				continue
+			}
+			out = append(out, ln)
+			continue
+		}
+		if keep {
+			out = append(out, ln)
+		}
+	}
+	return strings.TrimSpace(strings.Join(out, "\n"))
+}
+
+// normalizeHeading folds a heading to a comparison key: lowercase, single-spaced, and with a
+// trailing "(in full)" stripped — so "Red Team Findings (in full)" matches "red team findings".
+func normalizeHeading(h string) string {
+	h = strings.ToLower(strings.Join(strings.Fields(h), " "))
+	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
 }
 
 // titleOr lifts blue's H1 (the "# <Topic> — research report" line), or flags it missing.
@@ -171,6 +233,69 @@ func verdictStamp(o *record.Payload) string {
 		}
 		return fmt.Sprintf("**Verdict:** %s%s", o.Str("verdict"), by)
 	}
+}
+
+// orientation is the reviewer-facing "read this first": the open gaps a human should
+// re-examine, most severe first, preceded by the bench's terminal ask if it evented one. It
+// authors no new judgement — it ORDERS the board (severity, then impact, then likelihood) and
+// PROMOTES the bench's already-evented voice (certify/halt), which otherwise sits buried in
+// the debate's Bench-disposition line. When the bench never certified/halted (as in a
+// ceiling-terminated run), only the ranked gaps show; nothing is invented to fill the space.
+func orientation(board *record.Board, evs []record.Event) string {
+	type ranked struct {
+		g    *record.Gap
+		rank int
+	}
+	var open []ranked
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g == nil || !g.Open {
+			continue
+		}
+		open = append(open, ranked{g, sevRank(g.Severity)*100 + sevRank(g.Impact)*10 + sevRank(g.Likelihood)})
+	}
+	sort.SliceStable(open, func(i, j int) bool { return open[i].rank > open[j].rank })
+
+	var b strings.Builder
+	b.WriteString("## Read this first\n\n")
+	// The bench's terminal ask, if any — promoted from the record, not buried below.
+	for _, e := range evs {
+		switch e.Type {
+		case "certify":
+			if s := e.Payload.Str("statement"); s != "" {
+				b.WriteString("**The bench asks a human to re-examine:** " + s + "\n\n")
+			}
+		case "halt":
+			if s := e.Payload.Str("opinion"); s != "" {
+				b.WriteString("**The bench HALTED this run:** " + s + "\n\n")
+			}
+		}
+	}
+	if len(open) == 0 {
+		b.WriteString("_(no open gaps remain — nothing outstanding to re-examine)_")
+		return b.String()
+	}
+	fmt.Fprintf(&b, "%d open gap(s) remain, most severe first — full statements in **Red team findings** below.\n\n", len(open))
+	for i, r := range open {
+		fmt.Fprintf(&b, "%d. **[%s]** %s (%s) — %s\n", i+1, grade(r.g.Severity), concise(r.g.Mint.Str("problem")), r.g.ID, concise(r.g.Mint.Str("required_fix")))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// sevRank maps a grade (critical..low) to 4..1, unknown to 0 — the ordering key for the
+// orientation ranking. It reads any because a gap's grades arrive as interface values.
+func sevRank(v any) int {
+	switch strings.ToLower(grade(v)) {
+	case "critical":
+		return 4
+	case "high":
+		return 3
+	case "medium":
+		return 2
+	case "low":
+		return 1
+	}
+	return 0
 }
 
 func riskMatrix(bj record.BoardJSON) string {
@@ -289,7 +414,58 @@ func redFindings(board *record.Board) string {
 	} else {
 		b.WriteString(strings.Join(closed, "\n"))
 	}
+
+	// Lens findings the merge did NOT raise to a gap — red's leaf audit that fell short of a
+	// mint but still carries substance (a claimed failure mode shown inapplicable, a resilient
+	// result confirmed). A finding is "minted" when its label appears in some gap's found_by
+	// credit chain; the rest are dropped on the floor by every report before this one. Surfaced
+	// here, subordinate to the gaps, so red's voice is not silently lost (#77).
+	if un := unmintedFindings(board); un != "" {
+		fmt.Fprintf(&b, "\n\n%s", un)
+	}
 	return b.String()
+}
+
+// unmintedFindings renders the lens findings whose label is credited by NO gap's found_by, or
+// "" if every finding earned a gap. Ordered by the event log so the section is deterministic.
+func unmintedFindings(board *record.Board) string {
+	minted := map[string]bool{}
+	for _, g := range board.Gaps {
+		if g == nil || g.Mint == nil {
+			continue
+		}
+		for _, lbl := range g.Mint.StrList("found_by") {
+			minted[lbl] = true
+		}
+	}
+	var rows []string
+	for _, e := range board.Events {
+		if e.Type != "finding" {
+			continue
+		}
+		lbl := e.Payload.Str("label")
+		if lbl != "" && minted[lbl] {
+			continue
+		}
+		head := lbl
+		if head == "" {
+			head = e.Payload.Str("finding_id")
+		}
+		loc := e.Payload.Str("location")
+		if loc != "" {
+			loc = " — " + loc
+		}
+		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s\n%s",
+			head, loc,
+			grade(e.Payload.Str("severity")), grade(e.Payload.Str("likelihood")), grade(e.Payload.Str("impact")),
+			e.SeatID,
+			e.Payload.Str("text")))
+	}
+	if len(rows) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("### Lens findings not raised to a gap (%d)\n\nRed's leaf audit that the merge weighed but did not mint — kept for the record, not a gate on the verdict.\n\n%s",
+		len(rows), strings.Join(rows, "\n\n"))
 }
 
 // debate composes the one transcript from the event log: per round, the parties' positions
