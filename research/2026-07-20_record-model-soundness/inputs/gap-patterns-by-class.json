@@ -1,0 +1,659 @@
+{
+  "incomplete-repair-propagation": [
+    {
+      "file": "assembly_seat_regression_to_pre_repair_phrasings.md",
+      "title": "Assembly-seat regression toward pre-repair phrasings",
+      "hook": "A synthesizing seat writing from RECALL re-mints the round-0 form of exactly the claims that were repaired"
+    },
+    {
+      "file": "pattern_acceptance_test_polarity_lag.md",
+      "title": "pattern_acceptance_test_polarity_lag.md",
+      "hook": "A repair inverts a mechanism's polarity but the standing acceptance test still asserts the OLD behavior — the gate becomes unsatisfiable and its cheapest pass is undoing the repair"
+    },
+    {
+      "file": "pattern_incomplete_repair_footnote_lag.md",
+      "title": "pattern_incomplete_repair_footnote_lag.md",
+      "hook": "Round-N repair lands in prose body but the footnote/citation surface still carries the retracted number/claim — re-verify the citation, not just the sentence"
+    },
+    {
+      "file": "pattern_origin_tag_naming_keyed.md",
+      "title": "pattern_origin_tag_naming_keyed.md",
+      "hook": "an anti-self-amplification origin tag keyed on a dir-NAME/glob convention is circumvented by the process's own spawned sub-runs that land in differently-named dirs — and those sub-runs supply the \"independent corroboration\" the cap required"
+    },
+    {
+      "file": "pattern_repair_regression_citation.md",
+      "title": "pattern_repair_regression_citation.md",
+      "hook": "A repair that softens an unpinnable figure by attributing it to a NEW specific source can regress — the new source may report a materially different (contradicting) number, or the accurate number lives in an uncited paper"
+    },
+    {
+      "file": "pattern_self_referential_repo_drift.md",
+      "title": "pattern_self_referential_repo_drift.md",
+      "hook": "The audited repo's own git state (not an external citation) moves between blue's verification and red's audit — and a merge landing doesn't mean every related call site got fixed"
+    },
+    {
+      "file": "pattern_sibling_repair_composition.md",
+      "title": "pattern_sibling_repair_composition.md",
+      "hook": "Two same-round repairs to one design (mechanism hardened, registered test/prediction restated) can fail to compose — re-derive the test from the hardened mechanism"
+    },
+    {
+      "file": "pattern_stale_baseline_pricing.md",
+      "title": "pattern_stale_baseline_pricing.md",
+      "hook": "Cost/efficiency lever analysis priced against a historical run's cost distribution that already-shipped mechanics have made unreachable; the report may even DESCRIBE the shipped mechanic correctly in one section without propagating its consequences into the sections it invalidates"
+    },
+    {
+      "file": "pattern_waiver_graduation_and_closure_amendment.md",
+      "title": "pattern_waiver_graduation_and_closure_amendment.md",
+      "hook": "checked-not-raised waivers are class-conditional (promote when the class becomes established); prior CLEAN closures can need amendment when a composition defect between two verified repairs surfaces a round later"
+    }
+  ],
+  "claim-contradicts-own-record": [
+    {
+      "file": "assembly_seat_regression_to_pre_repair_phrasings.md",
+      "title": "Assembly-seat regression toward pre-repair phrasings",
+      "hook": "A synthesizing seat writing from RECALL re-mints the round-0 form of exactly the claims that were repaired"
+    },
+    {
+      "file": "pattern_incomplete_repair_footnote_lag.md",
+      "title": "pattern_incomplete_repair_footnote_lag.md",
+      "hook": "Round-N repair lands in prose body but the footnote/citation surface still carries the retracted number/claim — re-verify the citation, not just the sentence"
+    },
+    {
+      "file": "pattern_inherited_surface_netting.md",
+      "title": "pattern_inherited_surface_netting.md",
+      "hook": "We don't add risk, it's inherited from native/baseline\" netting arguments must verify the baseline wasn't since remediated — bespoke may re-open what upstream closed"
+    },
+    {
+      "file": "pattern_risk_grading_conflations.md",
+      "title": "pattern_risk_grading_conflations.md",
+      "hook": "Recurring logic gaps in research risk matrices — likelihood/success conflation and keystone-on-unverified-evidence"
+    }
+  ],
+  "citation-figure-misattribution": [
+    {
+      "file": "citation_status_and_misattribution_patterns.md",
+      "title": "citation_status_and_misattribution_patterns.md",
+      "hook": "Recurring blue citation defects — closed GitHub issues cited as \"open\", and real figures miscited to the wrong source"
+    },
+    {
+      "file": "pattern_adjacent_defect_count_bleed.md",
+      "title": "pattern_adjacent_defect_count_bleed.md",
+      "hook": "A repair re-grades defect A's recurrence count using an event that actually belongs to structurally-adjacent defect B — check the cited section literally contains the claimed event, not just that a plausible-sounding event exists somewhere nearby"
+    },
+    {
+      "file": "pattern_footnote_overattribution.md",
+      "title": "pattern_footnote_overattribution.md",
+      "hook": "A footnote's claim-list bundles several specifics but only some trace to the primary; multi-citing one figure to N footnotes hides which one carries it"
+    },
+    {
+      "file": "pattern_repair_regression_citation.md",
+      "title": "pattern_repair_regression_citation.md",
+      "hook": "A repair that softens an unpinnable figure by attributing it to a NEW specific source can regress — the new source may report a materially different (contradicting) number, or the accurate number lives in an uncited paper"
+    }
+  ],
+  "citation-status-drift": [
+    {
+      "file": "citation_status_and_misattribution_patterns.md",
+      "title": "citation_status_and_misattribution_patterns.md",
+      "hook": "Recurring blue citation defects — closed GitHub issues cited as \"open\", and real figures miscited to the wrong source"
+    },
+    {
+      "file": "pattern_metric_conflation_and_traceable_not_verified.md",
+      "title": "pattern_metric_conflation_and_traceable_not_verified.md",
+      "hook": "Two citation-lens patterns — a \"success band\" whose endpoints are two DIFFERENT metrics, and \"closed-as-traceable\" conflating paper-traceability with digit-verification"
+    }
+  ],
+  "figure-recount-fails": [
+    {
+      "file": "citation_status_and_misattribution_patterns.md",
+      "title": "citation_status_and_misattribution_patterns.md",
+      "hook": "Recurring blue citation defects — closed GitHub issues cited as \"open\", and real figures miscited to the wrong source"
+    },
+    {
+      "file": "pattern_adjacent_defect_count_bleed.md",
+      "title": "pattern_adjacent_defect_count_bleed.md",
+      "hook": "A repair re-grades defect A's recurrence count using an event that actually belongs to structurally-adjacent defect B — check the cited section literally contains the claimed event, not just that a plausible-sounding event exists somewhere nearby"
+    },
+    {
+      "file": "pattern_ephemeral_instrument_and_grid_count.md",
+      "title": "pattern_ephemeral_instrument_and_grid_count.md",
+      "hook": "two quantitative-claim hazards — a measurement whose parser/input lives only in scratchpad (self-report with no re-derivation path), and table counts asserted by grid arithmetic instead of row enumeration"
+    },
+    {
+      "file": "pattern_unreconciled_numeric_floors.md",
+      "title": "pattern_unreconciled_numeric_floors.md",
+      "hook": "Two fixes added in different rounds each set a minimum/allocation over the same shared resource (lane count, agent count, budget); neither cross-references the other's arithmetic"
+    }
+  ],
+  "verification-scope-blindspot": [
+    {
+      "file": "gap-pattern-verification-file-type-blindspot.md",
+      "title": "gap-pattern-verification-file-type-blindspot.md",
+      "hook": "Gap pattern — \"no X exists\" claims backed by a grep scoped to one file type miss X implemented in another layer (e.g. compiled tools)"
+    },
+    {
+      "file": "pattern_gitignored_not_absent.md",
+      "title": "pattern_gitignored_not_absent.md",
+      "hook": "availability/durability claims vs git reality, BOTH directions — \"gitignored/absent\" refuted by untracked working-tree artifacts; \"committed\" refuted by untracked status (present ≠ committed)"
+    },
+    {
+      "file": "pattern_verification_probe_layer_masking.md",
+      "title": "pattern_verification_probe_layer_masking.md",
+      "hook": "a per-run \"enforcement verified\" probe whose PASS outcome is produced by a different layer than the one under test — the redundant layer can be dead and the probe still passes"
+    }
+  ],
+  "false-universal": [
+    {
+      "file": "gap-pattern-verification-file-type-blindspot.md",
+      "title": "gap-pattern-verification-file-type-blindspot.md",
+      "hook": "Gap pattern — \"no X exists\" claims backed by a grep scoped to one file type miss X implemented in another layer (e.g. compiled tools)"
+    },
+    {
+      "file": "pattern_closed_mode_builtin_carveout.md",
+      "title": "pattern_closed_mode_builtin_carveout.md",
+      "hook": "A design's \"default-closed / allowlist-inverted\" premise built on a platform mode is defeated by the mode's own documented built-in auto-approve carve-out"
+    },
+    {
+      "file": "pattern_gate_stack_rung_nonportability.md",
+      "title": "pattern_gate_stack_rung_nonportability.md",
+      "hook": "Consent/gate stack designed for one deployment rung (local wrapper + out-of-repo settings) silently assumed to hold on other rungs (cloud routine = fresh clone, no local files; CI = settings must move in-repo)"
+    },
+    {
+      "file": "pattern_invariant_soundness_by_enumeration.md",
+      "title": "pattern_invariant_soundness_by_enumeration.md",
+      "hook": "A keystone invariant sold as \"sound/mechanical\" whose soundness actually rests on an under-inclusive channel denylist — provably incomplete when the system's own symmetric defense already treats an omitted channel as I/O"
+    },
+    {
+      "file": "pattern_per_instance_cap_not_per_cause.md",
+      "title": "pattern_per_instance_cap_not_per_cause.md",
+      "hook": "A retry/waste cap bounds the INSTANCE (run-dir, item, attempt) while the generating CAUSE freely mints new instances — \"cannot recur forever\" claims that hold per-instance only"
+    },
+    {
+      "file": "pattern_schema_legal_control_flow_trace.md",
+      "title": "pattern_schema_legal_control_flow_trace.md",
+      "hook": "dark-side/risk lens finds its best gaps by hand-tracing control flow for schema-legal-but-semantically-incoherent envelope shapes, not by re-checking citations"
+    },
+    {
+      "file": "pattern_wildcard_allow_write_gadget.md",
+      "title": "pattern_wildcard_allow_write_gadget.md",
+      "hook": "A wildcard allow rule characterized as \"read-only\" hides a write gadget via the tool's own output flag; run the leaf to find it"
+    },
+    {
+      "file": "pattern_within_source_condition_misattribution.md",
+      "title": "pattern_within_source_condition_misattribution.md",
+      "hook": "A correctly-cited paper's headline result quoted with a gloss that silently reassigns it to a weaker experimental condition/arm — especially to justify NOT building the stronger condition; check which arm carries the number"
+    }
+  ],
+  "live-source-drift": [
+    {
+      "file": "gap_live_source_drift.md",
+      "title": "gap_live_source_drift.md",
+      "hook": "Citation figures/mechanisms drift when live web sources move after the report's access date; re-follow to primary, don't trust the footnote's numbers"
+    },
+    {
+      "file": "pattern_self_referential_repo_drift.md",
+      "title": "pattern_self_referential_repo_drift.md",
+      "hook": "The audited repo's own git state (not an external citation) moves between blue's verification and red's audit — and a merge landing doesn't mean every related call site got fixed"
+    }
+  ],
+  "cross-section-contradiction": [
+    {
+      "file": "pattern_acceptance_test_polarity_lag.md",
+      "title": "pattern_acceptance_test_polarity_lag.md",
+      "hook": "A repair inverts a mechanism's polarity but the standing acceptance test still asserts the OLD behavior — the gate becomes unsatisfiable and its cheapest pass is undoing the repair"
+    },
+    {
+      "file": "pattern_authorship_evades_never_edit_guard.md",
+      "title": "pattern_authorship_evades_never_edit_guard.md",
+      "hook": "Self-poisoning guard says loop NEVER EDITS its inputs — but the loop APPENDS new artifacts (its own run dir's friction/cost) that enter the same harvest corpus; amplification via authorship, not mutation"
+    },
+    {
+      "file": "pattern_conditional_vote_laundering.md",
+      "title": "pattern_conditional_vote_laundering.md",
+      "hook": "A synthesis counts a lane/seat vote toward a majority (\"2/3 ratify\") whose stated precondition the same synthesis rejects elsewhere — the tally is arithmetic camouflage for a 1/3 position"
+    },
+    {
+      "file": "pattern_doctrine_vs_implementation.md",
+      "title": "pattern_doctrine_vs_implementation.md",
+      "hook": "A code comment/doc states a design principle (\"never cheapen the adversary\") that the literal routing/logic below it contradicts — check every declared invariant against its own implementation, not just external behavior"
+    },
+    {
+      "file": "pattern_provenance_self_report_and_stale_gate.md",
+      "title": "pattern_provenance_self_report_and_stale_gate.md",
+      "hook": "Round-3 logic-lens patterns — a fix that trusts metadata self-reported by a compromised component, and a point-in-time gate that re-opens the very conflict its fallback closed"
+    },
+    {
+      "file": "pattern_repair_premise_foreclosed_by_own_profile.md",
+      "title": "pattern_repair_premise_foreclosed_by_own_profile.md",
+      "hook": "A guard added to tag/bound a threat write rests on a premise the same document's allow/deny profile already forecloses — the guard is dead where aimed, and the foreclosed write was a REQUIRED behavior of a subsystem, now silently denied"
+    },
+    {
+      "file": "pattern_self_defeating_mitigation.md",
+      "title": "pattern_self_defeating_mitigation.md",
+      "hook": "A control added to close a prior-round gap introduces its own failure mode — audit every new mitigation as a fresh attack surface, not a closed ticket"
+    },
+    {
+      "file": "pattern_structural_close_scoped_to_toplevel.md",
+      "title": "pattern_structural_close_scoped_to_toplevel.md",
+      "hook": "A structural \"closed at the tool boundary\" claim covers the top-level session but not the subprocess-spawned seat agents the design's own text concedes are the reachable surface"
+    }
+  ],
+  "audited-artifact-sibling-halo": [
+    {
+      "file": "pattern_audited_artifact_sibling_halo.md",
+      "title": "pattern_audited_artifact_sibling_halo.md",
+      "hook": "Blue audits ONE finding of a pinned artifact as defective, then transcribes a SIBLING finding's own error from the same artifact unchecked — the partial audit confers unearned trust on the rest of the source"
+    },
+    {
+      "file": "pattern_method_footnote_undercoverage.md",
+      "title": "pattern_method_footnote_undercoverage.md",
+      "hook": "A \"method documented for reproduction\" footnote reproduces every figure EXCEPT the headline sub-figure — re-derive each figure from the stated method and flag the ones it cannot produce"
+    },
+    {
+      "file": "pattern_postmortem_misdiagnosis.md",
+      "title": "pattern_postmortem_misdiagnosis.md",
+      "hook": "Corrected figures verify clean while the repair's forensic story of HOW the old number went wrong is itself false — test the claimed error mechanism by reproducing the OLD number under it"
+    }
+  ],
+  "figure-miscomposition": [
+    {
+      "file": "pattern_audited_artifact_sibling_halo.md",
+      "title": "pattern_audited_artifact_sibling_halo.md",
+      "hook": "Blue audits ONE finding of a pinned artifact as defective, then transcribes a SIBLING finding's own error from the same artifact unchecked — the partial audit confers unearned trust on the rest of the source"
+    }
+  ],
+  "partial-control-coverage": [
+    {
+      "file": "pattern_authorship_evades_never_edit_guard.md",
+      "title": "pattern_authorship_evades_never_edit_guard.md",
+      "hook": "Self-poisoning guard says loop NEVER EDITS its inputs — but the loop APPENDS new artifacts (its own run dir's friction/cost) that enter the same harvest corpus; amplification via authorship, not mutation"
+    },
+    {
+      "file": "pattern_benign_bucket_launders_attack.md",
+      "title": "pattern_benign_bucket_launders_attack.md",
+      "hook": "A fix that declares a denial-stream \"expected/normal\" keys the benign bucket on the protected TARGET path, so an attacker aiming at that target inherits the benign label — the signal is erased, not distinguished"
+    },
+    {
+      "file": "pattern_fail_open_guard_and_erasable_evidence.md",
+      "title": "pattern_fail_open_guard_and_erasable_evidence.md",
+      "hook": "Two composing control-design defects — a guard keyed on an ambient marker that silently disarms when the marker is lost (fail-open), and \"tamper evidence\" living where the audited actor can erase it (uncommitted working tree, actor-writable ledger)"
+    },
+    {
+      "file": "pattern_gate_stack_rung_nonportability.md",
+      "title": "pattern_gate_stack_rung_nonportability.md",
+      "hook": "Consent/gate stack designed for one deployment rung (local wrapper + out-of-repo settings) silently assumed to hold on other rungs (cloud routine = fresh clone, no local files; CI = settings must move in-repo)"
+    },
+    {
+      "file": "pattern_happy_path_only_gate.md",
+      "title": "pattern_happy_path_only_gate.md",
+      "hook": "A verification gate (snapshot compare, capture, record) that runs only on the completed-run exit path leaves abnormal termination uncovered — and abort is often model-influenceable"
+    },
+    {
+      "file": "pattern_origin_tag_naming_keyed.md",
+      "title": "pattern_origin_tag_naming_keyed.md",
+      "hook": "an anti-self-amplification origin tag keyed on a dir-NAME/glob convention is circumvented by the process's own spawned sub-runs that land in differently-named dirs — and those sub-runs supply the \"independent corroboration\" the cap required"
+    },
+    {
+      "file": "pattern_schema_legal_control_flow_trace.md",
+      "title": "pattern_schema_legal_control_flow_trace.md",
+      "hook": "dark-side/risk lens finds its best gaps by hand-tracing control flow for schema-legal-but-semantically-incoherent envelope shapes, not by re-checking citations"
+    },
+    {
+      "file": "pattern_self_defeating_mitigation.md",
+      "title": "pattern_self_defeating_mitigation.md",
+      "hook": "A control added to close a prior-round gap introduces its own failure mode — audit every new mitigation as a fresh attack surface, not a closed ticket"
+    },
+    {
+      "file": "pattern_structural_close_scoped_to_toplevel.md",
+      "title": "pattern_structural_close_scoped_to_toplevel.md",
+      "hook": "A structural \"closed at the tool boundary\" claim covers the top-level session but not the subprocess-spawned seat agents the design's own text concedes are the reachable surface"
+    }
+  ],
+  "name-keying-vs-marker": [
+    {
+      "file": "pattern_benign_bucket_launders_attack.md",
+      "title": "pattern_benign_bucket_launders_attack.md",
+      "hook": "A fix that declares a denial-stream \"expected/normal\" keys the benign bucket on the protected TARGET path, so an attacker aiming at that target inherits the benign label — the signal is erased, not distinguished"
+    },
+    {
+      "file": "pattern_identity_keyed_detector_lineage_blind.md",
+      "title": "pattern_identity_keyed_detector_lineage_blind.md",
+      "hook": "An escalation/convergence detector keyed on stable identifiers never fires when the process's own bookkeeping convention renames the tracked object every cycle — check who mints the ids against what the detector matches on"
+    },
+    {
+      "file": "pattern_origin_tag_naming_keyed.md",
+      "title": "pattern_origin_tag_naming_keyed.md",
+      "hook": "an anti-self-amplification origin tag keyed on a dir-NAME/glob convention is circumvented by the process's own spawned sub-runs that land in differently-named dirs — and those sub-runs supply the \"independent corroboration\" the cap required"
+    }
+  ],
+  "reader-channel-mismatch": [
+    {
+      "file": "pattern_changesummary_desync_round_state.md",
+      "title": "pattern_changesummary_desync_round_state.md",
+      "hook": "A lens can misjudge the whole round state (thinks blue shipped no revision) when CHANGELOG/debate lags the actual report.md edits; merge resolves round parity by direct read, never by the change-summary"
+    },
+    {
+      "file": "pattern_incomplete_repair_footnote_lag.md",
+      "title": "pattern_incomplete_repair_footnote_lag.md",
+      "hook": "Round-N repair lands in prose body but the footnote/citation surface still carries the retracted number/claim — re-verify the citation, not just the sentence"
+    }
+  ],
+  "self-attestation": [
+    {
+      "file": "pattern_changesummary_desync_round_state.md",
+      "title": "pattern_changesummary_desync_round_state.md",
+      "hook": "A lens can misjudge the whole round state (thinks blue shipped no revision) when CHANGELOG/debate lags the actual report.md edits; merge resolves round parity by direct read, never by the change-summary"
+    },
+    {
+      "file": "pattern_ephemeral_instrument_and_grid_count.md",
+      "title": "pattern_ephemeral_instrument_and_grid_count.md",
+      "hook": "two quantitative-claim hazards — a measurement whose parser/input lives only in scratchpad (self-report with no re-derivation path), and table counts asserted by grid arithmetic instead of row enumeration"
+    },
+    {
+      "file": "pattern_fail_open_guard_and_erasable_evidence.md",
+      "title": "pattern_fail_open_guard_and_erasable_evidence.md",
+      "hook": "Two composing control-design defects — a guard keyed on an ambient marker that silently disarms when the marker is lost (fail-open), and \"tamper evidence\" living where the audited actor can erase it (uncommitted working tree, actor-writable ledger)"
+    },
+    {
+      "file": "pattern_measurement_methodology_drift.md",
+      "title": "pattern_measurement_methodology_drift.md",
+      "hook": "A cited self-reported number (tokens/cost/etc.) survives leaf-node verification against its named source, but a LATER, more rigorous measurement from the same project quietly proves the counting method was wrong — the citation is accurate and the number is still stale"
+    },
+    {
+      "file": "pattern_policy_without_mechanism.md",
+      "title": "pattern_policy_without_mechanism.md",
+      "hook": "An invariant/policy asserted as self-enforcing (\"just a removal of trust\") while the concrete enforcing artifact was withdrawn in a prior round and never replaced"
+    },
+    {
+      "file": "pattern_provenance_self_report_and_stale_gate.md",
+      "title": "pattern_provenance_self_report_and_stale_gate.md",
+      "hook": "Round-3 logic-lens patterns — a fix that trusts metadata self-reported by a compromised component, and a point-in-time gate that re-opens the very conflict its fallback closed"
+    },
+    {
+      "file": "pattern_unquoted_hold_masks_discrepancy.md",
+      "title": "pattern_unquoted_hold_masks_discrepancy.md",
+      "hook": "A lens's \"checked, held, not raised\" entry that asserts a match WITHOUT quoting both sides can mask a live discrepancy; when lenses conflict, the merge seat decides by direct read, never by majority or by trusting the hold"
+    }
+  ],
+  "enumeration-non-exhaustive": [
+    {
+      "file": "pattern_closed_mode_builtin_carveout.md",
+      "title": "pattern_closed_mode_builtin_carveout.md",
+      "hook": "A design's \"default-closed / allowlist-inverted\" premise built on a platform mode is defeated by the mode's own documented built-in auto-approve carve-out"
+    },
+    {
+      "file": "pattern_exhaustive_sweep_omits_hard_case.md",
+      "title": "pattern_exhaustive_sweep_omits_hard_case.md",
+      "hook": "A self-certifying completeness sweep (\"every catch traced\", \"checked against every position\", \"both misattributions corrected\") silently omits the hardest named case — often one the same report itself elevated pages earlier"
+    },
+    {
+      "file": "pattern_invariant_soundness_by_enumeration.md",
+      "title": "pattern_invariant_soundness_by_enumeration.md",
+      "hook": "A keystone invariant sold as \"sound/mechanical\" whose soundness actually rests on an under-inclusive channel denylist — provably incomplete when the system's own symmetric defense already treats an omitted channel as I/O"
+    },
+    {
+      "file": "pattern_pinned_mapping_not_total.md",
+      "title": "pattern_pinned_mapping_not_total.md",
+      "hook": "a convention pinned for series stability (enum→numeric mapping, reading rule) is never checked for totality over its actual input domain — unmapped tokens, synonym tokens at opposite extremes, unpinned compound-cell handling"
+    },
+    {
+      "file": "pattern_wildcard_allow_write_gadget.md",
+      "title": "pattern_wildcard_allow_write_gadget.md",
+      "hook": "A wildcard allow rule characterized as \"read-only\" hides a write gadget via the tool's own output flag; run the leaf to find it"
+    }
+  ],
+  "vote-laundering": [
+    {
+      "file": "pattern_conditional_vote_laundering.md",
+      "title": "pattern_conditional_vote_laundering.md",
+      "hook": "A synthesis counts a lane/seat vote toward a majority (\"2/3 ratify\") whose stated precondition the same synthesis rejects elsewhere — the tally is arithmetic camouflage for a 1/3 position"
+    }
+  ],
+  "config-semantics-error": [
+    {
+      "file": "pattern_config_sample_schema_and_anchoring.md",
+      "title": "pattern_config_sample_schema_and_anchoring.md",
+      "hook": "Embedded config samples can quote the doc faithfully yet misplace the key (wrong JSON nesting = silent no-op) or ignore path-rule anchoring semantics (cwd vs settings-source vs absolute) — audit the sample against the schema and the anchor table, not just the prose"
+    }
+  ],
+  "policy-without-mechanism": [
+    {
+      "file": "pattern_config_sample_schema_and_anchoring.md",
+      "title": "pattern_config_sample_schema_and_anchoring.md",
+      "hook": "Embedded config samples can quote the doc faithfully yet misplace the key (wrong JSON nesting = silent no-op) or ignore path-rule anchoring semantics (cwd vs settings-source vs absolute) — audit the sample against the schema and the anchor table, not just the prose"
+    },
+    {
+      "file": "pattern_false_equivalence_disjuncts.md",
+      "title": "pattern_false_equivalence_disjuncts.md",
+      "hook": "Spec/repair text offers two branches as \"equivalently\" or \"X or Y\" where only one has an operator or prevents the stated harm — the weak branch becomes the build path"
+    },
+    {
+      "file": "pattern_policy_without_mechanism.md",
+      "title": "pattern_policy_without_mechanism.md",
+      "hook": "An invariant/policy asserted as self-enforcing (\"just a removal of trust\") while the concrete enforcing artifact was withdrawn in a prior round and never replaced"
+    }
+  ],
+  "pricing-basis-drift": [
+    {
+      "file": "pattern_controller_lookahead_pricing.md",
+      "title": "pattern_controller_lookahead_pricing.md",
+      "hook": "Counterfactual savings for a throttle/controller priced on data only observable AFTER the controlled round — check what board/state the mechanism could actually read at decision time"
+    },
+    {
+      "file": "pattern_stale_baseline_pricing.md",
+      "title": "pattern_stale_baseline_pricing.md",
+      "hook": "Cost/efficiency lever analysis priced against a historical run's cost distribution that already-shipped mechanics have made unreachable; the report may even DESCRIBE the shipped mechanic correctly in one section without propagating its consequences into the sections it invalidates"
+    }
+  ],
+  "derivation-status-overclaim": [
+    {
+      "file": "pattern_controller_lookahead_pricing.md",
+      "title": "pattern_controller_lookahead_pricing.md",
+      "hook": "Counterfactual savings for a throttle/controller priced on data only observable AFTER the controlled round — check what board/state the mechanism could actually read at decision time"
+    },
+    {
+      "file": "pattern_footnote_overattribution.md",
+      "title": "pattern_footnote_overattribution.md",
+      "hook": "A footnote's claim-list bundles several specifics but only some trace to the primary; multi-citing one figure to N footnotes hides which one carries it"
+    },
+    {
+      "file": "pattern_invariant_soundness_by_enumeration.md",
+      "title": "pattern_invariant_soundness_by_enumeration.md",
+      "hook": "A keystone invariant sold as \"sound/mechanical\" whose soundness actually rests on an under-inclusive channel denylist — provably incomplete when the system's own symmetric defense already treats an omitted channel as I/O"
+    },
+    {
+      "file": "pattern_method_footnote_undercoverage.md",
+      "title": "pattern_method_footnote_undercoverage.md",
+      "hook": "A \"method documented for reproduction\" footnote reproduces every figure EXCEPT the headline sub-figure — re-derive each figure from the stated method and flag the ones it cannot produce"
+    },
+    {
+      "file": "pattern_verification_probe_layer_masking.md",
+      "title": "pattern_verification_probe_layer_masking.md",
+      "hook": "a per-run \"enforcement verified\" probe whose PASS outcome is produced by a different layer than the one under test — the redundant layer can be dead and the probe still passes"
+    }
+  ],
+  "doctrine-vs-implementation": [
+    {
+      "file": "pattern_doctrine_vs_implementation.md",
+      "title": "pattern_doctrine_vs_implementation.md",
+      "hook": "A code comment/doc states a design principle (\"never cheapen the adversary\") that the literal routing/logic below it contradicts — check every declared invariant against its own implementation, not just external behavior"
+    }
+  ],
+  "artifact-preservation": [
+    {
+      "file": "pattern_ephemeral_instrument_and_grid_count.md",
+      "title": "pattern_ephemeral_instrument_and_grid_count.md",
+      "hook": "two quantitative-claim hazards — a measurement whose parser/input lives only in scratchpad (self-report with no re-derivation path), and table counts asserted by grid arithmetic instead of row enumeration"
+    },
+    {
+      "file": "pattern_gitignored_not_absent.md",
+      "title": "pattern_gitignored_not_absent.md",
+      "hook": "availability/durability claims vs git reality, BOTH directions — \"gitignored/absent\" refuted by untracked working-tree artifacts; \"committed\" refuted by untracked status (present ≠ committed)"
+    }
+  ],
+  "exhaustive-sweep-omits-case": [
+    {
+      "file": "pattern_exhaustive_sweep_omits_hard_case.md",
+      "title": "pattern_exhaustive_sweep_omits_hard_case.md",
+      "hook": "A self-certifying completeness sweep (\"every catch traced\", \"checked against every position\", \"both misattributions corrected\") silently omits the hardest named case — often one the same report itself elevated pages earlier"
+    }
+  ],
+  "unhandled-degenerate-case": [
+    {
+      "file": "pattern_fail_open_guard_and_erasable_evidence.md",
+      "title": "pattern_fail_open_guard_and_erasable_evidence.md",
+      "hook": "Two composing control-design defects — a guard keyed on an ambient marker that silently disarms when the marker is lost (fail-open), and \"tamper evidence\" living where the audited actor can erase it (uncommitted working tree, actor-writable ledger)"
+    },
+    {
+      "file": "pattern_happy_path_only_gate.md",
+      "title": "pattern_happy_path_only_gate.md",
+      "hook": "A verification gate (snapshot compare, capture, record) that runs only on the completed-run exit path leaves abnormal termination uncovered — and abort is often model-influenceable"
+    },
+    {
+      "file": "pattern_pinned_mapping_not_total.md",
+      "title": "pattern_pinned_mapping_not_total.md",
+      "hook": "a convention pinned for series stability (enum→numeric mapping, reading rule) is never checked for totality over its actual input domain — unmapped tokens, synonym tokens at opposite extremes, unpinned compound-cell handling"
+    },
+    {
+      "file": "pattern_provenance_self_report_and_stale_gate.md",
+      "title": "pattern_provenance_self_report_and_stale_gate.md",
+      "hook": "Round-3 logic-lens patterns — a fix that trusts metadata self-reported by a compromised component, and a point-in-time gate that re-opens the very conflict its fallback closed"
+    },
+    {
+      "file": "pattern_schema_legal_control_flow_trace.md",
+      "title": "pattern_schema_legal_control_flow_trace.md",
+      "hook": "dark-side/risk lens finds its best gaps by hand-tracing control flow for schema-legal-but-semantically-incoherent envelope shapes, not by re-checking citations"
+    }
+  ],
+  "undecided-disjunction": [
+    {
+      "file": "pattern_false_equivalence_disjuncts.md",
+      "title": "pattern_false_equivalence_disjuncts.md",
+      "hook": "Spec/repair text offers two branches as \"equivalently\" or \"X or Y\" where only one has an operator or prevents the stated harm — the weak branch becomes the build path"
+    },
+    {
+      "file": "pattern_repair_regression_citation.md",
+      "title": "pattern_repair_regression_citation.md",
+      "hook": "A repair that softens an unpinnable figure by attributing it to a NEW specific source can regress — the new source may report a materially different (contradicting) number, or the accurate number lives in an uncited paper"
+    }
+  ],
+  "recurrence-detector-keying": [
+    {
+      "file": "pattern_identity_keyed_detector_lineage_blind.md",
+      "title": "pattern_identity_keyed_detector_lineage_blind.md",
+      "hook": "An escalation/convergence detector keyed on stable identifiers never fires when the process's own bookkeeping convention renames the tracked object every cycle — check who mints the ids against what the detector matches on"
+    },
+    {
+      "file": "pattern_per_instance_cap_not_per_cause.md",
+      "title": "pattern_per_instance_cap_not_per_cause.md",
+      "hook": "A retry/waste cap bounds the INSTANCE (run-dir, item, attempt) while the generating CAUSE freely mints new instances — \"cannot recur forever\" claims that hold per-instance only"
+    }
+  ],
+  "spec-underspecification": [
+    {
+      "file": "pattern_identity_keyed_detector_lineage_blind.md",
+      "title": "pattern_identity_keyed_detector_lineage_blind.md",
+      "hook": "An escalation/convergence detector keyed on stable identifiers never fires when the process's own bookkeeping convention renames the tracked object every cycle — check who mints the ids against what the detector matches on"
+    },
+    {
+      "file": "pattern_pinned_mapping_not_total.md",
+      "title": "pattern_pinned_mapping_not_total.md",
+      "hook": "a convention pinned for series stability (enum→numeric mapping, reading rule) is never checked for totality over its actual input domain — unmapped tokens, synonym tokens at opposite extremes, unpinned compound-cell handling"
+    }
+  ],
+  "risk-coverage-omission": [
+    {
+      "file": "pattern_inherited_surface_netting.md",
+      "title": "pattern_inherited_surface_netting.md",
+      "hook": "We don't add risk, it's inherited from native/baseline\" netting arguments must verify the baseline wasn't since remediated — bespoke may re-open what upstream closed"
+    },
+    {
+      "file": "pattern_reflexivity_blindspot.md",
+      "title": "pattern_reflexivity_blindspot.md",
+      "hook": "report headlines a risk class for its subject matter but never applies it to its own toolchain/pipeline/drafting window — audit the report's own operations against its own findings"
+    },
+    {
+      "file": "pattern_repair_premise_foreclosed_by_own_profile.md",
+      "title": "pattern_repair_premise_foreclosed_by_own_profile.md",
+      "hook": "A guard added to tag/bound a threat write rests on a premise the same document's allow/deny profile already forecloses — the guard is dead where aimed, and the foreclosed write was a REQUIRED behavior of a subsystem, now silently denied"
+    },
+    {
+      "file": "pattern_risk_grading_conflations.md",
+      "title": "pattern_risk_grading_conflations.md",
+      "hook": "Recurring logic gaps in research risk matrices — likelihood/success conflation and keystone-on-unverified-evidence"
+    }
+  ],
+  "measurement-methodology-drift": [
+    {
+      "file": "pattern_measurement_methodology_drift.md",
+      "title": "pattern_measurement_methodology_drift.md",
+      "hook": "A cited self-reported number (tokens/cost/etc.) survives leaf-node verification against its named source, but a LATER, more rigorous measurement from the same project quietly proves the counting method was wrong — the citation is accurate and the number is still stale"
+    }
+  ],
+  "metric-conflation": [
+    {
+      "file": "pattern_metric_conflation_and_traceable_not_verified.md",
+      "title": "pattern_metric_conflation_and_traceable_not_verified.md",
+      "hook": "Two citation-lens patterns — a \"success band\" whose endpoints are two DIFFERENT metrics, and \"closed-as-traceable\" conflating paper-traceability with digit-verification"
+    },
+    {
+      "file": "pattern_risk_grading_conflations.md",
+      "title": "pattern_risk_grading_conflations.md",
+      "hook": "Recurring logic gaps in research risk matrices — likelihood/success conflation and keystone-on-unverified-evidence"
+    }
+  ],
+  "missing-root-invariant": [
+    {
+      "file": "pattern_missing_root_invariant.md",
+      "title": "pattern_missing_root_invariant.md",
+      "hook": "When successive rounds each patch one security gate and each patch spawns a next-order gap, the root cause is a missing stated invariant — surface the invariant, not just the Nth instance"
+    }
+  ],
+  "causal-narrative-fails-reproduction": [
+    {
+      "file": "pattern_postmortem_misdiagnosis.md",
+      "title": "pattern_postmortem_misdiagnosis.md",
+      "hook": "Corrected figures verify clean while the repair's forensic story of HOW the old number went wrong is itself false — test the claimed error mechanism by reproducing the OLD number under it"
+    },
+    {
+      "file": "pattern_unquoted_hold_masks_discrepancy.md",
+      "title": "pattern_unquoted_hold_masks_discrepancy.md",
+      "hook": "A lens's \"checked, held, not raised\" entry that asserts a match WITHOUT quoting both sides can mask a live discrepancy; when lenses conflict, the merge seat decides by direct read, never by majority or by trusting the hold"
+    }
+  ],
+  "reflexivity-blindspot": [
+    {
+      "file": "pattern_reflexivity_blindspot.md",
+      "title": "pattern_reflexivity_blindspot.md",
+      "hook": "report headlines a risk class for its subject matter but never applies it to its own toolchain/pipeline/drafting window — audit the report's own operations against its own findings"
+    }
+  ],
+  "unverified-composition": [
+    {
+      "file": "pattern_self_defeating_mitigation.md",
+      "title": "pattern_self_defeating_mitigation.md",
+      "hook": "A control added to close a prior-round gap introduces its own failure mode — audit every new mitigation as a fresh attack surface, not a closed ticket"
+    },
+    {
+      "file": "pattern_sibling_repair_composition.md",
+      "title": "pattern_sibling_repair_composition.md",
+      "hook": "Two same-round repairs to one design (mechanism hardened, registered test/prediction restated) can fail to compose — re-derive the test from the hardened mechanism"
+    },
+    {
+      "file": "pattern_unreconciled_numeric_floors.md",
+      "title": "pattern_unreconciled_numeric_floors.md",
+      "hook": "Two fixes added in different rounds each set a minimum/allocation over the same shared resource (lane count, agent count, budget); neither cross-references the other's arithmetic"
+    },
+    {
+      "file": "pattern_waiver_graduation_and_closure_amendment.md",
+      "title": "pattern_waiver_graduation_and_closure_amendment.md",
+      "hook": "checked-not-raised waivers are class-conditional (promote when the class becomes established); prior CLEAN closures can need amendment when a composition defect between two verified repairs surfaces a round later"
+    }
+  ],
+  "within-source-condition-misattribution": [
+    {
+      "file": "pattern_within_source_condition_misattribution.md",
+      "title": "pattern_within_source_condition_misattribution.md",
+      "hook": "A correctly-cited paper's headline result quoted with a gloss that silently reassigns it to a weaker experimental condition/arm — especially to justify NOT building the stronger condition; check which arm carries the number"
+    }
+  ]
+}

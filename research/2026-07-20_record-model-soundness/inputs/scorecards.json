@@ -1,0 +1,17 @@
+{
+  "bench": [
+    "carried_share 0.11 [BENCHMARK]",
+    "blue_sections_citing_direction 3/2 [BENCHMARK]",
+    "rulings_without_opinion 9 [DETECTOR]"
+  ],
+  "blue": [
+    "repair_regression_ratio 0.67 [BENCHMARK]",
+    "manifest_coverage 29 [BENCHMARK]",
+    "round_parity_failures 0 [DETECTOR]"
+  ],
+  "red": [
+    "anchored_closures_pct 0 [BENCHMARK]",
+    "convergence_vs_verdict_flags 0 [DETECTOR]",
+    "citation_yield_by_round {\"1\":{\"citation\":3,\"logic\":9,\"darkside\":7},\"2\":{\"citation\":1,\"logic\":3,\"darkside\":16},\"3\":{\"citation\":0,\"logic\":9,\"darkside\":6}} [DIAGNOSTIC]"
+  ]
+}
