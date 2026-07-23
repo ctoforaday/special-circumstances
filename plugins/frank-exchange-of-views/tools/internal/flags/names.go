@@ -62,6 +62,7 @@ const (
 	Reference = "reference"
 	Row       = "row"
 	View      = "view"
+	Format    = "format" // operator output selector (graph: mermaid | dot)
 
 	// Disposition and justification.
 	//
@@ -156,7 +157,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Label, Claim, Key, Location, Reference, Row, View,
+		ID, IDs, Label, Claim, Key, Location, Reference, Row, View, Format,
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,

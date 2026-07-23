@@ -65,11 +65,16 @@ import (
 //	       first) plus the authoritative tally. Operator/CI-facing, not seat-driven, but the
 //	       run-verification workflow depends on the binary having it, so a stale binary fails
 //	       the check step.
+//	0.12.0 the root `graph` command (render a run's actual behaviour from the record as
+//	       mermaid/dot); and `bench assemble` now renders the dispute / dispute-respond /
+//	       petition-rule prose it silently dropped on a payload-key mismatch (A1–A3), and
+//	       surfaces the friction log. A stale binary produces the graph-less, prose-dropping
+//	       report the record now expects.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.11.0"
+const Version = "0.12.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -102,6 +107,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		blue.NewCommand(),
 		bench.NewCommand(),
 		newVerify(), // operator cross-check, not a seat role — read-only over the record
+		newGraph(),  // operator: render a run's actual behaviour from the record
 	)
 	return root
 }
