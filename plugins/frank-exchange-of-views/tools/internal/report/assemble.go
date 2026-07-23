@@ -71,6 +71,9 @@ func Assemble(runDir string) (string, error) {
 	}
 	p(redFindings(board))
 	p(debate(evs))
+	if f := frictionLog(evs); f != "" {
+		p(f)
+	}
 
 	out := collapseBlanks(b.String())
 	path := filepath.Join(runDir, "report.md")
@@ -503,9 +506,9 @@ func debate(evs []record.Event) string {
 		for _, e := range re {
 			switch e.Type {
 			case "dispute":
-				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s", e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("basis")))
+				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s", e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("evidence")))
 			case "dispute-respond":
-				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("as"), e.Payload.Str("basis")))
+				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("rationale")))
 			}
 		}
 		if len(disp) > 0 {
@@ -520,7 +523,7 @@ func debate(evs []record.Event) string {
 					e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
 					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("rationale")))
 			case "petition-rule":
-				lead = append(lead, fmt.Sprintf("- petition %s: %s — %s", e.Payload.Str("petitioner"), e.Payload.Str("ruling"), e.Payload.Str("rationale")))
+				lead = append(lead, fmt.Sprintf("- petition %s: %s — %s", e.Payload.Str("petitioner"), e.Payload.Str("ruling"), e.Payload.Str("opinion")))
 			}
 		}
 		if len(lead) > 0 {
@@ -553,6 +556,26 @@ func debate(evs []record.Event) string {
 		b.WriteString("\n\n### Bench disposition\n\n" + strings.Join(disp, "\n\n"))
 	}
 	return b.String()
+}
+
+// frictionLog surfaces the tooling gaps the seats hit — friction events, recorded through the
+// friction verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A
+// missing capability the run hit is a finding about the tooling; surfacing it is how it reaches
+// the human who can retool the seat, instead of dying on an unread channel.
+func frictionLog(evs []record.Event) string {
+	var rows []string
+	for _, e := range evs {
+		if e.Type != "friction" {
+			continue
+		}
+		if t := strings.TrimSpace(e.Payload.Str("text")); t != "" {
+			rows = append(rows, fmt.Sprintf("- **%s**: %s", e.SeatID, t))
+		}
+	}
+	if len(rows) == 0 {
+		return ""
+	}
+	return "## Friction (tooling gaps the run hit)\n\n" + strings.Join(rows, "\n")
 }
 
 func grade(v any) string {
