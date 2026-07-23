@@ -60,14 +60,11 @@ import (
 //	       duplication and the stale-verdict contradiction), and lens findings the merge did
 //	       not mint are surfaced. A stale binary silently produces the duplicated, contradicted
 //	       report the preflight must now refuse.
-//	0.11.0 --gap-id is accepted as an alias for --id on every verb (the payload key is gap_id,
-//	       the spelling a seat reaches for). A stale binary rejects --gap-id as an unknown flag,
-//	       so a seat that uses the intuitive spelling fails against it.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.11.0"
+const Version = "0.10.0"
 
 func init() { record.ToolVersion = Version }
 
