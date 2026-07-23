@@ -1,4 +1,4 @@
-prompt sha256: a220222f64d5442a20606da643420ea01f67dc22d7a9c7196103c7d55f5c30bb
+prompt sha256: 70f7071e5f8d5ec295f7fbd94530cf01cc48ed0af07bb7e034efbf7aed0bcdec
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -8,10 +8,11 @@ The assembler composes research/2026-01-01_golden/report.md FROM THE EVENT LOG (
 A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report.
 There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself.
 Verify research/2026-01-01_golden/report.md exists and read its top — the verdict stamp is the outcome event's, the sections are blue's and the record's.
+AUTHORITATIVE OPEN COUNT: after assembling, run "null/feov-record" bench show --run research/2026-01-01_golden --view board and report its counts.open as open_gaps in your envelope — this is the run's true outstanding-gap number (the board after every closure and ruling), and it is the ONLY correct source for it.
 Collated friction so far (report any of your own as well): [].
 FRICTION (assemble): report any friction in the envelope's friction field AND through the tool's friction verb — the verb is the durable record that survives a later phase abort.
 Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-Return a 5-line synopsis of the final report, plus your own friction if any.
+Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.
