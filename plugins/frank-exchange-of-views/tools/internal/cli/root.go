@@ -53,11 +53,18 @@ import (
 //	       --comment/--basis are retired, and every claim/judgment act (mint, close,
 //	       closing, dispute, dispute-respond, opinion, retire, halt, certify) now requires
 //	       its prose. A prompt driving the old flags sees unknown-flag and new refusals.
+//	0.10.0 `bench assemble` composes a materially different report.md: a top "## Read this
+//	       first" orientation (open gaps ranked from the board + the bench's certify/halt
+//	       voice promoted), the blue-report embed carries ONLY blue's non-composed remainder
+//	       (its lifted and tool-owned sections are dropped, killing the lift-AND-embed
+//	       duplication and the stale-verdict contradiction), and lens findings the merge did
+//	       not mint are surfaced. A stale binary silently produces the duplicated, contradicted
+//	       report the preflight must now refuse.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.9.0"
+const Version = "0.10.0"
 
 func init() { record.ToolVersion = Version }
 
