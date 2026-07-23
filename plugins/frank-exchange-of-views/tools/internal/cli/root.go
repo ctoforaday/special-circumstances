@@ -60,11 +60,16 @@ import (
 //	       duplication and the stale-verdict contradiction), and lens findings the merge did
 //	       not mint are surfaced. A stale binary silently produces the duplicated, contradicted
 //	       report the preflight must now refuse.
+//	0.11.0 the root `verify` command — a read-only cross-check of a run's record against its
+//	       invariants (gaps disposed, refs resolve, PASS closed everything, seats registered
+//	       first) plus the authoritative tally. Operator/CI-facing, not seat-driven, but the
+//	       run-verification workflow depends on the binary having it, so a stale binary fails
+//	       the check step.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.10.0"
+const Version = "0.11.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -96,6 +101,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		merge.NewCommand(),
 		blue.NewCommand(),
 		bench.NewCommand(),
+		newVerify(), // operator cross-check, not a seat role — read-only over the record
 	)
 	return root
 }
