@@ -380,6 +380,18 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		for _, c := range sec("closing", "blue") {
 			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("text")))
 		}
+		// Blue's per-claim calibration — its OWN confidence, surfaced so red can target and the
+		// bench read it as context. NON-AUTHORITATIVE: it sets no grade and never reaches the risk
+		// matrix; it is here as a signal, not a verdict.
+		var conf []string
+		for _, e := range re {
+			if e.Type == "confidence" {
+				conf = append(conf, fmt.Sprintf("- %s → **%s**", e.Payload.Str("label"), e.Payload.Str("grade")))
+			}
+		}
+		if len(conf) > 0 {
+			parts = append(parts, "### BLUE CONFIDENCE (self-assessment — non-authoritative; targeting signal, not a grade)\n"+strings.Join(conf, "\n"))
+		}
 		var ops []string
 		for _, e := range re {
 			if e.Type == "opinion" {

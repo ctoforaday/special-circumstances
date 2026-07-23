@@ -54,10 +54,13 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 	for _, id := range open {
 		_, _ = r.exec(role, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
 	}
-	if role == "blue" && len(open) > 0 && r.coin(40) {
-		id := open[r.rng.Intn(len(open))]
-		if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", "impact", "--proposed", r.g(), "--reason", "dispute-evidence-for-"+id); err == nil {
-			r.disputed[id] = true
+	if role == "blue" {
+		r.emitConfidence(seatID) // blue calibrates its claims every round
+		if len(open) > 0 && r.coin(40) {
+			id := open[r.rng.Intn(len(open))]
+			if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", "impact", "--proposed", r.g(), "--reason", "dispute-evidence-for-"+id); err == nil {
+				r.disputed[id] = true
+			}
 		}
 	}
 	if role == "merge" {
@@ -89,6 +92,18 @@ func (r *runner) register(role, seatID string) {
 var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
+
+var confGrades = []string{"high", "medium", "low"}
+
+// emitConfidence records blue's per-claim calibration — the NON-AUTHORITATIVE signal wired in
+// 0.13.0. Unique labels per act so the report oracle can prove each one actually rendered in the
+// "Blue's confidence self-assessment" section (and never leaked into the risk matrix).
+func (r *runner) emitConfidence(seatID string) {
+	for i := 0; i <= r.rng.Intn(2); i++ {
+		claim := fmt.Sprintf("conf-claim-%d-by-%s", i, seatID)
+		_, _ = r.exec("blue", "confidence", "--seat-id", seatID, "--claim", claim, "--confidence", confGrades[r.rng.Intn(len(confGrades))])
+	}
+}
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
 // introduces the class; the rest reuse it.
@@ -150,6 +165,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 	switch {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
+		r.emitConfidence(seatID) // round-0 calibration
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": arr(), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "red-merge"):
@@ -368,7 +384,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 
 // tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.
 func tallyDialectic(board *record.Board) map[string]int {
-	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true}
+	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true, "confidence": true}
 	m := map[string]int{}
 	for _, e := range board.Events {
 		if want[e.Type] {
@@ -381,6 +397,9 @@ func tallyDialectic(board *record.Board) map[string]int {
 var dialecticProseKey = map[string]string{
 	"closing": "text", "opinion": "rationale", "dispute": "evidence",
 	"dispute-respond": "rationale", "petition-rule": "opinion",
+	// confidence's "prose" is its claim label — it must render in the report's confidence
+	// self-assessment section, or blue's calibration silently vanishes (the dead-letter it was).
+	"confidence": "label",
 }
 
 func proseRenders(board *record.Board, runDir string) string {

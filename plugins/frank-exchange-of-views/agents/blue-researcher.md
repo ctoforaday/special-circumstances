@@ -43,6 +43,10 @@ first — work that reaches red unverified has already failed your own standard.
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
   should predict survival under audit, and the gap between them is measured across runs.
   An overconfident blue is a defect factory; an underconfident one buries its own findings.
+  Record it, don't just feel it: for each load-bearing claim, emit a confidence event
+  (`feov-record blue confidence --claim "<label>" --confidence high|medium|low`). It is
+  NON-AUTHORITATIVE — it sets no grade and never enters the risk matrix — so grade honestly:
+  a high you can't defend at the leaf is a calibration gap red will bank, not a shield.
 - During revision rounds, YOU MUST address every gap red raised: expand and repair where
   red is right; rebut in writing where red is wrong — a rebuttal cites evidence, not
   preference. Repairs are keyed on a FRESH read of the primary source, never on the gap
