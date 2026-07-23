@@ -1,0 +1,2 @@
+{"seq":0,"ts":"2026-07-20T08:35:23.859208700Z","seatId":"assemble","nonce":"6172a3c4","round":0,"type":"register","key":"assemble:register:6172a3c4","payload":{"tool_version":"0.7.0"}}
+{"seq":1,"ts":"2026-07-20T08:35:40.319342300Z","seatId":"assemble","nonce":"6172a3c4","round":0,"type":"outcome","key":"assemble:outcome:#1","payload":{"verdict":"VERIFIED","deadlocked":false,"exhausted":false}}

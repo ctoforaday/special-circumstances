@@ -1,4 +1,4 @@
-prompt sha256: 0f9daec01443b3502f4e6644df3a51d1f2800b8c059b9d42f71b0ea20b84b7a4
+prompt sha256: ec2660b3fccc3c9838f85a77cce094413a4b830a1c3d2b86218afbb689fb0ea0
 
 Red audit, round 2, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance).
 Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); blue's change log research/2026-01-01_golden/blue/CHANGELOG.md is a navigation hint only.
@@ -7,7 +7,7 @@ HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
 Label your findings with LENS-SCOPED ids (L5-F1, L5-F2, ...) — your lens number is your ROLE and is stable across rounds (L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk), so found_by stays comparable run-wide; stable R2-N ids are assigned by the merge, never by a lens.
 Write your pass to research/2026-01-01_golden/red/candidates/round-2-lens-5.md.
-You MUST NOT write to research/2026-01-01_golden/debate.md — only red-merge writes the round's "### RED" section.
+You MUST NOT write to research/2026-01-01_golden/debate.md — only red-merge records the round's "### RED" narrative, via a position event.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
