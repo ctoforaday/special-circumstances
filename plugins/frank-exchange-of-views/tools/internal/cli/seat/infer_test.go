@@ -5,28 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/spf13/cobra"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
-
-// --gap-id is the spelling a seat naturally reaches for (the payload key IS gap_id);
-// New's normaliser must resolve it to the canonical --id rather than erroring. The
-// 2026-07-22 run hit "unknown flag: --gap-id" twice.
-func TestGapIDAliasResolvesToID(t *testing.T) {
-	c := New("demo", "demo verb", func(Context, *cobra.Command) (Result, error) { return nil, nil })
-	c.Flags().String(flags.ID, "", "the gap id")
-
-	// Parse only the flags — invoking RunE would trip Begin's --run/--seat-id checks,
-	// which is not what this test is about.
-	if err := c.Flags().Parse([]string{"--gap-id", "R1-1"}); err != nil {
-		t.Fatalf("--gap-id should resolve to --id, got: %v", err)
-	}
-	if v := Str(c, flags.ID); v != "R1-1" {
-		t.Errorf("--gap-id did not set the id flag: got %q, want R1-1", v)
-	}
-}
 
 // Ten of the first live run's 55 tool-call errors were a missing --run. The seat
 // copies the engine's register line, then improvises later verbs and drops the flag.

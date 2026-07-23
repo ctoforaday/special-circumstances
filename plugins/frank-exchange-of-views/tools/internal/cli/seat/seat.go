@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -42,17 +41,6 @@ If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.`
-
-// aliasFlags maps convenience flag spellings a seat naturally reaches for onto the
-// canonical name, so an intuitive guess resolves instead of erroring. It is applied to
-// every verb's flag set via New. Keep it to genuine synonyms of an existing flag — an
-// alias for a flag the verb lacks still errors, exactly as before.
-func aliasFlags(_ *pflag.FlagSet, name string) pflag.NormalizedName {
-	if name == "gap-id" {
-		name = flags.ID
-	}
-	return pflag.NormalizedName(name)
-}
 
 // Context is what every verb needs and no verb should re-derive.
 type Context struct {
@@ -266,13 +254,6 @@ func New(name, help string, run Handler) *cobra.Command {
 			return Emit(cmd, res, werr)
 		},
 	}
-	// Accept the convenience spellings a seat reaches for onto the canonical flag,
-	// rather than erroring on the intuitive one. --gap-id is the natural reach — the
-	// payload key IS gap_id — for a flag the contract calls --id; the 2026-07-22 run
-	// hit "unknown flag: --gap-id" twice. Registered before the verb adds its flags;
-	// pflag applies the normaliser at both registration and parse, so --id stays
-	// canonical and --gap-id resolves to it.
-	c.Flags().SetNormalizeFunc(aliasFlags)
 	// Render-on-mutation is GONE (2026-07-19). It re-rendered every projection from the full
 	// event log after every write — O(events) per mutation — to keep the markdown current
 	// for the live dashboard. But `show` renders on read, the debate prompt renders
