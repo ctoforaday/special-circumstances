@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +26,8 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-merge-r1." — or the
@@ -37,6 +40,36 @@ type runner struct {
 	rng         *rand.Rand
 	registered  map[string]bool
 	classMade   bool
+	disputed    map[string]bool // gaps blue has disputed, awaiting red's dispute-respond
+}
+
+func (r *runner) coin(pct int) bool { return r.rng.Intn(100) < pct }
+
+// dialectic emits the round's transcript onto the record the way Stage 1 seats do — a position
+// narrative and a closing per open gap — plus, at random, a regrade, a lineage-carrying
+// close-with-regression, and (blue) a grade dispute / (merge) its answer. Unique prose per act
+// so the report oracle can prove each one actually rendered.
+func (r *runner) dialectic(role, seatID string, open []string) {
+	_, _ = r.exec(role, "position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	for _, id := range open {
+		_, _ = r.exec(role, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
+	}
+	if role == "blue" && len(open) > 0 && r.coin(40) {
+		id := open[r.rng.Intn(len(open))]
+		if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", "impact", "--proposed", r.g(), "--reason", "dispute-evidence-for-"+id); err == nil {
+			r.disputed[id] = true
+		}
+	}
+	if role == "merge" {
+		for id := range r.disputed { // answer every open dispute (the tool refuses a dangling one)
+			_, _ = r.exec("merge", "dispute-respond", "--seat-id", seatID, "--id", id, "--as", "rejected", "--reason", "respond-rationale-for-"+id)
+			delete(r.disputed, id)
+		}
+		if len(open) > 0 && r.coin(30) {
+			id := open[r.rng.Intn(len(open))]
+			_, _ = r.exec("merge", "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id, "--likelihood", r.g())
+		}
+	}
 }
 
 func (r *runner) exec(args ...string) (string, error) {
@@ -121,18 +154,24 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	case strings.HasPrefix(seatID, "red-merge"):
 		r.register("merge", seatID)
-		// PASS ~40%: close every open gap so the #67 gate (and verify) holds.
-		if r.rng.Intn(10) < 4 {
-			for _, id := range r.openGaps() {
+		// PASS ~40%: run the round's dialectic, then close every open gap so the #67 gate
+		// (and verify) holds.
+		if r.coin(40) {
+			open := r.openGaps()
+			r.dialectic("merge", seatID, open)
+			for _, id := range r.openGaps() { // re-read: a regression close may have added a successor
 				r.closeGap(seatID, id)
 			}
 			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": arr(), "corroboration": arr(), "petitions": arr(), "friction": arr()}
 		}
 		// FAIL: mint 1-3 fresh gaps (a FAIL with empty gaps is a degenerate merge debate.js
 		// rejects on purpose). Report the FULL open set as the docket.
-		n := r.rng.Intn(3) + 1
-		for i := 0; i < n; i++ {
+		for range r.rng.Intn(3) + 1 {
 			r.mint(seatID)
+		}
+		open := r.openGaps()
+		if len(open) > 0 {
+			r.dialectic("merge", seatID, open)
 		}
 		var gaps []any
 		for _, id := range r.openGaps() {
@@ -148,10 +187,12 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
+		open := r.openGaps()
+		r.dialectic("blue", seatID, open) // blue's position, closings, and maybe a grade dispute
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
 		// receipt. One row per open gap it is repairing this round.
 		var manifest []any
-		for _, id := range r.openGaps() {
+		for _, id := range open {
 			manifest = append(manifest, map[string]any{"gap_id": id, "row": "fuzz: checked"})
 		}
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": arr(), "petitions": arr(), "friction": arr()}
@@ -168,7 +209,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 			if r.rng.Intn(2) == 0 {
 				disp = "closed"
 				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", "closed",
-					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "fuzz ruling")
+					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "rationale": "fuzz"})
 		}
@@ -217,16 +258,17 @@ func debateWrapped(t *testing.T) string {
 }
 
 type outcome struct {
-	seed    int64
-	err     string // non-empty = a finding
-	runDir  string
-	verdict string // the terminal verdict this run reached (coverage signal)
-	rounds  int    // how many rounds it ran (coverage signal)
+	seed      int64
+	err       string // non-empty = a finding
+	runDir    string
+	verdict   string         // the terminal verdict this run reached (coverage signal)
+	rounds    int            // how many rounds it ran (coverage signal)
+	dialectic map[string]int // dialectic events this run left on the record (coverage signal)
 }
 
 func runOne(wrapped, bin string, seed int64) outcome {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
-	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
+	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}, disputed: map[string]bool{}}
 
 	res := outcome{seed: seed, runDir: runDir}
 	func() {
@@ -303,11 +345,69 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	if res.err != "" {
 		return res
 	}
-	// Oracle: the record the run left must pass verify.
+	// Oracle 1: the record the run left must pass verify.
 	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
 		res.err = "verify FAILED:\n" + truncate(string(out))
+		return res
 	}
+	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
+	// class (prose written under one key, read under another) is invisible to verify but caught
+	// here, on every run.
+	// One replay of the record serves both remaining oracles (prose + coverage tally).
+	board, berr := record.BoardState(runDir)
+	if berr != nil {
+		res.err = "board: " + berr.Error()
+		return res
+	}
+	if m := proseRenders(board, runDir); m != "" {
+		res.err = m
+	}
+	res.dialectic = tallyDialectic(board)
 	return res
+}
+
+// tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.
+func tallyDialectic(board *record.Board) map[string]int {
+	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true}
+	m := map[string]int{}
+	for _, e := range board.Events {
+		if want[e.Type] {
+			m[e.Type]++
+		}
+	}
+	return m
+}
+
+var dialecticProseKey = map[string]string{
+	"closing": "text", "opinion": "rationale", "dispute": "evidence",
+	"dispute-respond": "rationale", "petition-rule": "opinion",
+}
+
+func proseRenders(board *record.Board, runDir string) string {
+	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+	if err != nil {
+		return "no report.md: " + err.Error()
+	}
+	rpt := string(report)
+	var missing []string
+	for _, e := range board.Events {
+		key, ok := dialecticProseKey[e.Type]
+		if !ok {
+			continue
+		}
+		prose := strings.TrimSpace(e.Payload.Str(key))
+		if prose == "" || strings.Contains(rpt, prose) {
+			continue
+		}
+		missing = append(missing, fmt.Sprintf("%s/%s prose absent from report: %q", e.SeatID, e.Type, prose))
+		if len(missing) >= 5 {
+			break
+		}
+	}
+	if len(missing) > 0 {
+		return "prose-not-rendered (A1-A3 class):\n" + strings.Join(missing, "\n")
+	}
+	return ""
 }
 
 func binDir(bin string) string { return filepath.ToSlash(filepath.Dir(bin)) }
@@ -335,7 +435,15 @@ func TestFuzzDebate(t *testing.T) {
 			n = k
 		}
 	}
-	concurrency := 12
+	// Each run is process-spawn-bound (it shells the real binary ~50-70 times), not CPU-bound,
+	// so the goroutines mostly WAIT on subprocesses — oversubscribe past core count to keep every
+	// core busy spawning. FUZZ_C overrides.
+	concurrency := runtime.NumCPU() * 3
+	if v := os.Getenv("FUZZ_C"); v != "" {
+		if k, err := strconv.Atoi(v); err == nil && k > 0 {
+			concurrency = k
+		}
+	}
 	sem := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -343,6 +451,7 @@ func TestFuzzDebate(t *testing.T) {
 	var completed int
 	verdicts := map[string]int{}
 	roundHist := map[int]int{}
+	dcov := map[string]int{} // dialectic-event coverage across all runs (proves the fuzz emits them)
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -356,6 +465,9 @@ func TestFuzzDebate(t *testing.T) {
 			completed++
 			verdicts[o.verdict]++
 			roundHist[o.rounds]++
+			for k, v := range o.dialectic {
+				dcov[k] += v
+			}
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -366,7 +478,7 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v", completed, len(failures), verdicts, roundHist)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v", completed, len(failures), verdicts, roundHist, dcov)
 	if len(failures) > 0 {
 		show := failures
 		if len(show) > 8 {
