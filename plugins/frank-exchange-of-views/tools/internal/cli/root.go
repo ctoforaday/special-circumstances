@@ -70,11 +70,16 @@ import (
 //	       petition-rule prose it silently dropped on a payload-key mismatch (A1–A3), and
 //	       surfaces the friction log. A stale binary produces the graph-less, prose-dropping
 //	       report the record now expects.
+//	0.13.0 confidence wired end-to-end as a NON-AUTHORITATIVE signal: `bench assemble` renders a
+//	       "Blue's confidence self-assessment" section and the `debate` view carries a per-round
+//	       "BLUE CONFIDENCE" block, both composed from the (previously write-only) confidence
+//	       event. It sets no grade and never enters the risk matrix. A stale binary drops blue's
+//	       calibration the record now carries.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.12.0"
+const Version = "0.13.0"
 
 func init() { record.ToolVersion = Version }
 

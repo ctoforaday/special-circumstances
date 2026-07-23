@@ -71,6 +71,9 @@ func Assemble(runDir string) (string, error) {
 	}
 	p(redFindings(board))
 	p(debate(evs))
+	if c := confidenceSelfAssessment(evs); c != "" {
+		p(c)
+	}
 	if f := frictionLog(evs); f != "" {
 		p(f)
 	}
@@ -555,6 +558,35 @@ func debate(evs []record.Event) string {
 	if len(disp) > 0 {
 		b.WriteString("\n\n### Bench disposition\n\n" + strings.Join(disp, "\n\n"))
 	}
+	return b.String()
+}
+
+// confidenceSelfAssessment renders blue's per-claim confidence — its OWN calibration, NOT red's
+// audit. Surfaced NON-AUTHORITATIVELY: kept out of the risk matrix (which composes from red's gap
+// board alone), placed with the debate, and labeled as blue's self-grade so no reader mistakes it
+// for red's verdict. Its use is targeting (where blue is sure vs. soft) and calibration (the gap
+// between stated confidence and survival under audit is the measurement). Empty when blue graded
+// nothing — the section is then omitted rather than shown empty.
+func confidenceSelfAssessment(evs []record.Event) string {
+	var rows []string
+	for _, e := range evs {
+		if e.Type != "confidence" {
+			continue
+		}
+		claim := e.Payload.Str("label")
+		if strings.TrimSpace(claim) == "" {
+			continue
+		}
+		rows = append(rows, fmt.Sprintf("| %s | %s | r%d |", cell(concise(claim)), grade(e.Payload.Str("grade")), e.Round))
+	}
+	if len(rows) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("## Blue's confidence self-assessment\n\n")
+	b.WriteString("_Blue's OWN calibration, not red's audit — a non-authoritative signal that sets no grade and does not feed the risk matrix above. Read it as where blue is sure and where it is not; the gap between a stated confidence and its survival under red's audit is the calibration measure._\n\n")
+	b.WriteString("| Claim | Blue's confidence | Round |\n|---|---|---|\n")
+	b.WriteString(strings.Join(rows, "\n"))
 	return b.String()
 }
 

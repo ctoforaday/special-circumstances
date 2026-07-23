@@ -1,6 +1,7 @@
 package report
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -256,6 +257,90 @@ func TestFrictionRendered(t *testing.T) {
 	}
 	if empty := frictionLog(nil); empty != "" {
 		t.Errorf("no friction events should render nothing, got: %q", empty)
+	}
+}
+
+func TestConfidenceSelfAssessmentRenders(t *testing.T) {
+	evs := []record.Event{
+		{Round: 0, Type: "confidence", SeatID: "blue-synthesize", Payload: record.NewPayload().Set("label", "C1: throughput doubles").Set("grade", "high")},
+		{Round: 1, Type: "confidence", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("label", "C2: latency budget holds").Set("grade", "low")},
+		// A confidence event with no claim label contributes no row (nothing to target).
+		{Round: 1, Type: "confidence", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("grade", "high")},
+		{Round: 1, Type: "mint", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("problem", "not a confidence event")},
+	}
+	got := confidenceSelfAssessment(evs)
+	for _, want := range []string{
+		"## Blue's confidence self-assessment",
+		"not red's audit", "does not feed the risk matrix", // the non-authoritative disclaimer
+		"C1: throughput doubles", "high", "r0",
+		"C2: latency budget holds", "low", "r1",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("confidence self-assessment missing %q:\n%s", want, got)
+		}
+	}
+	// Two labeled claims → exactly two table rows (the label-less event is dropped).
+	if n := strings.Count(got, "| r"); n != 2 {
+		t.Errorf("expected 2 confidence rows, got %d:\n%s", n, got)
+	}
+	if empty := confidenceSelfAssessment(nil); empty != "" {
+		t.Errorf("no confidence events should render nothing, got: %q", empty)
+	}
+}
+
+// The non-authoritative invariant, made structural: blue's confidence surfaces in its OWN
+// section but NEVER inside the risk matrix (which composes from red's gap board alone). This
+// is the guard against a future edit wiring confidence into the graded surface — blue must
+// not grade its own exam.
+func TestConfidenceStaysOutOfTheRiskMatrix(t *testing.T) {
+	runDir := t.TempDir()
+
+	// A real risk: red mints an open gap.
+	if _, _, err := record.RegisterSeat(runDir, "red-merge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := record.MintGapID(runDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.Append(runDir, "red-merge-r1", "mint", record.NewPayload().Set("gap_id", id).
+		Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "high").Set("impact", "high").
+		Set("problem", "the actual risk row")); err != nil {
+		t.Fatal(err)
+	}
+	// Blue self-grades a claim with a distinctive marker label.
+	if _, _, err := record.RegisterSeat(runDir, "blue-respond-r1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.Append(runDir, "blue-respond-r1", "confidence", record.NewPayload().
+		Set("label", "BLUE-SELF-GRADE-MARKER").Set("grade", "high")); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := Assemble(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full := string(b)
+
+	// The confidence surfaces in its own section...
+	if !strings.Contains(full, "## Blue's confidence self-assessment") || !strings.Contains(full, "BLUE-SELF-GRADE-MARKER") {
+		t.Fatalf("blue's confidence self-assessment missing from the report:\n%s", full)
+	}
+	// ...but the risk matrix carries the gap and NOT the confidence.
+	matrix := section(full, "Risk matrix")
+	if matrix == "" {
+		t.Fatalf("no risk matrix section in the assembled report:\n%s", full)
+	}
+	if !strings.Contains(matrix, "the actual risk row") {
+		t.Errorf("risk matrix lost the real gap:\n%s", matrix)
+	}
+	if strings.Contains(matrix, "BLUE-SELF-GRADE-MARKER") {
+		t.Errorf("NON-AUTHORITATIVE VIOLATION: blue's confidence leaked into the risk matrix:\n%s", matrix)
 	}
 }
 
