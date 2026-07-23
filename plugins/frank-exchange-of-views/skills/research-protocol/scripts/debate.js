@@ -118,7 +118,7 @@ const speedClause = ` SPEED: every message you send costs a ~20s round-trip rega
 // not re-walk, and nothing kept those before — they died in a seat's context
 // along with the reasoning that produced them.
 const inquiryClause = binDir
-  ? ` LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — --status pursued (it became your spine), abandoned (you tried it and it died), or declined (you weighed it and did not take it), and for the latter two a --reason. The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived. This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.`
+  ? ` LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), with --status pursued (it became your spine), abandoned (you tried it and it died), or declined (you weighed it and did not take it), and for the latter two a --reason. The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived. This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.`
   : ''
 
  // STEELMAN DUTY (E0.5h): the sections red NEVER gap-anchors are exactly the
@@ -832,10 +832,24 @@ if (terminalDisputes.length > 0) {
 }
 
 // ---- Assemble: the tool composes from the record; the seat authors nothing ----
+// The assemble seat reads the board last, so it is where the authoritative open-gap
+// count leaves the run. debate.js is sandboxed (no tool, no fs), so this number can
+// only reach the result envelope through a seat — and reporting red's docket length
+// instead (the old gaps_outstanding) misread 10 resolved as 10 outstanding (#83).
+const ASSEMBLE_ENVELOPE = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['synopsis', 'open_gaps'],
+  properties: {
+    synopsis: { type: 'string' },
+    open_gaps: { type: 'integer', minimum: 0 }, // the board's counts.open, not red's docket
+    friction: { type: 'array', items: { type: 'string' } },
+  },
+}
 phase('Assemble')
-await agent(
-  `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${round} round(s)${deadlocked ? ' by judged deadlock' : ''}${exhausted ? ' by safety ceiling' : ''}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. After registering, exactly two tool calls in order: (1) record the terminal verdict as a fact — "${binDir}/feov-record" bench outcome --run ${runDir} --seat-id <your SEAT_ID> --as ${verdict}${deadlocked ? ' --deadlocked' : ''}${exhausted ? ' --exhausted' : ''}; (2) "${binDir}/feov-record" bench assemble --run ${runDir}. The assembler composes ${runDir}/report.md FROM THE EVENT LOG (the verdict stamp from the outcome event you just wrote, the graded risk matrix, the expansions and alternatives-considered from the avenue record, red's findings in full, and the entire debate transcript — positions, closings, grade disputes, the bench's opinions and petition rulings, the terminal halt/certification) and LIFTS blue's audited sections VERBATIM from blue/report.md (the title, the TL;DR, the Catechism, the technical foundations, the analysis, the open questions). A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report. There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself. Verify ${runDir}/report.md exists and read its top — the verdict stamp is the outcome event's, the sections are blue's and the record's. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${frictionClause('assemble')}${speedClause}${recordClause('assemble', 'bench')} Return a 5-line synopsis of the final report, plus your own friction if any.`,
-  { ...judgment, label: `assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge' })
+const assembleEnv = await agent(
+  `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${round} round(s)${deadlocked ? ' by judged deadlock' : ''}${exhausted ? ' by safety ceiling' : ''}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. After registering, exactly two tool calls in order: (1) record the terminal verdict as a fact — "${binDir}/feov-record" bench outcome --run ${runDir} --seat-id <your SEAT_ID> --as ${verdict}${deadlocked ? ' --deadlocked' : ''}${exhausted ? ' --exhausted' : ''}; (2) "${binDir}/feov-record" bench assemble --run ${runDir}. The assembler composes ${runDir}/report.md FROM THE EVENT LOG (the verdict stamp from the outcome event you just wrote, the graded risk matrix, the expansions and alternatives-considered from the avenue record, red's findings in full, and the entire debate transcript — positions, closings, grade disputes, the bench's opinions and petition rulings, the terminal halt/certification) and LIFTS blue's audited sections VERBATIM from blue/report.md (the title, the TL;DR, the Catechism, the technical foundations, the analysis, the open questions). A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report. There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself. Verify ${runDir}/report.md exists and read its top — the verdict stamp is the outcome event's, the sections are blue's and the record's. AUTHORITATIVE OPEN COUNT: after assembling, run "${binDir}/feov-record" bench show --run ${runDir} --view board and report its counts.open as open_gaps in your envelope — this is the run's true outstanding-gap number (the board after every closure and ruling), and it is the ONLY correct source for it. Collated friction so far (report any of your own as well): ${JSON.stringify(friction)}.${frictionClause('assemble')}${speedClause}${recordClause('assemble', 'bench')} Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.`,
+  { ...judgment, label: `assemble · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
 
 return {
   runDir,
@@ -843,7 +857,12 @@ return {
   rounds: round,
   lanes,
   deadlocked,
-  gaps_outstanding: redEnv && redEnv.verdict !== 'PASS' ? redEnv.gaps.length : 0,
+  // The board's open count (via the assemble seat) is authoritative — it reflects every
+  // closure and judge ruling. Fall back to red's docket length only if the seat could not
+  // report it (no binDir / structured return), which is the old, over-counting behaviour.
+  gaps_outstanding: assembleEnv && Number.isInteger(assembleEnv.open_gaps)
+    ? assembleEnv.open_gaps
+    : (redEnv && redEnv.verdict !== 'PASS' ? redEnv.gaps.length : 0),
   blue_claims: blueEnv ? blueEnv.claim_count : null,
   infra_debts: infraDebts,
   petitions: petitionLog,
