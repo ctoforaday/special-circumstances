@@ -1,89 +1,86 @@
-# FEOV handoff / memento — checkpoint 2026-07-21
+# FEOV handoff / memento — checkpoint 2026-07-23
 
-You are resuming work on **frank-exchange-of-views** (the research-debate engine). This file
-is the pickup point. Read it, then `gh issue list` for the live queue. Verify before trusting:
-several claims this session were wrong on first telling and corrected only when checked.
+Resuming **frank-exchange-of-views** (the research-debate engine). This is the pickup point.
+Read it, then `gh issue list` for the live queue. **Verify before trusting** — many claims this
+run were wrong on first telling and caught only by checking (a subagent's "all green" over a live
+compile error; a green fuzz that tested nothing; verify/graph each flagging their own first bug).
 
 ## State right now
+- **`main`** = `dd6b9c4` (PR #98 merged). Plugin **0.38.0**, recordToolVersion/cli.Version **0.12.0**
+  (they move together — versionsync_test enforces it; the plugin version is decoupled).
+- Env READY (qlty/jq on PATH; gcc still off PATH — [[tools-installed-but-off-path]]). Released tag
+  is old (`v0.33.0`); a fresh tag is owed if consumers need the 0.12.0 binary.
+- **To drive a run off local build (no plugin cache):** build feov-record from `tools/` to a
+  binDir, run the working-tree `setup-research-run.mjs --bin-dir <winpath>`, then Workflow with
+  `scriptPath`=working-tree `debate.js`. Pass WINDOWS paths (C:/...) to node scripts, not /c/...
+  (MSYS paths make node/spawn ENOENT). Recipe + smoke config in [[feov-projection-retirement-queued]].
 
-- **`main`** = `90f9347` (PR #81 merged). Plugin **0.34.0**, recordToolVersion/cli.Version **0.9.0**.
-- **In flight: PR #82** on branch `feat/feov-report-structure-v2` — GREEN, ready to merge. Bumps
-  plugin→**0.35.0**, recordToolVersion/cli.Version→**0.10.0**. The deterministic structural report
-  boxes: **#75** "## Read this first" orientation (open gaps ranked from the board + the bench's
-  `certify`/`halt` voice promoted); **#65/#79** blue-embed dedup (embed carries only blue's
-  non-composed remainder — lifted + tool-owned sections dropped, killing the lift-AND-embed
-  duplication and the stale-verdict contradiction; **footnotes KEPT** as blue's citations) + the
-  prompt now forbids blue a verdict line; the **#77 un-minted-findings slice** (lens findings
-  credited by no gap's `found_by` are surfaced). Verified against the 2026-07-20 record.
-- **DECIDED this session (don't re-litigate):** box 5 (#66/#77 per-gap debate THREAD — seats emit
-  `position`/`closing`/`dispute`/`opinion`, render by gap) is **DEFERRED to post-run**. Leaf-check
-  that forced it: `debate()` composes from event types the real record NEVER emits (zero
-  position/closing/dispute/opinion/certify/halt); only `finding`/`mint`/`avenue` carry voice. So
-  box 5 is prompt-wiring-FIRST and only a run can verify it. Un-minted findings: SURFACE (done).
-- **PRIOR: PR #81** (merged) — report fixes (#74/#76) + the `--reason` vocabulary consolidation.
-- **Released:** git tag `frank-exchange-of-views--v0.33.0` (6 platform binaries; a **v0.35.0** tag
-  is owed after #82 merges). `sc-doctor -fix` installed feov-record into the plugin cache. Env is
-  **READY** (qlty/jq on PATH; gcc still off PATH — see [[tools-installed-but-off-path]]).
-- No dry run has been done with the **current** engine code yet. The last real run was the
-  2026-07-20 haiku smoke (`research/2026-07-20_record-model-soundness/`) — it ran code BEFORE
-  #65/#67/#74/#76/#81, and it is the source of most open bugs below.
+## What SHIPPED this run (all merged)
+- **verify** (`feov-record verify --run <dir>`) — read-only invariant cross-check (gaps disposed,
+  refs resolve, PASS closed everything, register-before-append) + authoritative tally. #92.
+- **graph** (`feov-record graph --run <dir> [--format mermaid|dot]`) — renders a run's ACTUAL
+  behaviour from the record (seat flow + gap lifecycle, holes flagged). #96.
+- **Stage 1 of record-only-channel** (#93): seats EMIT position/closing/opinion events and READ
+  via `show --view debate` instead of hand-writing debate.md (binDir mode; no-tool falls back to
+  the file). render.go already composes the transcript from those events.
+- **A1-A3 render fix + friction in report** (#96): assemble.go was reading dispute/dispute-respond/
+  petition-rule prose under the WRONG payload key (wrote evidence/response/rationale/opinion, read
+  basis/as/rationale) — rendered EMPTY. Fixed. friction events now render (were write-only).
+- **gaps_outstanding truth** (#82): the completion envelope read the board's open count, not red's
+  docket. **Fuzz** (#97) + **expansion + prose-renders oracle + speedup** (#98): goja runs the real
+  debate.js against the real binary; agents make coherent random tool calls; oracles = verify +
+  "every dialectic event's prose renders". 1000 runs, 0 fail. Default N=60 (~15s CI); FUZZ_N=1000
+  for the sweep; FUZZ_C overrides concurrency (default NumCPU*3).
 
-## The queue IS GitHub issues (single queue). issue=tracker+state, `plans/*.md`=design, PR diff=line review. NEVER close a bug until a RUN confirms it — see [[bug-state-tracking]].
+## The record-only-channel push (#62 umbrella) — plans/record-only-channel.md
+The clean one-way answer: events are the ONLY inter-agent CONTENT channel; debate.md becomes a
+read-only rendered view; envelopes carry orchestration refs, not a second copy. Staged:
+- **verify** ✓ (the harness) · **Stage 1 closings/positions** ✓ (#93)
+- **Stage 2** — disputes onto the record + docket derives from refs (envelope grade_disputes today)
+- **Stage 2.5** — the ORCHESTRATOR on the record: debate.js's mechanics decisions (docket, round,
+  deadlock, verdict) are ephemeral; record them via a lead-mechanics channel emitted by an agent
+  proxy (the script is sandboxed, can't call the tool). The user's own insight.
+- **Stage 3** — retire debate.md as a write AND read target; update the parity-audit (capture).
 
-State labels: `state:in-progress` / `needs-verify` (fixed+merged, awaiting a run) / `triage`.
+## Queue = GitHub issues. NEVER close a bug until a RUN confirms ([[bug-state-tracking]]).
+- **Fixed this run, ripe to close after a real run confirms:** #83 (gaps_outstanding), #94 (A1-A3 —
+  now guarded by the fuzz prose oracle), #66 (empty debate — Stage 1), and the report-structure set
+  #65/#74/#75/#76/#79 (merged in #82). Re-verify with a `/research` run + `verify`, then close.
+- **Schema hygiene (from the 2026-07-23 audit):** #95 — prose-key fan-out (--reason → 8 payload
+  keys; the A1-A3/#83 root; collapse single-prose verbs to `reason`), --as → 5 keys, key
+  collisions (verdict/class/label/disposition), write-only events (petition/retire/confidence/
+  manifest-row/register.tool_version — DECIDE per item: wire a reader or drop). friction now wired.
+- **Tool-contract basics (mostly deferred/corrected):** #84 (identity — NOT a bug in normal runs;
+  --run already inferred, --seat-id can't be env-injected), #85 (avenue prompt fixed; NO --gap-id
+  alias — one canonical flag, [[one-way-no-aliases]]), #86 (heredoc → a HOOK, not prose; the
+  registry names heredoc-prose an antipattern), #87 (friction verb bypassed for the envelope),
+  #88 (manifest word cap — real cap is in blue's constitution, not debate.js).
+- **Bigger:** #62 (umbrella), #63 (model tiers), #64 (red constitution), #68 (schema versioning),
+  #70 (compute claim_count in tool — ties #83), #73 (agent .md stale paths — worsens with Stage 3),
+  #80 (test-coverage audit).
 
-**Immediate next work:**
-1. **Merge PR #82** (user's call), then `/plugin update` + `/reload-plugins` (cache is
-   version-gated — it has the binary but stale skill/prompt content). Tag `v0.35.0` is owed.
-2. **THE RUN.** The deterministic report boxes are done (#75 / #65 / #79 / #77-slice, all in #82).
-   A run now (a) verifies them at the leaf → flips #65/#75/#77/#79 to closed, and (b) is the
-   PREREQUISITE for box 5 — you cannot render a debate thread the seats never evented.
-- **DONE in #82 (was box 3/4):** #75 orientation layer + #65/#79 embed dedup + prompt verdict-forbid
-  + #77 un-minted-findings slice. `needs-verify` on merge; close only after the run.
-- **DEFERRED to post-run (box 5, #66/#77 core):** the per-gap **argument thread**. The record
-  carries ZERO `position`/`closing`/`dispute`/`opinion`/`certify`/`halt` events — `debate()`
-  renders event types the seats never emit. So this is prompt-wiring-FIRST (make seats emit onto
-  the record), render-second (regroup BY GAP: mint.problem → dispute → dispute-respond → closing
-  → opinion → close). `position` (round-level, no gap_id) is the wrong abstraction — skip it.
-  Let the run reveal exactly what the thread needs before investing.
+## Pending DECISION (not a build)
+`confidence` surfacing: recommend NON-authoritative — surface as blue's SELF-assessment, visible to
+red as a targeting signal + the judge as context, but NEVER feeding the red-audited risk matrix
+(else blue grades its own exam). User asked "shouldn't it be in a risks table?" — pushed back, no
+confirmation yet.
 
-**Also open:** #62 (record = the ONLY inter-agent channel — retire candidates/debate.md/ledger
-files; lenses emit findings; merge de-editorializes via `supersedes`; the umbrella — carries a
-pinned parallel-safety constraint re the unguarded MintGapID counter), #63 (model tiers —
-`plans/model-tier-flags.md`), #64 (red constitution: local pinned artifacts are primary source),
-#68 (event schema versioning), #70 (compute claim_count in the tool — highest-value net-new),
-#71 (citations_checked/finding-id derive), #72 (lens slice verb), #73 (agent .md files cite
-retired paths), #80 (test-coverage audit — green suites over unprotected invariants; note the
-prompt goldens do NOT cover the `recordClause` binDir branch). **needs-verify (fixed, run to
-confirm):** #67, #74, #76, #78 (in #81); **#65, #75, #77(slice), #79 (in #82 — flip to
-needs-verify on merge).**
+## Fuzz — next expansion (deferred paths, where edge cases still hide)
+supersedes-lineage via the envelope, petitions, deadlock, the envelope-driven grade-dispute DOCKET
+machinery (debate.js's gnarliest logic). Also: a per-run graph is a good debugger for a failing
+fuzz seed. Add the "prose renders" style oracle to more event types as coverage grows.
 
-## Design decisions settled this session (don't re-litigate)
-
-- **The report is assembled from the RECORD** (event log), not projection `.md` files or seat
-  prose. Blue authors only its own audited surfaces; the tool composes the rest.
-- **One prose field, `--reason`**, required on claim/ruling acts. The "why" is atomic to the act,
-  on the public record. No junk-drawer free-text (`--comment` retired entirely).
-- **Storage:** keep JSONL now; **embedded SQLite is the leading migration target, coupled to
-  #62's concurrency** (a SQL transaction fixes the MintGapID race for free). Reject
-  Postgres/frameworks. `plans/storage.md`. Indexing is the real driver.
-- **Model tiers** by recoverable-error (cheap) vs unrecoverable-absence (capability-bound):
-  construction (blue lanes/synthesize, red L5/L6) = big; lookup (red L1–L4, blue-respond) = cheap.
-
-## Pitfalls / lessons (earned this session)
-- **Verify delegated subagent work at the leaf** — a subagent reported "all green" while a
-  compile error was live; it was stale, but the check is non-negotiable. Never trust a report
-  over `go build` / a driveable check.
-- **Bump cli.Version BEFORE regenerating stamp goldens**, run `-count=1` (cached `go test` hid a
-  stale-stamp failure once — the #57 lesson).
-- **To debug branch code without merging:** build feov-record from `tools/` into a binDir (Git
-  Bash resolves the extensionless name to `.exe`), run the WORKING-TREE `setup-research-run.mjs`
-  + Workflow with `scriptPath`=working-tree `debate.js`, `--smoke` (lanes 1, maxRounds 2, haiku).
-  Recipe detail in [[feov-projection-retirement-queued]].
-- **Before a normal `/research` run with the new code:** merge #81, then `/plugin update` +
-  `/reload-plugins` (cache is version-gated; it has the binary but stale skill/prompt content).
-
-## Sequencing the user has signalled
-Fix all structural report gaps (#75/#65/#66-77) up front, THEN a larger run, THEN a
-`/deep-research` "what good research looks like" comparative sweep (a model can be pinned on it).
-No point running the comparison while known report gaps remain.
+## Earned pitfalls (this run)
+- **Run go vet + gofmt + go test locally, not just go test** — the feov-record CI job runs all
+  three; gofmt-unformatted passes `go test` but fails CI ([[ci-checks-and-local-loop]]). WATCH every
+  PR's checks after pushing.
+- **NEVER add flag aliases/synonyms** — one canonical way ([[one-way-no-aliases]]); the --gap-id
+  alias got merged then torn out.
+- **Don't force-push a PR without checking its merge state** — #89 was already merged when I
+  force-pushed; had to redo as #91.
+- **Instrument coverage in any fuzz/generator** — a green run that exercised nothing (the seat-id
+  trailing-`.` bug) is worse than a red one. verify/graph/fuzz each caught their OWN first bug at
+  the leaf; keep that discipline.
+- **The report/debate render reads per-verb payload keys** — the `--reason` fan-out means the reader
+  must know all 8; getting one wrong renders prose empty invisibly (A1-A3, #83 class).
+- Bump cli.Version BEFORE regenerating stamp goldens, `-count=1` (the #57 lesson).
