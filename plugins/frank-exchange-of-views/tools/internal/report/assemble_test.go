@@ -125,10 +125,13 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	evs := []record.Event{
 		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("text", "gap A stands")},
 		{Round: 1, Type: "position", SeatID: "blue-r1", Payload: record.NewPayload().Set("text", "gap A repaired")},
-		{Round: 1, Type: "dispute", SeatID: "blue-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("dimension", "impact").Set("proposed", "low").Set("basis", "trivial harm")},
-		{Round: 1, Type: "dispute-respond", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("as", "rejected").Set("basis", "harm compounds")},
+		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
+		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
+		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
+		{Round: 1, Type: "dispute", SeatID: "blue-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("dimension", "impact").Set("proposed", "low").Set("evidence", "trivial harm")},
+		{Round: 1, Type: "dispute-respond", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("response", "rejected").Set("rationale", "harm compounds")},
 		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("rationale", "needs a probe")},
-		{Round: 1, Type: "petition-rule", SeatID: "judge-petition", Payload: record.NewPayload().Set("petitioner", "blue").Set("ruling", "granted").Set("rationale", "relief warranted")},
+		{Round: 1, Type: "petition-rule", SeatID: "judge-petition", Payload: record.NewPayload().Set("petitioner", "blue").Set("ruling", "granted").Set("opinion", "relief warranted")},
 		{Round: 0, Type: "halt", SeatID: "judge-terminal", Payload: record.NewPayload().Set("opinion", "safety gate tripped")},
 		{Round: 0, Type: "certify", SeatID: "judge-terminal", Payload: record.NewPayload().Set("statement", "re-examine the cost model")},
 	}
@@ -136,7 +139,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	for _, want := range []string{
 		"### Round 1", "### RED\ngap A stands", "### BLUE\ngap A repaired",
 		"disputes R1-1/impact → low: trivial harm", "answered (rejected): harm compounds",
-		"R1-1: carried", "petition blue: granted",
+		"R1-1: carried", "petition blue: granted", "relief warranted", // A3: petition prose now renders
 		"### Bench disposition", "**HALT** — safety gate tripped", "**Certification** — re-examine the cost model",
 	} {
 		if !strings.Contains(d, want) {
@@ -236,6 +239,23 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	}
 	if strings.Contains(got, "minted — omit") || strings.Contains(got, "also minted") {
 		t.Errorf("a finding credited by a gap's found_by must NOT be re-listed:\n%s", got)
+	}
+}
+
+func TestFrictionRendered(t *testing.T) {
+	evs := []record.Event{
+		{Type: "friction", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("text", "the --cx flag is missing from help")},
+		{Type: "friction", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("text", "manifest cap fights methodology gaps")},
+		{Type: "mint", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("problem", "not friction")},
+	}
+	f := frictionLog(evs)
+	for _, want := range []string{"Friction (tooling gaps", "**red-merge-r1**: the --cx flag is missing", "**blue-respond-r2**: manifest cap fights"} {
+		if !strings.Contains(f, want) {
+			t.Errorf("friction log missing %q:\n%s", want, f)
+		}
+	}
+	if empty := frictionLog(nil); empty != "" {
+		t.Errorf("no friction events should render nothing, got: %q", empty)
 	}
 }
 
