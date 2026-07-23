@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -165,8 +166,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 		}
 		// FAIL: mint 1-3 fresh gaps (a FAIL with empty gaps is a degenerate merge debate.js
 		// rejects on purpose). Report the FULL open set as the docket.
-		n := r.rng.Intn(3) + 1
-		for i := 0; i < n; i++ {
+		for range r.rng.Intn(3) + 1 {
 			r.mint(seatID)
 		}
 		open := r.openGaps()
@@ -353,19 +353,21 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
-	if m := proseRenders(runDir); m != "" {
+	// One replay of the record serves both remaining oracles (prose + coverage tally).
+	board, berr := record.BoardState(runDir)
+	if berr != nil {
+		res.err = "board: " + berr.Error()
+		return res
+	}
+	if m := proseRenders(board, runDir); m != "" {
 		res.err = m
 	}
-	res.dialectic = tallyDialectic(runDir)
+	res.dialectic = tallyDialectic(board)
 	return res
 }
 
 // tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.
-func tallyDialectic(runDir string) map[string]int {
-	board, err := record.BoardState(runDir)
-	if err != nil {
-		return nil
-	}
+func tallyDialectic(board *record.Board) map[string]int {
 	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true}
 	m := map[string]int{}
 	for _, e := range board.Events {
@@ -381,16 +383,12 @@ var dialecticProseKey = map[string]string{
 	"dispute-respond": "rationale", "petition-rule": "opinion",
 }
 
-func proseRenders(runDir string) string {
+func proseRenders(board *record.Board, runDir string) string {
 	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 	if err != nil {
 		return "no report.md: " + err.Error()
 	}
 	rpt := string(report)
-	board, err := record.BoardState(runDir)
-	if err != nil {
-		return "board: " + err.Error()
-	}
 	var missing []string
 	for _, e := range board.Events {
 		key, ok := dialecticProseKey[e.Type]
@@ -437,7 +435,15 @@ func TestFuzzDebate(t *testing.T) {
 			n = k
 		}
 	}
-	concurrency := 12
+	// Each run is process-spawn-bound (it shells the real binary ~50-70 times), not CPU-bound,
+	// so the goroutines mostly WAIT on subprocesses — oversubscribe past core count to keep every
+	// core busy spawning. FUZZ_C overrides.
+	concurrency := runtime.NumCPU() * 3
+	if v := os.Getenv("FUZZ_C"); v != "" {
+		if k, err := strconv.Atoi(v); err == nil && k > 0 {
+			concurrency = k
+		}
+	}
 	sem := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
