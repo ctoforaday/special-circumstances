@@ -186,10 +186,10 @@ Sections, and why each survives compaction:
 |---|---|
 | **Objective** | Post-compaction the agent must not re-scope or think it's done. |
 | **Plan pointer + `beyond_plan`** | Re-grounds in the SDD plan; *names the drift* explicitly. |
-| **Validation loop** | The reviewer's core point: forgotten once you leave the plan. Carried verbatim, with per-step last-run state, so the agent re-runs the right checks in the right order. |
+| **Validation loop** | The reviewer's core point: forgotten once you leave the plan. Carried verbatim, with per-step last-run state, so the agent re-runs the right checks in the right order. Each check also records its **trigger surface** — what re-arms it — because compaction drops that first (§12, I2). |
 | **Decisions made / rejected** | Prevents re-litigating settled calls and re-trying rejected approaches. |
 | **Files touched / working state** | Recovers a mid-edit ("`reAudit()` not yet wired in") that a summary flattens to "worked on workflow.js". |
-| **Next intended steps** | The single most valuable line after amnesia: what was I about to do. |
+| **Next intended steps** | The single most valuable line after amnesia: what was I about to do. Each real work item also carries a pointer to its **canonical-queue** home (issue / `plan.md` task); a note-only actionable silently dies when the worklist is rebuilt from another index (§12, I1). |
 | **Open threads** | Unresolved questions don't silently vanish. |
 
 ---
@@ -202,6 +202,7 @@ Sections, and why each survives compaction:
 | **Crossing beyond the plan's scope** | skill discipline; sets `beyond_plan: true` | The exact drift the reviewer named — the checkpoint starts carrying weight precisely here. |
 | **Validation loop established / changed** | skill discipline | The loop is the thing most worth preserving; capture it the moment it's defined. |
 | **Decision reached / rejected** | skill discipline | Cheap to append while fresh; expensive to reconstruct. |
+| **Actionable identified (beyond-plan work item)** | skill discipline: file/link it in the canonical queue (issue or `plan.md` task), note carries the pointer | A note-only actionable dies when the resumed agent rebuilds its worklist from a different index (§12, I1). The note points; the durable store holds. |
 | **Proactive / periodic** | `PostToolUse` counter *or* time-based nudge (see risks) | Guards against auto-compaction striking before the agent voluntarily checkpoints. |
 | **On demand** | `/checkpoint` command | User or agent forces a write before a risky step. |
 
@@ -370,7 +371,100 @@ plan already establishes `Get-Command`/`command -v` capability gating).
 
 ---
 
-## 12. Phased build plan
+## 12. Learnings from live memento runs (session 6f24a6f4, 2026-07-23)
+
+This design was written from first principles. One long Special Circumstances session
+(`6f24a6f4`) then ran the **manual** version of it — overwrite `plans/handoff.md` near ~85%
+context, keep a durable `memory/feov-session-handoff.md` pointer at it — across **six**
+compaction boundaries (transcript lines 3514, 5735, 9379, 11922, 14155, 16635). What
+follows is field evidence, and it amends the sections named. Findings are leaf-verified
+against the transcript, not taken from the compaction summaries that are themselves the
+subject here.
+
+### (a) What compaction reliably preserved — and what it reliably dropped
+
+**Preserved (the summary is good at the backward narrative).** The verbatim standing
+directive, the shipped-work ledger, and the open queue survived every boundary. After the
+final boundary the thread re-grounded cleanly and unprompted — *"Yes. `main` now has the
+refreshed handoff. Where we are: …"* (L16666), then continued the in-flight build with no
+re-scoping. The memento's core promise — resume from disk, don't re-derive from nothing —
+held.
+
+**Dropped (the summary is worst at forward, procedural facts).** Two classes, both evidenced:
+1. **A check's real trigger surface.** The CI gate `rule-sweep` fires on any edit to a
+   *protocol surface* (`debate.js` seat prompts, `agents/*.md`), not only rule `SKILL.md`
+   files, and demands a **sibling sweep**, not an instance fix. That fact was established
+   early (L2551–2566) but was not in any carried summary; post-compaction the agent pushed
+   an instance-only fix and CI went red (L14779). It was recovered only by **reproducing the
+   check locally** — *"Log noise is drowning the error. Let me … run it locally to
+   reproduce"* (L14792) → *"changed a protocol surface without doing the sibling sweep the
+   rule demands"* (L14799). A paraphrased memory of what a check *wants* is exactly what
+   compaction flattens.
+2. **An actionable that lived in prose only.** See (c) — this is the load-bearing failure.
+
+### (b) What the manual memento got right
+
+- **Newest-wins, single overwritten note.** One `handoff.md` block, overwritten each
+  checkpoint (the session called this out as learned discipline, L36) — matches §3/§6.
+- **A durable pointer file as the survivable index.** `memory/feov-session-handoff.md`
+  (registered in `MEMORY.md`) named where the live note lived and outlived every compaction.
+  This is what made resume reliable, and it is stronger than the §7 restore hook alone: the
+  pointer survives a *full session end and a fresh start*, where `SessionStart(source=compact)`
+  never fires. See improvement **I3**.
+
+### (c) What fell through, and why — the checkpoint is necessary but not sufficient
+
+The sharpest failure. An actionable item — *expand the goja fuzz to `debate.js`'s deferred
+branches (grade-dispute docket, deadlock, petitions, supersedes-lineage)* — **was present in
+`handoff.md`** (its "Fuzz — next expansion" section) yet still fell off the what's-left list.
+Cause: the resumed workflow rebuilt its worklist from **`gh issue list`**, and the item had
+never been filed as an issue. The human caught the omission; the agent conceded — *"**that
+fell off.** My list was issue-derived, and the fuzz expansion lives in the handoff, not a
+GitHub issue … the exact failure mode of trusting one index"* (L17177). Fix applied in-session:
+file it durably (issues **#101/#102**), after which *"Nothing implementation-related lives only
+in the handoff now"* (L17208).
+
+The lesson cuts at this plan's own thesis. PR #3's model is "write it in `CHECKPOINT.md` and
+it survives." This run shows that is **necessary but not sufficient**: if the resumed agent
+consults a *different* canonical index (the issue tracker, the plan's task list) than the
+note, a perfectly-checkpointed actionable still dies. Writing it down is not the same as
+putting it where the next self will look.
+
+### (d) Evidenced improvements adopted
+
+**I1 — Promote actionables to the canonical queue; the note points, it does not hold.**
+For any forward action item (a "Next intended step" or "Open thread" that is real work, not a
+musing), the discipline is: **file/link it in the durable store the resumed workflow actually
+reads** (GitHub issue, or a numbered task in the SDD `plan.md`), and let the checkpoint carry
+the *pointer*. A checkpoint-only actionable is flagged as such so the omission is visible, not
+silent. Amends §4 (schema) and §5 (a new trigger). *Evidence: the fuzz-deferred-paths drop,
+L17177/L17208; #101/#102.* This is the one failure a human had to catch — the highest-value fix.
+
+**I2 — Validation-loop entries record each check's *trigger surface*, and the discipline is
+reproduce, not recall.** §4's Validation loop already carries commands verbatim with per-step
+last-run state. Add, per check: **what re-arms it** — the file/condition surface that makes it
+fire (e.g. *"`rule-sweep` fires on any protocol-surface edit — `debate.js` prompts, `agents/*.md`
+— and demands a sibling sweep, not an instance fix"*). And state the rule explicitly: after
+amnesia you **reproduce** the gate locally before trusting green; you do not act on the
+summary's paraphrase of what it wanted. *Evidence: the `rule-sweep` red-CI, L14779/L14792/L14799.*
+
+**I3 — Back the restore hook with the durable memory pointer.** §7 restores via
+`SessionStart(source=compact/resume)`. That hook does not fire on a cold fresh session, and
+per R1/R8 it may be absent or degraded. Make the **project-memory pointer file** (a stable
+`MEMORY.md` entry naming the live checkpoint's path) a required companion output of the
+checkpoint discipline, so continuity survives even when no hook runs. This is the mechanism
+that actually carried session `6f24a6f4`. Amends §7 and §8 (`project-memory` cross-ref becomes
+load-bearing, not advisory). *Evidence: `memory/feov-session-handoff.md` → `plans/handoff.md`
+held across all six boundaries; clean resume at L16666.*
+
+Rejected on audit (not carried into the design): a restore-time "reconcile every index"
+mechanism (the hook cannot enumerate arbitrary queues generically — folds into I1 at authoring
+time); a per-turn auto-write checkpoint (unevidenced here — the manual cadence did not fail on
+staleness this run); enlarging the restore digest (no truncation loss observed).
+
+---
+
+## 13. Phased build plan
 
 | Phase | Work | Verify |
 |---|---|---|
@@ -386,7 +480,7 @@ plumbing around a Markdown file plus two thin hooks. Ship 1–4; treat 5 as dema
 
 ---
 
-## 13. One-line summary
+## 14. One-line summary
 
 *Leave yourself a note before the amnesia hits.* The agent maintains a living
 `CHECKPOINT.md` — objective, plan pointer, decisions kept and rejected, working state, next
