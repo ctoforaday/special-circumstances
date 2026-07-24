@@ -392,6 +392,23 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		if len(conf) > 0 {
 			parts = append(parts, "### BLUE CONFIDENCE (self-assessment — non-authoritative; targeting signal, not a grade)\n"+strings.Join(conf, "\n"))
 		}
+		// Grade disputes + answers — the claim-level contest, rendered FROM the record so a seat
+		// reading `--view debate` (the judge, ruling on the docket) sees the argument. Since #62
+		// Stage 2, the evidence/rationale prose lives ONLY here (the envelope carries routing refs),
+		// so this block is the sole surface for it — without it the bench rules on refs alone.
+		var disp []string
+		for _, e := range re {
+			switch e.Type {
+			case "dispute":
+				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s",
+					e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("evidence")))
+			case "dispute-respond":
+				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("rationale")))
+			}
+		}
+		if len(disp) > 0 {
+			parts = append(parts, "### Grade disputes\n"+strings.Join(disp, "\n"))
+		}
 		var ops []string
 		for _, e := range re {
 			if e.Type == "opinion" {
