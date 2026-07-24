@@ -68,9 +68,10 @@ first — work that reaches red unverified has already failed your own standard.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
 - AFTER changing `blue/report.md`, YOU MUST log the concrete edits to `blue/CHANGELOG.md`
-  and append your position for the round to `debate.md` under `### BLUE` — a revision is
-  not on the record until the transcript carries it, and the record is written from the
-  artifact, never from recall.
+  and record your round position through the tool — `feov-record blue position --reason
+  "<your round narrative>"` (it renders as the round's `### BLUE` section of the transcript);
+  a revision is not on the record until the transcript carries it, and the record is written
+  from the artifact, never from recall.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
 - AFTER any task where a missing tool, a capability gap, or a TEMPLATE/PROTOCOL MISFIT
