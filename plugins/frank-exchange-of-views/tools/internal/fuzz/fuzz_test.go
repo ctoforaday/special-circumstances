@@ -40,7 +40,10 @@ type runner struct {
 	rng         *rand.Rand
 	registered  map[string]bool
 	classMade   bool
-	disputed    map[string]bool // gaps blue has disputed, awaiting red's dispute-respond
+	// #62 Stage 2: disputes blue RAISED (event emitted + envelope ref), awaiting red's answer
+	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
+	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
+	raised []map[string]any
 }
 
 func (r *runner) coin(pct int) bool { return r.rng.Intn(100) < pct }
@@ -56,23 +59,54 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 	}
 	if role == "blue" {
 		r.emitConfidence(seatID) // blue calibrates its claims every round
-		if len(open) > 0 && r.coin(40) {
-			id := open[r.rng.Intn(len(open))]
-			if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", "impact", "--proposed", r.g(), "--reason", "dispute-evidence-for-"+id); err == nil {
-				r.disputed[id] = true
-			}
-		}
 	}
-	if role == "merge" {
-		for id := range r.disputed { // answer every open dispute (the tool refuses a dangling one)
-			_, _ = r.exec("merge", "dispute-respond", "--seat-id", seatID, "--id", id, "--as", "rejected", "--reason", "respond-rationale-for-"+id)
-			delete(r.disputed, id)
-		}
-		if len(open) > 0 && r.coin(30) {
-			id := open[r.rng.Intn(len(open))]
-			_, _ = r.exec("merge", "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id, "--likelihood", r.g())
-		}
+	if role == "merge" && len(open) > 0 && r.coin(30) {
+		id := open[r.rng.Intn(len(open))]
+		_, _ = r.exec("merge", "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id, "--likelihood", r.g())
 	}
+}
+
+// raiseDisputes is blue's Stage-2 contest path: EMIT a dispute event (evidence on the record)
+// and return the ROUTING REF ({gap_id, dimension, proposed}) for the envelope's grade_disputes.
+// The raised set is remembered so red answers it next round (drives the docket machinery). Unique
+// evidence prose per gap so the report oracle can prove it rendered.
+func (r *runner) raiseDisputes(seatID string, open []string) []map[string]any {
+	var refs []map[string]any
+	for _, id := range open {
+		if !r.coin(40) {
+			continue
+		}
+		proposed := r.g()
+		if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", "impact", "--proposed", proposed, "--reason", "dispute-evidence-for-"+id+"-by-"+seatID); err != nil {
+			continue
+		}
+		ref := map[string]any{"gap_id": id, "dimension": "impact", "proposed": proposed}
+		refs = append(refs, ref)
+		r.raised = append(r.raised, ref)
+	}
+	return refs
+}
+
+// answerDisputes is red's Stage-2 answer to blue's pending disputes: EMIT a dispute-respond event
+// (rationale on the record) and return the ROUTING REF ({gap_id, dimension, response}) for the
+// envelope's dispute_responses. Clears the pending set. A random accept/reject exercises both the
+// accepted-delta and rejected-held docket branches.
+func (r *runner) answerDisputes(seatID string) []map[string]any {
+	var refs []map[string]any
+	for _, d := range r.raised {
+		id, _ := d["gap_id"].(string)
+		dim, _ := d["dimension"].(string)
+		resp := "accepted"
+		if r.coin(50) {
+			resp = "rejected"
+		}
+		if _, err := r.exec("merge", "dispute-respond", "--seat-id", seatID, "--id", id, "--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
+			continue
+		}
+		refs = append(refs, map[string]any{"gap_id": id, "dimension": dim, "response": resp})
+	}
+	r.raised = nil
+	return refs
 }
 
 func (r *runner) exec(args ...string) (string, error) {
@@ -170,6 +204,9 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	case strings.HasPrefix(seatID, "red-merge"):
 		r.register("merge", seatID)
+		// Answer blue's pending disputes FIRST (debate.js processes dispute_responses before the
+		// PASS/FAIL branch) — emits the events + returns the routing refs, whatever the verdict.
+		responses := r.answerDisputes(seatID)
 		// PASS ~40%: run the round's dialectic, then close every open gap so the #67 gate
 		// (and verify) holds.
 		if r.coin(40) {
@@ -178,7 +215,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 			for _, id := range r.openGaps() { // re-read: a regression close may have added a successor
 				r.closeGap(seatID, id)
 			}
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": arr(), "corroboration": arr(), "petitions": arr(), "friction": arr()}
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": arr(), "friction": arr()}
 		}
 		// FAIL: mint 1-3 fresh gaps (a FAIL with empty gaps is a degenerate merge debate.js
 		// rejects on purpose). Report the FULL open set as the docket.
@@ -197,21 +234,22 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 			// The mints did not take (a tool refusal we could not satisfy) — degrade to PASS
 			// rather than fabricate a docket. A FAIL with an empty gaps array is exactly the
 			// degenerate merge debate.js rejects, and we must not hand it one.
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": arr(), "corroboration": arr(), "petitions": arr(), "friction": arr()}
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": arr(), "friction": arr()}
 		}
-		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": arr(), "corroboration": arr(), "petitions": arr(), "friction": arr()}
+		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": arr(), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
 		open := r.openGaps()
-		r.dialectic("blue", seatID, open) // blue's position, closings, and maybe a grade dispute
+		r.dialectic("blue", seatID, open)         // blue's position, closings, confidence
+		disputes := r.raiseDisputes(seatID, open) // emit dispute events + envelope routing refs
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
 		// receipt. One row per open gap it is repairing this round.
 		var manifest []any
 		for _, id := range open {
 			manifest = append(manifest, map[string]any{"gap_id": id, "row": "fuzz: checked"})
 		}
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": arr(), "petitions": arr(), "friction": arr()}
+		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": arr(), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "judge-petition"):
 		r.register("bench", seatID)
@@ -284,7 +322,7 @@ type outcome struct {
 
 func runOne(wrapped, bin string, seed int64) outcome {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
-	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}, disputed: map[string]bool{}}
+	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
 	res := outcome{seed: seed, runDir: runDir}
 	func() {

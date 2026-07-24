@@ -70,6 +70,11 @@ import (
 //	       petition-rule prose it silently dropped on a payload-key mismatch (A1–A3), and
 //	       surfaces the friction log. A stale binary produces the graph-less, prose-dropping
 //	       report the record now expects.
+//	0.14.0 #62 Stage 2 — grade disputes onto the record: the `debate` view now renders the
+//	       dispute / dispute-respond thread (evidence + rationale), which since Stage 2 lives
+//	       ONLY on the record (the debate.js envelope carries routing refs — gap_id/dimension/
+//	       proposed/response — not the prose). A stale binary renders a debate view missing the
+//	       dispute argument the bench now rules on from the record.
 //	0.13.0 confidence wired end-to-end as a NON-AUTHORITATIVE signal: `bench assemble` renders a
 //	       "Blue's confidence self-assessment" section and the `debate` view carries a per-round
 //	       "BLUE CONFIDENCE" block, both composed from the (previously write-only) confidence
@@ -79,7 +84,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.13.0"
+const Version = "0.14.0"
 
 func init() { record.ToolVersion = Version }
 
