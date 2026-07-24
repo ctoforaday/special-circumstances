@@ -10,14 +10,15 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  bench       the bench — opinions, petition rulings, halt, certification. Never originates.
-  blue        blue seats — revisions, manifest rows, disputes. No board verbs at all.
-  completion  Generate the autocompletion script for the specified shell
-  graph       render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help        Help about any command
-  lens        red lens seats — findings, observations, citations. Cannot mint or close.
-  merge       the red merge seat — the board's only writer.
-  verify      cross-check a run's record against its invariants, and tally it (read-only)
+  bench        the bench — opinions, petition rulings, halt, certification. Never originates.
+  blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  completion   Generate the autocompletion script for the specified shell
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
+  help         Help about any command
+  lens         red lens seats — findings, observations, citations. Cannot mint or close.
+  merge        the red merge seat — the board's only writer.
+  verify       cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
   -h, --help             help for feov-record
@@ -40,14 +41,15 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  bench       the bench — opinions, petition rulings, halt, certification. Never originates.
-  blue        blue seats — revisions, manifest rows, disputes. No board verbs at all.
-  completion  Generate the autocompletion script for the specified shell
-  graph       render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help        Help about any command
-  lens        red lens seats — findings, observations, citations. Cannot mint or close.
-  merge       the red merge seat — the board's only writer.
-  verify      cross-check a run's record against its invariants, and tally it (read-only)
+  bench        the bench — opinions, petition rulings, halt, certification. Never originates.
+  blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  completion   Generate the autocompletion script for the specified shell
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
+  help         Help about any command
+  lens         red lens seats — findings, observations, citations. Cannot mint or close.
+  merge        the red merge seat — the board's only writer.
+  verify       cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
   -h, --help             help for feov-record
@@ -70,14 +72,15 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  bench       the bench — opinions, petition rulings, halt, certification. Never originates.
-  blue        blue seats — revisions, manifest rows, disputes. No board verbs at all.
-  completion  Generate the autocompletion script for the specified shell
-  graph       render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help        Help about any command
-  lens        red lens seats — findings, observations, citations. Cannot mint or close.
-  merge       the red merge seat — the board's only writer.
-  verify      cross-check a run's record against its invariants, and tally it (read-only)
+  bench        the bench — opinions, petition rulings, halt, certification. Never originates.
+  blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  completion   Generate the autocompletion script for the specified shell
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
+  help         Help about any command
+  lens         red lens seats — findings, observations, citations. Cannot mint or close.
+  merge        the red merge seat — the board's only writer.
+  verify       cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
   -h, --help             help for feov-record
@@ -240,7 +243,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.14.0
+feov-record version 0.15.0
 
 $ feov-record nonsuch help
 exit 2

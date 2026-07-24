@@ -485,7 +485,7 @@ func TestRenderDebateChangelogInquiryAndCitations(t *testing.T) {
 	})
 	writeShard(t, runDir, blue, "bbbbbbbb", []Event{
 		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", NewPayload().Set("text", "blue says otherwise")),
-		ev(blue, "bbbbbbbb", 1, 1, "revision", blue+":revision", NewPayload().Set("text", "blue revised").Set("claim_count", 12)),
+		ev(blue, "bbbbbbbb", 1, 1, "revision", blue+":revision", NewPayload().Set("text", "blue revised")),
 		ev(blue, "bbbbbbbb", 2, 1, "avenue", blue+":avenue:a1", NewPayload().
 			Set("label", "a1").Set("status", "abandoned").Set("line", "try the archive").
 			Set("method", "full-text search").Set("reason", "the archive is offline")),
@@ -518,8 +518,10 @@ func TestRenderDebateChangelogInquiryAndCitations(t *testing.T) {
 		}
 	}
 
+	// The CHANGELOG projection renders the revision's prose; claim_count no longer
+	// rides on a revision event (#70 moved it to the count-claims command).
 	changelog := readFile(t, filepath.Join(res.Out, "CHANGELOG.md"))
-	if !strings.Contains(changelog, "## Round 1 (claim_count 12)\nblue revised") {
+	if !strings.Contains(changelog, "## Round 1\nblue revised") {
 		t.Errorf("CHANGELOG.md is wrong:\n%s", changelog)
 	}
 

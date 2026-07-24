@@ -80,11 +80,16 @@ import (
 //	       "BLUE CONFIDENCE" block, both composed from the (previously write-only) confidence
 //	       event. It sets no grade and never enters the risk matrix. A stale binary drops blue's
 //	       calibration the record now carries.
+//	0.15.0 the root `count-claims` command computes claim_count deterministically from
+//	       blue/report.md (#70), and `revision --claim-count` is DROPPED. The number that sizes
+//	       red's dispatch and arms the retire-vs-drop detector was hand-counted by the blue LLM
+//	       (two honest merges diverged 2x); a prompt now runs the tool and relays it. A stale
+//	       binary lacks the command the blue prompt calls and still accepts the removed flag.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.14.0"
+const Version = "0.15.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -116,8 +121,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		merge.NewCommand(),
 		blue.NewCommand(),
 		bench.NewCommand(),
-		newVerify(), // operator cross-check, not a seat role — read-only over the record
-		newGraph(),  // operator: render a run's actual behaviour from the record
+		newVerify(),      // operator cross-check, not a seat role — read-only over the record
+		newGraph(),       // operator: render a run's actual behaviour from the record
+		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
 	)
 	return root
 }

@@ -830,9 +830,9 @@ func TestBlueVerbContracts(t *testing.T) {
 		}
 	})
 
-	t.Run("revision records the claim count alongside the prose", func(t *testing.T) {
+	t.Run("revision records its prose (claim_count moved to count-claims, #70)", func(t *testing.T) {
 		if _, err := run(t, "blue", "revision", "--run", runDir, "--seat-id", seatID,
-			"--reason", "what changed", "--claim-count", "12"); err != nil {
+			"--reason", "what changed"); err != nil {
 			t.Fatal(err)
 		}
 		ev := lastOfType(t, runDir, "revision")

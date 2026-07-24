@@ -135,10 +135,10 @@ const (
 	Deadlocked = "deadlocked"
 	Exhausted  = "exhausted"
 
-	// Blue's process record.
+	// Blue's process record. (claim_count was --claim-count here until #70 moved the
+	// count to the deterministic `count-claims` root command; no flag types it now.)
 	Line        = "line"
 	Method      = "method"
-	ClaimCount  = "claim-count"
 	AccessDate  = "access-date"
 	Observation = "observation"
 )
@@ -166,7 +166,7 @@ func All() []string {
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,
 		Deadlocked, Exhausted,
-		Line, Method, ClaimCount, AccessDate, Observation,
+		Line, Method, AccessDate, Observation,
 	}
 }
 
