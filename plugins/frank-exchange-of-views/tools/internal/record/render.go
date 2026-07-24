@@ -433,11 +433,10 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		if e.Type != "revision" {
 			continue
 		}
-		cc := ""
-		if v, ok := e.Payload.Get("claim_count"); ok && v != nil {
-			cc = fmt.Sprintf(" (claim_count %s)", jsText(v))
-		}
-		changelog = append(changelog, fmt.Sprintf("\n## Round %d%s\n%s", e.Round, cc, e.Payload.Str("text")))
+		// claim_count was rendered here from the revision event until #70 dropped the
+		// --claim-count flag; the count now lives in the envelope (computed via the
+		// count-claims command), never on a revision event, so nothing sets it.
+		changelog = append(changelog, fmt.Sprintf("\n## Round %d\n%s", e.Round, e.Payload.Str("text")))
 	}
 	if err := writeAtomic(filepath.Join(out, "CHANGELOG.md"), []byte(strings.Join(changelog, "\n")+"\n")); err != nil {
 		return RenderResult{}, err

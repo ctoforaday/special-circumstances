@@ -22,7 +22,7 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("merge", "register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
 				base("blue", "register", "--run", "{RUN}", "--seat-id", "blue-respond-r2"),
-				base("blue", "revision", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "first pass", "--claim-count", "132"),
+				base("blue", "revision", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "first pass"),
 				base("blue", "friction", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--label", "L5-F1",
@@ -209,7 +209,7 @@ func scenarios() []scenario {
 				base("merge", "closing", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1", "--reason", "red's closing"),
 				base("blue", "position", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--reason-file", "{RUN}/blue.md"),
 				base("blue", "closing", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--reason", "blue's closing"),
-				base("blue", "revision", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--reason", "repairs landed", "--claim-count", "88"),
+				base("blue", "revision", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--reason", "repairs landed"),
 				base("blue", "manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--row", "figures recomputed; check run: pass"),
 				base("blue", "dispute", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
