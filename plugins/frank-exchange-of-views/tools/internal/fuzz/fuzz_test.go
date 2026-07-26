@@ -189,6 +189,69 @@ func (r *runner) closeGap(seatID, id string) {
 		"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec")
 }
 
+var avenueStatus = []string{"pursued", "abandoned", "declined"}
+var obsKind = []string{"note", "checked-held"}
+var disposeAs = []string{"declined", "banked"}
+
+func pick(rng *rand.Rand, xs []string) string { return xs[rng.Intn(len(xs))] }
+
+// extras fires a RANDOM subset of a role's REMAINING verb surface, so no two fuzz paths
+// look alike and every seat exercises far more than its happy path. Only verbs that keep
+// the oracles intact (verify passes, the run terminates, the report renders) are here;
+// terminal/verdict-shaping acts (halt, certify, outcome, verdict) stay in the structured
+// cases above. Reference-taking verbs are gated on a referent existing.
+func (r *runner) extras(role, seatID string, open []string) {
+	if r.coin(50) {
+		_, _ = r.exec(role, "friction", "--seat-id", seatID, "--reason", "fuzz friction from "+seatID)
+	}
+	switch role {
+	case "lens":
+		if r.coin(45) {
+			_, _ = r.exec("lens", "observe", "--seat-id", seatID, "--label", fmt.Sprintf("O%d", r.rng.Intn(1_000_000)),
+				"--kind", pick(r.rng, obsKind), "--reason", "fuzz observation")
+		}
+		if r.coin(45) {
+			_, _ = r.exec("lens", "avenue", "--seat-id", seatID, "--status", pick(r.rng, avenueStatus), "--line", "fuzz avenue "+seatID)
+		}
+	case "blue":
+		if r.coin(45) {
+			_, _ = r.exec("blue", "avenue", "--seat-id", seatID, "--status", pick(r.rng, avenueStatus), "--line", "fuzz avenue "+seatID)
+		}
+		if r.coin(40) {
+			_, _ = r.exec("blue", "revision", "--seat-id", seatID, "--reason", "fuzz revision")
+		}
+		if r.coin(30) {
+			_, _ = r.exec("blue", "retire", "--seat-id", seatID, "--claim", "fuzz claim "+seatID, "--reason", "fuzz retire")
+		}
+		if len(open) > 0 && r.coin(40) {
+			_, _ = r.exec("blue", "manifest-row", "--seat-id", seatID, "--id", open[r.rng.Intn(len(open))], "--row", "fuzz manifest row")
+		}
+	}
+}
+
+// disposeObservations gives every observation a FATE — the merge's duty — so a run that
+// randomly grew observations still ends clean and exercises observe -> dispose end to end.
+func (r *runner) disposeObservations(seatID string) {
+	out, err := r.exec("merge", "show", "--view", "board")
+	if err != nil {
+		return
+	}
+	var b struct {
+		Observations []struct {
+			Label    string `json:"label"`
+			Disposed bool   `json:"disposed"`
+		} `json:"observations"`
+	}
+	if json.Unmarshal([]byte(out), &b) != nil {
+		return
+	}
+	for _, o := range b.Observations {
+		if !o.Disposed && o.Label != "" {
+			_, _ = r.exec("merge", "dispose", "--seat-id", seatID, "--observation", o.Label, "--as", pick(r.rng, disposeAs), "--reason", "fuzz dispose")
+		}
+	}
+}
+
 // arr / obj are goja-friendly envelope builders.
 func arr(v ...any) []any { return append([]any{}, v...) }
 
@@ -200,6 +263,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
 		r.emitConfidence(seatID) // round-0 calibration
+		r.extras("blue", seatID, nil)
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": arr(), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "red-merge"):
@@ -207,11 +271,13 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 		// Answer blue's pending disputes FIRST (debate.js processes dispute_responses before the
 		// PASS/FAIL branch) — emits the events + returns the routing refs, whatever the verdict.
 		responses := r.answerDisputes(seatID)
-		// PASS ~40%: run the round's dialectic, then close every open gap so the #67 gate
-		// (and verify) holds.
+		r.extras("merge", seatID, r.openGaps())
+		// PASS ~40%: run the round's dialectic, dispose any loose observations, then close every
+		// open gap so the #67 gate (and verify) holds.
 		if r.coin(40) {
 			open := r.openGaps()
 			r.dialectic("merge", seatID, open)
+			r.disposeObservations(seatID)
 			for _, id := range r.openGaps() { // re-read: a regression close may have added a successor
 				r.closeGap(seatID, id)
 			}
@@ -241,7 +307,8 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
 		open := r.openGaps()
-		r.dialectic("blue", seatID, open)         // blue's position, closings, confidence
+		r.dialectic("blue", seatID, open) // blue's position, closings, confidence
+		r.extras("blue", seatID, open)
 		disputes := r.raiseDisputes(seatID, open) // emit dispute events + envelope routing refs
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
 		// receipt. One row per open gap it is repairing this round.
@@ -257,6 +324,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	case strings.HasPrefix(seatID, "judge"): // adjudication + terminal
 		r.register("bench", seatID)
+		r.extras("bench", seatID, nil)
 		var res []any
 		for _, id := range r.openGaps() {
 			disp := "carried"
@@ -297,6 +365,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
+				r.extras("lens", seatID, nil)
 			}
 		}
 		return map[string]any{"synopsis": "fuzz", "petitions": arr(), "friction": arr(), "rulings": arr()}
@@ -433,7 +502,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 
 // tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.
 func tallyDialectic(board *record.Board) map[string]int {
-	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true, "confidence": true, "cite": true, "finding": true}
+	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true, "confidence": true, "cite": true, "finding": true, "observe": true, "avenue": true, "friction": true, "revision": true, "retire": true, "manifest-row": true, "dispose": true}
 	m := map[string]int{}
 	for _, e := range board.Events {
 		if want[e.Type] {
