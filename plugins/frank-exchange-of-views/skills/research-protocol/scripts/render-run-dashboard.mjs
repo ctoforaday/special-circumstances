@@ -180,6 +180,10 @@ export function buildModel(runDir, transcriptDir) {
   }
   const ledgerTxt = readIf('red/ledger.md')
   const archiveTxt = readIf('red/archive.md')
+  // Lens findings now live on the record (findings.md is their projection, where the candidate
+  // files used to be). The count is red's raw leaf-audit volume BEFORE the merge coalesces it
+  // into gaps — a different signal from openRows (minted gaps).
+  const findingsTxt = readIf('red/findings.md')
   // Ordered MOST SPECIFIC FIRST, and it must stay that way: the match below is a
   // substring test, so listing `high` before `medium-high` made every
   // medium-high row report as high (and every low-medium row as medium) —
@@ -206,6 +210,7 @@ export function buildModel(runDir, transcriptDir) {
     ledgerExists: ledgerTxt !== null,
     openRows,
     openBySeverity,
+    findings: findingsTxt ? (findingsTxt.match(/^- /gm) || []).length : 0,
     // LINE count, not id-occurrence count: a closure row also NAMES its supersedes ids in
     // the fourth column, so occurrence-counting read 88 for a 52-row index (seen live, run 5).
     closureIndexRows: ledgerTxt ? ledgerTxt.slice(Math.max(0, ledgerTxt.search(/closure index/i))).split('\n').filter((l) => idLine.test(l) && l.includes('|')).length : 0,
@@ -447,6 +452,7 @@ ${m.shards.ledgerExists ? `<table>
 <tr><td>open gaps on the ledger</td><td>${m.latest && m.latest.open_count > 0 && m.shards.openRows < m.latest.open_count ? `${esc(m.latest.open_count)} <span class="muted">(from telemetry — heuristic ledger parse found ${esc(m.shards.openRows)} row(s); telemetry wins when the parse under-reads)</span>` : `${m.shards.openRows}${Object.keys(m.shards.openBySeverity).length ? ' <span class="muted">(' + Object.entries(m.shards.openBySeverity).map(([k, v]) => `${esc(k)}:${esc(v)}`).join(' · ') + ')</span>' : ''}`}</td></tr>
 <tr><td>closure index rows</td><td>${m.shards.closureIndexRows}</td></tr>
 <tr><td>archived closure records</td><td>${m.shards.archiveRecords}</td></tr>
+<tr><td>lens findings recorded</td><td>${m.shards.findings} <span class="muted">(raw leaf audit, before the merge coalesces into gaps)</span></td></tr>
 </table><p class="muted">severity counts are a heuristic parse of red's own rows — the ledger is the record</p>` : '<p class="muted">ledger not yet created (red-merge-born at round 1)</p>'}
 <h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>
 ${m.judiciary.judgeSittings ? `<table>

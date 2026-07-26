@@ -134,6 +134,9 @@ blue's closing
 - R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
 the rationale body
 
+-- findings.md
+# red findings — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

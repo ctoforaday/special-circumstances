@@ -20,6 +20,7 @@ function fixture() {
   writeFileSync(join(runDir, 'blue', 'report.md'), '# report\ncontent\n')
   writeFileSync(join(runDir, 'red', 'ledger.md'), '# ledger\n## open\nR2-1 | high | loc | problem\nR2-2 | medium | loc | problem\n## closure index\nR1-1 | closed | fixed | -\nR1-2 | closed_with_regression | superseded | R2-1 R2-2\n')
   writeFileSync(join(runDir, 'red', 'archive.md'), '# archive\n## R1-1 — closed\nprose\n')
+  writeFileSync(join(runDir, 'red', 'findings.md'), '# red findings — RENDERED PROJECTION\n- L1-F1 | red-lens-r1-L1 | sev high · high x high | r1 | a finding\n- L5-F1 | red-lens-r1-L5 | sev low · low x low | r1 | another\n- L1-F2 | red-lens-r1-L1 | sev medium · medium x medium | r1 | third\n')
   writeFileSync(join(runDir, 'friction.md'), '# friction\n- seat-a: pain one\n- seat-b: pain two\n')
   // Journal uses the REAL harness schema — {type, key, agentId}, NO labels (production
   // divergence caught live 2026-07-17: the fixture had invented a label field).
@@ -69,6 +70,7 @@ test('dashboard model: telemetry series, live vs done seats, cost estimate, blac
   assert.equal(m.shards.openBySeverity.high, 1)
   assert.equal(m.shards.closureIndexRows, 2, 'LINE count — a supersedes-bearing row counts once, not per id named')
   assert.equal(m.shards.archiveRecords, 1)
+  assert.equal(m.shards.findings, 3, 'lens findings counted from findings.md (raw leaf audit, pre-coalescence)')
   assert.equal(m.friction.count, 2, 'friction is a count of pain points, not bytes')
   assert.equal(m.blueClaims, 100)
   assert.ok(m.steps.some(s2 => s2.name === 'frontier' && s2.state === 'done'), 'progress steps derived from journal')

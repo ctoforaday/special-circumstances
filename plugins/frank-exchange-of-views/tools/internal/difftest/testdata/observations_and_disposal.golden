@@ -56,6 +56,9 @@ feov-record: merge: record: dispose --observation names N2, which no observe or 
 -- debate.md
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
+-- findings.md
+# red findings — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

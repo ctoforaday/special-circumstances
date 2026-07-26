@@ -32,6 +32,9 @@ feov-record: bench: record: opinion --id names gap R2-1, which no mint event cre
 -- debate.md
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
+-- findings.md
+# red findings — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

@@ -52,6 +52,14 @@ angle <brackets> & ampersand
 unicode — em-dash · ✓ 日本語
 backslash \ and \n literal
 
+-- findings.md
+# red findings — RENDERED PROJECTION (source of truth: records/ event log)
+- L5-F1 | red-lens-r1-L5 | sev low · low x low | r1 | quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

@@ -184,6 +184,9 @@ Use "{TOOL} [command] --help" for more information about a command.
 -- debate.md
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
+-- findings.md
+# red findings — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

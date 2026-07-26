@@ -52,6 +52,10 @@ first pass
 -- debate.md
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
+-- findings.md
+# red findings — RENDERED PROJECTION (source of truth: records/ event log)
+- L5-F1 | red-lens-r1-L5 | sev medium · high x medium | r1 | unfounded leap
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 
