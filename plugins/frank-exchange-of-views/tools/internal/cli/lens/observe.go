@@ -11,8 +11,8 @@ import (
 // observe: a below-bar finding that still demands a FATE.
 //
 // The merge must dispose every observation. That is why this is a recorded event
-// rather than prose in a candidate file: an observation nobody disposed shows in
-// the render's undisposed footer, where a note that quietly evaporated would not.
+// rather than an unrecorded note in a seat's prose: an observation nobody disposed
+// shows in the render's undisposed footer, where a note that quietly evaporated would not.
 func newObserve() *cobra.Command {
 	c := seat.Prose(seat.New("observe",
 		"a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason",

@@ -191,7 +191,7 @@ test('record-join audit: an event no transcript invoked is FLAGGED; the binary i
   // Transcript carrying the ROLE-SUBCOMMAND form the binary is invoked with.
   writeFileSync(join(transcripts, 'agent-aaa.jsonl'), [
     JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'feov-record lens register --run x --seat-id red-lens-r1-L1' } }] } }),
-    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'feov-record lens finding --label L1-F1 --reason "x" --run x --seat-id red-lens-r1-L1' } }] } }),
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'feov-record lens finding --key F1 --reason "x" --run x --seat-id red-lens-r1-L1' } }] } }),
   ].join('\n') + '\n')
   const pass = recordJoinAudit(run, transcripts, ['agent-aaa.jsonl'])
   assert.equal(pass.verdict, 'PASS', pass.detail)
@@ -209,7 +209,7 @@ test('record-join audit still reads pre-port transcripts (the mjs invocation sha
   const transcripts = tmp()
   writeEvents(run, 'red-lens-r1-L1', [{ type: 'finding', payload: { label: 'L1-F1', text: 'x' } }])
   writeFileSync(join(transcripts, 'agent-old.jsonl'),
-    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'node tools/red-lens.mjs finding --label L1-F1 --run x --seat-id red-lens-r1-L1' } }] } }) + '\n')
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'node tools/red-lens.mjs finding --key F1 --run x --seat-id red-lens-r1-L1' } }] } }) + '\n')
   const pass = recordJoinAudit(run, transcripts, ['agent-old.jsonl'])
   assert.equal(pass.verdict, 'PASS', pass.detail)
 })
@@ -252,7 +252,7 @@ test('record-join audit matches the QUOTED binary path the engine actually emits
   // can contain spaces. Requiring whitespace after the binary name matched
   // nothing here, so the audit reported healthy while measuring nothing.
   writeFileSync(join(transcripts, 'agent-q.jsonl'),
-    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: '"/plug/bin/feov-record" lens finding --label L1-F1 --run x --seat-id red-lens-r1-L1' } }] } }) + '\n')
+    JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: '"/plug/bin/feov-record" lens finding --key F1 --run x --seat-id red-lens-r1-L1' } }] } }) + '\n')
   const pass = recordJoinAudit(run, transcripts, ['agent-q.jsonl'])
   assert.equal(pass.verdict, 'PASS', pass.detail)
 })

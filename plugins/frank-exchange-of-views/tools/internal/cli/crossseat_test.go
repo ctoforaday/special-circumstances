@@ -124,7 +124,7 @@ func TestLensWorkReachesTheBoardAndEveryObservationGetsAFate(t *testing.T) {
 	runDir := seatRun(t)
 
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-F1", "--location", "§3 \"the parser accepts an empty body\"",
+		"--key", "F1", "--location", "§3 \"the parser accepts an empty body\"",
 		"--reason", "an empty body is accepted where the grammar requires one element",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("lens finding: %v", err)
@@ -246,11 +246,11 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 		t.Fatalf("register L2: %v", err)
 	}
 	for _, l := range []struct{ seat, label string }{
-		{"red-lens-r1-L1", "L1-F1"},
-		{"red-lens-r1-L2", "L2-F1"},
+		{"red-lens-r1-L1", "L1-F1"}, // local --key F1 → tool assigns L1-F1 (role-prefixed)
+		{"red-lens-r1-L2", "L2-F1"}, // and L2-F1
 	} {
 		if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", l.seat,
-			"--label", l.label, "--location", "§1", "--reason", "a finding",
+			"--key", "F1", "--location", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 			t.Fatalf("finding %s: %v", l.label, err)
 		}

@@ -90,11 +90,17 @@ import (
 //	       AND clobbered). The board JSON and `verify` now tally `citations`, and red sets
 //	       citations_checked from the board's count instead of self-reporting it (fabricated on
 //	       haiku). A stale binary lacks the citations tally the merge prompt now reads.
+//	0.17.0 #62(1) findings onto the record (#71.2): lenses record findings as `finding` events
+//	       with a TOOL-assigned run-unique label (L{role}-F{N}); `--label` is DROPPED and `--key`
+//	       added (a local retry handle, mint-parity idempotency). The new `findings` view serves
+//	       the findings as structured JSON — the merge coalesces from it and scorecards attribute
+//	       from it, retiring the red/candidates/*.md channel; a gap's found_by names labels. A
+//	       stale binary lacks the findings view and still accepts the removed --label.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.16.0"
+const Version = "0.17.0"
 
 func init() { record.ToolVersion = Version }
 

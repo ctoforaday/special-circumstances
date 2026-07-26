@@ -31,7 +31,7 @@ const STUBS = [
   ['blue/CHANGELOG.md', 'blue CHANGELOG'],
   ['red/citation-ledger.md', 'red citation-ledger'],
 ]
-const DIRS = ['blue/candidates', 'red/candidates', 'trajectories', 'inputs', 'records']
+const DIRS = ['blue/candidates', 'red', 'trajectories', 'inputs', 'records']
 
 // Record-tool housekeeping (plan §III R2): stale checkpoint mirrors from crashed
 // runs are purged after 30 days — the ONLY deletion anywhere in the record

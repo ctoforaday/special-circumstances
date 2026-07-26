@@ -8,7 +8,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  row, readTelemetry, blueRows, redRows, citationYieldByRole,
+  row, readTelemetry, blueRows, redRows, citationYieldByRole, bucketFindingsByRole,
   benchRows, computeScorecards, renderChair, headline, chairHeader, readResults,
 } from '../../skills/research-protocol/scripts/scorecards.mjs'
 
@@ -85,18 +85,18 @@ test('blueRows: a thin declined-avenue reason is caught; a pursued one is not ju
 
 // ---- red ----
 
-test('citationYieldByRole buckets by ROLE, not by position', () => {
-  const d = runWith({
-    'red/candidates/round-1-lens-1.md': '### L1-F1 finding\n### L1-F2 finding\n',
-    'red/candidates/round-1-lens-5.md': '### L5-F1 finding\n',
-    'red/candidates/round-1-lens-6.md': '### L6-F1 finding\n',
-    'red/candidates/notes.md': '### L9-F9 not a lens file\n',
-  })
-  const y = citationYieldByRole(d)
+test('bucketFindingsByRole buckets the findings view by ROLE, not by position', () => {
+  const y = bucketFindingsByRole([
+    { role: 'L1', round: 1, seat_id: 'red-lens-r1-L1' },
+    { role: 'L1', round: 1, seat_id: 'red-lens-r1-L1' },
+    { role: 'L5', round: 1, seat_id: 'red-lens-r1-L5' },
+    { role: 'L6', round: 1, seat_id: 'red-lens-r1-L6' },
+  ])
   assert.equal(y[1].citation, 2); assert.equal(y[1].logic, 1); assert.equal(y[1].darkside, 1)
   assert.deepEqual(y[1].seats, { citation: 1, logic: 1, darkside: 1 }, 'one seat per role dispatched')
   assert.deepEqual(y[1].per_seat, { citation: 2, logic: 1, darkside: 1 })
-  assert.equal(citationYieldByRole(tmp()), null, 'no candidates dir is null, not an empty answer')
+  assert.equal(bucketFindingsByRole([]), null, 'no findings is null, not an empty answer')
+  assert.equal(citationYieldByRole(tmp(), undefined), null, 'no --bin is null (same "not computed" as no findings)')
 })
 
 test('redRows: anchored-closure percentage ignores an undefined anchor', () => {
@@ -310,16 +310,12 @@ test('a seat table entry carries its round; an unrounded seat reports round 0', 
 // justified the cut. This fixture is the first live run's actual shape: citation
 // 3 findings over 2 seats in r1, 1 over 1 seat in r2. Raw reads -67%; per seat it
 // is -33%, while L5 (one seat in both rounds) really did fall -67%.
-test('citationYieldByRole reports per-seat yield, so a dispatch cut is not read as a collapse', async () => {
-  const { citationYieldByRole } = await import('../../skills/research-protocol/scripts/scorecards.mjs')
-  const d = runWith({
-    'red/candidates/round-1-lens-1.md': '### L1-F1 a\n### L1-F2 b\n',
-    'red/candidates/round-1-lens-2.md': '### L2-F1 c\n',
-    'red/candidates/round-1-lens-5.md': Array.from({ length: 9 }, (_, i) => `### L5-F${i + 1} x`).join('\n'),
-    'red/candidates/round-2-lens-1.md': '### L1-F1 d\n',
-    'red/candidates/round-2-lens-5.md': '### L5-F1 y\n### L5-F2 y\n### L5-F3 y\n',
-  })
-  const y = citationYieldByRole(d)
+test('bucketFindingsByRole reports per-seat yield, so a dispatch cut is not read as a collapse', () => {
+  const f = (role, round, n) => Array.from({ length: n }, () => ({ role, round, seat_id: `red-lens-r${round}-${role}` }))
+  const y = bucketFindingsByRole([
+    ...f('L1', 1, 2), ...f('L2', 1, 1), ...f('L5', 1, 9), // r1: citation across 2 seats (L1,L2), logic 9 on 1 seat
+    ...f('L1', 2, 1), ...f('L5', 2, 3),                   // r2: citation 1 on 1 seat, logic 3 on 1 seat
+  ])
   assert.equal(y[1].citation, 3); assert.equal(y[1].seats.citation, 2)
   assert.equal(y[2].citation, 1); assert.equal(y[2].seats.citation, 1)
   assert.equal(y[1].per_seat.citation, 1.5, 'r1 citation: 3 findings over 2 dispatched seats')

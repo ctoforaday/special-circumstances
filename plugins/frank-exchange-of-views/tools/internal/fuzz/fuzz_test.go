@@ -277,7 +277,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 		open := len(r.openGaps())
 		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "friction": arr()}
 
-	default: // frontier, blue lanes, red lenses — register if identifiable, minimal envelope
+	default: // frontier, blue lanes, red lenses — register, and lenses record onto the channel
 		if seatID != "" {
 			role := "lens"
 			switch {
@@ -287,6 +287,17 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 				role = "lens"
 			}
 			r.register(role, seatID)
+			// The non-prose lens channel is the RECORD now, not red/candidates files: a
+			// citation lens records cite events, and every red lens records finding events
+			// (label TOOL-assigned). This is the ONLY harness that drives that path end to
+			// end through the real debate.js + binary, so it must actually exercise it.
+			if strings.HasPrefix(seatID, "red-lens") {
+				_, _ = r.exec("lens", "cite", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
+					"--reference", "https://fuzz.invalid/"+seatID, "--confidence", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
+				// --key from a small space so a repeated dispatch exercises retry idempotency.
+				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
+					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
+			}
 		}
 		return map[string]any{"synopsis": "fuzz", "petitions": arr(), "friction": arr(), "rulings": arr()}
 	}
@@ -422,7 +433,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 
 // tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.
 func tallyDialectic(board *record.Board) map[string]int {
-	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true, "confidence": true}
+	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true, "confidence": true, "cite": true, "finding": true}
 	m := map[string]int{}
 	for _, e := range board.Events {
 		if want[e.Type] {
@@ -536,6 +547,14 @@ func TestFuzzDebate(t *testing.T) {
 	wg.Wait()
 
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v", completed, len(failures), verdicts, roundHist, dcov)
+	// A green fuzz that drove NEITHER the cite nor the finding path is a false green: the
+	// lens stub emitted neither for the whole life of PR-1, so the record-only channel went
+	// unexercised end-to-end. Assert the paths actually ran.
+	for _, k := range []string{"cite", "finding"} {
+		if dcov[k] == 0 {
+			t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, completed)
+		}
+	}
 	if len(failures) > 0 {
 		show := failures
 		if len(show) > 8 {

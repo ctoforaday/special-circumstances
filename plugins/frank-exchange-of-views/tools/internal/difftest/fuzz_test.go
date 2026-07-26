@@ -208,8 +208,11 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 			case 0:
 				args = []string{"register", "--run", "{RUN}", "--seat-id", s}
 			case 1, 2:
+				// --key from a small space so the SAME seat sometimes repeats it — that
+				// exercises the crash-retry idempotency (a repeated key returns the existing
+				// tool-assigned label, no duplicate). The label is the tool's now, not --label.
 				args = []string{"finding", "--run", "{RUN}", "--seat-id", s,
-					"--label", fmt.Sprintf("L%d-F%d", 1+rng.Intn(6), 1+rng.Intn(4)),
+					"--key", fmt.Sprintf("F%d", 1+rng.Intn(3)),
 					"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 					"--impact", pick(rng, fuzzGrades), "--reason", "a finding"}
 			case 3:
@@ -221,7 +224,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 		case "blue":
 			switch rng.Intn(3) {
 			case 0:
-				args = []string{"revision", "--run", "{RUN}", "--seat-id", s, "--reason", "revised", "--claim-count", fmt.Sprint(rng.Intn(300))}
+				args = []string{"revision", "--run", "{RUN}", "--seat-id", s, "--reason", "revised"}
 			case 1:
 				args = []string{"manifest-row", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs), "--row", "checked"}
 			case 2:

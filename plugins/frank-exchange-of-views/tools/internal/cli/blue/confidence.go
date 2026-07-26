@@ -30,9 +30,10 @@ func newConfidence() *cobra.Command {
 			return confidenceResult{Claim: seat.Str(cmd, flags.Claim)}, nil
 		})
 
-	// --label meant "your lens-scoped finding label" on two other verbs and "the claim
-	// this attaches to" here: one word, two intents, and a seat generalises from the one
-	// it met first. This is the claim, so it is --claim.
+	// --label meant "your observation label" on observe and "the claim this attaches to"
+	// here: one word, two intents, and a seat generalises from the one it met first. This
+	// is the claim, so it is --claim. (finding no longer takes --label — the tool assigns
+	// its L{role}-F{N} — so observe is the only other verb the word appears on.)
 	c.Flags().String(flags.Claim, "", "the claim this confidence attaches to")
 	c.Flags().String(flags.Confidence, "", "high | medium | low — your confidence in the claim")
 	return c

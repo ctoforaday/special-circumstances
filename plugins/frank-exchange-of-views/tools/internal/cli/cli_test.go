@@ -296,7 +296,7 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	}
 
 	out, err = run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID,
-		"--label", "L1-F1", "--severity", "high", "--likelihood", "medium", "--impact", "high",
+		"--key", "F1", "--severity", "high", "--likelihood", "medium", "--impact", "high",
 		"--location", "§2", "--reason", "the finding prose")
 	if err != nil {
 		t.Fatal(err)
@@ -343,7 +343,7 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-lens-r1-L1"
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID,
-		"--label", "L1-F1", "--severity", "high", "--reason", "t"); err != nil {
+		"--key", "F1", "--severity", "high", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
 	keys := payloadKeys(lastOfType(t, runDir, "finding"))
@@ -760,7 +760,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		wantErr string
 	}{
 		{"regrade without --reason", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "regrade requires --reason"},
-		{"dispose without --as", []string{"merge", "dispose", "--observation", "F1"}, "dispose requires --as"},
+		{"dispose without --as", []string{"merge", "dispose", "--observation", "L1-F1"}, "dispose requires --as"},
 		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "mint requires --check"},
 		{"mint without --class", []string{"merge", "mint", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
 	}
@@ -777,7 +777,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				t.Fatal(err)
 			}
 			if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-				"--label", "F1", "--location", "l", "--reason", "t",
+				"--key", "F1", "--location", "l", "--reason", "t",
 				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 				t.Fatal(err)
 			}
@@ -931,14 +931,14 @@ func TestRenderReportsAnomalies(t *testing.T) {
 	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", seatID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID, "--label", "F1", "--reason", "a"); err != nil {
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID, "--key", "F1", "--reason", "a"); err != nil {
 		t.Fatal(err)
 	}
 	// A second dispatch of the same seat: a crash re-run.
 	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", seatID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID, "--label", "F2", "--reason", "b"); err != nil {
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID, "--key", "F2", "--reason", "b"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := run(t, "lens", "render", "--run", runDir)

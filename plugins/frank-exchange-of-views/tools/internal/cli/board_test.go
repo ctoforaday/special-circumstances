@@ -165,6 +165,44 @@ func TestBoardJSONStatesWhetherAnObservationHasAFate(t *testing.T) {
 	}
 }
 
+// The findings view is the merge's structured read of the lens findings, replacing the
+// red/candidates/*.md files — label (tool-assigned), role from the seat id, grades, text.
+func TestFindingsViewProjectsLensFindings(t *testing.T) {
+	runDir := seatRun(t)
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--key", "F1", "--location", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L5"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
+		"--key", "F1", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "findings")
+	if err != nil {
+		t.Fatalf("show --view findings: %v", err)
+	}
+	var fv struct {
+		Findings []struct{ Label, Role, Text string }
+		Counts   struct{ Total int }
+	}
+	if err := json.Unmarshal([]byte(out), &fv); err != nil {
+		t.Fatalf("findings view must be valid JSON the merge parses: %v\n%s", err, out)
+	}
+	if fv.Counts.Total != 2 || len(fv.Findings) != 2 {
+		t.Fatalf("findings total = %d, want 2", fv.Counts.Total)
+	}
+	got := map[string]string{} // label -> role
+	for _, f := range fv.Findings {
+		got[f.Label] = f.Role
+	}
+	if got["L1-F1"] != "L1" || got["L5-F1"] != "L5" {
+		t.Errorf("findings view mislabels/misroutes: %v — the tool assigns L{role}-F{N} and the role comes from the seat id", got)
+	}
+}
+
 // citations_checked is the record's, not red's self-report. The board tallies cite
 // events so red reads the count from its native view instead of hand-counting a number
 // that was fabricated on haiku. Cite events are reference-keyed, so re-verifying a

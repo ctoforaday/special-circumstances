@@ -24,7 +24,8 @@
 //     a value. Emitting only the easy rows would let the scorecard read complete
 //     while the hard clauses stayed exactly as unmeasured as before — which is
 //     the failure this whole exercise is a response to.
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -150,7 +151,7 @@ export function blueRows(runDir, results, telemetry) {
 
 // ---- RED ----
 
-export function redRows(runDir, results, telemetry) {
+export function redRows(runDir, results, telemetry, bin) {
   const rows = []
   const redEnvs = results.filter((r) => Array.isArray(r.gaps))
 
@@ -180,7 +181,7 @@ export function redRows(runDir, results, telemetry) {
   // after round 1 while L5/L6 held flat, and the round-graduated dispatch was
   // sized on that. If later-round citation yield stops collapsing, the cap comes
   // off — so the number that would tell us has to be in front of someone.
-  const byRole = citationYieldByRole(runDir)
+  const byRole = citationYieldByRole(runDir, bin)
   rows.push(byRole
     ? row({
       clause: 'Lens economics (W2i assumption)', metric: 'citation_yield_by_round', cls: 'diagnostic',
@@ -189,7 +190,7 @@ export function redRows(runDir, results, telemetry) {
     })
     : row({
       clause: 'Lens economics (W2i assumption)', metric: 'citation_yield_by_round', cls: 'diagnostic',
-      note: 'no per-lens candidate files found — attribution needs red/candidates/round-N-lens-M.md',
+      note: 'no findings on the record yet (or the tool binary was not passed) — per-role yield needs the findings view',
     }))
 
   rows.push(row({
@@ -199,24 +200,42 @@ export function redRows(runDir, results, telemetry) {
   return rows
 }
 
-// citationYieldByRole counts findings per lens ROLE per round from the candidate
-// files. Role, not position: W2i pinned L1-L4 as citation slices, L5 logic, L6
-// dark-side, precisely so this comparison survives a round dispatching fewer
-// seats.
-export function citationYieldByRole(runDir) {
-  const dir = join(runDir, 'red', 'candidates')
-  if (!existsSync(dir)) return null
+// citationYieldByRole counts findings per lens ROLE per round from the RECORD (the
+// findings view), replacing the per-lens files the merge used to leave behind. Role,
+// not position: W2i pinned L1-L4 as citation slices, L5 logic, L6 dark-side, precisely
+// so this comparison survives a round dispatching fewer seats.
+// It SPAWNS the tool rather than parsing records/*.jsonl — parsing the log itself
+// would reimplement replay/dedup, the second-reader defect the tool exists to remove.
+export function citationYieldByRole(runDir, bin) {
+  if (!bin) return null // no tool = no findings view (same "not computed" as no candidates dir)
+  let findings
+  try {
+    const out = execFileSync(bin, ['merge', 'show', '--run', runDir, '--view', 'findings'], { encoding: 'utf8' })
+    findings = JSON.parse(out).findings || []
+  } catch {
+    return null
+  }
+  return bucketFindingsByRole(findings)
+}
+
+// bucketFindingsByRole is the pure kernel: given the findings view's array (each carrying
+// role like "L5", round, seat_id), bucket per round by role-kind and compute PER-SEAT yield.
+// Split out so it is testable without spawning the tool.
+export function bucketFindingsByRole(findings) {
   const perRound = {}
-  for (const f of readdirSync(dir)) {
-    const m = /^round-(\d+)-lens-(\d+)\.md$/.exec(f)
-    if (!m) continue
-    const [, round, role] = m
-    const body = read(join(dir, f)) || ''
-    const findings = (body.match(/^\s*(?:###\s*)?L\d+-F\d+\b/gm) || []).length
+  const seatsSeen = {} // round -> kind -> Set(seat_id): PER-SEAT yield needs distinct seats
+  for (const f of findings) {
+    const roleNum = +String(f.role || '').replace(/^L/, '')
+    if (!roleNum) continue
+    const round = String(f.round)
+    const kind = roleNum <= 4 ? 'citation' : roleNum === 5 ? 'logic' : 'darkside'
     const bucket = (perRound[round] ||= { citation: 0, logic: 0, darkside: 0, seats: { citation: 0, logic: 0, darkside: 0 } })
-    const kind = +role <= 4 ? 'citation' : +role === 5 ? 'logic' : 'darkside'
-    bucket[kind] += findings
-    bucket.seats[kind] += 1
+    bucket[kind] += 1
+    const seen = (seatsSeen[round] ||= { citation: new Set(), logic: new Set(), darkside: new Set() })
+    seen[kind].add(f.seat_id)
+  }
+  for (const [round, bucket] of Object.entries(perRound)) {
+    for (const k of ['citation', 'logic', 'darkside']) bucket.seats[k] = seatsSeen[round][k].size
   }
   // PER-SEAT YIELD, not just raw count. W2i dispatches FEWER citation lenses in
   // later rounds, so a raw round-over-round comparison measures the cut as if it
@@ -307,11 +326,11 @@ export function benchRows(runDir, results) {
 
 // ---- assembly ----
 
-export function computeScorecards(runDir, results) {
+export function computeScorecards(runDir, results, bin) {
   const telemetry = readTelemetry(runDir)
   return {
     blue: blueRows(runDir, results, telemetry),
-    red: redRows(runDir, results, telemetry),
+    red: redRows(runDir, results, telemetry, bin),
     bench: benchRows(runDir, results),
   }
 }
@@ -441,7 +460,8 @@ function flag(argv, name) {
 export function cli(argv) {
   const runDir = flag(argv, '--run')
   const chair = flag(argv, '--chair')
-  const cards = runDir ? computeScorecards(runDir, readResults(runDir)) : null
+  const bin = flag(argv, '--bin')
+  const cards = runDir ? computeScorecards(runDir, readResults(runDir), bin) : null
   if (!runDir || !cards || !cards[chair]) {
     process.stderr.write('usage: node scorecards.mjs --run <runDir> --chair blue|red|bench\n')
     process.exitCode = 2
