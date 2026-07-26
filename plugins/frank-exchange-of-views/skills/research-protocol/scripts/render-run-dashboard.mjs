@@ -421,7 +421,9 @@ export function renderHtml(m) {
   font: 14px/1.45 system-ui, sans-serif; background: var(--surface-1); color: var(--text-primary); padding: 20px; max-width: 900px; margin: auto; }
 @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; } }
 :root[data-theme="dark"] .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; }
-h1 { font-size: 18px; } h2 { font-size: 14px; margin: 18px 0 6px; color: var(--text-secondary); }
+h1 { font-size: 18px; margin-bottom: 2px; } h2 { font-size: 14px; margin: 18px 0 6px; color: var(--text-secondary); }
+.topic { font-size: 15px; font-weight: 600; margin: 0 0 6px; line-height: 1.35; }
+.topic::before { content: "researching: "; font-weight: 400; color: var(--text-secondary); }
 .tiles { display: flex; gap: 12px; flex-wrap: wrap; } .tile { border: 1px solid color-mix(in oklab, var(--text-secondary) 30%, transparent); border-radius: 8px; padding: 10px 14px; min-width: 96px; }
 .tile b { display: block; font-size: 22px; } .tile span { color: var(--text-secondary); font-size: 12px; }
 table { border-collapse: collapse; width: 100%; } td, th { text-align: left; padding: 3px 10px 3px 0; border-bottom: 1px solid color-mix(in oklab, var(--text-secondary) 20%, transparent); }
@@ -437,6 +439,7 @@ td, th { font-variant-numeric: tabular-nums; }
 </style>
 <body class="viz-root">
 <h1>FEOV run · ${esc(m.runDir.split(/[\\/]/).pop())}</h1>
+${m.config && m.config.topic ? `<p class="topic">${esc(m.config.topic)}</p>` : ''}
 <p class="muted">generated ${esc(m.generated)} · auto-refreshes every 20s · dollars are list-rate estimates</p>
 ${m.config && (m.config.model || m.config.judgmentModel || m.config.maxRounds || m.config.lanes) ? `<h2>Run configuration</h2>
 <table>

@@ -357,9 +357,10 @@ test('run config: buildModel reads inputs/run-config.json (canonical), CLI overr
   const tdir = mkdtempSync(join(tmpdir(), 'feov-cfgt-'))
   mkdirSync(join(runDir, 'inputs'), { recursive: true })
   writeFileSync(join(runDir, 'inputs', 'run-config.json'),
-    JSON.stringify({ topic: 't', model: 'haiku', judgmentModel: 'sonnet', maxRounds: '2', lanes: '1' }))
+    JSON.stringify({ topic: 'SQLite durability for a multi-writer log', model: 'haiku', judgmentModel: 'sonnet', maxRounds: '2', lanes: '1' }))
   writeFileSync(join(tdir, 'journal.jsonl'), '')
   const m = buildModel(runDir, tdir)
+  assert.ok(renderHtml(m).includes('SQLite durability for a multi-writer log'), 'the research topic is shown on the dashboard')
   assert.equal(m.config.model, 'haiku', 'bulk model read from the canonical file')
   assert.equal(m.config.judgmentModel, 'sonnet', 'judgment model read from the file')
   assert.equal(m.config.maxRounds, '2')
