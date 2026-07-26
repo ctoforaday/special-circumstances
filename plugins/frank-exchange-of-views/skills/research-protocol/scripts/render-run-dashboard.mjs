@@ -94,7 +94,13 @@ export function projectCompletion(seats, nowMs = Date.now()) {
   }
 }
 
-export function buildModel(runDir, transcriptDir) {
+export function buildModel(runDir, transcriptDir, config = {}) {
+  // Canonical run config is inputs/run-config.json (written by setup — the engine is
+  // sandboxed and cannot write it). Any CLI --model/--max-rounds/… override a stored value.
+  let fileConfig = {}
+  try { fileConfig = JSON.parse(readFileSync(join(runDir, 'inputs', 'run-config.json'), 'utf8')) } catch {}
+  const cfg = { ...fileConfig, ...Object.fromEntries(Object.entries(config).filter(([, v]) => v != null)) }
+  config = cfg
   // Live board ground truth comes from the TOOL's render (migrated 2026-07-19), with the
   // legacy trajectories/ path as a fallback for pre-migration runs. Reading only the old
   // path left the live panel blank while the seed panel looked populated — backwards.
@@ -277,7 +283,7 @@ export function buildModel(runDir, transcriptDir) {
   // Progress through the workflow's big steps: Frontier -> Blue lanes -> Synthesis ->
   // rounds 1..maxRounds (each: lenses -> merge -> respond [-> judge]) -> Assembly.
   // The ceiling divides the bar; judged termination may end it early — stated on the bar.
-  const MAX_ROUNDS_CEILING = 8
+  const MAX_ROUNDS_CEILING = config.maxRounds ? Number(config.maxRounds) : 8
   const seatList = [...seats.values()]
   const seen = (seat, round = null) => seatList.some((s) => s.seat === seat && (round === null || s.round === round))
   const doneSeat = (seat, round = null) => seatList.some((s) => s.seat === seat && (round === null || s.round === round) && s.done)
@@ -304,7 +310,7 @@ export function buildModel(runDir, transcriptDir) {
 
   const latest = telemetry[telemetry.length - 1] || null
   const eta = projectCompletion(seatList)
-  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, eta, generated: new Date().toISOString() }
+  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, eta, config, generated: new Date().toISOString() }
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -432,6 +438,13 @@ td, th { font-variant-numeric: tabular-nums; }
 <body class="viz-root">
 <h1>FEOV run · ${esc(m.runDir.split(/[\\/]/).pop())}</h1>
 <p class="muted">generated ${esc(m.generated)} · auto-refreshes every 20s · dollars are list-rate estimates</p>
+${m.config && (m.config.model || m.config.judgmentModel || m.config.maxRounds || m.config.lanes) ? `<h2>Run configuration</h2>
+<table>
+<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>${esc(m.config.model || 'session default')}</b></td></tr>
+<tr><td>judgment seats <span class="muted">synthesis · red-merge · judge · assembly</span></td><td class="nowrap"><b>${esc(m.config.judgmentModel || 'session default')}</b></td></tr>
+<tr><td>round ceiling <span class="muted">cost bound — the terminator is red-PASS or judged deadlock</span></td><td class="nowrap">${m.config.maxRounds ? esc(m.config.maxRounds) + ' rounds' : '—'}</td></tr>
+<tr><td>blue lanes <span class="muted">best-of-N candidate drafts</span></td><td class="nowrap">${m.config.lanes ? esc(m.config.lanes) : '—'}</td></tr>
+</table>` : ''}
 <h2>Progress (rounds segmented by the ceiling — judged termination may end the run earlier)</h2>
 ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin) ? `<p class="muted">projected <b>${m.eta.lowMin}–${m.eta.highMin} min</b> remaining for the work now in flight plus assembly, from ${esc(m.eta.basis)}. Each ADDITIONAL round would add roughly ${m.eta.perRoundLowMin}–${m.eta.perRoundHighMin} min: the round ceiling is a launch argument this run never writes down, so the estimate cannot know how many remain.${m.eta.unmeasured && m.eta.unmeasured.length ? ` No completed precedent yet for: ${esc(m.eta.unmeasured.join(', '))} — discount accordingly.` : ''}</p>` : ''}
 <div class="bar">${m.steps.map((s) => `<div class="seg ${s.state}" title="${esc(s.name)}: ${esc(s.state)}"></div>`).join('')}</div>
@@ -479,27 +492,39 @@ ${live.length ? `<table>${live.map((g) => `<tr><td class="liveseat">${g.n > 1 ? 
 </body>${scorecardSection(m.runDir || "")}`
 }
 
-function generate(runDir, transcriptDir) {
-  const html = renderHtml(buildModel(runDir, transcriptDir))
+function generate(runDir, transcriptDir, config) {
+  const html = renderHtml(buildModel(runDir, transcriptDir, config))
   const out = join(runDir, 'dashboard.html')
   writeFileSync(out, html)
   return out
 }
 
+function parseFlag(argv, name) { const i = argv.indexOf(name); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null }
+
 function main() {
-  const [runDir, transcriptDir, flag] = process.argv.slice(2)
-  if (!runDir || !transcriptDir) { console.error('usage: node render-run-dashboard.mjs <runDir> <workflow-transcript-dir> [--watch]'); process.exit(1) }
-  const out = generate(runDir, transcriptDir)
-  console.log('dashboard:', out, flag === '--watch' ? '(watching — regenerates every 15s, Ctrl-C to stop)' : '(static snapshot — re-run or use --watch to refresh)')
-  if (flag === '--watch') {
+  const argv = process.argv.slice(2)
+  const [runDir, transcriptDir] = argv
+  if (!runDir || !transcriptDir) { console.error('usage: node render-run-dashboard.mjs <runDir> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]'); process.exit(1) }
+  // The run config (models per stage, round ceiling, lanes) is a launch argument the sandboxed
+  // engine cannot write down — the invoker passes it here so the dashboard can display it.
+  const config = {
+    model: parseFlag(argv, '--model'),
+    judgmentModel: parseFlag(argv, '--judgment-model'),
+    maxRounds: parseFlag(argv, '--max-rounds'),
+    lanes: parseFlag(argv, '--lanes'),
+  }
+  const watch = argv.includes('--watch')
+  const out = generate(runDir, transcriptDir, config)
+  console.log('dashboard:', out, watch ? '(watching — regenerates every 15s, Ctrl-C to stop)' : '(static snapshot — re-run or use --watch to refresh)')
+  if (watch) {
     // Marker-keyed lifetime: the watcher lives exactly as long as the run does. run-setup
     // writes .claude/run-live.json; run-capture removes it — when it goes, one final render
     // and exit. The dashboard becomes innate to the run without touching the workflow.
     const marker = join(process.cwd(), '.claude', 'run-live.json')
     const timer = setInterval(() => {
-      try { generate(runDir, transcriptDir) } catch (e) { console.error('regen failed:', String(e).slice(0, 120)) }
+      try { generate(runDir, transcriptDir, config) } catch (e) { console.error('regen failed:', String(e).slice(0, 120)) }
       if (!existsSync(marker)) {
-        try { generate(runDir, transcriptDir) } catch {}
+        try { generate(runDir, transcriptDir, config) } catch {}
         console.log('run-live marker gone — final render written, watcher exiting')
         clearInterval(timer)
       }

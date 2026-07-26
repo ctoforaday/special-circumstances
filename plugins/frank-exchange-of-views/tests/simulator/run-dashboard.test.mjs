@@ -351,3 +351,22 @@ test('an unrecognised model is priced at the dearest tier, never the cheapest', 
   const m = buildModel(runDir, tdir)
   assert.ok(Math.abs(m.cost - PRICES.fable[2]) < 1e-9, 'unknown model falls back to the fable row')
 })
+
+test('run config: buildModel reads inputs/run-config.json (canonical), CLI overrides it, ceiling caps the bar', () => {
+  const runDir = mkdtempSync(join(tmpdir(), 'feov-cfg-'))
+  const tdir = mkdtempSync(join(tmpdir(), 'feov-cfgt-'))
+  mkdirSync(join(runDir, 'inputs'), { recursive: true })
+  writeFileSync(join(runDir, 'inputs', 'run-config.json'),
+    JSON.stringify({ topic: 't', model: 'haiku', judgmentModel: 'sonnet', maxRounds: '2', lanes: '1' }))
+  writeFileSync(join(tdir, 'journal.jsonl'), '')
+  const m = buildModel(runDir, tdir)
+  assert.equal(m.config.model, 'haiku', 'bulk model read from the canonical file')
+  assert.equal(m.config.judgmentModel, 'sonnet', 'judgment model read from the file')
+  assert.equal(m.config.maxRounds, '2')
+  // The ceiling caps the progress bar: frontier, lanes, synthesis, round 1, round 2, assembly.
+  assert.equal(m.steps.filter((s) => s.name.startsWith('round ')).length, 2, 'the configured ceiling bounds the round segments, not the hardcoded 8')
+  // A CLI flag overrides the stored value.
+  const m2 = buildModel(runDir, tdir, { model: 'opus' })
+  assert.equal(m2.config.model, 'opus', 'CLI --model overrides the stored config')
+  assert.equal(m2.config.judgmentModel, 'sonnet', 'unspecified CLI values keep the stored config')
+})
