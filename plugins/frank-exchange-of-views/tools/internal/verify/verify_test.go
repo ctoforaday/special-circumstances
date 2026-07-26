@@ -123,6 +123,8 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			{Type: "finding", Payload: p("label", "L5-F1")}, // minted
 			{Type: "finding", Payload: p("label", "L5-F2")}, // un-minted
 			{Type: "opinion", Payload: p("gap_id", "G2", "disposition", "closed")},
+			{Type: "cite", Payload: p("claim", "c1", "reference", "r1")},
+			{Type: "cite", Payload: p("claim", "c2", "reference", "r2")},
 			{Type: "outcome", Payload: p("verdict", "CEILING")},
 		},
 	}
@@ -132,6 +134,12 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 	}
 	if s.Findings != 2 || s.FindingsMinted != 1 || s.FindingsUnminted != 1 {
 		t.Errorf("finding coverage wrong: %+v", s)
+	}
+	// citations_checked's canonical source: one per cite event the replay carries.
+	// Cite events are reference-keyed, so a re-verification is deduped upstream in the
+	// board replay before Compute sees it — this is a pure count of what survives.
+	if s.Citations != 2 {
+		t.Errorf("citations tally wrong: got %d, want 2: %+v", s.Citations, s)
 	}
 	if s.GapsWithOpinion != 1 || s.GapsWithClosing != 0 {
 		t.Errorf("dialectic coverage wrong: %+v", s)
