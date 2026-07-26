@@ -195,6 +195,9 @@ export function buildModel(runDir, transcriptDir, config = {}) {
   // there first). The count is red's raw leaf-audit volume BEFORE the merge coalesces it into
   // gaps, so it appears during the red rounds, ahead of the merge-born ledger.
   const findingsTxt = readIf('records/render-shadow/findings.md') || readIf('red/findings.md')
+  // Citations are the other half of the record-canonical pair: cite events, projected to the
+  // citation-ledger. One data row per verified claim (the header line is skipped).
+  const citationsTxt = readIf('records/render-shadow/citation-ledger.md') || readIf('red/citation-ledger.md')
   // Ordered MOST SPECIFIC FIRST, and it must stay that way: the match below is a
   // substring test, so listing `high` before `medium-high` made every
   // medium-high row report as high (and every low-medium row as medium) —
@@ -222,6 +225,7 @@ export function buildModel(runDir, transcriptDir, config = {}) {
     openRows,
     openBySeverity,
     findings: findingsTxt ? (findingsTxt.match(/^- /gm) || []).length : 0,
+    citations: citationsTxt ? citationsTxt.split('\n').filter((l) => l.includes(' | ')).length : 0,
     // LINE count, not id-occurrence count: a closure row also NAMES its supersedes ids in
     // the fourth column, so occurrence-counting read 88 for a 52-row index (seen live, run 5).
     closureIndexRows: ledgerTxt ? ledgerTxt.slice(Math.max(0, ledgerTxt.search(/closure index/i))).split('\n').filter((l) => idLine.test(l) && l.includes('|')).length : 0,
@@ -239,6 +243,7 @@ export function buildModel(runDir, transcriptDir, config = {}) {
   // argument persists across the chain).
   const rulings = {}
   let judgeSittings = 0
+  let latestVerdict = null, verdictRound = 0 // red's most recent round verdict (FAIL until PASS or ceiling)
   const disputes = { raised: 0, accepted: 0, rejected: 0 }
   const gapRounds = new Map() // id -> { first, last, firstMass, lastMass }
   const parentOf = new Map() // union-find over supersedes edges
@@ -252,6 +257,7 @@ export function buildModel(runDir, transcriptDir, config = {}) {
     if (Array.isArray(r.dispute_responses)) for (const d of r.dispute_responses) { if (d.response in disputes) disputes[d.response]++ }
     if (r.verdict && Array.isArray(r.gaps)) {
       redSeen++
+      latestVerdict = r.verdict; verdictRound = redSeen
       for (const g of r.gaps) {
         const gm = (MASSD[g.likelihood] ?? 0) * (MASSD[g.impact] ?? 0)
         const e = gapRounds.get(g.id) || { first: redSeen, firstMass: gm }
@@ -278,7 +284,7 @@ export function buildModel(runDir, transcriptDir, config = {}) {
     chainSpans[span] = (chainSpans[span] || 0) + 1
     if (span > 1) { const d = c.lastMass - c.firstMass; if (d < 0) migDown++; else if (d > 0) migUp++; else migFlat++ }
   }
-  const judiciary = { judgeSittings, rulings, disputes, chainSpans, chains: chains.size, migDown, migUp, migFlat }
+  const judiciary = { judgeSittings, rulings, disputes, chainSpans, chains: chains.size, migDown, migUp, migFlat, latestVerdict, verdictRound }
 
   // Progress through the workflow's big steps: Frontier -> Blue lanes -> Synthesis ->
   // rounds 1..maxRounds (each: lenses -> merge -> respond [-> judge]) -> Assembly.
@@ -458,6 +464,8 @@ ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin) ? `<p cl
 <div class="tile"><b>${m.latest ? esc(m.latest.max_severity) : '—'}</b><span>max severity</span></div>
 <div class="tile"><b>${m.blueClaims ?? '—'}</b><span>blue claims</span></div>
 <div class="tile"><b>${m.shards.findings}</b><span>lens findings</span></div>
+<div class="tile"><b>${m.shards.citations}</b><span>citations checked</span></div>
+<div class="tile"><b>${m.judiciary.latestVerdict || '—'}</b><span>latest verdict${m.judiciary.verdictRound ? ` (r${m.judiciary.verdictRound})` : ''}</span></div>
 <div class="tile"><b>${m.friction.count}</b><span>friction entries</span></div>
 ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin)
   ? `<div class="tile"><b>${m.eta.lowMin}–${m.eta.highMin}m</b><span>projected remaining</span></div>`

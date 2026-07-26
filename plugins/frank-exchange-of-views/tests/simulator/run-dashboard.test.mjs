@@ -98,6 +98,8 @@ test('judiciary: rulings tallied, chains follow supersedes edges, migrations gra
   const m = buildModel(runDir, transcriptDir)
   const j = m.judiciary
   assert.equal(j.judgeSittings, 1)
+  assert.equal(j.latestVerdict, 'FAIL', 'the most recent red verdict is surfaced')
+  assert.equal(j.verdictRound, 2, 'and which round it was')
   assert.deepEqual(j.rulings, { carried: 1, risk_accepted: 1 }, 'rulings tallied by type')
   assert.equal(j.disputes.raised, 1, 'blue grade_disputes counted')
   assert.equal(j.disputes.accepted, 1, 'red dispute_responses counted')
