@@ -25,7 +25,7 @@ regraded R1-1
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.15.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.16.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"scope-creep","class_new":false,"complexity_cost":"high","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"graded high at mint","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:regrade:R1-1","nonce":"NONCE001","payload":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"R1-1","likelihood":"low","severity":"medium"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"regrade"}
 {"key":"red-merge-r1:regrade:R1-1","nonce":"NONCE001","payload":{"basis":"second movement, same id","gap_id":"R1-1","impact":"low"},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"regrade"}

@@ -78,6 +78,7 @@ func printReport(cmd *cobra.Command, checks []verify.Check, s verify.Stats) {
 	fmt.Fprintf(w, "\nrecord (verdict %s):\n", nonEmpty(s.Verdict, "unrecorded"))
 	fmt.Fprintf(w, "  gaps: %d total · %d open · %d closed\n", s.GapsTotal, s.GapsOpen, s.GapsClosed)
 	fmt.Fprintf(w, "  findings: %d (%d minted, %d un-minted)\n", s.Findings, s.FindingsMinted, s.FindingsUnminted)
+	fmt.Fprintf(w, "  citations checked: %d\n", s.Citations)
 	fmt.Fprintf(w, "  dialectic on the record: %d gap(s) with a closing · %d with a dispute · %d with an opinion\n",
 		s.GapsWithClosing, s.GapsWithDispute, s.GapsWithOpinion)
 	fmt.Fprintf(w, "  events: %s\n", eventTally(s.Events))

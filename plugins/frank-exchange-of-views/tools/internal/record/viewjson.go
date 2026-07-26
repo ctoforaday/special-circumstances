@@ -41,6 +41,12 @@ type CountsJSON struct {
 	UndisposedObserv  int `json:"undisposed_observations"`
 	Anomalies         int `json:"anomalies"`
 	TotalObservations int `json:"total_observations"`
+	// Citations is the count of cite events on the record — the canonical source
+	// for the envelope's citations_checked, which red reads from its native board
+	// view instead of self-reporting (a number fabricated on haiku). Cite events are
+	// reference-keyed, so this is DISTINCT sources verified (a re-verification of the
+	// same reference updates in place, matching the citation-ledger projection).
+	Citations int `json:"citations"`
 }
 
 type GapJSON struct {
@@ -158,6 +164,12 @@ func BoardJSONOf(b *Board) BoardJSON {
 	}
 	if out.Observations == nil {
 		out.Observations = []ObservationJSON{}
+	}
+
+	for _, e := range b.Events {
+		if e.Type == "cite" {
+			out.Counts.Citations++
+		}
 	}
 
 	out.Counts.Open = len(out.Open)

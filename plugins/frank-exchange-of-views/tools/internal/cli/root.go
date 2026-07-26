@@ -85,11 +85,16 @@ import (
 //	       red's dispatch and arms the retire-vs-drop detector was hand-counted by the blue LLM
 //	       (two honest merges diverged 2x); a prompt now runs the tool and relays it. A stale
 //	       binary lacks the command the blue prompt calls and still accepts the removed flag.
+//	0.16.0 #62(1) citations onto the record (#71): lenses record each verified claim as a `cite`
+//	       event instead of hand-writing citation-ledger.md (which the renderer already projected
+//	       AND clobbered). The board JSON and `verify` now tally `citations`, and red sets
+//	       citations_checked from the board's count instead of self-reporting it (fabricated on
+//	       haiku). A stale binary lacks the citations tally the merge prompt now reads.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.15.0"
+const Version = "0.16.0"
 
 func init() { record.ToolVersion = Version }
 

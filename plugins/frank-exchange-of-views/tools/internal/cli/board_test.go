@@ -32,6 +32,7 @@ type boardJSON struct {
 		ClosedByBench    int `json:"closed_by_bench"`
 		UndisposedObserv int `json:"undisposed_observations"`
 		Anomalies        int `json:"anomalies"`
+		Citations        int `json:"citations"`
 	} `json:"counts"`
 	Anomalies []string `json:"anomalies"`
 }
@@ -161,6 +162,30 @@ func TestBoardJSONStatesWhetherAnObservationHasAFate(t *testing.T) {
 				t.Error("L1-O2 has no disposal and must not report one")
 			}
 		}
+	}
+}
+
+// citations_checked is the record's, not red's self-report. The board tallies cite
+// events so red reads the count from its native view instead of hand-counting a number
+// that was fabricated on haiku. Cite events are reference-keyed, so re-verifying a
+// source is idempotent (updates in place): the count is DISTINCT sources verified —
+// three cite calls over two references tally two.
+func TestBoardCountsCiteEvents(t *testing.T) {
+	runDir := seatRun(t)
+	cites := []struct{ claim, ref string }{
+		{"the API returns 200", "https://example.com/a"},
+		{"the flag defaults off", "https://example.com/b"},
+		{"the API still returns 200 (re-verified next round)", "https://example.com/a"}, // same ref → idempotent
+	}
+	for _, c := range cites {
+		if _, err := run(t, "lens", "cite", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+			"--claim", c.claim, "--reference", c.ref, "--confidence", "high",
+			"--access-date", "2026-07-24"); err != nil {
+			t.Fatalf("cite %q: %v", c.claim, err)
+		}
+	}
+	if b := board(t, runDir, "merge", "red-merge-r1"); b.Counts.Citations != 2 {
+		t.Errorf("counts.citations = %d, want 2 (two distinct references) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }
 

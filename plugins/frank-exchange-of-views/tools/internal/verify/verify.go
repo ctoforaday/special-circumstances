@@ -213,9 +213,15 @@ type Stats struct {
 	Findings         int            `json:"findings"`
 	FindingsMinted   int            `json:"findings_minted"`
 	FindingsUnminted int            `json:"findings_unminted"`
-	GapsWithClosing  int            `json:"gaps_with_closing"`
-	GapsWithDispute  int            `json:"gaps_with_dispute"`
-	GapsWithOpinion  int            `json:"gaps_with_opinion"`
+	// Citations is the count of cite events on the record — the canonical source for
+	// the envelope's citations_checked, which red used to self-report (fabricated on
+	// haiku). Cite events are keyed by reference (deriveKey), so re-verifying a source
+	// updates in place rather than adding: this counts DISTINCT sources verified, and
+	// equals the citation-ledger projection's row count.
+	Citations       int `json:"citations"`
+	GapsWithClosing int `json:"gaps_with_closing"`
+	GapsWithDispute int `json:"gaps_with_dispute"`
+	GapsWithOpinion int `json:"gaps_with_opinion"`
 }
 
 // Compute tallies the record. Read-only, one replay.
@@ -243,6 +249,9 @@ func Compute(b *record.Board) Stats {
 			if l := e.Payload.Str("label"); l != "" {
 				findingLabels[l] = true
 			}
+		}
+		if e.Type == "cite" {
+			s.Citations++
 		}
 		if gid := e.Payload.Str("gap_id"); gid != "" {
 			switch e.Type {

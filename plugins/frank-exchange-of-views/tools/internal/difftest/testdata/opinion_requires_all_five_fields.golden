@@ -15,7 +15,7 @@ feov-record: bench: record: opinion --id names gap R2-1, which no mint event cre
 
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl
-{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.15.0"},"round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
+{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.16.0"},"round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md
