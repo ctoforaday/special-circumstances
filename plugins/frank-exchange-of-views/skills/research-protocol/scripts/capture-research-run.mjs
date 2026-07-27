@@ -388,7 +388,11 @@ export function harvestPrecedents(runDir, results, lawDir) {
       'facts: <reviewer: fill from the cited record — the harvest never invents>',
       'question: ' + (r.kind === 'docket' ? 'disposition of ' + r.gap_id : 'petition by ' + r.petitioner),
       'holding: ' + r.disposition,
-      'rationale: ' + String(r.rationale || '').slice(0, 600),
+      // Whole rationale — no truncation. The judge's opinion IS the precedent, and the
+      // actionable tail ("Direction owed: ...") lived past the old 600-char cut, so every
+      // harvested holding lost its point mid-sentence. Judge rationales are envelope-bounded;
+      // storing them whole is honest and the proposed/ file is for a human to read.
+      'rationale: ' + String(r.rationale || ''),
       'scope-limits: <reviewer: state what this assumed>',
       'source: ' + slug + ', ' + (r.kind === 'docket' ? r.gap_id : 'petition:' + r.petitioner),
       '',

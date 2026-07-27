@@ -337,17 +337,23 @@ test('W2e precedent harvest: rulings become PERSUASIVE proposals with defeasible
   mkdirSync(join(repo, 'law'), { recursive: true })
   const runDir = join(repo, 'research', '2026-07-18_law-test')
   mkdirSync(runDir, { recursive: true })
+  // A rationale longer than the old 600-char cap, whose ACTIONABLE tail sat past the cut.
+  const longRationale = 'context clause '.repeat(45) + 'Direction owed: TRAILING_ACTIONABLE_TAIL'
   const results = [
     { resolutions: [{ gap_id: 'R2-3', resolution: 'risk_accepted', rationale: 'complexity exceeds bounded likelihood x impact' }] },
     { rulings: [{ petitioner: 'blue-respond-r2', ruling: 'granted', opinion: 'scope narrowed to shipped artifacts' }] },
+    { resolutions: [{ gap_id: 'R1-9', resolution: 'carried', rationale: longRationale }] },
   ]
   const r = harvestPrecedents(runDir, results, join(repo, 'law'))
-  assert.equal(r.count, 2)
+  assert.equal(r.count, 3)
   const out = readFileSync(r.path, 'utf8')
   assert.ok(out.includes('[PERSUASIVE]') && !out.includes('[AFFIRMED'), 'everything starts persuasive')
   assert.ok(out.includes('holding: risk_accepted') && out.includes('holding: granted'))
   assert.ok(out.includes('facts: <reviewer: fill from the cited record'), 'the harvest never invents facts')
   assert.ok(out.includes('source: 2026-07-18_law-test, R2-3'), 'holdings carry their source anchors')
+  // The rationale is stored WHOLE — the actionable tail past the old 600-char cut survives.
+  assert.ok(longRationale.length > 600, 'fixture exceeds the old cap')
+  assert.ok(out.includes('TRAILING_ACTIONABLE_TAIL'), 'full rationale preserved — no mid-sentence truncation')
   const noLaw = harvestPrecedents(runDir, results, join(repo, 'absent'))
   assert.equal(noLaw.written, false)
   assert.ok(noLaw.reason.includes('law'))
