@@ -18,7 +18,7 @@ test('skeleton: creates stubs with topic headers; ledger/archive/telemetry are N
   const { created } = buildSkeleton(dir, 'test topic')
   assert.equal(created.length, 7)
   assert.ok(readFileSync(join(dir, 'blue', 'report.md'), 'utf8').includes('test topic'))
-  assert.ok(existsSync(join(dir, 'red', 'candidates')))
+  assert.ok(!existsSync(join(dir, 'red', 'candidates')), 'red/candidates is retired — lens findings are record events, read via `show --view findings`')
   assert.ok(!existsSync(join(dir, 'red', 'ledger.md')), 'ledger must be red-merge-born')
   assert.ok(!existsSync(join(dir, 'red', 'archive.md')), 'archive must be red-merge-born')
   assert.ok(!existsSync(join(dir, 'trajectories', 'board-telemetry.jsonl')))
@@ -299,18 +299,6 @@ test('cost-audit CLI: without runDir no telemetry section; with runDir but no te
   const runDir = tmp()
   const withRun = spawnSync(process.execPath, [join(SCRIPTS, 'cost-audit.mjs'), transcriptDir, runDir])
   assert.ok(withRun.stdout.toString().includes('no board-telemetry.jsonl'), 'absent-file branch stated, not silent')
-})
-
-test('batch-collapse CLI: pairs candidate-read ingestions and reports per-round collapse dollars', () => {
-  const dir = tmp()
-  const toolUse = { message: { role: 'assistant', model: 'claude-fable-5', usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 100, cache_creation_input_tokens: 10 }, content: [{ type: 'tool_use', id: 'tu1', name: 'Read', input: { file_path: 'red/candidates/round-1-lens-1.md' } }] } }
-  const toolResult = { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu1' }] } }
-  const ingest = { message: { role: 'assistant', model: 'claude-fable-5', usage: { input_tokens: 20, output_tokens: 5, cache_read_input_tokens: 50000, cache_creation_input_tokens: 1000 }, content: [] } }
-  writeFileSync(join(dir, 'agent-merge1.jsonl'),
-    [JSON.stringify({ message: { role: 'user', content: 'Red merge, round 1. ...' } }), JSON.stringify(toolUse), JSON.stringify(toolResult), JSON.stringify(ingest)].map(String).join('\n') + '\n')
-  const r = spawnSync(process.execPath, [join(SCRIPTS, 'measure-read-batching.mjs'), dir])
-  assert.equal(r.status, 0, r.stderr.toString())
-  assert.ok(/round 1/.test(r.stdout.toString()), `expected a round-1 row, got: ${r.stdout}`)
 })
 
 test('record parity (W1.7 post-hoc): missing BLUE blocks or CHANGELOG rounds FAIL; the PASS-exit final round is floored out', () => {

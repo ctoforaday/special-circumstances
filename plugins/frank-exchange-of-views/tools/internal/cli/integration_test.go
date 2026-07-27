@@ -199,7 +199,7 @@ func TestMergeCanDisposeALensObservationByItsLabel(t *testing.T) {
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-F1", "--location", "§2", "--reason", "a finding",
+		"--key", "F1", "--location", "§2", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}

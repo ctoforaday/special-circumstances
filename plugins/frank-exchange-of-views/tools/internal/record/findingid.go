@@ -24,12 +24,15 @@ import (
 //
 // So ids are random. Not for secrecy: an id you cannot guess is one you have to LOOK UP,
 // which turns "name the finding you mean" from a memory exercise into a read. The seat
-// lists what exists (`show --view board`) and uses what it is given, the same way gap ids
-// have been tool-assigned since the four-different-R5-1s collision.
+// lists what exists (`show --view findings`) and uses what it is given, the same way gap
+// ids have been tool-assigned since the four-different-R5-1s collision.
 //
-// The LABEL survives as description. It is how a human reads the record and how a lens
-// organises its own pass; it is simply no longer identity, so two lenses may both call
-// something F1 without either of them being wrong.
+// The LABEL is now TOOL-assigned too (L{role}-F{N}, the sequence spanning rounds, the role
+// read from the seat id — see findinglabel.go). That closes the first two failures at the
+// source: a lens can no longer invent a label, and two lenses cannot collide (L1-F1 and
+// L2-F1 are distinct BY the label), so the shared-label ambiguity is impossible rather than
+// merely disambiguated by the id. The label is what a gap's found_by names, so it MUST be
+// run-unique; the finding_id remains the random dedup identity underneath.
 
 // NewFindingID mints an unguessable finding id.
 //

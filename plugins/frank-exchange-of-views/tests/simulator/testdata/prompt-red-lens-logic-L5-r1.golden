@@ -1,12 +1,13 @@
-prompt sha256: 0fdf1811ce0b8ab5cc7ed6fda19efc5cd98215e1b928c295f8444b96c5bd0a69
+prompt sha256: 149497109e79f0fd6aba17357b078828bb956ec2c7df858b4a5ce17f29bf5c7f
 
 Red audit, round 1, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance).
 Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
 Anchor every finding to a section heading plus a quoted sentence.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
-Label your findings with LENS-SCOPED ids (L5-F1, L5-F2, ...) — your lens number is your ROLE and is stable across rounds (L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk), so found_by stays comparable run-wide; stable R1-N ids are assigned by the merge, never by a lens.
-Write your pass to research/2026-01-01_golden/red/candidates/round-1-lens-5.md.
+Record EACH finding as an event via the finding verb (--key <local F1> --severity/--likelihood/--impact --location --reason) — the TOOL assigns the run-unique label L5-F{N} (your lens number 5 is your ROLE, stable across rounds: L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so found_by stays comparable run-wide) and returns it.
+You do NOT invent a label, and there is NO candidate file: the record is the only channel.
+The stable R1-N gap ids remain the merge's to assign.
 You MUST NOT write to research/2026-01-01_golden/debate.md — only red-merge records the round's "### RED" narrative, via a position event.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).

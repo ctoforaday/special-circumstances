@@ -31,7 +31,7 @@ const STUBS = [
   ['blue/CHANGELOG.md', 'blue CHANGELOG'],
   ['red/citation-ledger.md', 'red citation-ledger'],
 ]
-const DIRS = ['blue/candidates', 'red/candidates', 'trajectories', 'inputs', 'records']
+const DIRS = ['blue/candidates', 'red', 'trajectories', 'inputs', 'records']
 
 // Record-tool housekeeping (plan §III R2): stale checkpoint mirrors from crashed
 // runs are purged after 30 days — the ONLY deletion anywhere in the record
@@ -365,6 +365,11 @@ function main() {
   const mirror = mirrorGapPatterns(memDirs, runDir)
   const patternIndex = buildPatternIndex(memDirs)
   writeFileSync(join(runDir, 'inputs', 'gap-patterns-by-class.json'), JSON.stringify(patternIndex.byClass, null, 2) + '\n')
+  // Canonical run config — models per stage, the round ceiling, lane count. The engine
+  // (debate.js) takes these as launch args but is sandboxed and cannot write them down; setup
+  // can, so post-hoc readers (the dashboard) read one file instead of being told separately.
+  const runConfig = { topic, model: arg('--model'), judgmentModel: arg('--judgment-model'), maxRounds: arg('--max-rounds'), lanes: arg('--lanes') }
+  writeFileSync(join(runDir, 'inputs', 'run-config.json'), JSON.stringify(runConfig, null, 2) + '\n')
   const law = mirrorLaw(join(process.cwd(), 'law'), runDir)
   const cards = mirrorScorecards(join(process.cwd(), 'feov-memory'), runDir)
   const marker = writeRunLiveMarker(process.cwd(), runDir, cites.map((c) => c.split('@')[0]))

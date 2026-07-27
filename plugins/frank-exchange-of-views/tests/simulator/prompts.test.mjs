@@ -3,7 +3,7 @@
 // The seat prompt is the product. It is what a seat actually reads and acts on,
 // and every wave edits it: W2g moved the catechism into blue's round-0 duty, W2i
 // added the consolidated-citation duty and re-pointed lens identity at roles.
-// Each of those shipped with substring assertions — `prompt.includes('L5-F1')` —
+// Each of those shipped with substring assertions — `prompt.includes('<a phrase>')` —
 // which prove a phrase is PRESENT and say nothing about what else moved around
 // it. A clause can be deleted, duplicated, contradicted, or attached to the
 // wrong seat with every such test still green.

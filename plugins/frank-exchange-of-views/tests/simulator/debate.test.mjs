@@ -108,8 +108,8 @@ test('W2i: lens numbers are ROLES — logic is always L5, dark-side always L6, w
   assert.deepEqual(labels.sort(), ['1', '5', '6'], 'citation slice L1, logic L5, dark-side L6 — no positional slide')
   const logic = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-5-'))
   assert.ok(logic.prompt.includes('logic and completeness'), 'L5 is the logic seat')
-  assert.ok(logic.prompt.includes('L5-F1'), 'finding labels carry the ROLE number')
-  assert.ok(logic.prompt.includes('round-1-lens-5.md'), 'the candidate filename carries the role number')
+  assert.ok(logic.prompt.includes('L5-F'), 'the tool-assigned finding label carries the ROLE number (L5-F{N})')
+  assert.ok(logic.prompt.includes('lens number 5'), 'the prompt names this lens its role (5)')
 })
 
 test('W2i: the consolidated-citation duty binds rounds 2+ citation seats only, and keeps coverage observable', async () => {
@@ -197,7 +197,7 @@ test('blue-synthesize friction reaches the aggregate (row 21)', async () => {
   assert.ok(out.friction.includes('blue-synthesize: write-block on blue/report.md'))
 })
 
-test('every seat prompt carries the friction clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and lens-scoped', async () => {
+test('every seat prompt carries the friction clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and record findings via the tool', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
@@ -208,7 +208,7 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
   }
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
   assert.ok(lens.prompt.includes('MUST NOT write to') && lens.prompt.includes('debate.md'), 'lens must be transcript-forbidden')
-  assert.ok(lens.prompt.includes('L1-F1'), 'lens must use lens-scoped finding labels')
+  assert.ok(lens.prompt.includes('L1-F') && lens.prompt.includes('finding verb'), 'lens records findings via the verb with a tool-assigned role-scoped label (L1-F{N})')
 })
 
 // ---- Run-3 docket rows 6/7: lane diversity + floor ----
@@ -398,13 +398,13 @@ test('telemetry: red-merge is told the line is TOOL-COMPUTED (via render), not h
   assert.ok(!merge.prompt.includes('trajectories/board-telemetry.jsonl'), 'the seat no longer hand-writes a telemetry sink — the self-report is retired')
 })
 
-test('batching: merge concatenates lens passes to an absolute scratchpad path, never under the run dir', async () => {
+test('the merge reads this round\'s findings from the record view, not a candidate-file cat', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
-  assert.ok(merge.prompt.includes('FIRST ACTION'), 'batching is the first action')
-  assert.ok(merge.prompt.includes('session scratchpad'), 'output path is the seat scratchpad')
-  assert.ok(merge.prompt.includes('never under research/2026-01-01_test'), 'run dir explicitly excluded')
+  assert.ok(merge.prompt.includes('FIRST ACTION'), 'reading findings is the first action')
+  assert.ok(merge.prompt.includes('--view findings'), 'the merge reads the findings view from the record')
+  assert.ok(!merge.prompt.includes('red/candidates'), 'the candidate-file cat is retired')
 })
 
 test('the board is the tool: merge mints through feov-record, downstream seats pull via show, no findings.md', async () => {

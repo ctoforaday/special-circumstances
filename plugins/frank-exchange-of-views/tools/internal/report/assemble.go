@@ -387,13 +387,20 @@ func redFindings(board *record.Board) string {
 			if n := len(g.Regrades); n > 0 {
 				regraded = fmt.Sprintf(" · regraded x%d (latest basis: %s)", n, g.Regrades[n-1].Str("basis"))
 			}
-			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s",
+			// Provenance: which lens findings surfaced this gap. The findings are on the
+			// record now (not candidate files), so found_by names real, verifiable labels.
+			foundBy := ""
+			if fb := g.Mint.StrList("found_by"); len(fb) > 0 {
+				foundBy = "\nsurfaced by: " + strings.Join(fb, ", ")
+			}
+			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s%s",
 				g.ID, g.Mint.Str("problem"),
 				g.Mint.Str("location"),
 				grade(g.Severity), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), grade(g.Mint.Str("class")),
 				regraded,
 				g.Mint.Str("required_fix"),
-				g.Mint.Str("acceptance_check")))
+				g.Mint.Str("acceptance_check"),
+				foundBy))
 		} else {
 			cc := g.Closure.Str("closure_class")
 			if cc == "" {

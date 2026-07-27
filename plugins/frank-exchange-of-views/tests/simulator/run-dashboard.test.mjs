@@ -20,6 +20,7 @@ function fixture() {
   writeFileSync(join(runDir, 'blue', 'report.md'), '# report\ncontent\n')
   writeFileSync(join(runDir, 'red', 'ledger.md'), '# ledger\n## open\nR2-1 | high | loc | problem\nR2-2 | medium | loc | problem\n## closure index\nR1-1 | closed | fixed | -\nR1-2 | closed_with_regression | superseded | R2-1 R2-2\n')
   writeFileSync(join(runDir, 'red', 'archive.md'), '# archive\n## R1-1 — closed\nprose\n')
+  writeFileSync(join(runDir, 'red', 'findings.md'), '# red findings — RENDERED PROJECTION\n- L1-F1 | red-lens-r1-L1 | sev high · high x high | r1 | a finding\n- L5-F1 | red-lens-r1-L5 | sev low · low x low | r1 | another\n- L1-F2 | red-lens-r1-L1 | sev medium · medium x medium | r1 | third\n')
   writeFileSync(join(runDir, 'friction.md'), '# friction\n- seat-a: pain one\n- seat-b: pain two\n')
   // Journal uses the REAL harness schema — {type, key, agentId}, NO labels (production
   // divergence caught live 2026-07-17: the fixture had invented a label field).
@@ -69,6 +70,7 @@ test('dashboard model: telemetry series, live vs done seats, cost estimate, blac
   assert.equal(m.shards.openBySeverity.high, 1)
   assert.equal(m.shards.closureIndexRows, 2, 'LINE count — a supersedes-bearing row counts once, not per id named')
   assert.equal(m.shards.archiveRecords, 1)
+  assert.equal(m.shards.findings, 3, 'lens findings counted from findings.md (raw leaf audit, pre-coalescence)')
   assert.equal(m.friction.count, 2, 'friction is a count of pain points, not bytes')
   assert.equal(m.blueClaims, 100)
   assert.ok(m.steps.some(s2 => s2.name === 'frontier' && s2.state === 'done'), 'progress steps derived from journal')
@@ -96,6 +98,8 @@ test('judiciary: rulings tallied, chains follow supersedes edges, migrations gra
   const m = buildModel(runDir, transcriptDir)
   const j = m.judiciary
   assert.equal(j.judgeSittings, 1)
+  assert.equal(j.latestVerdict, 'FAIL', 'the most recent red verdict is surfaced')
+  assert.equal(j.verdictRound, 2, 'and which round it was')
   assert.deepEqual(j.rulings, { carried: 1, risk_accepted: 1 }, 'rulings tallied by type')
   assert.equal(j.disputes.raised, 1, 'blue grade_disputes counted')
   assert.equal(j.disputes.accepted, 1, 'red dispute_responses counted')
@@ -348,4 +352,65 @@ test('an unrecognised model is priced at the dearest tier, never the cheapest', 
   ].join('\n') + '\n')
   const m = buildModel(runDir, tdir)
   assert.ok(Math.abs(m.cost - PRICES.fable[2]) < 1e-9, 'unknown model falls back to the fable row')
+})
+
+// On a FINISHED run the verdict tile must show the run's real outcome (the assembler's
+// CEILING/VERIFIED/HALTED stamp), not red's per-round FAIL which never turns until a PASS or
+// the ceiling — and a seat that failed and was re-run on resume must not linger as "running
+// 45 min". Both were real artifacts of the first resumed run reaching this dashboard.
+test('terminal run: verdict tile reads the assembled report stamp; stale live seats stop showing as running', () => {
+  const runDir = tmp(), transcriptDir = tmp()
+  writeFileSync(join(runDir, 'report.md'),
+    '# report\n\n**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging.\n')
+  writeFileSync(join(transcriptDir, 'journal.jsonl'), [
+    JSON.stringify({ type: 'started', key: 'v2:a', agentId: 'idasm' }),
+    JSON.stringify({ type: 'result', key: 'v2:a', agentId: 'idasm', result: 'report written' }),
+    JSON.stringify({ type: 'started', key: 'v2:b', agentId: 'idbrdone' }),
+    JSON.stringify({ type: 'result', key: 'v2:b', agentId: 'idbrdone', result: { claim_count: 10 } }),
+    // A blue-respond-r1 that started and never returned — the seat that died and was
+    // superseded by the completed one above (same label).
+    JSON.stringify({ type: 'started', key: 'v2:c', agentId: 'idbrdead' }),
+    // A live seat with no completed sibling — genuinely unfinished, not superseded.
+    JSON.stringify({ type: 'started', key: 'v2:d', agentId: 'idorphan' }),
+  ].join('\n') + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idasm.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Final assembly of the report' } }) + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idbrdone.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Blue response, round 1.' } }) + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idbrdead.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Blue response, round 1.' } }) + '\n')
+  writeFileSync(join(transcriptDir, 'agent-idorphan.jsonl'),
+    JSON.stringify({ message: { role: 'user', content: 'Red audit, round 2, lens: citations' } }) + '\n')
+
+  const m = buildModel(runDir, transcriptDir)
+  assert.equal(m.terminal, true, 'report.md existence signals the run is terminal')
+  assert.equal(m.terminalVerdict, 'CEILING-TERMINATED', 'the assembler stamp is the run verdict, not red per-round FAIL')
+
+  const html = renderHtml(m)
+  assert.ok(html.includes('CEILING-TERMINATED'), 'the terminal verdict reaches the tile')
+  assert.ok(html.includes('final verdict'), 'the tile is labelled final, not latest')
+  assert.ok(html.includes('Seats (run complete)'), 'the live-seats heading reflects a finished run')
+  assert.ok(html.includes('superseded — a later attempt completed'), 'a dead seat with a completed same-label sibling is superseded, not running')
+  assert.ok(html.includes('did not finish'), 'a dead seat with no completed sibling is named unfinished')
+  assert.ok(!/running \d+ min/.test(html), 'no stale seat is reported as still running on a terminal run')
+})
+
+test('run config: buildModel reads inputs/run-config.json (canonical), CLI overrides it, ceiling caps the bar', () => {
+  const runDir = mkdtempSync(join(tmpdir(), 'feov-cfg-'))
+  const tdir = mkdtempSync(join(tmpdir(), 'feov-cfgt-'))
+  mkdirSync(join(runDir, 'inputs'), { recursive: true })
+  writeFileSync(join(runDir, 'inputs', 'run-config.json'),
+    JSON.stringify({ topic: 'SQLite durability for a multi-writer log', model: 'haiku', judgmentModel: 'sonnet', maxRounds: '2', lanes: '1' }))
+  writeFileSync(join(tdir, 'journal.jsonl'), '')
+  const m = buildModel(runDir, tdir)
+  assert.ok(renderHtml(m).includes('SQLite durability for a multi-writer log'), 'the research topic is shown on the dashboard')
+  assert.equal(m.config.model, 'haiku', 'bulk model read from the canonical file')
+  assert.equal(m.config.judgmentModel, 'sonnet', 'judgment model read from the file')
+  assert.equal(m.config.maxRounds, '2')
+  // The ceiling caps the progress bar: frontier, lanes, synthesis, round 1, round 2, assembly.
+  assert.equal(m.steps.filter((s) => s.name.startsWith('round ')).length, 2, 'the configured ceiling bounds the round segments, not the hardcoded 8')
+  // A CLI flag overrides the stored value.
+  const m2 = buildModel(runDir, tdir, { model: 'opus' })
+  assert.equal(m2.config.model, 'opus', 'CLI --model overrides the stored config')
+  assert.equal(m2.config.judgmentModel, 'sonnet', 'unspecified CLI values keep the stored config')
 })

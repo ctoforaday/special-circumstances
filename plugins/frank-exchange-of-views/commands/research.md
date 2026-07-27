@@ -17,8 +17,8 @@ is two script invocations.
 2. **Set up the blackboard** (mechanics — the script is idempotent, keeps anything pre-staged,
    writes the `.run-live` marker for the hook guards, and does NOT create the red-merge-born
    artifacts):
-   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/setup-research-run.mjs <run directory> --topic "<topic>" --cite <path>[@pin] ... `
-   Relay its summary. The script VALIDATES every cite at its pin and refuses setup on a miss
+   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/setup-research-run.mjs <run directory> --topic "<topic>" --cite <path>[@pin] ... [--model <resolved model> --judgment-model <resolved judgment model> --max-rounds <N> --lanes <N>]`
+   Pass the SAME resolved config you will hand the workflow in step 3 (models per stage, the round ceiling, the lane count) — setup records it as the canonical `inputs/run-config.json` so the dashboard (and any post-hoc reader) can show which models ran at which stage and the ceiling in force, without being told separately. Relay its summary. The script VALIDATES every cite at its pin and refuses setup on a miss
    (W1.1) — a failure names the missing paths and the two remedies; fix and re-run, never
    work around. If qmd is reported missing, that is fine (optional tier — the doctor
    installs it; NEVER install it here and NEVER run it via npx). If gap-patterns reports "no

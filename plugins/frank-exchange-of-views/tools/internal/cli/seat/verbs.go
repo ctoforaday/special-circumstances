@@ -137,6 +137,7 @@ var views = []struct {
 	name, desc, defaultFor string
 }{
 	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on", "merge"},
+	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", "merge"},
 	{"ledger", "the board as markdown, for a human verification pass", ""},
 	{"archive", "closed gaps with their closure records and anchors", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order", "bench"},
@@ -201,6 +202,17 @@ func Show() *cobra.Command {
 		// default view looking for a board.md that no renderer writes.
 		if want == "board" {
 			b, err := record.BoardJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
+		}
+		// findings is served as JSON too, and for the same reason: the merge ACTS on it
+		// (coalesces findings into gaps), so it reads structured fields, not prose it must
+		// parse. This is the channel that replaced red/candidates/*.md.
+		if want == "findings" {
+			b, err := record.FindingsJSONBytes(runDir)
 			if err != nil {
 				return err
 			}

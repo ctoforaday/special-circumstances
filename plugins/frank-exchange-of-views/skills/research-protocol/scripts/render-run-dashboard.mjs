@@ -94,7 +94,13 @@ export function projectCompletion(seats, nowMs = Date.now()) {
   }
 }
 
-export function buildModel(runDir, transcriptDir) {
+export function buildModel(runDir, transcriptDir, config = {}) {
+  // Canonical run config is inputs/run-config.json (written by setup — the engine is
+  // sandboxed and cannot write it). Any CLI --model/--max-rounds/… override a stored value.
+  let fileConfig = {}
+  try { fileConfig = JSON.parse(readFileSync(join(runDir, 'inputs', 'run-config.json'), 'utf8')) } catch {}
+  const cfg = { ...fileConfig, ...Object.fromEntries(Object.entries(config).filter(([, v]) => v != null)) }
+  config = cfg
   // Live board ground truth comes from the TOOL's render (migrated 2026-07-19), with the
   // legacy trajectories/ path as a fallback for pre-migration runs. Reading only the old
   // path left the live panel blank while the seed panel looked populated — backwards.
@@ -178,8 +184,31 @@ export function buildModel(runDir, transcriptDir) {
     count: frictionLines.length,
     last: frictionLines.length ? frictionLines[frictionLines.length - 1] : null,
   }
-  const ledgerTxt = readIf('red/ledger.md')
-  const archiveTxt = readIf('red/archive.md')
+  // Projections all land in records/render-shadow/ (the tool's render output); read there
+  // first, with the legacy red/ path as a fallback for pre-migration runs. Reading only red/
+  // left the red board blank on every post-migration run — the same miss the telemetry read
+  // above already fixed.
+  const ledgerTxt = readIf('records/render-shadow/ledger.md') || readIf('red/ledger.md')
+  const archiveTxt = readIf('records/render-shadow/archive.md') || readIf('red/archive.md')
+  // Lens findings now live on the record; findings.md is the render projection (in
+  // records/render-shadow/, where every projection lands — NOT red/, which is why this reads
+  // there first). The count is red's raw leaf-audit volume BEFORE the merge coalesces it into
+  // gaps, so it appears during the red rounds, ahead of the merge-born ledger.
+  const findingsTxt = readIf('records/render-shadow/findings.md') || readIf('red/findings.md')
+  // Citations are the other half of the record-canonical pair: cite events, projected to the
+  // citation-ledger. One data row per verified claim (the header line is skipped).
+  const citationsTxt = readIf('records/render-shadow/citation-ledger.md') || readIf('red/citation-ledger.md')
+  // Terminal verdict from the ASSEMBLED report's stamp — the run's REAL outcome
+  // (CEILING-TERMINATED, VERIFIED, HALTED, …), distinct from red's per-round verdict, which
+  // stays FAIL until a PASS or the ceiling and is the wrong number to leave on a finished run.
+  // report.md is written only by the assembler at the very end, so its existence IS the
+  // terminal signal (used below to stop showing stale live seats). This reads the assembler's
+  // PROJECTION, not raw shards — the dashboard stays a reader of rendered output, not a second
+  // replay of the record.
+  const reportTxt = readIf('report.md')
+  const mv = reportTxt && reportTxt.match(/\*\*Verdict:\*\*\s*([^\s—\n]+)/)
+  const terminalVerdict = mv ? mv[1] : null
+  const terminal = reportTxt !== null
   // Ordered MOST SPECIFIC FIRST, and it must stay that way: the match below is a
   // substring test, so listing `high` before `medium-high` made every
   // medium-high row report as high (and every low-medium row as medium) —
@@ -206,6 +235,8 @@ export function buildModel(runDir, transcriptDir) {
     ledgerExists: ledgerTxt !== null,
     openRows,
     openBySeverity,
+    findings: findingsTxt ? (findingsTxt.match(/^- /gm) || []).length : 0,
+    citations: citationsTxt ? citationsTxt.split('\n').filter((l) => l.includes(' | ')).length : 0,
     // LINE count, not id-occurrence count: a closure row also NAMES its supersedes ids in
     // the fourth column, so occurrence-counting read 88 for a 52-row index (seen live, run 5).
     closureIndexRows: ledgerTxt ? ledgerTxt.slice(Math.max(0, ledgerTxt.search(/closure index/i))).split('\n').filter((l) => idLine.test(l) && l.includes('|')).length : 0,
@@ -223,6 +254,7 @@ export function buildModel(runDir, transcriptDir) {
   // argument persists across the chain).
   const rulings = {}
   let judgeSittings = 0
+  let latestVerdict = null, verdictRound = 0 // red's most recent round verdict (FAIL until PASS or ceiling)
   const disputes = { raised: 0, accepted: 0, rejected: 0 }
   const gapRounds = new Map() // id -> { first, last, firstMass, lastMass }
   const parentOf = new Map() // union-find over supersedes edges
@@ -236,6 +268,7 @@ export function buildModel(runDir, transcriptDir) {
     if (Array.isArray(r.dispute_responses)) for (const d of r.dispute_responses) { if (d.response in disputes) disputes[d.response]++ }
     if (r.verdict && Array.isArray(r.gaps)) {
       redSeen++
+      latestVerdict = r.verdict; verdictRound = redSeen
       for (const g of r.gaps) {
         const gm = (MASSD[g.likelihood] ?? 0) * (MASSD[g.impact] ?? 0)
         const e = gapRounds.get(g.id) || { first: redSeen, firstMass: gm }
@@ -262,12 +295,12 @@ export function buildModel(runDir, transcriptDir) {
     chainSpans[span] = (chainSpans[span] || 0) + 1
     if (span > 1) { const d = c.lastMass - c.firstMass; if (d < 0) migDown++; else if (d > 0) migUp++; else migFlat++ }
   }
-  const judiciary = { judgeSittings, rulings, disputes, chainSpans, chains: chains.size, migDown, migUp, migFlat }
+  const judiciary = { judgeSittings, rulings, disputes, chainSpans, chains: chains.size, migDown, migUp, migFlat, latestVerdict, verdictRound }
 
   // Progress through the workflow's big steps: Frontier -> Blue lanes -> Synthesis ->
   // rounds 1..maxRounds (each: lenses -> merge -> respond [-> judge]) -> Assembly.
   // The ceiling divides the bar; judged termination may end it early — stated on the bar.
-  const MAX_ROUNDS_CEILING = 8
+  const MAX_ROUNDS_CEILING = config.maxRounds ? Number(config.maxRounds) : 8
   const seatList = [...seats.values()]
   const seen = (seat, round = null) => seatList.some((s) => s.seat === seat && (round === null || s.round === round))
   const doneSeat = (seat, round = null) => seatList.some((s) => s.seat === seat && (round === null || s.round === round) && s.done)
@@ -294,7 +327,7 @@ export function buildModel(runDir, transcriptDir) {
 
   const latest = telemetry[telemetry.length - 1] || null
   const eta = projectCompletion(seatList)
-  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, eta, generated: new Date().toISOString() }
+  return { runDir, telemetry, latest, seats: seatList, cost, apiRounds: rounds, agents, friction, shards, blueClaims, steps, rates, judiciary, eta, config, terminalVerdict, terminal, generated: new Date().toISOString() }
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -395,16 +428,23 @@ export function renderHtml(m) {
   }
   const live = [...liveGroups.values()]
   const done = m.seats.filter((s) => s.done)
+  // A stale live seat on a TERMINAL run is not running — it either got superseded by a
+  // resume (a later seat with the same label finished) or it died. The seat that failed and
+  // was re-run on resume lingers here as "running 45 min" otherwise; this tells the truth.
+  const doneLabels = new Set(done.map((s) => s.label))
   const SHORT = { frontier: 'front', 'blue lanes': 'lanes', synthesis: 'synth', assembly: 'asm' }
   return `<!-- generated by render-run-dashboard.mjs -->
 <meta charset="utf-8"><meta http-equiv="refresh" content="20">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FEOV run — ${esc(m.runDir.split(/[\\/]/).pop())}</title>
 <style>
 .viz-root { color-scheme: light; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --series-1:#2a78d6;
   font: 14px/1.45 system-ui, sans-serif; background: var(--surface-1); color: var(--text-primary); padding: 20px; max-width: 900px; margin: auto; }
 @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; } }
 :root[data-theme="dark"] .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; }
-h1 { font-size: 18px; } h2 { font-size: 14px; margin: 18px 0 6px; color: var(--text-secondary); }
+h1 { font-size: 18px; margin-bottom: 2px; } h2 { font-size: 14px; margin: 18px 0 6px; color: var(--text-secondary); }
+.topic { font-size: 15px; font-weight: 600; margin: 0 0 6px; line-height: 1.35; }
+.topic::before { content: "researching: "; font-weight: 400; color: var(--text-secondary); }
 .tiles { display: flex; gap: 12px; flex-wrap: wrap; } .tile { border: 1px solid color-mix(in oklab, var(--text-secondary) 30%, transparent); border-radius: 8px; padding: 10px 14px; min-width: 96px; }
 .tile b { display: block; font-size: 22px; } .tile span { color: var(--text-secondary); font-size: 12px; }
 table { border-collapse: collapse; width: 100%; } td, th { text-align: left; padding: 3px 10px 3px 0; border-bottom: 1px solid color-mix(in oklab, var(--text-secondary) 20%, transparent); }
@@ -416,10 +456,19 @@ table { border-collapse: collapse; width: 100%; } td, th { text-align: left; pad
 .barlabels { display: flex; gap: 3px; } .barlabels span { flex: 1; font-size: 10px; color: var(--text-secondary); text-align: center; overflow: hidden; white-space: nowrap; }
 .scrollx { overflow-x: auto; } .nowrap { white-space: nowrap; }
 td, th { font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .viz-root { padding: 12px; } h1 { font-size: 16px; } .tile { flex: 1 1 40%; min-width: 0; } table { display: block; overflow-x: auto; } }
 </style>
 <body class="viz-root">
 <h1>FEOV run · ${esc(m.runDir.split(/[\\/]/).pop())}</h1>
+${m.config && m.config.topic ? `<p class="topic">${esc(m.config.topic)}</p>` : ''}
 <p class="muted">generated ${esc(m.generated)} · auto-refreshes every 20s · dollars are list-rate estimates</p>
+${m.config && (m.config.model || m.config.judgmentModel || m.config.maxRounds || m.config.lanes) ? `<h2>Run configuration</h2>
+<table>
+<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>${esc(m.config.model || 'session default')}</b></td></tr>
+<tr><td>judgment seats <span class="muted">synthesis · red-merge · judge · assembly</span></td><td class="nowrap"><b>${esc(m.config.judgmentModel || 'session default')}</b></td></tr>
+<tr><td>round ceiling <span class="muted">cost bound — the terminator is red-PASS or judged deadlock</span></td><td class="nowrap">${m.config.maxRounds ? esc(m.config.maxRounds) + ' rounds' : '—'}</td></tr>
+<tr><td>blue lanes <span class="muted">best-of-N candidate drafts</span></td><td class="nowrap">${m.config.lanes ? esc(m.config.lanes) : '—'}</td></tr>
+</table>` : ''}
 <h2>Progress (rounds segmented by the ceiling — judged termination may end the run earlier)</h2>
 ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin) ? `<p class="muted">projected <b>${m.eta.lowMin}–${m.eta.highMin} min</b> remaining for the work now in flight plus assembly, from ${esc(m.eta.basis)}. Each ADDITIONAL round would add roughly ${m.eta.perRoundLowMin}–${m.eta.perRoundHighMin} min: the round ceiling is a launch argument this run never writes down, so the estimate cannot know how many remain.${m.eta.unmeasured && m.eta.unmeasured.length ? ` No completed precedent yet for: ${esc(m.eta.unmeasured.join(', '))} — discount accordingly.` : ''}</p>` : ''}
 <div class="bar">${m.steps.map((s) => `<div class="seg ${s.state}" title="${esc(s.name)}: ${esc(s.state)}"></div>`).join('')}</div>
@@ -429,6 +478,9 @@ ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin) ? `<p cl
 <div class="tile"><b>${m.latest ? esc(m.latest.open_count) : '—'}</b><span>open gaps</span></div>
 <div class="tile"><b>${m.latest ? esc(m.latest.max_severity) : '—'}</b><span>max severity</span></div>
 <div class="tile"><b>${m.blueClaims ?? '—'}</b><span>blue claims</span></div>
+<div class="tile"><b>${m.shards.findings}</b><span>lens findings</span></div>
+<div class="tile"><b>${m.shards.citations}</b><span>citations checked</span></div>
+<div class="tile"><b>${m.terminalVerdict || m.judiciary.latestVerdict || '—'}</b><span>${m.terminalVerdict ? 'final verdict' : 'latest verdict' + (m.judiciary.verdictRound ? ` (r${m.judiciary.verdictRound})` : '')}</span></div>
 <div class="tile"><b>${m.friction.count}</b><span>friction entries</span></div>
 ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin)
   ? `<div class="tile"><b>${m.eta.lowMin}–${m.eta.highMin}m</b><span>projected remaining</span></div>`
@@ -447,6 +499,7 @@ ${m.shards.ledgerExists ? `<table>
 <tr><td>open gaps on the ledger</td><td>${m.latest && m.latest.open_count > 0 && m.shards.openRows < m.latest.open_count ? `${esc(m.latest.open_count)} <span class="muted">(from telemetry — heuristic ledger parse found ${esc(m.shards.openRows)} row(s); telemetry wins when the parse under-reads)</span>` : `${m.shards.openRows}${Object.keys(m.shards.openBySeverity).length ? ' <span class="muted">(' + Object.entries(m.shards.openBySeverity).map(([k, v]) => `${esc(k)}:${esc(v)}`).join(' · ') + ')</span>' : ''}`}</td></tr>
 <tr><td>closure index rows</td><td>${m.shards.closureIndexRows}</td></tr>
 <tr><td>archived closure records</td><td>${m.shards.archiveRecords}</td></tr>
+<tr><td>lens findings recorded</td><td>${m.shards.findings} <span class="muted">(raw leaf audit, before the merge coalesces into gaps)</span></td></tr>
 </table><p class="muted">severity counts are a heuristic parse of red's own rows — the ledger is the record</p>` : '<p class="muted">ledger not yet created (red-merge-born at round 1)</p>'}
 <h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>
 ${m.judiciary.judgeSittings ? `<table>
@@ -458,34 +511,50 @@ ${m.judiciary.judgeSittings ? `<table>
 </table>` : '<p class="muted">no judge sittings yet</p>'}
 <h2>Friction — logged pain points</h2>
 ${m.friction.count ? `<p>${m.friction.count} attributed entr${m.friction.count === 1 ? 'y' : 'ies'} · latest: <span class="muted">${esc((m.friction.last || '').slice(0, 160))}</span></p>` : '<p class="muted">none logged yet</p>'}
-<h2>Seats live now</h2>
-${live.length ? `<table>${live.map((g) => `<tr><td class="liveseat">${g.n > 1 ? `${g.n}× ` : ''}${esc(g.label)}</td><td class="muted">${g.oldest ? 'running ' + Math.max(1, Math.round((Date.now() - g.oldest) / 60000)) + ' min' : 'running'}</td></tr>`).join('')}</table>` : '<p class="muted">none — between seats or complete</p>'}
+<h2>${m.terminal ? 'Seats (run complete)' : 'Seats live now'}</h2>
+${m.terminal
+    ? (live.length
+      ? `<p class="muted">run complete — the assembler wrote the report. ${live.length} seat(s) never finished:</p><table>${live.map((g) => `<tr><td class="liveseat">${g.n > 1 ? `${g.n}× ` : ''}${esc(g.label)}</td><td class="muted">${doneLabels.has(g.label) ? 'superseded — a later attempt completed' : 'did not finish'}</td></tr>`).join('')}</table>`
+      : '<p class="muted">run complete — the assembler wrote the report.</p>')
+    : (live.length ? `<table>${live.map((g) => `<tr><td class="liveseat">${g.n > 1 ? `${g.n}× ` : ''}${esc(g.label)}</td><td class="muted">${g.oldest ? 'running ' + Math.max(1, Math.round((Date.now() - g.oldest) / 60000)) + ' min' : 'running'}</td></tr>`).join('')}</table>` : '<p class="muted">none — between seats or complete</p>')}
 <h2>Recent completions</h2>
 <table>${done.slice(-8).reverse().map((s) => `<tr><td class="nowrap">${esc(s.label)}</td><td class="muted">${esc(summarizeResult(s.result || ''))}</td></tr>`).join('\n')}</table>
 </body>${scorecardSection(m.runDir || "")}`
 }
 
-function generate(runDir, transcriptDir) {
-  const html = renderHtml(buildModel(runDir, transcriptDir))
+function generate(runDir, transcriptDir, config) {
+  const html = renderHtml(buildModel(runDir, transcriptDir, config))
   const out = join(runDir, 'dashboard.html')
   writeFileSync(out, html)
   return out
 }
 
+function parseFlag(argv, name) { const i = argv.indexOf(name); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null }
+
 function main() {
-  const [runDir, transcriptDir, flag] = process.argv.slice(2)
-  if (!runDir || !transcriptDir) { console.error('usage: node render-run-dashboard.mjs <runDir> <workflow-transcript-dir> [--watch]'); process.exit(1) }
-  const out = generate(runDir, transcriptDir)
-  console.log('dashboard:', out, flag === '--watch' ? '(watching — regenerates every 15s, Ctrl-C to stop)' : '(static snapshot — re-run or use --watch to refresh)')
-  if (flag === '--watch') {
+  const argv = process.argv.slice(2)
+  const [runDir, transcriptDir] = argv
+  if (!runDir || !transcriptDir) { console.error('usage: node render-run-dashboard.mjs <runDir> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]'); process.exit(1) }
+  // The run config (models per stage, round ceiling, lanes) is a launch argument the sandboxed
+  // engine cannot write down — the invoker passes it here so the dashboard can display it.
+  const config = {
+    model: parseFlag(argv, '--model'),
+    judgmentModel: parseFlag(argv, '--judgment-model'),
+    maxRounds: parseFlag(argv, '--max-rounds'),
+    lanes: parseFlag(argv, '--lanes'),
+  }
+  const watch = argv.includes('--watch')
+  const out = generate(runDir, transcriptDir, config)
+  console.log('dashboard:', out, watch ? '(watching — regenerates every 15s, Ctrl-C to stop)' : '(static snapshot — re-run or use --watch to refresh)')
+  if (watch) {
     // Marker-keyed lifetime: the watcher lives exactly as long as the run does. run-setup
     // writes .claude/run-live.json; run-capture removes it — when it goes, one final render
     // and exit. The dashboard becomes innate to the run without touching the workflow.
     const marker = join(process.cwd(), '.claude', 'run-live.json')
     const timer = setInterval(() => {
-      try { generate(runDir, transcriptDir) } catch (e) { console.error('regen failed:', String(e).slice(0, 120)) }
+      try { generate(runDir, transcriptDir, config) } catch (e) { console.error('regen failed:', String(e).slice(0, 120)) }
       if (!existsSync(marker)) {
-        try { generate(runDir, transcriptDir) } catch {}
+        try { generate(runDir, transcriptDir, config) } catch {}
         console.log('run-live marker gone — final render written, watcher exiting')
         clearInterval(timer)
       }

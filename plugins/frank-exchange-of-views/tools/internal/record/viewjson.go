@@ -205,3 +205,73 @@ func BoardJSONBytes(runDir string) ([]byte, error) {
 	}
 	return append(out, '\n'), nil
 }
+
+// FindingJSON is one lens finding, in the form the merge coalesces on and scorecards
+// attribute per role/round from. It replaces the red/candidates/*.md file the merge used
+// to `cat` and hand-transcribe — the finding is now a record event, read structured.
+type FindingJSON struct {
+	Label      string `json:"label"`
+	SeatID     string `json:"seat_id"`
+	Round      int    `json:"round"`
+	Role       string `json:"role"`
+	Severity   any    `json:"severity,omitempty"`
+	Likelihood any    `json:"likelihood,omitempty"`
+	Impact     any    `json:"impact,omitempty"`
+	Location   string `json:"location,omitempty"`
+	Text       string `json:"text,omitempty"`
+}
+
+// FindingsJSON is the seat-facing findings view: every lens finding on the record, in
+// event order. The merge reads it to coalesce findings into gaps (naming labels in
+// found_by); scorecards counts it per role/round for citation-yield.
+type FindingsJSON struct {
+	Findings []FindingJSON `json:"findings"`
+	Counts   struct {
+		Total int `json:"total"`
+	} `json:"counts"`
+}
+
+// FindingsJSONOf projects the record's finding events. Like BoardJSONOf it derives from
+// BoardState — never from the markdown — so the two renderings of one replay cannot drift.
+func FindingsJSONOf(b *Board) FindingsJSON {
+	out := FindingsJSON{Findings: []FindingJSON{}}
+	for _, e := range b.Events {
+		if e.Type != "finding" {
+			continue
+		}
+		fj := FindingJSON{
+			Label:    e.Payload.Str("label"),
+			SeatID:   e.SeatID,
+			Round:    e.Round,
+			Role:     RoleOf(e.SeatID),
+			Location: e.Payload.Str("location"),
+			Text:     e.Payload.Str("text"),
+		}
+		if v, ok := e.Payload.Get("severity"); ok {
+			fj.Severity = v
+		}
+		if v, ok := e.Payload.Get("likelihood"); ok {
+			fj.Likelihood = v
+		}
+		if v, ok := e.Payload.Get("impact"); ok {
+			fj.Impact = v
+		}
+		out.Findings = append(out.Findings, fj)
+	}
+	out.Counts.Total = len(out.Findings)
+	return out
+}
+
+// FindingsJSONBytes renders the findings view as indented JSON (a seat reads it in a
+// terminal transcript).
+func FindingsJSONBytes(runDir string) ([]byte, error) {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	out, err := json.MarshalIndent(FindingsJSONOf(b), "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
+}

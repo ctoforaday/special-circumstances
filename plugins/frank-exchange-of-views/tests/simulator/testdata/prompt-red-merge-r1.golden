@@ -1,7 +1,8 @@
-prompt sha256: 4437c22e38c165c681ec906d239e1b1620e8a1ad1e08f6206122c7ae9a6df133
+prompt sha256: 30a1d785c07853858a874d200b3abd38682da2b169845bdd66b929b415897464
 
 Red merge, round 1.
-FIRST ACTION (read batching — run-4 §4.6): concatenate this round's lens passes with a single bash call, `cat research/2026-01-01_golden/red/candidates/round-1-lens-*.md > <your session scratchpad>/round-1-all.md` — the output path MUST be the ABSOLUTE path of your own session scratchpad directory, never under research/2026-01-01_golden (a stray file in red/candidates/ corrupts every downstream glob and convergence count) — then read that one file instead of 6 separate reads.
+FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
+That view IS the channel: the lenses record findings as events, and there are no candidate files to read.
 THE BOARD IS THE TOOL'S (migrated 2026-07-19).
 You do NOT hand-write a ledger or an archive — you MINT each open gap and CLOSE each resolved one through `feov-record merge`, one gap per call, and the tool renders the ledger (open gaps + closure index) and the archive (closed prose).
 After your board acts, run `feov-record merge render`, then `feov-record merge show --view board` to read your own board back; your envelope's gaps array is TRANSCRIBED FROM THAT BOARD (the tool-assigned ids and the grades you minted), never authored in a parallel hand-list.
@@ -19,7 +20,7 @@ DEMANDED READS: any lineage or closure claim you assert (on the board, in the do
 GRADING v2 (the existence/consequence split — v1's 'certain' textual nits outweighed high-likelihood design flaws): every gap carries existence (verified = you checked the defect at the leaf; suspected = inferred), and LIKELIHOOD now grades the CONSEQUENCE ONLY — "this verified typo certainly exists" is existence: verified with likelihood graded on what the typo actually causes, never 'certain' unless the harm itself is certain.
 PROBE CLASSES (W1.10): any required_fix that demands a probe MUST class it — DOCUMENT-PROBE (executable now against shipped artifacts: a read, diff, version check) or LIVE-PROBE (requires built artifacts; in a design-phase debate it is DEFERRABLE and is discharged by naming it as an acceptance test with its pass condition).
 An unclassed probe demand risks blue overclaiming a file read as a probe or stalling on an impossible obligation.
-FOUND_BY: on every gap, record which lens seats surfaced it (found_by: ["L1","L4",...]) — auditable against the candidate files.
+FOUND_BY: on every gap, name the lens FINDINGS that surfaced it by their labels (found_by: ["L1-F1","L5-F3",...] — the findings view lists them); verify checks each names a recorded finding, so a role alone (L1) or an invented label will not resolve.
 Gap ids are stable across rounds (R1-1 stays R1-1); assign fresh R1-N ids to genuinely new gaps only.
 LINEAGE IS MANDATORY: when you close a gap WITH REGRESSION and mint a successor, the successor gap's "supersedes" array MUST name the closed gap's id, and your envelope's "closures" array MUST record the closure with class "closed_with_regression" — the docket detector follows these chains and an undeclared lineage is a protocol violation the script rejects.
 BOARD TELEMETRY (the stopping-judgment signal): the per-round line (open_count, mass, max_severity, new_mint, realized_open, repair_regression, edge_deltas) is COMPUTED BY THE TOOL from your board when you run feov-record merge render (after your board acts, above) — you do NOT hand-write it.

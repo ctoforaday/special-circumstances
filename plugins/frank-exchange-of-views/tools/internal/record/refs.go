@@ -53,15 +53,17 @@ func requireGaps(runDir string, ids []string, verb, flag string) error {
 
 // requireObservation resolves a disposal's target, ROUND-SCOPED, and refuses ambiguity.
 //
-// The label is not a key. Measured on the 2026-07-18 run: 15 labels were used by more than
-// one lens seat (L5-F1 exists in rounds 1, 2 and 3), so 39 of 60 disposals named something
-// that matched several findings; 13 named a label no event ever created; and 8 finding
-// events carried no label at all, making them impossible to dispose by name.
+// The historical problem (2026-07-18 run): 15 labels were used by more than one lens seat
+// (L5-F1 existed in rounds 1, 2 and 3), so 39 of 60 disposals named something that matched
+// several findings; 13 named a label no event ever created; and 8 finding events carried no
+// label at all. That is fixed at the SOURCE now: finding labels are tool-assigned, run-unique
+// per role (findinglabel.go), so a label names exactly one finding run-wide — cross-round
+// collision is impossible, not merely disambiguated.
 //
-// Round scoping is what makes the common case unambiguous, and it is what the seats
-// already meant: red-merge-r3 disposing L5-F1 means the L5-F1 that red-lens-r3-L5 found
-// THIS round, not the one from round 1. Measured, that resolves 38 of 60 cleanly with zero
-// same-round collisions.
+// Round scoping therefore is no longer the disambiguator; it is simply the natural scope of
+// a disposal — a merge coalesces THIS round's lens findings, so red-merge-r3 disposing L5-F3
+// resolves it among round 3's findings. It stays as belt-and-suspenders: with unique labels
+// it can only agree with a global lookup, and it keeps the refusal-on-ambiguity path honest.
 //
 // Where it still cannot tell, it REFUSES AND NAMES THE CANDIDATES rather than picking. A
 // silent wrong pick writes the wrong finding's fate into the record and leaves the right
@@ -234,10 +236,11 @@ func requirePriorDispute(runDir, gapID string) error {
 //
 // This was unmeasurable before ids existed: the run showed 16 observations "disposed more
 // than once", but every one was a label collision — three rounds of lens 5 each recording
-// an L5-F1, and three disposals landing on whichever replayed first. With identity assigned
-// by the tool, a second disposal of the same finding is unambiguous, and it is wrong: the
-// first fate is already on the record and in the counts, and a second silently overwrites
-// which one the projection shows.
+// an L5-F1, and three disposals landing on whichever replayed first. That collision can no
+// longer happen (finding labels are tool-assigned run-unique per role), and identity is
+// assigned by the tool, so a second disposal of the same finding is unambiguous, and it is
+// wrong: the first fate is already on the record and in the counts, and a second silently
+// overwrites which one the projection shows.
 //
 // A seat that has changed its mind about a fate is describing a REGRADE of a judgement, and
 // there is no verb for that yet — which is a finding about the tooling, and the friction

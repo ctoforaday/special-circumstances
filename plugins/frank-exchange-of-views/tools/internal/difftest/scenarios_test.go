@@ -25,7 +25,7 @@ func scenarios() []scenario {
 				base("blue", "revision", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "first pass"),
 				base("blue", "friction", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
-				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--label", "L5-F1",
+				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
 					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--reason", "unfounded leap"),
 			},
 		},
@@ -101,12 +101,12 @@ func scenarios() []scenario {
 			name: "multi_nonce_mtime_fallback", // oracle: no terminal event -> latest mtime, explicitly
 			cmds: []cmd{
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
-				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--label", "L1-F1",
+				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "older shard"),
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
 				{
 					role: "lens",
-					args: []string{"finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--label", "L1-F2",
+					args: []string{"finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F2",
 						"--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "newer shard"},
 					mtimes: map[string]time.Time{
 						"events-red-lens-r1-L1-NONCE001.jsonl": time.Unix(1_700_000_000, 0),
@@ -117,11 +117,11 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "same_label_next_round_is_not_a_collision", // oracle: keys are seat-qualified
+			name: "finding_labels_run_unique_per_role_across_rounds", // oracle: the tool assigns L{role}-F{N}, the sequence spanning rounds — a lens cannot reuse a label, so round two gets L1-F2, not another L1-F1
 			cmds: []cmd{
-				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--label", "L1-F1",
+				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "round one"),
-				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r2-L1", "--label", "L1-F1",
+				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r2-L1", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "round two"),
 			},
 		},
@@ -194,7 +194,7 @@ func scenarios() []scenario {
 				base("merge", "position", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--reason-file", "{RUN}/prose.md"),
 				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "scope-creep", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason-file", "{RUN}/prose.md"),
-				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--label", "L5-F9",
+				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--reason-file", "{RUN}/prose.md"),
 			},
 		},
@@ -286,10 +286,10 @@ func scenarios() []scenario {
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
 				base("lens", "cite", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--claim", "claim one",
 					"--reference", "https://example.invalid/a", "--confidence", "high", "--access-date", "2026-07-18"),
-				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--label", "L1-F1",
+				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--location", "## S2", "--reason", "citation does not support"),
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5"),
-				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--label", "L5-F1",
+				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--location", "## S4", "--reason", "a leap of faith"),
 				base("lens", "observe", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--kind", "checked-held", "--label", "L5-N1", "--reason", "checked, held"),
 				base("merge", "register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
@@ -297,7 +297,7 @@ func scenarios() []scenario {
 				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "L5-N1", "--as", "banked"),
 				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "citation-drift", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--cx", "medium",
-					"--location", "## S2", "--found-by", "L1,L5", "--problem", "the cited source does not say this"),
+					"--location", "## S2", "--found-by", "L1-F1,L5-F1", "--problem", "the cited source does not say this"),
 				base("merge", "position", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--reason", "round one: FAIL"),
 				base("merge", "verdict", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--as", "FAIL"),
 			},

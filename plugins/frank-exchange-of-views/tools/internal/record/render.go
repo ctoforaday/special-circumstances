@@ -489,6 +489,23 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		return RenderResult{}, err
 	}
 
+	// findings.md: the human-readable projection of the lens findings that now live on the
+	// record (the structured form is `show --view findings`). It gives the dashboard and a
+	// reader a count and a per-finding line where the candidate files used to sit.
+	finds := []string{"# red findings — RENDERED PROJECTION (source of truth: records/ event log)"}
+	for _, e := range b.Events {
+		if e.Type != "finding" {
+			continue
+		}
+		finds = append(finds, fmt.Sprintf("- %s | %s | sev %s · %s x %s | r%d | %s",
+			undefStr(e.Payload, "label"), e.SeatID,
+			undefStr(e.Payload, "severity"), undefStr(e.Payload, "likelihood"), undefStr(e.Payload, "impact"),
+			e.Round, e.Payload.Str("text")))
+	}
+	if err := writeAtomic(filepath.Join(out, "findings.md"), []byte(strings.Join(finds, "\n")+"\n")); err != nil {
+		return RenderResult{}, err
+	}
+
 	return RenderResult{Out: out, Anomalies: len(b.Anomalies), Open: len(open), Closed: len(closed)}, nil
 }
 

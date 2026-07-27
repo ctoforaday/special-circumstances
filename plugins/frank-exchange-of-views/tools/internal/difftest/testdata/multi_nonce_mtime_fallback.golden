@@ -3,20 +3,20 @@ exit 0
 stdout:
 registered red-lens-r1-L1 (shard nonce NONCE001)
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --label L1-F1 --severity low --likelihood low --impact low --reason older shard
+$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity low --likelihood low --impact low --reason older shard
 exit 0
 stdout:
-finding recorded: FINDING001 (L1-F1) — the merge disposes it by ID, not by label
+finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
 $ lens register --run {RUN} --seat-id red-lens-r1-L1
 exit 0
 stdout:
 registered red-lens-r1-L1 (shard nonce NONCE002)
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --label L1-F2 --severity low --likelihood low --impact low --reason newer shard
+$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F2 --severity low --likelihood low --impact low --reason newer shard
 exit 0
 stdout:
-finding recorded: FINDING001 (L1-F2) — the merge disposes it by ID, not by label
+finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
 $ lens render --run {RUN}
 exit 0
@@ -25,11 +25,11 @@ stdout:
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L1-NONCE001.jsonl
-{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.16.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
-{"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","impact":"low","label":"L1-F1","likelihood":"low","severity":"low","text":"older shard"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":1,"type":"finding"}
+{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.17.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
+{"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"low","label":"L1-F1","likelihood":"low","severity":"low","text":"older shard"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":1,"type":"finding"}
 -- events-red-lens-r1-L1-NONCE002.jsonl
-{"key":"red-lens-r1-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.16.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":2,"type":"register"}
-{"key":"red-lens-r1-L1:finding:L1-F2","nonce":"NONCE002","payload":{"finding_id":"FINDING001","impact":"low","label":"L1-F2","likelihood":"low","severity":"low","text":"newer shard"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":3,"type":"finding"}
+{"key":"red-lens-r1-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.17.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":2,"type":"register"}
+{"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE002","payload":{"finding_id":"FINDING001","finding_key":"F2","impact":"low","label":"L1-F1","likelihood":"low","severity":"low","text":"newer shard"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":3,"type":"finding"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md
@@ -46,6 +46,10 @@ stdout:
 -- debate.md
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
+-- findings.md
+# red findings — RENDERED PROJECTION (source of truth: records/ event log)
+- L1-F1 | red-lens-r1-L1 | sev low · low x low | r1 | newer shard
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 
@@ -61,7 +65,7 @@ stdout:
 
 ## undisposed lens observations (every observation demands a merge disposition)
 
-- red-lens-r1-L1 L1-F2: newer shard
+- red-lens-r1-L1 L1-F1: newer shard
 
 -- lines-of-inquiry.md
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)

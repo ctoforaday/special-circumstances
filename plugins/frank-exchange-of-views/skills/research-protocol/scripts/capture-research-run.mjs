@@ -70,7 +70,7 @@ export function shardAudit(runDir, results) {
 }
 
 // W1.2 — friction harvest THEN parity. Lens seats have no friction.md write path (their
-// envelope friction survived only in candidates until the merge relayed it by hand —
+// envelope friction reached the record only when the merge relayed it by hand —
 // red-merge-r1 friction, run 5), and abort-killed seats lose the file append entirely. The
 // loss class is closed mechanically: capture appends any envelope entry missing from the
 // file, clearly labeled as capture-authored. Parity then reports REPAIRED (visible, never

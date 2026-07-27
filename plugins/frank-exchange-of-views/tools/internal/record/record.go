@@ -520,13 +520,17 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
 		}
 	case "finding", "observe":
-		// A finding with no label CANNOT BE DISPOSED, and every finding must get a fate.
-		// Measured on the 2026-07-18 run: 8 finding/observe events carried no label at
-		// all, so the merge could not name them even to decline them — they were
-		// unreferenceable from the moment they were written, and they sat in the
-		// undisposed set forever because nothing could ever address them.
+		// A finding/observation with no label CANNOT BE ADDRESSED, and every one must get
+		// a fate. Measured on the 2026-07-18 run: 8 finding/observe events carried no label
+		// at all, so the merge could not name them even to decline them — they sat in the
+		// undisposed set forever. The invariant holds regardless of WHO supplies the label:
+		// `observe` takes --label from the seat; a `finding` label is TOOL-assigned
+		// (L{role}-F{N}), so this refusal is an internal guard for it, not a seat message.
 		if !p.Has("label") || p.Str("label") == "" {
-			return fmt.Errorf("record: %s requires --label — the merge disposes findings BY LABEL, so an unlabelled one can never be given a fate and stays open forever", typ)
+			if typ == "observe" {
+				return fmt.Errorf("record: observe requires --label — findings are addressed BY LABEL, so an unlabelled one can never be given a fate and stays open forever")
+			}
+			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be addressed and stays open forever")
 		}
 	case "dispose":
 		// BY ID FIRST. A tool-assigned id is unambiguous by construction; the label

@@ -33,8 +33,8 @@ research/<date>_<slug>/
 │   │                  #   round 1 (write-guard-verified names), NOT skeleton-born
 │   ├── archive.md     # immutable closed prose, append-only; read on demand (near-match, chain
 │   │                  #   rulings, spot-checks) — never resident in the default merge/judge read
-│   ├── citation-ledger.md  # verified citations don't un-verify: claim | reference | confidence | round | access-date
-│   └── candidates/    # per-lens audit passes (lens-scoped labels L1-F1...), preserved
+│   └── citation-ledger.md  # verified citations don't un-verify: claim | reference | confidence | round | access-date
+│                      #   (lens findings are RECORD EVENTS now — read via `show --view findings`, no candidate files)
 ├── debate.md          # the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
 │                      #   ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the judge
 │                      #   rules on the closings, the transcript, and the final artifact state only)
