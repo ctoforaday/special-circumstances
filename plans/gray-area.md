@@ -124,14 +124,14 @@ the rule required.
 
 | Event | What it buys |
 |---|---|
-| `PostToolUseFailure` | Deterministic strike counting for **anti-spinning** — the 3-strike limit currently lives only in a skill and is enforced by the model against itself |
+| `PostToolUseFailure` | Deterministic strike counting for **anti-spinning** — the 3-strike limit currently lives only in a skill and is enforced by the model against itself *(filed: #127)* |
 | `StopFailure` | Matched on error type (`rate_limit`, `overloaded`, `billing_error`, …) — resilience for **sleeper-service**'s unattended loops |
 | `TaskCreated` / `TaskCompleted` | Exit 2 prevents creation or completion — the enforcement point for PR #3's improvement **I1**, that a forward actionable must land in the durable queue and not only in the note |
 | `InstructionsLoaded` | Observability-only: which `CLAUDE.md` or rule loaded, why (`session_start`, `nested_traversal`, `path_glob_match`, `include`, `compact`), and what triggered it. Answers "did the rules actually bind on this run?" — currently unanswerable |
-| `ConfigChange` | Exit 2 blocks a settings or skills change mid-session — an **agent-guardrails** surface |
+| `ConfigChange` | Exit 2 blocks a settings or skills change mid-session — an **agent-guardrails** surface, and the one path around `sleeper-service`'s human promotion gate *(filed: #128)* |
 | `SessionEnd` | Reason-matched (`clear`, `logout`, `prompt_input_exit`, `other`) — the seal point for a session that ends without compacting |
 | `PermissionRequest` / `PermissionDenied` | Programmatic allow/deny with `updatedInput`; `retry` on denial |
-| `PostToolUse` → `updatedToolOutput` | Replaces tool output **before the model sees it** — a real lever for **context-efficiency** and for the silent-truncation problem |
+| `PostToolUse` → `updatedToolOutput` | Replaces tool output **before the model sees it** — a real lever for **context-efficiency**, provided our own truncation is marked rather than silent *(filed: #129)* |
 | `MessageDisplay` | `displayContent` replaces the delta on screen; display-only, stored message untouched |
 | `CwdChanged`, `DirectoryAdded`, `WorktreeCreate`/`Remove`, `Setup` | Environment lifecycle; `CLAUDE_ENV_FILE` lets a hook export env into subsequent Bash calls |
 | `Elicitation` / `ElicitationResult` | Programmatic response to MCP elicitation |
