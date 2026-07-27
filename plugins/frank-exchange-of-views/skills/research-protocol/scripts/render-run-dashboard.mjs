@@ -9,6 +9,7 @@
 // Writes <runDir>/dashboard.html (open it in a browser; it meta-refreshes every 20s).
 // --watch regenerates every 15s until Ctrl-C. Read-only over the run; writes only the html.
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseRenderedRows, latestSection } from './scorecards.mjs'
@@ -169,35 +170,31 @@ export function buildModel(runDir, transcriptDir, config = {}) {
 
   // CONTENTS over bytes (review feedback): counts and states, not file sizes.
   const readIf = (rel) => { const p = join(runDir, rel); return existsSync(p) ? readFileSync(p, 'utf8') : null }
-  const frictionTxt = readIf('friction.md')
-  // Entries are ATTRIBUTED LINES ("blue-synthesize: ...", "red-merge-r2: ..."), not
-  // markdown bullets. Counting /^- / found zero of the seven real entries in the first
-  // live run and the dashboard reported "none logged yet" — the writer and the reader
-  // disagreeing about the format, which is the same defect class as the scorecard
-  // parser and the seat table. What it hid was the entire tool-failure surface of the
-  // run: a Write guard blocking the one seat whose deliverable is a file, `merge mint`
-  // having no amend path, `spot-check` unable to record an honestly-empty round.
-  const frictionLines = frictionTxt
-    ? frictionTxt.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
-    : []
-  const friction = {
-    count: frictionLines.length,
-    last: frictionLines.length ? frictionLines[frictionLines.length - 1] : null,
-  }
-  // Projections all land in records/render-shadow/ (the tool's render output); read there
-  // first, with the legacy red/ path as a fallback for pre-migration runs. Reading only red/
-  // left the red board blank on every post-migration run — the same miss the telemetry read
-  // above already fixed.
-  const ledgerTxt = readIf('records/render-shadow/ledger.md') || readIf('red/ledger.md')
-  const archiveTxt = readIf('records/render-shadow/archive.md') || readIf('red/archive.md')
-  // Lens findings now live on the record; findings.md is the render projection (in
-  // records/render-shadow/, where every projection lands — NOT red/, which is why this reads
-  // there first). The count is red's raw leaf-audit volume BEFORE the merge coalesces it into
-  // gaps, so it appears during the red rounds, ahead of the merge-born ledger.
-  const findingsTxt = readIf('records/render-shadow/findings.md') || readIf('red/findings.md')
-  // Citations are the other half of the record-canonical pair: cite events, projected to the
-  // citation-ledger. One data row per verified claim (the header line is skipped).
-  const citationsTxt = readIf('records/render-shadow/citation-ledger.md') || readIf('red/citation-ledger.md')
+  // json-mode: the record-derived numbers come from the tool's structured views
+  // (feov-record merge show --view board|findings|friction — JSON is implicit for these views,
+  // there is no --json flag), NOT from parsing render-shadow markdown. This is the second-reader
+  // removal — the dashboard no longer re-derives the record with heuristic regex. config.bin is
+  // the feov-record EXECUTABLE PATH (mirroring scorecards' --bin). Without it, or on a run whose
+  // record does not exist yet, viewJSON returns null and the record tiles read "unavailable" —
+  // the live watcher must never crash on a run whose board is not there yet.
+  // config.viewJSON is a test seam (inject canned view shapes without a real binary); in
+  // production it is the execFileSync spawn of feov-record at config.bin.
+  const viewJSON = config.viewJSON || ((view) => {
+    if (!config.bin) return null
+    try { return JSON.parse(execFileSync(config.bin, ['merge', 'show', '--run', runDir, '--view', view], { encoding: 'utf8' })) } catch { return null }
+  })
+  const boardJSON = viewJSON('board')
+  const findingsJSON = viewJSON('findings')
+  const frictionJSON = viewJSON('friction')
+  // Friction is a record EVENT now (the friction verb); count + latest come from the friction
+  // view, not the retired hand-written friction.md. The last entry keeps the "seat: text"
+  // attributed shape the tile rendered before. null when the view is unavailable (no --bin).
+  const friction = frictionJSON
+    ? {
+        count: frictionJSON.counts.total,
+        last: frictionJSON.friction.length ? `${frictionJSON.friction.at(-1).seat_id}: ${frictionJSON.friction.at(-1).text}` : null,
+      }
+    : { count: null, last: null }
   // Terminal verdict from the ASSEMBLED report's stamp — the run's REAL outcome
   // (CEILING-TERMINATED, VERIFIED, HALTED, …), distinct from red's per-round verdict, which
   // stays FAIL until a PASS or the ceiling and is the wrong number to leave on a finished run.
@@ -209,39 +206,25 @@ export function buildModel(runDir, transcriptDir, config = {}) {
   const mv = reportTxt && reportTxt.match(/\*\*Verdict:\*\*\s*([^\s—\n]+)/)
   const terminalVerdict = mv ? mv[1] : null
   const terminal = reportTxt !== null
-  // Ordered MOST SPECIFIC FIRST, and it must stay that way: the match below is a
-  // substring test, so listing `high` before `medium-high` made every
-  // medium-high row report as high (and every low-medium row as medium) —
-  // the compound grades have the simple ones as substrings. That silently
-  // inflated the high-severity count on the tile a human uses to judge whether
-  // the board is getting worse.
-  const GRADES = ['medium-high', 'low-medium', 'certain', 'high', 'medium', 'low', 'trivial', 'realized']
-  const idLine = /R\d+-\d+/
-  let openRows = 0
+  // Board-derived counts from the board JSON view — the authoritative record read that
+  // replaces the heuristic ledger/archive markdown parse (and the compound-grade substring
+  // bug, and the telemetry-wins-over-under-read fallback: the board JSON does not under-read,
+  // so no fallback is needed). Severity is the gap's own field; open/closed/citation counts are
+  // the tool's counts. null-safe: a null boardJSON (no --bin / pre-record run) → empty shards,
+  // rendered as "unavailable" tiles.
   const openBySeverity = {}
-  if (ledgerTxt) {
-    // Heuristic over red's ledger: rows above the closure index are the open board.
-    const closureAt = ledgerTxt.search(/closure index/i)
-    const openSection = closureAt >= 0 ? ledgerTxt.slice(0, closureAt) : ledgerTxt
-    for (const line of openSection.split('\n')) {
-      if (!idLine.test(line) || !line.includes('|')) continue
-      openRows++
-      const low = line.toLowerCase()
-      const g = GRADES.find((g2) => low.includes(g2))
-      if (g) openBySeverity[g] = (openBySeverity[g] || 0) + 1
-    }
-  }
-  const shards = {
-    ledgerExists: ledgerTxt !== null,
-    openRows,
-    openBySeverity,
-    findings: findingsTxt ? (findingsTxt.match(/^- /gm) || []).length : 0,
-    citations: citationsTxt ? citationsTxt.split('\n').filter((l) => l.includes(' | ')).length : 0,
-    // LINE count, not id-occurrence count: a closure row also NAMES its supersedes ids in
-    // the fourth column, so occurrence-counting read 88 for a 52-row index (seen live, run 5).
-    closureIndexRows: ledgerTxt ? ledgerTxt.slice(Math.max(0, ledgerTxt.search(/closure index/i))).split('\n').filter((l) => idLine.test(l) && l.includes('|')).length : 0,
-    archiveRecords: archiveTxt ? (archiveTxt.match(/^#{1,4}\s+.*R\d+-\d+/gm) || []).length : 0,
-  }
+  if (boardJSON) for (const g of boardJSON.open) { const s = String(g.severity ?? '').toLowerCase().trim(); if (s) openBySeverity[s] = (openBySeverity[s] || 0) + 1 }
+  const shards = boardJSON
+    ? {
+        ledgerExists: true,
+        openRows: boardJSON.counts.open,
+        openBySeverity,
+        findings: findingsJSON ? findingsJSON.counts.total : null,
+        citations: boardJSON.counts.citations,
+        closureIndexRows: boardJSON.counts.closed,
+        archiveRecords: boardJSON.closed.length,
+      }
+    : { ledgerExists: false, openRows: 0, openBySeverity: {}, findings: null, citations: null, closureIndexRows: 0, archiveRecords: 0 }
   // Blue corpus size in CLAIMS (last blue envelope in the journal), not bytes.
   let blueClaims = null
   for (const j of journal) if (j.result && typeof j.result === 'object' && typeof j.result.claim_count === 'number') blueClaims = j.result.claim_count
@@ -475,13 +458,13 @@ ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin) ? `<p cl
 <div class="barlabels">${m.steps.map((s) => `<span title="${esc(s.name)}">${esc(SHORT[s.name] || s.name.replace('round ', 'r'))}</span>`).join('')}</div>
 <div class="tiles" style="margin-top:12px">
 <div class="tile"><b>${m.latest ? esc(m.latest.mass) : '—'}</b><span>board mass</span></div>
-<div class="tile"><b>${m.latest ? esc(m.latest.open_count) : '—'}</b><span>open gaps</span></div>
+<div class="tile"><b>${m.shards.ledgerExists ? esc(m.shards.openRows) : (m.latest ? esc(m.latest.open_count) : '—')}</b><span>open gaps</span></div>
 <div class="tile"><b>${m.latest ? esc(m.latest.max_severity) : '—'}</b><span>max severity</span></div>
 <div class="tile"><b>${m.blueClaims ?? '—'}</b><span>blue claims</span></div>
-<div class="tile"><b>${m.shards.findings}</b><span>lens findings</span></div>
-<div class="tile"><b>${m.shards.citations}</b><span>citations checked</span></div>
+<div class="tile"><b>${m.shards.findings ?? '—'}</b><span>lens findings</span></div>
+<div class="tile"><b>${m.shards.citations ?? '—'}</b><span>citations checked</span></div>
 <div class="tile"><b>${m.terminalVerdict || m.judiciary.latestVerdict || '—'}</b><span>${m.terminalVerdict ? 'final verdict' : 'latest verdict' + (m.judiciary.verdictRound ? ` (r${m.judiciary.verdictRound})` : '')}</span></div>
-<div class="tile"><b>${m.friction.count}</b><span>friction entries</span></div>
+<div class="tile"><b>${m.friction.count ?? '—'}</b><span>friction entries</span></div>
 ${m.eta && m.eta.state === 'running' && (m.eta.lowMin || m.eta.highMin)
   ? `<div class="tile"><b>${m.eta.lowMin}–${m.eta.highMin}m</b><span>projected remaining</span></div>`
   : ''}
@@ -496,11 +479,11 @@ ${m.rates.map((r, i) => { const t = m.telemetry[i]; return `<tr><td>${esc(r.roun
 </table></div>
 <h2>Red's board (contents, not bytes)</h2>
 ${m.shards.ledgerExists ? `<table>
-<tr><td>open gaps on the ledger</td><td>${m.latest && m.latest.open_count > 0 && m.shards.openRows < m.latest.open_count ? `${esc(m.latest.open_count)} <span class="muted">(from telemetry — heuristic ledger parse found ${esc(m.shards.openRows)} row(s); telemetry wins when the parse under-reads)</span>` : `${m.shards.openRows}${Object.keys(m.shards.openBySeverity).length ? ' <span class="muted">(' + Object.entries(m.shards.openBySeverity).map(([k, v]) => `${esc(k)}:${esc(v)}`).join(' · ') + ')</span>' : ''}`}</td></tr>
-<tr><td>closure index rows</td><td>${m.shards.closureIndexRows}</td></tr>
+<tr><td>open gaps on the board</td><td>${m.shards.openRows}${Object.keys(m.shards.openBySeverity).length ? ' <span class="muted">(' + Object.entries(m.shards.openBySeverity).map(([k, v]) => `${esc(k)}:${esc(v)}`).join(' · ') + ')</span>' : ''}</td></tr>
+<tr><td>closed gaps (closure index)</td><td>${m.shards.closureIndexRows}</td></tr>
 <tr><td>archived closure records</td><td>${m.shards.archiveRecords}</td></tr>
-<tr><td>lens findings recorded</td><td>${m.shards.findings} <span class="muted">(raw leaf audit, before the merge coalesces into gaps)</span></td></tr>
-</table><p class="muted">severity counts are a heuristic parse of red's own rows — the ledger is the record</p>` : '<p class="muted">ledger not yet created (red-merge-born at round 1)</p>'}
+<tr><td>lens findings recorded</td><td>${m.shards.findings ?? '—'} <span class="muted">(raw leaf audit, before the merge coalesces into gaps)</span></td></tr>
+</table><p class="muted">counts come from the board view (feov-record show --view board) — the record, read once by the tool, not a markdown parse</p>` : '<p class="muted">board unavailable — pass --bin to read the record (or the record does not exist yet)</p>'}
 <h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>
 ${m.judiciary.judgeSittings ? `<table>
 <tr><td>judge sittings</td><td>${m.judiciary.judgeSittings}</td></tr>
@@ -510,7 +493,7 @@ ${m.judiciary.judgeSittings ? `<table>
 <tr><td>grade migration on multi-round chains</td><td>down ${m.judiciary.migDown} · up ${m.judiciary.migUp} · flat ${m.judiciary.migFlat} <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>
 </table>` : '<p class="muted">no judge sittings yet</p>'}
 <h2>Friction — logged pain points</h2>
-${m.friction.count ? `<p>${m.friction.count} attributed entr${m.friction.count === 1 ? 'y' : 'ies'} · latest: <span class="muted">${esc((m.friction.last || '').slice(0, 160))}</span></p>` : '<p class="muted">none logged yet</p>'}
+${m.friction.count == null ? '<p class="muted">unavailable — pass --bin to read the record</p>' : m.friction.count ? `<p>${m.friction.count} friction event${m.friction.count === 1 ? '' : 's'} on the record · latest: <span class="muted">${esc((m.friction.last || '').slice(0, 160))}</span></p>` : '<p class="muted">none on the record</p>'}
 <h2>${m.terminal ? 'Seats (run complete)' : 'Seats live now'}</h2>
 ${m.terminal
     ? (live.length
@@ -534,10 +517,11 @@ function parseFlag(argv, name) { const i = argv.indexOf(name); return i >= 0 && 
 function main() {
   const argv = process.argv.slice(2)
   const [runDir, transcriptDir] = argv
-  if (!runDir || !transcriptDir) { console.error('usage: node render-run-dashboard.mjs <runDir> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]'); process.exit(1) }
+  if (!runDir || !transcriptDir) { console.error('usage: node render-run-dashboard.mjs <runDir> <workflow-transcript-dir> [--bin <feov-record path>] [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]'); process.exit(1) }
   // The run config (models per stage, round ceiling, lanes) is a launch argument the sandboxed
   // engine cannot write down — the invoker passes it here so the dashboard can display it.
   const config = {
+    bin: parseFlag(argv, '--bin'), // feov-record EXECUTABLE PATH; the dashboard reads the record via `show --view … --json`
     model: parseFlag(argv, '--model'),
     judgmentModel: parseFlag(argv, '--judgment-model'),
     maxRounds: parseFlag(argv, '--max-rounds'),
