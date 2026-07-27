@@ -44,6 +44,9 @@ type runner struct {
 	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
 	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
 	raised []map[string]any
+	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
+	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
+	models []string
 }
 
 func (r *runner) coin(pct int) bool { return r.rng.Intn(100) < pct }
@@ -417,7 +420,9 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			vm.Set("args", map[string]any{
 				"topic": "fuzz", "runDir": runDir, "binDir": binDir(bin),
 				"lanes": 1, "laneFloorOverride": "fuzz", "maxRounds": 3,
-				"model": nil, "judgmentModel": nil,
+				// #111: both tiers are now REQUIRED — nil would refuse dispatch. Both haiku so the
+				// tier oracle expects every dispatched seat to carry exactly "haiku".
+				"model": "haiku", "judgmentModel": "haiku",
 			})
 			if _, err := vm.RunString(preamble); err != nil {
 				rejected = "preamble: " + err.Error()
@@ -439,6 +444,16 @@ func runOne(wrapped, bin string, seed int64) outcome {
 								seatID = fields[0]
 							}
 						}
+					}
+				}
+				// #111 tier capture: record the model this dispatch carried ("unset" if absent).
+				if len(call.Arguments) > 1 {
+					if o := call.Argument(1).ToObject(vm); o != nil {
+						mdl := "unset"
+						if v := o.Get("model"); v != nil && !goja.IsUndefined(v) && !goja.IsNull(v) {
+							mdl = v.String()
+						}
+						r.models = append(r.models, mdl)
 					}
 				}
 				env := r.envelopeFor(seatID)
@@ -479,6 +494,19 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	if res.err != "" {
 		return res
 	}
+	// Oracle #111 (map-free): both tiers were configured haiku, so every dispatched seat must have
+	// carried model "haiku" — none unset, none on another tier. This needs no bulk-seat list; the
+	// SEAT_CLASS<->dispatch binding is proved separately by debate-dispatch.test.mjs.
+	if len(r.models) == 0 {
+		res.err = "no agent() call carried a model — the resolver regressed to unset"
+		return res
+	}
+	for _, mdl := range r.models {
+		if mdl != "haiku" {
+			res.err = "a seat dispatched on tier " + mdl + ", not the configured haiku"
+			return res
+		}
+	}
 	// Oracle 1: the record the run left must pass verify.
 	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
 		res.err = "verify FAILED:\n" + truncate(string(out))
@@ -498,6 +526,46 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	}
 	res.dialectic = tallyDialectic(board)
 	return res
+}
+
+// #111: debate.js must REFUSE to dispatch when either model tier is unset — the engine never
+// guesses or inherits a tier. The guard throws at the top of the async IIFE, so __result rejects
+// with the flag-named message. No binary needed: the throw precedes any tool act.
+func TestDispatchRefusesUnsetModel(t *testing.T) {
+	wrapped := debateWrapped(t)
+	cases := []struct {
+		name, want string
+		args       map[string]any
+	}{
+		{"model unset", "refusing dispatch — model unset", map[string]any{"topic": "x", "runDir": "research/2026-01-01_t", "lanes": 1, "laneFloorOverride": "t", "judgmentModel": "haiku"}},
+		{"judgmentModel unset", "refusing dispatch — judgmentModel unset", map[string]any{"topic": "x", "runDir": "research/2026-01-01_t", "lanes": 1, "laneFloorOverride": "t", "model": "haiku"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			loop := eventloop.NewEventLoop()
+			var got string
+			loop.Run(func(vm *goja.Runtime) {
+				vm.Set("args", c.args)
+				vm.Set("agent", func(goja.FunctionCall) goja.Value { return goja.Undefined() })
+				if _, err := vm.RunString(preamble); err != nil {
+					t.Fatalf("preamble: %v", err)
+				}
+				if _, err := vm.RunString(wrapped); err != nil {
+					got = "run: " + err.Error()
+				}
+			})
+			loop.Run(func(vm *goja.Runtime) {
+				if v := vm.Get("__result"); v != nil {
+					if pr, ok := v.Export().(*goja.Promise); ok && pr.State() == goja.PromiseStateRejected {
+						got = pr.Result().String()
+					}
+				}
+			})
+			if !strings.Contains(got, c.want) {
+				t.Errorf("expected rejection containing %q, got %q", c.want, got)
+			}
+		})
+	}
 }
 
 // tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.

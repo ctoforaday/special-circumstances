@@ -12,6 +12,7 @@
 // Pricing is LIST-RATE arithmetic ($/MTok below) — plan meters typically observe less.
 // Run 3 calibration: the meter drew ~0.6x of these figures.
 import { classifySeat as classifyTranscript } from './seat-classify.mjs'
+import { tierMismatch } from './model-guard.mjs'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -51,7 +52,13 @@ export function scanTranscript(txt) {
     let j; try { j = JSON.parse(line) } catch { continue }
     const u = j.message && j.message.usage
     if (u) {
-      model = j.message.model || model; turns++
+      // A recognized tier always wins; an unrecognized string (e.g. a "<synthetic>" harness turn)
+      // only fills a still-empty slot. One synthetic turn must not reprice a whole seat to the
+      // fallback tier — which mislabels cost AND fired a false #111 tier-guard FAIL. Recognized =
+      // matches a PRICES key (the one tier source), so this adds no second copy of the tier list.
+      const mm = j.message.model
+      if (mm && (!model || Object.keys(PRICES).some((k) => mm.toLowerCase().includes(k)))) model = mm
+      turns++
       inp += u.input_tokens || 0; out += u.output_tokens || 0
       cr += u.cache_read_input_tokens || 0; cw += u.cache_creation_input_tokens || 0
     }
@@ -118,6 +125,23 @@ console.log('- Known physics (runs 3-4 baseline): lens cost tracks CORPUS size (
 // per-round dollars — the evidence base every deferred actuation decision needs.
 const runDir = process.argv[3]
 if (runDir) {
+  // ## Tier check (#111): actual price-tier per seat vs the tier its class was configured to run
+  // on. DEARER than configured = the fable trap (FAIL); CHEAPER = discounted verification (WARN).
+  // Config is inputs/run-config.json; debate.js now requires both tiers, so a current run has them.
+  try {
+    let cfg = {}
+    try { cfg = JSON.parse(readFileSync(join(runDir, 'inputs', 'run-config.json'), 'utf8')) } catch {}
+    // rows carry actual tier per transcript; several transcripts can share a seat-round, so dedupe.
+    const seen = new Set()
+    const findings = tierMismatch(rows, cfg).filter((f) => {
+      const k = `${f.seat}|${f.round}|${f.verdict}|${f.actual}`
+      if (seen.has(k)) return false
+      seen.add(k); return true
+    })
+    console.log('\n## Tier check\n')
+    if (!findings.length) console.log(`- PASS — every seat ran on its configured tier (bulk: ${cfg.model || 'undeclared'}, judgment: ${cfg.judgmentModel || 'undeclared'}).`)
+    else for (const f of findings) console.log(`- **${f.verdict}** — ${f.why}`)
+  } catch { /* run-config unreadable — tier check silently skipped, telemetry below still runs */ }
   try {
     const telPath = [join(runDir, 'records', 'render-shadow', 'board-telemetry.jsonl'), join(runDir, 'trajectories', 'board-telemetry.jsonl')].find(existsSync)
     const lines = (telPath ? readFileSync(telPath, 'utf8') : '')

@@ -254,13 +254,13 @@ test('run-setup CLI (W1.1): a cite whose path does not exist at its pin fails se
   g(['add', 'real.md']); g(['commit', '-q', '-m', 'fixture'])
   const runDir = join(cwd, 'research', 'pin-test')
   const bad = spawnSync(process.execPath, [join(SCRIPTS, 'setup-research-run.mjs'), runDir,
-    '--topic', 't', '--cite', 'plans/does-not-exist.md', '--no-qmd'], { cwd })
+    '--topic', 't', '--model', 'haiku', '--judgment-model', 'haiku', '--cite', 'plans/does-not-exist.md', '--no-qmd'], { cwd })
   assert.equal(bad.status, 2, `expected exit 2, got ${bad.status}: ${bad.stderr}`)
   assert.ok(bad.stderr.toString().includes('PIN VALIDATION FAILED') && bad.stderr.toString().includes('does-not-exist.md'))
   assert.ok(bad.stderr.toString().includes('inputs/'), 'the staging remedy is stated')
   assert.ok(!existsSync(join(runDir, 'blue')), 'nothing was created — validation runs before the skeleton')
   const good = spawnSync(process.execPath, [join(SCRIPTS, 'setup-research-run.mjs'), runDir,
-    '--topic', 't', '--cite', 'real.md', '--no-qmd'], { cwd })
+    '--topic', 't', '--model', 'haiku', '--judgment-model', 'haiku', '--cite', 'real.md', '--no-qmd'], { cwd })
   assert.equal(good.status, 0, good.stderr.toString())
   assert.ok(good.stdout.toString().includes('1 cite(s) verified at their pins'))
 })
@@ -269,7 +269,7 @@ test('run-setup CLI: arg parsing end-to-end — topic header, multi-cite pins, -
   const cwd = tmp()
   const runDir = join(cwd, 'research', '2026-01-01_cli-test')
   const r = spawnSync(process.execPath, [join(SCRIPTS, 'setup-research-run.mjs'), runDir,
-    '--topic', 'cli parse topic', '--cite', 'a/path@abc1234', '--cite', 'b/path', '--no-qmd'], { cwd })
+    '--topic', 'cli parse topic', '--model', 'haiku', '--judgment-model', 'haiku', '--cite', 'a/path@abc1234', '--cite', 'b/path', '--no-qmd'], { cwd })
   assert.equal(r.status, 0, r.stderr.toString())
   const out = r.stdout.toString()
   assert.ok(out.includes('skeleton: 7 created') && out.includes('skipped (--no-qmd)'), out)

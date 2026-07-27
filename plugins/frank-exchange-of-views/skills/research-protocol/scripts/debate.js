@@ -18,17 +18,18 @@ export const meta = {
 //   FAIL-with-empty-gaps + friction lost on throw (run 3 retrospective, report §3 rows 20-24).
 //   Behavior needs live agents — /research --smoke (1 lane + laneFloorOverride, 1 round,
 //   model=haiku) exercises the pipeline for ~50k tokens.
-//   Model ladder: omit `model` for keeper runs (inherits session model); sonnet for development;
-//   haiku for smoke. NEVER change `model` OR `judgmentModel` on a resume — they change agent()
-//   opts, bust the cache keys, and re-run completed rounds at full price.
+//   Model tiers are REQUIRED — both `model` and `judgmentModel` must be set explicitly. The engine
+//   throws rather than guess a tier or inherit the session model: a silently expensive (or silently
+//   cheap) tier was the #111 trap. sonnet for development; --smoke sets BOTH to haiku. NEVER change
+//   `model` OR `judgmentModel` on a resume — they change agent() opts, bust the cache keys, and
+//   re-run completed rounds at full price.
 //   Per-role split (efficiency doctrine: cheapen redundancy and mechanics, never judgment or
 //   the adversary): `model` drives the BULK seats (frontier, blue lanes, red lenses, blue
 //   responses); `judgmentModel` drives the JUDGMENT seats (blue-synthesize, red-merge,
-//   lead-judge, assemble) and defaults to INHERIT-SESSION, not to `model` — so a dev run with
-//   model=sonnet still gets full-strength judgment unless you explicitly cheapen it too.
+//   lead-judge, assemble). Neither inherits — every run, keeper or dev, names both.
 //   KNOWN TRADEOFF (retrospective §3 row 16b): red LENSES ride the bulk tier — on a cheap-model
 //   dev/smoke run, treat lens-sourced gap grades with a confidence discount. For keeper runs,
-//   omit `model` entirely so the adversary runs at full strength, per the doctrine.
+//   name a STRONG model for BOTH tiers so the adversary and the bench run at full strength.
 // TERMINATION IS JUDGED, AND THE STANDING PRACTICE IS STOP-AND-RESUME (run-4 report §1.4-1.5):
 //   the demonstrated ~$0 terminator is the operator stopping the run and resuming with a
 //   reduced maxRounds — cache replay skips every completed agent; only the honest UNVERIFIED
@@ -47,16 +48,27 @@ const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = 
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
+// Model tiers are REQUIRED and never inherited — the engine will not guess a tier (#111). A missing
+// tier is named explicitly with its role and a remedy; a silent expensive/cheap seat is the trap
+// this closes. Both messages begin "refusing dispatch" so the same-shaped regression guard catches them.
+if (!model) {
+  throw new Error(`debate: refusing dispatch — model unset. The engine does not guess a tier: pass model (the BULK tier — frontier, blue lanes, red lenses, blue responses), e.g. { model: "sonnet" }.`)
+}
+if (!judgmentModel) {
+  throw new Error(`debate: refusing dispatch — judgmentModel unset. The engine does not inherit the session model: pass judgmentModel (the JUDGMENT tier — blue-synthesize, red-merge, judge, assemble), e.g. { judgmentModel: "sonnet" }.`)
+}
 // Lane floor (retrospective §3 row 7): run 2 silently ran under-provisioned at lanes=2.
 // Below 3 lanes a hypothesis loses dedicated attention; override requires a stated reason
 // (e.g. laneFloorOverride: 'smoke run — pipeline exercise only').
 if (lanes < 3 && !laneFloorOverride) {
   throw new Error(`debate: lanes=${lanes} is below the floor of 3 — pass laneFloorOverride: '<reason>' to run under-provisioned deliberately`)
 }
-const bulk = model ? { model } : {}
-const judgment = judgmentModel ? { model: judgmentModel } : {}
+// Unconditional now — the guard above rejected an unset tier, so both are set.
+const bulk = { model }
+const judgment = { model: judgmentModel }
 const slug = String(runDir).replace(/[\/]+$/, '').split(/[\/]/).pop().replace(/^[0-9-]+_/, '')
 log(`researching: ${topic.length > 160 ? topic.slice(0, 157) + '...' : topic}`)
+log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
 // Friction must survive a mid-run throw (retrospective §3 row 24): the envelope copy feeds
 // this script's aggregate, the file copy survives an abort. Both, always.

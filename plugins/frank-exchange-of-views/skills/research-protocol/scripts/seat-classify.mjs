@@ -21,6 +21,11 @@ const ROUNDED = [
 
 const UNROUNDED = [
   ['Terminal dispute disposition', 'judge-terminal'],
+  // The petition sitting hears filed petitions BEFORE a round continues. Its prompt
+  // head is `Petition sitting, topic "..."` (debate.js) — without this needle it fell
+  // through to `other`, so its spend was misattributed (the same defect this file's
+  // header documents for terminal-disposition) and the tier guard could not see it.
+  ['Petition sitting', 'judge-petition'],
   ['Blue synthesis', 'blue-synthesize'],
   ['Blue lane', 'blue-lane'],
   ['frontier hypotheses', 'frontier'],
@@ -40,3 +45,25 @@ export function classifySeat(head) {
 // The seats this table can name. Exported so a test can assert the two consumers
 // agree on the full set rather than only on the cases someone thought to check.
 export const KNOWN_SEATS = [...ROUNDED.map(([, s]) => s), ...UNROUNDED.map(([, s]) => s), 'other']
+
+// The ONE seat->tier-class map. debate.js dispatches each seat with `...bulk` or
+// `...judgment`; the model-tier guard needs that same split as data. Keeping it here
+// (beside the seat table) rather than re-encoding it in the guard, cost-audit, or the
+// Go fuzz is the point — two copies of this fact would drift like the classifier did.
+// debate-dispatch.test.mjs binds this map to debate.js's actual `agent(` spreads.
+//   bulk      = the high-volume seats (lenses, lanes, responses, frontier)
+//   judgment  = the reasoning seats (synthesis, merge, the bench, assembly)
+export const SEAT_CLASS = {
+  frontier: 'bulk',
+  'blue-lane': 'bulk',
+  'red-lens': 'bulk',
+  'blue-respond': 'bulk',
+  'blue-synthesize': 'judgment',
+  'red-merge': 'judgment',
+  judge: 'judgment',
+  'judge-petition': 'judgment',
+  'judge-terminal': 'judgment',
+  assemble: 'judgment',
+}
+// null for `other`/unknown — those seats are not tier-bound, so the guard skips them.
+export const classOf = (seat) => SEAT_CLASS[seat] || null

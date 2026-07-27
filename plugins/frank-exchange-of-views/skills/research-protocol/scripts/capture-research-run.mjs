@@ -13,6 +13,8 @@ import { join, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { computeScorecards, renderChair, chairHeader } from './scorecards.mjs'
+import { scanTranscript } from './cost-audit.mjs'
+import { tierMismatch } from './model-guard.mjs'
 
 // Tolerant journal walk: collect every result object and any friction arrays inside.
 export function readJournal(transcriptDir) {
@@ -250,6 +252,33 @@ export function recordJoinAudit(runDir, transcriptDir, agentFiles) {
 // Event types map 1:1 to CLI verbs except mint-adjacent internals.
 const verbOf = (type) => (type === 'class-new' ? 'mint' : type)
 
+// model-tier audit (#111): each seat's ACTUAL price-tier vs the tier its class was CONFIGURED
+// to run on. debate.js now requires both tiers, so a current run-config carries them; a seat
+// DEARER than configured is the fable trap (FAIL), CHEAPER is discounted verification (WARN).
+// Reuses cost-audit's scanTranscript — capture derived model ad hoc before #111, so there is no
+// inline scan to share; this is the sanctioned reuse. Judgment running TOO CHEAP is the inverse
+// of capture's long-standing doctrine (judgment must never ride a haiku-tier model); the
+// too-cheap-judgment case is a Non-goal of #111 and is not separately gated here.
+export function modelTierAudit(runDir, transcriptDir, agentFiles) {
+  let cfg = {}
+  try { cfg = JSON.parse(readFileSync(join(runDir, 'inputs', 'run-config.json'), 'utf8')) } catch {}
+  if (!cfg.model && !cfg.judgmentModel) return { check: 'model-tier', verdict: 'SKIP', detail: 'no run-config models (pre-#111 run)' }
+  const rows = agentFiles.map((f) => scanTranscript(readFileSync(join(transcriptDir, f), 'utf8')))
+  const seen = new Set()
+  const findings = tierMismatch(rows, cfg).filter((f) => {
+    const k = `${f.seat}|${f.round}|${f.verdict}|${f.actual}`
+    if (seen.has(k)) return false
+    seen.add(k); return true
+  })
+  const fails = findings.filter((f) => f.verdict === 'FAIL')
+  const warns = findings.filter((f) => f.verdict === 'WARN')
+  const tiers = `bulk=${cfg.model || '?'}, judgment=${cfg.judgmentModel || '?'}`
+  const detail = findings.length
+    ? `${tiers}; ${findings.map((f) => `${f.verdict} ${f.why}`).join('; ')}`
+    : `every seat ran on its configured tier (${tiers})`
+  return { check: 'model-tier', verdict: fails.length ? 'FAIL' : warns.length ? 'WARN' : 'PASS', detail }
+}
+
 // W2e — precedent harvest: the run's judicial rulings become PERSUASIVE
 // proposals in law/proposed/<slug>.md (repo-side, committed with the run
 // record) for human promotion per law/README.md. The bench proposes; the
@@ -419,6 +448,7 @@ export function capture(runDir, transcriptDir) {
     recordParityAudit(runDir),
     recordJoinAudit(runDir, transcriptDir, agentFiles),
     attestationAudit(runDir, transcriptDir, agentFiles),
+    modelTierAudit(runDir, transcriptDir, agentFiles),
   ]
   // R2.5 parity gate: when the run carried the record tool (records/ exists),
   // run the hand-vs-shadow fact comparison and relay its verdict.
