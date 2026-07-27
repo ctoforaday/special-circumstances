@@ -15,3 +15,14 @@ CLASSES: BENCHMARK — optimize this · DIAGNOSTIC — this explains you; optimi
 - `undeclared_inspection_risk` [detector] — Evidence confinement: **0** (no opinion referenced trajectory evidence this run)
   - reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls
 - `petitions_filed` [measure] — Petition handling: **0**
+
+## haiku-findings-run
+
+- `carried_share` [benchmark] — Not a router: **0.58** (7/12; baseline 76/77)
+- `blue_sections_citing_direction` [benchmark] — Direction-uptake (headline): _not computed_ — no LEAD sections this run
+- `rulings_without_opinion` [detector] — Opinion form: **12**
+- `undeclared_inspection_risk` [detector] — Evidence confinement: **0** (no opinion referenced trajectory evidence this run)
+  - reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls
+- `petitions_filed` [measure] — Petition handling: **0**
+
+HEADLINE: rulings_without_opinion 12 [DETECTOR] · carried_share 0.58 [BENCHMARK]

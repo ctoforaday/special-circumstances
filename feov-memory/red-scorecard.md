@@ -14,3 +14,10 @@ CLASSES: BENCHMARK — optimize this · DIAGNOSTIC — this explains you; optimi
 - `citation_yield_by_round` [diagnostic] — Lens economics (W2i assumption): **{"1":{"citation":3,"logic":9,"darkside":7},"2":{"citation":1,"logic":3,"darkside":16},"3":{"citation":0,"logic":9,"darkside":6}}**
   - RETUNE TRIGGER: if rounds 2+ citation yield stops collapsing versus round 1, the consolidation cap is wrong
 - `finding_precision` [benchmark] — Certification: earned PASS/FAIL: _not computed_ — needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful
+
+## haiku-findings-run
+
+- `anchored_closures_pct` [benchmark] — Attestation-format invariant: _not computed_ — no archive records this run
+- `convergence_vs_verdict_flags` [detector] — Never-hard-fail: **0**
+- `citation_yield_by_round` [diagnostic] — Lens economics (W2i assumption): _not computed_ — no findings on the record yet (or the tool binary was not passed) — per-role yield needs the findings view
+- `finding_precision` [benchmark] — Certification: earned PASS/FAIL: _not computed_ — needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful
