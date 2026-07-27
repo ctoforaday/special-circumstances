@@ -45,6 +45,9 @@ JUDICIAL HALT recorded — capture relays this verbatim
 -- findings.md
 # red findings — RENDERED PROJECTION (source of truth: records/ event log)
 
+-- friction.md
+# friction — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

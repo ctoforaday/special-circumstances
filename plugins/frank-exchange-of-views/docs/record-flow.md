@@ -21,6 +21,7 @@ flowchart TB
   subgraph views["projections (show --view … / render)"]
     FV["findings (live JSON)"]
     CL["citation-ledger.md"]
+    FR["friction (live JSON / friction.md)"]
     BD["board (live JSON)"]
     DBT["debate.md"]
   end

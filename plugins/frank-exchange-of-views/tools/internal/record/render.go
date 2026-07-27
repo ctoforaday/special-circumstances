@@ -506,6 +506,20 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		return RenderResult{}, err
 	}
 
+	// friction.md: the human-readable projection of the friction that now lives on the record
+	// via the friction verb (the structured form is `show --view friction`). It replaces the
+	// hand-written friction.md the seats no longer author — capability complaints are events.
+	fric := []string{"# friction — RENDERED PROJECTION (source of truth: records/ event log)"}
+	for _, e := range b.Events {
+		if e.Type != "friction" {
+			continue
+		}
+		fric = append(fric, fmt.Sprintf("- %s | r%d | %s", e.SeatID, e.Round, e.Payload.Str("text")))
+	}
+	if err := writeAtomic(filepath.Join(out, "friction.md"), []byte(strings.Join(fric, "\n")+"\n")); err != nil {
+		return RenderResult{}, err
+	}
+
 	return RenderResult{Out: out, Anomalies: len(b.Anomalies), Open: len(open), Closed: len(closed)}, nil
 }
 

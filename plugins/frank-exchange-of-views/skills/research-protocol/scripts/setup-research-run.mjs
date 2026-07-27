@@ -25,7 +25,6 @@ import { parseRenderedRows } from './scorecards.mjs'
 const STUBS = [
   ['debate.md', 'debate.md'],
   ['report.md', 'report.md'],
-  ['friction.md', 'friction.md'],
   ['blue/frontier.md', 'blue frontier'],
   ['blue/report.md', 'blue report'],
   ['blue/CHANGELOG.md', 'blue CHANGELOG'],

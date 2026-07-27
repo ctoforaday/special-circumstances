@@ -50,6 +50,9 @@ stdout:
 # red findings — RENDERED PROJECTION (source of truth: records/ event log)
 - L1-F1 | red-lens-r1-L1 | sev low · low x low | r1 | newer shard
 
+-- friction.md
+# friction — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

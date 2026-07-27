@@ -38,7 +38,9 @@ research/<date>_<slug>/
 ├── debate.md          # the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
 │                      #   ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the judge
 │                      #   rules on the closings, the transcript, and the final artifact state only)
-├── friction.md        # capability/protocol complaints — seats append DURING the run (survives aborts)
+│                      #   (friction is a RECORD EVENT now — the friction verb, which survives a
+│                      #    later-phase abort; projected to records/render-shadow/friction.md, read
+│                      #    via `show --view friction`. The root friction.md hand-file is retired.)
 ├── cost.md            # measured tokens + dollars per seat-round (scripts/cost-audit.mjs)
 └── trajectories/      # journal.jsonl (tracked) + board-telemetry.jsonl (one JSON line per round:
                        #   board profile, mass under the pinned mapping, accepted-dispute deltas —

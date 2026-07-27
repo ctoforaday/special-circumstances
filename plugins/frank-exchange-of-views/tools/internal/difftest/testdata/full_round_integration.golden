@@ -101,6 +101,9 @@ round one: FAIL
 - L1-F1 | red-lens-r1-L1 | sev medium · medium x high | r1 | citation does not support
 - L5-F1 | red-lens-r1-L5 | sev high · high x high | r1 | a leap of faith
 
+-- friction.md
+# friction — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

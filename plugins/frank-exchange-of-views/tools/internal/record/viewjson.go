@@ -275,3 +275,46 @@ func FindingsJSONBytes(runDir string) ([]byte, error) {
 	}
 	return append(out, '\n'), nil
 }
+
+// FrictionJSON is the seat-facing friction view: every friction event on the record, in
+// event order — capability/protocol complaints that now live as events (the friction verb),
+// not a hand-written friction.md. The dashboard and capture read this instead of the file.
+type FrictionJSON struct {
+	Friction []FrictionEntryJSON `json:"friction"`
+	Counts   struct {
+		Total int `json:"total"`
+	} `json:"counts"`
+}
+
+type FrictionEntryJSON struct {
+	SeatID string `json:"seat_id"`
+	Round  int    `json:"round"`
+	Text   string `json:"text"`
+}
+
+// FrictionJSONOf projects the record's friction events — from BoardState, never the markdown,
+// so the JSON view and the friction.md projection are two renderings of one replay.
+func FrictionJSONOf(b *Board) FrictionJSON {
+	out := FrictionJSON{Friction: []FrictionEntryJSON{}}
+	for _, e := range b.Events {
+		if e.Type != "friction" {
+			continue
+		}
+		out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
+	}
+	out.Counts.Total = len(out.Friction)
+	return out
+}
+
+// FrictionJSONBytes renders the friction view as indented JSON.
+func FrictionJSONBytes(runDir string) ([]byte, error) {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	out, err := json.MarshalIndent(FrictionJSONOf(b), "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
+}

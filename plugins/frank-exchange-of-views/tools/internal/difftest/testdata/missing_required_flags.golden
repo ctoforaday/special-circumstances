@@ -33,6 +33,9 @@ feov-record: verb "not-a-verb" is outside this seat's role (available: register,
 -- findings.md
 # red findings — RENDERED PROJECTION (source of truth: records/ event log)
 
+-- friction.md
+# friction — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 

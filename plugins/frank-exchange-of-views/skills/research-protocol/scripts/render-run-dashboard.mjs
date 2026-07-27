@@ -169,7 +169,10 @@ export function buildModel(runDir, transcriptDir, config = {}) {
 
   // CONTENTS over bytes (review feedback): counts and states, not file sizes.
   const readIf = (rel) => { const p = join(runDir, rel); return existsSync(p) ? readFileSync(p, 'utf8') : null }
-  const frictionTxt = readIf('friction.md')
+  // Friction lives on the record (the friction verb); render projects it to
+  // records/render-shadow/friction.md. Read the projection first, legacy root friction.md as a
+  // fallback for pre-#87 runs — the same shape as the findings read below.
+  const frictionTxt = readIf('records/render-shadow/friction.md') || readIf('friction.md')
   // Entries are ATTRIBUTED LINES ("blue-synthesize: ...", "red-merge-r2: ..."), not
   // markdown bullets. Counting /^- / found zero of the seven real entries in the first
   // live run and the dashboard reported "none logged yet" — the writer and the reader

@@ -7,7 +7,7 @@ import { mkdtempSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildSkeleton, buildPinned, mirrorGapPatterns, writeRunLiveMarker, validatePins } from '../../skills/research-protocol/scripts/setup-research-run.mjs'
-import { readJournal, telemetryAudit, shardAudit, frictionAudit, harvestFriction, contextUse, assemblyScreen } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
+import { readJournal, telemetryAudit, shardAudit, frictionAudit, contextUse, assemblyScreen, recordParityAudit } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'feov-runscripts-'))
 
@@ -16,7 +16,8 @@ const tmp = () => mkdtempSync(join(tmpdir(), 'feov-runscripts-'))
 test('skeleton: creates stubs with topic headers; ledger/archive/telemetry are NOT created (red-merge-born)', () => {
   const dir = tmp()
   const { created } = buildSkeleton(dir, 'test topic')
-  assert.equal(created.length, 7)
+  assert.equal(created.length, 6) // friction.md retired — friction is a record event, projected to render-shadow/friction.md
+  assert.ok(!existsSync(join(dir, 'friction.md')), 'friction.md is not pre-created — it is a render projection of the friction verb')
   assert.ok(readFileSync(join(dir, 'blue', 'report.md'), 'utf8').includes('test topic'))
   assert.ok(!existsSync(join(dir, 'red', 'candidates')), 'red/candidates is retired — lens findings are record events, read via `show --view findings`')
   assert.ok(!existsSync(join(dir, 'red', 'ledger.md')), 'ledger must be red-merge-born')
@@ -30,7 +31,7 @@ test('skeleton: idempotent — pre-staged files are never overwritten', () => {
   writeFileSync(join(dir, 'blue', 'report.md'), 'PRE-STAGED CONTENT\n')
   const { created, skipped } = buildSkeleton(dir, 'topic')
   assert.ok(skipped.includes('blue/report.md'))
-  assert.equal(created.length, 6)
+  assert.equal(created.length, 5) // 6 stubs (friction.md retired) minus the 1 pre-staged
   assert.equal(readFileSync(join(dir, 'blue', 'report.md'), 'utf8'), 'PRE-STAGED CONTENT\n')
 })
 
@@ -85,11 +86,28 @@ test('pin validation (W1.1): missing path at pin is named; explicit pin honored;
 
 // ---- run-capture audits ----
 
-function fixtureRun({ telemetryRounds = 2, redRounds = 2, ledgerLines = 2, archiveBlocks = 2, frictionInFile = true } = {}) {
+function fixtureRun({ telemetryRounds = 2, redRounds = 2, ledgerLines = 2, archiveBlocks = 2, frictionOnRecord = true, debateOnShadow = false } = {}) {
   const dir = tmp()
   mkdirSync(join(dir, 'red'), { recursive: true })
   mkdirSync(join(dir, 'trajectories'), { recursive: true })
-  writeFileSync(join(dir, 'debate.md'), Array.from({ length: redRounds }, (_, i) => `## Round ${i + 1}\n### RED\nverdict\n### BLUE\nresponse\n`).join('\n'))
+  mkdirSync(join(dir, 'records'), { recursive: true })
+  const debateBody = Array.from({ length: redRounds }, (_, i) => `## Round ${i + 1}\n### RED\nverdict\n### BLUE\nresponse\n`).join('\n')
+  if (debateOnShadow) {
+    // The tool projects the transcript here; the root debate.md is a stub post-#109. Writing the
+    // populated projection to render-shadow and a STUB to root proves readers prefer the projection.
+    mkdirSync(join(dir, 'records', 'render-shadow'), { recursive: true })
+    writeFileSync(join(dir, 'records', 'render-shadow', 'debate.md'), debateBody)
+    writeFileSync(join(dir, 'debate.md'), '# debate.md — stub\n')
+  } else {
+    writeFileSync(join(dir, 'debate.md'), debateBody)
+  }
+  // Friction is a record event now — write a friction event shard iff the seat recorded it.
+  if (frictionOnRecord) {
+    writeFileSync(join(dir, 'records', 'events-red-merge-r1-fix.jsonl'),
+      JSON.stringify({ seq: 1, ts: '2026-07-26T00:00:00Z', seatId: 'red-merge-r1', nonce: 'fix', round: 1, type: 'friction', key: 'red-merge-r1:friction:#1', payload: { text: 'red-merge-r1: needed a PDF extractor for X' } }) + '\n')
+  } else {
+    writeFileSync(join(dir, 'records', 'events-red-merge-r1-fix.jsonl'), '') // records/ exists but carries no friction event
+  }
   mkdirSync(join(dir, 'blue'), { recursive: true })
   writeFileSync(join(dir, 'blue', 'CHANGELOG.md'), Array.from({ length: redRounds }, (_, i) => `## Round ${i + 1}\nedits\n`).join('\n'))
   if (telemetryRounds >= 0) {
@@ -100,7 +118,6 @@ function fixtureRun({ telemetryRounds = 2, redRounds = 2, ledgerLines = 2, archi
     Array.from({ length: ledgerLines }, (_, i) => `R1-${i + 1} | closed | fixed | -`).join('\n') + '\n')
   writeFileSync(join(dir, 'red', 'archive.md'), '# archive\n' +
     Array.from({ length: archiveBlocks }, (_, i) => `## R1-${i + 1} — closed\nprose record\n`).join('\n'))
-  writeFileSync(join(dir, 'friction.md'), frictionInFile ? '- red-merge-r1: needed a PDF extractor for X\n' : '# friction\n')
   writeFileSync(join(dir, 'trajectories', 'journal.jsonl'), [
     JSON.stringify({ type: 'result', result: { verdict: 'FAIL', ledger_closure_lines: ledgerLines, archive_blocks: archiveBlocks, friction: ['red-merge-r1: needed a PDF extractor for X'] } }),
   ].join('\n') + '\n')
@@ -127,26 +144,30 @@ test('shard audit: measured counts vs envelope self-report — vacuity-adjacent 
   assert.ok(r2.detail.includes('measured (heuristic)'))
 })
 
-test('friction parity: an envelope entry missing from friction.md is named in the FAIL detail', () => {
+test('friction parity (#87): envelope friction must match a friction EVENT on the record; a gap FAILs; no records/ SKIPs', () => {
+  // PASS: the seat's envelope friction has a matching friction event on the record.
   const ok = fixtureRun()
   assert.equal(frictionAudit(ok, readJournal(join(ok, 'trajectories')).friction).verdict, 'PASS')
-  const missing = fixtureRun({ frictionInFile: false })
+  // FAIL: envelope reports friction but no friction event on the record — a seat that skipped the verb.
+  const missing = fixtureRun({ frictionOnRecord: false })
   const r = frictionAudit(missing, readJournal(join(missing, 'trajectories')).friction)
   assert.equal(r.verdict, 'FAIL')
-  assert.ok(r.detail.includes('needed a PDF extractor'))
+  assert.ok(r.detail.includes('needed a PDF extractor') && r.detail.includes('skipped the friction verb'))
+  // SKIP: a legacy no-record run has only the envelope channel.
+  const legacy = tmp()
+  assert.equal(frictionAudit(legacy, ['some friction']).verdict, 'SKIP')
 })
 
-test('friction harvest (W1.2): missing entries are appended labeled; parity then reports REPAIRED, not FAIL', () => {
-  const dir = fixtureRun({ frictionInFile: false })
-  const friction = readJournal(join(dir, 'trajectories')).friction
-  const { harvested } = harvestFriction(dir, friction)
-  assert.equal(harvested, 1)
-  const file = readFileSync(join(dir, 'friction.md'), 'utf8')
-  assert.ok(file.includes('auto-harvested at capture'), 'harvest is labeled capture-authored')
-  assert.ok(file.includes('needed a PDF extractor'), 'the lost entry now lives in the file')
-  const r = frictionAudit(dir, friction, harvested)
-  assert.equal(r.verdict, 'REPAIRED', 'visible, never exit-failing — the record is whole')
-  assert.equal(harvestFriction(dir, friction).harvested, 0, 'idempotent — second harvest finds nothing missing')
+test('class sweep (#112): telemetry + record-parity read the render-shadow debate projection, not the root stub', () => {
+  // Post-#109 the root debate.md is a stub; the populated transcript lives in render-shadow. A
+  // stub-read would see 0 red rounds and go vacuous (telemetry always-PASS off 0, parity spurious SKIP).
+  const dir = fixtureRun({ debateOnShadow: true })
+  const t = telemetryAudit(dir)
+  assert.equal(t.verdict, 'PASS')
+  assert.ok(t.detail.includes('vs 2 red round'), 'sees the projection\'s 2 red rounds, not the stub\'s 0')
+  const rp = recordParityAudit(dir)
+  assert.notEqual(rp.verdict, 'SKIP', 'runs against the record, not the spurious "no red rounds" SKIP off the stub')
+  assert.equal(rp.verdict, 'PASS')
 })
 
 test('context-use (W1.3): haiku seat over 50% of its 200k window trips the WARN tripwire', () => {
@@ -197,7 +218,9 @@ const SCRIPTS = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skill
 function fixtureTranscript() {
   const dir = tmp()
   writeFileSync(join(dir, 'journal.jsonl'), [
-    JSON.stringify({ type: 'result', result: { verdict: 'FAIL', ledger_closure_lines: 1, archive_blocks: 1, friction: ['red-merge-r1: probe friction entry'] } }),
+    // Friction text matches the friction EVENT fixtureRun writes to records/, so capture's
+    // friction-parity (envelope-from-this-journal vs record events) PASSes (#87).
+    JSON.stringify({ type: 'result', result: { verdict: 'FAIL', ledger_closure_lines: 1, archive_blocks: 1, friction: ['red-merge-r1: needed a PDF extractor for X'] } }),
   ].join('\n') + '\n')
   // One minimal agent transcript with a usage record so cost-audit produces a row.
   writeFileSync(join(dir, 'agent-abc123.jsonl'), [
@@ -227,22 +250,23 @@ test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with te
   assert.ok(cost.includes('## Board telemetry'), 'telemetry join section present')
   assert.ok(cost.includes('CUMULATIVE ARCHIVE'), 'corrected physics finding in notes')
   const audit = readFileSync(join(runDir, 'run-record-audit.md'), 'utf8')
-  assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: REPAIRED'),
-    'audit verdicts rendered (fixture envelope friction was missing from friction.md — harvested, REPAIRED)')
+  assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: PASS'),
+    'audit verdicts rendered (fixture envelope friction matches the friction event on the record — #87)')
   assert.ok(audit.includes('context-use: PASS'), 'context-use telemetry in the audit report (W1.3)')
-  assert.ok(readFileSync(join(runDir, 'friction.md'), 'utf8').includes('auto-harvested at capture'), 'harvest landed in the record (W1.2)')
+  assert.ok(!existsSync(join(runDir, 'friction.md')), 'capture no longer writes friction.md — friction is a record event (#87)')
   assert.ok(!existsSync(marker), 'run-live marker removed')
 })
 
 test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are never smoothed over)', () => {
-  // Friction loss no longer FAILs (it is REPAIRED by harvest) — the FAIL source here is a
-  // shard self-report diverging from disk, the vacuity-adjacent class that stays fatal.
-  const runDir = fixtureRun({ ledgerLines: 3, archiveBlocks: 1, frictionInFile: false })
+  // The FAIL source here is a shard self-report diverging from disk (the vacuity-adjacent class
+  // that stays fatal); friction is on the record (default) so friction-parity PASSes and does not
+  // muddy which check failed.
+  const runDir = fixtureRun({ ledgerLines: 3, archiveBlocks: 1 })
   const transcriptDir = fixtureTranscript()
   const r = spawnSync(process.execPath, [join(SCRIPTS, 'capture-research-run.mjs'), runDir, transcriptDir], { cwd: tmp() }) // cwd MUST be a temp dir: capture removes cwd/.claude/run-live.json, and an inherited repo cwd would delete a LIVE session marker (happened 2026-07-17 — killed the run-5 watcher)
   assert.equal(r.status, 2, `expected exit 2, got ${r.status}: ${r.stderr}`)
   assert.ok(r.stdout.toString().includes('shards: FAIL'))
-  assert.ok(r.stdout.toString().includes('friction-parity: REPAIRED'), 'harvest ran even in a failing capture')
+  assert.ok(r.stdout.toString().includes('friction-parity: PASS'), 'friction is on the record — parity PASSes independently of the shard FAIL (#87)')
 })
 
 test('run-setup CLI (W1.1): a cite whose path does not exist at its pin fails setup loudly, creating nothing', () => {
@@ -272,7 +296,7 @@ test('run-setup CLI: arg parsing end-to-end — topic header, multi-cite pins, -
     '--topic', 'cli parse topic', '--model', 'haiku', '--judgment-model', 'haiku', '--cite', 'a/path@abc1234', '--cite', 'b/path', '--no-qmd'], { cwd })
   assert.equal(r.status, 0, r.stderr.toString())
   const out = r.stdout.toString()
-  assert.ok(out.includes('skeleton: 7 created') && out.includes('skipped (--no-qmd)'), out)
+  assert.ok(out.includes('skeleton: 6 created') && out.includes('skipped (--no-qmd)'), out)
   assert.ok(readFileSync(join(runDir, 'blue', 'report.md'), 'utf8').includes('cli parse topic'))
   const pinned = readFileSync(join(runDir, 'inputs', 'PINNED.md'), 'utf8')
   assert.ok(pinned.includes('`abc1234`') && pinned.includes('b/path'), 'both cites pinned, explicit pin honored')

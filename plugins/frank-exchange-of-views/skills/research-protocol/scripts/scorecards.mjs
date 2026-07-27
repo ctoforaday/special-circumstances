@@ -31,6 +31,15 @@ import { pathToFileURL } from 'node:url'
 
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null)
 
+// The debate transcript lives on the record; render.go writes the projection to
+// records/render-shadow/debate.md. Post-#109 the ROOT debate.md is a setup stub, so every
+// reader must prefer the projection (root is a legacy fallback). ONE place because it is a
+// CLASS — telemetryAudit and recordParityAudit read the same transcript and had the same
+// stub-read bug; they import this rather than re-encode the path.
+export function readDebate(runDir) {
+  return read(join(runDir, 'records', 'render-shadow', 'debate.md')) || read(join(runDir, 'debate.md')) || ''
+}
+
 export const CLASSES = ['benchmark', 'diagnostic', 'detector', 'measure']
 
 // row builds one scorecard entry. `value` null means not computed, and `note`
@@ -273,7 +282,7 @@ export function benchRows(runDir, results) {
   // Direction-uptake is the bench HEADLINE (E0.5d): in-run reversal is ~0 by
   // traffic-class construction and measures nothing, so what counts is whether
   // blue acted on the direction a carried ruling stated.
-  const debate = read(join(runDir, 'debate.md')) || ''
+  const debate = readDebate(runDir)
   const leadSections = (debate.match(/^### LEAD/gm) || []).length
   // (?![\s\S]) is end-of-input. \Z is NOT an anchor in JavaScript — it is an
   // identity escape matching a literal 'Z', so the lazy body stopped at the first

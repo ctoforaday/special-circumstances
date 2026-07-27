@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Cost audit for a debate run — parses the Workflow harness's per-agent transcripts and
 // emits a markdown report (per seat-round tokens + dollars, totals, findings) for the run
-// record. Part of the run's standard output, next to friction.md (retrospective backlog:
+// record. Part of the run's standard output, alongside the record's friction (the friction
+// verb; render projects it to render-shadow/friction.md) (retrospective backlog:
 // "a tool, not a diet" — measurement first, never a silent judgment discount).
 //
 // Usage: node cost-audit.mjs <workflow-transcript-dir> [<runDir>] > <runDir>/cost.md

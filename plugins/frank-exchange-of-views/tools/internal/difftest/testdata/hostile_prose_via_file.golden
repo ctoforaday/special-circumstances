@@ -60,6 +60,9 @@ angle <brackets> & ampersand
 unicode — em-dash · ✓ 日本語
 backslash \ and \n literal
 
+-- friction.md
+# friction — RENDERED PROJECTION (source of truth: records/ event log)
+
 -- ledger.md
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 
