@@ -1,16 +1,17 @@
 # Context Checkpointing — a "Memento" for Long-Running Agents
 
 > Design proposal for a follow-up PR to **Special Circumstances**.
-> Home plugin: **gray-area** (the fourth plugin, of which this is one half). Touches
-> **prosthetic-conscience** and **sleeper-service**.
+> Home plugin: **prosthetic-conscience** (core cowork behaviour). Consumed by **gray-area**;
+> required by **sleeper-service**.
 > Status: proposal, corrected. No code in this PR.
 >
-> **Two retargets since first draft, both recorded in §15.** (1) The operator retargeted this PR on
-> 2026-07-18 from "a checkpointing proposal" into the seed of a fourth plugin, **Gray Area**, whose
-> spine is trajectory mining; continuity is one consumer of that substrate rather than the point.
-> Companion document: `plans/gray-area.md` (in review on its own branch). (2) The hook facts in §2
-> were re-verified on 2026-07-27 against **Claude Code 2.1.220** and several were wrong — including
-> the constraint this design called central. Corrections are inline and marked; §15 lists them.
+> **A retarget, a correction, and a resolution — all recorded in §15.** (1) The operator retargeted
+> this PR on 2026-07-18 from "a checkpointing proposal" into the seed of a fourth plugin, **Gray
+> Area**, whose spine is trajectory mining. (2) The hook facts in §2 were re-verified on 2026-07-27
+> against **Claude Code 2.1.220** and several were wrong — including the constraint this design
+> called central. (3) On the same date the two halves were **split**: trajectory mining is Gray
+> Area; continuity comes back here, where the first draft put it. §8 carries the argument;
+> `plans/gray-area.md` §4 carries the other side of it.
 
 ---
 
@@ -396,21 +397,48 @@ decision from checkpoint → `MEMORY.md` is the same promotion discipline used e
    checkpoint's validation loop turns out wrong or missing, that's a graduation candidate for
    tightening the checkpointing skill itself — the loop improving the loop.
 
-**Placement — reopened by the retarget.** The original argued checkpointing is core cowork
-behaviour and therefore belongs in **prosthetic-conscience**, the base plugin the others preload.
-That argument still stands on its merits. What has changed is that continuity is now understood as
-one consumer of the trajectory substrate rather than a standalone capability, and the seal/restore
-hooks share their event surface (`SubagentStop`, `SessionStart`, `PreCompact`/`PostCompact`) with
-the mining half. **Undecided**, and named as undecided rather than settled by default: the
-deciding question is whether a consumer wants continuity without the miner. If yes, the skill and
-hooks ship in prosthetic-conscience and gray-area depends on them; if no, both halves ship in
-gray-area. Do not resolve this in code before it is resolved in prose.
+**Placement — reopened by the retarget, and now resolved back to the original answer.** The first
+draft argued checkpointing is core cowork behaviour and belongs in **prosthetic-conscience**, the
+base plugin the others preload. The 2026-07-18 retarget moved it to gray-area by association — it
+was in the PR that became the plugin — rather than by an argument. Decided 2026-07-27: **it ships
+in `prosthetic-conscience`.**
+
+The deciding question was whether a consumer wants continuity without the miner, and the answer is
+plainly yes. Three grounds:
+
+- **Consent.** Gray Area reads transcripts — user text, file paths, whatever a tool result
+  contained. Checkpointing writes a note about your own work. Bundling them makes a consumer accept
+  a surveillance capability to get compaction survival, which is an unnecessary trust decision
+  charged for a benign feature.
+- **Sequencing.** This half has been hand-run across six compaction boundaries and works (§12).
+  Inside gray-area it waits on a Go miner that does not exist. In prosthetic-conscience it lands
+  next, against a plugin that already ships and already carries the always-on rules it protects.
+- **Dependency direction.** Continuity needs nothing from the miner. The miner optionally consumes
+  checkpoints — a sealed note is a declared claim, and act-versus-claim applies to it exactly as to
+  a seat's attestation. That is a dependency, not a merge.
+
+**Not a plugin of its own, either.** One skill, two commands and a few thin hooks is a skill. The
+suite already layers base discipline / specialist engine / autonomous loop, and this is
+base-discipline shaped.
+
+**The counter, kept because it is the good one.** The two halves share an event surface
+(`SubagentStop`, `SessionStart`, `PreCompact`/`PostCompact`), and verify-on-restore — checking a
+checkpoint's claims against reality — is itself a mining operation. But shared events are weak
+coupling: Claude Code merges hook configurations from multiple plugins on one event. And the base
+discipline is *verify the claim against reality* (run `git`, check the tag exists), not *parse the
+transcript*; trajectory-backed verification is enrichment the miner adds later.
+
+**Boundary, so neither side drifts across it.** This plugin owns `PreCompact`, `PostCompact`,
+`SessionStart`, `FileChanged`, and the checkpoint schema. Gray Area owns `SubagentStop` capture and
+everything downstream of the trajectory manifest. Gray Area reads checkpoints; it never writes them.
 
 ---
 
 ## 9. Component map
 
-Plugin assignment pending the placement decision above; responsibilities are stable either way.
+All in **prosthetic-conscience**, per the placement decision in §8. The `SubagentStop` seal is the
+one component with a claim on both sides — it fires per seat and needs the seat's `agent_id`, which
+is also what Gray Area's capture wants. Both plugins may register on it; each writes its own file.
 
 | Component | Kind | Responsibility |
 |---|---|---|
@@ -614,13 +642,21 @@ failed to.
 The suite's own discipline is that a correction is entered, not quietly applied, so a reader can
 see what the document used to claim. Two rounds.
 
-### Retarget (operator, 2026-07-18)
+### Retarget (operator, 2026-07-18), and the split that followed (2026-07-27)
 
 This PR stopped being a checkpointing proposal and became the seed of a fourth plugin, **Gray
 Area**, whose spine is trajectory mining — establishing what a session actually did, as against
-what it reported. Continuity is one consumer of that substrate. The front matter and §8 are
-updated; the wider scope lives in `plans/gray-area.md`. Nothing in §§1, 4, 12 changes: the problem
-statement, the schema and the field evidence are all still the case.
+what it reported.
+
+The retarget carried continuity into Gray Area with it. That was association, not argument: this
+design happened to be in the pull request that became the plugin. On 2026-07-27 the two halves were
+split — mining is Gray Area, continuity returns to `prosthetic-conscience` — on the grounds set out
+in §8, of which the load-bearing one is consent: a consumer who wants their validation loop to
+survive compaction should not have to accept a tool that reads all their transcripts to get it.
+
+Net effect on this document: the first draft's placement was right, was overturned by association,
+and is restored by argument. Nothing in §§1, 4, 12 changes — the problem statement, the schema and
+the field evidence are all still the case.
 
 ### Hook-surface corrections (2026-07-27, against Claude Code 2.1.220)
 
