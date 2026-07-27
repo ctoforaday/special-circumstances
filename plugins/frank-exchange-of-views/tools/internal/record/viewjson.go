@@ -2,6 +2,8 @@ package record
 
 import (
 	"encoding/json"
+	"sort"
+	"strings"
 )
 
 // STRUCTURED STATE FOR THE SEATS.
@@ -313,6 +315,146 @@ func FrictionJSONBytes(runDir string) ([]byte, error) {
 		return nil, err
 	}
 	out, err := json.MarshalIndent(FrictionJSONOf(b), "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
+}
+
+// DebateJSON is the seat-facing STRUCTURED debate: the same round-by-round transcript
+// render.go writes to debate.md, but as data instead of prose. It exists because the
+// operator-side audits (telemetry, record-parity) counted `### RED`/`### BLUE` sections by
+// regex over the markdown — a second reader of a projection, the exact defect class the
+// board/findings/friction JSON views removed. The section counts (and, for scorecards, the
+// section TEXT) are position/opinion/closing events; served here they are read, not parsed.
+//
+// It derives from BoardState like the other JSON views — never from debate.md — so the two
+// renderings of one replay cannot drift.
+type DebateJSON struct {
+	Rounds []DebateRoundJSON `json:"rounds"`
+}
+
+// DebateRoundJSON mirrors one `## Round N` block of render.go. Red/Blue/Lead are always
+// present (possibly empty) arrays — a consumer counts `red.length` for the round's red
+// sitting, and a null would make that count throw. The richer sections omit when empty.
+type DebateRoundJSON struct {
+	Round        int                    `json:"round"`
+	Red          []string               `json:"red"`
+	Blue         []string               `json:"blue"`
+	Lead         []DebateOpinionJSON    `json:"lead"`
+	RedClosings  []DebateClosingJSON    `json:"red_closings,omitempty"`
+	BlueClosings []DebateClosingJSON    `json:"blue_closings,omitempty"`
+	Confidence   []DebateConfidenceJSON `json:"confidence,omitempty"`
+	Disputes     []DebateDisputeJSON    `json:"disputes,omitempty"`
+}
+
+type DebateClosingJSON struct {
+	GapID string `json:"gap_id"`
+	Text  string `json:"text"`
+}
+
+type DebateConfidenceJSON struct {
+	Label string `json:"label"`
+	Grade string `json:"grade"`
+}
+
+// DebateDisputeJSON carries both a claim (`dispute`) and its answer (`dispute-respond`),
+// tagged by Kind — render.go renders them as a single interleaved "### Grade disputes" list.
+type DebateDisputeJSON struct {
+	Kind      string `json:"kind"`
+	SeatID    string `json:"seat_id,omitempty"`
+	GapID     string `json:"gap_id,omitempty"`
+	Dimension string `json:"dimension,omitempty"`
+	Proposed  string `json:"proposed,omitempty"`
+	Evidence  string `json:"evidence,omitempty"`
+	Response  string `json:"response,omitempty"`
+	Rationale string `json:"rationale,omitempty"`
+}
+
+type DebateOpinionJSON struct {
+	GapID       string `json:"gap_id"`
+	Disposition string `json:"disposition"`
+	Principle   string `json:"principle,omitempty"`
+	Tension     string `json:"tension,omitempty"`
+	ReviewFlag  string `json:"review_flag,omitempty"`
+	Rationale   string `json:"rationale,omitempty"`
+}
+
+// DebateJSONOf groups the record's events by round exactly as render.go's debate loop does:
+// position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
+// confidence→Confidence, dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
+// the single source these two renderings share; if it moves, both move together.
+func DebateJSONOf(b *Board) DebateJSON {
+	out := DebateJSON{Rounds: []DebateRoundJSON{}}
+
+	var roundOrder []int
+	byRound := map[int][]Event{}
+	for _, e := range b.Events {
+		if _, seen := byRound[e.Round]; !seen {
+			roundOrder = append(roundOrder, e.Round)
+		}
+		byRound[e.Round] = append(byRound[e.Round], e)
+	}
+	sort.Ints(roundOrder)
+
+	for _, r := range roundOrder {
+		re := byRound[r]
+		sec := func(typ, seatPrefix string) []Event {
+			var s []Event
+			for _, e := range re {
+				if e.Type == typ && strings.HasPrefix(e.SeatID, seatPrefix) {
+					s = append(s, e)
+				}
+			}
+			return s
+		}
+		rj := DebateRoundJSON{Round: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
+		for _, p := range sec("position", "red-merge") {
+			rj.Red = append(rj.Red, p.Payload.Str("text"))
+		}
+		for _, c := range sec("closing", "red-merge") {
+			rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("text")})
+		}
+		for _, p := range sec("position", "blue") {
+			rj.Blue = append(rj.Blue, p.Payload.Str("text"))
+		}
+		for _, c := range sec("closing", "blue") {
+			rj.BlueClosings = append(rj.BlueClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("text")})
+		}
+		for _, e := range re {
+			switch e.Type {
+			case "confidence":
+				rj.Confidence = append(rj.Confidence, DebateConfidenceJSON{Label: e.Payload.Str("label"), Grade: e.Payload.Str("grade")})
+			case "dispute":
+				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
+					Kind: "dispute", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),
+					Dimension: e.Payload.Str("dimension"), Proposed: e.Payload.Str("proposed"), Evidence: e.Payload.Str("evidence"),
+				})
+			case "dispute-respond":
+				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
+					Kind: "dispute-respond", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),
+					Response: e.Payload.Str("response"), Rationale: e.Payload.Str("rationale"),
+				})
+			case "opinion":
+				rj.Lead = append(rj.Lead, DebateOpinionJSON{
+					GapID: e.Payload.Str("gap_id"), Disposition: e.Payload.Str("disposition"),
+					Principle: e.Payload.Str("principle"), Tension: e.Payload.Str("tension"),
+					ReviewFlag: e.Payload.Str("review_flag"), Rationale: e.Payload.Str("rationale"),
+				})
+			}
+		}
+		out.Rounds = append(out.Rounds, rj)
+	}
+	return out
+}
+
+// DebateJSONBytes renders the structured debate as indented JSON.
+func DebateJSONBytes(runDir string) ([]byte, error) {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	out, err := json.MarshalIndent(DebateJSONOf(b), "", "  ")
 	if err != nil {
 		return nil, err
 	}

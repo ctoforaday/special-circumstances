@@ -38,7 +38,8 @@ research/<date>_<slug>/
 ├── debate.md          # the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
 │                      #   ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the judge
 │                      #   rules on the closings, the transcript, and the final artifact state only)
-├── friction.md        # capability/protocol complaints — seats append DURING the run (survives aborts)
+│                      #   friction lives on the RECORD (the friction verb; read via `show --view friction`),
+│                      #   not a file — the pre-tool friction.md was retired 2026-07-19
 ├── cost.md            # measured tokens + dollars per seat-round (scripts/cost-audit.mjs)
 └── trajectories/      # journal.jsonl (tracked) + board-telemetry.jsonl (one JSON line per round:
                        #   board profile, mass under the pinned mapping, accepted-dispute deltas —
@@ -107,4 +108,4 @@ A subagent's only voice is its return value — so capability complaints travel 
 - AFTER any task where a missing tool, denied permission, or capability gap impeded you, YOU MUST report it in the envelope's `friction` field: name the capability and what you would have done with it.
 - AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
 - YOU MUST NOT silently work around a capability gap — the workaround destroys the signal that would get you retooled.
-- The lead aggregates friction into the run record (`friction.md`); the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
+- Friction is recorded on the RECORD via the friction verb (read via `show --view friction`); capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

@@ -141,7 +141,7 @@ var views = []struct {
 	{"friction", "STRUCTURED JSON: every friction event on the record (seat, round, text) — capability/protocol complaints as events; read by the dashboard instead of parsing a markdown file", ""},
 	{"ledger", "the board as markdown, for a human verification pass", ""},
 	{"archive", "closed gaps with their closure records and anchors", ""},
-	{"debate", "the round-by-round transcript, every seat's sections in order", "bench"},
+	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits)", "bench"},
 	{"changelog", "blue's revision record, per round", "blue"},
 	{"citation-ledger", "verified claims with source, confidence and access date", "lens"},
 	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned", ""},
@@ -186,6 +186,35 @@ func Show() *cobra.Command {
 				if v.defaultFor == role {
 					want = v.name
 				}
+			}
+		}
+
+		// --json on a read opts into the STRUCTURED form of a view whose native form is
+		// markdown. It is the same inherited flag the mutating verbs use for their JSON
+		// envelopes; on reads it had been ignored (reads were view-selected only). It now
+		// selects the structured debate — the sole view with both a markdown transcript (for
+		// the human) and a JSON form (for the audits that used to regex the sections).
+		//
+		// One canonical way to each form ([[one-way-no-aliases]]): --json is an ERROR on the
+		// views already JSON by name (board/findings/friction — `--view board` is the single
+		// way to board JSON, no alias) and on markdown views with no JSON form. It is checked
+		// BEFORE the board/findings/friction branches so `--view board --json` refuses rather
+		// than falling through to the flagless JSON. A wrong guess fails loudly.
+		if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
+			switch want {
+			case "debate":
+				b, err := record.DebateJSONBytes(runDir)
+				if err != nil {
+					return err
+				}
+				cmd.OutOrStdout().Write(b)
+				return nil
+			case "board", "findings", "friction":
+				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
+			case "":
+				return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
+			default:
+				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction are JSON by name)", role, want)
 			}
 		}
 

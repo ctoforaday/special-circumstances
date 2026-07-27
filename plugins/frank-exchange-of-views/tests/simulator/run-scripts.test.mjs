@@ -7,7 +7,7 @@ import { mkdtempSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildSkeleton, buildPinned, mirrorGapPatterns, writeRunLiveMarker, validatePins } from '../../skills/research-protocol/scripts/setup-research-run.mjs'
-import { readJournal, telemetryAudit, shardAudit, frictionAudit, harvestFriction, contextUse, assemblyScreen } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
+import { readJournal, telemetryAudit, shardAudit, frictionAudit, contextUse, assemblyScreen } from '../../skills/research-protocol/scripts/capture-research-run.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'feov-runscripts-'))
 
@@ -16,7 +16,7 @@ const tmp = () => mkdtempSync(join(tmpdir(), 'feov-runscripts-'))
 test('skeleton: creates stubs with topic headers; ledger/archive/telemetry are NOT created (red-merge-born)', () => {
   const dir = tmp()
   const { created } = buildSkeleton(dir, 'test topic')
-  assert.equal(created.length, 7)
+  assert.equal(created.length, 6)
   assert.ok(readFileSync(join(dir, 'blue', 'report.md'), 'utf8').includes('test topic'))
   assert.ok(!existsSync(join(dir, 'red', 'candidates')), 'red/candidates is retired — lens findings are record events, read via `show --view findings`')
   assert.ok(!existsSync(join(dir, 'red', 'ledger.md')), 'ledger must be red-merge-born')
@@ -30,7 +30,7 @@ test('skeleton: idempotent — pre-staged files are never overwritten', () => {
   writeFileSync(join(dir, 'blue', 'report.md'), 'PRE-STAGED CONTENT\n')
   const { created, skipped } = buildSkeleton(dir, 'topic')
   assert.ok(skipped.includes('blue/report.md'))
-  assert.equal(created.length, 6)
+  assert.equal(created.length, 5)
   assert.equal(readFileSync(join(dir, 'blue', 'report.md'), 'utf8'), 'PRE-STAGED CONTENT\n')
 })
 
@@ -107,11 +107,39 @@ function fixtureRun({ telemetryRounds = 2, redRounds = 2, ledgerLines = 2, archi
   return dir
 }
 
-test('telemetry audit: PASS when lines cover red rounds; FAIL when a round is missing; FAIL when absent with rounds on record', () => {
-  assert.equal(telemetryAudit(fixtureRun()).verdict, 'PASS')
-  assert.equal(telemetryAudit(fixtureRun({ telemetryRounds: 1 })).verdict, 'FAIL')
+// The record-backed audits (telemetry, record-parity, friction-parity) read the run through
+// the tool's views (`show --view debate --json`, `--view friction`). In production that
+// reader wraps the feov-record binary; here we inject a fake so the audit LOGIC is exercised
+// without a real binary — the same seam the dashboard tests use. `friction` is the set of
+// friction texts ON THE RECORD (what the friction verb captured).
+function views({ redRounds = 2, blueRounds = 2, friction = [] } = {}) {
+  return (view) => {
+    if (view === 'debate') {
+      const n = Math.max(redRounds, blueRounds)
+      return {
+        rounds: Array.from({ length: n }, (_, i) => ({
+          round: i + 1,
+          red: i < redRounds ? [`red r${i + 1}`] : [],
+          blue: i < blueRounds ? [`blue r${i + 1}`] : [],
+          lead: [],
+        })),
+      }
+    }
+    if (view === 'friction') {
+      return { friction: friction.map((t) => ({ seat_id: 'red-merge-r1', round: 1, text: String(t) })), counts: { total: friction.length } }
+    }
+    throw new Error(`views() fake got an unexpected view: ${view}`)
+  }
+}
+
+test('telemetry audit: PASS when lines cover red rounds; FAIL when a round is missing; FAIL when absent with rounds on record; SKIP without --bin', () => {
+  const viewJSON = views({ redRounds: 2 })
+  assert.equal(telemetryAudit(fixtureRun(), { viewJSON }).verdict, 'PASS')
+  assert.equal(telemetryAudit(fixtureRun({ telemetryRounds: 1 }), { viewJSON }).verdict, 'FAIL')
   const noFile = fixtureRun({ telemetryRounds: -1 })
-  assert.equal(telemetryAudit(noFile).verdict, 'FAIL')
+  assert.equal(telemetryAudit(noFile, { viewJSON }).verdict, 'FAIL')
+  // Without a view reader (no --bin) the audit reads nothing and SKIPs — never a false PASS.
+  assert.equal(telemetryAudit(fixtureRun()).verdict, 'SKIP')
 })
 
 test('shard audit: measured counts vs envelope self-report — vacuity-adjacent inconsistency FAILs', () => {
@@ -127,26 +155,19 @@ test('shard audit: measured counts vs envelope self-report — vacuity-adjacent 
   assert.ok(r2.detail.includes('measured (heuristic)'))
 })
 
-test('friction parity: an envelope entry missing from friction.md is named in the FAIL detail', () => {
-  const ok = fixtureRun()
-  assert.equal(frictionAudit(ok, readJournal(join(ok, 'trajectories')).friction).verdict, 'PASS')
-  const missing = fixtureRun({ frictionInFile: false })
-  const r = frictionAudit(missing, readJournal(join(missing, 'trajectories')).friction)
+test('friction parity: envelope friction on the record PASSes; an entry the record never got FAILs and is named; no --bin SKIPs', () => {
+  const dir = fixtureRun()
+  const envFriction = readJournal(join(dir, 'trajectories')).friction // ['red-merge-r1: needed a PDF extractor for X']
+  // The friction reached the record (the friction verb captured it): PASS.
+  const onRecord = views({ friction: envFriction })
+  assert.equal(frictionAudit(dir, envFriction, { viewJSON: onRecord }).verdict, 'PASS')
+  // The envelope reported friction the record never received — a first-class pipeline error.
+  const r = frictionAudit(dir, envFriction, { viewJSON: views({ friction: [] }) })
   assert.equal(r.verdict, 'FAIL')
-  assert.ok(r.detail.includes('needed a PDF extractor'))
-})
-
-test('friction harvest (W1.2): missing entries are appended labeled; parity then reports REPAIRED, not FAIL', () => {
-  const dir = fixtureRun({ frictionInFile: false })
-  const friction = readJournal(join(dir, 'trajectories')).friction
-  const { harvested } = harvestFriction(dir, friction)
-  assert.equal(harvested, 1)
-  const file = readFileSync(join(dir, 'friction.md'), 'utf8')
-  assert.ok(file.includes('auto-harvested at capture'), 'harvest is labeled capture-authored')
-  assert.ok(file.includes('needed a PDF extractor'), 'the lost entry now lives in the file')
-  const r = frictionAudit(dir, friction, harvested)
-  assert.equal(r.verdict, 'REPAIRED', 'visible, never exit-failing — the record is whole')
-  assert.equal(harvestFriction(dir, friction).harvested, 0, 'idempotent — second harvest finds nothing missing')
+  assert.ok(r.detail.includes('needed a PDF extractor'), 'the entry that never reached the record is named')
+  assert.ok(r.detail.includes('never reached the record'), 'the finding states the pipeline gap, not a file miss')
+  // Without a view reader (no --bin) the audit cannot read the record and SKIPs.
+  assert.equal(frictionAudit(dir, envFriction).verdict, 'SKIP')
 })
 
 test('context-use (W1.3): haiku seat over 50% of its 200k window trips the WARN tripwire', () => {
@@ -227,22 +248,26 @@ test('capture(): end-to-end mechanics — journal copy, tarball, cost.md with te
   assert.ok(cost.includes('## Board telemetry'), 'telemetry join section present')
   assert.ok(cost.includes('CUMULATIVE ARCHIVE'), 'corrected physics finding in notes')
   const audit = readFileSync(join(runDir, 'run-record-audit.md'), 'utf8')
-  assert.ok(audit.includes('telemetry: PASS') && audit.includes('shards: PASS') && audit.includes('friction-parity: REPAIRED'),
-    'audit verdicts rendered (fixture envelope friction was missing from friction.md — harvested, REPAIRED)')
+  // No --bin passed here (this test exercises capture() mechanics, not the audit internals —
+  // those have unit tests, and the real --bin path is driven end-to-end in the real-data
+  // check). The three record-backed audits therefore SKIP rather than reading a stale file.
+  assert.ok(audit.includes('shards: PASS'), 'shards audit runs (it reads files, not the record views)')
+  assert.ok(audit.includes('telemetry: SKIP') && audit.includes('friction-parity: SKIP') && audit.includes('record-parity: SKIP'),
+    'the record-backed audits SKIP without --bin — never a false PASS on an unread record')
   assert.ok(audit.includes('context-use: PASS'), 'context-use telemetry in the audit report (W1.3)')
-  assert.ok(readFileSync(join(runDir, 'friction.md'), 'utf8').includes('auto-harvested at capture'), 'harvest landed in the record (W1.2)')
   assert.ok(!existsSync(marker), 'run-live marker removed')
 })
 
 test('run-capture CLI: exit code 2 on any audit FAIL (integrity findings are never smoothed over)', () => {
-  // Friction loss no longer FAILs (it is REPAIRED by harvest) — the FAIL source here is a
-  // shard self-report diverging from disk, the vacuity-adjacent class that stays fatal.
+  // The FAIL source is a shard self-report diverging from disk (the fixture's journal claims
+  // 1/1 while the runDir files hold 3/1) — the vacuity-adjacent class that stays fatal. The
+  // record-backed audits SKIP without --bin and so cannot be the FAIL here.
   const runDir = fixtureRun({ ledgerLines: 3, archiveBlocks: 1, frictionInFile: false })
   const transcriptDir = fixtureTranscript()
   const r = spawnSync(process.execPath, [join(SCRIPTS, 'capture-research-run.mjs'), runDir, transcriptDir], { cwd: tmp() }) // cwd MUST be a temp dir: capture removes cwd/.claude/run-live.json, and an inherited repo cwd would delete a LIVE session marker (happened 2026-07-17 — killed the run-5 watcher)
   assert.equal(r.status, 2, `expected exit 2, got ${r.status}: ${r.stderr}`)
   assert.ok(r.stdout.toString().includes('shards: FAIL'))
-  assert.ok(r.stdout.toString().includes('friction-parity: REPAIRED'), 'harvest ran even in a failing capture')
+  assert.ok(r.stdout.toString().includes('friction-parity: SKIP'), 'friction-parity SKIPs without --bin — the exit-2 is shards, not friction')
 })
 
 test('run-setup CLI (W1.1): a cite whose path does not exist at its pin fails setup loudly, creating nothing', () => {
@@ -272,7 +297,7 @@ test('run-setup CLI: arg parsing end-to-end — topic header, multi-cite pins, -
     '--topic', 'cli parse topic', '--model', 'haiku', '--judgment-model', 'haiku', '--cite', 'a/path@abc1234', '--cite', 'b/path', '--no-qmd'], { cwd })
   assert.equal(r.status, 0, r.stderr.toString())
   const out = r.stdout.toString()
-  assert.ok(out.includes('skeleton: 7 created') && out.includes('skipped (--no-qmd)'), out)
+  assert.ok(out.includes('skeleton: 6 created') && out.includes('skipped (--no-qmd)'), out)
   assert.ok(readFileSync(join(runDir, 'blue', 'report.md'), 'utf8').includes('cli parse topic'))
   const pinned = readFileSync(join(runDir, 'inputs', 'PINNED.md'), 'utf8')
   assert.ok(pinned.includes('`abc1234`') && pinned.includes('b/path'), 'both cites pinned, explicit pin honored')
@@ -301,19 +326,22 @@ test('cost-audit CLI: without runDir no telemetry section; with runDir but no te
   assert.ok(withRun.stdout.toString().includes('no board-telemetry.jsonl'), 'absent-file branch stated, not silent')
 })
 
-test('record parity (W1.7 post-hoc): missing BLUE blocks or CHANGELOG rounds FAIL; the PASS-exit final round is floored out', () => {
+test('record parity (W1.7 post-hoc): missing blue sittings or CHANGELOG rounds FAIL; the PASS-exit final round is floored out; no --bin SKIPs', () => {
   const { recordParityAudit } = capMod
+  // healthy: 2 red, 2 blue on the record; fixtureRun writes a 2-round CHANGELOG → PASS.
   const healthy = fixtureRun()
-  assert.equal(recordParityAudit(healthy).verdict, 'PASS')
+  assert.equal(recordParityAudit(healthy, { viewJSON: views({ redRounds: 2, blueRounds: 2 }) }).verdict, 'PASS')
+  // desynced: 3 red rounds, 1 blue sitting on the record — below the redRounds-1 floor.
   const desynced = fixtureRun()
-  writeFileSync(join(desynced, 'debate.md'), '## Round 1\n### RED\nv\n### BLUE\nr\n## Round 2\n### RED\nv\n## Round 3\n### RED\nv\n')
-  const r = recordParityAudit(desynced)
-  assert.equal(r.verdict, 'FAIL', '3 red rounds with 1 blue block is below the redRounds-1 floor')
+  const r = recordParityAudit(desynced, { viewJSON: views({ redRounds: 3, blueRounds: 1 }) })
+  assert.equal(r.verdict, 'FAIL', '3 red rounds with 1 blue sitting is below the redRounds-1 floor')
   assert.ok(r.detail.includes('3 red round(s)'))
+  // PASS exit: 2 red, 1 blue (blue never took the final turn), CHANGELOG 1 round → floored to PASS.
   const passExit = fixtureRun()
-  writeFileSync(join(passExit, 'debate.md'), '## Round 1\n### RED\nv\n### BLUE\nr\n## Round 2\n### RED\nPASS\n')
   writeFileSync(join(passExit, 'blue', 'CHANGELOG.md'), '## Round 1\nedits\n')
-  assert.equal(recordParityAudit(passExit).verdict, 'PASS', 'a PASS exit has no final blue response — floored')
+  assert.equal(recordParityAudit(passExit, { viewJSON: views({ redRounds: 2, blueRounds: 1 }) }).verdict, 'PASS', 'a PASS exit has no final blue response — floored')
+  // Without a view reader (no --bin) the audit SKIPs rather than reading a stale debate.md.
+  assert.equal(recordParityAudit(healthy).verdict, 'SKIP')
 })
 
 test('W2e law mirror: repo law/ stages read-only into inputs/law; absent law dir is a stated no-op', async () => {

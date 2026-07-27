@@ -22,10 +22,14 @@ import { parseRenderedRows } from './scorecards.mjs'
 
 // Stub files with a one-line header each — the write-guard workaround (agents append to
 // existing artifacts; the guard is filename-keyed and path-independent, run-3 experiment).
+// friction.md is NOT here: friction lives on the record (the friction verb), read via the
+// friction view — the pre-tool file was retired 2026-07-19 (debate.js forbids hand-writing
+// it) and the capture friction-parity audit now reads the record, so a friction.md stub
+// would be a file nobody writes or reads. The debate.md stub STAYS: debate.js's no-binDir
+// fallback still has seats append the transcript to it.
 const STUBS = [
   ['debate.md', 'debate.md'],
   ['report.md', 'report.md'],
-  ['friction.md', 'friction.md'],
   ['blue/frontier.md', 'blue frontier'],
   ['blue/report.md', 'blue report'],
   ['blue/CHANGELOG.md', 'blue CHANGELOG'],
