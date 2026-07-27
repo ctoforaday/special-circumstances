@@ -18,3 +18,16 @@ CLASSES: BENCHMARK — optimize this · DIAGNOSTIC — this explains you; optimi
 - `lines_of_inquiry` [diagnostic] — Alternatives explored: _not computed_ — no avenues recorded — think-around-problem is back to self-attested for this run
 - `thin_avenue_reasons` [detector] — Alternatives explored: **0**
 - `confidence_vs_survival` [benchmark] — Calibration is craft: _not computed_ — BLOCKED until per-claim confidence records exist (W2f) — calibration cannot be computed from prose
+
+## haiku-findings-run
+
+- `repair_regression_ratio` [benchmark] — Durable repairs: _not computed_ — no telemetry rounds with closures
+- `manifest_coverage` [benchmark] — Correctness manifest: **49** (manifest rows counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio)
+- `round_parity_failures` [detector] — Round on the record: **0**
+- `unrecorded_claim_loss` [detector] — LOSS: additive violations: **0** (0 claim(s) lost across rounds, 0 retired on the record)
+  - a fall the retire events do not account for is substance leaving silently — the failure the old prose-level rule was written to stop
+- `lines_of_inquiry` [diagnostic] — Alternatives explored: _not computed_ — no avenues recorded — think-around-problem is back to self-attested for this run
+- `thin_avenue_reasons` [detector] — Alternatives explored: **0**
+- `confidence_vs_survival` [benchmark] — Calibration is craft: _not computed_ — BLOCKED until per-claim confidence records exist (W2f) — calibration cannot be computed from prose
+
+HEADLINE: manifest_coverage 49 [BENCHMARK]
