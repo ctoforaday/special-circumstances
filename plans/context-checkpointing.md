@@ -1,8 +1,16 @@
 # Context Checkpointing — a "Memento" for Long-Running Agents
 
 > Design proposal for a follow-up PR to **Special Circumstances**.
-> Home plugin: **prosthetic-conscience** (core cowork behavior). Touches **sleeper-service**.
-> Status: proposal. No code in this PR.
+> Home plugin: **gray-area** (the fourth plugin, of which this is one half). Touches
+> **prosthetic-conscience** and **sleeper-service**.
+> Status: proposal, corrected. No code in this PR.
+>
+> **Two retargets since first draft, both recorded in §15.** (1) The operator retargeted this PR on
+> 2026-07-18 from "a checkpointing proposal" into the seed of a fourth plugin, **Gray Area**, whose
+> spine is trajectory mining; continuity is one consumer of that substrate rather than the point.
+> Companion document: `plans/gray-area.md` (in review on its own branch). (2) The hook facts in §2
+> were re-verified on 2026-07-27 against **Claude Code 2.1.220** and several were wrong — including
+> the constraint this design called central. Corrections are inline and marked; §15 lists them.
 
 ---
 
@@ -31,51 +39,73 @@ known place, and make sure your future self is handed it the moment the amnesia 
 
 ## 2. Grounding: what Claude Code actually gives us
 
-Verified against the Claude Code hooks documentation
-(`https://code.claude.com/docs/en/hooks`). Where the docs were thin I say so rather than
-invent.
+**CORRECTED 2026-07-27.** The original of this section was verified against the hooks
+*documentation*. It has now been re-verified against the shipped client's own hook-event
+catalogue — **Claude Code 2.1.220**, native binary, `GIT_SHA 4073f595…`, built 2026-07-24 — and
+two of its load-bearing claims were wrong. This is the leaf-verification discipline applied to a
+document that had asserted docs as fact: read the thing itself.
 
 ### The compaction lifecycle
 
 - Compaction fires **manually** (`/compact`) or **automatically** when the context window
   approaches its limit. Auto-compaction gives essentially **no advance warning** to the
-  agent — it happens between turns.
-- **`PreCompact` hook** — fires *before* compaction. Matchers: `manual` and `auto`. Input
-  JSON includes the common fields (`session_id`, `transcript_path`, `cwd`,
-  `hook_event_name`) plus, for the manual case, `custom_instructions` (whatever the user
-  typed after `/compact`), and a `trigger` field distinguishing manual from auto.
-- **`SessionStart` hook** — fires when a session begins or resumes. The `source` field takes
-  `startup`, `resume`, `clear`, and — critically — **`compact`**: SessionStart fires again
-  *after* a compaction completes. SessionStart can return
-  `hookSpecificOutput.additionalContext` (a string), which the harness injects into the
-  fresh context as a system reminder before the next model turn.
+  agent — it happens between turns. *(Holds.)*
+- **`PreCompact`** — fires *before* compaction, matched on `trigger` ∈ {`manual`, `auto`}. Input
+  carries the common fields plus `custom_instructions`. **Exit 0, and its stdout is appended as
+  the custom compact instructions.** *(This last is the correction. See below.)*
+- **`PostCompact`** — **exists**, matched on `trigger` ∈ {`manual`, `auto`}, and its input carries
+  **`compact_summary`: the summary that was just written.** The original treated this event as
+  unconfirmed and refused to depend on it. It is real, and it is the correct restore point for the
+  compaction case.
+- **`SessionStart`** — `source` ∈ {`startup`, `resume`, `clear`, `compact`, **`fork`**}; `fork` is
+  new since the original. Input also carries `agent_type`, `model` and `session_title`. Returns
+  `hookSpecificOutput.additionalContext`, injected before the next model turn. Its output also
+  supports **`watchPaths`** (register files with the `FileChanged` watcher) and **`reloadSkills`**
+  — both flagged as unconfirmed in the original; both real.
+- **`SubagentStart` / `SubagentStop`** — not known to the original. Matched on `agent_type`.
+  `SubagentStart` returns `additionalContext` to the subagent; `SubagentStop` receives
+  `agent_id`, `agent_type` and **`agent_transcript_path`**. These are the events the wider Gray
+  Area design is built on; the checkpointing half needs `agent_id` from them (§4).
+- **`FileChanged`** — matcher names the files to watch, fires on change/add/unlink. This is the
+  mechanism improvement **I2** (§12) was written as a discipline for, because no mechanism was
+  known to exist.
 
-### The hard constraint that shapes the whole design
+### The constraint, restated correctly
 
-> **`PreCompact` cannot reflect, and cannot edit the summary.**
+The original stated it as:
 
-PreCompact runs an external script. That script receives IDs and a path to the transcript
-file — it does **not** get a channel to ask the model "what were you about to do?", and per
-the docs it **cannot inject content into the compacted summary** (unlike SessionStart, it
-has no `additionalContext`). It can read the raw transcript from `transcript_path` and it
-can block compaction (exit 2), but it cannot *think*.
+> ~~**`PreCompact` cannot reflect, and cannot edit the summary.**~~ … "per the docs it **cannot
+> inject content into the compacted summary** (unlike SessionStart, it has no
+> `additionalContext`)."
 
-The consequence is the central engineering decision of this proposal:
+**The second half is refuted.** `PreCompact` cannot *write* the summary, but its stdout becomes
+the custom compact instructions — so it can tell the summarizer what to preserve verbatim. The
+correct constraint is only the first half, and it is sufficient:
+
+> **`PreCompact` cannot reflect.** It is an external script. It receives ids and a path to the
+> transcript; it has no channel to ask the model "what were you about to do?". It can read the
+> transcript, steer the summary, and block compaction (exit 2) — but it cannot *think*.
+
+The central engineering decision is unchanged, because it never depended on the refuted half:
 
 > The rich, semantic checkpoint — decisions, rejected options, next steps, the validation
 > loop — **must be authored by the agent while it still has the context**, not manufactured
 > by a hook at the moment of amnesia. The hook's job is only to *seal* the latest note and
 > guarantee it exists; the *writing* is a discipline the agent runs continuously.
 
-A hook cannot be Memento's notes. A hook can only be the reflex that makes sure the notes
-were written and hands them back. This is why the design is **agent-authored checkpoint +
-deterministic seal/restore hooks**, not "a hook that summarizes on compaction."
+A hook cannot be Memento's notes. A hook can only be the reflex that makes sure the notes were
+written and hands them back. This is why the design is **agent-authored checkpoint + deterministic
+seal/restore hooks**, not "a hook that summarizes on compaction."
 
-*(Uncertainty flagged: the fetched docs also referenced a `PostCompact` event and several
-SessionStart output fields — `initialUserMessage`, `watchPaths`, `reloadSkills`. `PreCompact`,
-`SessionStart(source=compact)`, and `additionalContext` are well-established and load-bearing
-here; the others I treat as unconfirmed and the design does **not** depend on them. Phase 0
-verifies exact field names on the target Claude Code build.)*
+**What the correction buys.** Two mechanisms this document previously designed around:
+
+1. The seal can **steer the harness's own summary** instead of racing it — naming the validation
+   loop, the ordered next actions and the in-flight handles as preserve-verbatim (§3 B).
+2. Restore can be **summary-aware** — `PostCompact` sees what the summary actually kept, so the
+   injection can carry only the delta instead of a second narrative (§3 C, §7). This directly
+   retires risks R3 and R4.
+
+*(Remaining unverified: `initialUserMessage`. Not used by this design.)*
 
 ---
 
@@ -91,23 +121,36 @@ crossed, a validation loop established or changed. A **`/checkpoint`** command f
 immediate write on demand. This is the note. It is always current because the agent keeps
 it current, the way you keep a lab notebook, not a diary you write at your funeral.
 
-**(B) A `PreCompact` hook that *seals* the note — deterministic, no thinking.**
+**(B) A `PreCompact` hook that *seals* the note and *steers the summary* — deterministic, no thinking.**
 On compaction (auto or manual) the hook:
 1. Confirms a checkpoint exists; if none does, it writes a **skeleton** from what it *can*
    observe deterministically — `git status`/`git diff --stat`, branch, the tail of
    `transcript_path`, timestamp — so a checkpoint always exists even if the agent was
    negligent. A stub note beats no note.
 2. Copies the current `CHECKPOINT.md` to a timestamped, immutable
-   `.claude/checkpoints/<ts>-<trigger>.md` (history/rotation), stamping it with `trigger`
-   and `session_id`.
-3. Exits 0. It never blocks compaction (blocking would just wedge the session).
+   `.claude/checkpoints/<ts>-<trigger>.md` (history/rotation), stamping it with `trigger`,
+   `session_id` and `agent_id`.
+3. **Emits preserve-verbatim compact instructions on stdout** — naming the validation loop, the
+   ordered next actions, the in-flight state handles and the `beyond_plan` flag as things the
+   summary must carry. *(Added in the 2026-07-27 correction; the original believed this channel
+   did not exist.)* Bounded and terse: this steers a summarizer, it does not become the summary.
+4. Exits 0. It never blocks compaction (blocking would just wedge the session).
 
-**(C) A `SessionStart` hook that *restores* the note — lightweight, pointer-first.**
-On `source ∈ {compact, resume}` the hook emits, via `additionalContext`, a **short**
-system reminder: the checkpoint's objective line, the plan pointer, the **validation loop**,
-next steps, and the path to the full `CHECKPOINT.md` — *not* the whole file. It re-grounds
-the agent in ~15 lines and tells it where to read more. A **`/resume`** command re-surfaces
-the full checkpoint on demand.
+**(C) Restore, split across two events — summary-aware where a summary exists.**
+
+- **`PostCompact`** owns the compaction case. It receives `compact_summary`, so the hook compares
+  the checkpoint against what the summary actually kept and surfaces **only the delta**. When the
+  summary already carried the validation loop — which the field evidence in §12(a) says it
+  sometimes does — the hook stays quiet rather than repeating it. *(The original routed this
+  through `SessionStart(source=compact)` and injected the digest blind, because `PostCompact` was
+  believed unconfirmed.)*
+- **`SessionStart`** owns `source ∈ {resume, fork, startup}` — the cases where the context is
+  fresh and no summary exists to diff against. Here it emits the full terse digest via
+  `additionalContext`: objective line, plan pointer, the **validation loop**, next steps, and the
+  path to the full `CHECKPOINT.md` — *not* the whole file. It re-grounds the agent in ~15 lines
+  and tells it where to read more.
+
+A **`/resume`** command re-surfaces the full checkpoint on demand, under either path.
 
 The division of labour maps cleanly onto the capability constraint: the agent does the
 thinking (A), the hooks do the deterministic plumbing (B, C).
@@ -122,6 +165,13 @@ narrative, so the agent sees "summary (from harness) + a crisp operational check
 us)" rather than two overlapping stories competing for attention. Terseness is a feature,
 not a limitation: the note is the tattoo, not the autobiography.
 
+The correction makes this stronger than a policy. Non-duplication is now **measured, not
+intended**: the seal asks the summarizer to keep the load-bearing items, and `PostCompact` then
+reads the summary it produced and injects only what is missing from it. Where the original could
+only promise terseness, the corrected design can observe whether the promise was kept — and a
+summary that repeatedly drops an item the seal explicitly asked it to preserve is itself a signal
+worth recording.
+
 ---
 
 ## 4. Checkpoint content — the schema
@@ -132,9 +182,12 @@ for hooks; prose body for the agent). One file, overwritten in place; history li
 
 ```markdown
 ---
-schema: 1
+schema: 2
 updated: 2026-07-11T14:32:00Z
-session_id: abc123
+session_id: abc123                       # NOT unique: every subagent shares the parent's
+agent_id: aa9ed822a09ab8138              # the seat's own id, from SubagentStart/SubagentStop
+agent_type: red-auditor                  # null for a main session
+client_version: 2.1.220                  # hook surface is version-bound; record what we ran on
 objective: "Port the debate-loop workflow.js to handle the FAIL→re-audit path"
 plan: projects/feov-debate/plan.md      # pointer to the SDD plan/spec, or null if beyond-plan
 beyond_plan: true                        # set when work has crossed the plan's scope
@@ -202,8 +255,10 @@ Sections, and why each survives compaction:
 | **Crossing beyond the plan's scope** | skill discipline; sets `beyond_plan: true` | The exact drift the reviewer named — the checkpoint starts carrying weight precisely here. |
 | **Validation loop established / changed** | skill discipline | The loop is the thing most worth preserving; capture it the moment it's defined. |
 | **Decision reached / rejected** | skill discipline | Cheap to append while fresh; expensive to reconstruct. |
-| **Actionable identified (beyond-plan work item)** | skill discipline: file/link it in the canonical queue (issue or `plan.md` task), note carries the pointer | A note-only actionable dies when the resumed agent rebuilds its worklist from a different index (§12, I1). The note points; the durable store holds. |
-| **Proactive / periodic** | `PostToolUse` counter *or* time-based nudge (see risks) | Guards against auto-compaction striking before the agent voluntarily checkpoints. |
+| **Actionable identified (beyond-plan work item)** | skill discipline **backed by `TaskCreated`/`TaskCompleted`** — exit 2 prevents creation or completion | A note-only actionable dies when the resumed agent rebuilds its worklist from a different index (§12, I1). The note points; the durable store holds. *(Corrected: I1 was written as pure discipline because no enforcement point was known. These two events are one.)* |
+| **Validation check's trigger surface touched** | `FileChanged`, matcher = the surface | I2's *"reproduce, don't recall"* now has a mechanism: the check re-arms when its surface is edited, rather than depending on the agent remembering what arms it. |
+| **Session ending without compaction** | `SessionEnd`, reason-matched | A session closed by `clear`/`logout`/`prompt_input_exit` never reaches `PreCompact`, so the note is never sealed. The original had no seal point for this and would silently lose the last note. |
+| **Proactive / periodic** | `PostToolUse` counter, `PostToolUseFailure`, or time-based nudge (see risks) | Guards against auto-compaction striking before the agent voluntarily checkpoints. |
 | **On demand** | `/checkpoint` command | User or agent forces a write before a risky step. |
 
 On the **periodic** trigger: auto-compaction can strike with no warning, so we cannot rely
@@ -213,6 +268,12 @@ refresh the checkpoint; (b) rely on the `PreCompact` seal to snapshot whatever e
 Recommendation: **ship (b) first** (it is the guaranteed floor and needs no per-turn hook),
 add the (a) nudge in a later phase if checkpoints prove stale in practice.
 
+**Corrected addition:** `PostToolUseFailure` is a cheaper and better-aimed nudge point than a
+mutation counter — a run that is failing is a run whose next-actions list is going stale fastest,
+and the event fires only on the failures rather than on every write. It is also the deterministic
+strike-counter that [[anti-spinning]]'s three-strike limit currently lacks. Worth folding into
+option (a) rather than shipping the counter as first drafted.
+
 ---
 
 ## 6. Storage, naming, retention
@@ -220,7 +281,7 @@ add the (a) nudge in a later phase if checkpoints prove stale in practice.
 ```
 .claude/
 ├── checkpoints/
-│   ├── CHECKPOINT.md              # symlink or copy of the current live note (convenience)
+│   ├── CHECKPOINT.md              # a COPY of the current live note (never a symlink — see below)
 │   ├── 20260711T143200Z-auto.md  # sealed snapshots, immutable, newest-wins on restore
 │   ├── 20260711T120500Z-manual.md
 │   └── ...
@@ -234,9 +295,18 @@ add the (a) nudge in a later phase if checkpoints prove stale in practice.
   Rationale: snapshots are transient recovery state, and (like the port plan's treatment of
   live OpenClaw state) we don't want session churn or transcript tails polluting git or
   leaking into portfolio history.
-- **Naming:** `<UTC-ISO-compact>-<trigger>.md`. Sortable, unambiguous, trigger visible.
+- **Naming:** `<UTC-ISO-compact>-<trigger>-<agent_id>.md`. Sortable, unambiguous, trigger visible,
+  and **seat-disambiguated** — concurrent subagents share a `session_id`, so the original naming
+  would have had parallel seats overwrite each other's seals (§4).
+- **Copy, never symlink.** *(Corrected.)* The original offered "symlink or copy". Symlink creation
+  on Windows requires developer mode or elevation, and Windows is the primary development box;
+  a symlink here would fail exactly where the suite is used most, and [[agent-guardrails]] forbids
+  resolving that by escalating. Copy is cheap and the file is small.
 - **Retention/rotation:** keep the last **N=10** snapshots per project; the `PreCompact` hook
   prunes older ones after writing. Restore always reads the newest. Cheap, bounded, no daemon.
+  Note this bounds the *snapshot directory* only — the **live note is rotated by supersession**
+  (one block, each seal replacing the last), which is a separate discipline and the one that
+  actually failed in the field (§12 field report 2).
 
 **Git-tracked vs. session-local — the split, explicit:** the *content the agent authored*
 (the live `CHECKPOINT.md` in the run dir) is part of the work product and is committed; the
@@ -248,8 +318,18 @@ plan is careful about elsewhere.
 
 ## 7. Restore — re-injecting the note after amnesia
 
-**Primary path — `SessionStart` hook.** On `source ∈ {compact, resume}` the hook reads the
-newest checkpoint and returns a compact `additionalContext` payload. It surfaces only the
+**CORRECTED.** The original ran every restore through `SessionStart` and injected the digest
+without knowing what the summary had kept. With `PostCompact` confirmed, restore splits by whether
+a summary exists to diff against.
+
+**Primary path (compaction) — `PostCompact` hook.** Input carries `compact_summary`. The hook
+reads the newest checkpoint, **diffs it against the summary**, and injects only the items the
+summary failed to carry. If the summary already holds the validation loop and the next actions,
+the hook says nothing. This is the mechanism that makes non-duplication measurable rather than
+merely intended, and it retires R3 (digest size) and R4 (double narrative) as design risks.
+
+**Cold path (no summary) — `SessionStart` hook.** On `source ∈ {resume, fork, startup}` the hook
+reads the newest checkpoint and returns a compact `additionalContext` payload. It surfaces only the
 YAML header fields plus the **Validation loop** and **Next steps** sections, capped (~1.5 KB),
 ending with the absolute path to the full note:
 
@@ -276,7 +356,17 @@ mid-session (no compaction needed) to re-anchor.
   recovered operational state distinct from the harness's own summary.
 - Prioritize **forward-looking** sections (validation loop, next steps); the harness summary
   already covers the backward-looking narrative.
+- On the `PostCompact` path, inject **only the delta** against `compact_summary`.
 - If no checkpoint exists, the hook emits **nothing** — silence beats noise.
+
+**The restore path is read-only until the ordered next-actions list.** *(Promoted from field
+report 2 into the design proper.)* Post-compaction the harness re-presents previously-invoked
+skills — including ones originally invoked with mutating arguments — wrapped in do-not-re-execute
+guards. The interactive harness protects this today; a headless restore that naively replayed
+checkpoint or transcript content would re-run side-effectful steps. Nothing replayed from before
+the seam is executable, and every checkpoint claim is verified against reality before it is acted
+on. The first field report caught the note asserting a tag that had never been pushed; that check
+is cheap and is the whole reason for preferring a record over a recollection.
 
 ---
 
@@ -306,38 +396,56 @@ decision from checkpoint → `MEMORY.md` is the same promotion discipline used e
    checkpoint's validation loop turns out wrong or missing, that's a graduation candidate for
    tightening the checkpointing skill itself — the loop improving the loop.
 
-**prosthetic-conscience placement.** Checkpointing is core cowork behavior (it protects any
-long interactive session, not just research), so the skill, both hooks, and the two commands
-**ship in prosthetic-conscience**, the base plugin the other two preload. sleeper-service
-merely *depends on and invokes* it.
+**Placement — reopened by the retarget.** The original argued checkpointing is core cowork
+behaviour and therefore belongs in **prosthetic-conscience**, the base plugin the others preload.
+That argument still stands on its merits. What has changed is that continuity is now understood as
+one consumer of the trajectory substrate rather than a standalone capability, and the seal/restore
+hooks share their event surface (`SubagentStop`, `SessionStart`, `PreCompact`/`PostCompact`) with
+the mining half. **Undecided**, and named as undecided rather than settled by default: the
+deciding question is whether a consumer wants continuity without the miner. If yes, the skill and
+hooks ship in prosthetic-conscience and gray-area depends on them; if no, both halves ship in
+gray-area. Do not resolve this in code before it is resolved in prose.
 
 ---
 
 ## 9. Component map
 
-All in **prosthetic-conscience** unless noted.
+Plugin assignment pending the placement decision above; responsibilities are stable either way.
 
 | Component | Kind | Responsibility |
 |---|---|---|
-| `skills/context-checkpointing/SKILL.md` | skill | The discipline: when/what/how to write `CHECKPOINT.md`; the schema; the "carry the validation loop" rule. Preloaded by long-running agents; cross-refs `project-memory` + `spec-driven-development`. |
+| `skills/context-checkpointing/SKILL.md` | skill | The discipline: when/what/how to write `CHECKPOINT.md`; the schema; the "carry the validation loop" rule; rotate-don't-accumulate; read-only restore. Preloaded by long-running agents; cross-refs `project-memory` + `spec-driven-development`. |
 | `commands/checkpoint.md` | command | `/checkpoint [--show]` — force a write now, or print the current note. |
 | `commands/resume.md` | command | `/resume` — print the full current checkpoint and re-anchor. |
-| `hooks/precompact-seal.*` | hook (PreCompact) | Seal: ensure a checkpoint exists (skeleton from `git`/transcript tail if absent), snapshot to `.claude/checkpoints/`, prune to N, exit 0. Never blocks. |
-| `hooks/sessionstart-restore.*` | hook (SessionStart) | Restore: on `source ∈ {compact,resume}`, emit the terse digest via `additionalContext`. Silent if none. |
+| `hooks/precompact-seal.*` | hook (PreCompact) | Seal: ensure a checkpoint exists (skeleton from `git`/transcript tail if absent), snapshot to `.claude/checkpoints/`, prune to N, **emit preserve-verbatim compact instructions on stdout**, exit 0. Never blocks. |
+| `hooks/postcompact-restore.*` | hook (PostCompact) | **New.** Diff the checkpoint against `compact_summary`; inject only the delta. Silent when the summary already carried it. |
+| `hooks/sessionstart-restore.*` | hook (SessionStart) | Restore for `source ∈ {resume, fork, startup}`: emit the terse digest via `additionalContext`; register validation trigger surfaces via `watchPaths`. Silent if no checkpoint. |
+| `hooks/subagentstop-seal.*` | hook (SubagentStop) | **New.** Seal a seat's note at the moment it finishes, using `agent_id` and `agent_transcript_path` from the event — the only point where a seat's identity and its trajectory are both known. |
+| `hooks/sessionend-seal.*` | hook (SessionEnd) | **New.** Seal on a session that ends without ever compacting; reason-matched. |
+| `hooks/filechanged-rearm.*` | hook (FileChanged) | **New.** Re-arm a validation check when its trigger surface is edited (I2). |
 | `requirements.json` (existing) | manifest | Only `git` (already required). Hooks are capability-gated — degrade to no-op + one warning if a probe is missing, per the port plan's environment-preflight discipline. |
 
 Hooks are cross-platform per the suite convention (PowerShell + POSIX variants; the port
 plan already establishes `Get-Command`/`command -v` capability gating).
 
+**Capability gating now has a second axis: the hook events themselves.** Five of the events above
+are newer than this document's first draft, and the suite must run against clients that predate
+them. `/doctor` should report which hook events the installed client actually supports, and each
+hook must be inert rather than broken on a client that never fires it. The seal/restore pair must
+degrade to the original single-`SessionStart` design when `PostCompact` is unavailable.
+
 ---
 
 ## 10. Alternatives considered
 
-1. **Hook-only, no agent discipline ("summarize on PreCompact").** *Rejected.* PreCompact
-   cannot reflect and cannot edit the summary — it only runs a script with transcript
-   access. Any note it writes is a mechanical transcript slice, missing the decisions,
-   rejections, and validation loop that are the whole point. It is the right *backstop*
-   (§3 B) but cannot be the primary author.
+1. **Hook-only, no agent discipline ("summarize on PreCompact").** *Still rejected, on a narrower
+   ground.* The original rejected it because PreCompact "cannot reflect **and cannot edit the
+   summary**"; the second clause was wrong (§2). The rejection survives on the first clause alone:
+   PreCompact runs a script, so any note it writes is a mechanical transcript slice, missing the
+   decisions, rejections, and validation loop that are the whole point. Steering the summary is
+   not the same as authoring the note, and the ability to say *"keep the validation loop"* is
+   worthless if nothing wrote the validation loop down. It is the right *backstop* (§3 B) and
+   cannot be the primary author.
 2. **Rely on the harness compaction summary alone.** *Rejected — it's the status quo that
    fails.* The summary is backward-looking and lossy exactly on forward-looking procedural
    state (the validation loop), which is what we must preserve.
@@ -360,14 +468,16 @@ plan already establishes `Get-Command`/`command -v` capability gating).
 
 | # | Risk / question | Mitigation |
 |---|---|---|
-| R1 | **Exact hook field names/behavior on the target build.** The fetched docs asserted fields (`PostCompact`, `initialUserMessage`, `watchPaths`, `reloadSkills`) I could not independently confirm. | Design depends only on `PreCompact` + `SessionStart(source=compact/resume)` + `additionalContext`, all well-established. **Phase 0 spike verifies field names empirically** before building. |
-| R2 | **Auto-compaction with no warning + stale note.** If the agent hasn't checkpointed recently, the seal captures a stale cursor. | PreCompact skeleton from `git`/transcript tail as a floor; add the periodic `PostToolUse` nudge if staleness is observed. |
-| R3 | **`additionalContext` size / truncation.** A fat digest wastes the freshly-reclaimed context or gets clipped. | Hard cap (~1.5 KB), digest-not-dump, path pointer for the rest. |
-| R4 | **Duplication with the harness summary** confusing the agent. | Distinct marker prefix; inject only forward-looking sections; terseness as policy (§3, §7). |
+| R1 | ~~Exact hook field names/behavior on the target build.~~ | **RESOLVED 2026-07-27** against 2.1.220, by reading the client's own event catalogue rather than the docs. `PostCompact`, `watchPaths`, `reloadSkills` all real; `SessionStart.source` gained `fork`; `PreCompact` stdout steers the summary. `initialUserMessage` still unverified and unused. Phase 0 stands as a **re-verification against whatever client the consumer runs**, not a first verification — see R9. |
+| R2 | **Auto-compaction with no warning + stale note.** If the agent hasn't checkpointed recently, the seal captures a stale cursor. | PreCompact skeleton from `git`/transcript tail as a floor; add the periodic nudge (now preferring `PostToolUseFailure`, §5) if staleness is observed. |
+| R3 | ~~`additionalContext` size / truncation.~~ | **Largely retired.** The `PostCompact` diff injects only the delta, so the payload shrinks to what the summary actually dropped. Cap retained as a floor. |
+| R4 | ~~Duplication with the harness summary confusing the agent.~~ | **Largely retired** by the same mechanism — non-duplication is now measured against `compact_summary` rather than promised. Marker prefix retained. |
 | R5 | **Checkpoint ↔ plan drift** — two sources of truth diverging. | Checkpoint is explicitly the *volatile cursor*, plan is durable; `plan` pointer + `beyond_plan` flag; fold durable decisions back on completion. |
-| R6 | **Transcript-tail PII in sealed snapshots** entering git. | Snapshots gitignored (§6); only the agent-authored live note is committed. |
-| R7 | **Restore fires on every `resume`, including trivial reconnects**, adding noise. | Silent when no checkpoint or when `status: done`; only inject for `in-progress`/`blocked`/`validating`. |
-| R8 | **Cross-plugin preload** (sleeper-service using the discipline). | Same fallback as the port plan: `skills:` preload, or vendor a copy — de-risked by the existing Phase 1 harness spike. |
+| R6 | **Transcript-tail PII in sealed snapshots** entering git. | Snapshots gitignored (§6); only the agent-authored live note is committed. **Note the residual:** gitignore keeps them out of history, not off the box. Retention on disk is bounded by N=10 (§6) and nothing more; if that is insufficient the snapshots need scrubbing, not just ignoring. |
+| R7 | **Restore fires on every `resume`, including trivial reconnects**, adding noise. | Silent when no checkpoint or when `status: done`; only inject for `in-progress`/`blocked`/`validating`. **Corrected caveat:** a stale `done` note is exactly what misleads a resumed agent, so silence must not mean invisibility — the durable pointer (I3) keeps naming the note, so its staleness is discoverable rather than absent. |
+| R8 | **Cross-plugin preload** (sleeper-service using the discipline). | Same fallback as the port plan: `skills:` preload, or vendor a copy. **Now also:** `SubagentStart` returns `additionalContext` to a subagent, matched on `agent_type` — a mechanism for injecting the discipline per seat without a preload at all. Worth spiking before falling back to vendoring. |
+| R9 | **Hook-surface churn.** *(New.)* Five events this design now depends on postdate its first draft, and the resolver around thinking display has already moved once between client versions. A design verified against one client is not verified against the next. | Record `client_version` in every checkpoint (§4); `/doctor` reports supported hook events; every hook is inert rather than broken when its event never fires; the seal/restore pair degrades to the original single-`SessionStart` shape when `PostCompact` is absent. |
+| R10 | **Concurrent seats overwrite each other's seals.** *(New — a defect in the original, not a new risk.)* All subagents share the parent `session_id`, so `<ts>-<trigger>.md` collides across parallel seats in a debate run. | `agent_id` in the schema and in the snapshot filename (§4, §6). |
 
 ---
 
@@ -450,7 +560,11 @@ summary's paraphrase of what it wanted. *Evidence: the `rule-sweep` red-CI, L147
 
 **I3 — Back the restore hook with the durable memory pointer.** §7 restores via
 `SessionStart(source=compact/resume)`. That hook does not fire on a cold fresh session, and
-per R1/R8 it may be absent or degraded. Make the **project-memory pointer file** (a stable
+per R1/R8 it may be absent or degraded. *(Editorial note added 2026-07-27: §7's mechanism has
+since moved — the compaction case is now `PostCompact` and the cold case is
+`SessionStart(resume/fork/startup)`. I3's argument is unaffected and slightly strengthened: there
+are now two hooks that can be absent or degraded instead of one, and neither fires on a cold
+fresh session. The finding below is left exactly as recorded.)* Make the **project-memory pointer file** (a stable
 `MEMORY.md` entry naming the live checkpoint's path) a required companion output of the
 checkpoint discipline, so continuity survives even when no hook runs. This is the mechanism
 that actually carried session `6f24a6f4`. Amends §7 and §8 (`project-memory` cross-ref becomes
@@ -468,15 +582,18 @@ staleness this run); enlarging the restore digest (no truncation loss observed).
 
 | Phase | Work | Verify |
 |---|---|---|
-| **0. Hook reality spike** | Register no-op `PreCompact` + `SessionStart` hooks that log their full input JSON. Trigger `/compact` and an auto-compaction; capture actual `source`, `trigger`, `custom_instructions`, and confirm `additionalContext` injects. | Logged JSON matches assumptions; `additionalContext` visibly re-grounds the agent post-compaction. Resolves R1. |
-| **1. The note + skill** | `context-checkpointing` skill (schema + discipline) and `/checkpoint [--show]`. No hooks yet — pure agent discipline. | On a real task, agent maintains a valid `CHECKPOINT.md`; `/checkpoint --show` prints it; validation loop captured verbatim. |
-| **2. Seal hook** | `PreCompact` seal: ensure-exists (skeleton fallback), snapshot to `.claude/checkpoints/`, prune to N, `custom_instructions` fold-in. Capability-gated on `git`. | Force `/compact` with a stub-only session → a skeleton snapshot appears; with a live note → it's sealed + timestamped; old snapshots pruned. |
-| **3. Restore hook + `/resume`** | `SessionStart` restore digest (size-capped, forward-first, silent-when-absent) + `/resume` command. | Post-compaction session shows the terse digest with the validation loop and next steps; `/resume` prints the full note; no double-narrative with the harness summary. |
-| **4. Integration** | Wire into `spec-driven-development` (plan pointer + `beyond_plan`) and `project-memory` (promotion on completion); require it in the sleeper-service run loop; `/self-improve` restarts `/resume` from checkpoint. | A long `/self-improve` headless run survives a forced compaction and resumes on the correct validation step. |
-| **5. Freshness (optional)** | Add `PostToolUse` staleness *nudge* (non-blocking) only if Phase 4 shows stale seals. | Nudge appears every N mutations; no interference with agent writes; measurably fresher seals. |
+| **0. Hook reality spike** | Register no-op `PreCompact`, `PostCompact`, `SessionStart`, `SubagentStop` and `SessionEnd` hooks that log full input JSON. Trigger a manual and an automatic compaction and a subagent run. | Logged JSON matches §2 **on the client the consumer runs**. Specifically: `compact_summary` non-empty; `agent_transcript_path` present and readable; `PreCompact` stdout demonstrably reaches the summarizer. Re-verifies R1, resolves R9. |
+| **1. The note + skill** | `context-checkpointing` skill (schema + discipline) and `/checkpoint [--show]`. No hooks yet — pure agent discipline. | On a real task, agent maintains a valid `CHECKPOINT.md`; `/checkpoint --show` prints it; validation loop captured verbatim **with each check's trigger surface** (I2). |
+| **2. Seal hooks** | `PreCompact` seal: ensure-exists (skeleton fallback), snapshot, prune to N, `custom_instructions` fold-in, **preserve-verbatim instructions on stdout**. Plus `SubagentStop` and `SessionEnd` seals. Capability-gated on `git`. | Force `/compact` with a stub-only session → a skeleton snapshot appears; with a live note → sealed, timestamped, `agent_id`-tagged; old snapshots pruned. Two concurrent seats produce two distinct seals (R10). A session ended without compacting still leaves a seal. |
+| **3. Restore + `/resume`** | `PostCompact` delta restore; `SessionStart` digest for `resume`/`fork`/`startup`; `/resume` command. | Post-compaction session shows only what the summary dropped; a summary that already carried the validation loop produces **silence**; `/resume` prints the full note. |
+| **4. Integration** | Wire into `spec-driven-development` (plan pointer + `beyond_plan`) and `project-memory` (I3 pointer, promotion on completion); `TaskCreated`/`TaskCompleted` enforcement of I1; `FileChanged` re-arming of I2; require it in the sleeper-service run loop. | A long `/self-improve` headless run survives a forced compaction and resumes on the correct validation step. An actionable that exists only in the note is **refused**, not silently accepted. |
+| **5. Freshness (optional)** | Staleness *nudge* (non-blocking), preferring `PostToolUseFailure` over a mutation counter, only if Phase 4 shows stale seals. | Nudge fires on failure runs; no interference with agent writes; measurably fresher seals. |
 
-**Estimate:** ~2–3 working days. Phase 0 is the only real unknown; everything after is
-plumbing around a Markdown file plus two thin hooks. Ship 1–4; treat 5 as demand-driven.
+**Estimate: withdrawn.** The original said ~2–3 working days on the reading that this was a
+Markdown file plus two thin hooks. It is now seven hooks across five events, one of them
+enforcing a cross-index invariant, inside a plugin that does not yet exist. Re-estimate after
+Phase 0, against the placement decision in §8. An estimate carried forward unchanged through two
+retargets is not an estimate.
 
 ---
 
@@ -485,6 +602,58 @@ plumbing around a Markdown file plus two thin hooks. Ship 1–4; treat 5 as dema
 *Leave yourself a note before the amnesia hits.* The agent maintains a living
 `CHECKPOINT.md` — objective, plan pointer, decisions kept and rejected, working state, next
 steps, and above all the **validation loop** — a `PreCompact` hook seals it deterministically
-because the hook itself cannot reflect, and a `SessionStart` hook hands the digest back the
-moment context is compacted, so work that has drifted beyond the plan is never lost to
-compression.
+because the hook itself cannot reflect, and tells the summarizer what to preserve; a `PostCompact`
+hook reads the summary that came back and hands over only what it dropped. So work that has
+drifted beyond the plan is never lost to compression — and the note only says what the summary
+failed to.
+
+---
+
+## 15. Correction record
+
+The suite's own discipline is that a correction is entered, not quietly applied, so a reader can
+see what the document used to claim. Two rounds.
+
+### Retarget (operator, 2026-07-18)
+
+This PR stopped being a checkpointing proposal and became the seed of a fourth plugin, **Gray
+Area**, whose spine is trajectory mining — establishing what a session actually did, as against
+what it reported. Continuity is one consumer of that substrate. The front matter and §8 are
+updated; the wider scope lives in `plans/gray-area.md`. Nothing in §§1, 4, 12 changes: the problem
+statement, the schema and the field evidence are all still the case.
+
+### Hook-surface corrections (2026-07-27, against Claude Code 2.1.220)
+
+The original §2 was verified against the hooks *documentation*. Re-verifying against the shipped
+client's own event catalogue found the following. Method: string and structure extraction from the
+native binary (`GIT_SHA 4073f595…`, built 2026-07-24), plus live hook-input capture.
+
+| # | The document claimed | Actually | Consequence |
+|---|---|---|---|
+| C1 | `PreCompact` "cannot inject content into the compacted summary" — called the **central** constraint | Exit 0 and its **stdout is appended as the custom compact instructions** | §2 restated; §3 B gains a fourth step; §10 alternative 1 re-argued on the surviving ground |
+| C2 | `PostCompact` "unconfirmed", design "does not depend on" it | Exists, matched on `trigger`, input carries **`compact_summary`** | Restore split (§3 C, §7); R3 and R4 largely retired |
+| C3 | `SessionStart.source` ∈ {startup, resume, clear, compact} | Also **`fork`**; input also carries `agent_type`, `model`, `session_title` | §2, §7 |
+| C4 | `watchPaths` / `reloadSkills` "unconfirmed" | Both real SessionStart output fields | §9 |
+| C5 | *(not known)* | `SubagentStart` / `SubagentStop` exist, matched on `agent_type`; `SubagentStop` carries **`agent_transcript_path`** | §4 schema, §9, R8 |
+| C6 | *(not known)* | `FileChanged`, `TaskCreated`, `TaskCompleted`, `SessionEnd`, `PostToolUseFailure` exist | I1 and I2 gain enforcement points (§5); a new seal point for uncompacted sessions |
+| C7 | `session_id` used as the checkpoint key | Subagents **share the parent's `session_id`** | R10; `agent_id` added to schema and snapshot filename |
+| C8 | "symlink or copy" for the live note | Symlinks need elevation on Windows, the primary development box | §6: copy, never symlink |
+
+**One correction is not this document's to make, and is recorded so it is not lost.** The
+comment thread on this PR concluded that reasoning is not persisted — *"only an opaque signature
+survives… any design resting on it is built on sand"* — from a sweep of 294 transcripts finding
+5,754 thinking blocks, all empty. That sweep was measuring a **default**, not a ceiling.
+`--thinking-display summarized` retains thinking summaries in the transcript, in headless runs,
+and propagates to subagents. Measured A/B and mechanism in `plans/reasoning-telemetry.md`. It does
+not change the adjudication posture — a summary is second-hand self-report and stays on the
+exploration side of *exploration may summarize, adjudication must cite* — but the open question
+this PR left with "prior shifted, design assuming acts-only" is now closed the other way.
+
+**What did not change under correction, and is worth saying so.** The three-part structure
+(agent-authored note, deterministic seal, deterministic restore); the argument that a hook cannot
+be Memento's notes; the schema's section list; and §12's findings and evidence — one editorial
+pointer was added inside I3 where it names a mechanism that has since moved, and nothing else in
+that section was touched. The field evidence in particular
+was gathered by running the thing rather than by reading about it, which is why none of it needed
+correcting — and is the reason Phase 0 now exists to re-verify §2 against the consumer's client
+rather than to verify it for the first time.
