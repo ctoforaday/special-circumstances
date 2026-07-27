@@ -5,5 +5,7 @@ Planning and design artifacts for Special Circumstances, kept here **while under
 - **`claude-port-plan.md`** — the master plan: a first-principles teardown of the Antigravity origin, the harness comparison, the three-plugin architecture, the inter-agent contracts, and the phased build plan.
 - **`memory-architecture.md`** — proposal: an Open-Knowledge-Format, git-native memory architecture (trajectory→memory skills, a `/dream` consolidation loop, global + project stores).
 - **`context-checkpointing.md`** — proposal: a "Memento"-style context-compression checkpoint system so agents aren't lost after compaction.
+- **`gray-area.md`** — foundations for the fourth plugin: trajectory mining and continuity, the 2.1.220 hook surface and what it lets us enforce, the memento protocol rewritten against the hooks that actually exist, and a phased build. Supersedes the mechanism (not the thesis) of `context-checkpointing.md`.
+- **`reasoning-telemetry.md`** — what is observable in a session, and how to expose thinking summaries: the measured correction to "reasoning is not persisted", the three capture channels graded, and why a summary still cannot promote a finding.
 
 As each plan is agreed and built, the relevant pieces graduate into the plugins and its planning doc becomes historical record.
