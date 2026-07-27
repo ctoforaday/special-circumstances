@@ -22,6 +22,9 @@ and the 2026-07-18 debate run hardened it with a corpus sweep — 294 transcript
 blocks, **zero** non-empty. The operator left one avenue open and untested: *"whether thinking
 retention is controllable at agent spawn time."*
 
+*(The shipped run's two now-refuted claims are filed as **#125**. The sweep itself is accurate and
+is not among them — it measured a default, and the correction is to what was concluded from it.)*
+
 **It is controllable, and the corpus sweep was measuring a default rather than a ceiling.**
 
 Claude Code accepts a documented command-line flag:
@@ -235,6 +238,8 @@ The commands that prove this document, in order. Re-runnable on any box with the
 Steps 1–4 were run on 2.1.220 and passed as recorded in §1. Step 5 was verified by string
 extraction, not by standing up a collector — **that is a gap**: the code path was read, the export
 was not observed end-to-end. Close it before any claim that telemetry is safe to ship off-box.
+Filed as **#126**, which carries the full closing procedure including the positive-control step
+that makes an empty export meaningful. Tracked there, not here.
 
 ---
 
