@@ -284,7 +284,7 @@ test('the dashboard and the cost audit classify every seat identically', async (
   const heads = [
     'Red audit, round 3 — verify at the leaf',
     'Red merge, round 2', 'Blue response, round 4', 'Adjudication, round 1',
-    'Terminal dispute disposition', 'Blue synthesis', 'Blue lane 2',
+    'Terminal dispute disposition', 'Petition sitting, topic "x"', 'Blue synthesis', 'Blue lane 2',
     'frontier hypotheses', 'Final assembly', 'something unrecognised',
   ]
   for (const h of heads) {

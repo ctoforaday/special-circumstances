@@ -315,6 +315,18 @@ function main() {
   const cites = rest.flatMap((a, i) => (a === '--cite' ? [rest[i + 1]] : []))
   const head = (spawnSync('git', ['rev-parse', '--short', 'HEAD']).stdout || '').toString().trim() || 'unknown'
 
+  // Model tiers are REQUIRED (#111) — validated at the earliest gate, BEFORE the run dir is built,
+  // so a model-less launch fails here rather than mid-workflow. debate.js re-checks as the backstop.
+  // Both must be explicit; the engine never guesses a tier or inherits the session model.
+  if (!arg('--model') || !arg('--judgment-model')) {
+    console.error('run-setup: MODEL TIERS REQUIRED — refusing to create the run:')
+    if (!arg('--model')) console.error('  - --model is unset (the BULK tier: frontier, blue lanes, red lenses, blue responses)')
+    if (!arg('--judgment-model')) console.error('  - --judgment-model is unset (the JUDGMENT tier: blue-synthesize, red-merge, judge, assemble)')
+    console.error('  the engine does not guess a tier or inherit the session model. Pass both, e.g.')
+    console.error('  --model sonnet --judgment-model sonnet   (a smoke run passes --model haiku --judgment-model haiku)')
+    process.exit(2)
+  }
+
   // Pins validated BEFORE anything is built: a bad cite fails the whole setup loudly.
   const pv = validatePins(cites, head)
   if (pv.missing && pv.missing.length) {

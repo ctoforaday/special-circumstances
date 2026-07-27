@@ -140,6 +140,8 @@ test('classifySeat: every prompt shape maps to its seat; an unknown head is `oth
   assert.deepEqual(classifySeat('Blue response, round 2.'), { seat: 'blue-respond', round: 2 })
   assert.deepEqual(classifySeat('Adjudication, round 1. Contested docket'), { seat: 'judge', round: 1 })
   assert.deepEqual(classifySeat('Terminal dispute disposition for the run'), { seat: 'judge-terminal', round: 0 })
+  // #111: the petition sitting used to fall through to `other`, misattributing its spend.
+  assert.deepEqual(classifySeat('Petition sitting, topic "x". LEAD has petitioned'), { seat: 'judge-petition', round: 0 })
   assert.deepEqual(classifySeat('Blue synthesis for topic x'), { seat: 'blue-synthesize', round: 0 })
   assert.deepEqual(classifySeat('Blue lane 3: prior art'), { seat: 'blue-lane', round: 0 })
   assert.deepEqual(classifySeat('Formulate 3-5 frontier hypotheses'), { seat: 'frontier', round: 0 })

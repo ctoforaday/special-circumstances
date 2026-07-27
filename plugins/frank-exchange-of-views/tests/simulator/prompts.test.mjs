@@ -59,7 +59,9 @@ function assertLossless(name, prompt) {
 }
 
 const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url))
-const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_golden', lanes: 3 }
+// model + judgmentModel are REQUIRED (#111) — the script throws without both before emitting any
+// prompt. They set dispatch opts, not prompt text, so the goldens are unchanged.
+const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_golden', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet' }
 
 // A debate that reaches every seat class: round 1 FAILs with a docketed gap (so
 // the bench sits), blue responds, round 2 PASSes, assembly runs. claim_count is

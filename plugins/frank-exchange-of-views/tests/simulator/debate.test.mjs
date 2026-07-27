@@ -5,7 +5,10 @@ import assert from 'node:assert/strict'
 import { loadDebateScript, makeWorld, makeResponder, blueEnv, redEnv, gap, judgeEnv, petitionRulingEnv } from './harness.mjs'
 
 const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url))
-const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3 }
+// model + judgmentModel are REQUIRED (#111): debate.js throws without both, so the shared ARGS
+// carries them and every run/spread inherits them. Tests that exercise the unset-tier THROW build
+// their own model-less args explicitly rather than spreading ARGS.
+const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet' }
 const isJudgmentSeat = (l) => /^(blue-synthesize|red-merge|judge|assemble)/.test(l)
 
 // ---- Founding regressions (runs 1-2) ----
@@ -300,17 +303,18 @@ test('happy path: red PASS on round 1 -> VERIFIED, phases in order, lanes honore
   assert.ok(world.logs.some((m) => m.includes('researching: test topic')))
 })
 
-test('per-role models: bulk seats get `model`; judgment seats inherit unless judgmentModel set', async () => {
+test('per-role models: bulk seats get `model`, judgment seats get `judgmentModel`; unset either throws', async () => {
+  // Both tiers set and DISTINCT, so each seat class is checked against its own flag — judgment
+  // seats now carry `judgmentModel` (never undefined; the pre-#111 inheritance is gone).
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
-  await world.run(script, { ...ARGS, model: 'sonnet' })
-  for (const c of world.calls) {
-    if (isJudgmentSeat(c.opts.label)) assert.equal(c.opts.model, undefined, `judgment seat ${c.opts.label} must inherit session model`)
-    else assert.equal(c.opts.model, 'sonnet', `bulk seat ${c.opts.label} must take the bulk model`)
-  }
+  await world.run(script, { ...ARGS, model: 'haiku', judgmentModel: 'opus' })
+  for (const c of world.calls) assert.equal(c.opts.model, isJudgmentSeat(c.opts.label) ? 'opus' : 'haiku', `${c.opts.label} takes its class tier`)
 
-  const world2 = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
-  await world2.run(script, { ...ARGS, model: 'haiku', judgmentModel: 'opus' })
-  for (const c of world2.calls) assert.equal(c.opts.model, isJudgmentSeat(c.opts.label) ? 'opus' : 'haiku')
+  // The engine never guesses or inherits a tier: a missing tier refuses dispatch, naming the flag.
+  // Build args WITHOUT spreading ARGS (which carries both) so the omission is real.
+  const base = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3 }
+  await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, judgmentModel: 'sonnet' }), /refusing dispatch — model unset/)
+  await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, model: 'sonnet' }), /refusing dispatch — judgmentModel unset/)
 })
 
 test('contested docket: a re-raised gap goes to the judge; adjudicated gaps leave red verdict scope', async () => {
