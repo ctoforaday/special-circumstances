@@ -33,11 +33,15 @@ is two script invocations.
 4. AFTER the workflow returns, relay its envelope verbatim (verdict, rounds, lanes, outstanding gaps) plus the run-directory path — YOU MUST NOT re-summarize the report's content; the report is the deliverable, and it is for the human. If the verdict is UNVERIFIED, say so plainly with the outstanding gap count — the gate never soft-passes, and neither does the relay. If the verdict is HALTED, the bench ended the run: relay the halt opinion VERBATIM and IN FULL from the envelope (halt_opinion) — it is addressed to the human and is never summarized, softened, or paraphrased.
 5. **Capture the run record** (mechanics — journal copy, transcript tarball, cost.md with the
    telemetry join, the mechanized post-hoc audits, and `.run-live` marker removal):
-   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/capture-research-run.mjs <run directory> <transcript dir>`
+   `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/capture-research-run.mjs <run directory> <transcript dir> --bin <path to the feov-record executable>`
+   `--bin` lets the record-backed audits (telemetry, record-parity, friction-parity) read the
+   run through the tool's views (`show --view debate --json`, `--view friction`) instead of a
+   markdown projection; omit it only for a pre-record legacy run, where those three SKIP.
    Relay `run-record-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
    finding (missing telemetry line, shard self-report diverging from disk, envelope friction
-   missing from friction.md) — report it like an UNVERIFIED: plainly, never smoothed over.
-   Your judgment half: read the envelope's friction entries against friction.md and dedupe
-   attributed near-duplicates the parity check can't (same complaint, different wording).
+   that never reached the record) — report it like an UNVERIFIED: plainly, never smoothed over.
+   Your judgment half: read the envelope's friction entries against the friction record (`show
+   --view friction`) and dedupe attributed near-duplicates the parity check can't (same
+   complaint, different wording).
 
 **Monitoring a live run** (start this as a BACKGROUND task right after the Workflow launches — the watcher keys its lifetime to the .run-live marker and exits on its own when run-capture lifts it): `node ${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/scripts/render-run-dashboard.mjs <run directory> <transcript dir> --bin <path to the feov-record executable> --watch` writes `<run directory>/dashboard.html` (auto-refreshing) — board mass trend, open gaps by severity, live seats, cost-so-far, blackboard growth. `--bin` is the feov-record executable: the dashboard reads the record through `show --view board|findings|friction` (structured, the record read once by the tool), not by parsing markdown — omit it only for a pre-record legacy run, where the record tiles read "unavailable". The Workflow panel shows the phase; the dashboard shows the debate.

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -112,6 +113,56 @@ func TestShowRecordsNothing(t *testing.T) {
 	}
 	if after := len(events(t, runDir)); after != before {
 		t.Errorf("three reads added %d events (%d → %d); a read that writes inflates every count derived from the log", after-before, before, after)
+	}
+}
+
+// --json on a read opts into a view's STRUCTURED form where one exists. `debate` is the one
+// view with both a markdown transcript and a JSON form; the audits count its sections from
+// the JSON instead of regexing the prose. The contract is one-way: --json is an error on a
+// view that is already JSON by name, and on a markdown view with no JSON form — so there is
+// exactly one way to reach each form, and a wrong guess fails loudly.
+func TestDebateJSONViewAndOneWayContract(t *testing.T) {
+	runDir := seatRun(t)
+	mintGap(t, runDir, "debate-json", "read-surface")
+	if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--reason", "red's round narrative"); err != nil {
+		t.Fatalf("position: %v", err)
+	}
+
+	// debate --json parses and carries the rounds structure.
+	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "debate", "--json")
+	if err != nil {
+		t.Fatalf("show --view debate --json: %v", err)
+	}
+	var dj struct {
+		Rounds []struct {
+			Red []string `json:"red"`
+		} `json:"rounds"`
+	}
+	if e := json.Unmarshal([]byte(out), &dj); e != nil {
+		t.Fatalf("debate --json is not valid JSON (%v):\n%s", e, out)
+	}
+	found := false
+	for _, r := range dj.Rounds {
+		for _, red := range r.Red {
+			if strings.Contains(red, "red's round narrative") {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("debate --json did not carry the red position text:\n%s", out)
+	}
+
+	// --json on a JSON-by-name view is refused (no alias to that JSON).
+	for _, v := range []string{"board", "findings", "friction"} {
+		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", v, "--json"); err == nil {
+			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
+		}
+	}
+	// --json on a markdown view with no JSON form is refused.
+	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "ledger", "--json"); err == nil {
+		t.Error("--view ledger --json was accepted; ledger has no JSON form and must refuse")
 	}
 }
 

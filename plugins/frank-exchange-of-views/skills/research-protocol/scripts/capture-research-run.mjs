@@ -10,7 +10,7 @@
 // trajectories/agent-transcripts.tar.gz; removes the .run-live marker.
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, readdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawnSync, execFileSync } from 'node:child_process'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { computeScorecards, renderChair, chairHeader } from './scorecards.mjs'
 import { scanTranscript } from './cost-audit.mjs'
@@ -33,21 +33,42 @@ export function readJournal(transcriptDir) {
   return { results, friction }
 }
 
-// AUDIT 1 — telemetry presence: one line per red round (a missing line is caught here; a
-// WRONG line is beyond any presence check — recompute on actuation, per §2.5).
-export function telemetryAudit(runDir) {
-  const debate = existsSync(join(runDir, 'debate.md')) ? readFileSync(join(runDir, 'debate.md'), 'utf8') : ''
-  const redRounds = (debate.match(/^### RED/gm) || []).length
+// makeViewReader binds a record-tool binary + runDir into a reader the audits call for a
+// STRUCTURED view: `viewJSON('debate', ['--json'])`, `viewJSON('friction')`. It is the same
+// json-mode move the dashboard made (#123) — the record is read once, through the tool,
+// never by re-parsing a markdown projection. Null when no --bin was given, so the audits
+// that depend on it SKIP rather than reading a stale file or crashing.
+export function makeViewReader(bin, runDir) {
+  if (!bin) return null
+  return (view, extraFlags = []) => {
+    const out = execFileSync(bin, ['merge', 'show', '--view', view, ...extraFlags, '--run', runDir], { encoding: 'utf8' })
+    return JSON.parse(out)
+  }
+}
+
+// AUDIT 1 — telemetry presence: one telemetry line per red round (a missing line is caught
+// here; a WRONG line is beyond any presence check — recompute on actuation, per §2.5). The
+// red-round count comes from the STRUCTURED debate view (rounds with a red sitting), not from
+// regexing a markdown transcript — the second-reader defect json-mode removes.
+export function telemetryAudit(runDir, { viewJSON } = {}) {
+  if (!viewJSON) return { check: 'telemetry', verdict: 'SKIP', detail: 'needs --bin (the debate view is read through the tool)' }
+  let redRounds
+  try {
+    const debate = viewJSON('debate', ['--json'])
+    redRounds = (debate.rounds || []).filter((r) => (r.red || []).length > 0).length
+  } catch (e) {
+    return { check: 'telemetry', verdict: 'SKIP', detail: `debate view unavailable: ${String((e && e.message) || e).slice(0, 120)}` }
+  }
   const p = join(runDir, 'trajectories', 'board-telemetry.jsonl')
   if (!existsSync(p)) {
-    return { check: 'telemetry', verdict: redRounds === 0 ? 'SKIP' : 'FAIL', detail: `board-telemetry.jsonl absent; debate.md shows ${redRounds} red round(s)` }
+    return { check: 'telemetry', verdict: redRounds === 0 ? 'SKIP' : 'FAIL', detail: `board-telemetry.jsonl absent; the debate record shows ${redRounds} red round(s)` }
   }
   const lines = readFileSync(p, 'utf8').split('\n').filter(Boolean)
   const rounds = new Set(lines.map((l) => { try { return JSON.parse(l).round } catch { return null } }).filter((r) => r != null))
   return {
     check: 'telemetry',
     verdict: rounds.size >= redRounds ? 'PASS' : 'FAIL',
-    detail: `${rounds.size} telemetry round(s) vs ${redRounds} red round(s) in debate.md`,
+    detail: `${rounds.size} telemetry round(s) vs ${redRounds} red round(s) on the record`,
   }
 }
 
@@ -71,38 +92,35 @@ export function shardAudit(runDir, results) {
   }
 }
 
-// W1.2 — friction harvest THEN parity. Lens seats have no friction.md write path (their
-// envelope friction reached the record only when the merge relayed it by hand —
-// red-merge-r1 friction, run 5), and abort-killed seats lose the file append entirely. The
-// loss class is closed mechanically: capture appends any envelope entry missing from the
-// file, clearly labeled as capture-authored. Parity then reports REPAIRED (visible, never
-// exit-failing — the record is whole) instead of FAIL; FAIL remains for a missing/unwritable
-// file. Full fix (seats write friction.jsonl records directly) is the record layer (W3.4).
-export function harvestFriction(runDir, envelopeFriction) {
-  const p = join(runDir, 'friction.md')
-  const file = existsSync(p) ? readFileSync(p, 'utf8') : ''
-  const missing = envelopeFriction.filter((f) => !file.includes(String(f).slice(0, 60)))
-  if (missing.length) {
-    writeFileSync(p, file +
-      `\n## auto-harvested at capture (envelope entries absent from the file — lens/abort loss class)\n\n` +
-      missing.map((m) => `- ${String(m)}`).join('\n') + '\n')
+// W1.2 — friction parity. Every friction a seat SELF-REPORTS in its envelope must also have
+// reached the RECORD (the friction verb — the durable channel that survives a phase abort).
+// An envelope entry the record never received is a first-class pipeline error (the seat
+// reported friction it never recorded), so it FAILs — no longer a REPAIRED harvest-into-a-
+// file. friction.md is retired: the record IS the friction channel, read here through the
+// friction view. (The prior harvest-into-friction.md closed a lens/abort loss class by hand;
+// with the verb universal to every role and the file gone, that repair is obsolete.)
+export function frictionAudit(runDir, envelopeFriction, { viewJSON } = {}) {
+  if (!viewJSON) return { check: 'friction-parity', verdict: 'SKIP', detail: 'needs --bin (the friction record is read through the tool)' }
+  let onRecord
+  try {
+    const fj = viewJSON('friction')
+    onRecord = (fj.friction || []).map((f) => String(f.text || ''))
+  } catch (e) {
+    return { check: 'friction-parity', verdict: 'SKIP', detail: `friction view unavailable: ${String((e && e.message) || e).slice(0, 120)}` }
   }
-  return { harvested: missing.length }
-}
-
-export function frictionAudit(runDir, envelopeFriction, harvested = 0) {
-  const p = join(runDir, 'friction.md')
-  const file = existsSync(p) ? readFileSync(p, 'utf8') : ''
-  const missing = envelopeFriction.filter((f) => !file.includes(String(f).slice(0, 60)))
-  const verdict = missing.length ? 'FAIL' : harvested ? 'REPAIRED' : 'PASS'
+  // Tolerant match either direction: the envelope string may be "seat: text" while the record
+  // event carries just the text (or vice versa) — a shared 60-char prefix is the same entry.
+  const present = (f) => {
+    const s = String(f)
+    return onRecord.some((t) => t.includes(s.slice(0, 60)) || s.includes(t.slice(0, 60)))
+  }
+  const missing = envelopeFriction.filter((f) => !present(f))
   return {
     check: 'friction-parity',
-    verdict,
+    verdict: missing.length ? 'FAIL' : 'PASS',
     detail: missing.length
-      ? `${missing.length} envelope entr${missing.length === 1 ? 'y' : 'ies'} STILL missing after harvest (friction.md unwritable?):\n${missing.map((m) => `    - ${String(m).slice(0, 120)}`).join('\n')}`
-      : harvested
-        ? `${harvested} envelope entr${harvested === 1 ? 'y' : 'ies'} auto-harvested into friction.md (labeled); ${envelopeFriction.length} total now present`
-        : `${envelopeFriction.length} envelope entries all present in friction.md`,
+      ? `${missing.length} envelope friction entr${missing.length === 1 ? 'y' : 'ies'} never reached the record (should have been recorded via the friction verb during the run):\n${missing.map((m) => `    - ${String(m).slice(0, 120)}`).join('\n')}`
+      : `${envelopeFriction.length} envelope friction entr${envelopeFriction.length === 1 ? 'y' : 'ies'} all present on the record`,
   }
 }
 
@@ -168,23 +186,30 @@ export function assemblyScreen(runDir) {
 }
 
 // W1.7 (post-hoc half) — record parity: blue's in-run attestation (round_record_appended)
-// is shape-tier; this recount is the vacuity check. Every red round should have a "### BLUE"
-// block in debate.md and a CHANGELOG round entry (the final round may lack both on a PASS
-// exit — blue never responded — so the floor is redRounds - 1).
-export function recordParityAudit(runDir) {
-  const debateP = join(runDir, 'debate.md')
+// is shape-tier; this recount is the vacuity check. Every red round should have a blue
+// sitting on the record and a CHANGELOG round entry (the final round may lack both on a PASS
+// exit — blue never responded — so the floor is redRounds - 1). Red/blue sittings come from
+// the STRUCTURED debate view (rounds with a red/blue section), not from regexing debate.md;
+// the CHANGELOG is blue's genuinely hand-written revision record, so it stays a file read.
+export function recordParityAudit(runDir, { viewJSON } = {}) {
+  if (!viewJSON) return { check: 'record-parity', verdict: 'SKIP', detail: 'needs --bin (the debate view is read through the tool)' }
   const clP = join(runDir, 'blue', 'CHANGELOG.md')
-  if (!existsSync(debateP)) return { check: 'record-parity', verdict: 'SKIP', detail: 'no debate.md' }
-  const debate = readFileSync(debateP, 'utf8')
-  const redRounds = (debate.match(/^### RED\b/gm) || []).length
+  let redRounds, blueBlocks
+  try {
+    const debate = viewJSON('debate', ['--json'])
+    const rounds = debate.rounds || []
+    redRounds = rounds.filter((r) => (r.red || []).length > 0).length
+    blueBlocks = rounds.filter((r) => (r.blue || []).length > 0).length
+  } catch (e) {
+    return { check: 'record-parity', verdict: 'SKIP', detail: `debate view unavailable: ${String((e && e.message) || e).slice(0, 120)}` }
+  }
   if (redRounds === 0) return { check: 'record-parity', verdict: 'SKIP', detail: 'no red rounds on record' }
-  const blueBlocks = (debate.match(/^### BLUE\b/gm) || []).length
   const clRounds = existsSync(clP) ? new Set((readFileSync(clP, 'utf8').match(/^#+.*Round \d+/gim) || []).map((h) => h.match(/Round (\d+)/i)[1])).size : 0
   const ok = blueBlocks >= redRounds - 1 && clRounds >= redRounds - 1
   return {
     check: 'record-parity',
     verdict: ok ? 'PASS' : 'FAIL',
-    detail: `${redRounds} red round(s) vs ${blueBlocks} "### BLUE" block(s) and ${clRounds} CHANGELOG round entr${clRounds === 1 ? 'y' : 'ies'} (floor: redRounds-1 — a PASS exit has no final blue response)`,
+    detail: `${redRounds} red round(s) vs ${blueBlocks} blue sitting(s) and ${clRounds} CHANGELOG round entr${clRounds === 1 ? 'y' : 'ies'} (floor: redRounds-1 — a PASS exit has no final blue response)`,
   }
 }
 
@@ -421,7 +446,7 @@ export function writeScorecards(runDir, results, memoryDir) {
   return { written: true, rows, chairs: Object.keys(cards).length }
 }
 
-export function capture(runDir, transcriptDir) {
+export function capture(runDir, transcriptDir, { bin } = {}) {
   const lines = []
   // Mechanics: journal copy, transcript tarball, cost.md (with telemetry join).
   copyFileSync(join(transcriptDir, 'journal.jsonl'), join(runDir, 'trajectories', 'journal.jsonl'))
@@ -439,27 +464,23 @@ export function capture(runDir, transcriptDir) {
   if (cost.status === 0) { writeFileSync(join(runDir, 'cost.md'), cost.stdout); lines.push('cost.md: written (telemetry join included)') }
   else lines.push(`cost.md: FAILED — ${(cost.stderr || '').toString().slice(0, 200)}`)
 
-  // The audits (journal read from the copy just made — the git-tracked artifact).
-  // Harvest BEFORE parity: the lens/abort friction-loss class is repaired mechanically.
+  // The audits (journal read from the copy just made — the git-tracked artifact). The three
+  // record-backed audits read the run through the tool's views (viewJSON) — the debate view
+  // for red/blue sittings, the friction view for recorded friction — instead of parsing a
+  // markdown projection; without --bin they SKIP rather than read a stale file.
   const { results, friction } = readJournal(join(runDir, 'trajectories'))
-  const { harvested } = harvestFriction(runDir, friction)
+  const viewJSON = makeViewReader(bin, runDir)
   const audits = [
-    telemetryAudit(runDir),
+    telemetryAudit(runDir, { viewJSON }),
     shardAudit(runDir, results),
-    frictionAudit(runDir, friction, harvested),
+    frictionAudit(runDir, friction, { viewJSON }),
     contextUse(transcriptDir, agentFiles),
     assemblyScreen(runDir),
-    recordParityAudit(runDir),
+    recordParityAudit(runDir, { viewJSON }),
     recordJoinAudit(runDir, transcriptDir, agentFiles),
     attestationAudit(runDir, transcriptDir, agentFiles),
     modelTierAudit(runDir, transcriptDir, agentFiles),
   ]
-  // R2.5 parity gate: when the run carried the record tool (records/ exists),
-  // run the hand-vs-shadow fact comparison and relay its verdict.
-  if (existsSync(join(runDir, 'records'))) {
-    const parity = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'record-parity-check.mjs'), runDir])
-    audits.push({ check: 'record-parity-r25', verdict: parity.status === 0 ? 'PASS' : 'FAIL', detail: (parity.stdout || '').toString().trim().split('\n').slice(0, 12).join('\n  ') })
-  }
 
   // W2h — the visibility loop's first leg: compute every scorecard number from
   // the artifacts and APPEND it to the chair's file. Appended, never overwritten:
@@ -492,9 +513,13 @@ export function capture(runDir, transcriptDir) {
 }
 
 function main() {
-  const [runDir, transcriptDir] = process.argv.slice(2)
-  if (!runDir || !transcriptDir) { console.error('usage: node capture-research-run.mjs <runDir> <workflow-transcript-dir>'); process.exit(1) }
-  const { audits, report } = capture(runDir, transcriptDir)
+  const argv = process.argv.slice(2)
+  const binIdx = argv.indexOf('--bin')
+  const bin = binIdx >= 0 ? argv[binIdx + 1] : undefined
+  const positional = argv.filter((a, i) => a !== '--bin' && argv[i - 1] !== '--bin')
+  const [runDir, transcriptDir] = positional
+  if (!runDir || !transcriptDir) { console.error('usage: node capture-research-run.mjs <runDir> <workflow-transcript-dir> [--bin <feov-record executable>]'); process.exit(1) }
+  const { audits, report } = capture(runDir, transcriptDir, { bin })
   console.log(report)
   process.exitCode = audits.some((a) => a.verdict === 'FAIL') ? 2 : 0
 }

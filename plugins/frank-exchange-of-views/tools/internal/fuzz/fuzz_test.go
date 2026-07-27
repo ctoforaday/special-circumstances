@@ -512,14 +512,23 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.err = "verify FAILED:\n" + truncate(string(out))
 		return res
 	}
-	// Oracle 1b: the JSON views the dashboard reads in json-mode must exit 0 and parse. `board`
-	// is already exercised above; `findings` and `friction` are the surface json-mode added — a
-	// broken view is what would silently blank a dashboard tile.
+	// Oracle 1b: the JSON views the operator side reads in json-mode must exit 0 and parse.
+	// `board` is already exercised above; `findings`/`friction` are JSON by name; `debate --json`
+	// is the structured debate the capture audits count sections from. A broken view is what
+	// would silently blank a dashboard tile or make an audit read an empty transcript.
 	for _, v := range []string{"findings", "friction"} {
 		out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput()
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show --view " + v + " did not return valid JSON:\n" + truncate(string(out))
+			return res
+		}
+	}
+	{
+		out, err := exec.Command(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir).CombinedOutput()
+		var parsed any
+		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
+			res.err = "show --view debate --json did not return valid JSON:\n" + truncate(string(out))
 			return res
 		}
 	}

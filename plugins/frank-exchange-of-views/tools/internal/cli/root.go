@@ -123,8 +123,11 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	root.PersistentFlags().String(flags.Run, "", "the run directory (the engine passes it; it is in your prompt)")
 	root.PersistentFlags().String(flags.SeatID, "", "your seat id, assigned by the engine and bound to this role's namespace")
 	// --json makes every mutating verb emit a structured result and every failure a
-	// structured error, so a machine consumer parses fields instead of prose. Reads keep
-	// their own format contract (`show --view`), which is view-selected, not flag-selected.
+	// structured error, so a machine consumer parses fields instead of prose. On READS the
+	// format is primarily view-selected: board/findings/friction are JSON by name, the rest
+	// are markdown. --json opts a markdown view into its structured form where one exists
+	// (today only `show --view debate --json`); it is an error on a JSON-by-name view or a
+	// markdown view with no JSON form, so there is exactly one way to reach each form.
 	root.PersistentFlags().Bool(flags.JSON, false, "emit a structured JSON result (and structured errors) instead of human text")
 
 	root.AddCommand(
