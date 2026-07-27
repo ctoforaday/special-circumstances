@@ -512,6 +512,17 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.err = "verify FAILED:\n" + truncate(string(out))
 		return res
 	}
+	// Oracle 1b: the JSON views the dashboard reads in json-mode must exit 0 and parse. `board`
+	// is already exercised above; `findings` and `friction` are the surface json-mode added — a
+	// broken view is what would silently blank a dashboard tile.
+	for _, v := range []string{"findings", "friction"} {
+		out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput()
+		var parsed any
+		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
+			res.err = "show --view " + v + " did not return valid JSON:\n" + truncate(string(out))
+			return res
+		}
+	}
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.

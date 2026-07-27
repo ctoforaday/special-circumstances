@@ -18,10 +18,18 @@ function fixture() {
     JSON.stringify({ round: 2, mass: 81.5, open_count: 23, max_severity: 'high', new_mint: { count: 22, by_severity: { high: 1 } }, accepted_deltas: [] }),
   ].join('\n') + '\n')
   writeFileSync(join(runDir, 'blue', 'report.md'), '# report\ncontent\n')
-  writeFileSync(join(runDir, 'red', 'ledger.md'), '# ledger\n## open\nR2-1 | high | loc | problem\nR2-2 | medium | loc | problem\n## closure index\nR1-1 | closed | fixed | -\nR1-2 | closed_with_regression | superseded | R2-1 R2-2\n')
-  writeFileSync(join(runDir, 'red', 'archive.md'), '# archive\n## R1-1 — closed\nprose\n')
-  writeFileSync(join(runDir, 'red', 'findings.md'), '# red findings — RENDERED PROJECTION\n- L1-F1 | red-lens-r1-L1 | sev high · high x high | r1 | a finding\n- L5-F1 | red-lens-r1-L5 | sev low · low x low | r1 | another\n- L1-F2 | red-lens-r1-L1 | sev medium · medium x medium | r1 | third\n')
-  writeFileSync(join(runDir, 'friction.md'), '# friction\n- seat-a: pain one\n- seat-b: pain two\n')
+  // json-mode: record-derived numbers come from the tool's JSON views, injected via the
+  // config.viewJSON seam (no markdown fixtures — the dashboard no longer parses them). `views`
+  // mirrors what `feov-record show --view board|findings|friction` returns for this run.
+  const views = {
+    board: {
+      open: [{ id: 'R2-1', severity: 'high' }, { id: 'R2-2', severity: 'medium' }],
+      closed: [{ id: 'R1-1' }, { id: 'R1-2' }],
+      counts: { open: 2, closed: 2, citations: 5 },
+    },
+    findings: { findings: [], counts: { total: 3 } },
+    friction: { friction: [{ seat_id: 'seat-a', round: 1, text: 'pain one' }, { seat_id: 'seat-b', round: 2, text: 'pain two' }], counts: { total: 2 } },
+  }
   // Journal uses the REAL harness schema — {type, key, agentId}, NO labels (production
   // divergence caught live 2026-07-17: the fixture had invented a label field).
   writeFileSync(join(transcriptDir, 'journal.jsonl'), [
@@ -55,23 +63,27 @@ function fixture() {
     JSON.stringify({ message: { role: 'user', content: 'Judge sitting, round 1. Contested docket...' } }) + '\n')
   writeFileSync(join(transcriptDir, 'agent-idred2.jsonl'),
     JSON.stringify({ message: { role: 'user', content: 'Red merge, round 2. FIRST ACTION...' } }) + '\n')
-  return { runDir, transcriptDir }
+  return { runDir, transcriptDir, views }
 }
 
+// buildModel with the JSON views injected via the seam — the json-mode read path (no markdown).
+const withViews = (runDir, transcriptDir, views, extra = {}) =>
+  buildModel(runDir, transcriptDir, { viewJSON: (v) => views[v] ?? null, ...extra })
+
 test('dashboard model: telemetry series, live vs done seats, cost estimate, blackboard sizes', () => {
-  const { runDir, transcriptDir } = fixture()
-  const m = buildModel(runDir, transcriptDir)
+  const { runDir, transcriptDir, views } = fixture()
+  const m = withViews(runDir, transcriptDir, views)
   assert.equal(m.telemetry.length, 2)
   assert.equal(m.latest.mass, 81.5)
   assert.equal(m.seats.filter((s) => !s.done).length, 1, 'started-without-result is live')
   assert.equal(m.seats.filter((s) => s.done).length, 5)
   assert.ok(m.cost > 1, 'cache reads priced')
-  assert.equal(m.shards.openRows, 2, 'ledger open rows counted')
+  assert.equal(m.shards.openRows, 2, 'open gaps from the board JSON view (counts.open)')
   assert.equal(m.shards.openBySeverity.high, 1)
-  assert.equal(m.shards.closureIndexRows, 2, 'LINE count — a supersedes-bearing row counts once, not per id named')
-  assert.equal(m.shards.archiveRecords, 1)
-  assert.equal(m.shards.findings, 3, 'lens findings counted from findings.md (raw leaf audit, pre-coalescence)')
-  assert.equal(m.friction.count, 2, 'friction is a count of pain points, not bytes')
+  assert.equal(m.shards.closureIndexRows, 2, 'closed gaps from the board view (counts.closed)')
+  assert.equal(m.shards.archiveRecords, 2, 'closed gaps (board closed[].length) — the old ledger/archive md split collapses to the board closed count')
+  assert.equal(m.shards.findings, 3, 'lens findings from the findings JSON view (counts.total)')
+  assert.equal(m.friction.count, 2, 'friction events from the friction JSON view (counts.total)')
   assert.equal(m.blueClaims, 100)
   assert.ok(m.steps.some(s2 => s2.name === 'frontier' && s2.state === 'done'), 'progress steps derived from journal')
   assert.equal(m.rates[1].closed, 30 + 22 - 23, 'close rate math: prev_open + minted - open')
@@ -154,16 +166,12 @@ test('classifySeat: every prompt shape maps to its seat; an unknown head is `oth
 })
 
 test('DEFECT: compound grades are counted as themselves, not as the simple grade they contain', () => {
-  // `medium-high` contains the substring `high`, and `low-medium` contains
-  // `medium`. With the grade list ordered simple-first, the substring match
-  // classified every compound row as the simple grade — inflating the
-  // high-severity count on the tile a human reads to decide whether the board is
-  // getting worse. The list is now ordered most-specific-first.
+  // The old markdown parse used an ordered substring match that could count `medium-high` as
+  // `high` (the compound grades contain the simple ones). json-mode reads each gap's severity
+  // FIELD from the board view verbatim — the substring bug is now structurally impossible.
   const runDir = tmp(), transcriptDir = tmp()
-  mkdirSync(join(runDir, 'red'), { recursive: true })
-  writeFileSync(join(runDir, 'red', 'ledger.md'),
-    '# ledger\n## open\nR1-1 | medium-high | loc | p\nR1-2 | low-medium | loc | p\nR1-3 | high | loc | p\n## closure index\n')
-  const m = buildModel(runDir, transcriptDir)
+  const views = { board: { open: [{ id: 'R1-1', severity: 'medium-high' }, { id: 'R1-2', severity: 'low-medium' }, { id: 'R1-3', severity: 'high' }], closed: [], counts: { open: 3, closed: 0, citations: 0 } } }
+  const m = withViews(runDir, transcriptDir, views)
   assert.equal(m.shards.openRows, 3)
   assert.deepEqual(m.shards.openBySeverity, { 'medium-high': 1, 'low-medium': 1, high: 1 })
 })
@@ -221,43 +229,38 @@ test('scorecardSection: absent inputs, no scorecards, and unparseable rows all r
   assert.ok(out.includes('&lt;script&gt;'))
 })
 
-test('W1.5: telemetry is authoritative when the ledger parse under-reads the open count', () => {
-  const { runDir, transcriptDir } = fixture()
-  // Ledger open section parses 2 rows but telemetry says 23 open — the run-5 "open gaps: 1"
-  // regression class: the old fallback engaged only at zero.
-  const html = renderHtml(buildModel(runDir, transcriptDir))
-  assert.ok(html.includes('23 <span class="muted">(from telemetry'), 'under-read parse defers to telemetry')
-  assert.ok(html.includes('found 2 row(s)'), 'the parse count is disclosed, not hidden')
+test('the board view is authoritative for open gaps — the telemetry-wins-under-read fallback is gone', () => {
+  // The old heuristic ledger parse could under-read, so the dashboard fell back to telemetry's
+  // open_count. The board JSON view does not under-read (it is the record replay), so the fallback
+  // is removed: the board count (2) is shown, not telemetry's round-snapshot (23).
+  const { runDir, transcriptDir, views } = fixture()
+  const html = renderHtml(withViews(runDir, transcriptDir, views))
+  assert.ok(html.includes('open gaps on the board</td><td>2'), 'the board view count is shown (2), not telemetry (23)')
+  assert.ok(!html.includes('telemetry wins') && !html.includes('from telemetry — heuristic'), 'the under-read fallback is removed')
 })
 
-// friction.md holds ATTRIBUTED LINES, not markdown bullets. The dashboard counted
-// /^- / and therefore reported "none logged yet" while seven real entries sat in the
-// file — including every tool failure the run hit. Fixture is the real format.
-test('friction entries are counted in the format seats actually write', async () => {
-  const { buildModel } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
-  const runDir = tmp()
-  mkdirSync(join(runDir, 'trajectories'), { recursive: true })
-  writeFileSync(join(runDir, 'friction.md'), [
-    '# friction.md — some topic',
-    '',
-    'blue-synthesize: the Write tool refused to create blue/report.md, a generic subagent guard.',
-    'red-merge-r1: `merge mint` has no amend path — a first mint with placeholder payload is permanent.',
-    'red-merge-r2: acceptance-check contracts have no field for CONDITION-PINNING.',
-    '',
-  ].join('\n'))
-  const m = buildModel(runDir, tmp())
-  assert.equal(m.friction.count, 3, 'three attributed lines, none of them bullets')
-  assert.match(m.friction.last, /CONDITION-PINNING/, 'the latest entry is the last one written')
+// Friction is a record EVENT now (the friction verb); the dashboard reads the friction JSON view
+// (counts.total + the events), not a hand-written friction.md. The last entry keeps the
+// "seat: text" attributed shape the tile rendered before.
+test('friction entries are counted from the friction JSON view (seat: text latest)', () => {
+  const runDir = tmp(), transcriptDir = tmp()
+  const views = { friction: { friction: [
+    { seat_id: 'blue-synthesize', round: 0, text: 'the Write tool refused to create blue/report.md, a generic subagent guard.' },
+    { seat_id: 'red-merge-r1', round: 1, text: '`merge mint` has no amend path — a first mint with placeholder payload is permanent.' },
+    { seat_id: 'red-merge-r2', round: 2, text: 'acceptance-check contracts have no field for CONDITION-PINNING.' },
+  ], counts: { total: 3 } } }
+  const m = withViews(runDir, transcriptDir, views)
+  assert.equal(m.friction.count, 3, 'three friction events on the record')
+  assert.match(m.friction.last, /^red-merge-r2: .*CONDITION-PINNING/, 'latest is the last event, seat-prefixed')
 })
 
-test('an empty friction log still reports zero rather than throwing', async () => {
-  const { buildModel } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
-  const runDir = tmp()
-  mkdirSync(join(runDir, 'trajectories'), { recursive: true })
-  writeFileSync(join(runDir, 'friction.md'), '# friction.md — topic\n\n')
-  const m = buildModel(runDir, tmp())
-  assert.equal(m.friction.count, 0, 'a header-only file is genuinely empty')
-  assert.equal(m.friction.last, null)
+test('a record with no friction events reports zero (not "unavailable"); no --bin reports unavailable', () => {
+  const runDir = tmp(), transcriptDir = tmp()
+  const empty = withViews(runDir, transcriptDir, { friction: { friction: [], counts: { total: 0 } } })
+  assert.equal(empty.friction.count, 0, 'the view exists and is empty — genuinely zero')
+  assert.equal(empty.friction.last, null)
+  const noBin = buildModel(runDir, transcriptDir) // no viewJSON seam, no --bin
+  assert.equal(noBin.friction.count, null, 'no view available → unavailable, distinct from zero')
 })
 
 // A run's pace depends on its model tier, its report size and how hard red is working,

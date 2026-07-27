@@ -138,6 +138,7 @@ var views = []struct {
 }{
 	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on", "merge"},
 	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", "merge"},
+	{"friction", "STRUCTURED JSON: every friction event on the record (seat, round, text) — capability/protocol complaints as events; read by the dashboard instead of parsing a markdown file", ""},
 	{"ledger", "the board as markdown, for a human verification pass", ""},
 	{"archive", "closed gaps with their closure records and anchors", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order", "bench"},
@@ -213,6 +214,14 @@ func Show() *cobra.Command {
 		// parse. This is the channel that replaced red/candidates/*.md.
 		if want == "findings" {
 			b, err := record.FindingsJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
+		}
+		if want == "friction" {
+			b, err := record.FrictionJSONBytes(runDir)
 			if err != nil {
 				return err
 			}

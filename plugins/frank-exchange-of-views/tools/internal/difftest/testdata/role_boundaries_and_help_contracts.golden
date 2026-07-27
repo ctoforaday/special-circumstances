@@ -40,7 +40,7 @@ Available Commands:
   petition    petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render      read-only projection refresh (any seat may invoke)
-  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for lens
@@ -78,7 +78,7 @@ Available Commands:
   register        FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
   render          read-only projection refresh (any seat may invoke)
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror
 
@@ -119,7 +119,7 @@ Available Commands:
   render       read-only projection refresh (any seat may invoke)
   retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
   revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
-  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for blue
@@ -155,7 +155,7 @@ Available Commands:
   petition-rule rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --reason <opinion> (a halt is its own verb)
   register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render        read-only projection refresh (any seat may invoke)
-  show          read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show          read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for bench
