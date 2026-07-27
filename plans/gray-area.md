@@ -1,4 +1,4 @@
-# Gray Area — trajectory mining, continuity, and the hook surface
+# Gray Area — trajectory mining and the hook surface
 
 > Foundations for the **fourth plugin**. Seeded by PR #3 (the Memento proposal), retargeted by the
 > operator on 2026-07-18 from "a checkpoint system" to "a trajectory-evidence plugin".
@@ -16,7 +16,9 @@ below are read out of that binary's own event catalogue, not from documentation.
 ## 1. What the plugin is for
 
 **The spine is trajectory mining: a transcript holds what actually happened, as opposed to what was
-reported.** Context survival is one consumer of that substrate, not the point.
+reported.** That is the whole of it. Continuity across compaction — which seeded PR #3 and was
+carried here through the retarget — has been split back out to `prosthetic-conscience`; §4 records
+the argument.
 
 The case for a plugin rather than another script is that the consumers already exist, each written
 separately against the same JSONL:
@@ -30,9 +32,8 @@ separately against the same JSONL:
 | Attestation audit (E0.5a) | done **by hand**, never tooled |
 | Friction mining (E0.5e) | done **by hand**, never tooled |
 | Wall-clock forensics (1015 API rounds × ~23.8s) | done **by hand**, never tooled |
-| Continuity across compaction | done **by hand**, six boundaries, twice reported on PR #3 |
 
-Eight instances of one capability. Four of them are a person doing it manually.
+Seven instances of one capability. Three of them are a person doing it manually.
 
 **Wanted capabilities, from the operator:** mine trajectories for problems (human frustration, signs
 of deception, seats going in circles); give the bench toolsets to judge red and blue behaviour, and
@@ -145,44 +146,43 @@ session).
 
 ---
 
-## 4. The memento protocol, rewritten
+## 4. Continuity is not in this plugin
 
-PR #3's three-part structure — agent-authored note, deterministic seal, deterministic restore — is
-correct and survives. What follows amends the mechanism, not the thesis.
+**Decided 2026-07-27.** Earlier drafts of this document carried the memento protocol as Gray Area's
+second half. It is split out. **Continuity ships in `prosthetic-conscience`** — which is where PR #3
+originally placed it, before the retarget moved it here by association rather than by argument. The
+corrected design lives in `plans/context-checkpointing.md`; this section records why it is not here.
 
-| Stage | PR #3 | Corrected |
-|---|---|---|
-| **Author** | Agent maintains `CHECKPOINT.md` at breakpoints | Unchanged. A hook cannot reflect; the note must be agent-authored |
-| **Seal** | `PreCompact` copies the note to a timestamped snapshot | Also: emit compact instructions on stdout naming what the summary must preserve verbatim — validation loop, ordered next actions, in-flight handles, beyond-plan flag |
-| **Restore** | `SessionStart(source=compact)` injects a ~1.5 KB digest | `PostCompact` reads the actual summary and injects **only what the summary dropped**. `SessionStart` keeps the `resume`/`fork`/`startup` cases, where no summary exists |
-| **Durable index** | Improvement I3: a `MEMORY.md` pointer, because no hook fires on a cold start | Unchanged and still load-bearing. This is the mechanism that actually carried session `6f24a6f4` across six boundaries |
+**The deciding argument is consent, not architecture.** Gray Area reads transcripts — user text,
+file paths, whatever a tool result happened to contain. That is a real surveillance surface, and
+the ship's name is the warning. Checkpointing writes a note about your own work. Bundling them
+would force a consumer who wants *"don't lose my validation loop after compaction"* to also accept
+*"a tool that reads all my transcripts"* — an unnecessary trust decision, charged for a benign
+feature. A suite that makes the distinctive claim this one makes about the miner cannot also
+smuggle the miner in with the safety belt.
 
-**Fields the two live field reports promoted from candidate to mandatory**, carried as-is:
+**The practical argument is sequencing.** Continuity has been hand-run across six compaction
+boundaries and works. Inside Gray Area it would wait on a Go miner that does not exist. In
+`prosthetic-conscience` — which ships today, is already installed, and already carries the
+always-on rules continuity exists to protect — it can land next, on its own timescale.
 
-- **Ordered next actions**, each with a pointer to its home in the canonical queue (issue or plan
-  task). A note-only actionable dies when the resumed workflow rebuilds its worklist from a
-  different index — this is the one failure a human had to catch.
-- **In-flight state handles.** Background work is invisible to the conversation after compaction;
-  the checkpoint is the only thread back to it. Validated when a detached 1.28 GB download survived
-  a boundary and was re-attached from its task id.
-- **Invariants and foot-guns**, verbatim (*"NEVER change model on a resume — cache keys"*).
-- **Each validation check's trigger surface** — what re-arms it — now backed by `FileChanged`
-  rather than by discipline alone.
-- **Not** summaries of completed work. Git history and the run directories already carry that.
+**Why not a fourth plugin of its own:** one skill, two commands and a few thin hooks is a skill, not
+a marketplace entry. The suite already layers this correctly — `prosthetic-conscience` is base
+discipline, `frank-exchange-of-views` is a specialist engine, `sleeper-service` is the autonomous
+loop. Continuity is base-discipline shaped.
 
-**Two disciplines that are not optional:**
+**The strongest counter, stated fairly.** The two halves share events (`SubagentStop`,
+`SessionStart`, `PreCompact`/`PostCompact`), and verify-on-restore — checking a checkpoint's claims
+against reality — is itself a mining operation. But shared events are weak coupling: Claude Code
+merges hook configurations from multiple plugins on the same event. And the base discipline is
+*verify the claim against reality* (run `git`, check the tag exists), not *parse the transcript*.
+Trajectory-backed verification is enrichment the miner adds later, which is a dependency rather
+than a merge.
 
-- **One block, rotated — never accumulated.** A new seal supersedes and prunes the previous one. The
-  second field report caught the checkpoint file outgrowing the harness's auto-recall threshold, at
-  which point the deterministic anchor silently degraded to a pointer the agent had to choose to
-  follow. Bounded collections, explicit lifecycle.
-- **Restore is read-only until the ordered next-actions list.** Post-compaction the harness
-  re-presents previously-invoked skills, including ones originally invoked with mutating arguments.
-  The interactive harness guards this; a headless restore that naively replays checkpoint content
-  would re-run side-effectful steps. Nothing replayed from before the seam is executable.
-- **Verify every checkpoint claim against reality before acting on it.** The first field report
-  caught a memory-file claim about a tag that had never been pushed. Cheap to check, and the check
-  is the whole point of a plugin that reads trajectories rather than trusting reports.
+**What Gray Area keeps of it.** Checkpoints become one input among many: a sealed note is a
+declared claim about what a session was doing, and act-vs-claim applies to it exactly as it applies
+to a seat's attestation. A checkpoint that says *"validation step 2 failing"* against a trajectory
+showing step 2 never ran is a finding. That is a consumer relationship, and it is the only one.
 
 ---
 
@@ -224,24 +224,29 @@ name.
 
 ## 6. Component map
 
-Plugin `gray-area`, depending on `prosthetic-conscience`.
+Plugin `gray-area`, depending on `prosthetic-conscience`. Mining only — the continuity components
+moved out with §4.
 
 | Component | Kind | Responsibility |
 |---|---|---|
-| `skills/context-checkpointing/` | skill | The authoring discipline: schema, when to seal, the mandatory fields, rotate-don't-accumulate, read-only restore |
-| `commands/checkpoint.md` | command | Force a seal now; `--show` prints the current note |
-| `commands/resume.md` | command | Print the full note and re-anchor |
-| `hooks` → `PreCompact` | hook | Seal the note; emit preserve-verbatim compact instructions on stdout; snapshot and prune |
-| `hooks` → `PostCompact` | hook | Diff checkpoint against `compact_summary`; inject only the delta |
-| `hooks` → `SessionStart` | hook | Restore for `resume`/`fork`/`startup`; register `watchPaths` for validation trigger surfaces |
-| `hooks` → `SubagentStop` | hook | Capture `agent_transcript_path` per seat into the run's trajectory index |
-| `hooks` → `FileChanged` | hook | Re-arm a validation check when its trigger surface is touched |
-| `tools/gray-area` | Go CLI | The miner: act-vs-claim, rework, stalls, frustration surface — every answer provenance-stamped |
+| `hooks` → `SubagentStop` | hook | Capture `agent_id`, `agent_type` and `agent_transcript_path` per seat into the run's trajectory manifest, at the moment the seat finishes |
+| `hooks` → `SessionEnd` | hook | Close the manifest for a main session; reason-matched |
+| `tools/gray-area` | Go CLI | The miner: act-vs-claim, rework, stalls, frustration surface — every answer provenance-stamped, refusing to answer without one |
 | `commands/inspect.md` | command | Run an inspection; declared, with what it relied on quoted |
+| `commands/trawl.md` | command | Exploration queries over a run — summarizing permitted, findings not |
+| `requirements.json` | manifest | `git`; the miner is a Go binary on the same doctor/fetch path as `feov-record` |
 
-Placement question left open: the checkpointing half is core cowork behaviour and has a claim to
-living in `prosthetic-conscience`, where PR #3 originally placed it. Deciding factor is whether a
-consumer wants continuity without the miner. Not resolved here.
+**Boundary with `prosthetic-conscience`, stated so neither side drifts across it:** continuity owns
+`PreCompact`, `PostCompact`, `SessionStart` and `FileChanged`, and owns the checkpoint schema. Gray
+Area owns `SubagentStop` capture and everything downstream of the trajectory manifest. Both may
+register on `SessionEnd` — Claude Code merges hook configurations across plugins on one event, so
+this is a real division rather than a contested one. Gray Area **reads** checkpoints as declared
+claims; it never writes them.
+
+**Capability gating has a second axis: the hook events themselves.** The events this plugin depends
+on postdate much of the suite, and a consumer may run a client that never fires them. `/doctor`
+should report which hook events the installed client supports, and each hook must be inert rather
+than broken where its event is absent.
 
 ---
 
@@ -249,12 +254,15 @@ consumer wants continuity without the miner. Not resolved here.
 
 | Phase | Work | Verify |
 |---|---|---|
-| **0. Hook reality spike** | Register no-op hooks for `SubagentStop`, `PreCompact`, `PostCompact`, `SubagentStart`, `FileChanged` that log full input JSON. Force a compaction and a subagent run. | Logged JSON matches §3. Specifically: `agent_transcript_path` present and readable; `compact_summary` non-empty; `PreCompact` stdout demonstrably reaches the summarizer |
+| **0. Hook reality spike** | Register no-op hooks for `SubagentStart`, `SubagentStop` and `SessionEnd` that log full input JSON. Run a `/research` run with subagents. | Logged JSON matches §3. Specifically: `agent_transcript_path` present, readable, and pointing at the seat's own file — not the parent's |
 | **1. Capture** | `SubagentStop` writes a per-seat trajectory manifest for a run | A completed `/research` run yields one manifest row per seat with a resolvable transcript path, and no glob of the projects directory anywhere |
 | **2. The miner** | Go CLI over the manifest: act-vs-claim, rework, stalls. Provenance on every answer | Re-derive by machine the two hand analyses (attestation audit, friction mining) from the 2026-07-18 run and reconcile against the hand results |
-| **3. Continuity** | Checkpoint skill, seal and restore hooks, the two commands | A run survives a forced compaction and resumes on the correct validation step; the injected delta contains nothing the summary already carried |
-| **4. Instrumented reasoning** | Launch runs with `--thinking-display summarized`; summaries feed exploration queries only | Summary text is present in seat transcripts **and** the miner refuses to return it on an adjudication query |
-| **5. Bench symmetry** | The same inspections aimed at the bench | An inspection of the bench produces the same declared, cited output shape as one aimed at a seat |
+| **3. Instrumented reasoning** | Launch runs with `--thinking-display summarized`; summaries feed exploration queries only | Summary text is present in seat transcripts **and** the miner refuses to return it on an adjudication query |
+| **4. Bench symmetry** | The same inspections aimed at the bench | An inspection of the bench produces the same declared, cited output shape as one aimed at a seat |
+| **5. Checkpoints as a mined input** | Read sealed notes as declared claims and adjudicate them against the trajectory | A checkpoint asserting a validation step that the trajectory shows never ran is reported as a finding, with provenance |
+
+**Continuity is not a phase here.** It ships in `prosthetic-conscience` on its own schedule (§4) and
+does not gate any phase above. Phase 5 depends on it having shipped, and is the only one that does.
 
 **Validation loop, written before implementation** — the commands that prove the plugin:
 
@@ -278,13 +286,12 @@ consumer wants continuity without the miner. Not resolved here.
 | G3 | **Summaries get promoted to evidence** because they are now available and readable. | Structural refusal in the tool, not a convention (T2 in `reasoning-telemetry.md`) |
 | G4 | **The miner becomes a trusted component that can lie silently.** | Provenance on every answer; staleness fails loudly |
 | G5 | **Hook surface churn.** Five of the events this design depends on are newer than PR #3. | Phase 0 exists precisely to re-verify against the installed client, and `/doctor` reports the hook events the client actually supports |
-| G6 | **Reading trajectories is a surveillance capability.** The ship's name is the warning. Transcripts carry user text, paths, and whatever a tool result contained. | Inspections are declared and scoped; snapshots stay out of git; nothing leaves the box |
+| G6 | **Reading trajectories is a surveillance capability.** The ship's name is the warning. Transcripts carry user text, paths, and whatever a tool result contained. | Inspections are declared and scoped; snapshots stay out of git; nothing leaves the box. **This is also why continuity is not bundled here** (§4) — a consumer must be able to take compaction survival without taking the miner |
 
 ---
 
 ## 9. What this document does not settle
 
-- Whether the continuity half ships here or in `prosthetic-conscience` (§6).
 - The relationship between `friction.md` and the miner: friction is unverified self-report and is
   the obvious first mining target, but whether it stays a seat-authored artifact with the miner
   adjudicating it, or becomes miner-derived, is undecided.
