@@ -34,3 +34,4 @@ plugins/*/tools/dist/
 # feov-memory/ and is tracked; promotion between them is a deliberate review step.
 # See feov-memory/red-gap-patterns/README.md.
 .claude/agent-memory/
+.claude/gray-area/

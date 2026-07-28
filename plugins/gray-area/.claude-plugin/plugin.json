@@ -1,0 +1,17 @@
+{
+  "name": "gray-area",
+  "displayName": "Gray Area",
+  "version": "0.1.0",
+  "description": "Trajectory evidence for Special Circumstances: what a session actually did, as against what it reported. Captures each seat's own transcript by path at SubagentStop, so inspections cite the primary record instead of a summary of it.",
+  "author": {
+    "name": "Gregory Block"
+  },
+  "license": "MIT",
+  "keywords": [
+    "trajectory",
+    "adversarial",
+    "audit",
+    "adjudication",
+    "agent-evaluation"
+  ]
+}

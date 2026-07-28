@@ -15,9 +15,9 @@ The suite is named for the [Culture](https://en.wikipedia.org/wiki/The_Culture) 
 | [**prosthetic-conscience**](plugins/prosthetic-conscience) | the drone that keeps you honest | Always-on working discipline for interactive and headless sessions |
 | [**frank-exchange-of-views**](plugins/frank-exchange-of-views) | a heated argument, diplomatically put | A research debate engine — blue builds, red audits and gates, a bench rules |
 | [**sleeper-service**](plugins/sleeper-service) | the GSV quietly running vast hidden projects | Autonomous self-improvement, always human-gated at promotion |
-| **gray-area** *(in design)* | the GCU shunned for reading minds | Trajectory mining — what a session actually did, as against what it reported |
+| [**gray-area**](plugins/gray-area) *(early)* | the GCU shunned for reading minds | Trajectory evidence — what a session actually did, as against what it reported |
 
-Three ship, and are installable today. **Gray Area is in design and not yet installable** — it has a [foundations document](plans/gray-area.md), not a code tree.
+The first three are built out. **Gray Area is early** — it captures where each seat's trajectory is, and nothing mines it yet.
 
 ## The plugins
 
@@ -72,11 +72,13 @@ The learning plugin. It is designed to improve the suite while you sleep: a `/se
 
 ### gray-area — trajectory evidence
 
-**Status: in design (no code yet).** Named for the GCU *Gray Area* — the Culture's mind-reader, the ship that establishes what actually happened by reading directly, and is shunned by other Minds for doing it. The capability is necessary and distasteful at once, and the name is meant to keep that uncomfortable.
+**Status: Phase 1 — capture only.** Named for the GCU *Gray Area* — the Culture's mind-reader, the ship that establishes what actually happened by reading directly, and is shunned by other Minds for doing it. The capability is necessary and distasteful at once, and the name is meant to keep that uncomfortable.
 
 Every session writes a transcript: every tool call with its full input, every result linked back to the call that made it, the causal chain between them, and the timing of each step. That record holds **what a session actually did**, which is a different thing from what it reported doing. The rest of this suite is built on separating those two — red audits blue's citations at the source rather than believing them; the bench's integrity checks compare a seat's attestation against its actual tool calls. Gray Area is that same move applied to the session itself.
 
 The plugin exists because the capability has already been built four times and hand-run three times, each time separately, each time against the same file format: bench integrity inspection, a record-join audit, per-seat context accounting, cost accounting, an attestation audit done by hand, friction mining done by hand, and wall-clock forensics done by hand. That is a plugin, not another script.
+
+**What ships today is capture, and only capture.** When a seat finishes, `SubagentStop` hands over that seat's own transcript *by path*, with its `agent_id` and `agent_type`. A hook records one manifest row per seat under `.claude/gray-area/`, which retires the thing every consumer above does by hand — sweeping `~/.claude/projects/` and guessing which file belongs to which seat. The manifest is an **index, not a copy**: it records where a trajectory is and whether it resolved, never the conversation content, because a finding should cite the trajectory rather than a second copy of it.
 
 What it does: act-versus-claim discrepancy (a seat that says it verified something the trajectory shows it never touched), rework detection (the same tool against the same target, repeatedly), stalls and gaps from the timing, and the human-frustration surface in the user's own messages. Symmetric by construction — the same inspections aim at the bench as at the seats, because they run on the same record.
 
@@ -118,6 +120,7 @@ Install from the Claude Code plugin marketplace:
 /plugin install prosthetic-conscience@special-circumstances
 /plugin install frank-exchange-of-views@special-circumstances
 /plugin install sleeper-service@special-circumstances
+/plugin install gray-area@special-circumstances
 ```
 
 `prosthetic-conscience` is the base; the other two preload its rule-skills, and `sleeper-service` invokes `frank-exchange-of-views`. One marketplace install gets all three; each is individually useful.
@@ -146,7 +149,7 @@ This runs the `sc-doctor` binary for a deterministic READY / DEGRADED / BLOCKED 
 | Path | Role |
 |---|---|
 | `plugins/<name>/` | The product: everything a consumer installs — skills, agents, commands, hooks, Go tools |
-| `.claude-plugin/marketplace.json` | Marketplace manifest — lists the three installable plugins (gray-area is not in it until it has a code tree) |
+| `.claude-plugin/marketplace.json` | Marketplace manifest listing the four plugins |
 | `plans/` | Design artifacts under review — each arrives as a PR, graduates into the plugins |
 | `research/` | Completed debate runs (the working corpus; seeded by `/research`) |
 | `ideas/` | Proposals from `/self-improve`, pre-promotion |
