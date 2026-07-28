@@ -68,7 +68,10 @@ func TestNeverBlocksCompaction(t *testing.T) {
 		{"project dir with no note", func(t *testing.T) string { return t.TempDir() }, input(t, hookInput{Trigger: "auto"})},
 		{"malformed stdin", func(t *testing.T) string { return t.TempDir() }, "{not json"},
 		{"empty stdin", func(t *testing.T) string { return t.TempDir() }, ""},
-		{"unwritable project dir", func(t *testing.T) string { return filepath.Join(t.TempDir(), "no", "such", "path") },
+		// Not "unwritable": MkdirAll creates the parents, so this exercises a
+		// project dir that does not exist yet. A genuinely unwritable directory is
+		// not portably testable — CI runs as root, where a 0500 mode is no barrier.
+		{"project dir that does not exist yet", func(t *testing.T) string { return filepath.Join(t.TempDir(), "no", "such", "path") },
 			input(t, hookInput{Trigger: "auto"})},
 	}
 	for _, tc := range cases {
