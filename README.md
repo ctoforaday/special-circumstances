@@ -133,7 +133,18 @@ After installing, check your environment:
 
 This runs the `sc-doctor` binary for a deterministic READY / DEGRADED / BLOCKED verdict on the toolchain (git, gh, qlty) and the hook binaries. `--fix`, with your consent, builds or fetches any missing hook binaries.
 
-<!-- TODO: document the manual build path for the Go hook + feov-record binaries (go build in plugins/*/tools) for users whose /doctor --fix can't fetch a prebuilt binary, and state the toolchain prerequisites (Go version, CGO for -race). -->
+Where `--fix` can reach neither a release asset nor a network, [docs/setup-script.md](docs/setup-script.md#building-the-hook-binaries-by-hand) has the manual `go build` path and the toolchain prerequisites.
+
+### On Claude Code on the web
+
+The `/plugin` slash commands above are CLI-only and do not exist in web sessions. Use the `claude` command-line equivalents instead:
+
+```text
+claude plugin marketplace add ctoforaday/special-circumstances
+claude plugin install prosthetic-conscience@special-circumstances
+```
+
+Plugins resolve when a session starts, so an install performed mid-session applies to the next one, not the current one — and a cloud container is discarded when the session ends. To have the plugins present from the first prompt, install them from the environment's **Setup script** field: see [docs/setup-script.md](docs/setup-script.md).
 
 ### A quick tour
 
