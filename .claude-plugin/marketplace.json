@@ -8,7 +8,7 @@
     {
       "name": "prosthetic-conscience",
       "source": "./plugins/prosthetic-conscience",
-      "description": "Core adversarial + cowork behaviour: Design-by-Contract rules-as-skills, pair programming, spec-driven development + a plan-audit gate, project memory, proficiency skills, quality hooks, and environment preflight (/sc-doctor)."
+      "description": "Core adversarial + cowork behaviour: Design-by-Contract rules-as-skills, pair programming, spec-driven development + a plan-audit gate, project memory, context checkpointing for compaction survival, proficiency skills, quality hooks, and environment preflight (/prosthetic-conscience:doctor)."
     },
     {
       "name": "frank-exchange-of-views",

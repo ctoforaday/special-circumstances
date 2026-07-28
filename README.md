@@ -6,17 +6,20 @@
 
 An AI assistant that agrees with you is comfortable and dangerous. It ships your mistakes, launders your assumptions back to you as confirmation, and gives a confident wrong answer the same tone as a right one.
 
-**Special Circumstances** is built to do the opposite. It is a suite of three Claude Code plugins that make the assistant *argue back — with reasons*: verify claims at their source instead of trusting them, refuse an under-specified instruction instead of guessing, break a repeating failure loop instead of spinning, and run structured adversarial debate over research before calling anything true. A good argument here is a courtesy, not an attack.
+**Special Circumstances** is built to do the opposite. It is a suite of Claude Code plugins that make the assistant *argue back — with reasons*: verify claims at their source instead of trusting them, refuse an under-specified instruction instead of guessing, break a repeating failure loop instead of spinning, and run structured adversarial debate over research before calling anything true. A good argument here is a courtesy, not an attack.
 
-The suite is named for the [Culture](https://en.wikipedia.org/wiki/The_Culture) — Iain M. Banks's civilisation of humans and Minds who treat a good argument as an act of respect. *Special Circumstances* is the Culture's division for the hard, consequential work; the three plugins are named for its ships and drones.
+The suite is named for the [Culture](https://en.wikipedia.org/wiki/The_Culture) — Iain M. Banks's civilisation of humans and Minds who treat a good argument as an act of respect. *Special Circumstances* is the Culture's division for the hard, consequential work; the plugins are named for its ships and drones.
 
 | Plugin | Named for | Role |
 |---|---|---|
 | [**prosthetic-conscience**](plugins/prosthetic-conscience) | the drone that keeps you honest | Always-on working discipline for interactive and headless sessions |
 | [**frank-exchange-of-views**](plugins/frank-exchange-of-views) | a heated argument, diplomatically put | A research debate engine — blue builds, red audits and gates, a bench rules |
 | [**sleeper-service**](plugins/sleeper-service) | the GSV quietly running vast hidden projects | Autonomous self-improvement, always human-gated at promotion |
+| **gray-area** *(in design)* | the GCU shunned for reading minds | Trajectory mining — what a session actually did, as against what it reported |
 
-## The three plugins
+Three ship, and are installable today. **Gray Area is in design and not yet installable** — it has a [foundations document](plans/gray-area.md), not a code tree.
+
+## The plugins
 
 ### prosthetic-conscience — the working discipline
 
@@ -43,6 +46,8 @@ On top of the always-on set it ships **on-demand skills** (pair-programming, spe
 
 **The distinctive idea:** the rules are defense in depth — a skill states the *semantic* rule for what a regex can't catch, and a hook enforces the *pattern-matchable* part where prompts never fire.
 
+*Next in here, designed but not built:* **compaction survival** — the agent leaves itself a note before the context window fills, a hook seals it and tells the harness's summarizer what to keep, and a second hook hands back whatever the summary dropped. Hand-run across six compaction boundaries and working; [`plans/context-checkpointing.md`](plans/context-checkpointing.md). It lives here rather than in gray-area because keeping a note about your own work asks far less of a consumer than a tool that reads their transcripts.
+
 ### frank-exchange-of-views — the research debate engine
 
 Given a topic, it produces a verified research deliverable with the entire adversarial record preserved beside it. Three seats, with genuinely different mandates:
@@ -64,6 +69,22 @@ The learning plugin. It is designed to improve the suite while you sleep: a `/se
 **Status: scaffold only (v0.1.0).** The design is settled; the commands are not yet built out.
 
 **The distinctive idea:** the system dogfoods its own debate engine on its own rulebook, but a machine may only ever *propose* a rule change — the promotion step is a hard human gate.
+
+### gray-area — trajectory evidence
+
+**Status: in design (no code yet).** Named for the GCU *Gray Area* — the Culture's mind-reader, the ship that establishes what actually happened by reading directly, and is shunned by other Minds for doing it. The capability is necessary and distasteful at once, and the name is meant to keep that uncomfortable.
+
+Every session writes a transcript: every tool call with its full input, every result linked back to the call that made it, the causal chain between them, and the timing of each step. That record holds **what a session actually did**, which is a different thing from what it reported doing. The rest of this suite is built on separating those two — red audits blue's citations at the source rather than believing them; the bench's integrity checks compare a seat's attestation against its actual tool calls. Gray Area is that same move applied to the session itself.
+
+The plugin exists because the capability has already been built four times and hand-run three times, each time separately, each time against the same file format: bench integrity inspection, a record-join audit, per-seat context accounting, cost accounting, an attestation audit done by hand, friction mining done by hand, and wall-clock forensics done by hand. That is a plugin, not another script.
+
+What it does: act-versus-claim discrepancy (a seat that says it verified something the trajectory shows it never touched), rework detection (the same tool against the same target, repeatedly), stalls and gaps from the timing, and the human-frustration surface in the user's own messages. Symmetric by construction — the same inspections aim at the bench as at the seats, because they run on the same record.
+
+**What it deliberately does not do: compaction survival.** The "Memento" problem — leave yourself a note before the amnesia, carrying the validation loop, the ordered next actions, and the handles to work still running in the background — is real, has been run by hand across six compaction boundaries, and works. It ships in [prosthetic-conscience](plugins/prosthetic-conscience), not here. Reading transcripts is a surveillance capability; keeping a note about your own work is not. A consumer who wants their validation loop to survive compaction should not have to accept a tool that reads all their transcripts to get it. Design: [`plans/context-checkpointing.md`](plans/context-checkpointing.md).
+
+**The distinctive idea, and the line it will not cross:** *exploration may summarize; adjudication must cite.* An agent asked to read a transcript and tell you what it sees is a summarizer — cheap, useful for finding where to look, and non-deterministic, unreproducible and uncitable. That is fine for a hypothesis and disqualifying for a finding. This suite spent a full cycle removing self-report from the evidence chain; "an agent says the transcript shows" would put it straight back, one layer up and harder to catch. So any query backing a finding returns the primary evidence — the event id, the line, the tool call — and the finding cites the trajectory, never the index's opinion of it.
+
+Design research: [`plans/gray-area.md`](plans/gray-area.md) (scope, the hook surface, the phased build) and [`plans/reasoning-telemetry.md`](plans/reasoning-telemetry.md) (what is observable, and what a reasoning summary is and is not worth).
 
 ## How a research debate works
 
@@ -125,7 +146,7 @@ This runs the `sc-doctor` binary for a deterministic READY / DEGRADED / BLOCKED 
 | Path | Role |
 |---|---|
 | `plugins/<name>/` | The product: everything a consumer installs — skills, agents, commands, hooks, Go tools |
-| `.claude-plugin/marketplace.json` | Marketplace manifest listing the three plugins |
+| `.claude-plugin/marketplace.json` | Marketplace manifest — lists the three installable plugins (gray-area is not in it until it has a code tree) |
 | `plans/` | Design artifacts under review — each arrives as a PR, graduates into the plugins |
 | `research/` | Completed debate runs (the working corpus; seeded by `/research`) |
 | `ideas/` | Proposals from `/self-improve`, pre-promotion |
@@ -156,7 +177,7 @@ The debate engine's biggest open change. Seats already *write* every act through
 ### Later — new capability
 
 - **A SQLite-backed index for the event log.** Make the append-only JSONL queryable without re-rendering. <!-- TODO: flesh out from plans/record-tool.md — schema, what queries it serves, how it stays a projection (the JSONL remains authoritative). -->
-- **Gray Area — the fourth plugin (trajectory-evidence mining).** Not yet shipped. The problem it solves is already captured in the evidence run: a seat logged a friction it *had already recovered from* — friction is unverified self-report, and only the execution trajectory can adjudicate the claim against its own refutation. Constraint for the miner: ~11% of tool calls are invisible to a naive string matcher because seats alias the binary to a shell variable — it must parse shell structure, not grep for a name. <!-- TODO: scope Gray Area's acceptance test and its relationship to friction.md as the raw feed. -->
+- **Gray Area — the fourth plugin (trajectory mining).** Not yet shipped; scoped in [`plans/gray-area.md`](plans/gray-area.md). Compaction survival was split out of it and lands in prosthetic-conscience first, on its own schedule — it needs no miner, and it should not wait for one. The problem Gray Area solves is already captured in the evidence run: a seat logged a friction it *had already recovered from* — friction is unverified self-report, and only the execution trajectory can adjudicate the claim against its own refutation. Two constraints already measured: ~11% of tool calls are invisible to a naive string matcher because seats alias the binary to a shell variable, so it must parse shell structure rather than grep for a name; and the transcript format is vendor-internal and version-unstable, so the parser is version-pinned and degrades rather than guessing. The build starts from a hook-reality spike — `SubagentStop` hands over each seat's transcript path by name, which retires the guesswork of sweeping the projects directory. <!-- TODO: scope Gray Area's acceptance test and its relationship to friction.md as the raw feed. -->
 
 <!-- TODO (microsite): expand each roadmap item into a page; add a "what a run costs" section grounded in the gray-area run; link the plans/ documents as the authoritative design record. -->
 
