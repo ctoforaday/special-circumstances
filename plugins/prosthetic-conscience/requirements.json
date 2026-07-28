@@ -73,6 +73,11 @@
         "name": "sc-recall-index",
         "event": "PostToolUse(Write|Edit)",
         "purpose": "qmd FTS update on markdown writes — deterministic recall freshness; runs ONLY the doctor-installed qmd (no npx fallback — a second resolution path is a second version), silent no-op when absent"
+      },
+      {
+        "name": "sc-checkpoint-seal",
+        "event": "PreCompact(manual|auto)",
+        "purpose": "seals CHECKPOINT.md to a pruned snapshot dir and emits compact instructions naming only what the note already carries — never blocks compaction, and stays cheap because auto-compaction thrashes"
       }
     ]
   }
