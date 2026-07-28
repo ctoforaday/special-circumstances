@@ -57,6 +57,58 @@ jobs:
         env:
           CGO_ENABLED: "1"
 
+  qlty:
+    # The quality gate had no CI leg at all: `qlty` is a documented recommended
+    # tool, sc-quality-gate exists to run it, qlty-proficiency mandates it during
+    # verification — and nothing on a pull request ever invoked it. Enforcement
+    # lived entirely on whichever developer box happened to touch the code.
+    #
+    # NOT YET A REAL GATE. `.qlty/qlty.toml` is still the starter committed at
+    # bootstrap (config_version = "0", no plugins), and its own comment says to
+    # run `qlty init` once qlty is installed. Until that lands, `qlty check` has
+    # little or nothing enabled to check, so this job would pass vacuously — the
+    # exact "green suite over an unprotected invariant" defect tracked in #80.
+    # The plugin-count step below exists to make that visible in the log instead
+    # of letting a green tick imply coverage it does not have. It reports; it
+    # does not fail, because failing the whole pipeline over a known-empty
+    # config helps nobody.
+    #
+    # `qlty check` is diff-scoped by default, hence fetch-depth 0 and an explicit
+    # base — same reason rule-sweep needs them.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install qlty
+        # The command requirements.json documents for humans, run the same way.
+        run: |
+          curl -fsSL https://qlty.sh | bash
+          echo "${HOME}/.qlty/bin" >> "$GITHUB_PATH"
+      - name: Version
+        run: qlty --version
+      - name: Report whether anything is actually enabled
+        # Loud, non-failing vacuity check: a reader of this log can tell whether
+        # a green result meant "clean" or "nothing configured".
+        run: |
+          echo "--- .qlty/qlty.toml ---"
+          cat .qlty/qlty.toml
+          if grep -qE '^\s*\[\[?plugin' .qlty/qlty.toml; then
+            echo "PLUGINS: at least one declared — a green check below is meaningful."
+          else
+            echo "PLUGINS: NONE DECLARED — a green check below proves nothing."
+            echo "Run 'qlty init' on a machine with qlty and commit .qlty/qlty.toml (#80)."
+          fi
+      - name: Check
+        # Exactly the command the in-repo cheatsheet documents. No invented
+        # flags: qlty is not installable in the authoring container (egress
+        # policy blocks qlty.sh, github.com and the GHCR blob CDN), so anything
+        # beyond the documented invocation could not be verified before merge.
+        run: qlty check
+
   rule-sweep:
     # A rule patch must name its class and sweep its siblings
     # (feov-memory/protocol-class-registry.md). Every protocol patch that shipped
