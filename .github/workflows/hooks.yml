@@ -142,6 +142,13 @@ jobs:
       - run: node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs plugins/frank-exchange-of-views/tests/simulator/cost-audit.test.mjs plugins/frank-exchange-of-views/tests/simulator/run-scripts.test.mjs plugins/frank-exchange-of-views/tests/simulator/run-dashboard.test.mjs plugins/frank-exchange-of-views/tests/simulator/record-readers.test.mjs plugins/frank-exchange-of-views/tests/simulator/prompts.test.mjs plugins/frank-exchange-of-views/tests/simulator/scorecards.test.mjs plugins/frank-exchange-of-views/tests/simulator/read-batching.test.mjs
       - name: Validate all tracked JSON (manifests break silently)
         run: node .github/validate-json.mjs
+      - name: Every marketplace plugin is installed by both bootstrap paths
+        # The plugin list is written down THREE times — the marketplace manifest,
+        # the bootstrap script, and the pasteable snippet in docs/setup-script.md.
+        # gray-area shipped and reached none of the other two: a fresh environment
+        # installed three of four plugins and said nothing, because a plugin that
+        # is never named is indistinguishable from a plugin that does not exist.
+        run: node .github/plugin-list-parity.mjs
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second

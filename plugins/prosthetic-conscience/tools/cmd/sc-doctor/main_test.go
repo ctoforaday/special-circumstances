@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,4 +108,86 @@ func TestSiblingBinariesAreDiscoveredAndTagged(t *testing.T) {
 	if again := siblingBinaries(self); !again[0].Built {
 		t.Error("a present binary reported as missing")
 	}
+}
+
+// naStatus is a tool the manifest declared out of scope for this environment.
+func naStatus(name, tier string, found bool) toolchain.Status {
+	s := status(name, tier, found)
+	s.NotApplicable = true
+	return s
+}
+
+// A cloud session has no gh and is never going to get one. Counting that DEGRADED made
+// the verdict permanently wrong there — and a verdict that is always DEGRADED is one the
+// operator stops reading, including on the axes where it is telling the truth.
+func TestVerdictIgnoresNotApplicableTools(t *testing.T) {
+	cases := []struct {
+		name  string
+		tools []toolchain.Status
+		want  string
+	}{
+		{"n/a recommended does not degrade", []toolchain.Status{status("git", "required", true), naStatus("gh", "recommended", false)}, "READY"},
+		{"n/a required does not block", []toolchain.Status{naStatus("gh", "required", false)}, "READY"},
+		{"a genuinely missing tool still degrades", []toolchain.Status{naStatus("gh", "recommended", false), status("qlty", "recommended", false)}, "DEGRADED"},
+		{"n/a does not rescue a missing binary", []toolchain.Status{naStatus("gh", "recommended", false)}, "DEGRADED"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var bins []binStatus
+			if c.name == "n/a does not rescue a missing binary" {
+				bins = []binStatus{{Name: "sc-quality-gate", Built: false}}
+			}
+			if got := verdict(c.tools, bins); got != c.want {
+				t.Fatalf("verdict = %q; want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// The install string is the false alarm: it sends the operator after a tool the
+// environment deliberately does not ship. The row must still appear — silence would
+// leave them wondering whether the doctor even knows about gh.
+func TestTableRendersNotApplicableWithoutInstallAdvice(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_REMOTE", "1")
+	s := naStatus("gh", "recommended", false)
+	s.Purpose = "GitHub PR / review flow; cloud sessions use MCP tools"
+	out := table([]toolchain.Status{s}, nil)
+	if !strings.Contains(out, "gh") || !strings.Contains(out, "n/a") {
+		t.Fatalf("table must still name gh and mark it n/a:\n%s", out)
+	}
+	if strings.Contains(out, "install:") {
+		t.Fatalf("table offered install advice for a by-design absence:\n%s", out)
+	}
+	if !strings.Contains(out, "claude-code-remote") {
+		t.Fatalf("table must name WHICH environment exempted it:\n%s", out)
+	}
+	if !strings.Contains(out, "MCP") {
+		t.Fatalf("table must carry the purpose text explaining why:\n%s", out)
+	}
+}
+
+// The exemption lives in the manifest, not in Go. If someone drops the field while
+// tidying the JSON, the false alarm returns silently — this is the tripwire.
+func TestManifestExemptsGhInCloudSessions(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "requirements.json"))
+	if err != nil {
+		t.Fatalf("cannot read prosthetic-conscience/requirements.json: %v", err)
+	}
+	var req requirements
+	if err := json.Unmarshal(raw, &req); err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range req.Tools {
+		if tool.Name != "gh" {
+			continue
+		}
+		if tool.AppliesIn(toolchain.EnvRemote) {
+			t.Fatal("gh lost its not_applicable_in exemption — every cloud session reports DEGRADED again and advises installing a CLI the environment does not ship")
+		}
+		if !tool.AppliesIn(toolchain.EnvLocal) {
+			t.Fatal("gh must stay a real recommended tool on a local machine")
+		}
+		return
+	}
+	t.Fatal("gh is no longer declared in requirements.json")
 }

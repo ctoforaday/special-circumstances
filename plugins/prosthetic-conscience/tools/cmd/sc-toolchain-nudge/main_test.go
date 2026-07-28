@@ -42,3 +42,25 @@ func TestNudge(t *testing.T) {
 		})
 	}
 }
+
+// SessionStart is the most expensive place in the suite for a warning nobody can act
+// on: it is the first thing every session shows, every time. A cloud session ships no
+// gh by design, so nudging about it there is pure noise — and noise at line one is how
+// an operator learns to skip the line that eventually matters.
+func TestNudgeSkipsNotApplicableTools(t *testing.T) {
+	na := func(name, tier string) toolchain.Status {
+		s := status(name, tier, false)
+		s.NotApplicable = true
+		return s
+	}
+	if got := nudge([]toolchain.Status{status("git", "required", true), na("gh", "recommended")}); got != "" {
+		t.Fatalf("want silence for a by-design absence, got %q", got)
+	}
+	got := nudge([]toolchain.Status{na("gh", "recommended"), status("qlty", "recommended", false)})
+	if !strings.Contains(got, "qlty") {
+		t.Fatalf("a genuinely missing tool must still be named: %q", got)
+	}
+	if strings.Contains(got, "gh") {
+		t.Fatalf("the exempt tool leaked into the nudge: %q", got)
+	}
+}

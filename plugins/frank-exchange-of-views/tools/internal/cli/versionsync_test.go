@@ -23,28 +23,46 @@ import (
 // anything stamped at link time would have been absent from every binary ever published.
 // This test is what keeps the compiled-in value honest.
 func TestRecordToolVersionMatchesTheManifest(t *testing.T) {
-	// internal/cli -> tools -> the plugin root
-	p := filepath.Join("..", "..", "..", ".claude-plugin", "plugin.json")
-	b, err := os.ReadFile(p)
+	// internal/cli -> tools -> the plugin root. requirements.json, NOT
+	// .claude-plugin/plugin.json: that one has a published schema, and the extra
+	// field there made `claude plugin validate` warn on every single run. A
+	// permanently expected warning is how a validator stops being read.
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "requirements.json"))
 	if err != nil {
-		t.Fatalf("cannot read the plugin manifest, which is what setup preflights against: %v", err)
+		t.Fatalf("cannot read requirements.json, which is what setup preflights against: %v", err)
 	}
 	var m struct {
 		RecordToolVersion string `json:"recordToolVersion"`
-		Version           string `json:"version"`
 	}
 	if err := json.Unmarshal(b, &m); err != nil {
 		t.Fatal(err)
 	}
 	if m.RecordToolVersion == "" {
-		t.Fatal("the manifest has no recordToolVersion — preflightRecordBinary then receives nil and the skew check silently never fires")
+		t.Fatal("requirements.json has no recordToolVersion — preflightRecordBinary then receives nil and the skew check silently never fires")
 	}
 	if m.RecordToolVersion != Version {
-		t.Errorf("cli.Version = %q but the manifest says recordToolVersion = %q.\nThese must move together: setup compares the binary's --version against the manifest, so a drift makes the preflight either reject every binary or — as it did all of 2026-07-19 — compare a stale number to itself and wave a pre-schema binary through.",
+		t.Errorf("cli.Version = %q but requirements.json says recordToolVersion = %q.\nThese must move together: setup compares the binary's --version against the manifest, so a drift makes the preflight either reject every binary or — as it did all of 2026-07-19 — compare a stale number to itself and wave a pre-schema binary through.",
 			Version, m.RecordToolVersion)
 	}
+
+	// The plugin manifest must NOT carry it as well. Two copies would drift, and the
+	// copy in the schema-checked file is the one that costs a validator warning.
+	pb, err := os.ReadFile(filepath.Join("..", "..", "..", ".claude-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatalf("cannot read the plugin manifest: %v", err)
+	}
+	var p struct {
+		RecordToolVersion string `json:"recordToolVersion"`
+		Version           string `json:"version"`
+	}
+	if err := json.Unmarshal(pb, &p); err != nil {
+		t.Fatal(err)
+	}
+	if p.RecordToolVersion != "" {
+		t.Errorf("recordToolVersion is back in .claude-plugin/plugin.json (%q). It belongs in requirements.json alone: plugin.json has a fixed published schema, so an unknown field there makes `claude plugin validate` warn on every run — and a second copy of the number is a second thing to forget to move.", p.RecordToolVersion)
+	}
 	// And a reminder that they are DIFFERENT numbers by design.
-	if m.RecordToolVersion == m.Version {
-		t.Logf("note: recordToolVersion (%s) currently equals the plugin version. They answer different questions — what shape the events are in, versus what shipped — and are expected to diverge.", m.Version)
+	if m.RecordToolVersion == p.Version {
+		t.Logf("note: recordToolVersion (%s) currently equals the plugin version. They answer different questions — what shape the events are in, versus what shipped — and are expected to diverge.", p.Version)
 	}
 }
