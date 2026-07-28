@@ -134,7 +134,13 @@ On compaction (auto or manual) the hook:
 3. **Emits preserve-verbatim compact instructions on stdout** — naming the validation loop, the
    ordered next actions, the in-flight state handles and the `beyond_plan` flag as things the
    summary must carry. *(Added in the 2026-07-27 correction; the original believed this channel
-   did not exist.)* Bounded and terse: this steers a summarizer, it does not become the summary.
+   did not exist. Verified end-to-end: a marker emitted here survived into 2/2 summaries.)* Bounded
+   and terse: this steers a summarizer, it does not become the summary.
+   **The instruction MUST be grounded in the conversation being summarized** — reference and
+   reinforce what is already there, never introduce. A seal asking to preserve content absent from
+   the session is indistinguishable from prompt injection, and the summarizer says so *in the
+   summary*, which lands that suspicion in the restored context. If the note's contents are not in
+   the transcript, the seal has nothing legitimate to ask for and stays silent.
 4. Exits 0. It never blocks compaction (blocking would just wedge the session).
 
 **(C) Restore, split across two events — summary-aware where a summary exists.**
@@ -150,6 +156,12 @@ On compaction (auto or manual) the hook:
   `additionalContext`: objective line, plan pointer, the **validation loop**, next steps, and the
   path to the full `CHECKPOINT.md` — *not* the whole file. It re-grounds the agent in ~15 lines
   and tells it where to read more.
+- **`SessionStart` MUST no-op on `source == "compact"`.** *(Measured 2026-07-27; see
+  `plans/hook-surface-spike.md` §3.)* Both hooks fire at a compaction boundary — the observed source
+  sequence across three forced compactions was `startup, compact, compact, compact`, with a
+  `PostCompact` alongside each. Without this guard the pair injects twice and reproduces R4, the
+  double narrative this split claims to retire. The split above is right as an intention and unsafe
+  without the guard.
 
 A **`/resume`** command re-surfaces the full checkpoint on demand, under either path.
 
