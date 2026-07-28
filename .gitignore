@@ -5,9 +5,14 @@ Thumbs.db
 .vscode/
 .idea/
 
-# qlty working dirs
-.qlty/out/
-.qlty/logs/
+# qlty working dirs. No trailing slash: qlty creates these as SYMLINKS into
+# ~/.qlty/cache, and a dir-only pattern (`.qlty/out/`) never matches a symlink —
+# which is how they came to be staged the first time qlty actually ran here.
+.qlty/out
+.qlty/logs
+.qlty/results
+.qlty/plugin_cachedir
+.qlty/sources
 
 # Claude Code local-only state
 .claude/settings.local.json

@@ -39,7 +39,7 @@ On top of the always-on set it ships **on-demand skills** (pair-programming, spe
 |---|---|
 | `sc-doctor` | Environment preflight — a READY / DEGRADED / BLOCKED verdict (`/prosthetic-conscience:doctor`) |
 | `sc-secrets-gate` | Blocks secrets/tokens from leaving in web calls |
-| `sc-quality-gate` | Quality checks on writes |
+| `sc-quality-gate` | Runs `qlty fmt` + `qlty check` on every write, feeds findings back |
 | `sc-push-freeze-guard` | Guards pushes |
 | `sc-toolchain-nudge` | Nudges toward the installed toolchain |
 | `sc-recall-index` | Indexes for recall |
