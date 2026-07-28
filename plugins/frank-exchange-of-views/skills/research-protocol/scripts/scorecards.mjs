@@ -255,7 +255,34 @@ export function bucketFindingsByRole(findings) {
 
 // ---- BENCH ----
 
-export function benchRows(runDir, results) {
+// computeDirectionUptake is the pure kernel: given the debate view's rounds, count the LEAD
+// sittings and the blue sections that reference the bench's direction. Split out (like
+// bucketFindingsByRole) so it is testable without spawning the tool — and because reading the
+// WHOLE section text the view carries makes the JS-regex `\Z`-truncation defect that once cut
+// the last blue section at a literal 'Z' impossible by construction.
+export function computeDirectionUptake(debate) {
+  const rounds = (debate && debate.rounds) || []
+  const leadSections = rounds.filter((r) => (r.lead || []).length > 0).length
+  const blueCitesLead = rounds.flatMap((r) => r.blue || []).filter((t) => /lead|judge|direction|carried/i.test(t)).length
+  return { leadSections, blueCitesLead }
+}
+
+// directionUptake reads the direction-uptake counts from the RECORD (the debate view),
+// replacing the root debate.md regex — which in record-mode read the setup STUB and scored the
+// bench headline vacuously. It SPAWNS the tool rather than parsing records/*.jsonl, the same as
+// citationYieldByRole: parsing the log would reimplement replay, the second-reader defect the
+// tool exists to remove. Null when no tool binary was passed (the row then says why).
+export function directionUptake(runDir, bin) {
+  if (!bin) return null
+  try {
+    const out = execFileSync(bin, ['merge', 'show', '--run', runDir, '--view', 'debate', '--json'], { encoding: 'utf8' })
+    return computeDirectionUptake(JSON.parse(out))
+  } catch {
+    return null
+  }
+}
+
+export function benchRows(runDir, results, bin) {
   const rows = []
   const rulings = results.flatMap((r) => (Array.isArray(r.resolutions) ? r.resolutions : []))
 
@@ -272,22 +299,22 @@ export function benchRows(runDir, results) {
 
   // Direction-uptake is the bench HEADLINE (E0.5d): in-run reversal is ~0 by
   // traffic-class construction and measures nothing, so what counts is whether
-  // blue acted on the direction a carried ruling stated.
-  const debate = read(join(runDir, 'debate.md')) || ''
-  const leadSections = (debate.match(/^### LEAD/gm) || []).length
-  // (?![\s\S]) is end-of-input. \Z is NOT an anchor in JavaScript — it is an
-  // identity escape matching a literal 'Z', so the lazy body stopped at the first
-  // capital Z in the prose. The LAST blue section has no '### ' after it, so it was
-  // truncated at a letter and then filtered for words the truncation had removed.
-  const blueCitesLead = (debate.match(/^### BLUE[\s\S]*?(?=^### |(?![\s\S]))/gm) || [])
-    .filter((s) => /lead|judge|direction|carried/i.test(s)).length
-  rows.push(leadSections
+  // blue acted on the direction a carried ruling stated. Read from the RECORD (the
+  // debate view) — the root debate.md is the setup stub in record-mode, so parsing
+  // it scored this headline as "no LEAD sections" on every real run.
+  const uptake = directionUptake(runDir, bin)
+  rows.push(uptake && uptake.leadSections
     ? row({
       clause: 'Direction-uptake (headline)', metric: 'blue_sections_citing_direction', cls: 'benchmark',
-      value: `${blueCitesLead}/${leadSections}`,
+      value: `${uptake.blueCitesLead}/${uptake.leadSections}`,
       note: 'textual proxy: blue sections referencing the bench after a LEAD section; baseline ~100%',
     })
-    : row({ clause: 'Direction-uptake (headline)', metric: 'blue_sections_citing_direction', cls: 'benchmark', note: 'no LEAD sections this run' }))
+    : row({
+      clause: 'Direction-uptake (headline)', metric: 'blue_sections_citing_direction', cls: 'benchmark',
+      note: uptake
+        ? 'no LEAD sections this run'
+        : 'needs the tool (the debate view) — direction-uptake reads the record, not the debate.md stub',
+    }))
 
   // Opinion form: a ruling that states no principle is a disposition wearing a
   // ruling's name.
@@ -331,7 +358,7 @@ export function computeScorecards(runDir, results, bin) {
   return {
     blue: blueRows(runDir, results, telemetry),
     red: redRows(runDir, results, telemetry, bin),
-    bench: benchRows(runDir, results),
+    bench: benchRows(runDir, results, bin),
   }
 }
 

@@ -10,6 +10,7 @@ import { join } from 'node:path'
 import {
   row, readTelemetry, blueRows, redRows, citationYieldByRole, bucketFindingsByRole,
   benchRows, computeScorecards, renderChair, headline, chairHeader, readResults,
+  computeDirectionUptake,
 } from '../../skills/research-protocol/scripts/scorecards.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'sc-'))
@@ -124,18 +125,31 @@ test('benchRows: carried_share is the not-a-router scoreboard', () => {
   assert.equal(rows.find((r) => r.metric === 'rulings_without_opinion').value, 2, 'a ruling stating no principle is a disposition wearing a ruling name')
 })
 
-// THE DEFECT: \Z is not an end-of-input anchor in JavaScript, it is a literal 'Z'.
-// The final BLUE section — the one with no '### ' after it — was truncated at the
-// first capital Z in the prose, and then filtered for words the truncation removed.
-test('benchRows: the LAST blue section is measured in full, not cut at a literal Z', () => {
-  const d = runWith({
-    'debate.md': [
-      '### LEAD r1', 'direction: narrow to shipped artifacts', '',
-      '### BLUE r1', 'Zero regressions this round; acted on the judge direction as carried.', '',
-    ].join('\n'),
-  })
-  const up = benchRows(d, []).find((r) => r.metric === 'blue_sections_citing_direction')
-  assert.equal(up.value, '1/1', 'the section cites the direction AFTER the word "Zero" — a Z must not end the section')
+// Direction-uptake reads the debate VIEW (structured), so a blue section is a whole string
+// the tool returns — the JS-regex `\Z`-truncation defect (which once cut the last blue section
+// at a literal 'Z' and dropped the citing words after it) cannot recur. computeDirectionUptake
+// is the pure kernel; the fixture is the debate view's shape.
+test('computeDirectionUptake: a blue section citing the direction counts in full, past any "Zero"', () => {
+  const debate = { rounds: [{
+    round: 1,
+    red: [],
+    blue: ['Zero regressions this round; acted on the judge direction as carried.'],
+    lead: [{ gap_id: 'R1-1', disposition: 'carried' }],
+  }] }
+  assert.deepEqual(computeDirectionUptake(debate), { leadSections: 1, blueCitesLead: 1 },
+    'the section cites the direction AFTER the word "Zero" — the whole string is read, not truncated')
+  // A round with a LEAD sitting but a blue section that does not reference the bench.
+  const noCite = { rounds: [{ round: 1, red: [], blue: ['unrelated repair notes'], lead: [{ gap_id: 'R1-1', disposition: 'carried' }] }] }
+  assert.deepEqual(computeDirectionUptake(noCite), { leadSections: 1, blueCitesLead: 0 })
+})
+
+test('benchRows direction-uptake: with a view reader it computes; without --bin it says it needs the tool', () => {
+  // With a reader (bin), benchRows spawns the tool; here we cannot spawn in-test, so the
+  // pure-kernel path above covers the computed case. Without bin, the row must be uncomputed
+  // WITH a reason — never a false "no LEAD sections" derived from the debate.md stub.
+  const noBin = benchRows(runWith(), [], undefined).find((r) => r.metric === 'blue_sections_citing_direction')
+  assert.equal(noBin.value, null, 'no tool binary -> not computed')
+  assert.match(noBin.note, /needs the tool|debate view/, 'the row states it needs the record, not a stub')
 })
 
 test('benchRows: an empty bench states it rather than dividing by zero', () => {
