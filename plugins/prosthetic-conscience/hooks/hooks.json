@@ -45,6 +45,16 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-checkpoint-seal\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
     ]
   }
 }
