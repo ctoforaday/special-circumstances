@@ -19,6 +19,11 @@
       "name": "sleeper-service",
       "source": "./plugins/sleeper-service",
       "description": "Autonomous learning: a daily self-improvement loop, a graduation pipeline, and a continuous-learning promotion ladder — always human-gated at promotion."
+    },
+    {
+      "name": "gray-area",
+      "source": "./plugins/gray-area",
+      "description": "Trajectory evidence: what a session actually did, as against what it reported. Captures each seat's own transcript by path at SubagentStop, so an inspection cites the primary record rather than a summary of it."
     }
   ]
 }
