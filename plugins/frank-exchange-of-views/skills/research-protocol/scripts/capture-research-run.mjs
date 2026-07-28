@@ -432,9 +432,11 @@ export function harvestPrecedents(runDir, results, lawDir) {
 // The run label is the run DIRECTORY name, which is dated and unique, so the
 // series reads chronologically without anyone stamping a timestamp — and without
 // this script needing a clock it would have to be trusted about.
-export function writeScorecards(runDir, results, memoryDir) {
+export function writeScorecards(runDir, results, memoryDir, bin) {
   if (!existsSync(memoryDir)) return { written: false, reason: `no ${memoryDir} — scorecards need the tracked memory dir` }
-  const cards = computeScorecards(runDir, results)
+  // bin lets the record-backed rows (direction-uptake, citation-yield) compute at capture
+  // instead of landing "not computed" in the run-over-run series — the same --bin the audits use.
+  const cards = computeScorecards(runDir, results, bin)
   const label = runDir.split(/[\\/]/).filter(Boolean).pop() || 'run'
   let rows = 0
   for (const [chair, chairRows] of Object.entries(cards)) {
@@ -486,7 +488,7 @@ export function capture(runDir, transcriptDir, { bin } = {}) {
   // the artifacts and APPEND it to the chair's file. Appended, never overwritten:
   // one run's number says nothing about whether a chair is improving, and the
   // run-over-run series is the only thing that does.
-  const scorecards = writeScorecards(runDir, results, join(process.cwd(), 'feov-memory'))
+  const scorecards = writeScorecards(runDir, results, join(process.cwd(), 'feov-memory'), bin)
   lines.push(`scorecards: ${scorecards.written ? `${scorecards.rows} row(s) across ${scorecards.chairs} chair(s) -> feov-memory/` : scorecards.reason}`)
 
   const precedents = harvestPrecedents(runDir, results, join(process.cwd(), 'law'))
