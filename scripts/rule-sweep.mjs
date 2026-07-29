@@ -34,7 +34,8 @@
 //   node scripts/rule-sweep.mjs --base <ref>  check against another base
 //   node scripts/rule-sweep.mjs --selftest    verify this script's own logic
 import { spawnSync } from 'node:child_process'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -123,9 +124,41 @@ export function evaluate({ files, messages, classes }) {
   return { ok: problems.length === 0, skipped: false, touched, problems, named, sweeps }
 }
 
-function git(args) {
-  const r = spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' })
+function git(args, cwd = repoRoot) {
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8' })
   return r.status === 0 ? (r.stdout || '').trim() : ''
+}
+
+// THE TWO RANGES ARE NOT THE SAME RANGE, and conflating them is a live defect
+// this gate shipped with (#146).
+//
+//   git diff A...B   changes on B since the merge base           <- what a PR is
+//   git log  A...B   the SYMMETRIC DIFFERENCE — commits on
+//                    EITHER side and not both                    <- not that
+//
+// So when the branch is behind its base, the three-dot log range silently
+// includes commits that are on main and NOT IN THE BRANCH AT ALL. If any of them
+// carries a Rule-Class: trailer, this gate passes on somebody else's sweep.
+//
+// Measured, not theorised: a trailer-less commit was waved through on the trailer
+// of 4b4fdca, from an unrelated pull request. CI passes `--base origin/main` with
+// fetch-depth 0, so origin/main is the CURRENT tip rather than the branch point —
+// which means the gate got EASIER TO PASS THE BUSIER THE REPO WAS. Exactly
+// backwards, and invisible, because the output still named a class and a sweep.
+export function ranges(base) {
+  return { diff: `${base}...HEAD`, log: `${base}..HEAD` }
+}
+
+// collect gathers the two inputs evaluate() needs, from a real repository.
+// Separated from main() so the self-test can drive it against a scratch repo —
+// range construction was previously unreachable from any test, which is how the
+// wrong range survived.
+export function collect(base, cwd = repoRoot) {
+  const r = ranges(base)
+  return {
+    files: git(['diff', '--name-only', r.diff], cwd).split('\n').filter(Boolean),
+    messages: git(['log', '--format=%B%x00', r.log], cwd).split('\0').filter((m) => m.trim()),
+  }
 }
 
 function selftest() {
@@ -166,6 +199,73 @@ function selftest() {
     if (!pass) failed++
     console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`)
   }
+  return failed + selftestRanges()
+}
+
+// The range self-test, against a REAL repository.
+//
+// evaluate() takes `messages` already extracted, so every case above is blind to
+// where they came from — which is how the wrong log range (#146) survived a
+// selftest the repo describes as "genuinely good". A pure core is only as honest
+// as the impure edge feeding it.
+//
+// The scenario is the one that actually happened: a branch behind its base, a
+// trailer-less commit on the branch, and a commit carrying trailers on the base
+// side only.
+function selftestRanges() {
+  const dir = mkdtempSync(join(tmpdir(), 'rule-sweep-'))
+  // -c rather than `git config`: a scratch repo must not read, or need, identity
+  // from the developer's global config.
+  const id = ['-c', 'user.email=t@example.com', '-c', 'user.name=t', '-c', 'commit.gpgsign=false']
+  const g = (...args) => git([...id, ...args], dir)
+
+  let failed = 0
+  const check = (name, cond) => {
+    if (!cond) failed++
+    console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`)
+  }
+
+  try {
+    g('init', '-q', '-b', 'main')
+    writeFileSync(join(dir, 'seed.txt'), 'seed\n')
+    g('add', '-A')
+    g('commit', '-q', '-m', 'seed')
+
+    // The branch: touches a protocol surface, carries NO trailers.
+    g('checkout', '-q', '-b', 'feature')
+    mkdirSync(join(dir, 'plugins', 'x', 'skills', 'y'), { recursive: true })
+    writeFileSync(join(dir, 'plugins', 'x', 'skills', 'y', 'SKILL.md'), '# y\n')
+    g('add', '-A')
+    g('commit', '-q', '-m', 'feat: a protocol change with no sweep')
+
+    // The base moves on, and the commit that lands there DOES carry trailers.
+    g('checkout', '-q', 'main')
+    writeFileSync(join(dir, 'other.txt'), 'other\n')
+    g('add', '-A')
+    g('commit', '-q', '-m',
+      'fix: unrelated\n\nRule-Class: adjacent-seat-omission\nSibling-Sweep: checked every sibling seat, none carries this duty')
+    g('checkout', '-q', 'feature')
+
+    const classes = ['adjacent-seat-omission', 'unobservable-duty']
+    const { files, messages } = collect('main', dir)
+    const result = evaluate({ files, messages, classes })
+
+    check('range: the branch-side protocol file is seen', files.includes('plugins/x/skills/y/SKILL.md'))
+    check('range: a base-side-only commit message is NOT collected',
+      !messages.some((m) => m.includes('Rule-Class:')))
+    check('range: a branch behind its base FAILS on its own missing trailers (#146)', result.ok === false)
+
+    // The gate must still pass when the trailers really are on the branch.
+    g('commit', '-q', '--allow-empty', '-m',
+      'chore: sweep\n\nRule-Class: adjacent-seat-omission\nSibling-Sweep: checked the adjacent seats, none carries this duty')
+    const after = evaluate({ ...collect('main', dir), classes })
+    check('range: trailers ON THE BRANCH still pass', after.ok === true)
+  } catch (e) {
+    console.log(`FAIL range self-test could not run: ${e.message}`)
+    failed++
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
   return failed
 }
 
@@ -174,9 +274,7 @@ function main() {
 
   const baseIdx = process.argv.indexOf('--base')
   const base = baseIdx >= 0 ? process.argv[baseIdx + 1] : 'origin/main'
-  const range = `${base}...HEAD`
-  const files = git(['diff', '--name-only', range]).split('\n').filter(Boolean)
-  const messages = git(['log', '--format=%B%x00', range]).split('\0').filter((m) => m.trim())
+  const { files, messages } = collect(base)
 
   const registry = join(repoRoot, 'feov-memory', 'protocol-class-registry.md')
   const result = evaluate({ files, messages, classes: knownClasses(registry) })
