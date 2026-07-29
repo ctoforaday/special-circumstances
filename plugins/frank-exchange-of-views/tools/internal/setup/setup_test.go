@@ -1,0 +1,324 @@
+package setup
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func write(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func read(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func has(s, sub string) bool { return strings.Contains(s, sub) }
+
+// BuildSkeleton: creates the 6 stubs with topic headers; ledger/archive/telemetry are
+// NOT created (red-merge-born).
+func TestBuildSkeletonCreatesStubsNotRedMergeBorn(t *testing.T) {
+	dir := t.TempDir()
+	res := BuildSkeleton(dir, "test topic")
+	if len(res.Created) != 6 {
+		t.Fatalf("created = %d, want 6: %v", len(res.Created), res.Created)
+	}
+	if !has(read(t, filepath.Join(dir, "blue", "report.md")), "test topic") {
+		t.Error("stub header missing the topic")
+	}
+	for _, p := range []string{"red/candidates", "red/ledger.md", "red/archive.md", "trajectories/board-telemetry.jsonl"} {
+		if exists(filepath.Join(dir, filepath.FromSlash(p))) {
+			t.Errorf("%s must NOT be created at setup (red-merge-born)", p)
+		}
+	}
+}
+
+// BuildSkeleton is idempotent — pre-staged files are kept, not overwritten.
+func TestBuildSkeletonIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "blue", "report.md"), "PRE-STAGED CONTENT\n")
+	res := BuildSkeleton(dir, "topic")
+	found := false
+	for _, s := range res.Skipped {
+		if s == "blue/report.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("blue/report.md not reported skipped: %v", res.Skipped)
+	}
+	if len(res.Created) != 5 {
+		t.Errorf("created = %d, want 5", len(res.Created))
+	}
+	if read(t, filepath.Join(dir, "blue", "report.md")) != "PRE-STAGED CONTENT\n" {
+		t.Error("a pre-staged file was overwritten")
+	}
+}
+
+// BuildPinned: HEAD row + per-cite pins honoring explicit @pin; pre-staged PINNED kept.
+func TestBuildPinned(t *testing.T) {
+	dir := t.TempDir()
+	BuildSkeleton(dir, "topic")
+	r := BuildPinned(dir, "abc1234", []string{"research/old-run@def5678", "ideas/backlog.md"})
+	if !r.Written {
+		t.Fatal("PINNED.md not written")
+	}
+	txt := read(t, r.Path)
+	if !has(txt, "`abc1234`") || !has(txt, "`def5678`") {
+		t.Error("explicit pin not honored / HEAD default not applied")
+	}
+	if !has(txt, "ideas/backlog.md") {
+		t.Error("cite path missing")
+	}
+	if again := BuildPinned(dir, "zzz9999", nil); again.Written {
+		t.Error("pre-staged PINNED was overwritten")
+	}
+}
+
+// MirrorGapPatterns: concatenates memory files; absent/empty memory is a stated no-op.
+func TestMirrorGapPatterns(t *testing.T) {
+	dir := t.TempDir()
+	BuildSkeleton(dir, "topic")
+	mem := t.TempDir()
+	write(t, filepath.Join(mem, "pattern_a.md"), "# pattern A\n")
+	write(t, filepath.Join(mem, "pattern_b.md"), "# pattern B\n")
+	r := MirrorGapPatterns([]string{mem}, dir)
+	if r.Files != 2 {
+		t.Fatalf("files = %d, want 2", r.Files)
+	}
+	out := read(t, filepath.Join(dir, "inputs", "red-gap-patterns.md"))
+	if !has(out, "pattern A") || !has(out, "pattern B") || !has(out, "read-only copy") {
+		t.Error("mirror content wrong")
+	}
+	if none := MirrorGapPatterns([]string{filepath.Join(mem, "nope")}, t.TempDir()); none.Written {
+		t.Error("absent memory should be a no-op")
+	}
+}
+
+// WriteRunLiveMarker: commitment-as-state with the pinned paths for hook guards.
+func TestWriteRunLiveMarker(t *testing.T) {
+	project := t.TempDir()
+	p := WriteRunLiveMarker(project, "research/x", []string{"research/old-run", "ideas/backlog.md"}, time.Now())
+	body := read(t, p)
+	if !has(body, `"runDir": "research/x"`) {
+		t.Errorf("runDir missing: %s", body)
+	}
+	if !has(body, "research/old-run") || !has(body, "ideas/backlog.md") {
+		t.Errorf("pinnedPaths missing: %s", body)
+	}
+	// An empty pinnedPaths must render as [] not null.
+	q := WriteRunLiveMarker(t.TempDir(), "r", nil, time.Now())
+	if !has(read(t, q), `"pinnedPaths": []`) {
+		t.Error("empty pinnedPaths must be [], not null")
+	}
+}
+
+// ValidatePins: missing path is named; explicit pin honored; non-git is a stated skip.
+func TestValidatePins(t *testing.T) {
+	var calls []string
+	gitOK := func(args []string) GitResult {
+		calls = append(calls, strings.Join(args, " "))
+		return GitResult{Status: 0}
+	}
+	ok := ValidatePins([]string{"plans/x.md@abc1234", "ideas/y.md"}, "headddd", gitOK)
+	if len(ok.Missing) != 0 || ok.Checked != 2 {
+		t.Fatalf("clean run: missing=%v checked=%d", ok.Missing, ok.Checked)
+	}
+	if !has(calls[0], "abc1234:plans/x.md") {
+		t.Error("explicit pin not used")
+	}
+	if !has(calls[1], "headddd:ideas/y.md") {
+		t.Error("HEAD default not used")
+	}
+	gitMiss := func(args []string) GitResult {
+		if has(strings.Join(args, " "), "plans/gone.md") {
+			return GitResult{Status: 128}
+		}
+		return GitResult{Status: 0}
+	}
+	bad := ValidatePins([]string{"plans/gone.md@abc1234", "ideas/y.md"}, "headddd", gitMiss)
+	if len(bad.Missing) != 1 || bad.Missing[0].Path != "plans/gone.md" {
+		t.Fatalf("miss: %v", bad.Missing)
+	}
+	skip := ValidatePins([]string{"a@b"}, "unknown", nil)
+	if !has(skip.Skipped, "UNVALIDATED") {
+		t.Error("non-git context must be a stated skip")
+	}
+}
+
+// MirrorLaw: repo law/ stages read-only into inputs/law; absent law is a stated no-op.
+func TestMirrorLaw(t *testing.T) {
+	repo := t.TempDir()
+	write(t, filepath.Join(repo, "law", "README.md"), "# law\nstatute > precedent > argument\n")
+	write(t, filepath.Join(repo, "law", "precedents.md"), "# precedents\n## some-holding [AFFIRMED 2026-07-18]\n")
+	run := t.TempDir()
+	r := MirrorLaw(filepath.Join(repo, "law"), run)
+	if r.Files != 2 {
+		t.Fatalf("files = %d, want 2", r.Files)
+	}
+	staged := read(t, filepath.Join(run, "inputs", "law", "precedents.md"))
+	if !has(staged, "read-only copy") || !has(staged, "AFFIRMED") {
+		t.Error("law not mirrored with provenance banner")
+	}
+	if none := MirrorLaw(filepath.Join(repo, "nope"), t.TempDir()); none.Written {
+		t.Error("absent law dir should be a no-op")
+	}
+}
+
+// BuildPatternIndex dedups promoted-first (order is the policy).
+func TestBuildPatternIndexDedupsPromotedFirst(t *testing.T) {
+	promoted, raw := t.TempDir(), t.TempDir()
+	write(t, filepath.Join(promoted, "p.md"), "---\nmetadata:\n  classes: [false-universal]\ndescription: hook\n---\n# P\n")
+	write(t, filepath.Join(raw, "p.md"), "---\ndescription: pre-promotion copy\n---\n# P\n")
+	r := BuildPatternIndex([]string{promoted, raw})
+	if len(r.Unclassified) != 0 {
+		t.Errorf("the raw copy resurrected as a backlog item: %v", r.Unclassified)
+	}
+	if len(r.ByClass["false-universal"]) != 1 {
+		t.Errorf("double-delivered: %v", r.ByClass["false-universal"])
+	}
+	rev := BuildPatternIndex([]string{raw, promoted})
+	if len(rev.Unclassified) != 1 || rev.Unclassified[0] != "p.md" {
+		t.Errorf("raw-first should surface the unclassified copy: %v", rev.Unclassified)
+	}
+}
+
+// BuildPatternIndex keeps harness-limit distinct from unclassified.
+func TestBuildPatternIndexHarnessLimitDistinct(t *testing.T) {
+	d := t.TempDir()
+	write(t, filepath.Join(d, "h.md"), "---\nmetadata:\n  classes: []\n  class_note: harness-limit — a tooling constraint\n---\n# H\n")
+	write(t, filepath.Join(d, "u.md"), "---\nmetadata:\n  classes: []\n---\n# U\n")
+	r := BuildPatternIndex([]string{d})
+	if len(r.HarnessLimit) != 1 || r.HarnessLimit[0] != "h.md" {
+		t.Errorf("harnessLimit = %v, want [h.md]", r.HarnessLimit)
+	}
+	if len(r.Unclassified) != 1 || r.Unclassified[0] != "u.md" {
+		t.Errorf("unclassified = %v, want [u.md]", r.Unclassified)
+	}
+}
+
+// PurgeStaleMirrors: 30-day purge removes stale, keeps fresh.
+func TestPurgeStaleMirrors(t *testing.T) {
+	mirrors := t.TempDir()
+	os.Mkdir(filepath.Join(mirrors, "oldrun"), 0o755)
+	os.Mkdir(filepath.Join(mirrors, "newrun"), 0o755)
+	old := time.Now().Add(-40 * 24 * time.Hour)
+	os.Chtimes(filepath.Join(mirrors, "oldrun"), old, old)
+	if n := PurgeStaleMirrors(mirrors, time.Now(), 30); n != 1 {
+		t.Fatalf("purged = %d, want 1", n)
+	}
+	if exists(filepath.Join(mirrors, "oldrun")) || !exists(filepath.Join(mirrors, "newrun")) {
+		t.Error("stale should be purged, fresh kept")
+	}
+}
+
+// PreflightRecordBinary: missing + skewed refuse; a matching version passes.
+func TestPreflightRecordBinary(t *testing.T) {
+	missing := PreflightRecordBinary("0.1.0", "feov-record", func(string, []string) ExecResult {
+		return ExecResult{Err: errors.New("ENOENT")}
+	})
+	if missing.OK || !has(missing.Reason, "not runnable") || !has(missing.Remedy, "doctor --fix") {
+		t.Errorf("missing: %+v", missing)
+	}
+	skewed := PreflightRecordBinary("0.2.0", "feov-record", func(string, []string) ExecResult {
+		return ExecResult{Status: 0, Stdout: "0.1.0\n"}
+	})
+	if skewed.OK || !has(skewed.Reason, "0.1.0") || !has(skewed.Reason, "expects 0.2.0") {
+		t.Errorf("skewed: %+v", skewed)
+	}
+	good := PreflightRecordBinary("0.1.0", "feov-record", func(string, []string) ExecResult {
+		return ExecResult{Status: 0, Stdout: "feov-record version 0.1.0\n"}
+	})
+	if !good.OK || good.Version != "0.1.0" {
+		t.Errorf("good: %+v", good)
+	}
+	// The absent (real-name) path is detected too.
+	absent := PreflightRecordBinary("0.1.0", "no-such-binary", func(string, []string) ExecResult {
+		return ExecResult{Err: errors.New("exec: not found")}
+	})
+	if absent.OK || !has(absent.Reason, "not runnable") {
+		t.Errorf("absent: %+v", absent)
+	}
+}
+
+// RecordToolVersion reads the requirements.json authority and returns a semver.
+func TestRecordToolVersion(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "requirements.json")
+	write(t, f, `{"recordToolVersion":"0.17.0"}`)
+	if v := RecordToolVersion(f); v != "0.17.0" {
+		t.Errorf("RecordToolVersion = %q, want 0.17.0", v)
+	}
+	if RecordToolVersion(filepath.Join(t.TempDir(), "absent.json")) != "" {
+		t.Error("absent manifest should yield empty, not panic")
+	}
+}
+
+// QmdRefresh: a not-installed binary is a stated no-op.
+func TestQmdRefreshNotInstalled(t *testing.T) {
+	r := QmdRefresh("qmd", func(string, []string) ExecResult { return ExecResult{Err: errors.New("ENOENT")} })
+	if r.Ran || !has(r.Reason, "not installed") {
+		t.Errorf("not-installed branch: %+v", r)
+	}
+}
+
+// MirrorScorecards: empty corpus explains itself instead of an undefined reason.
+func TestMirrorScorecardsEmptyCorpus(t *testing.T) {
+	mem, runDir := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
+	r := MirrorScorecards(mem, runDir)
+	if r.Written {
+		t.Error("empty corpus should not be written")
+	}
+	if r.Reason == "" || !has(r.Reason, "capture") {
+		t.Errorf("reason should explain where scorecards come from: %q", r.Reason)
+	}
+}
+
+// MirrorScorecards: the emitted HEADLINE line is the ranked authority (detector leads).
+func TestMirrorScorecardsHeadlineRanked(t *testing.T) {
+	mem, runDir := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
+	// A card whose emitted HEADLINE puts the tripped detector first.
+	write(t, filepath.Join(mem, "blue-scorecard.md"),
+		"# blue scorecard\n\n## run-6\n\n- `x` [benchmark] — A: **1**\n\nHEADLINE: tripped 7 [DETECTOR] · bench_one 1 [BENCHMARK] · bench_two 2 [BENCHMARK]\n")
+	r := MirrorScorecards(mem, runDir)
+	if len(r.Headlines["blue"]) != 3 || !strings.HasPrefix(r.Headlines["blue"][0], "tripped 7") {
+		t.Errorf("headline not ranked from the emitted line: %v", r.Headlines["blue"])
+	}
+}
+
+// MirrorScorecards: a pre-HEADLINE card still yields a prompt headline via the fallback,
+// and a colon in the clause does not hide the metric.
+func TestMirrorScorecardsFallbackParsesColonClause(t *testing.T) {
+	mem, runDir := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
+	write(t, filepath.Join(mem, "red-scorecard.md"), strings.Join([]string{
+		"# red scorecard", "", "## run-5", "",
+		"- `unrecorded_claim_loss` [detector] — LOSS: additive violations: **4** (6 lost, 2 retired)",
+		"- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **89**",
+		"",
+	}, "\n"))
+	r := MirrorScorecards(mem, runDir)
+	joined := strings.Join(r.Headlines["red"], " | ")
+	if !has(joined, "unrecorded_claim_loss 4") {
+		t.Errorf("colon-bearing clause not read by the fallback: %v", r.Headlines["red"])
+	}
+	if !has(joined, "anchored_closures_pct 89") {
+		t.Errorf("second row missing: %v", r.Headlines["red"])
+	}
+}

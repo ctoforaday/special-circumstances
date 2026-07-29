@@ -141,6 +141,18 @@ const (
 	Method      = "method"
 	AccessDate  = "access-date"
 	Observation = "observation"
+
+	// The operator `setup` command (ported from setup-research-run.mjs): it builds a
+	// research run's blackboard. These are operator flags, not seat-verb payload keys.
+	Topic         = "topic"
+	Model         = "model"
+	JudgmentModel = "judgment-model"
+	Cite          = "cite"
+	MaxRounds     = "max-rounds"
+	Lanes         = "lanes"
+	BinDir        = "bin-dir"
+	MemoryDir     = "memory-dir"
+	NoQmd         = "no-qmd"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -167,6 +179,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Petitioner, Relief,
 		Deadlocked, Exhausted,
 		Line, Method, AccessDate, Observation,
+		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, NoQmd,
 	}
 }
 

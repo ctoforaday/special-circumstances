@@ -96,11 +96,16 @@ import (
 //	       the findings as structured JSON — the merge coalesces from it and scorecards attribute
 //	       from it, retiring the red/candidates/*.md channel; a gap's found_by names labels. A
 //	       stale binary lacks the findings view and still accepts the removed --label.
+//	0.18.0 the root `setup` command (#121 slice 1) — the run-setup mechanics ported from
+//	       setup-research-run.mjs: skeleton, pin validation, memory/law/scorecard mirrors, the
+//	       run-config + run-live marker, and the record-binary preflight. /research step 2 now
+//	       calls `feov-record setup` instead of `node …setup-research-run.mjs`, so a stale binary
+//	       lacks the command the setup step depends on (same rationale as 0.11.0's `verify`).
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.17.0"
+const Version = "0.18.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -138,6 +143,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newVerify(),      // operator cross-check, not a seat role — read-only over the record
 		newGraph(),       // operator: render a run's actual behaviour from the record
 		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
+		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
 	)
 	return root
 }
