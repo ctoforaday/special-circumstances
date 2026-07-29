@@ -34,6 +34,13 @@ type requirements struct {
 func nudge(statuses []toolchain.Status) string {
 	var missing []string
 	for _, s := range statuses {
+		// NotApplicable tools are absent by design in this environment (gh in a
+		// cloud session). Nudging about them would move sc-doctor's false alarm
+		// into the one line every session starts with — the most expensive place
+		// in the suite for a warning nobody can act on.
+		if s.NotApplicable {
+			continue
+		}
 		if !s.Found && (s.Tier == "required" || s.Tier == "recommended") {
 			missing = append(missing, s.Name)
 		}

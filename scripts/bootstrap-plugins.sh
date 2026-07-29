@@ -27,7 +27,10 @@ set -uo pipefail   # NO -e: a failed step must warn, never abort the session
 
 MARKETPLACE_NAME=special-circumstances
 MARKETPLACE_SOURCE="${MARKETPLACE_SOURCE:-ctoforaday/special-circumstances}"
-PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service)
+# Every plugin in .claude-plugin/marketplace.json. A plugin missing from this list
+# is silently never installed, which looks exactly like a plugin that does not
+# exist yet — so this list and the marketplace manifest must move together.
+PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
 
 log()  { printf '[bootstrap-plugins] %s\n' "$*"; }
 warn() { printf '[bootstrap-plugins] WARNING: %s\n' "$*" >&2; }

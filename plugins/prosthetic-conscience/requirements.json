@@ -14,9 +14,10 @@
     },
     {
       "name": "gh",
-      "purpose": "GitHub PR / review flow",
+      "purpose": "GitHub PR / review flow; a Claude Code cloud session reaches GitHub through MCP tools instead and ships no gh, so its absence there is by design, not a defect",
       "tier": "recommended",
       "check_cmd": "gh --version",
+      "not_applicable_in": ["claude-code-remote"],
       "install": {
         "windows": "winget install --id GitHub.cli -e",
         "darwin": "brew install gh",

@@ -269,11 +269,13 @@ export function writeRunLiveMarker(projectDir, runDir, pinnedPaths) {
 //
 // Skew is reported, not just absence: the binary is released per plugin tag, so
 // a stale one on PATH silently writes events under an older contract.
-// The plugin manifest is the version authority — hardcoding it here would create
-// exactly the skew this preflight exists to catch.
-export function recordToolVersion(pluginJson = null) {
+// requirements.json is the version authority — hardcoding it here would create
+// exactly the skew this preflight exists to catch. It is NOT .claude-plugin/plugin.json:
+// that manifest has a published schema, and an extra field there makes
+// `claude plugin validate` warn forever. requirements.json is the plugin's own file.
+export function recordToolVersion(manifestPath = null) {
   try {
-    const p = pluginJson || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '.claude-plugin', 'plugin.json')
+    const p = manifestPath || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'requirements.json')
     return JSON.parse(readFileSync(p, 'utf8')).recordToolVersion || null
   } catch { return null }
 }

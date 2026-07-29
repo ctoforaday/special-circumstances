@@ -171,6 +171,68 @@ func TestDigestCarriesItsProvenance(t *testing.T) {
 	}
 }
 
+// THE mechanism for the no-imperative rule, so it is not prose that decays.
+//
+// Measured 2026-07-29: run 1's digest closed with "verify each item against
+// reality before acting on it, and re-run the validation loop rather than
+// trusting its recorded result", and the resumed agent named THAT SENTENCE among
+// the directives making the payload injection-shaped. Deleting it removed it
+// from the agent's reason, leaving only the note's own content.
+//
+// The rule is scoped, not absolute: imperatives QUOTED FROM THE NOTE are the
+// content worth restoring (a foot-guns section is imperatives by definition).
+// What is banned is an imperative the HOOK invented — the session never
+// established it, so it arrives as a directive from outside.
+func TestTheHookAddsNoImperativeOfItsOwn(t *testing.T) {
+	// A note with no imperative anywhere in it, so anything commanding in the
+	// output can only have come from the hook.
+	declarative := `---
+schema: 2
+updated: 2026-07-29T04:00:00Z
+objective: "measure the digest's own voice"
+beyond_plan: true
+status: in-progress
+---
+## Validation loop
+1. go test ./...  → all packages ok
+   last run: pass
+## Next intended steps
+1. wire hooks.json
+`
+	dir := withNote(t, declarative)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+
+	// Second person and bare-imperative openers are how an invented directive
+	// actually reads. Quoted note content is exempt by construction here: the
+	// fixture contains none.
+	banned := []string{
+		"you must", "you should", "verify each", "re-run the", "do not ", "never ",
+		"make sure", "ensure that", "remember to", "before acting",
+	}
+	low := strings.ToLower(got)
+	for _, b := range banned {
+		if strings.Contains(low, b) {
+			t.Errorf("the hook introduced an imperative of its own (%q) — measured to read as injection:\n%s", b, got)
+		}
+	}
+	if got == "" {
+		t.Fatal("fixture produced no digest, so the assertion above proved nothing")
+	}
+}
+
+// The companion: imperatives that came FROM the note must survive verbatim.
+// Stripping them would drop the foot-guns, which is the content most worth
+// having on the far side of a seam.
+func TestImperativesQuotedFromTheNoteSurvive(t *testing.T) {
+	dir := withNote(t, note)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	if !strings.Contains(got, "never route restore through it") {
+		t.Errorf("the note's own foot-gun was stripped:\n%s", got)
+	}
+}
+
 // A note that established nothing gives the session nothing. Manufacturing a
 // digest from an empty note is precisely the introduce-don't-reinforce failure.
 func TestEmptyNoteProducesSilence(t *testing.T) {
