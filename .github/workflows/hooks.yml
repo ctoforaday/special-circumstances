@@ -24,19 +24,25 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          # MUST satisfy every go.mod in the repo (all three are on 1.25). Under v5 this
+          # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
+          # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
+          # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
+          # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
+          # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
+          go-version: "1.25"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
@@ -56,28 +62,36 @@ jobs:
       run:
         working-directory: plugins/frank-exchange-of-views/tools
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
-      - uses: actions/setup-node@v4
+          # MUST satisfy every go.mod in the repo (all three are on 1.25). Under v5 this
+          # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
+          # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
+          # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
+          # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
+          # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
+          go-version: "1.25"
+      - uses: actions/setup-node@v7
         with:
-          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
-          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
-          # truthy string "false" and treated as a package manager. v4 does not cache
-          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
-          # remaining findings on these steps are precautionary. The proper disable input,
-          # `package-manager-cache`, does not exist until a later major version — which is
-          # exactly the bump the Dependabot config added here will propose.
+          # The bump the previous comment here was waiting for. `cache: false` was never
+          # available: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings, so `false` would be read as the
+          # truthy string "false" and treated as a package manager. v7 ships the input that
+          # actually says no — `package-manager-cache: false` — which closes zizmor's four
+          # cache-poisoning findings on these steps for the same reason `cache: false`
+          # closes them on setup-go: this workflow PUBLISHES on a tag, and a cache a pull
+          # request can write is a cache a release build would read.
+          package-manager-cache: false
           node-version: "24"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -102,19 +116,25 @@ jobs:
       run:
         working-directory: plugins/gray-area/tools
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          # MUST satisfy every go.mod in the repo (all three are on 1.25). Under v5 this
+          # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
+          # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
+          # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
+          # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
+          # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
+          go-version: "1.25"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
@@ -137,21 +157,23 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
-          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
-          # truthy string "false" and treated as a package manager. v4 does not cache
-          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
-          # remaining findings on these steps are precautionary. The proper disable input,
-          # `package-manager-cache`, does not exist until a later major version — which is
-          # exactly the bump the Dependabot config added here will propose.
+          # The bump the previous comment here was waiting for. `cache: false` was never
+          # available: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings, so `false` would be read as the
+          # truthy string "false" and treated as a package manager. v7 ships the input that
+          # actually says no — `package-manager-cache: false` — which closes zizmor's four
+          # cache-poisoning findings on these steps for the same reason `cache: false`
+          # closes them on setup-go: this workflow PUBLISHES on a tag, and a cache a pull
+          # request can write is a cache a release build would read.
+          package-manager-cache: false
           node-version: "24"
       - run: node scripts/rule-sweep.mjs --selftest
       # The base ref goes through the environment, never through a `${{ }}` expansion
@@ -188,7 +210,7 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Nothing here talks to the remote after checkout — the check reads the merge
           # base from local refs — so the token has no reason to persist into .git/config.
@@ -210,29 +232,37 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
-          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
-          # truthy string "false" and treated as a package manager. v4 does not cache
-          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
-          # remaining findings on these steps are precautionary. The proper disable input,
-          # `package-manager-cache`, does not exist until a later major version — which is
-          # exactly the bump the Dependabot config added here will propose.
+          # The bump the previous comment here was waiting for. `cache: false` was never
+          # available: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings, so `false` would be read as the
+          # truthy string "false" and treated as a package manager. v7 ships the input that
+          # actually says no — `package-manager-cache: false` — which closes zizmor's four
+          # cache-poisoning findings on these steps for the same reason `cache: false`
+          # closes them on setup-go: this workflow PUBLISHES on a tag, and a cache a pull
+          # request can write is a cache a release build would read.
+          package-manager-cache: false
           node-version: "24"
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          # MUST satisfy every go.mod in the repo (all three are on 1.25). Under v5 this
+          # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
+          # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
+          # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
+          # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
+          # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
+          go-version: "1.25"
       - run: node scripts/golden.mjs
 
   debate-sim:
@@ -243,20 +273,22 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
-          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
-          # truthy string "false" and treated as a package manager. v4 does not cache
-          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
-          # remaining findings on these steps are precautionary. The proper disable input,
-          # `package-manager-cache`, does not exist until a later major version — which is
-          # exactly the bump the Dependabot config added here will propose.
+          # The bump the previous comment here was waiting for. `cache: false` was never
+          # available: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings, so `false` would be read as the
+          # truthy string "false" and treated as a package manager. v7 ships the input that
+          # actually says no — `package-manager-cache: false` — which closes zizmor's four
+          # cache-poisoning findings on these steps for the same reason `cache: false`
+          # closes them on setup-go: this workflow PUBLISHES on a tag, and a cache a pull
+          # request can write is a cache a release build would read.
+          package-manager-cache: false
           node-version: "24"
       # Files are enumerated, never globbed: `node --test <dir>` fails on Windows,
       # and an explicit list is the only thing that keeps a new suite from being
@@ -335,19 +367,25 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          # MUST satisfy every go.mod in the repo (all three are on 1.25). Under v5 this
+          # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
+          # DOWNLOADED 1.25 to build a 1.25 module and CI went green while testing a
+          # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
+          # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
+          # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
+          go-version: "1.25"
       - name: Resolve the plugin from the tag
         id: plugin
         run: |
