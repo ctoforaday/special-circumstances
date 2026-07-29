@@ -348,39 +348,63 @@ Plus the common `session_id`, `transcript_path`, `cwd`, `prompt_id`. `watchPaths
 `additionalContext` in the same `SessionStart` response works — the marker arrived (`MARKER-SEEN=yes`)
 *and* the watch registered, so returning both is not an either/or.
 
-### The constraint that changes the design: **globs do not register**
+### What registers, and what silently does not
 
-| `watchPaths` entry | edit to `watched/target.txt` |
+Twelve forms, each in its own project directory, each with the edit **confirmed to have happened**
+before a "no event" result was believed. (Four early runs died on an API error and produced a
+vacuous `NONE`; they were re-run. A negative from a run that never edited anything is not a
+negative.)
+
+| `watchPaths` entry | fires? |
 |---|---|
-| `watched/**` | **no event, ever** |
-| `watched/target.txt` (relative to the project dir) | `change` |
-| `/abs/path/…/watched/target.txt` | `change` |
+| `watched/target.txt` — file, relative | `change` |
+| `/abs/…/watched/target.txt` — file, absolute | `change` |
+| **`watched` — directory, relative** | **`change`, recursively (incl. `sub/deep.txt`)** |
+| **`/abs/…/watched` — directory, absolute** | **`change`** |
+| **`.` — the project root** | **everything, recursively** |
+| `watched/*` | nothing |
+| `watched/*.txt` | nothing |
+| `watched/**` | nothing |
+| `watched/**/*` | nothing |
+| `**/*.txt` | nothing |
+| `**/target.txt` | nothing |
+| `watched/.*\.txt` — a regex, not a glob | nothing |
 
-Relative and absolute both work. A glob registers **nothing** — silently, with the hook configured,
-the event enabled and no error anywhere.
+**It takes paths — files or directories. Neither globs nor regular expressions.** Every wildcard
+form fails the same way: silently, with the hook configured, the event enabled, and no error
+anywhere. The regex form was tested because "maybe the syntax is regex" is the obvious next
+hypothesis after one glob shape fails; it is not.
 
-### And a newly created file never fires
+### A directory watch is recursive AND catches new files
 
-`watched/added.txt` was created by the agent in **all three** runs, including the glob run. **No
-`add` event fired in any of them.** `watchPaths` watches the literal files it was handed; it is not
-a directory watcher and it does not track a pattern forward in time.
+This is the part a single-shape test got wrong. Watching the directory `watched`:
 
-### What this costs I2
+```
+add    brandnew.txt
+add    sub/deepnew.txt
+```
 
-A validation check's trigger surface is normally a *pattern* — *"any `.go` edit"*, `manifest/*.yml`,
-*"any protocol-surface edit"*. None of those can be registered as written. The re-arming hook must
-**expand the pattern to concrete paths itself, at restore time**, and register those.
+Both created by the agent during the run, one nested. So `watchPaths` **is** a directory watcher,
+it **does** follow the tree forward in time, and `event` distinguishes `add` from `change`.
 
-Two consequences, both to be stated rather than discovered later:
+An earlier draft of this section concluded the opposite — *"it watches the literal files it is
+handed; a newly created file never fires"* — from a run that registered only file paths and one
+glob. Both halves of that were wrong, and the correction came from being asked whether the failure
+was really about *glob syntax*. It was not; the axis is **path vs pattern**, not one glob dialect
+vs another.
 
-- **A file created after session start is invisible.** A new test file does not re-arm the check it
-  belongs to. The mechanism covers *editing what already exists*, which is the common case, and
-  misses *adding*, which is not rare.
-- **The expansion is a snapshot.** Registering `**/*.go` means registering the `.go` files that
-  existed at that moment. The watch does not follow the pattern.
+### What this means for I2
 
-So §5's I2 claim needs qualifying: the check re-arms when an **already-existing** surface file is
-edited. It does not remove the agent's duty to notice a *new* surface; it narrows it.
+Better than the first reading, not worse. A validation check's trigger surface — *"any `.go` edit"*,
+`manifest/*.yml` — is registered by **watching the directories that contain it**, not by expanding
+the pattern to a snapshot of files. New files under those directories fire `add`. The re-arm hook
+filters on `file_path` itself, which it must do anyway since a directory watch is coarser than the
+pattern.
+
+**Foot-gun, measured:** watching `.` catches the hook's own output. The `.`-watch run logged
+`add: fc.jsonl` followed by nine `change: fc.jsonl` events — the `FileChanged` hook writing its log
+inside the watched tree, re-triggering itself. Watch the specific directories, never the project
+root, and keep hook state outside whatever is watched.
 
 ### Also settled here
 
