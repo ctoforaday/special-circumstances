@@ -60,6 +60,15 @@ Three traps found by measuring rather than reasoning:
 - **A `[[source]]` block is mandatory.** Without it, every `name = "..."` fails the whole
   run with `Plugin definition not found` — the plugin list alone is inert.
 
+> [!CAUTION]
+> **`qlty.toml` key order changes meaning, and getting it wrong fails quietly.** TOML scopes
+> every key following a table header into that table, so a top-level key such as
+> `exclude_patterns` written *below* `[[source]]` silently becomes `source.0.exclude_patterns`.
+> qlty then reports `not part of the supported configuration and will be ignored` as a
+> **warning, not an error** — the run still exits 0 and the exclusions simply never apply.
+> Put every top-level key ABOVE the first `[[source]]` or `[[plugin]]` header, and after
+> editing the config, read qlty's first lines rather than only its exit code.
+
 `osv-scanner` reads the `go` directive as though it were a built toolchain, so the form
 of the directive decides the verdict: `go 1.25` (open-ended) reports clean, while
 `go 1.25.0` (an exact release) reports its accumulated CVEs. `go mod tidy` may force the
