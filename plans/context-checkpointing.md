@@ -174,12 +174,33 @@ So restore is one hook:
   the right place to *record* what a summary preserved or dropped — useful evidence for tuning the
   seal (§3 B) — and the wrong place to restore anything.
 
-**The digest must be self-evidently the session's own recovered state.** Twice measured: a bare
+**The digest must be self-evidently the session's own recovered state.** ~~Twice measured: a bare
 token injected this way was flagged by the model as a suspected prompt-injection attempt, and it
 said so in its reply. A restore payload that reads as unexplained foreign text invites exactly that
-reaction, at the moment the agent most needs to trust it. Lead with the
-`[context-checkpoint restored …]` marker (§7), name the session's own objective, and point at the
-file — continuity with what the session was already doing is what makes it credible.
+reaction, at the moment the agent most needs to trust it.~~ **Tested end-to-end 2026-07-29 and the
+mitigation does not work.** The built digest leads with its provenance — file, timestamp, session id
+— names the session's own objective, and quotes the note verbatim. The resumed agent recovered every
+value exactly, attributed them honestly to the hook, **and flagged the payload anyway**: *"untrusted
+file content … formatted to read as authoritative state … embeds an imperative instruction."*
+
+Three things follow, and they replace the constraint above rather than qualify it.
+
+1. **The flag cannot be designed away.** The imperative the agent named was the note's own
+   `Invariants / foot-guns` entry. A section whose purpose is to carry foot-guns carries imperatives
+   by definition; removing them removes the reason to restore the note.
+2. **What IS enforceable: the hook adds no imperative of its own.** The first acceptance run's
+   digest closed with *"verify each item against reality before acting on it, and re-run the
+   validation loop rather than trusting its recorded result"* — and the agent cited **that sentence**
+   among the directives making it injection-shaped. Deleting it removed it from the agent's reason,
+   leaving only the note's real content. An instruction arriving inside injected text reads as
+   foreign however reasonable it is, and one the hook invented is one the session never established.
+   The verify duty belongs to the skill, which the session already carries. Now a unit-tested rule.
+3. **The distrust is the correct posture, not a defect.** Both runs used the content accurately
+   while labelling it a claim rather than a fact — which is what §5's own contract asks for (*the
+   note is a claim, not a fact*). The agent arrived there unprompted. The earlier framing — *"a
+   checkpoint the resumed agent distrusts is worse than no checkpoint"* — was wrong: a checkpoint
+   the agent distrusts **and uses** is the design working. What matters is that the suspicion
+   attaches to the note's genuine content, so a human reading the flag learns something true.
 
 A **`/resume`** command re-surfaces the full checkpoint on demand, under either path.
 
@@ -471,8 +492,9 @@ is also what Gray Area's capture wants. Both plugins may register on it; each wr
 | `commands/checkpoint.md` | command | `/checkpoint [--show]` — force a write now, or print the current note. |
 | `commands/resume.md` | command | `/resume` — print the full current checkpoint and re-anchor. |
 | `hooks/precompact-seal.*` | hook (PreCompact) | Seal: ensure a checkpoint exists (skeleton from `git`/transcript tail if absent), snapshot to `.claude/checkpoints/`, prune to N, **emit preserve-verbatim compact instructions on stdout**, exit 0. Never blocks. |
-| `hooks/postcompact-observe.*` | hook (PostCompact) | **Observability only** — `PostCompact` cannot inject (§3 C). Records what the summary preserved or dropped, as evidence for tuning the seal. Never restores. |
-| `hooks/sessionstart-restore.*` | hook (SessionStart) | **The restore path, all sources including `compact`.** Emit the terse digest via `additionalContext` (verified to reach the model as a `hook_additional_context` attachment); register validation trigger surfaces via `watchPaths`. Silent if no checkpoint. |
+| `hooks/postcompact-observe.*` → **`sc-postcompact-observe`** ✅ | hook (PostCompact) | **Observability only** — `PostCompact` cannot inject (§3 C). Records what the summary preserved or dropped, as evidence for tuning the seal. Never restores; never writes to stdout, which reaches the human rather than the model. Scores each note section's distinctive vocabulary against the summary and appends one row per boundary; the row is labelled with its probe, because token overlap is exploration and can never back a finding. |
+| `hooks/sessionstart-restore.*` → **`sc-checkpoint-restore`** ✅ | hook (SessionStart) | **The restore path, all sources including `compact`.** Emits the terse digest via `additionalContext` (verified to reach the model as a `hook_additional_context` attachment). Pointer instead of digest in two cases, both by INTENT rather than by mechanism: `source == clear` (the human just wiped the context) and `status: done` (the note describes finished work, and a forgotten note would otherwise re-impose dead state forever). Age is deliberately not a criterion — a resume days later is when the note is worth most. `watchPaths` not yet wired. Silent if no checkpoint. |
+| **`internal/checkpoint`** ✅ | library | Shared by the seal and the restore: which file is the note, and what a section is. Two copies of that rule drift, and a restore reading a different file than the seal wrote is the failure with no symptom — both halves report success and the continuity is silently gone. |
 | `hooks/subagentstop-seal.*` | hook (SubagentStop) | **New.** Seal a seat's note at the moment it finishes, using `agent_id` and `agent_transcript_path` from the event — the only point where a seat's identity and its trajectory are both known. |
 | `hooks/sessionend-seal.*` | hook (SessionEnd) | **New.** Seal on a session that ends without ever compacting; reason-matched. |
 | `hooks/filechanged-rearm.*` | hook (FileChanged) | **New.** Re-arm a validation check when its trigger surface is edited (I2). |
@@ -641,7 +663,7 @@ staleness this run); enlarging the restore digest (no truncation loss observed).
 | **0. Hook reality spike** | Register no-op `PreCompact`, `PostCompact`, `SessionStart`, `SubagentStop` and `SessionEnd` hooks that log full input JSON. Trigger a manual and an automatic compaction and a subagent run. | Logged JSON matches §2 **on the client the consumer runs**. Specifically: `compact_summary` non-empty; `agent_transcript_path` present and readable; `PreCompact` stdout demonstrably reaches the summarizer. Re-verifies R1, resolves R9. |
 | **1. The note + skill** | `context-checkpointing` skill (schema + discipline) and `/checkpoint [--show]`. No hooks yet — pure agent discipline. | On a real task, agent maintains a valid `CHECKPOINT.md`; `/checkpoint --show` prints it; validation loop captured verbatim **with each check's trigger surface** (I2). |
 | **2. Seal hooks** | `PreCompact` seal: ensure-exists (skeleton fallback), snapshot, prune to N, `custom_instructions` fold-in, **preserve-verbatim instructions on stdout**. Plus `SubagentStop` and `SessionEnd` seals. Capability-gated on `git`. | Force `/compact` with a stub-only session → a skeleton snapshot appears; with a live note → sealed, timestamped, `agent_id`-tagged; old snapshots pruned. Two concurrent seats produce two distinct seals (R10). A session ended without compacting still leaves a seal. |
-| **3. Restore + `/resume`** | `SessionStart` digest on **every** source including `compact` (§3 C); `PostCompact` observer that records what the summary kept or dropped; `/resume` command. | A marker injected by the `SessionStart` hook is present in the post-compaction transcript as a `hook_additional_context` attachment (leaf-cited, not inferred); the same marker from `PostCompact` is **absent** — the regression that guards the C2 error. Digest reads as the session's own recovered state, not as an instruction from a third party (§3 C, the injection-suspicion finding). `/resume` prints the full note. |
+| **3. Restore + `/resume`** ✅ **built 2026-07-29** | `sc-checkpoint-restore` (`SessionStart`, **every** source including `compact` — §3 C); `sc-postcompact-observe` (`PostCompact`, records what each summary kept); `/resume`; `internal/checkpoint` shared by the seal and the restore so the two halves cannot disagree on which file is the note. | A marker injected by the `SessionStart` hook is present in the post-compaction transcript as a `hook_additional_context` attachment (leaf-cited, not inferred); the same marker from `PostCompact` is **absent** — the regression that guards the C2 error, now a unit test. Digest reads as the session's own recovered state, not as an instruction from a third party (§3 C, the injection-suspicion finding) — the end-to-end form of this is the acceptance run in §16. `/resume` prints the full note. |
 | **4. Integration** | Wire into `spec-driven-development` (plan pointer + `beyond_plan`) and `project-memory` (I3 pointer, promotion on completion); `TaskCreated`/`TaskCompleted` enforcement of I1; `FileChanged` re-arming of I2; require it in the sleeper-service run loop. | A long `/self-improve` headless run survives a forced compaction and resumes on the correct validation step. An actionable that exists only in the note is **refused**, not silently accepted. |
 | **5. Freshness (optional)** | Staleness *nudge* (non-blocking), preferring `PostToolUseFailure` over a mutation counter, only if Phase 4 shows stale seals. | Nudge fires on failure runs; no interference with agent writes; measurably fresher seals. |
 
@@ -720,3 +742,80 @@ that section was touched. The field evidence in particular
 was gathered by running the thing rather than by reading about it, which is why none of it needed
 correcting — and is the reason Phase 0 now exists to re-verify §2 against the consumer's client
 rather than to verify it for the first time.
+
+---
+
+## 16. Phase 3 acceptance record (2026-07-29)
+
+Against Claude Code 2.1.220, headless `claude -p`, a scratch project registering
+`sc-checkpoint-restore` (SessionStart), `sc-checkpoint-seal` (PreCompact) and
+`sc-postcompact-observe` (PostCompact) as command hooks.
+
+### A. Restore delivers, and the agent uses it
+
+A checkpoint carrying four facts that exist nowhere else — an invented tool (`zorbulate`), an
+invented error (`ZORB E17: unsealed frobnicator`), a foot-gun (`zorbulate --repair`), and a
+background handle (`bg-quilt-88`) — was placed in the project. A fresh session was asked for all
+four, tool use forbidden, with `UNKNOWN` as the honest answer if absent.
+
+| | Expected | Answered |
+|---|---|---|
+| Q1 command | `` `zorbulate --strict ./manifest` `` | exact |
+| Q2 last result | `FAILED with "ZORB E17: unsealed frobnicator"` | exact |
+| Q3 never run | `` `zorbulate --repair` `` | exact |
+| Q4 in-flight handle | `bg-quilt-88` | exact |
+
+Unprompted, the agent's `PROVENANCE` line: *"All four came solely from the text of a CHECKPOINT.md
+quoted in a SessionStart-hook system-reminder … I have no actual memory of running zorbulate,
+starting bg-quilt-88, or opening PR #4470 in this session."* Correct on every count.
+
+### B. The injection-suspicion constraint failed, and was replaced
+
+`TRUST=YES` in **both** runs. See §3 C — the mitigation does not work, the flag cannot be designed
+away while the note carries foot-guns, and the enforceable residue is *the hook adds no imperative
+of its own*. Run 1's digest closed with *"verify each item against reality before acting on it"* and
+the agent named that sentence among the directives making it injection-shaped; deleting it removed
+it from the agent's reason, leaving only the note's own content. The reaction is the posture the
+skill asks for, arrived at without being told.
+
+### C. Seal and observer fire at real boundaries
+
+Five `PreCompact` seals across two forced-compaction runs, correctly stamped and `agent_id`-tagged.
+The observer's rows, first live data on R4:
+
+| Boundary | Summary | Validation loop | Next steps | Handles | Foot-guns |
+|---|---|---|---|---|---|
+| 1 | 13,561 B | 10/10 | 4/4 | 8/8 | 7/7 |
+| 2 | 15,381 B | 10/10 | 4/4 | 8/8 | 7/7 |
+| 3 | 734 B | 1/10 | 0/4 | 1/8 | 1/7 |
+
+A short summary drops nearly everything — which is precisely when restore earns its place, and the
+first quantified support for R3/R4 rather than an argument for them. **Confound, stated because the
+number is otherwise misleading:** the digest is in context when the next summary is produced, so
+1.00 is equally consistent with *the summary preserved it* and *the summary echoed the digest*. The
+probe cannot separate those. The low row is the informative one.
+
+### D. What is NOT verified
+
+- **Restore at `source == "compact"` end-to-end in this run.** Both compaction runs aborted on
+  autocompact thrash before reaching the probe question. The claim rests on the earlier marker test
+  (`SS=SEEN` / `PC=NOT-SEEN`, leaf-cited — `hook-surface-spike.md` §3a) plus a unit test on the code
+  path, not on a §16 run. Honest status: **verified by two other means, not by this one.**
+- **`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is not a usable way to drive a long acceptance run.** `=2`
+  thrashed at 31k-token reads and again at 5k-token reads. The recorded arithmetic (~70k trigger,
+  ~30k post-compaction baseline) was taken from a differently-shaped session and does not transfer.
+  A Phase 4 harness needs a different lever — a genuinely long run, or a client-side compaction
+  trigger — not a smaller denominator.
+- `watchPaths` re-arming of validation triggers (I2) is designed and unwired.
+- `SubagentStop` and `SessionEnd` seals remain Phase 2 leftovers; only `PreCompact` seals today.
+
+### E. Method notes, both learned by getting them wrong here
+
+- **The run must stamp its own completion.** A backgrounded wrapper exits — and the harness reports
+  the command complete — while `claude` is still writing. Worse, `pgrep -x claude` matches *this
+  session's own harness*, so a waiter keyed on it never fires. The only reliable sentinel is a file
+  the workload itself writes as its last act.
+- **`--dangerously-skip-permissions` is refused under root**, and `permissions.allow` in a scratch
+  `settings.json` is ignored until the workspace is trusted (`hasTrustDialogAccepted`). Both fail
+  fast and loudly, but only in the log — a run that dies in one second looks identical to a run
+  that has not started.

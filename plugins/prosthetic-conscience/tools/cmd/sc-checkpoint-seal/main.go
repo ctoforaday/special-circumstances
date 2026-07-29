@@ -32,6 +32,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 )
 
 const version = "0.1.0"
@@ -61,16 +63,11 @@ var sectionPhrase = []struct{ heading, phrase string }{
 	{"Open threads", "the open threads"},
 }
 
-// headings extracts the "## " headings of a checkpoint note.
-func headings(note string) []string {
-	var out []string
-	for _, line := range strings.Split(note, "\n") {
-		if strings.HasPrefix(line, "## ") {
-			out = append(out, strings.TrimSpace(strings.TrimPrefix(line, "## ")))
-		}
-	}
-	return out
-}
+// headings extracts the "## " headings of a checkpoint note. It delegates to the
+// shared parser so the seal and the restore agree on what a section is — two
+// copies of that rule drift, and a restore reading the note differently than the
+// seal wrote it fails with both halves reporting success.
+func headings(note string) []string { return checkpoint.Headings(note) }
 
 // steer builds the compact instruction from what the note ACTUALLY carries.
 //
@@ -134,26 +131,9 @@ func prune(names []string, keep int) []string {
 }
 
 // notePath returns the live checkpoint location, or "" when none exists.
-// A run/project workspace owns the note when one is active; otherwise it falls
-// back to the session-local (gitignored) directory.
+// Shared with the restore hook — see checkpoint.NotePath for why.
 func notePath(projectDir string, exists func(string) bool) string {
-	if projectDir == "" {
-		return ""
-	}
-	for _, dir := range []string{"projects", "research"} {
-		matches, _ := filepath.Glob(filepath.Join(projectDir, dir, "*", "CHECKPOINT.md"))
-		sort.Strings(matches)
-		for _, m := range matches {
-			if exists(m) {
-				return m
-			}
-		}
-	}
-	fallback := filepath.Join(projectDir, ".claude", "checkpoints", "CHECKPOINT.md")
-	if exists(fallback) {
-		return fallback
-	}
-	return ""
+	return checkpoint.NotePath(projectDir, exists, filepath.Glob)
 }
 
 // seal copies the note to an immutable snapshot and prunes. Best-effort by

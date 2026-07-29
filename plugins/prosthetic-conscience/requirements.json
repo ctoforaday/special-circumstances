@@ -79,6 +79,16 @@
         "name": "sc-checkpoint-seal",
         "event": "PreCompact(manual|auto)",
         "purpose": "seals CHECKPOINT.md to a pruned snapshot dir and emits compact instructions naming only what the note already carries — never blocks compaction, and stays cheap because auto-compaction thrashes"
+      },
+      {
+        "name": "sc-checkpoint-restore",
+        "event": "SessionStart(startup|resume|clear|compact|fork)",
+        "purpose": "hands the session back its own checkpoint as additionalContext — on EVERY source, because SessionStart is the only hook that can inject at a compaction boundary; a pointer rather than the digest on clear, which the human asked for deliberately"
+      },
+      {
+        "name": "sc-postcompact-observe",
+        "event": "PostCompact(manual|auto)",
+        "purpose": "records how much of the note's vocabulary each harness summary carried, one append-only row per boundary — observation only, because PostCompact cannot inject and runs after the restore has already fired"
       }
     ]
   }

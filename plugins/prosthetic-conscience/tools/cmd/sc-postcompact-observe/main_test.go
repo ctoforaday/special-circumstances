@@ -1,0 +1,184 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+const note = `---
+schema: 2
+session_id: sess-abc
+---
+## Validation loop
+1. go test ./...  → all packages ok  · re-armed by: any .go edit
+## Next intended steps
+1. wire the hooks into hooks.json
+## In-flight handles
+- background task bg-77
+`
+
+func withNote(t *testing.T, body string) string {
+	t.Helper()
+	dir := t.TempDir()
+	cp := filepath.Join(dir, ".claude", "checkpoints")
+	if err := os.MkdirAll(cp, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cp, "CHECKPOINT.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func call(t *testing.T, dir, stdin string, args ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	var o, e bytes.Buffer
+	code = run(args, strings.NewReader(stdin), &o, &e, dir,
+		time.Date(2026, 7, 29, 5, 0, 0, 0, time.UTC))
+	return o.String(), e.String(), code
+}
+
+func rows(t *testing.T, dir string) []observation {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(dir, ".claude", "checkpoints", "compaction-observations.jsonl"))
+	if err != nil {
+		return nil
+	}
+	var out []observation
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		if line == "" {
+			continue
+		}
+		var o observation
+		if err := json.Unmarshal([]byte(line), &o); err != nil {
+			t.Fatalf("row is not JSON: %v\n%s", err, line)
+		}
+		out = append(out, o)
+	}
+	return out
+}
+
+// The companion to the restore regression: this hook must never inject. It
+// cannot — PostCompact has no additionalContext — but a future edit reaching for
+// stdout would send text to the HUMAN while reading as a restore in review.
+func TestNeverWritesToStdout(t *testing.T) {
+	dir := withNote(t, note)
+	stdout, _, code := call(t, dir, `{"trigger":"auto","compact_summary":"the session ran go test","session_id":"s1"}`)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if stdout != "" {
+		t.Errorf("PostCompact stdout reaches the user, not the model — emitted %q", stdout)
+	}
+}
+
+// A summary that reused a section's vocabulary scores higher than one that did
+// not. This is the whole measurement, so it is asserted as a comparison rather
+// than against a magic threshold.
+func TestOverlapDistinguishesKeptFromDropped(t *testing.T) {
+	kept := overlap(note, "The session established a validation loop: go test across all packages, re-armed by any edit.")
+	dropped := overlap(note, "The user asked about the weather and we discussed nothing else whatsoever.")
+
+	find := func(rs []sectionOverlap, h string) sectionOverlap {
+		for _, r := range rs {
+			if r.Heading == h {
+				return r
+			}
+		}
+		t.Fatalf("section %q not scored", h)
+		return sectionOverlap{}
+	}
+	k := find(kept, "Validation loop")
+	d := find(dropped, "Validation loop")
+	if !(k.Ratio > d.Ratio) {
+		t.Errorf("kept ratio %.2f not above dropped %.2f — the probe measures nothing", k.Ratio, d.Ratio)
+	}
+	if d.Ratio != 0 {
+		t.Errorf("unrelated summary scored %.2f, want 0", d.Ratio)
+	}
+	if k.Tokens == 0 {
+		t.Error("counts must travel with the ratio; 0 tokens makes the ratio meaningless")
+	}
+}
+
+// Counts travel with the ratio, and every scored section carries both.
+func TestRowCarriesCountsNotJustRatios(t *testing.T) {
+	dir := withNote(t, note)
+	call(t, dir, `{"trigger":"manual","compact_summary":"go test packages","session_id":"s1","agent_id":"a9"}`)
+	got := rows(t, dir)
+	if len(got) != 1 {
+		t.Fatalf("rows = %d, want 1", len(got))
+	}
+	r := got[0]
+	if r.Probe != probe {
+		t.Errorf("probe = %q — an unlabelled row can be mistaken for a reading", r.Probe)
+	}
+	if r.SessionID != "s1" || r.AgentID != "a9" || r.Trigger != "manual" {
+		t.Errorf("row lost its identity: %+v", r)
+	}
+	if r.SummaryB != len("go test packages") {
+		t.Errorf("summary_bytes = %d", r.SummaryB)
+	}
+	if len(r.Sections) == 0 {
+		t.Fatal("no sections scored")
+	}
+	for _, s := range r.Sections {
+		if s.Tokens == 0 {
+			t.Errorf("section %q scored with 0 tokens", s.Heading)
+		}
+	}
+}
+
+// Append-only: thrash means this fires repeatedly, and each boundary is a row.
+func TestRowsAccumulate(t *testing.T) {
+	dir := withNote(t, note)
+	for range 3 {
+		call(t, dir, `{"trigger":"auto","compact_summary":"x","session_id":"s1"}`)
+	}
+	if got := rows(t, dir); len(got) != 3 {
+		t.Errorf("rows = %d, want 3 — observations must accumulate across boundaries", len(got))
+	}
+}
+
+// Empty sections are skipped, not scored as absent: "nothing to measure" and
+// "measured as absent" are different facts.
+func TestEmptySectionsAreNotScored(t *testing.T) {
+	got := overlap("---\nschema: 2\n---\n## Validation loop\n\n## Next intended steps\n1. do the thing properly\n", "unrelated")
+	for _, s := range got {
+		if s.Heading == "Validation loop" {
+			t.Error("scored a section with no content")
+		}
+	}
+	if len(got) != 1 {
+		t.Errorf("scored %d sections, want 1", len(got))
+	}
+}
+
+func TestNeverBlocks(t *testing.T) {
+	cases := []struct{ name, dir, stdin string }{
+		{"no project dir", "", `{"trigger":"auto"}`},
+		{"no note", t.TempDir(), `{"trigger":"auto"}`},
+		{"malformed stdin", withNote(t, note), `{not json`},
+		{"empty stdin", withNote(t, note), ``},
+		{"no summary", withNote(t, note), `{"trigger":"auto"}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if _, _, code := call(t, c.dir, c.stdin); code != 0 {
+				t.Errorf("exit %d, want 0", code)
+			}
+		})
+	}
+}
+
+func TestVersion(t *testing.T) {
+	stdout, _, code := call(t, t.TempDir(), ``, "-version")
+	if code != 0 || !strings.Contains(stdout, "sc-postcompact-observe") {
+		t.Errorf("version: code=%d stdout=%q", code, stdout)
+	}
+}
