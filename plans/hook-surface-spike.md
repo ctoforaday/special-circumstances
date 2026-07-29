@@ -202,15 +202,39 @@ Both are cheap; the inference that skipped them cost a full cycle.
 - **`SessionEnd.reason` was `other`** for a headless `-p` run — not one of `clear` / `logout` /
   `prompt_input_exit`. A `SessionEnd` seal that matches only the interactive reasons will never fire
   in headless or scheduled runs, which are the sessions with no human to notice.
-- **Auto-compaction can thrash — and the arithmetic is predictable.** With the threshold forced to
-  1% the client aborted with *"Autocompact is thrashing: the context refilled to the limit within 3
-  turns of the previous compact, 3 times in a row."* The first reading blamed payload size. It was
-  the threshold. Read off the baseline transcript's own token counts: `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=1`
-  puts the trigger at ~35k while a *post*-compaction session already starts at ~30k — 5k of headroom,
-  so the next boundary is two turns away, guaranteed, regardless of what the hooks do. Predicted
-  `PCT=2` → ~70k trigger → room for real work; confirmed by a run with one clean compaction and a
-  normal exit. **Method:** size the override off measured token counts in a baseline transcript, not
-  off a guess about how big the session feels.
+- **Auto-compaction thrashes below a threshold, and the numbers are now measured rather than
+  reasoned.** With the threshold forced to 1% the client aborts with *"Autocompact is thrashing: the
+  context refilled to the limit within 3 turns of the previous compact, 3 times in a row."* The first
+  reading blamed payload size; it was the threshold.
+
+  ~~Predicted `PCT=2` → ~70k trigger → room for real work; confirmed by a run with one clean
+  compaction and a normal exit.~~ **Wrong, and wrongly "confirmed" — 2026-07-29.** That confirmation
+  came from a clean exit, not from token counts, and a clean exit only says the run finished. The
+  actual trigger at `PCT=2` is ~35k, half the prediction. A controlled sweep — same workload, four
+  values, each in its own project directory so no run shares a transcript:
+
+  | `PCT` | first trigger | compactions | exit | outcome |
+  |---|---|---|---|---|
+  | 2 | ~35,370 | 3 | 1 | thrash abort |
+  | 5 | ~44,744 | 3 | 1 | thrash abort |
+  | **10** | **~94,321** | **1** | **0** | **clean** |
+  | 25 | never fired (peaked ~120,390) | 0 | 0 | finished without compacting |
+
+  **The fixed floor is ~30.6k** — `cache_read_input_tokens` bottoms out at 30,601 in all four runs
+  and at 30,593 in an earlier unrelated one. That is the system prompt, tools and carried summary,
+  and it is what the percentage sits on top of. So the usable window is `trigger − 30.6k`: about 5k
+  at `PCT=2` and about 64k at `PCT=10`. At 2 and 5 the next boundary is one or two turns away
+  whatever the hooks do, which is why every workload size thrashed.
+
+  **The relationship is not linear** — the 2-and-5 points extrapolate to ~60k at `PCT=10` and the
+  measured value is ~94k. Two points are a line whether or not the function is one; do not fit and
+  predict, sweep and read.
+
+  **Use `PCT=10` to drive a compaction in a test.** Below that the run cannot survive its own
+  boundary; at 25 a short workload never reaches the threshold at all.
+
+  **Method, restated because it failed twice:** size the override off the *transcript's own token
+  counts*, and treat a clean exit as evidence of nothing but a clean exit.
 - **A seal hook must still be cheap and idempotent.** Thrash is reachable without an override
   whenever context pressure is sustained; `PreCompact` firing three times in quick succession is a
   supported case, not a pathology.
