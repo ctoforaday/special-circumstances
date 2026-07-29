@@ -127,10 +127,14 @@ jobs:
     # request actually changed, and stays silent about the pre-existing ones elsewhere.
     # `--all` would be red on arrival and teach everyone to ignore it.
     #
-    # KNOWN CONSEQUENCE, not a surprise: two files carry accepted findings, so a pull
-    # request touching either is red until its follow-up lands — this workflow (18 zizmor)
-    # and plugins/frank-exchange-of-views/tools/go.mod (39 osv-scanner stdlib). Both are
-    # documented in .qlty/qlty.toml with the reason.
+    # Scoping is per changed LINE, not per changed file — measured, not assumed: this job
+    # was added in a commit that rewrote much of this workflow, a file carrying 18 accepted
+    # zizmor findings, and the run reported clean while flagging the one finding on a line
+    # the commit actually introduced. So the accepted findings here and in
+    # plugins/frank-exchange-of-views/tools/go.mod (39 osv-scanner stdlib, both documented
+    # in .qlty/qlty.toml) do NOT block a pull request that touches those files. You are
+    # answerable for the lines you write, which is the only version of this gate that
+    # anyone would keep.
     #
     # fetch-depth 0 and the same base-ref handling as rule-sweep above: the check needs
     # the merge base, which a shallow clone does not have.
