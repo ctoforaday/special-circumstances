@@ -35,6 +35,36 @@ After every `Write`/`Edit`, the hook runs `qlty fmt --trigger agent <file>` then
 The cold run is why the hook has a timeout at all. Warm the cache with one
 manual `qlty check` after cloning rather than paying it inside an edit.
 
+> [!WARNING]
+> **qlty caches issues hard, and a stale cache lies.** A sweep re-run after changing
+> `.qlty/qlty.toml` and adding a plugin config returned a byte-identical count —
+> 34,768 issues, same rule breakdown — when the true figure was 5,633. Treat any count
+> from a cached run as unverified; re-run with `--no-cache` before believing a number
+> or concluding that a config change had no effect.
+
+## Choosing which plugins to enable
+
+The post-edit hook runs `qlty check` **per file, on every write**, so a plugin's cost is
+paid per edit rather than per CI run. Measure before enabling — a plugin returning dozens
+of findings per touch is one that gets the gate switched off entirely.
+
+Three traps found by measuring rather than reasoning:
+
+- **`mode = "monitor"` does not quiet the command line.** A monitor-mode plugin still
+  exits 1 and still prints its findings from `qlty check`; the mode suppresses the Qlty
+  Cloud gate only. It is not a way to keep a noisy linter out of the hook's feedback.
+- **A plugin cannot be scoped to a subset of file types.** Per-plugin `exclude_patterns`
+  had no measurable effect (367 findings before and after), and a tool's own ignore file
+  is largely bypassed because qlty passes explicit paths (367 → 365). Only the top-level
+  `exclude_patterns` works, and it applies to every plugin at once.
+- **A `[[source]]` block is mandatory.** Without it, every `name = "..."` fails the whole
+  run with `Plugin definition not found` — the plugin list alone is inert.
+
+`osv-scanner` reads the `go` directive as though it were a built toolchain, so the form
+of the directive decides the verdict: `go 1.25` (open-ended) reports clean, while
+`go 1.25.0` (an exact release) reports its accumulated CVEs. `go mod tidy` may force the
+exact form, in which case the findings are unavoidable rather than negligent.
+
 ## Common Commands
 
 - `qlty check`: Unified linting/quality check across all supported languages.
@@ -45,8 +75,18 @@ manual `qlty check` after cloning rather than paying it inside an edit.
 
 ## Supported Languages & Tools
 
-- **Go**: `gofmt`, `golangci-lint`
-- **Markdown/HTML/CSS/YAML**: `prettier`
-- **Python**: `ruff`
+What qlty *can* run, which is not the same as what a given repository *should* enable:
+
+- **Go**: `gofmt`, `golangci-lint`, `radarlint-go`
+- **Markdown**: `markdownlint`, `prettier`, `vale`
+- **HTML/CSS/YAML/JSON**: `prettier`, `yamllint`
+- **JavaScript/TypeScript**: `eslint`, `biome`, `prettier`
+- **Python**: `ruff`, `bandit`, `radarlint-python`
 - **Shell**: `shellcheck`, `shfmt`
 - **SQL**: `sqlfluff`
+- **GitHub Actions**: `actionlint`, `zizmor`
+- **Dependencies / secrets**: `osv-scanner`, `trufflehog`
+
+`qlty init` autodetects by config-file presence, so it will not enable `markdownlint` or
+`prettier` on a repository full of markdown that carries no config for them. Absence from
+its output is not a judgment that the plugin does not apply.
