@@ -321,3 +321,70 @@ Three rules for anyone re-running this spike:
 
 A concurrency artifact is exactly the kind of thing that reads as a causal finding, and this spike
 produced three of them before the discipline was right. Each one looked like a result.
+
+---
+
+## 6. `watchPaths` and `FileChanged` — measured 2026-07-29
+
+Both were listed as *"real per the client's event catalogue"* (C4, C6) and **never exercised**.
+`plans/context-checkpointing.md` §5 builds improvement I2 on them: *"the check re-arms when its
+surface is edited, rather than depending on the agent remembering what arms it."* That claim was
+about to be implemented on an unmeasured capability, which is the mistake this record already
+carries once (§3c). So: spiked first.
+
+Method: a scratch project whose `SessionStart` hook returns `watchPaths` and whose `FileChanged`
+hook logs raw stdin. An agent then edits a watched file and creates a new one. Three runs, each in
+its own project directory, differing only in the **form** of the path registered.
+
+### Both events work — and `FileChanged` carries what I2 needs
+
+```
+hook_event_name  FileChanged
+file_path        …/fcspike/watched/target.txt
+event            change
+```
+
+Plus the common `session_id`, `transcript_path`, `cwd`, `prompt_id`. `watchPaths` alongside
+`additionalContext` in the same `SessionStart` response works — the marker arrived (`MARKER-SEEN=yes`)
+*and* the watch registered, so returning both is not an either/or.
+
+### The constraint that changes the design: **globs do not register**
+
+| `watchPaths` entry | edit to `watched/target.txt` |
+|---|---|
+| `watched/**` | **no event, ever** |
+| `watched/target.txt` (relative to the project dir) | `change` |
+| `/abs/path/…/watched/target.txt` | `change` |
+
+Relative and absolute both work. A glob registers **nothing** — silently, with the hook configured,
+the event enabled and no error anywhere.
+
+### And a newly created file never fires
+
+`watched/added.txt` was created by the agent in **all three** runs, including the glob run. **No
+`add` event fired in any of them.** `watchPaths` watches the literal files it was handed; it is not
+a directory watcher and it does not track a pattern forward in time.
+
+### What this costs I2
+
+A validation check's trigger surface is normally a *pattern* — *"any `.go` edit"*, `manifest/*.yml`,
+*"any protocol-surface edit"*. None of those can be registered as written. The re-arming hook must
+**expand the pattern to concrete paths itself, at restore time**, and register those.
+
+Two consequences, both to be stated rather than discovered later:
+
+- **A file created after session start is invisible.** A new test file does not re-arm the check it
+  belongs to. The mechanism covers *editing what already exists*, which is the common case, and
+  misses *adding*, which is not rare.
+- **The expansion is a snapshot.** Registering `**/*.go` means registering the `.go` files that
+  existed at that moment. The watch does not follow the pattern.
+
+So §5's I2 claim needs qualifying: the check re-arms when an **already-existing** surface file is
+edited. It does not remove the agent's duty to notice a *new* surface; it narrows it.
+
+### Also settled here
+
+**`hook_event_name` is present in every payload** — `SessionStart`, `FileChanged`, `SessionEnd` all
+carry it. `sc-checkpoint-seal` treats it as a fallback behind its explicit `-event` flag and
+documents it as unverified. The flag-first design stands (a stale `hooks.json` is still the only way
+to reach an unflagged invocation), but the fallback is now measured rather than hoped for.
