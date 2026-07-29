@@ -61,16 +61,19 @@ name = "gofmt"
 [[plugin]]
 name = "actionlint"
 
-# zizmor is enabled with 18 findings OPEN, which is a deliberate exception to the rule
-# above: they are real security findings (artipacked, cache-poisoning, unpinned-uses,
-# template-injection) on a file edited rarely, so the per-edit cost is near zero and
-# hiding them would be the worse trade. `excessive-permissions` was the one class fixed
-# here, by declaring `permissions: contents: read` at the workflow level.
+# zizmor found 25 findings when it was enabled; 4 remain, and all four are one class:
+# cache-poisoning on `actions/setup-node@v4`. They are PRECAUTIONARY rather than live —
+# v4 caches nothing unless its `cache:` input names a package manager, and it does not.
+# The input that would state that explicitly, `package-manager-cache`, does not exist
+# until a later major version, so closing them means bumping the action across four jobs
+# to silence a lint about a cache that is not there. Dependabot will propose that bump
+# on its own schedule, and it can be taken then, verified by a real run.
 #
-# The rest is a CI-hardening change and belongs in its own pull request: it edits the
-# workflow that gates every other change, and none of it can be verified from a developer
-# box — a broken trigger or a checkout that loses its credentials fails SILENTLY, with no
-# CI rather than red CI. That deserves someone watching a real run, not a confident diff.
+# Fixed rather than carried: excessive-permissions (workflow-level `contents: read`),
+# artipacked (`persist-credentials: false` on every checkout), template-injection (base
+# ref and tag through the environment, never expanded into a shell line), unpinned-uses
+# (`gh release create` in place of a third-party publish action), and cache-poisoning on
+# every setup-go step (`cache: false`, which that action does accept).
 [[plugin]]
 name = "zizmor"
 

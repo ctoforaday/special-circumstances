@@ -1,0 +1,58 @@
+---
+# Dependabot version updates.
+#
+# WHY THIS EXISTS. golang.org/x/sys and golang.org/x/text sat on vulnerable versions
+# until osv-scanner was enabled and someone read the output. That is a detection
+# mechanism standing in for a maintenance one — it tells you the dependency is old,
+# it does not make it new. This does.
+#
+# Dependabot is free on every plan for private repositories as well as public ones,
+# unlike code scanning, dependency review and artifact attestations, all of which want
+# a paid tier here. It is the whole of what this repository can adopt at no cost.
+#
+# Grouped and monthly on purpose: an ungrouped weekly schedule across four ecosystems
+# produces more pull requests than this repository merges, and a bot that outpaces its
+# reviewers gets muted — which returns us to hand-bumping, with extra steps.
+version: 2
+
+updates:
+  # Three Go modules, each with its own go.mod. A missing entry here is invisible:
+  # Dependabot simply never opens a pull request for that module, exactly the way a
+  # third module stayed invisible to CI until it was given a job of its own.
+  - package-ecosystem: gomod
+    directory: /plugins/prosthetic-conscience/tools
+    schedule:
+      interval: monthly
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /plugins/frank-exchange-of-views/tools
+    schedule:
+      interval: monthly
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /plugins/gray-area/tools
+    schedule:
+      interval: monthly
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+
+  # Actions are a supply chain too, and this one is pinned by commit SHA
+  # (qltysh/qlty-action) precisely because a tag can move. A pinned SHA is safe and
+  # frozen; Dependabot is what keeps it from being frozen at a version with a defect.
+  #
+  # It will also propose actions/setup-node v4 -> a later major, which is what makes
+  # `package-manager-cache: false` available and closes zizmor's last four findings.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
