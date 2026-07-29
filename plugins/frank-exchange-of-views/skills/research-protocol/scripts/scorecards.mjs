@@ -151,23 +151,55 @@ export function blueRows(runDir, results, telemetry) {
 
 // ---- RED ----
 
+// computeAnchoredClosures is the pure kernel: given the board view, count closed gaps whose
+// closure is mechanically auditable BY FORMAT. A closure is anchored iff it carries the full
+// seat|tool|target triple OR an explicit carried-from — the SAME two shapes render.go writes as
+// the archive's "verification anchor:" line. This equivalence rests on record.go's close
+// validation (:437-439) REJECTING a partial anchor: a `seat | undefined | target` closure
+// cannot reach the record, so "all three present" and "the archive line is not undefined" agree
+// on every valid record. If that validation is ever relaxed, this kernel must relax with it.
+export function computeAnchoredClosures(board) {
+  const closed = (board && board.closed) || []
+  const isAnchored = (c) => !!c && (c.carried_from != null || (c.anchor_seat && c.anchor_tool && c.anchor_target))
+  return { anchored: closed.filter((g) => isAnchored(g.closure)).length, total: closed.length }
+}
+
+// anchoredClosures reads the attestation-format metric from the RECORD (the board view),
+// replacing the red/archive.md parse — which in record-mode read a file the merge no longer
+// hand-writes, scoring 0 against an 89 baseline (E0.5a; viewjson.go header). It SPAWNS the tool
+// like citationYieldByRole; board is JSON by NAME, so no --json. Null with no binary (row says why).
+export function anchoredClosures(runDir, bin) {
+  if (!bin) return null
+  try {
+    const out = execFileSync(bin, ['merge', 'show', '--run', runDir, '--view', 'board'], { encoding: 'utf8' })
+    return computeAnchoredClosures(JSON.parse(out))
+  } catch {
+    return null
+  }
+}
+
 export function redRows(runDir, results, telemetry, bin) {
   const rows = []
   const redEnvs = results.filter((r) => Array.isArray(r.gaps))
 
   // Attestation-format invariant: closures carrying seat+tool+target anchors, or
   // an explicit carried-from. E0.5a measured ~11% of the record mechanically
-  // unauditable BY FORMAT while the behaviour behind it was honest.
-  const archive = read(join(runDir, 'red', 'archive.md')) || ''
-  const blocks = archive.split(/^## /m).slice(1)
-  const anchored = blocks.filter((b) => /verification anchor:/i.test(b) && !/verification anchor:\s*(undefined|\s*\|\s*undefined)/i.test(b)).length
-  rows.push(blocks.length
+  // unauditable BY FORMAT while the behaviour behind it was honest. Read from the
+  // RECORD (the board view's closure anchors) — the red/archive.md the merge no
+  // longer hand-writes was the sentences-vs-structured-fields defect this metric named.
+  const ac = anchoredClosures(runDir, bin)
+  rows.push(ac && ac.total
     ? row({
       clause: 'Attestation-format invariant', metric: 'anchored_closures_pct', cls: 'benchmark',
-      value: Math.round((anchored / blocks.length) * 100),
+      value: Math.round((ac.anchored / ac.total) * 100),
       note: 'target 100; baseline 89 (E0.5a)',
     })
-    : row({ clause: 'Attestation-format invariant', metric: 'anchored_closures_pct', cls: 'benchmark', note: 'no archive records this run' }))
+    : row({
+      clause: 'Attestation-format invariant', metric: 'anchored_closures_pct', cls: 'benchmark',
+      note: ac
+        ? 'no closed gaps this run'
+        : 'needs the tool (the board view) — anchored closures read the record, not the archive.md the merge no longer writes',
+    }))
 
   // Never-hard-fail detector: rounds that FAILed on fallout-only mints below the
   // mass threshold. Visibility only — the verdict stays red's.
@@ -460,8 +492,10 @@ export function chairHeader(chair) {
 // THIS run — the self-read a seat runs before its docket, replacing the retired cross-run
 // seed. It reuses the ONE computation (computeScorecards); it re-derives nothing. The
 // envelope-derived rows read "not computed" until capture assembles the journal, so mid-run a
-// chair sees its file-derived headline (repair_regression, anchored_closures, direction-uptake)
-// and honest "not computed" for the rest — never a stale number from another question.
+// chair sees its non-envelope headline — repair_regression (from the telemetry file) and, when
+// the CLI is given --bin, anchored_closures + direction-uptake (read from the record via the
+// board/debate views) — and honest "not computed" for the rest, never a stale number from
+// another question.
 
 // readResults gathers the run's envelopes from the journal if it has been assembled
 // (post-capture). Mid-run it returns [] — not an error: the file-derived rows still compute,
