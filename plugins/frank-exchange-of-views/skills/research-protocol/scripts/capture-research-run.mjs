@@ -462,7 +462,12 @@ export function capture(runDir, transcriptDir, { bin } = {}) {
     rmSync(join(transcriptDir, tmpTar))
   }
   lines.push(`tarball: ${tar.status === 0 ? `${agentFiles.length} transcript(s)` : 'FAILED — ' + (tar.stderr || '').toString().slice(0, 200)}`)
-  const cost = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'cost-audit.mjs'), transcriptDir, runDir])
+  // cost.md — the record binary's `cost` subcommand (Go port) when we have it, else the JS
+  // cost-audit.mjs (the debate.js binDir-dual-mode idiom). Byte-identical either way (the port
+  // PR proved it); cost.md is always produced, never gated on --bin.
+  const cost = bin
+    ? spawnSync(bin, ['cost', transcriptDir, runDir])
+    : spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'cost-audit.mjs'), transcriptDir, runDir])
   if (cost.status === 0) { writeFileSync(join(runDir, 'cost.md'), cost.stdout); lines.push('cost.md: written (telemetry join included)') }
   else lines.push(`cost.md: FAILED — ${(cost.stderr || '').toString().slice(0, 200)}`)
 
