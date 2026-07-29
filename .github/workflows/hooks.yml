@@ -25,8 +25,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
+          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
+          # tag, and a cache a pull request can write is a cache a release build would
+          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
+          # publish path is worth more.
+          cache: false
           go-version: "1.24"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -48,11 +57,27 @@ jobs:
         working-directory: plugins/frank-exchange-of-views/tools
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
+          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
+          # tag, and a cache a pull request can write is a cache a release build would
+          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
+          # publish path is worth more.
+          cache: false
           go-version: "1.24"
       - uses: actions/setup-node@v4
         with:
+          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
+          # truthy string "false" and treated as a package manager. v4 does not cache
+          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
+          # remaining findings on these steps are precautionary. The proper disable input,
+          # `package-manager-cache`, does not exist until a later major version — which is
+          # exactly the bump the Dependabot config added here will propose.
           node-version: "24"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -78,8 +103,17 @@ jobs:
         working-directory: plugins/gray-area/tools
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
+          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
+          # tag, and a cache a pull request can write is a cache a release build would
+          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
+          # publish path is worth more.
+          cache: false
           go-version: "1.24"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -105,9 +139,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
+          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
+          # truthy string "false" and treated as a package manager. v4 does not cache
+          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
+          # remaining findings on these steps are precautionary. The proper disable input,
+          # `package-manager-cache`, does not exist until a later major version — which is
+          # exactly the bump the Dependabot config added here will propose.
           node-version: "24"
       - run: node scripts/rule-sweep.mjs --selftest
       # The base ref goes through the environment, never through a `${{ }}` expansion
@@ -128,13 +172,13 @@ jobs:
     # `--all` would be red on arrival and teach everyone to ignore it.
     #
     # Scoping is per changed LINE, not per changed file — measured, not assumed: this job
-    # was added in a commit that rewrote much of this workflow, a file carrying 18 accepted
-    # zizmor findings, and the run reported clean while flagging the one finding on a line
-    # the commit actually introduced. So the accepted findings here and in
-    # plugins/frank-exchange-of-views/tools/go.mod (39 osv-scanner stdlib, both documented
-    # in .qlty/qlty.toml) do NOT block a pull request that touches those files. You are
-    # answerable for the lines you write, which is the only version of this gate that
-    # anyone would keep.
+    # was added in a commit that rewrote much of this workflow while the file still carried
+    # 18 accepted zizmor findings, and the run reported clean while flagging the one finding
+    # on a line the commit actually introduced. So the findings still accepted — 4 here and
+    # 39 osv-scanner stdlib in plugins/frank-exchange-of-views/tools/go.mod, both with
+    # reasons in .qlty/qlty.toml — do NOT block a pull request that touches those files.
+    # You are answerable for the lines you write, which is the only version of this gate
+    # that anyone would keep.
     #
     # fetch-depth 0 and the same base-ref handling as rule-sweep above: the check needs
     # the merge base, which a shallow clone does not have.
@@ -146,12 +190,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           # Nothing here talks to the remote after checkout — the check reads the merge
           # base from local refs — so the token has no reason to persist into .git/config.
-          # The seven older checkouts still do; that is the zizmor follow-up, and this new
-          # one does not add to it.
           persist-credentials: false
+          fetch-depth: 0
       # Pinned to a commit, not a tag: a tag is mutable, and this action runs with the
       # workflow's token. v2.3.0.
       - uses: qltysh/qlty-action/install@08a0a862c159eae9b9003081da6663d96efef637
@@ -169,11 +211,27 @@ jobs:
         working-directory: .
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
+          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
+          # truthy string "false" and treated as a package manager. v4 does not cache
+          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
+          # remaining findings on these steps are precautionary. The proper disable input,
+          # `package-manager-cache`, does not exist until a later major version — which is
+          # exactly the bump the Dependabot config added here will propose.
           node-version: "24"
       - uses: actions/setup-go@v5
         with:
+          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
+          # tag, and a cache a pull request can write is a cache a release build would
+          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
+          # publish path is worth more.
+          cache: false
           go-version: "1.24"
       - run: node scripts/golden.mjs
 
@@ -186,8 +244,19 @@ jobs:
         working-directory: .
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
+          # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
+          # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
+          # truthy string "false" and treated as a package manager. v4 does not cache
+          # unless `cache:` names one, so there is no cache here to poison; zizmor's four
+          # remaining findings on these steps are precautionary. The proper disable input,
+          # `package-manager-cache`, does not exist until a later major version — which is
+          # exactly the bump the Dependabot config added here will propose.
           node-version: "24"
       # Files are enumerated, never globbed: `node --test <dir>` fails on Windows,
       # and an explicit list is the only thing that keeps a new suite from being
@@ -267,8 +336,17 @@ jobs:
         working-directory: .
     steps:
       - uses: actions/checkout@v4
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
+          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
+          # tag, and a cache a pull request can write is a cache a release build would
+          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
+          # publish path is worth more.
+          cache: false
           go-version: "1.24"
       - name: Resolve the plugin from the tag
         id: plugin
@@ -296,7 +374,18 @@ jobs:
             done
           done
           cd dist && sha256sum * > SHA256SUMS
+      # `gh` ships on every GitHub runner, so publishing needs no third-party action at
+      # all — which retires the last one here, and with it zizmor/unpinned-uses. The
+      # tag name and the artifact directory go through the environment rather than a
+      # `${{ }}` expansion inside the shell line, for the same reason as rule-sweep's
+      # base ref: an expanded value would be code, not an argument.
+      #
+      # `create` rather than `upload`: a version tag publishes exactly once, so a
+      # release that already exists means something is wrong and the job SHOULD fail
+      # rather than quietly overwrite a published artifact.
       - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ steps.plugin.outputs.dir }}/dist/*
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          DIST: ${{ steps.plugin.outputs.dir }}/dist
+        run: gh release create "$TAG" --title "$TAG" --generate-notes "$DIST"/*
