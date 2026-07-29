@@ -103,7 +103,7 @@ func TestSealsTheNoteAndSteersTheSummary(t *testing.T) {
 
 	stdout, stderr, code := call(t, input(t, hookInput{
 		Trigger: "auto", SessionID: "sess-1", AgentID: "seat-a",
-	}), dir, noon)
+	}), dir, noon, "-event", "PreCompact")
 
 	if code != 0 {
 		t.Fatalf("exit %d, stderr=%q", code, stderr)
@@ -116,7 +116,7 @@ func TestSealsTheNoteAndSteersTheSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"trigger=auto", "session=sess-1", "agent=seat-a", "## Validation loop"} {
+	for _, want := range []string{"event=PreCompact", "occasion=auto", "session=sess-1", "agent=seat-a", "## Validation loop"} {
 		if !strings.Contains(string(sealed), want) {
 			t.Errorf("sealed snapshot missing %q", want)
 		}
@@ -139,7 +139,7 @@ func TestPrefersTheRunWorkspaceNote(t *testing.T) {
 		"## Open threads\n- fallback\n")
 	writeNote(t, filepath.Join(dir, "projects", "feov", "CHECKPOINT.md"), sampleNote)
 
-	stdout, _, _ := call(t, input(t, hookInput{Trigger: "manual"}), dir, noon)
+	stdout, _, _ := call(t, input(t, hookInput{Trigger: "manual"}), dir, noon, "-event", "PreCompact")
 	if !strings.Contains(stdout, "the validation loop") {
 		t.Fatalf("did not read the run-workspace note: %q", stdout)
 	}
@@ -181,7 +181,7 @@ func TestManualInstructionsSurvive(t *testing.T) {
 	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
 	stdout, _, _ := call(t, input(t, hookInput{
 		Trigger: "manual", CustomInstructions: "keep the migration decision",
-	}), dir, noon)
+	}), dir, noon, "-event", "PreCompact")
 	if !strings.Contains(stdout, "keep the migration decision") {
 		t.Fatalf("human's /compact instructions were dropped: %q", stdout)
 	}
@@ -194,5 +194,177 @@ func TestVersionFlag(t *testing.T) {
 	stdout, _, code := call(t, "", t.TempDir(), noon, "-version")
 	if code != 0 || !strings.Contains(stdout, "sc-checkpoint-seal") {
 		t.Fatalf("code=%d stdout=%q", code, stdout)
+	}
+}
+
+// A session that ends WITHOUT ever compacting used to leave nothing at all.
+// SessionEnd.reason is "other" for a headless `claude -p` run — measured, not
+// assumed — so a seal matching only the interactive reasons never fires in
+// exactly the sessions with no human watching. Tested as a class, not a list.
+func TestSessionEndSealsOnEveryReasonIncludingOther(t *testing.T) {
+	for _, reason := range []string{"other", "clear", "logout", "prompt_input_exit", ""} {
+		t.Run("reason="+reason, func(t *testing.T) {
+			dir := t.TempDir()
+			writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+			stdout, _, code := call(t, input(t, hookInput{
+				Reason: reason, SessionID: "sess-end",
+			}), dir, noon, "-event", "SessionEnd")
+
+			if code != 0 {
+				t.Fatalf("exit %d", code)
+			}
+			snaps := snapshots(t, dir)
+			if len(snaps) != 1 {
+				t.Fatalf("reason %q sealed %v, want 1 snapshot", reason, snaps)
+			}
+			if !strings.HasPrefix(snaps[0], "20260728T120000Z-end") {
+				t.Errorf("seal not labelled as a session end: %q", snaps[0])
+			}
+			// Nothing left to steer, and stdout on SessionEnd addresses nobody.
+			if strings.TrimSpace(stdout) != "" {
+				t.Errorf("SessionEnd emitted an instruction: %q", stdout)
+			}
+		})
+	}
+}
+
+// A seat finishing is the same seam one level down, and SubagentStop is the only
+// point where the seat's agent_id and its trajectory are both in hand.
+func TestSubagentStopSealsPerSeat(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	stdout, _, code := call(t, input(t, hookInput{
+		AgentID: "aeaae1e2e57179ff5", AgentType: "general-purpose", SessionID: "shared",
+	}), dir, noon, "-event", "SubagentStop")
+
+	if code != 0 {
+		t.Fatalf("exit %d — a seal must never block a seat", code)
+	}
+	snaps := snapshots(t, dir)
+	if len(snaps) != 1 {
+		t.Fatalf("snapshots = %v", snaps)
+	}
+	if !strings.Contains(snaps[0], "aeaae1e2e57179ff5") {
+		t.Errorf("seat seal not keyed by agent_id: %q — every subagent shares the parent's session_id", snaps[0])
+	}
+	if !strings.Contains(snaps[0], "seat-general-purpose") {
+		t.Errorf("seal does not say which kind of seat produced it: %q", snaps[0])
+	}
+	// THE constraint from sc-checkpoint-restore's measurement: stdout here reaches
+	// a seat still working, so an instruction is a directive it never established.
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("SubagentStop emitted an instruction into a live seat: %q", stdout)
+	}
+}
+
+// Concurrent seats finishing in the same second must not overwrite each other's
+// evidence. Two seats share session_id and can share a timestamp.
+func TestConcurrentSeatsInTheSameSecondBothSurvive(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	for _, id := range []string{"seat-red", "seat-blue"} {
+		call(t, input(t, hookInput{AgentID: id, AgentType: "auditor"}), dir, noon, "-event", "SubagentStop")
+	}
+	if snaps := snapshots(t, dir); len(snaps) != 2 {
+		t.Fatalf("snapshots = %v, want one per seat", snaps)
+	}
+}
+
+// Same second, different events: SessionEnd can land on the same tick as a final
+// SubagentStop. Neither may clobber the other.
+func TestSameSecondDifferentEventsBothSurvive(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	call(t, input(t, hookInput{}), dir, noon, "-event", "SubagentStop")
+	call(t, input(t, hookInput{}), dir, noon, "-event", "SessionEnd")
+	call(t, input(t, hookInput{Trigger: "auto"}), dir, noon, "-event", "PreCompact")
+
+	if snaps := snapshots(t, dir); len(snaps) != 3 {
+		t.Fatalf("snapshots = %v, want 3 distinct seals", snaps)
+	}
+}
+
+// Identical event, identical second — the pure collision case.
+func TestIdenticalSealsInTheSameSecondDoNotOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	call(t, input(t, hookInput{Trigger: "auto"}), dir, noon, "-event", "PreCompact")
+	call(t, input(t, hookInput{Trigger: "auto"}), dir, noon, "-event", "PreCompact")
+
+	if snaps := snapshots(t, dir); len(snaps) != 2 {
+		t.Fatalf("snapshots = %v — a seal silently overwrote another's evidence", snaps)
+	}
+}
+
+// The version-skew default, pinned so it is a decision rather than an accident.
+//
+// The ONLY way to reach an unflagged invocation is an older hooks.json, which
+// registers PreCompact alone — so the cost is one compaction without steering.
+// The alternative default (assume PreCompact) would emit summarizer instructions
+// from whatever event a hand-written config pointed at this binary, including
+// into a live seat. Degradation beats a directive in the wrong channel.
+func TestUnlabelledInvocationSealsButStaysSilent(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	stdout, _, code := call(t, input(t, hookInput{Trigger: "auto"}), dir, noon)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if len(snapshots(t, dir)) != 1 {
+		t.Error("an unlabelled invocation must still seal — that half is always safe")
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("emitted an instruction for an unknown event: %q", stdout)
+	}
+}
+
+// The payload field is a fallback for that skew window, never a dependency: the
+// spike never verified hook_event_name exists in hook input.
+func TestPayloadEventNameIsUsedWhenTheFlagIsAbsent(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	stdout, _, _ := call(t, input(t, hookInput{
+		Trigger: "auto", HookEventName: "PreCompact",
+	}), dir, noon)
+	if !strings.Contains(stdout, "the validation loop") {
+		t.Errorf("payload event name ignored; got %q", stdout)
+	}
+}
+
+// The flag is the authority when both are present.
+func TestFlagBeatsThePayloadField(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	stdout, _, _ := call(t, input(t, hookInput{
+		HookEventName: "PreCompact", Trigger: "auto",
+	}), dir, noon, "-event", "SubagentStop")
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("payload field overrode the flag: %q", stdout)
+	}
+}
+
+// A value arriving with a path separator must not escape the snapshot directory.
+func TestSnapshotNamesCannotEscapeTheDirectory(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+
+	call(t, input(t, hookInput{
+		AgentID: "../../escape", AgentType: "a/b",
+	}), dir, noon, "-event", "SubagentStop")
+
+	snaps := snapshots(t, dir)
+	if len(snaps) != 1 {
+		t.Fatalf("snapshots = %v", snaps)
+	}
+	if strings.ContainsAny(snaps[0], `/\`) || strings.Contains(snaps[0], "..") {
+		t.Errorf("path traversal survived into the filename: %q", snaps[0])
 	}
 }

@@ -25,7 +25,7 @@ Eight load on every session, the rest by description. `design-by-contract` is th
 | `sc-quality-gate` | PostToolUse | Runs `qlty fmt` + `qlty check` on every write, feeds findings back |
 | `sc-recall-index` | PostToolUse | Keeps the recall index fresh on markdown writes |
 | `sc-toolchain-nudge` | SessionStart | One line when a recommended tool is missing, silence when healthy |
-| `sc-checkpoint-seal` | PreCompact | Seals the note, and tells the summarizer what to preserve |
+| `sc-checkpoint-seal` | PreCompact · SessionEnd · SubagentStop | Seals the note at every seam; tells the summarizer what to preserve, on PreCompact only |
 | `sc-checkpoint-restore` | SessionStart | Hands the note back — every source, compaction included |
 | `sc-postcompact-observe` | PostCompact | Scores what each summary kept; observation only |
 
@@ -35,7 +35,11 @@ Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from gi
 
 Compaction replaces the transcript with a summary. The summary is good at what happened and worst at **what you were about to do**: the exact validation commands, what re-arms each one, the ordered next actions, and the handles to work still running in the background.
 
-So the agent maintains one `CHECKPOINT.md`, overwritten in place. `PreCompact` seals it to an immutable snapshot and asks the summarizer to preserve what the note already carries. `SessionStart` hands it back on the far side. `/checkpoint` writes it, `/resume` prints it in full and re-verifies its claims.
+So the agent maintains one `CHECKPOINT.md`, overwritten in place. `SessionStart` hands it back on the far side of any seam. `/checkpoint` writes it, `/resume` prints it in full and re-verifies its claims.
+
+**Compaction is not the only seam**, so the seal fires on three events. `PreCompact` snapshots the note and asks the summarizer to preserve what it already carries. `SessionEnd` catches a session that ends without ever compacting — on *every* reason, because a headless `claude -p` run reports `other` rather than one of the interactive reasons, and those are exactly the sessions with no human watching. `SubagentStop` seals a seat's note keyed by `agent_id`, since every subagent shares its parent's `session_id` and a name without it has concurrent seats overwriting each other.
+
+Only `PreCompact` speaks. `SubagentStop` stdout reaches a seat still working, and an instruction there is a directive that seat never established — the same rule the restore hook ships a test for.
 
 Two constraints came from measurement rather than design, and both cost a cycle to learn:
 

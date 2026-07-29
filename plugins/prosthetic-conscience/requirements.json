@@ -77,8 +77,8 @@
       },
       {
         "name": "sc-checkpoint-seal",
-        "event": "PreCompact(manual|auto)",
-        "purpose": "seals CHECKPOINT.md to a pruned snapshot dir and emits compact instructions naming only what the note already carries — never blocks compaction, and stays cheap because auto-compaction thrashes"
+        "event": "PreCompact(manual|auto) + SessionEnd(any reason) + SubagentStop",
+        "purpose": "seals CHECKPOINT.md to a pruned snapshot dir at every seam — a compaction, a session ending, a seat finishing. Takes -event from hooks.json rather than inferring it from the payload. Emits compact instructions on PreCompact ONLY, naming only what the note already carries; silent elsewhere, because stdout on SubagentStop reaches a live seat. Never blocks, and stays cheap because auto-compaction thrashes"
       },
       {
         "name": "sc-checkpoint-restore",
