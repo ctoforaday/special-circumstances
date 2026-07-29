@@ -63,10 +63,33 @@
     ],
     "PreCompact": [
       {
+        "_comment": "-event is passed explicitly rather than read from the payload: the Phase 0 spike never verified that hook input carries hook_event_name, and this plan already spent a cycle on a capability inferred from an input field. PreCompact is the ONLY event where this binary speaks — its stdout becomes the summarizer's custom instructions.",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-checkpoint-seal\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-checkpoint-seal\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event PreCompact; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "_comment": "No matcher: SessionEnd.reason is 'other' for a headless `claude -p` run, not one of clear/logout/prompt_input_exit (measured, hook-surface-spike.md §4). Matching only the interactive reasons would skip exactly the sessions with no human watching. A session that ends without ever compacting otherwise leaves nothing.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-checkpoint-seal\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionEnd; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "_comment": "Shares this event with gray-area's capture hook by design — Claude Code merges hook configurations across plugins, and each writes its own file (context-checkpointing.md §9). This one seals the note keyed by agent_id, because every subagent shares the parent's session_id.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-checkpoint-seal\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SubagentStop; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

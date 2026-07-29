@@ -43,7 +43,7 @@ On top of the always-on set it ships **on-demand skills** (pair-programming, spe
 | `sc-push-freeze-guard` | Guards pushes |
 | `sc-toolchain-nudge` | Nudges toward the installed toolchain |
 | `sc-recall-index` | Indexes for recall |
-| `sc-checkpoint-seal` | Seals the note before compaction, and tells the summarizer what to keep |
+| `sc-checkpoint-seal` | Seals the note at every seam — compaction, session end, seat finishing |
 | `sc-checkpoint-restore` | Hands the note back on session start — every source, compaction included |
 | `sc-postcompact-observe` | Scores what each summary kept, one row per boundary |
 
