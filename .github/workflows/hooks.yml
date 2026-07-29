@@ -13,6 +13,14 @@ on:
 permissions:
   contents: read
 
+# EVERY setup-go here pins go-version to 1.25, matching the `go` directive in all three
+# modules. It must keep matching. The pin sat at 1.24 while the directives said 1.25 and
+# CI stayed green only because setup-go v5 silently downloads the newer toolchain — a
+# dependency on undeclared behaviour, and Dependabot's first pull request found it:
+# setup-go v7 sets GOTOOLCHAIN=local, the download stops happening, and every Go job
+# fails with `go.mod requires go >= 1.25 (running go 1.24.x; GOTOOLCHAIN=local)`.
+# Bumping a module's directive means bumping this pin in the same change.
+
 defaults:
   run:
     working-directory: plugins/prosthetic-conscience/tools
@@ -36,7 +44,7 @@ jobs:
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          go-version: "1.25"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
@@ -68,7 +76,7 @@ jobs:
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          go-version: "1.25"
       - uses: actions/setup-node@v4
         with:
           # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
@@ -114,7 +122,7 @@ jobs:
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          go-version: "1.25"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
@@ -232,7 +240,7 @@ jobs:
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          go-version: "1.25"
       - run: node scripts/golden.mjs
 
   debate-sim:
@@ -347,7 +355,7 @@ jobs:
           # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
           # publish path is worth more.
           cache: false
-          go-version: "1.24"
+          go-version: "1.25"
       - name: Resolve the plugin from the tag
         id: plugin
         run: |
