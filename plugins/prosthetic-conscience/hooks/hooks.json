@@ -42,6 +42,21 @@
           {
             "type": "command",
             "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-toolchain-nudge\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          },
+          {
+            "_comment": "No matcher: restore fires on EVERY source, compact included. SessionStart is the only hook that can inject at a compaction boundary — PostCompact cannot, and runs after this anyway (plans/hook-surface-spike.md §3a). A source filter here silently removes continuity from the boundary the design exists for.",
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-checkpoint-restore\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-postcompact-observe\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

@@ -43,10 +43,15 @@ On top of the always-on set it ships **on-demand skills** (pair-programming, spe
 | `sc-push-freeze-guard` | Guards pushes |
 | `sc-toolchain-nudge` | Nudges toward the installed toolchain |
 | `sc-recall-index` | Indexes for recall |
+| `sc-checkpoint-seal` | Seals the note before compaction, and tells the summarizer what to keep |
+| `sc-checkpoint-restore` | Hands the note back on session start — every source, compaction included |
+| `sc-postcompact-observe` | Scores what each summary kept, one row per boundary |
 
 **The distinctive idea:** the rules are defense in depth — a skill states the *semantic* rule for what a regex can't catch, and a hook enforces the *pattern-matchable* part where prompts never fire.
 
-*Next in here, designed but not built:* **compaction survival** — the agent leaves itself a note before the context window fills, a hook seals it and tells the harness's summarizer what to keep, and a second hook hands back whatever the summary dropped. Hand-run across six compaction boundaries and working; [`plans/context-checkpointing.md`](plans/context-checkpointing.md). It lives here rather than in gray-area because keeping a note about your own work asks far less of a consumer than a tool that reads their transcripts.
+**Compaction survival — the Memento problem.** The agent maintains one `CHECKPOINT.md` carrying the validation loop, the ordered next actions, and the handles to work still running in the background. `PreCompact` seals it and tells the harness's summarizer what to preserve; `SessionStart` hands it back on the far side. `/checkpoint` writes the note, `/resume` prints it in full. Design: [`plans/context-checkpointing.md`](plans/context-checkpointing.md). It lives here rather than in gray-area because keeping a note about your own work asks far less of a consumer than a tool that reads their transcripts.
+
+Two things that measurement, not design, settled. **Restore runs on `SessionStart`, on every source including `compact`** — `PostCompact` receives the summary but cannot inject anything into the model, and it runs after `SessionStart` besides, so a summary-aware delta restore is unreachable rather than merely unbuilt. And **the resumed agent treats the restored digest as a claim rather than a fact** — it recovers every value exactly, attributes them to the hook, and flags the payload as injection-shaped anyway. Provenance framing does not prevent that and the design no longer pretends to; what it buys is that the suspicion attaches only to the note's real content, because the hook adds no imperative of its own.
 
 ### frank-exchange-of-views — the research debate engine
 
