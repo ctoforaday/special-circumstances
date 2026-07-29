@@ -9,9 +9,9 @@ import (
 
 // THE PREFLIGHT WAS COMPARING A NUMBER TO ITSELF.
 //
-// setup-research-run.mjs refuses to start a run when `feov-record --version` disagrees
-// with `recordToolVersion` in the plugin manifest, because — in its own words — "a stale
-// one on PATH silently writes events under an older contract".
+// The `feov-record setup` subcommand refuses to start a run when the record binary's version
+// disagrees with `recordToolVersion` in the plugin manifest, because — in its own words — "a
+// stale one on PATH silently writes events under an older contract".
 //
 // Both sides read 0.1.0 for the whole of 2026-07-19, during which events gained `ts`,
 // findings gained a tool-assigned id, four flags were renamed with their aliases deleted,

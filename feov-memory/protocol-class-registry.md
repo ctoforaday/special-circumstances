@@ -126,6 +126,22 @@ is real; the altitude is wrong.
   policy-without-mechanism. If something is, but it guards a coarser surface than
   the invariant needs, it is this.
 
+### port-retarget
+A caller still invokes the runtime a port has replaced — a spawn/invocation site
+names the old script while the new implementation is the contract — so the pointer
+and the implementation drift, and the sibling call sites that share the old runtime
+are the ones that quietly keep pointing at it.
+- **Instance**: `/research` step 2 spawned `node setup-research-run.mjs` after
+  setup was ported to the `feov-record setup` subcommand; the sibling spawns
+  (`capture-research-run.mjs` at step 5, `render-run-dashboard.mjs` at monitoring)
+  still call `node`, ported in later #121 slices.
+- **Sweep question**: which OTHER invocation sites still name the ported-away
+  runtime, and are they retargeted or explicitly deferred with a reason?
+- **Neighbour**: `staged-not-delivered` — there an artifact exists but never
+  reaches the consumer; here the invocation reaches a consumer that has MOVED.
+- **Distinguisher**: is the call's TARGET gone/relocated (port-retarget), or
+  present-but-never-consumed (staged-not-delivered)?
+
 ## Minting a new class
 
 Same discipline as the gap registry: a new class needs a slug, a one-line

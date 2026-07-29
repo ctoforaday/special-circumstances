@@ -68,20 +68,6 @@ test('scorecards are APPENDED run over run — the series is the point, a single
   assert.match(r.reason, /scorecards need the tracked memory dir/)
 })
 
-test('setup: records/ is created; stale mirrors purge at 30 days and fresh ones survive', async () => {
-  const { buildSkeleton, purgeStaleMirrors } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
-  const run = tmp()
-  buildSkeleton(run, 'topic')
-  assert.ok(existsSync(join(run, 'records')), 'records/ born at setup')
-  const mirrors = tmp()
-  mkdirSync(join(mirrors, 'oldrun'))
-  mkdirSync(join(mirrors, 'newrun'))
-  utimesSync(join(mirrors, 'oldrun'), new Date(Date.now() - 40 * 86400e3), new Date(Date.now() - 40 * 86400e3))
-  const r = purgeStaleMirrors(mirrors)
-  assert.equal(r.purged, 1)
-  assert.ok(!existsSync(join(mirrors, 'oldrun')) && existsSync(join(mirrors, 'newrun')))
-})
-
 test('record-join audit: an event no transcript invoked is FLAGGED; the binary invocation shape is matched', async () => {
   const { recordJoinAudit } = await import('../../skills/research-protocol/scripts/capture-research-run.mjs')
   const run = tmp()
@@ -113,35 +99,6 @@ test('record-join audit still reads pre-port transcripts (the mjs invocation sha
   assert.equal(pass.verdict, 'PASS', pass.detail)
 })
 
-test('setup preflight: a missing or skewed record binary refuses the run BEFORE any state exists', async () => {
-  const { preflightRecordBinary, recordToolVersion } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
-
-  const missing = preflightRecordBinary('0.1.0', 'feov-record', () => ({ error: { code: 'ENOENT' }, status: null }))
-  assert.equal(missing.ok, false)
-  assert.match(missing.reason, /not runnable/)
-  assert.match(missing.remedy, /doctor --fix/)
-
-  // Skew is the subtler failure: the binary RUNS, so nothing else would notice,
-  // and it writes events under a different contract for the whole run.
-  const skewed = preflightRecordBinary('0.2.0', 'feov-record', () => ({ status: 0, stdout: Buffer.from('0.1.0\n') }))
-  assert.equal(skewed.ok, false)
-  assert.match(skewed.reason, /0\.1\.0.*expects 0\.2\.0/)
-
-  const good = preflightRecordBinary('0.1.0', 'feov-record', () => ({ status: 0, stdout: Buffer.from('0.1.0\n') }))
-  assert.equal(good.ok, true)
-  assert.equal(good.version, '0.1.0')
-
-  // requirements.json is the version authority; a hardcoded copy here would be
-  // the very skew the preflight exists to catch — which is exactly what this
-  // assertion was, right under that sentence. It pinned '0.1.0' and so DEMANDED the
-  // contract version never move, on a day the event schema changed four times. It
-  // now reads the manifest, and checks the property that actually matters: the
-  // authority answers, and the answer looks like a version.
-  const declared = recordToolVersion()
-  assert.ok(declared, 'requirements.json must declare recordToolVersion, or the preflight receives null and the skew check silently never fires')
-  assert.match(declared, /^\d+\.\d+\.\d+$/, `recordToolVersion should be semver, got ${declared}`)
-})
-
 test('record-join audit matches the QUOTED binary path the engine actually emits', async () => {
   const { recordJoinAudit } = await import('../../skills/research-protocol/scripts/capture-research-run.mjs')
   const run = tmp()
@@ -154,37 +111,6 @@ test('record-join audit matches the QUOTED binary path the engine actually emits
     JSON.stringify({ message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: '"/plug/bin/feov-record" lens finding --key F1 --run x --seat-id red-lens-r1-L1' } }] } }) + '\n')
   const pass = recordJoinAudit(run, transcripts, ['agent-q.jsonl'])
   assert.equal(pass.verdict, 'PASS', pass.detail)
-})
-
-test('setup preflight binds to INTENT: fatal with --bin-dir, reported without it', async () => {
-  const { runSetupCli } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs').catch(() => ({}))
-  // The CLI path is covered end-to-end in run-scripts.test.mjs; what matters here
-  // is the rule: a run that never asked to record must not be blocked by a tool
-  // it does not use, and a run that DID ask must not start without it.
-  const { preflightRecordBinary } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
-  const absent = preflightRecordBinary('0.1.0', 'no-such-binary')
-  assert.equal(absent.ok, false, 'absence is detected either way — the difference is what setup DOES about it')
-  assert.ok(absent.reason.includes('not runnable'))
-  assert.equal(typeof runSetupCli, 'undefined')
-})
-
-test('gap-pattern mirror: promoted corpus wins, raw accrual fills gaps, duplicates never double-stage', async () => {
-  const { mirrorGapPatterns } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
-  const run = tmp(); mkdirSync(join(run, 'inputs'), { recursive: true })
-  const promoted = tmp(); const raw = tmp()
-  writeFileSync(join(promoted, 'shared.md'), 'PROMOTED VERSION')
-  writeFileSync(join(promoted, 'README.md'), 'not a pattern — the corpus doc')
-  writeFileSync(join(raw, 'shared.md'), 'RAW VERSION')
-  writeFileSync(join(raw, 'only-raw.md'), 'not yet promoted')
-
-  const r = mirrorGapPatterns([promoted, raw], run)
-  assert.equal(r.written, true)
-  const staged = readFileSync(join(run, 'inputs', 'red-gap-patterns.md'), 'utf8')
-  assert.ok(staged.includes('PROMOTED VERSION'), 'the reviewed corpus is authoritative')
-  assert.ok(!staged.includes('RAW VERSION'), 'a promoted pattern is never re-staged from raw accrual')
-  assert.ok(staged.includes('not yet promoted'), 'un-promoted accrual still reaches the run')
-  assert.ok(!staged.includes('the corpus doc'), 'the README is documentation, not a pattern')
-  assert.equal(r.files, 2)
 })
 
 test('attestation integrity: a claimed act with no matching tool call is FLAGGED, a reconciled one passes', async () => {

@@ -189,28 +189,6 @@ test('headline ranks nonzero detectors first and drops uncomputed rows', () => {
   assert.ok(!h.join(' ').includes('blocked'), 'an uncomputed row is never a headline')
 })
 
-// THE DEFECT: renderChair emits real clauses that contain a colon
-// ('LOSS: additive violations'). Setup parses the rendered file to build the
-// prompt headlines, and its parser stopped at the first colon after the class
-// tag — so that metric could never reach the seat it governs. It is a DETECTOR,
-// the class headline() ranks first, and the whole enforcement of the additive
-// invariant. The scorecard was written, mirrored, and silently unreadable.
-test('renderChair output stays parseable when a clause contains a colon', async () => {
-  const rows = [row({ clause: 'LOSS: additive violations', metric: 'unrecorded_claim_loss', cls: 'detector', value: 4, note: '6 lost, 2 retired' })]
-  const rendered = renderChair('blue', rows, 'run-6')
-  const { mirrorScorecards } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
-  const mem = tmp(), runDir = tmp()
-  mkdirSync(join(runDir, 'inputs'), { recursive: true })
-  writeFileSync(join(mem, 'blue-scorecard.md'), chairHeader('blue') + rendered)
-  const r = mirrorScorecards(mem, runDir)
-  assert.ok(r.written)
-  assert.ok(r.headlines.blue, 'the chair produced a headline at all')
-  assert.ok(
-    r.headlines.blue.some((h) => h.startsWith('unrecorded_claim_loss 4')),
-    'a colon in the CLAUSE must not hide the metric from the seat prompt',
-  )
-})
-
 test('renderChair marks an uncomputed row with its reason instead of a bare blank', () => {
   const out = renderChair('blue', [row({ clause: 'Calibration', metric: 'confidence_vs_survival', cls: 'benchmark', note: 'BLOCKED until W2f' })], 'run-6')
   assert.ok(/_not computed_ — BLOCKED until W2f/.test(out))
@@ -229,42 +207,6 @@ test('computeScorecards returns all three chairs even on an empty run', () => {
 test('chairHeader states every class, so a reader knows which numbers not to optimize', () => {
   const h = chairHeader('red')
   for (const c of ['BENCHMARK', 'DIAGNOSTIC', 'DETECTOR', 'MEASURE']) assert.ok(h.includes(c), `${c} documented`)
-})
-
-// The emitted HEADLINE is the single authority. Setup used to re-derive it from the
-// rendered rows in FILE order, so a tripped detector could lose its prompt slot to a
-// benchmark that merely appeared above it — the ranking headline() exists to impose.
-test('the seat prompt gets headline()-RANKED numbers, not file order', async () => {
-  const { mirrorScorecards } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
-  const rows = [
-    row({ clause: 'A', metric: 'bench_one', cls: 'benchmark', value: 1 }),
-    row({ clause: 'B', metric: 'bench_two', cls: 'benchmark', value: 2 }),
-    row({ clause: 'C', metric: 'bench_three', cls: 'benchmark', value: 3 }),
-    row({ clause: 'LOSS: additive violations', metric: 'tripped', cls: 'detector', value: 7 }),
-  ]
-  const mem = tmp(), runDir = tmp()
-  mkdirSync(join(runDir, 'inputs'), { recursive: true })
-  writeFileSync(join(mem, 'blue-scorecard.md'), chairHeader('blue') + renderChair('blue', rows, 'run-6'))
-  const r = mirrorScorecards(mem, runDir)
-  assert.ok(r.headlines.blue[0].startsWith('tripped 7'), 'the detector leads even though three benchmarks precede it in the file')
-  assert.equal(r.headlines.blue.length, 3)
-})
-
-// Scorecards written by an older capture have no HEADLINE line; the fallback parser
-// must still read them, colons and all.
-test('a pre-HEADLINE scorecard still yields a prompt headline', async () => {
-  const { mirrorScorecards } = await import('../../skills/research-protocol/scripts/setup-research-run.mjs')
-  const mem = tmp(), runDir = tmp()
-  mkdirSync(join(runDir, 'inputs'), { recursive: true })
-  writeFileSync(join(mem, 'red-scorecard.md'), [
-    '# red scorecard', '', '## run-5', '',
-    '- `unrecorded_claim_loss` [detector] — LOSS: additive violations: **4** (6 lost, 2 retired)',
-    '- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **89**',
-    '',
-  ].join('\n'))
-  const r = mirrorScorecards(mem, runDir)
-  assert.ok(r.headlines.red.some((h) => h.startsWith('unrecorded_claim_loss 4')), 'the colon-bearing clause is readable by the fallback')
-  assert.ok(r.headlines.red.some((h) => h.startsWith('anchored_closures_pct 89')))
 })
 
 // ---- one parser, one authority ----
