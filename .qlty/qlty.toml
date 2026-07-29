@@ -34,12 +34,10 @@
 #
 config_version = "0"
 
-# Plugin DEFINITIONS come from here. Without a source block every `name = "..."` below
-# fails the whole run with "Plugin definition not found" — the plugin list alone is inert.
-[[source]]
-name = "default"
-default = true
-
+# ORDER MATTERS, and silently. These top-level keys MUST precede the [[source]] table:
+# TOML scopes every key after a table header into that table, so an exclude_patterns
+# placed below [[source]] becomes source.0.exclude_patterns, which qlty ignores with a
+# warning rather than an error — the exclusions simply never apply.
 exclude_patterns = [
   "**/node_modules/**",
   "**/dist/**",
@@ -48,6 +46,12 @@ exclude_patterns = [
   "**/goldens/**",
   "**/trajectories/**",
 ]
+
+# Plugin DEFINITIONS come from here. Without a source block every `name = "..."` below
+# fails the whole run with "Plugin definition not found" — the plugin list alone is inert.
+[[source]]
+name = "default"
+default = true
 
 # Go formatting. Already gated in CI (`gofmt -l`); the hook makes it automatic on write.
 [[plugin]]

@@ -110,7 +110,54 @@ jobs:
         with:
           node-version: "24"
       - run: node scripts/rule-sweep.mjs --selftest
-      - run: node scripts/rule-sweep.mjs --base origin/${{ github.base_ref }}
+      # The base ref goes through the environment, never through a `${{ }}` expansion
+      # inside the shell line: template expansion happens BEFORE the shell sees the
+      # command, so an expanded value is code rather than an argument.
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/rule-sweep.mjs --base "origin/$BASE_REF"
+
+  qlty:
+    # The quality gate had no CI leg at all. `qlty check` is mandatory during
+    # verification per the qlty-proficiency skill, and sc-quality-gate runs it on every
+    # write — but only on a machine that HAS qlty, so a pull request authored anywhere
+    # else was checked by nothing. This is that leg.
+    #
+    # Diff-scoped (`--upstream`), deliberately: it fails on findings in the files a pull
+    # request actually changed, and stays silent about the pre-existing ones elsewhere.
+    # `--all` would be red on arrival and teach everyone to ignore it.
+    #
+    # Scoping is per changed LINE, not per changed file — measured, not assumed: this job
+    # was added in a commit that rewrote much of this workflow, a file carrying 18 accepted
+    # zizmor findings, and the run reported clean while flagging the one finding on a line
+    # the commit actually introduced. So the accepted findings here and in
+    # plugins/frank-exchange-of-views/tools/go.mod (39 osv-scanner stdlib, both documented
+    # in .qlty/qlty.toml) do NOT block a pull request that touches those files. You are
+    # answerable for the lines you write, which is the only version of this gate that
+    # anyone would keep.
+    #
+    # fetch-depth 0 and the same base-ref handling as rule-sweep above: the check needs
+    # the merge base, which a shallow clone does not have.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Nothing here talks to the remote after checkout — the check reads the merge
+          # base from local refs — so the token has no reason to persist into .git/config.
+          # The seven older checkouts still do; that is the zizmor follow-up, and this new
+          # one does not add to it.
+          persist-credentials: false
+      # Pinned to a commit, not a tag: a tag is mutable, and this action runs with the
+      # workflow's token. v2.3.0.
+      - uses: qltysh/qlty-action/install@08a0a862c159eae9b9003081da6663d96efef637
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+        run: qlty check --no-progress --no-fix --upstream "origin/$BASE_REF"
 
   goldens:
     # Goldens are a contract, so STALENESS IS A FAILURE: a behaviour change that
