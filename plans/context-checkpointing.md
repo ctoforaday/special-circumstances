@@ -797,17 +797,13 @@ probe cannot separate those. The low row is the informative one.
 
 ### D. What is NOT verified
 
-- **Restore at `source == "compact"` end-to-end in this run.** Both compaction runs aborted on
-  autocompact thrash before reaching the probe question. The claim rests on the earlier marker test
-  (`SS=SEEN` / `PC=NOT-SEEN`, leaf-cited — `hook-surface-spike.md` §3a) plus a unit test on the code
-  path, not on a §16 run. Honest status: **verified by two other means, not by this one.**
-- **`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is not a usable way to drive a long acceptance run.** `=2`
-  thrashed at 31k-token reads and again at 5k-token reads. The recorded arithmetic (~70k trigger,
-  ~30k post-compaction baseline) was taken from a differently-shaped session and does not transfer.
-  A Phase 4 harness needs a different lever — a genuinely long run, or a client-side compaction
-  trigger — not a smaller denominator.
+- ~~**Restore at `source == "compact"` end-to-end.**~~ **Now verified — 2026-07-29, see §17.**
+- ~~**`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is not a usable lever.**~~ **Wrong; it is, at `PCT=10`.
+  See §17 A** — the failure was using it at 1 and 2, where the headroom above the fixed ~30.6k floor
+  is a few thousand tokens and the next boundary is one turn away whatever the workload does.
 - `watchPaths` re-arming of validation triggers (I2) is designed and unwired.
-- `SubagentStop` and `SessionEnd` seals remain Phase 2 leftovers; only `PreCompact` seals today.
+- ~~`SubagentStop` and `SessionEnd` seals remain Phase 2 leftovers~~ — **shipped 2026-07-29** (§13
+  Phase 2).
 
 ### E. Method notes, both learned by getting them wrong here
 
@@ -819,3 +815,96 @@ probe cannot separate those. The low row is the informative one.
   `settings.json` is ignored until the workspace is trusted (`hasTrustDialogAccepted`). Both fail
   fast and loudly, but only in the log — a run that dies in one second looks identical to a run
   that has not started.
+
+---
+
+## 17. The compaction lever, and what a real boundary showed (2026-07-29)
+
+§16 D closed two gaps by measuring instead of reasoning. One of them reopened a question the design
+had assumed answered.
+
+### A. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is a usable lever — at 10, not at 2
+
+§16 D said it was not usable and a Phase 4 harness needed a different mechanism. That was wrong, and
+wrong in the same way twice: the value was sized off a guess and then "confirmed" by a clean exit.
+A clean exit says the run finished. It says nothing about where the threshold was.
+
+Controlled sweep, one workload, four values, each in its **own project directory** so no two runs
+share a transcript:
+
+| `PCT` | first trigger | compactions | exit | outcome |
+|---|---|---|---|---|
+| 2 | ~35,370 | 3 | 1 | thrash abort |
+| 5 | ~44,744 | 3 | 1 | thrash abort |
+| **10** | **~94,321** | **1** | **0** | **clean** |
+| 25 | never fired (peaked ~120,390) | 0 | 0 | finished without compacting |
+
+**The floor is fixed at ~30.6k.** `cache_read_input_tokens` bottoms out at 30,601 in all four runs,
+and at 30,593 in an unrelated earlier one — system prompt, tools, carried summary. The percentage
+sits on top of that, so the usable window is `trigger − 30.6k`: ~5k at `PCT=2`, ~64k at `PCT=10`.
+At 2 and 5, the next boundary is one or two turns away regardless of workload, which is why every
+payload size thrashed and why shrinking the files never helped.
+
+**The relationship is not linear.** The 2-and-5 points extrapolate to ~60k at 10; the measured value
+is ~94k. Two points make a line whether or not the function is one.
+
+### B. The digest crosses a real compaction boundary — leaf-cited
+
+A run at `PCT=10` with all four hooks registered, one clean compaction, exit 0. In its transcript:
+
+```
+line  90–91  COMPACT BOUNDARY
+line 100     hook_additional_context · hookName=SessionStart
+             "Recovered operational state for this session… Source: compact · file: …"
+```
+
+The attachment is **after** the boundary and carries the digest. This is what §16 D could not show
+and what #132's withdrawn "no-op on compact" requirement would have removed. `PreCompact` sealed;
+the observer wrote its row. The pipeline runs end to end at a real boundary.
+
+### C. The agent then refused to use it — and was right to
+
+Same digest, same question shape, two sources:
+
+| source | Q1–Q4 |
+|---|---|
+| `startup` | all four exact |
+| `compact` | **all four `UNKNOWN`** |
+
+Its reasoning, unprompted: *"I never ran `zorbulate` myself in this conversation… I can't report
+those as things I actually have, only as things an unverified injected note claims."*
+
+**The fixture is what failed, not the hook.** The note asserts a validation loop, a failure and a
+background handle that the session never produced. At `startup` there is no history to contradict
+that, so it is adopted. After a compaction the agent has a real history — twenty ledger files — and
+the planted note does not fit it. Rejecting it is correct behaviour.
+
+This is *the same defect as the C1 steering test*, one layer along: an instruction or a digest
+asserting content with no basis in the conversation reads as an attack. That rule was written into
+the seal and into the restore hook, and then broken by the test built to check them.
+
+**The acceptance test as designed cannot distinguish "restore works" from "the agent correctly
+rejected a planted note."** Recorded as a test-design defect rather than a product finding.
+
+### D. What the run does establish about R4
+
+The compact summary **itself** carried every planted term — `zorbulate`, `E17`, `bg-quilt`,
+`frobnicator`, the validation loop — and the observer scored **1.00 across all four sections** on a
+13,194-byte summary. The content reached the agent through two channels at once.
+
+That is R4 measured rather than argued: **at this summary size the digest is redundant.** The seal's
+steering worked so well that restore had nothing left to add. Set against §16 C's 734-byte row,
+which carried 1/10 · 0/4 · 1/8 · 1/7, the shape of the design's actual value emerges — the digest
+earns its place when the summary is *short*, and is duplicated effort when the summary is long.
+That is an argument for making the digest **conditional on what the summary kept**, which is exactly
+what `PostCompact` cannot do (§3 C). The honest position: terseness stays a policy, and the observer
+rows are how we find out how often it matters.
+
+### E. A valid fixture, for whoever runs this next
+
+The note must be **true of the session that wrote it**. Concretely: have the session establish a
+fact by a real tool call, write the checkpoint itself, drive the compaction, then probe for the fact.
+The difficulty — and the reason this is left as a design note rather than a result — is that a fact
+the session genuinely established is also a fact the summary may carry (§D), so the test needs a
+summary short enough to drop it. That is not directly controllable, which makes the honest
+acceptance criterion **the attachment's presence at the boundary (§B), not the agent's answer.**
