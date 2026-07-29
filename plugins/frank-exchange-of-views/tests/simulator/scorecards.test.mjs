@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import {
   row, readTelemetry, blueRows, redRows, citationYieldByRole, bucketFindingsByRole,
   benchRows, computeScorecards, renderChair, headline, chairHeader, readResults,
-  computeDirectionUptake,
+  computeDirectionUptake, computeAnchoredClosures,
 } from '../../skills/research-protocol/scripts/scorecards.mjs'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'sc-'))
@@ -100,16 +100,32 @@ test('bucketFindingsByRole buckets the findings view by ROLE, not by position', 
   assert.equal(citationYieldByRole(tmp(), undefined), null, 'no --bin is null (same "not computed" as no findings)')
 })
 
-test('redRows: anchored-closure percentage ignores an undefined anchor', () => {
-  const d = runWith({
-    'red/archive.md': [
-      '## R1-1\nverification anchor: red-lens-1 | Grep | report.md',
-      '## R1-2\nverification anchor: undefined',
-      '## R1-3\nno anchor line at all',
-    ].join('\n\n'),
-  })
-  const anchored = redRows(d, [], []).find((r) => r.metric === 'anchored_closures_pct')
-  assert.equal(anchored.value, 33, 'one of three is mechanically auditable by format')
+// anchored_closures_pct now reads the board view's closure anchors, not archive.md. A closure
+// is anchored iff it carries the full seat|tool|target triple OR a carried-from; a partial or
+// absent anchor is not. computeAnchoredClosures is the pure kernel; the fixture is the board
+// view's `closed[]` shape (absent anchor keys omitted, as payloadMap leaves them).
+test('computeAnchoredClosures: full triple and carried-from count; partial and absent do not', () => {
+  const board = { closed: [
+    { id: 'R1-1', closure: { anchor_seat: 'red-lens-1', anchor_tool: 'Grep', anchor_target: 'report.md' } }, // anchored (triple)
+    { id: 'R1-2', closure: { carried_from: '1' } },                                                            // anchored (carried)
+    { id: 'R1-3', closure: { anchor_seat: 'red-lens-1', anchor_target: 'report.md' } },                        // partial — NOT anchored
+    { id: 'R1-4', closure: {} },                                                                               // no anchor — NOT
+    { id: 'R1-5', closure: null },                                                                             // no closure payload — NOT
+  ] }
+  assert.deepEqual(computeAnchoredClosures(board), { anchored: 2, total: 5 })
+  // The classic 1-of-3: triple, undefined, none → 33%.
+  const three = { closed: [
+    { closure: { anchor_seat: 'L1', anchor_tool: 'Grep', anchor_target: 'report.md' } },
+    { closure: {} },
+    { closure: null },
+  ] }
+  assert.equal(Math.round(computeAnchoredClosures(three).anchored / computeAnchoredClosures(three).total * 100), 33)
+})
+
+test('redRows anchored_closures_pct: without --bin it says it needs the tool, not a stub 0', () => {
+  const noBin = redRows(runWith(), [], [], undefined).find((r) => r.metric === 'anchored_closures_pct')
+  assert.equal(noBin.value, null, 'no tool binary -> not computed')
+  assert.match(noBin.note, /needs the tool|board view/, 'the row states it needs the record, not archive.md')
 })
 
 // ---- bench ----

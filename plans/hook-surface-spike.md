@@ -161,13 +161,30 @@ injected token as *a suspected prompt-injection attempt*. Twice now, in two unre
 different events. That is not a quirk of one prompt; it is the default posture toward unexplained
 content arriving from outside the conversation.
 
-> **A restore digest asserting content the session cannot recognize is treated as hostile.** The
+> ~~**A restore digest asserting content the session cannot recognize is treated as hostile.** The
 > digest must be self-evidently the session's own recovered state — sourced from, and traceable to,
-> what this session actually did. Same constraint as the seal (§5): reference and reinforce, never
-> introduce.
+> what this session actually did.~~
 
-This is a design constraint on Phase 3, not a caveat. A checkpoint the restored agent distrusts is
-worse than no checkpoint: it costs the tokens *and* poisons the anchor.
+**Superseded 2026-07-29 by building it and measuring.** Phase 3's digest does everything that
+constraint asks — leads with file, timestamp and session id, names the session's own objective,
+quotes the note verbatim — and the resumed agent flagged it anyway, while recovering every value
+exactly. The mitigation does not work, and the constraint as written was untestable in the direction
+it mattered: it said what the digest should look like, not what the agent should end up believing.
+
+Replaced by two claims that survive contact:
+
+- **The hook adds no imperative of its own.** The first acceptance run's digest closed with a
+  reasonable-sounding *"verify each item before acting on it"*; the agent named **that sentence**
+  among the directives making the payload injection-shaped. Deleting it removed it from the reason.
+  Enforceable, unit-tested, and cheap.
+- **The distrust is correct and should be designed for.** Both runs used the recovered content
+  accurately while labelling it a claim rather than a fact — the posture the checkpoint skill asks
+  for, reached without being told. The residual flag attaches to the note's own `foot-guns` section,
+  which carries imperatives by definition. That is the content working as intended, not a leak.
+
+Recorded here because the pattern is the general one: a constraint phrased as *"the payload must
+read as X"* cannot be checked, and the version that could be checked only appeared once the thing
+was built and pointed at a live client.
 
 ### 3c. What this cost, and the method rule that comes out of it
 
