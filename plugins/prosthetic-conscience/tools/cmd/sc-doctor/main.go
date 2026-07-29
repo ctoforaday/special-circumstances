@@ -107,6 +107,13 @@ func verdict(tools []toolchain.Status, bins []binStatus) string {
 	degraded := false
 	for _, t := range tools {
 		if !t.Found {
+			// Absent BY DESIGN is not absent. A cloud session has no gh and is not
+			// going to get one; counting it DEGRADED made the verdict permanently
+			// wrong there, which is worse than useless — it teaches the operator to
+			// discount the verdict on the one axis it exists to be trusted on.
+			if t.NotApplicable {
+				continue
+			}
 			if t.Tier == "required" {
 				return "BLOCKED"
 			}
@@ -130,9 +137,14 @@ func verdict(tools []toolchain.Status, bins []binStatus) string {
 func table(tools []toolchain.Status, bins []binStatus) string {
 	var sb strings.Builder
 	for _, t := range tools {
-		if t.Found {
+		switch {
+		case t.Found:
 			fmt.Fprintf(&sb, "%-18s ✓ %s\n", t.Name, versionOf(t.CheckCmd))
-		} else {
+		case t.NotApplicable:
+			// No install string: printing one here is the false alarm this branch
+			// exists to remove.
+			fmt.Fprintf(&sb, "%-18s – n/a in %s (%s)\n", t.Name, toolchain.Environment(), t.Purpose)
+		default:
 			fmt.Fprintf(&sb, "%-18s ✗ (%s) install: %s\n", t.Name, t.Tier, t.Install[runtime.GOOS])
 		}
 	}

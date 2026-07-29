@@ -123,7 +123,7 @@ Install from the Claude Code plugin marketplace:
 /plugin install gray-area@special-circumstances
 ```
 
-`prosthetic-conscience` is the base; the other two preload its rule-skills, and `sleeper-service` invokes `frank-exchange-of-views`. One marketplace install gets all three; each is individually useful.
+`prosthetic-conscience` is the base; the other three preload its rule-skills, and `sleeper-service` invokes `frank-exchange-of-views`. One marketplace install gets all four; each is individually useful.
 
 After installing, check your environment:
 

@@ -31,7 +31,7 @@ claude plugin marketplace list --json 2>/dev/null | grep -q "\"$M\"" \
   || claude plugin marketplace add ctoforaday/special-circumstances \
   || { echo "SC: marketplace clone failed — check repository access and the environment's network access level"; exit 0; }
 
-for p in prosthetic-conscience frank-exchange-of-views sleeper-service; do
+for p in prosthetic-conscience frank-exchange-of-views sleeper-service gray-area; do
   claude plugin install "$p@$M" || echo "SC: install failed: $p"
 done
 
@@ -87,7 +87,7 @@ requests, not `git clone` of a public repository.
 ## Verification
 
 Run against a throwaway plugin cache. `CLAUDE_CODE_PLUGIN_CACHE_DIR` redirects
-the cache and the marketplace registry, leaving a working install untouched:
+the copied plugin content and the marketplace registry:
 
 ```bash
 tmp=$(mktemp -d)
@@ -96,17 +96,23 @@ CLAUDE_CODE_PLUGIN_CACHE_DIR="$tmp" bash ./scripts/bootstrap-plugins.sh
 
 | Path | Result |
 |---|---|
-| Cold, empty cache | exit 0, ~12s, 8 hook binaries built, `sc-doctor` verdict DEGRADED |
+| Cold, empty cache | exit 0, ~30s, 9 hook binaries built, `sc-doctor` verdict DEGRADED |
 | Unreachable marketplace | **exit 0**, warns, session startup unaffected |
 | Warm, already installed | exit 0, skips marketplace and plugin installs, rebuilds binaries |
 
-The DEGRADED verdict is `gh`, `qlty` and `qmd` missing, all recommended rather
-than required. `gh` is absent by design in cloud sessions, which reach GitHub
-through MCP tools instead.
+The DEGRADED verdict is `qlty` and `qmd` missing, both recommended rather than
+required. `gh` is *not* part of it: it is absent by design in cloud sessions,
+which reach GitHub through MCP tools, and the manifest declares that with
+`not_applicable_in` so the doctor reports it as n/a rather than as a defect
+with install advice nobody can act on.
 
-`CLAUDE_CODE_PLUGIN_CACHE_DIR` isolates the cache but **not**
-`~/.claude/settings.json`; a cold run still rewrites the `extraKnownMarketplaces`
-entry there.
+**The isolation is partial, and the part it misses is the part that matters.**
+`CLAUDE_CODE_PLUGIN_CACHE_DIR` does not cover `~/.claude/settings.json`, so a
+throwaway run still writes the real `extraKnownMarketplaces` entry *and* enables
+all four plugins in `enabledPlugins`. What it leaves behind is a session
+configured for plugins whose content lives in a temp directory that is about to
+be deleted. Re-run the script without the variable afterwards to repopulate the
+real cache, or hand-remove both keys from `~/.claude/settings.json`.
 
 ## Building the hook binaries by hand
 

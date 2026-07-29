@@ -131,14 +131,14 @@ test('setup preflight: a missing or skewed record binary refuses the run BEFORE 
   assert.equal(good.ok, true)
   assert.equal(good.version, '0.1.0')
 
-  // The plugin manifest is the version authority; a hardcoded copy here would be
+  // requirements.json is the version authority; a hardcoded copy here would be
   // the very skew the preflight exists to catch — which is exactly what this
   // assertion was, right under that sentence. It pinned '0.1.0' and so DEMANDED the
   // contract version never move, on a day the event schema changed four times. It
   // now reads the manifest, and checks the property that actually matters: the
   // authority answers, and the answer looks like a version.
   const declared = recordToolVersion()
-  assert.ok(declared, 'the manifest must declare recordToolVersion, or the preflight receives null and the skew check silently never fires')
+  assert.ok(declared, 'requirements.json must declare recordToolVersion, or the preflight receives null and the skew check silently never fires')
   assert.match(declared, /^\d+\.\d+\.\d+$/, `recordToolVersion should be semver, got ${declared}`)
 })
 

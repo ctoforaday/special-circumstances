@@ -24,7 +24,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 | Path | Role |
 |---|---|
 | `plugins/<name>/` | The product: everything a consumer installs (skills, agents, commands, hooks, tools) |
-| `.claude-plugin/marketplace.json` | Marketplace manifest listing the three plugins |
+| `.claude-plugin/marketplace.json` | Marketplace manifest listing the four plugins — keep in step with `PLUGINS` in `scripts/bootstrap-plugins.sh` |
 | `plans/` | Design artifacts under review — each arrives as a PR; graduates into the plugins |
 | `README.md`, `plugins/*/README.md` | The shipped documentation |
 | `ideas/` `research/` `projects/` | Working corpus — starts empty, seeded by `/research` and `/self-improve` |
