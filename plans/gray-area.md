@@ -104,9 +104,22 @@ mechanism improves.
 
 **`PostCompact` — input carries `trigger` and `compact_summary`.**
 PR #3 flagged this event as unconfirmed and refused to depend on it. It exists, and it receives the
-summary. Restore stops being blind: a restore hook can compare the checkpoint against what the
-summary actually kept and inject **only the delta**. That is the direct fix for the risk PR #3
-logged as R4 (duplication with the harness summary confusing the agent) and R3 (digest size).
+summary.
+
+> **Corrected 2026-07-29.** This paragraph continued: *"Restore stops being blind: a restore hook
+> can compare the checkpoint against what the summary actually kept and inject only the delta …
+> the direct fix for R4 and R3."* **Wrong, and measured wrong.** `PostCompact` cannot inject —
+> it is absent from the client's `hookSpecificOutput` union, its stdout goes to the user rather
+> than the model, and an end-to-end marker test found it `NOT-SEEN` where the same marker from
+> `SessionStart` arrived as a `hook_additional_context` attachment. It also runs *after*
+> `SessionStart(compact)`, so even a hypothetical injector would be too late to diff against.
+> Restore is `SessionStart`, every source. R3 and R4 stay live. Evidence:
+> [`hook-surface-spike.md`](hook-surface-spike.md) §3a. PR #3 was right to refuse to depend on it,
+> for a reason better than the one it gave.
+
+What survives: `PostCompact` is an **observation** point. It can record what each summary kept or
+dropped against the seal that asked for it — a signal that accumulates across boundaries, even
+though nothing can act on it within one.
 
 **`SubagentStart` — `agent_id` and `agent_type` in, `additionalContext` out, matched on `agent_type`.**
 Per-seat context injection at spawn, deterministically, without touching a prompt. The debate
