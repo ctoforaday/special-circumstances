@@ -1,0 +1,20 @@
+---
+# yamllint configuration, read by qlty's yamllint plugin.
+#
+# Two rules are relaxed rather than obeyed, both deliberately:
+#
+#   line-length   20 of the 22 findings on the only YAML file here are workflow `run:`
+#                 lines carrying shell commands. Wrapping a shell command to satisfy a
+#                 column count makes it harder to read and easier to break; the limit is
+#                 raised to a width that still catches genuinely runaway lines.
+#   truthy        flags GitHub Actions' `on:` key, since YAML 1.1 reads `on` as a boolean.
+#                 Quoting it would satisfy the linter by editing the trigger definition of
+#                 the workspace's only workflow — and a trigger that stops matching fails
+#                 SILENTLY, with no CI rather than red CI. Key checking is off instead.
+extends: default
+
+rules:
+  line-length:
+    max: 200
+  truthy:
+    check-keys: false

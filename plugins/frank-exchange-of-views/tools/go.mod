@@ -1,6 +1,6 @@
 module github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools
 
-go 1.25
+go 1.25.0
 
 require (
 	github.com/dop251/goja v0.0.0-20260723142020-b4aef50fa347
@@ -16,6 +16,6 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 )

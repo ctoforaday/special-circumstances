@@ -1,7 +1,94 @@
-# qlty configuration for Special Circumstances (starter).
+# qlty configuration for Special Circumstances.
 #
 # qlty is a RECOMMENDED tool, not required: prosthetic-conscience's quality hooks are
 # capability-gated and degrade gracefully when qlty is absent (see plans/claude-port-plan.md
-# §3a' Environment preflight, and the `/prosthetic-conscience:doctor` command). Once qlty is installed, run
-# `qlty init` to populate language plugins (prettier, markdownlint, etc.) and formatting rules.
+# §3a' Environment preflight, and the `/prosthetic-conscience:doctor` command).
+#
+# THE SELECTION RULE. `sc-quality-gate` runs `qlty check` on EVERY Write/Edit, one file at
+# a time, and feeds findings back to the model. A plugin's cost is therefore paid per edit,
+# not per CI run, and a gate that returns dozens of findings on every touch is one that gets
+# switched off. Every plugin below was measured across the whole tree before being enabled;
+# the counts are in plugins/prosthetic-conscience/skills/qlty-proficiency/references/CHEATSHEET.md.
+#
+# Deliberately NOT enabled, with the measurement that decided it:
+#
+#   markdownlint  34,768 findings raw; 5,633 across 189 files even with MD013 and MD033 off
+#                 and the working corpus excluded — ~30 per file, on a repo whose product IS
+#                 markdown prose. Revisit only behind a backlog pass and a rule subset.
+#   prettier      would rewrite 367 files including every prose skill. It cannot be scoped
+#                 off markdown: per-plugin `exclude_patterns` had no effect (367 -> 367) and
+#                 `.prettierignore` removed 2 files (367 -> 365), because qlty passes explicit
+#                 paths. Only the top-level exclude works, and that would take other plugins
+#                 with it. With `qlty fmt` running post-write, this would reflow prose on
+#                 every edit and force a re-read each time.
+#   golangci-lint its one finding here is a phantom `typecheck: cannot find package` — qlty
+#                 pins a Go 1.22 toolchain against three separate modules on go 1.24/1.25.
+#                 Enable once the module/toolchain wiring is sorted, not before: a permanent
+#                 false error on every Go edit is worse than no linter.
+#   trufflehog    flags plugins/prosthetic-conscience/tools/internal/secrets/secrets_test.go
+#                 — the fixture for our own secrets gate. Needs an ignore before it is usable.
+#   radarlint-go  287 largely subjective code smells, ~5 per Go file. `mode = "monitor"` does
+#                 NOT help: measured, a monitor-mode plugin still exits 1 and still prints its
+#                 findings from `qlty check`, so the hook would surface all of them on every
+#                 Go edit. Monitor suppresses the Qlty Cloud gate, not the command line.
+#
 config_version = "0"
+
+# Plugin DEFINITIONS come from here. Without a source block every `name = "..."` below
+# fails the whole run with "Plugin definition not found" — the plugin list alone is inert.
+[[source]]
+name = "default"
+default = true
+
+exclude_patterns = [
+  "**/node_modules/**",
+  "**/dist/**",
+  "**/vendor/**",
+  "**/*.golden",
+  "**/goldens/**",
+  "**/trajectories/**",
+]
+
+# Go formatting. Already gated in CI (`gofmt -l`); the hook makes it automatic on write.
+[[plugin]]
+name = "gofmt"
+
+# GitHub Actions correctness and supply-chain lint. One workflow file, high value per finding.
+[[plugin]]
+name = "actionlint"
+
+# zizmor is enabled with 18 findings OPEN, which is a deliberate exception to the rule
+# above: they are real security findings (artipacked, cache-poisoning, unpinned-uses,
+# template-injection) on a file edited rarely, so the per-edit cost is near zero and
+# hiding them would be the worse trade. `excessive-permissions` was the one class fixed
+# here, by declaring `permissions: contents: read` at the workflow level.
+#
+# The rest is a CI-hardening change and belongs in its own pull request: it edits the
+# workflow that gates every other change, and none of it can be verified from a developer
+# box — a broken trigger or a checkout that loses its credentials fails SILENTLY, with no
+# CI rather than red CI. That deserves someone watching a real run, not a confident diff.
+[[plugin]]
+name = "zizmor"
+
+[[plugin]]
+name = "shellcheck"
+
+[[plugin]]
+name = "yamllint"
+
+# Dependency CVEs. It has already paid for itself — it found golang.org/x/sys and
+# golang.org/x/text CVEs, both bumped in the change that added this config.
+#
+# It also reports the Go STDLIB as vulnerable, keyed off the `go` directive, and that
+# part is unactionable here and permanently non-zero: the directive is a MINIMUM language
+# version, not the toolchain a binary was built with, and any exact version accumulates
+# CVEs discovered after it shipped. The two forms are not equivalent to it —
+#
+#   go 1.25     open-ended, resolved as the latest 1.25.x   ->  0 findings
+#   go 1.25.0   an exact release with known CVEs            -> 39 findings
+#
+# — so two modules sit on the short form and report clean. frank-exchange-of-views cannot:
+# `go mod tidy` under the 1.25 toolchain rewrites it to `go 1.25.0` and `go test` refuses to
+# run until it does. Those 39 findings on that one go.mod are accepted, not overlooked.
+[[plugin]]
+name = "osv-scanner"
