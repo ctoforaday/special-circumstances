@@ -101,11 +101,15 @@ import (
 //	       run-config + run-live marker, and the record-binary preflight. /research step 2 now
 //	       calls `feov-record setup` instead of `node …setup-research-run.mjs`, so a stale binary
 //	       lacks the command the setup step depends on (same rationale as 0.11.0's `verify`).
+//	0.19.0 the root `cost` command (#121 slice 2) — the cost audit ported from cost-audit.mjs:
+//	       per seat-round token/dollar table, tier check (#111), and the board-telemetry join.
+//	       /research's capture step now generates cost.md via `feov-record cost` when it has the
+//	       binary, so a stale binary lacks the command that path depends on.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.18.0"
+const Version = "0.19.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -144,6 +148,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newGraph(),       // operator: render a run's actual behaviour from the record
 		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
 		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
+		newCost(),        // operator: render cost.md from the Workflow transcripts (ported from cost-audit.mjs)
 	)
 	return root
 }
