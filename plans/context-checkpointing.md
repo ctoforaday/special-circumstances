@@ -102,9 +102,9 @@ seal/restore hooks**, not "a hook that summarizes on compaction."
 
 1. The seal can **steer the harness's own summary** instead of racing it — naming the validation
    loop, the ordered next actions and the in-flight handles as preserve-verbatim (§3 B).
-2. Restore can be **summary-aware** — `PostCompact` sees what the summary actually kept, so the
-   injection can carry only the delta instead of a second narrative (§3 C, §7). This directly
-   retires risks R3 and R4.
+2. ~~Restore can be summary-aware via `PostCompact`.~~ **Withdrawn 2026-07-29.** `PostCompact`
+   receives the summary but cannot inject anything into the model (§3 C, measured). Restore stays
+   on `SessionStart`, and risks R3 and R4 stay live.
 
 *(Remaining unverified: `initialUserMessage`. Not used by this design.)*
 
@@ -143,25 +143,43 @@ On compaction (auto or manual) the hook:
    the transcript, the seal has nothing legitimate to ask for and stays silent.
 4. Exits 0. It never blocks compaction (blocking would just wedge the session).
 
-**(C) Restore, split across two events — summary-aware where a summary exists.**
+**(C) Restore is `SessionStart`, on every source including `compact`.**
 
-- **`PostCompact`** owns the compaction case. It receives `compact_summary`, so the hook compares
-  the checkpoint against what the summary actually kept and surfaces **only the delta**. When the
-  summary already carried the validation loop — which the field evidence in §12(a) says it
-  sometimes does — the hook stays quiet rather than repeating it. *(The original routed this
-  through `SessionStart(source=compact)` and injected the digest blind, because `PostCompact` was
-  believed unconfirmed.)*
-- **`SessionStart`** owns `source ∈ {resume, fork, startup}` — the cases where the context is
-  fresh and no summary exists to diff against. Here it emits the full terse digest via
-  `additionalContext`: objective line, plan pointer, the **validation loop**, next steps, and the
-  path to the full `CHECKPOINT.md` — *not* the whole file. It re-grounds the agent in ~15 lines
-  and tells it where to read more.
-- **`SessionStart` MUST no-op on `source == "compact"`.** *(Measured 2026-07-27; see
-  `plans/hook-surface-spike.md` §3.)* Both hooks fire at a compaction boundary — the observed source
-  sequence across three forced compactions was `startup, compact, compact, compact`, with a
-  `PostCompact` alongside each. Without this guard the pair injects twice and reproduces R4, the
-  double narrative this split claims to retire. The split above is right as an intention and unsafe
-  without the guard.
+**CORRECTED 2026-07-29, and this reverses the previous correction.** An earlier revision of this
+section routed the compaction case through `PostCompact`, reasoning that because it receives
+`compact_summary` it could inject only the delta the summary dropped. **`PostCompact` cannot inject
+anything.** Measured three ways:
+
+- It is **absent from the `hookSpecificOutput` union** in the client. Twenty events have an output
+  shape; it is not one of them, so it has no `additionalContext` field to return.
+- Its documented exit-0 behaviour is *"stdout shown to **user**"*, where `SessionStart` says
+  *"stdout shown to **Claude**"*.
+- **Observed end-to-end:** a marker emitted by a `PostCompact` hook appears **nowhere** in the
+  resulting transcript, while the same marker from `SessionStart` materialises as a
+  `hook_additional_context` attachment and the model reports seeing it. See
+  `plans/hook-surface-spike.md`.
+
+Ordering kills it independently anyway: the per-boundary sequence is
+**`PreCompact` → `SessionStart(compact)` → `PostCompact`**, so the only hook that *can* inject runs
+*before* the summary exists. No two-hook relay can work in that order.
+
+So restore is one hook:
+
+- **`SessionStart`** owns **every** source — `compact`, `resume`, `fork`, `startup`. It emits the
+  terse digest via `additionalContext`: objective line, plan pointer, the **validation loop**, next
+  steps, and the path to the full `CHECKPOINT.md` — *not* the whole file. It re-grounds the agent
+  in ~15 lines and tells it where to read more. This is what the first draft of this document
+  specified, before a wrong inference moved it.
+- **`PostCompact` is observability only.** It sees the summary and can report to the human. It is
+  the right place to *record* what a summary preserved or dropped — useful evidence for tuning the
+  seal (§3 B) — and the wrong place to restore anything.
+
+**The digest must be self-evidently the session's own recovered state.** Twice measured: a bare
+token injected this way was flagged by the model as a suspected prompt-injection attempt, and it
+said so in its reply. A restore payload that reads as unexplained foreign text invites exactly that
+reaction, at the moment the agent most needs to trust it. Lead with the
+`[context-checkpoint restored …]` marker (§7), name the session's own objective, and point at the
+file — continuity with what the session was already doing is what makes it credible.
 
 A **`/resume`** command re-surfaces the full checkpoint on demand, under either path.
 
@@ -178,12 +196,13 @@ narrative, so the agent sees "summary (from harness) + a crisp operational check
 us)" rather than two overlapping stories competing for attention. Terseness is a feature,
 not a limitation: the note is the tattoo, not the autobiography.
 
-The correction makes this stronger than a policy. Non-duplication is now **measured, not
-intended**: the seal asks the summarizer to keep the load-bearing items, and `PostCompact` then
-reads the summary it produced and injects only what is missing from it. Where the original could
-only promise terseness, the corrected design can observe whether the promise was kept — and a
-summary that repeatedly drops an item the seal explicitly asked it to preserve is itself a signal
-worth recording.
+Non-duplication stays a **policy, not a mechanism** — the 2026-07-27 draft claimed otherwise and
+was wrong. That draft had `PostCompact` read the returned summary and inject only the delta;
+`PostCompact` cannot inject (§3 C, measured), and it runs *after* `SessionStart` in any case, so
+the digest is written before the summary can be inspected. What `PostCompact` can still do is
+**record** the overlap after the fact: a summary that repeatedly drops an item the seal explicitly
+asked it to preserve is a signal worth accumulating, even though nothing can act on it inside the
+same boundary. Terseness per-boundary; measurement across boundaries. That is R4, and it is live.
 
 ---
 
@@ -331,20 +350,15 @@ plan is careful about elsewhere.
 
 ## 7. Restore — re-injecting the note after amnesia
 
-**CORRECTED.** The original ran every restore through `SessionStart` and injected the digest
-without knowing what the summary had kept. With `PostCompact` confirmed, restore splits by whether
-a summary exists to diff against.
+**CORRECTED TWICE; this is the measured version.** The first draft ran every restore through
+`SessionStart`. A later revision split it, routing compaction through `PostCompact` so the injection
+could be diffed against `compact_summary`. That revision was wrong — `PostCompact` cannot inject
+(§3 C) — and the first draft was right.
 
-**Primary path (compaction) — `PostCompact` hook.** Input carries `compact_summary`. The hook
-reads the newest checkpoint, **diffs it against the summary**, and injects only the items the
-summary failed to carry. If the summary already holds the validation loop and the next actions,
-the hook says nothing. This is the mechanism that makes non-duplication measurable rather than
-merely intended, and it retires R3 (digest size) and R4 (double narrative) as design risks.
-
-**Cold path (no summary) — `SessionStart` hook.** On `source ∈ {resume, fork, startup}` the hook
-reads the newest checkpoint and returns a compact `additionalContext` payload. It surfaces only the
-YAML header fields plus the **Validation loop** and **Next steps** sections, capped (~1.5 KB),
-ending with the absolute path to the full note:
+**The only path — `SessionStart` hook, all sources.** It reads the newest checkpoint and returns a
+compact `additionalContext` payload, verified to reach the model as a `hook_additional_context`
+attachment. It surfaces only the YAML header fields plus the **Validation loop** and **Next steps**
+sections, capped (~1.5 KB), ending with the absolute path to the full note:
 
 ```
 [context-checkpoint restored — session was compacted]
@@ -369,7 +383,6 @@ mid-session (no compaction needed) to re-anchor.
   recovered operational state distinct from the harness's own summary.
 - Prioritize **forward-looking** sections (validation loop, next steps); the harness summary
   already covers the backward-looking narrative.
-- On the `PostCompact` path, inject **only the delta** against `compact_summary`.
 - If no checkpoint exists, the hook emits **nothing** — silence beats noise.
 
 **The restore path is read-only until the ordered next-actions list.** *(Promoted from field
@@ -458,8 +471,8 @@ is also what Gray Area's capture wants. Both plugins may register on it; each wr
 | `commands/checkpoint.md` | command | `/checkpoint [--show]` — force a write now, or print the current note. |
 | `commands/resume.md` | command | `/resume` — print the full current checkpoint and re-anchor. |
 | `hooks/precompact-seal.*` | hook (PreCompact) | Seal: ensure a checkpoint exists (skeleton from `git`/transcript tail if absent), snapshot to `.claude/checkpoints/`, prune to N, **emit preserve-verbatim compact instructions on stdout**, exit 0. Never blocks. |
-| `hooks/postcompact-restore.*` | hook (PostCompact) | **New.** Diff the checkpoint against `compact_summary`; inject only the delta. Silent when the summary already carried it. |
-| `hooks/sessionstart-restore.*` | hook (SessionStart) | Restore for `source ∈ {resume, fork, startup}`: emit the terse digest via `additionalContext`; register validation trigger surfaces via `watchPaths`. Silent if no checkpoint. |
+| `hooks/postcompact-observe.*` | hook (PostCompact) | **Observability only** — `PostCompact` cannot inject (§3 C). Records what the summary preserved or dropped, as evidence for tuning the seal. Never restores. |
+| `hooks/sessionstart-restore.*` | hook (SessionStart) | **The restore path, all sources including `compact`.** Emit the terse digest via `additionalContext` (verified to reach the model as a `hook_additional_context` attachment); register validation trigger surfaces via `watchPaths`. Silent if no checkpoint. |
 | `hooks/subagentstop-seal.*` | hook (SubagentStop) | **New.** Seal a seat's note at the moment it finishes, using `agent_id` and `agent_transcript_path` from the event — the only point where a seat's identity and its trajectory are both known. |
 | `hooks/sessionend-seal.*` | hook (SessionEnd) | **New.** Seal on a session that ends without ever compacting; reason-matched. |
 | `hooks/filechanged-rearm.*` | hook (FileChanged) | **New.** Re-arm a validation check when its trigger surface is edited (I2). |
@@ -471,8 +484,10 @@ plan already establishes `Get-Command`/`command -v` capability gating).
 **Capability gating now has a second axis: the hook events themselves.** Five of the events above
 are newer than this document's first draft, and the suite must run against clients that predate
 them. `/doctor` should report which hook events the installed client actually supports, and each
-hook must be inert rather than broken on a client that never fires it. The seal/restore pair must
-degrade to the original single-`SessionStart` design when `PostCompact` is unavailable.
+hook must be inert rather than broken on a client that never fires it. Restore itself has no such
+axis — it is `SessionStart` only (§3 C), the one event that predates this document. What degrades
+on an older client is the *observability* half: no `PostCompact` means no measurement of what the
+summary dropped, and the seal loses its `custom_instructions` fold-in. Neither costs continuity.
 
 ---
 
@@ -510,13 +525,13 @@ degrade to the original single-`SessionStart` design when `PostCompact` is unava
 |---|---|---|
 | R1 | ~~Exact hook field names/behavior on the target build.~~ | **RESOLVED 2026-07-27** against 2.1.220, by reading the client's own event catalogue rather than the docs. `PostCompact`, `watchPaths`, `reloadSkills` all real; `SessionStart.source` gained `fork`; `PreCompact` stdout steers the summary. `initialUserMessage` still unverified and unused. Phase 0 stands as a **re-verification against whatever client the consumer runs**, not a first verification — see R9. |
 | R2 | **Auto-compaction with no warning + stale note.** If the agent hasn't checkpointed recently, the seal captures a stale cursor. | PreCompact skeleton from `git`/transcript tail as a floor; add the periodic nudge (now preferring `PostToolUseFailure`, §5) if staleness is observed. |
-| R3 | ~~`additionalContext` size / truncation.~~ | **Largely retired.** The `PostCompact` diff injects only the delta, so the payload shrinks to what the summary actually dropped. Cap retained as a floor. |
-| R4 | ~~Duplication with the harness summary confusing the agent.~~ | **Largely retired** by the same mechanism — non-duplication is now measured against `compact_summary` rather than promised. Marker prefix retained. |
+| R3 | **`additionalContext` size / truncation.** *(Back live 2026-07-29 — the mechanism that retired it does not exist.)* A fat digest wastes the freshly-reclaimed context. | Hard cap (~1.5 KB), digest-not-dump, path pointer for the rest. There is no way to diff against the summary before injecting, so terseness is again a policy rather than a measurement. |
+| R4 | **Duplication with the harness summary.** *(Back live 2026-07-29.)* The digest is injected before the summary can be inspected, so overlap cannot be measured away. | Distinct marker prefix; forward-looking sections only; terseness as policy (§3, §7). `PostCompact` can *record* the overlap after the fact, which turns R4 into something observable over time even though it cannot be prevented per-boundary. |
 | R5 | **Checkpoint ↔ plan drift** — two sources of truth diverging. | Checkpoint is explicitly the *volatile cursor*, plan is durable; `plan` pointer + `beyond_plan` flag; fold durable decisions back on completion. |
 | R6 | **Transcript-tail PII in sealed snapshots** entering git. | Snapshots gitignored (§6); only the agent-authored live note is committed. **Note the residual:** gitignore keeps them out of history, not off the box. Retention on disk is bounded by N=10 (§6) and nothing more; if that is insufficient the snapshots need scrubbing, not just ignoring. |
 | R7 | **Restore fires on every `resume`, including trivial reconnects**, adding noise. | Silent when no checkpoint or when `status: done`; only inject for `in-progress`/`blocked`/`validating`. **Corrected caveat:** a stale `done` note is exactly what misleads a resumed agent, so silence must not mean invisibility — the durable pointer (I3) keeps naming the note, so its staleness is discoverable rather than absent. |
 | R8 | **Cross-plugin preload** (sleeper-service using the discipline). | Same fallback as the port plan: `skills:` preload, or vendor a copy. **Now also:** `SubagentStart` returns `additionalContext` to a subagent, matched on `agent_type` — a mechanism for injecting the discipline per seat without a preload at all. Worth spiking before falling back to vendoring. |
-| R9 | **Hook-surface churn.** *(New.)* Five events this design now depends on postdate its first draft, and the resolver around thinking display has already moved once between client versions. A design verified against one client is not verified against the next. | Record `client_version` in every checkpoint (§4); `/doctor` reports supported hook events; every hook is inert rather than broken when its event never fires; the seal/restore pair degrades to the original single-`SessionStart` shape when `PostCompact` is absent. |
+| R9 | **Hook-surface churn.** *(New; sharpened 2026-07-29.)* Five events this design now depends on postdate its first draft, and the resolver around thinking display has already moved once between client versions. A design verified against one client is not verified against the next — and this risk has now been *realised once*, not by churn but by inference standing in for measurement (C2). | Record `client_version` in every checkpoint (§4); `/doctor` reports supported hook events; every hook is inert rather than broken when its event never fires. **The load-bearing path is deliberately built on the oldest event available:** restore is `SessionStart`, which predates this document, so a client too old for `PostCompact` loses observability and the seal's `custom_instructions` fold-in — never continuity. Newer events are enrichment only, by construction. |
 | R10 | **Concurrent seats overwrite each other's seals.** *(New — a defect in the original, not a new risk.)* All subagents share the parent `session_id`, so `<ts>-<trigger>.md` collides across parallel seats in a debate run. | `agent_id` in the schema and in the snapshot filename (§4, §6). |
 
 ---
@@ -600,11 +615,12 @@ summary's paraphrase of what it wanted. *Evidence: the `rule-sweep` red-CI, L147
 
 **I3 — Back the restore hook with the durable memory pointer.** §7 restores via
 `SessionStart(source=compact/resume)`. That hook does not fire on a cold fresh session, and
-per R1/R8 it may be absent or degraded. *(Editorial note added 2026-07-27: §7's mechanism has
-since moved — the compaction case is now `PostCompact` and the cold case is
-`SessionStart(resume/fork/startup)`. I3's argument is unaffected and slightly strengthened: there
-are now two hooks that can be absent or degraded instead of one, and neither fires on a cold
-fresh session. The finding below is left exactly as recorded.)* Make the **project-memory pointer file** (a stable
+per R1/R8 it may be absent or degraded. *(Editorial note, twice amended. 2026-07-27 claimed §7's
+mechanism had moved, splitting the compaction case onto `PostCompact`. Withdrawn 2026-07-29: that
+hook cannot inject (§3 C, measured), so restore is `SessionStart` on every source — exactly what
+this finding assumed when it was written. I3's argument is unaffected either way; the single hook
+it names as fallible is again a single hook, and it still does not fire on a cold fresh session.
+The finding below is left exactly as recorded.)* Make the **project-memory pointer file** (a stable
 `MEMORY.md` entry naming the live checkpoint's path) a required companion output of the
 checkpoint discipline, so continuity survives even when no hook runs. This is the mechanism
 that actually carried session `6f24a6f4`. Amends §7 and §8 (`project-memory` cross-ref becomes
@@ -625,7 +641,7 @@ staleness this run); enlarging the restore digest (no truncation loss observed).
 | **0. Hook reality spike** | Register no-op `PreCompact`, `PostCompact`, `SessionStart`, `SubagentStop` and `SessionEnd` hooks that log full input JSON. Trigger a manual and an automatic compaction and a subagent run. | Logged JSON matches §2 **on the client the consumer runs**. Specifically: `compact_summary` non-empty; `agent_transcript_path` present and readable; `PreCompact` stdout demonstrably reaches the summarizer. Re-verifies R1, resolves R9. |
 | **1. The note + skill** | `context-checkpointing` skill (schema + discipline) and `/checkpoint [--show]`. No hooks yet — pure agent discipline. | On a real task, agent maintains a valid `CHECKPOINT.md`; `/checkpoint --show` prints it; validation loop captured verbatim **with each check's trigger surface** (I2). |
 | **2. Seal hooks** | `PreCompact` seal: ensure-exists (skeleton fallback), snapshot, prune to N, `custom_instructions` fold-in, **preserve-verbatim instructions on stdout**. Plus `SubagentStop` and `SessionEnd` seals. Capability-gated on `git`. | Force `/compact` with a stub-only session → a skeleton snapshot appears; with a live note → sealed, timestamped, `agent_id`-tagged; old snapshots pruned. Two concurrent seats produce two distinct seals (R10). A session ended without compacting still leaves a seal. |
-| **3. Restore + `/resume`** | `PostCompact` delta restore; `SessionStart` digest for `resume`/`fork`/`startup`; `/resume` command. | Post-compaction session shows only what the summary dropped; a summary that already carried the validation loop produces **silence**; `/resume` prints the full note. |
+| **3. Restore + `/resume`** | `SessionStart` digest on **every** source including `compact` (§3 C); `PostCompact` observer that records what the summary kept or dropped; `/resume` command. | A marker injected by the `SessionStart` hook is present in the post-compaction transcript as a `hook_additional_context` attachment (leaf-cited, not inferred); the same marker from `PostCompact` is **absent** — the regression that guards the C2 error. Digest reads as the session's own recovered state, not as an instruction from a third party (§3 C, the injection-suspicion finding). `/resume` prints the full note. |
 | **4. Integration** | Wire into `spec-driven-development` (plan pointer + `beyond_plan`) and `project-memory` (I3 pointer, promotion on completion); `TaskCreated`/`TaskCompleted` enforcement of I1; `FileChanged` re-arming of I2; require it in the sleeper-service run loop. | A long `/self-improve` headless run survives a forced compaction and resumes on the correct validation step. An actionable that exists only in the note is **refused**, not silently accepted. |
 | **5. Freshness (optional)** | Staleness *nudge* (non-blocking), preferring `PostToolUseFailure` over a mutation counter, only if Phase 4 shows stale seals. | Nudge fires on failure runs; no interference with agent writes; measurably fresher seals. |
 
@@ -642,10 +658,9 @@ retargets is not an estimate.
 *Leave yourself a note before the amnesia hits.* The agent maintains a living
 `CHECKPOINT.md` — objective, plan pointer, decisions kept and rejected, working state, next
 steps, and above all the **validation loop** — a `PreCompact` hook seals it deterministically
-because the hook itself cannot reflect, and tells the summarizer what to preserve; a `PostCompact`
-hook reads the summary that came back and hands over only what it dropped. So work that has
-drifted beyond the plan is never lost to compression — and the note only says what the summary
-failed to.
+because the hook itself cannot reflect, and tells the summarizer what to preserve; a `SessionStart`
+hook hands it back on the far side, on every source including `compact`. So work that has
+drifted beyond the plan is never lost to compression.
 
 ---
 
@@ -679,7 +694,7 @@ native binary (`GIT_SHA 4073f595…`, built 2026-07-24), plus live hook-input ca
 | # | The document claimed | Actually | Consequence |
 |---|---|---|---|
 | C1 | `PreCompact` "cannot inject content into the compacted summary" — called the **central** constraint | Exit 0 and its **stdout is appended as the custom compact instructions** | §2 restated; §3 B gains a fourth step; §10 alternative 1 re-argued on the surviving ground |
-| C2 | `PostCompact` "unconfirmed", design "does not depend on" it | Exists, matched on `trigger`, input carries **`compact_summary`** | Restore split (§3 C, §7); R3 and R4 largely retired |
+| C2 | `PostCompact` "unconfirmed", design "does not depend on" it | Exists, matched on `trigger`, input carries **`compact_summary`** — but **cannot inject** (absent from the `hookSpecificOutput` union; its stdout goes to the user, not the model) | Observability only (§3 C, §9). The 2026-07-28 draft of this row read "restore split; R3 and R4 largely retired" — that was inferred, then **refuted by measurement 2026-07-29**; R3 and R4 are live |
 | C3 | `SessionStart.source` ∈ {startup, resume, clear, compact} | Also **`fork`**; input also carries `agent_type`, `model`, `session_title` | §2, §7 |
 | C4 | `watchPaths` / `reloadSkills` "unconfirmed" | Both real SessionStart output fields | §9 |
 | C5 | *(not known)* | `SubagentStart` / `SubagentStop` exist, matched on `agent_type`; `SubagentStop` carries **`agent_transcript_path`** | §4 schema, §9, R8 |
