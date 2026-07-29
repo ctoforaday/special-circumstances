@@ -46,10 +46,17 @@
 //
 // # How it knows which event fired
 //
-// From `-event`, passed explicitly by hooks.json. NOT inferred from the payload:
-// the spike never recorded whether `hook_event_name` is present in hook input, and
-// building on an unverified field is the failure this plan spent a cycle undoing.
-// The payload field is consulted only as a fallback if it happens to be there.
+// From `-event`, passed explicitly by hooks.json, with the payload's
+// `hook_event_name` as a fallback.
+//
+// When this was written the field was UNVERIFIED — the spike had never recorded
+// whether hook input carries it — so the flag was made the authority rather than
+// building on a guess. Measured 2026-07-29 (hook-surface-spike.md §6): the field
+// IS present, on every event checked. The design does not change, because the
+// reason for it was never doubt about the field: an explicit flag is the only
+// source that cannot drift, and a stale hooks.json remains the only way to reach
+// an unflagged invocation. What changed is that the fallback is now known to work
+// rather than hoped to.
 // Absent both, it seals and stays SILENT — sealing is harmless anywhere, emitting
 // instructions is not, so the conservative default is the quiet one.
 //

@@ -321,3 +321,94 @@ Three rules for anyone re-running this spike:
 
 A concurrency artifact is exactly the kind of thing that reads as a causal finding, and this spike
 produced three of them before the discipline was right. Each one looked like a result.
+
+---
+
+## 6. `watchPaths` and `FileChanged` — measured 2026-07-29
+
+Both were listed as *"real per the client's event catalogue"* (C4, C6) and **never exercised**.
+`plans/context-checkpointing.md` §5 builds improvement I2 on them: *"the check re-arms when its
+surface is edited, rather than depending on the agent remembering what arms it."* That claim was
+about to be implemented on an unmeasured capability, which is the mistake this record already
+carries once (§3c). So: spiked first.
+
+Method: a scratch project whose `SessionStart` hook returns `watchPaths` and whose `FileChanged`
+hook logs raw stdin. An agent then edits a watched file and creates a new one. Three runs, each in
+its own project directory, differing only in the **form** of the path registered.
+
+### Both events work — and `FileChanged` carries what I2 needs
+
+```
+hook_event_name  FileChanged
+file_path        …/fcspike/watched/target.txt
+event            change
+```
+
+Plus the common `session_id`, `transcript_path`, `cwd`, `prompt_id`. `watchPaths` alongside
+`additionalContext` in the same `SessionStart` response works — the marker arrived (`MARKER-SEEN=yes`)
+*and* the watch registered, so returning both is not an either/or.
+
+### What registers, and what silently does not
+
+Twelve forms, each in its own project directory, each with the edit **confirmed to have happened**
+before a "no event" result was believed. (Four early runs died on an API error and produced a
+vacuous `NONE`; they were re-run. A negative from a run that never edited anything is not a
+negative.)
+
+| `watchPaths` entry | fires? |
+|---|---|
+| `watched/target.txt` — file, relative | `change` |
+| `/abs/…/watched/target.txt` — file, absolute | `change` |
+| **`watched` — directory, relative** | **`change`, recursively (incl. `sub/deep.txt`)** |
+| **`/abs/…/watched` — directory, absolute** | **`change`** |
+| **`.` — the project root** | **everything, recursively** |
+| `watched/*` | nothing |
+| `watched/*.txt` | nothing |
+| `watched/**` | nothing |
+| `watched/**/*` | nothing |
+| `**/*.txt` | nothing |
+| `**/target.txt` | nothing |
+| `watched/.*\.txt` — a regex, not a glob | nothing |
+
+**It takes paths — files or directories. Neither globs nor regular expressions.** Every wildcard
+form fails the same way: silently, with the hook configured, the event enabled, and no error
+anywhere. The regex form was tested because "maybe the syntax is regex" is the obvious next
+hypothesis after one glob shape fails; it is not.
+
+### A directory watch is recursive AND catches new files
+
+This is the part a single-shape test got wrong. Watching the directory `watched`:
+
+```
+add    brandnew.txt
+add    sub/deepnew.txt
+```
+
+Both created by the agent during the run, one nested. So `watchPaths` **is** a directory watcher,
+it **does** follow the tree forward in time, and `event` distinguishes `add` from `change`.
+
+An earlier draft of this section concluded the opposite — *"it watches the literal files it is
+handed; a newly created file never fires"* — from a run that registered only file paths and one
+glob. Both halves of that were wrong, and the correction came from being asked whether the failure
+was really about *glob syntax*. It was not; the axis is **path vs pattern**, not one glob dialect
+vs another.
+
+### What this means for I2
+
+Better than the first reading, not worse. A validation check's trigger surface — *"any `.go` edit"*,
+`manifest/*.yml` — is registered by **watching the directories that contain it**, not by expanding
+the pattern to a snapshot of files. New files under those directories fire `add`. The re-arm hook
+filters on `file_path` itself, which it must do anyway since a directory watch is coarser than the
+pattern.
+
+**Foot-gun, measured:** watching `.` catches the hook's own output. The `.`-watch run logged
+`add: fc.jsonl` followed by nine `change: fc.jsonl` events — the `FileChanged` hook writing its log
+inside the watched tree, re-triggering itself. Watch the specific directories, never the project
+root, and keep hook state outside whatever is watched.
+
+### Also settled here
+
+**`hook_event_name` is present in every payload** — `SessionStart`, `FileChanged`, `SessionEnd` all
+carry it. `sc-checkpoint-seal` treats it as a fallback behind its explicit `-event` flag and
+documents it as unverified. The flag-first design stands (a stale `hooks.json` is still the only way
+to reach an unflagged invocation), but the fallback is now measured rather than hoped for.
