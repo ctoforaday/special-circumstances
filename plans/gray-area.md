@@ -256,13 +256,31 @@ than broken where its event is absent.
 |---|---|---|
 | **0. Hook reality spike** | Register no-op hooks for `SubagentStart`, `SubagentStop` and `SessionEnd` that log full input JSON. Run a `/research` run with subagents. | Logged JSON matches §3. Specifically: `agent_transcript_path` present, readable, and pointing at the seat's own file — not the parent's |
 | **1. Capture** | `SubagentStop` writes a per-seat trajectory manifest for a run | A completed `/research` run yields one manifest row per seat with a resolvable transcript path, and no glob of the projects directory anywhere |
-| **2. The miner** | Go CLI over the manifest: act-vs-claim, rework, stalls. Provenance on every answer | Re-derive by machine the two hand analyses (attestation audit, friction mining) from the 2026-07-18 run and reconcile against the hand results |
+| **2. The miner** | Go CLI over the manifest: act-vs-claim, rework, stalls. Provenance on every answer | ~~Re-derive by machine the two hand analyses from the 2026-07-18 run and reconcile against the hand results~~ — **not runnable, see below.** Substitute: parse a live-generated transcript, resolve the aliased-invocation case, and refuse to emit any row without provenance |
 | **3. Instrumented reasoning** | Launch runs with `--thinking-display summarized`; summaries feed exploration queries only | Summary text is present in seat transcripts **and** the miner refuses to return it on an adjudication query |
 | **4. Bench symmetry** | The same inspections aimed at the bench | An inspection of the bench produces the same declared, cited output shape as one aimed at a seat |
 | **5. Checkpoints as a mined input** | Read sealed notes as declared claims and adjudicate them against the trajectory | A checkpoint asserting a validation step that the trajectory shows never ran is reported as a finding, with provenance |
 
 **Continuity is not a phase here.** It ships in `prosthetic-conscience` on its own schedule (§4) and
 does not gate any phase above. Phase 5 depends on it having shipped, and is the only one that does.
+
+**Phase 2's original acceptance test cannot be run, and this is worth knowing before anyone plans
+around it.** It named the 2026-07-18 run's two hand analyses — the attestation audit and friction
+mining — as the ground truth to reconcile against. Those analyses read **seat transcripts**, and the
+transcripts were never committed. `research/2026-07-18_gray-area-telemetry/trajectories/` holds the
+Workflow runtime's journal (25 `started` + 25 `result` records carrying `agentId`, a spawn ledger
+with no tool calls) and per-round board metrics. The run record mentions a 25-transcript tarball; it
+is not in the repository, and correctly so — the files are large and carry conversation content.
+
+So the historical re-derivation is unavailable until a run is captured *with Phase 1 in place*,
+which is the first thing that will preserve the trajectory paths deliberately rather than by
+accident. Two consequences:
+
+- The substitute criterion above is weaker: it proves the reader works on real transcripts, not
+  that it reproduces a known-good human result. **Do not treat a green Phase 2 as evidence that the
+  miner agrees with a human auditor.** That check is deferred, not passed.
+- The first `/research` run after Phase 1 ships is worth treating as the real acceptance fixture.
+  Capture it, keep the manifest, and reconcile then.
 
 **Validation loop, written before implementation** — the commands that prove the plugin:
 

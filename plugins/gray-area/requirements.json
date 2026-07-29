@@ -14,12 +14,17 @@
     }
   ],
   "_hook_binaries": {
-    "_comment": "OUR compiled hooks, not external deps — one per directory under tools/cmd/. /prosthetic-conscience:doctor --fix fetches the CI-built release asset <name>_{goos}_{goarch}{exe} (SHA256-verified) into bin/, falling back to go build only as a dev convenience. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
+    "_comment": "OUR compiled hooks, not external deps \u2014 one per directory under tools/cmd/. /prosthetic-conscience:doctor --fix fetches the CI-built release asset <name>_{goos}_{goarch}{exe} (SHA256-verified) into bin/, falling back to go build only as a dev convenience. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
     "binaries": [
       {
         "name": "gray-area-capture",
         "event": "SubagentStop",
-        "purpose": "records one manifest row per seat naming that seat's own agent_transcript_path — an index, never a copy of conversation content; never blocks the subagent"
+        "purpose": "records one manifest row per seat naming that seat's own agent_transcript_path \u2014 an index, never a copy of conversation content; never blocks the subagent"
+      },
+      {
+        "name": "gray-area",
+        "event": "(command-line, not a hook)",
+        "purpose": "the miner: lists tool invocations with provenance and resolves shell-aliased calls; refuses to emit a row it cannot cite"
       }
     ]
   }

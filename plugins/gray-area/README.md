@@ -6,7 +6,7 @@ Trajectory evidence for [Special Circumstances](../../README.md): **what a sessi
 
 Named for the GCU *Gray Area* (*Excession*) — the Culture's mind-reader, the ship that establishes what happened by reading directly, and is shunned by other Minds for doing it. The capability is necessary and distasteful at once, and the name is meant to keep that uncomfortable.
 
-**Status: Phase 1 (capture) only.** The plugin records where each seat's trajectory is. Nothing mines it yet.
+**Status: Phase 2 — capture, plus a reader.** The plugin records where each seat's trajectory is, and `gray-area tools` lists what a seat actually invoked, with provenance on every row. Nothing yet judges what it finds.
 
 ## What it does today
 
@@ -19,6 +19,16 @@ Every subagent writes its own transcript. When a seat finishes, `SubagentStop` h
 Keyed by session, because every subagent shares its parent's `session_id` — which makes it exactly the right grouping key: one manifest per run, one row per seat.
 
 That replaces the thing every existing consumer of this data does by hand: sweeping `~/.claude/projects/` and guessing which file belongs to which seat. The manifest is *handed* the path.
+
+## Reading a trajectory
+
+```
+gray-area tools <transcript.jsonl> [-binary <name>] [-json]
+```
+
+Lists every tool invocation as `file:line uuid seat tool target` — so a reader quotes the line, not the tool's opinion of it. An event that cannot be cited is **never emitted**; it is counted and reported as suppressed. If any line failed to parse, the tool warns that the listing is over a *subset*, because an answer over part of the record that reads like an answer over all of it is the failure this exists to prevent.
+
+`-binary <name>` resolves shell-aliased invocations. A seat that runs `REC=./feov-record ; "$REC" finding` is invisible to a matcher that greps for the binary followed by a verb — a measured ~11% of real invocations. The resolver tracks single-level variable assignments so the verb is attributed to the right binary. It is not a shell: command substitution, arrays and indirect expansion are out of scope, and it returns nothing rather than guessing, because a wrong attribution is worse than a missed one when the point is checking a claim against what was actually run.
 
 ## What the manifest is, and is not
 
