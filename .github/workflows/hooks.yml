@@ -24,12 +24,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
@@ -56,12 +56,12 @@ jobs:
       run:
         working-directory: plugins/frank-exchange-of-views/tools
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
@@ -69,7 +69,7 @@ jobs:
           # publish path is worth more.
           cache: false
           go-version: "1.24"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
           # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
@@ -102,12 +102,12 @@ jobs:
       run:
         working-directory: plugins/gray-area/tools
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
@@ -137,13 +137,13 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
           # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
@@ -188,7 +188,7 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Nothing here talks to the remote after checkout — the check reads the merge
           # base from local refs — so the token has no reason to persist into .git/config.
@@ -210,12 +210,12 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
           # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
@@ -225,7 +225,7 @@ jobs:
           # `package-manager-cache`, does not exist until a later major version — which is
           # exactly the bump the Dependabot config added here will propose.
           node-version: "24"
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
@@ -243,12 +243,12 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # NOT `cache: false`: setup-node's `cache` input takes a package-manager name
           # (npm|yarn|pnpm), and inputs arrive as strings — `false` would be read as the
@@ -335,12 +335,12 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Caching is off by design, not oversight: this workflow also PUBLISHES on a
           # tag, and a cache a pull request can write is a cache a release build would
