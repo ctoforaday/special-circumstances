@@ -1,29 +1,151 @@
 package main
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
-func TestGate(t *testing.T) {
+// project builds a qlty-initialised temp project holding one file, and returns
+// the project dir and the absolute path of that file.
+func project(t *testing.T, name string) (dir, file string) {
+	t.Helper()
+	dir = t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".qlty"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".qlty", "qlty.toml"), []byte("config_version = \"0\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	file = filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte("original\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir, file
+}
+
+func healthy(dir string) env {
+	return env{projectDir: dir, qltyPresent: true, mode: modeFull, timeout: time.Second, exec: nil}
+}
+
+func TestDecideSkips(t *testing.T) {
+	dir, file := project(t, "a.go")
+	outside := filepath.Join(t.TempDir(), "elsewhere.go")
+	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bare := t.TempDir() // no .qlty/qlty.toml
+
 	cases := []struct {
 		name   string
-		qlty   bool
+		env    env
 		file   string
-		expect []string
+		expect string
+		warn   bool
 	}{
-		{"absent warns and points to doctor", false, "a.go", []string{"skipped", "doctor --fix", "a.go"}},
-		{"present indicates it would run qlty", true, "b.md", []string{"qlty fmt", "qlty check", "b.md"}},
+		{"mode off", func() env { e := healthy(dir); e.mode = modeOff; return e }(), file, "SC_QUALITY_GATE=off", false},
+		{"no file in payload", healthy(dir), "unknown", "no file", false},
+		{"qlty absent warns and points at the doctor",
+			func() env { e := healthy(dir); e.qltyPresent = false; return e }(), file, "doctor --fix", true},
+		{"no project dir", func() env { e := healthy(dir); e.projectDir = ""; return e }(), file, "CLAUDE_PROJECT_DIR", false},
+		{"project not qlty-initialised is silent", healthy(bare), filepath.Join(bare, "a.go"), "qlty init", false},
+		{"file outside the project", healthy(dir), outside, "outside the project", false},
+		{"file does not exist", healthy(dir), filepath.Join(dir, "ghost.go"), "not a readable file", false},
+		{"directory is not a file", healthy(dir), filepath.Join(dir, ".qlty"), "not a readable file", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := gate(c.qlty, c.file)
-			for _, want := range c.expect {
-				if !strings.Contains(got, want) {
-					t.Fatalf("gate(%v,%q) = %q; missing %q", c.qlty, c.file, got, want)
-				}
+			p := decide(c.env, c.file)
+			if p.run {
+				t.Fatalf("expected a skip, got a run plan %+v", p)
+			}
+			if !strings.Contains(p.skip, c.expect) {
+				t.Errorf("skip = %q; missing %q", p.skip, c.expect)
+			}
+			if p.warn != c.warn {
+				t.Errorf("warn = %v, want %v (only actionable machine state earns stderr)", p.warn, c.warn)
 			}
 		})
+	}
+}
+
+func TestDecideRuns(t *testing.T) {
+	dir, file := project(t, filepath.Join("pkg", "a.go"))
+
+	p := decide(healthy(dir), file)
+	if !p.run || !p.format {
+		t.Fatalf("full mode must run fmt + check, got %+v", p)
+	}
+	if p.rel != filepath.Join("pkg", "a.go") {
+		t.Errorf("qlty must be handed a project-relative path, got %q", p.rel)
+	}
+
+	e := healthy(dir)
+	e.mode = modeCheck
+	if p := decide(e, file); !p.run || p.format {
+		t.Fatalf("check-only must run without rewriting, got %+v", p)
+	}
+}
+
+func TestParseMode(t *testing.T) {
+	for in, want := range map[string]string{
+		"off": modeOff, "OFF": modeOff, "0": modeOff, "false": modeOff, "disabled": modeOff, "no": modeOff,
+		"check": modeCheck, "check-only": modeCheck, " CheckOnly ": modeCheck,
+		"": modeFull, "on": modeFull, "anything": modeFull,
+	} {
+		if got := parseMode(in); got != want {
+			t.Errorf("parseMode(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestParseTimeout(t *testing.T) {
+	for in, want := range map[string]time.Duration{
+		"":     defaultTimeout,
+		"abc":  defaultTimeout,
+		"0":    defaultTimeout,
+		"-5":   defaultTimeout,
+		"45":   45 * time.Second,
+		" 5 ":  5 * time.Second,
+		"9999": maxTimeout, // an unbounded hook timeout would hang every edit
+	} {
+		if got := parseTimeout(in); got != want {
+			t.Errorf("parseTimeout(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestWithinRejectsEscapes(t *testing.T) {
+	dir := t.TempDir()
+	if _, ok := within(dir, filepath.Join(dir, "..", "escape.go")); ok {
+		t.Error("a path climbing out of the project must be rejected")
+	}
+	if rel, ok := within(dir, "rel/a.go"); !ok || rel != filepath.Join("rel", "a.go") {
+		t.Errorf("a relative path is resolved against the project dir: %q %v", rel, ok)
+	}
+}
+
+func TestClampBoundsFeedback(t *testing.T) {
+	long := strings.Repeat("issue line\n", maxFeedbackLn*2)
+	got := clamp(long)
+	if n := strings.Count(got, "\n") + 1; n > maxFeedbackLn+2 {
+		t.Errorf("clamp left %d lines", n)
+	}
+	if !strings.Contains(got, "truncated") {
+		t.Error("truncation must be visible, not silent")
+	}
+	if len(clamp(strings.Repeat("x", maxFeedbackLen*2))) > maxFeedbackLen+80 {
+		t.Error("character bound not applied")
+	}
+	if got := clamp("  three issues  "); got != "three issues" {
+		t.Errorf("short output must pass through trimmed, got %q", got)
 	}
 }
 
@@ -36,5 +158,38 @@ func TestFileFrom(t *testing.T) {
 	in.ToolInput.FilePath = "f.txt"
 	if got := fileFrom(in); got != "f.txt" {
 		t.Fatalf("file_path should win over path: %q", got)
+	}
+}
+
+// The real process boundary, exercised against a stand-in for qlty so the
+// exit-code and timeout paths are proven rather than assumed.
+func TestExecQlty(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh as a stand-in for qlty")
+	}
+	dir := t.TempDir()
+
+	out, code, err := execQlty(context.Background(), dir, "sh", "-c", "echo hi; exit 3")
+	if err != nil {
+		t.Fatalf("a non-zero exit is data, not an error: %v", err)
+	}
+	if code != 3 || !strings.Contains(out, "hi") {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+
+	if _, _, err := execQlty(context.Background(), dir, "definitely-not-a-real-binary-xyz"); err == nil {
+		t.Error("an unlaunchable binary must surface as an error")
+	}
+
+	// A grandchild holding the output pipe open is the realistic hang: qlty dies
+	// on the deadline, the linter it spawned does not. WaitDelay must bound it.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if _, _, err := execQlty(ctx, dir, "sh", "-c", "sleep 30 & wait"); err == nil {
+		t.Error("a hung qlty must surface as an error, not a hang")
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Errorf("the deadline is not a real ceiling: took %v", elapsed)
 	}
 }

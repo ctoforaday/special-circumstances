@@ -245,9 +245,12 @@ that makes an empty export meaningful. Tracked there, not here.
 
 ## 7. Open questions
 
-- **Do summaries survive compaction?** A `PostCompact` hook now receives the summary (see
-  [`gray-area.md`](gray-area.md) §3), but whether pre-compaction thinking blocks remain readable in
-  the transcript after the boundary is unmeasured.
+- **Do summaries survive compaction?** A `PostCompact` hook receives the summary (see
+  [`gray-area.md`](gray-area.md) §3) — for *reading* only; it cannot inject
+  ([`hook-surface-spike.md`](hook-surface-spike.md) §3a). Whether pre-compaction thinking blocks
+  remain readable in the transcript after the boundary is still unmeasured, and is the question
+  that matters here: mining reads the transcript, not the live context, so the answer is
+  independent of what any hook can inject.
 - **Is there a per-agent override?** The latch is session-wide. Whether an individual subagent can
   be spawned with a different display than its parent was not found in the binary and is assumed
   not possible.
