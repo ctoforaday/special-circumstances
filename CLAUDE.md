@@ -32,3 +32,4 @@ Always-on rules bind every session via the imports below; the rest load on deman
 ## Developing this repo
 
 - Every PR that changes a plugin's content MUST bump that plugin's `version` in its `plugin.json` — `/plugin update` is version-gated and ships nothing without it. AFTER merging, run `/plugin update` + `/reload-plugins` to pull the change.
+- BEFORE trusting a coverage number, YOU MUST remember what it cannot see: `internal/secrets` reported **100.0% of statements** while two of its eight secret patterns could be deleted outright with the suite green. `(cd scripts && go run ./mutate)` asks the question coverage cannot — would the tests NOTICE? It is an on-demand audit, not a CI gate (minutes to run, and the residue is judgement: equivalent and platform-conditional mutants cannot be killed by any test). Survivors are a list to explain, not a number to drive to zero.

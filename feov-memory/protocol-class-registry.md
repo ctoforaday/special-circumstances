@@ -20,7 +20,7 @@ survived and re-emerged at the adjacent seat, where it passed every test the
 patch had added because those tests were written about the instance too.
 
 The rule this registry enforces: **a rule patch names its class and sweeps the
-siblings before it ships.** `scripts/rule-sweep.mjs` checks it mechanically,
+siblings before it ships.** `scripts/rulesweep` (Go) checks it mechanically,
 because a sweep requirement with nothing checking it would itself be an instance
 of `policy-without-mechanism` — a class in this very registry.
 

@@ -62,12 +62,12 @@ export function assertGolden(importMetaUrl, name, actual) {
   }
 
   if (!existsSync(path)) {
-    assert.fail(`missing golden ${name} — record it with: node scripts/golden.mjs --update`)
+    assert.fail(`missing golden ${name} — record it with: (cd scripts && go run ./golden -update)`)
   }
   const want = normalize(readFileSync(path, 'utf8'))
   if (got !== want) {
     assert.fail(`${name} differs from its golden.\n${firstDifference(want, got)}\n` +
-      `If this change is INTENTIONAL: node scripts/golden.mjs --update, then commit the testdata change ON ITS OWN so the review surface stays readable.`)
+      `If this change is INTENTIONAL: (cd scripts && go run ./golden -update), then commit the testdata change ON ITS OWN so the review surface stays readable.`)
   }
 }
 
