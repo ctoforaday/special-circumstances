@@ -22,12 +22,8 @@ func newDispose() *cobra.Command {
 			seat.SetSame(cmd, p, flags.Into)
 			// --reason is the prose channel (Prose provides it); it lands under `reason`,
 			// stated when the fate is declined or banked.
-			reason, err := seat.Reason(cmd)
-			if err != nil {
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
-			}
-			if reason != "" {
-				p.Set("reason", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispose", p); err != nil {
 				return nil, err

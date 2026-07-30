@@ -34,12 +34,8 @@ func newClose() *cobra.Command {
 			// --file read and so was the only prose-bearing verb with no --text at all —
 			// the same shape as the --prose-file divergence, one layer down: a verb that
 			// opts out of the shared helper drifts from it by construction.
-			prose, err := seat.Reason(cmd)
-			if err != nil {
+			if err := seat.SetReason(cmd, p, "prose"); err != nil {
 				return nil, err
-			}
-			if prose != "" {
-				p.Set("prose", prose)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "close", p); err != nil {
 				return nil, err

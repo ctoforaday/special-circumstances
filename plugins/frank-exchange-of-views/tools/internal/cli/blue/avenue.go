@@ -36,13 +36,9 @@ func newAvenue() *cobra.Command {
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// --reason is the prose channel (Prose provides it); it lands under `reason`,
 			// which validate requires for a declined or abandoned avenue.
-			reason, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Line, flags.Status, flags.Method)
-			if reason != "" {
-				p.Set("reason", reason)
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+				return nil, err
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "avenue", p); err != nil {
 				return nil, err
