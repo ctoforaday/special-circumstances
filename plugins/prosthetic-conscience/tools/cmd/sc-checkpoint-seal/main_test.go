@@ -128,6 +128,93 @@ func TestPruneKeepsNewest(t *testing.T) {
 	if got := prune(names, 0); len(got) != 3 {
 		t.Errorf("keep=0 should delete all, got %v", got)
 	}
+	// The retention BOUNDARY. The cases above are at keep=2 (over), keep=5 (well
+	// under) and keep=0, so none of them lands on len(names) == keep — a mutation
+	// sweep confirmed `<=` could become `<` with the suite still green, which would
+	// delete the oldest snapshot on every seal once the directory reached its limit.
+	if got := prune(names, 3); got != nil {
+		t.Errorf("exactly at the limit must delete nothing, got %v", got)
+	}
+	if got := prune(names, 4); got != nil {
+		t.Errorf("one under the limit must delete nothing, got %v", got)
+	}
+	// A negative keep is nonsense input, and the answer to nonsense is to delete
+	// nothing rather than to compute a negative slice bound and panic inside a hook
+	// that must never fail.
+	if got := prune(names, -1); got != nil {
+		t.Errorf("a negative keep must delete nothing, got %v", got)
+	}
+	if got := prune(nil, 2); got != nil {
+		t.Errorf("an empty directory must delete nothing, got %v", got)
+	}
+}
+
+// occasion is what a reader uses months later to tell a compaction seal from a
+// session's last words, and it is NEVER empty by contract. The per-event refinements
+// were unpinned: a mutation sweep inverted `in.Reason != ""` with the suite green, which
+// yields the dangling label "end-" for a SessionEnd carrying no reason — and `other` is
+// the reason a headless `claude -p` run reports, so that is not a rare shape.
+func TestOccasionIsNeverEmptyAndNamesItsCause(t *testing.T) {
+	cases := []struct {
+		event string
+		in    hookInput
+		want  string
+	}{
+		{evSessionEnd, hookInput{Reason: "clear"}, "end-clear"},
+		{evSessionEnd, hookInput{Reason: "other"}, "end-other"},
+		{evSessionEnd, hookInput{}, "end"},
+		{evSubagentStop, hookInput{AgentType: "probe"}, "seat-probe"},
+		{evSubagentStop, hookInput{}, "seat"},
+		{evPreCompact, hookInput{Trigger: "auto"}, "auto"},
+		{evPreCompact, hookInput{Trigger: "manual"}, "manual"},
+		{evPreCompact, hookInput{}, "compact"},
+		// An unlabelled invocation still has to produce something interpretable.
+		{"", hookInput{Trigger: "auto"}, "auto"},
+		{"", hookInput{}, "unknown"},
+	}
+	for _, c := range cases {
+		got := occasion(c.event, c.in)
+		if got != c.want {
+			t.Errorf("occasion(%q, %+v) = %q, want %q", c.event, c.in, got, c.want)
+		}
+		if got == "" || strings.HasSuffix(got, "-") {
+			t.Errorf("occasion(%q, %+v) = %q — an unlabelled or dangling occasion is one nobody can interpret later", c.event, c.in, got)
+		}
+	}
+}
+
+// sanitize is the filename-escape defence: agent_type is vendor-supplied and reaches
+// this function on its way into a path. Its rune-class boundaries were entirely
+// unpinned — a mutation sweep flipped every one of `a`/`z`/`A`/`Z`/`0`/`9` with the
+// suite still green, so the character classes were asserted by nothing.
+func TestSanitizeKeepsExactlyTheSafeClasses(t *testing.T) {
+	// The boundary characters of every kept range, plus the two kept punctuation
+	// marks. Each must survive VERBATIM.
+	for _, keep := range []string{"a", "z", "A", "Z", "0", "9", "-", "_", "azAZ09-_"} {
+		if got := sanitize(keep); got != keep {
+			t.Errorf("sanitize(%q) = %q; every character here is safe on every target platform", keep, got)
+		}
+	}
+	// The characters immediately OUTSIDE each range. `/` and `\` are the ones that
+	// matter (a value with a separator must not escape the snapshot directory), and
+	// the rest guard the range edges: `` ` `` precedes `a`, `{` follows `z`, `@`
+	// precedes `A`, `[` follows `Z`, `/` precedes `0`, `:` follows `9`.
+	for _, drop := range []string{"/", "\\", "`", "{", "@", "[", ":", ".", " ", "..", "é", "\x00"} {
+		got := sanitize(drop)
+		if strings.ContainsAny(got, `/\`) {
+			t.Errorf("sanitize(%q) = %q; a path separator survived", drop, got)
+		}
+		for _, r := range got {
+			if r != '-' {
+				t.Errorf("sanitize(%q) = %q; every unsafe rune must become '-', got %q", drop, got, r)
+			}
+		}
+	}
+	// Replacement is per-rune, so length is preserved for ASCII and the result stays
+	// a single path component.
+	if got := sanitize("general-purpose/../etc"); strings.Contains(got, "..") && strings.Contains(got, "/") {
+		t.Errorf("sanitize(%q) = %q; a traversal survived intact", "general-purpose/../etc", got)
+	}
 }
 
 func TestHeadings(t *testing.T) {
