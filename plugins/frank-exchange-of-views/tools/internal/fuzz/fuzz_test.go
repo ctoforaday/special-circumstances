@@ -3,12 +3,28 @@ package fuzz
 // Fuzz the ACTUAL debate.js orchestrator against the REAL feov-record binary. goja runs the
 // unmodified script (harness faked); each agent() call is a seat that makes coherent, random,
 // VALID tool calls into a real run directory and returns a randomised envelope to drive
-// debate.js's own branches (verdict, gap counts, rounds). The oracle per run is `verify`:
-// whatever random path the debate takes, the record it leaves must satisfy every invariant —
-// plus the run must terminate and assemble. A failing run is a real finding (in debate.js, the
-// tool, or verify), reproducible from its seed.
+// debate.js's own branches (verdict, gap counts, rounds, petitions). A failing run is a real
+// finding (in debate.js, the tool, or verify), reproducible from its seed.
 //
-// Run: go test ./internal/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N)
+// COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
+// not a happy path: lens (cite/finding/observe/avenue/friction/render), merge (position/closing/
+// mint/close incl. closed_with_regression/dispose across its full --as domain/regrade any axis/
+// dispute-respond/spot-check/verdict/petition/render), blue (position/closing/confidence/dispute
+// across all four dimensions/manifest-row/avenue/revision/retire/petition/render), bench
+// (opinion/outcome incl. --exhausted/--deadlocked/certify/assemble/petition-rule/render). The
+// petition->petition-rule docket and the disputes docket are driven through the ENVELOPE (see
+// maybePetition/rulePetitions, raiseDisputes/answerDisputes), so debate.js's routing runs too.
+//
+// ORACLES per run: (1) verify passes — whatever path the debate took, the record satisfies every
+// invariant; (2) the JSON views (findings/friction/debate) exit 0 and parse; (3) every dialectic
+// prose renders in the report (the A1-A3 write-here/read-there class); (4) #111 tier — every seat
+// dispatched on the configured tier. COVERAGE GATE: across the run set, every event-emitting verb
+// in verbsWithEvents must fire at least once (a regression that silently drops one fails loudly).
+// `halt` terminates the run, so it is covered by the dedicated TestFuzzHaltPath, not the sweep.
+//
+// Run: go test ./internal/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N).
+// Confidence sweep: FUZZ_N=1000 go test ./internal/fuzz -run TestFuzzDebate -timeout 1200s.
+// FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
 	"encoding/json"
@@ -47,9 +63,45 @@ type runner struct {
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
+	// petition docket: petitions a party seat RAISED (event emitted + envelope entry), awaiting
+	// the judge-petition sitting hearPetitions dispatches next. Each: {who, class}. Mirrors the
+	// disputes machinery (raised) so the fuzz drives the petition/petition-rule path end to end.
+	petitioned []map[string]any
+	// forceHalt makes the judge-petition sitting rule HALT (the dedicated halt-path test), instead
+	// of the granted/denied the random path uses. A halt ends the run HALTED; kept out of the
+	// random oracle on purpose (it reshapes every downstream expectation).
+	forceHalt bool
 }
 
 func (r *runner) coin(pct int) bool { return r.rng.Intn(100) < pct }
+
+// maybe runs fn with pct% probability — the coin-gated-action idiom, without the `if` nesting.
+func (r *runner) maybe(pct int, fn func()) {
+	if r.coin(pct) {
+		fn()
+	}
+}
+
+// cmd is a small fluent builder for a seat verb — `<role> <verb> --seat-id <seatID> …` (exec
+// appends --run). It collapses the conditional-flag arg-slice boilerplate: set() always adds a
+// flag, on() adds it with pct% probability, bare() adds a boolean flag. run() shells the binary.
+type cmd struct {
+	r    *runner
+	args []string
+}
+
+func (r *runner) do(role, verb, seatID string) *cmd {
+	return &cmd{r: r, args: []string{role, verb, "--seat-id", seatID}}
+}
+func (c *cmd) set(flag, val string) *cmd { c.args = append(c.args, flag, val); return c }
+func (c *cmd) bare(flag string) *cmd     { c.args = append(c.args, flag); return c }
+func (c *cmd) on(pct int, flag, val string) *cmd {
+	if c.r.coin(pct) {
+		c.args = append(c.args, flag, val)
+	}
+	return c
+}
+func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
 
 // dialectic emits the round's transcript onto the record the way Stage 1 seats do — a position
 // narrative and a closing per open gap — plus, at random, a regrade, a lineage-carrying
@@ -65,7 +117,8 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 	}
 	if role == "merge" && len(open) > 0 && r.coin(30) {
 		id := open[r.rng.Intn(len(open))]
-		_, _ = r.exec("merge", "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id, "--likelihood", r.g())
+		dim := pick(r.rng, regradeDims) // move any grade axis, not only likelihood
+		_, _ = r.exec("merge", "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id, "--"+dim, r.g())
 	}
 }
 
@@ -80,10 +133,11 @@ func (r *runner) raiseDisputes(seatID string, open []string) []map[string]any {
 			continue
 		}
 		proposed := r.g()
-		if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", "impact", "--proposed", proposed, "--reason", "dispute-evidence-for-"+id+"-by-"+seatID); err != nil {
+		dim := pick(r.rng, disputeDims) // contest each dimension over a run, not only impact
+		if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", dim, "--proposed", proposed, "--reason", "dispute-evidence-for-"+id+"-by-"+seatID); err != nil {
 			continue
 		}
-		ref := map[string]any{"gap_id": id, "dimension": "impact", "proposed": proposed}
+		ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed}
 		refs = append(refs, ref)
 		r.raised = append(r.raised, ref)
 	}
@@ -110,6 +164,54 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 	}
 	r.raised = nil
 	return refs
+}
+
+// maybePetition sometimes files a petition (W2c, the constitutional short-circuit): it emits the
+// petition event AND returns the envelope's petitions entry, tracking {who,class} so the
+// judge-petition sitting hearPetitions dispatches next can rule on it. Only the seats debate.js
+// actually routes to hearPetitions are eligible (blue-synthesize/blue-respond/red-merge); the
+// random path never returns a HALT ruling, so the run continues. Returns arr() (no petition) most
+// of the time — a petition detours the run through a bench sitting, so it stays occasional.
+func (r *runner) maybePetition(role, seatID string) []any {
+	if !r.forceHalt && !r.coin(20) { // forceHalt guarantees a petition so the halt sitting fires
+		return arr()
+	}
+	class := pick(r.rng, petitionClasses)
+	basis := "fuzz petition basis from " + seatID
+	if _, err := r.exec(role, "petition", "--seat-id", seatID, "--petition-class", class, "--reason", basis, "--relief", "fuzz relief"); err != nil {
+		return arr()
+	}
+	r.petitioned = append(r.petitioned, map[string]any{"who": seatID, "class": class})
+	return arr(map[string]any{"class": class, "basis": basis, "relief": "fuzz relief"})
+}
+
+// rulePetitions is the judge-petition sitting: it rules on every pending petition and returns the
+// envelope rulings, clearing the docket. petition-rule takes only granted|denied (a halt is its
+// OWN verb), so a forceHalt run emits `bench halt` and returns a halt ruling — the dedicated
+// halt-path test; the random path rules granted/denied and the run continues.
+func (r *runner) rulePetitions(seatID string) map[string]any {
+	var rulings []any
+	for _, p := range r.petitioned {
+		who, _ := p["who"].(string)
+		class, _ := p["class"].(string)
+		opinion := "fuzz ruling opinion for " + who
+		ruling := "granted"
+		if r.forceHalt {
+			ruling = "halt"
+			_, _ = r.exec("bench", "halt", "--seat-id", seatID, "--reason", "fuzz judicial halt — safety boundary")
+		} else {
+			if r.coin(50) {
+				ruling = "denied"
+			}
+			_, _ = r.exec("bench", "petition-rule", "--seat-id", seatID, "--petitioner", who, "--petition-class", class, "--as", ruling, "--reason", opinion)
+		}
+		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "opinion": opinion})
+	}
+	r.petitioned = nil
+	if rulings == nil {
+		rulings = arr()
+	}
+	return map[string]any{"rulings": rulings, "friction": arr()}
 }
 
 func (r *runner) exec(args ...string) (string, error) {
@@ -152,6 +254,19 @@ func (r *runner) mint(seatID string) string {
 	} else {
 		args = append(args, "--class", "fuzzcls")
 	}
+	// optional grade/lineage flags — exercised so mint's full flag surface runs, not the minimum.
+	if r.coin(50) {
+		args = append(args, "--severity", r.g())
+	}
+	if r.coin(50) {
+		args = append(args, "--cx", r.g())
+	}
+	if fl := r.someFinding(); fl != "" && r.coin(50) {
+		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned label)
+	}
+	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
+		args = append(args, "--supersedes", open[r.rng.Intn(len(open))]) // lineage: this gap replaces an ancestor
+	}
 	out, err := r.exec(args...)
 	if err != nil {
 		return ""
@@ -165,6 +280,24 @@ func (r *runner) mint(seatID string) string {
 		return ""
 	}
 	return env.Result.GapID
+}
+
+// someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
+// --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
+func (r *runner) someFinding() string {
+	out, err := r.exec("merge", "show", "--view", "findings")
+	if err != nil {
+		return ""
+	}
+	var f struct {
+		Findings []struct {
+			Label string `json:"label"`
+		} `json:"findings"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &f) != nil || len(f.Findings) == 0 {
+		return ""
+	}
+	return f.Findings[r.rng.Intn(len(f.Findings))].Label
 }
 
 func (r *runner) openGaps() []string {
@@ -187,7 +320,18 @@ func (r *runner) openGaps() []string {
 	return ids
 }
 
-func (r *runner) closeGap(seatID, id string) {
+func (r *runner) closeGap(seatID, id string, allowReg bool) {
+	// A regression close carries lineage forward: it mints a successor and closes WITH it
+	// (record.go requires --successor for closed_with_regression). Only allowed on the first close
+	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
+	if allowReg && r.coin(25) {
+		if succ := r.mint(seatID); succ != "" {
+			if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed_with_regression",
+				"--successor", succ, "--reason", "fuzz regression close", "--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec"); err == nil {
+				return
+			}
+		}
+	}
 	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed", "--reason", "fuzz close",
 		"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec")
 }
@@ -196,7 +340,20 @@ var avenueStatus = []string{"pursued", "abandoned", "declined"}
 var obsKind = []string{"note", "checked-held"}
 var disposeAs = []string{"declined", "banked"}
 
-func pick(rng *rand.Rand, xs []string) string { return xs[rng.Intn(len(xs))] }
+// disposeInto are the dispositions that FOLD an observation into a gap — they take --into <open
+// gap>. Kept separate from disposeAs so the fuzz only picks them when an open gap exists.
+var disposeInto = []string{"minted-as", "folded-into"}
+
+// disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
+var disputeDims = []string{"severity", "likelihood", "impact", "complexity_cost"}
+
+// petitionClasses is the full petition-class domain (debate.js PETITIONS enum).
+var petitionClasses = []string{"ethical", "safety", "integrity", "constitutional"}
+
+// regradeDims are the grade axes a regrade can move (each maps to its flag below).
+var regradeDims = []string{"severity", "likelihood", "impact", "cx"}
+
+func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
 
 // extras fires a RANDOM subset of a role's REMAINING verb surface, so no two fuzz paths
 // look alike and every seat exercises far more than its happy path. Only verbs that keep
@@ -204,31 +361,41 @@ func pick(rng *rand.Rand, xs []string) string { return xs[rng.Intn(len(xs))] }
 // terminal/verdict-shaping acts (halt, certify, outcome, verdict) stay in the structured
 // cases above. Reference-taking verbs are gated on a referent existing.
 func (r *runner) extras(role, seatID string, open []string) {
-	if r.coin(50) {
-		_, _ = r.exec(role, "friction", "--seat-id", seatID, "--reason", "fuzz friction from "+seatID)
+	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
+	// render is read-only and every role has it — the projection-refresh path (no --seat-id).
+	r.maybe(40, func() { r.exec(role, "render") })
+	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
+	avenue := func(role string) {
+		r.do(role, "avenue", seatID).set("--status", pick(r.rng, avenueStatus)).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method").run()
 	}
 	switch role {
 	case "lens":
-		if r.coin(45) {
-			_, _ = r.exec("lens", "observe", "--seat-id", seatID, "--label", fmt.Sprintf("O%d", r.rng.Intn(1_000_000)),
-				"--kind", pick(r.rng, obsKind), "--reason", "fuzz observation")
-		}
-		if r.coin(45) {
-			_, _ = r.exec("lens", "avenue", "--seat-id", seatID, "--status", pick(r.rng, avenueStatus), "--line", "fuzz avenue "+seatID)
-		}
+		r.maybe(45, func() {
+			r.do("lens", "observe", seatID).set("--label", fmt.Sprintf("O%d", r.rng.Intn(1_000_000))).set("--kind", pick(r.rng, obsKind)).set("--reason", "fuzz observation").run()
+		})
+		r.maybe(45, func() { avenue("lens") })
+	case "merge":
+		// W1.8 archive spot-check — the merge's duty. --none is always valid (an empty archive at
+		// round start); it exercises the verb and its --none/--reason branch.
+		r.maybe(45, func() {
+			r.do("merge", "spot-check", seatID).bare("--none").set("--reason", "fuzz: nothing to sample").run()
+		})
 	case "blue":
-		if r.coin(45) {
-			_, _ = r.exec("blue", "avenue", "--seat-id", seatID, "--status", pick(r.rng, avenueStatus), "--line", "fuzz avenue "+seatID)
+		r.maybe(45, func() { avenue("blue") })
+		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
+		r.maybe(30, func() {
+			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
+		})
+		if len(open) > 0 {
+			r.maybe(40, func() {
+				r.do("blue", "manifest-row", seatID).set("--id", pick(r.rng, open)).set("--row", "fuzz manifest row").run()
+			})
 		}
-		if r.coin(40) {
-			_, _ = r.exec("blue", "revision", "--seat-id", seatID, "--reason", "fuzz revision")
-		}
-		if r.coin(30) {
-			_, _ = r.exec("blue", "retire", "--seat-id", seatID, "--claim", "fuzz claim "+seatID, "--reason", "fuzz retire")
-		}
-		if len(open) > 0 && r.coin(40) {
-			_, _ = r.exec("blue", "manifest-row", "--seat-id", seatID, "--id", open[r.rng.Intn(len(open))], "--row", "fuzz manifest row")
-		}
+	case "bench":
+		// run-end certification statement — the bench's, additive (a recorded opinion).
+		r.maybe(45, func() {
+			r.do("bench", "certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
+		})
 	}
 }
 
@@ -244,12 +411,24 @@ func (r *runner) disposeObservations(seatID string) {
 			Label    string `json:"label"`
 			Disposed bool   `json:"disposed"`
 		} `json:"observations"`
+		Open []struct {
+			ID string `json:"id"`
+		} `json:"open"`
 	}
 	if json.Unmarshal([]byte(out), &b) != nil {
 		return
 	}
 	for _, o := range b.Observations {
-		if !o.Disposed && o.Label != "" {
+		if o.Disposed || o.Label == "" {
+			continue
+		}
+		// The FOLD dispositions (minted-as|folded-into) require a target gap via --into; pick one
+		// when an open gap exists, else fall back to the free dispositions (declined|banked). This
+		// exercises the full --as domain plus the --into flag.
+		if len(b.Open) > 0 && r.coin(50) {
+			into := b.Open[r.rng.Intn(len(b.Open))].ID
+			_, _ = r.exec("merge", "dispose", "--seat-id", seatID, "--observation", o.Label, "--as", pick(r.rng, disposeInto), "--into", into, "--reason", "fuzz dispose")
+		} else {
 			_, _ = r.exec("merge", "dispose", "--seat-id", seatID, "--observation", o.Label, "--as", pick(r.rng, disposeAs), "--reason", "fuzz dispose")
 		}
 	}
@@ -267,7 +446,7 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 		r.register("blue", seatID)
 		r.emitConfidence(seatID) // round-0 calibration
 		r.extras("blue", seatID, nil)
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": arr(), "friction": arr()}
+		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "red-merge"):
 		r.register("merge", seatID)
@@ -281,10 +460,22 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 			open := r.openGaps()
 			r.dialectic("merge", seatID, open)
 			r.disposeObservations(seatID)
-			for _, id := range r.openGaps() { // re-read: a regression close may have added a successor
-				r.closeGap(seatID, id)
+			// Close every open gap so the #67 gate (and verify) holds. The FIRST pass may
+			// regression-close (minting successors) and dispose may have minted-as new gaps; re-read
+			// and plain-close until the board is empty. Bounded: only the first pass regression-closes.
+			for first := true; ; first = false {
+				rem := r.openGaps()
+				if len(rem) == 0 {
+					break
+				}
+				for _, id := range rem {
+					r.closeGap(seatID, id, first)
+				}
 			}
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": arr(), "friction": arr()}
+			// The merge's TERMINAL act on a PASS: renders all projections + checkpoints records/ to
+			// the recovery mirror. A PASS ends the debate, so this round is terminal.
+			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 		// FAIL: mint 1-3 fresh gaps (a FAIL with empty gaps is a degenerate merge debate.js
 		// rejects on purpose). Report the FULL open set as the docket.
@@ -303,9 +494,9 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 			// The mints did not take (a tool refusal we could not satisfy) — degrade to PASS
 			// rather than fabricate a docket. A FAIL with an empty gaps array is exactly the
 			// degenerate merge debate.js rejects, and we must not hand it one.
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": arr(), "friction": arr()}
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
-		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": arr(), "friction": arr()}
+		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
@@ -319,11 +510,11 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 		for _, id := range open {
 			manifest = append(manifest, map[string]any{"gap_id": id, "row": "fuzz: checked"})
 		}
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": arr(), "friction": arr()}
+		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "judge-petition"):
 		r.register("bench", seatID)
-		return map[string]any{"rulings": arr(), "friction": arr()}
+		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events + envelope rulings)
 
 	case strings.HasPrefix(seatID, "judge"): // adjudication + terminal
 		r.register("bench", seatID)
@@ -343,7 +534,19 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 	case strings.HasPrefix(seatID, "assemble"):
 		r.register("bench", seatID)
 		verd := []string{"VERIFIED", "CEILING", "UNVERIFIED"}[r.rng.Intn(3)]
-		_, _ = r.exec("bench", "outcome", "--seat-id", seatID, "--as", verd)
+		if r.forceHalt {
+			verd = "HALTED" // a halted run's terminal outcome is HALTED (debate.js computes this)
+		}
+		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd}
+		// the terminal-outcome modifiers — a non-VERIFIED end may be by safety ceiling or deadlock
+		// (not on a halt, whose outcome stands alone).
+		if !r.forceHalt && verd != "VERIFIED" && r.coin(40) {
+			oargs = append(oargs, "--exhausted")
+		}
+		if !r.forceHalt && verd == "UNVERIFIED" && r.coin(40) {
+			oargs = append(oargs, "--deadlocked")
+		}
+		_, _ = r.exec(oargs...)
 		_, _ = r.exec("bench", "assemble")
 		open := len(r.openGaps())
 		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "friction": arr()}
@@ -403,96 +606,112 @@ type outcome struct {
 	dialectic map[string]int // dialectic events this run left on the record (coverage signal)
 }
 
+// installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
+// (falling back to the label), records the model tier the dispatch carried (#111 oracle), and
+// resolves the promise with r's envelope for that seat.
+func (r *runner) installAgent(vm *goja.Runtime) {
+	vm.Set("agent", func(call goja.FunctionCall) goja.Value {
+		prompt := ""
+		if len(call.Arguments) > 0 {
+			prompt = call.Argument(0).String()
+		}
+		seatID := ""
+		if m := seatRe.FindStringSubmatch(prompt); m != nil {
+			seatID = m[1]
+		}
+		var opts *goja.Object
+		if len(call.Arguments) > 1 {
+			opts = call.Argument(1).ToObject(vm)
+		}
+		if seatID == "" && opts != nil { // fall back to label
+			if v := opts.Get("label"); v != nil {
+				if fields := strings.Fields(v.String()); len(fields) > 0 {
+					seatID = fields[0]
+				}
+			}
+		}
+		// #111 tier capture: record the model this dispatch carried ("unset" if absent).
+		if opts != nil {
+			mdl := "unset"
+			if v := opts.Get("model"); v != nil && !goja.IsUndefined(v) && !goja.IsNull(v) {
+				mdl = v.String()
+			}
+			r.models = append(r.models, mdl)
+		}
+		env := r.envelopeFor(seatID)
+		p, resolve, _ := vm.NewPromise()
+		resolve(vm.ToValue(env))
+		return vm.ToValue(p)
+	})
+}
+
+// driveDebate runs the wrapped debate.js once under goja with r as the seat backend. It returns the
+// fulfilled result map (nil unless the debate settled fulfilled) and a non-empty settledErr for any
+// preamble error, rejection, hang, or panic. Shared by the sweep (runOne) and the halt test — the
+// one place the goja event loop and __result promise are driven.
+func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr string) {
+	defer func() {
+		if p := recover(); p != nil {
+			settledErr = fmt.Sprintf("panic: %v", p)
+		}
+	}()
+	loop := eventloop.NewEventLoop()
+	loop.Run(func(vm *goja.Runtime) {
+		vm.Set("args", map[string]any{
+			"topic": "fuzz", "runDir": r.runDir, "binDir": binDir(r.bin),
+			"lanes": 1, "laneFloorOverride": "fuzz", "maxRounds": 3,
+			// #111: both tiers are REQUIRED — nil refuses dispatch. Both haiku so the tier oracle
+			// expects every dispatched seat to carry exactly "haiku".
+			"model": "haiku", "judgmentModel": "haiku",
+		})
+		if _, err := vm.RunString(preamble); err != nil {
+			settledErr = "preamble: " + err.Error()
+			return
+		}
+		r.installAgent(vm)
+		if _, err := vm.RunString(wrapped); err != nil {
+			settledErr = "run: " + err.Error()
+		}
+	})
+	if settledErr != "" {
+		return nil, settledErr
+	}
+	loop.Run(func(vm *goja.Runtime) {
+		v := vm.Get("__result")
+		pr, ok := v.Export().(*goja.Promise)
+		if v == nil || !ok {
+			settledErr = "debate produced no __result promise"
+			return
+		}
+		switch pr.State() {
+		case goja.PromiseStateRejected:
+			settledErr = "debate rejected: " + truncate(pr.Result().String())
+		case goja.PromiseStatePending:
+			settledErr = "debate never settled (hang)"
+		case goja.PromiseStateFulfilled:
+			if m, ok := pr.Result().Export().(map[string]any); ok {
+				result = m
+			}
+		}
+	})
+	return result, settledErr
+}
+
 func runOne(wrapped, bin string, seed int64) outcome {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
 	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
 	res := outcome{seed: seed, runDir: runDir}
-	func() {
-		defer func() {
-			if p := recover(); p != nil {
-				res.err = fmt.Sprintf("panic: %v", p)
-			}
-		}()
-		loop := eventloop.NewEventLoop()
-		var rejected string
-		loop.Run(func(vm *goja.Runtime) {
-			vm.Set("args", map[string]any{
-				"topic": "fuzz", "runDir": runDir, "binDir": binDir(bin),
-				"lanes": 1, "laneFloorOverride": "fuzz", "maxRounds": 3,
-				// #111: both tiers are now REQUIRED — nil would refuse dispatch. Both haiku so the
-				// tier oracle expects every dispatched seat to carry exactly "haiku".
-				"model": "haiku", "judgmentModel": "haiku",
-			})
-			if _, err := vm.RunString(preamble); err != nil {
-				rejected = "preamble: " + err.Error()
-				return
-			}
-			vm.Set("agent", func(call goja.FunctionCall) goja.Value {
-				prompt := ""
-				if len(call.Arguments) > 0 {
-					prompt = call.Argument(0).String()
-				}
-				seatID := ""
-				if m := seatRe.FindStringSubmatch(prompt); m != nil {
-					seatID = m[1]
-				}
-				if seatID == "" && len(call.Arguments) > 1 { // fall back to label
-					if o := call.Argument(1).ToObject(vm); o != nil {
-						if v := o.Get("label"); v != nil {
-							if fields := strings.Fields(v.String()); len(fields) > 0 {
-								seatID = fields[0]
-							}
-						}
-					}
-				}
-				// #111 tier capture: record the model this dispatch carried ("unset" if absent).
-				if len(call.Arguments) > 1 {
-					if o := call.Argument(1).ToObject(vm); o != nil {
-						mdl := "unset"
-						if v := o.Get("model"); v != nil && !goja.IsUndefined(v) && !goja.IsNull(v) {
-							mdl = v.String()
-						}
-						r.models = append(r.models, mdl)
-					}
-				}
-				env := r.envelopeFor(seatID)
-				p, resolve, _ := vm.NewPromise()
-				resolve(vm.ToValue(env))
-				return vm.ToValue(p)
-			})
-			if _, err := vm.RunString(wrapped); err != nil {
-				rejected = "run: " + err.Error()
-			}
-		})
-		if rejected != "" {
-			res.err = rejected
-			return
-		}
-		loop.Run(func(vm *goja.Runtime) {
-			if v := vm.Get("__result"); v != nil {
-				if pr, ok := v.Export().(*goja.Promise); ok {
-					switch pr.State() {
-					case goja.PromiseStateRejected:
-						res.err = "debate rejected: " + truncate(pr.Result().String())
-					case goja.PromiseStatePending:
-						res.err = "debate never settled (hang)"
-					case goja.PromiseStateFulfilled:
-						if m, ok := pr.Result().Export().(map[string]any); ok {
-							if s, ok := m["verdict"].(string); ok {
-								res.verdict = s
-							}
-							if n, ok := m["rounds"].(int64); ok {
-								res.rounds = int(n)
-							}
-						}
-					}
-				}
-			}
-		})
-	}()
-	if res.err != "" {
+	result, settledErr := driveDebate(r, wrapped)
+	if settledErr != "" {
+		res.err = settledErr
 		return res
+	}
+	if s, ok := result["verdict"].(string); ok {
+		res.verdict = s
+	}
+	if n, ok := result["rounds"].(int64); ok {
+		res.rounds = int(n)
 	}
 	// Oracle #111 (map-free): both tiers were configured haiku, so every dispatched seat must have
 	// carried model "haiku" — none unset, none on another tier. This needs no bulk-seat list; the
@@ -588,9 +807,67 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 	}
 }
 
+// verbsWithEvents are the record-event-emitting verbs the fuzz is meant to drive — the whole seat
+// surface bar the read-only ones (register/render/show emit no board event). The coverage gate
+// asserts each fired at least once across the run set, so a regression that silently STOPS
+// emitting one fails loudly (the old gate guarded only cite/finding). `halt` terminates the run
+// and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
+var verbsWithEvents = []string{
+	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
+	"confidence", "cite", "finding", "observe", "avenue", "friction", "revision", "retire",
+	"manifest-row", "dispose", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
+}
+
+// coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
+var coverExempt = map[string]bool{"halt": true} // terminal — covered by TestFuzzHaltPath
+
+// TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
+// halt ends the run and reshapes every downstream oracle. blue-synthesize files a petition
+// (forceHalt guarantees it); the judge-petition sitting rules HALT via the `halt` verb; debate.js
+// sets halted, breaks the loop, and the run ends HALTED. Asserts: the run settles as HALTED, a
+// halt event is on the record, and the halted run STILL passes verify (a safety exit is a valid
+// record, not a broken one). This is the dedicated coverage for `halt`, which the sweep exempts.
+func TestFuzzHaltPath(t *testing.T) {
+	bin := buildBinary(t)
+	wrapped := debateWrapped(t)
+	runDir, _ := os.MkdirTemp("", "fuzz-halt-")
+	defer os.RemoveAll(runDir)
+	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(1)), registered: map[string]bool{}, forceHalt: true}
+
+	result, settledErr := driveDebate(r, wrapped)
+	if settledErr != "" {
+		t.Fatalf("halt run did not settle cleanly: %s", settledErr)
+	}
+	if v, _ := result["verdict"].(string); v != "HALTED" {
+		t.Fatalf("expected verdict HALTED, got %q", v)
+	}
+	if h, _ := result["halted"].(bool); !h {
+		t.Fatal("forceHalt run did not end halted — the judicial-halt terminal path is unexercised")
+	}
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		t.Fatalf("board: %v", err)
+	}
+	halts := 0
+	for _, e := range board.Events {
+		if e.Type == "halt" {
+			halts++
+		}
+	}
+	if halts == 0 {
+		t.Fatal("no halt event on the record — the halt verb never ran")
+	}
+	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
+		t.Fatalf("verify FAILED on the halted run (a safety exit must still be a valid record):\n%s", truncate(string(out)))
+	}
+}
+
 // tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.
 func tallyDialectic(board *record.Board) map[string]int {
-	want := map[string]bool{"closing": true, "position": true, "dispute": true, "dispute-respond": true, "opinion": true, "regrade": true, "mint": true, "close": true, "confidence": true, "cite": true, "finding": true, "observe": true, "avenue": true, "friction": true, "revision": true, "retire": true, "manifest-row": true, "dispose": true}
+	want := map[string]bool{}
+	for _, v := range verbsWithEvents {
+		want[v] = true
+	}
 	m := map[string]int{}
 	for _, e := range board.Events {
 		if want[e.Type] {
@@ -704,12 +981,30 @@ func TestFuzzDebate(t *testing.T) {
 	wg.Wait()
 
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v", completed, len(failures), verdicts, roundHist, dcov)
-	// A green fuzz that drove NEITHER the cite nor the finding path is a false green: the
-	// lens stub emitted neither for the whole life of PR-1, so the record-only channel went
-	// unexercised end-to-end. Assert the paths actually ran.
-	for _, k := range []string{"cite", "finding"} {
-		if dcov[k] == 0 {
-			t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, completed)
+	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
+	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
+	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
+	// regression that silently stops emitting one (a dropped envelope branch, a broken dispatch)
+	// fails here, not silently. `halt` is exempt (terminal; covered by TestFuzzHaltPath). Each
+	// gated verb fires with per-run probability well above ~20%, so P(missed across the default 60
+	// runs) is negligible; if a verb ever flakes here it is a real coverage regression, not noise.
+	// The full surface needs enough runs for every verb (incl. the ~10%/run ones like regrade) to
+	// fire; below ~40 runs a low-frequency verb could flake to zero, so the -short smoke keeps only
+	// the cite/finding floor (the original false-green guard) and the default+ size asserts all.
+	if completed >= 40 {
+		for _, k := range verbsWithEvents {
+			if coverExempt[k] {
+				continue
+			}
+			if dcov[k] == 0 {
+				t.Errorf("fuzz drove ZERO %s events across %d runs — that seat verb is unexercised (false green); a generator branch dropped it", k, completed)
+			}
+		}
+	} else {
+		for _, k := range []string{"cite", "finding"} {
+			if dcov[k] == 0 {
+				t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, completed)
+			}
 		}
 	}
 	if len(failures) > 0 {
