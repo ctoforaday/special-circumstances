@@ -153,3 +153,62 @@ func TestVersionFlag(t *testing.T) {
 		t.Fatalf("code=%d stdout=%q", code, stdout)
 	}
 }
+
+// SessionStart records where THIS session's transcript is — the thing SubagentStop
+// never captures, and the reason a command could not find it without globbing.
+func TestSessionStartRecordsTheSessionTranscript(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "s.jsonl")
+	if err := os.WriteFile(f, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in := `{"session_id":"S1","transcript_path":` + strconv.Quote(f) + `,"cwd":` + strconv.Quote(dir) + `}`
+	if _, stderr, code := call(t, in, dir, okStat(12), "-event", "SessionStart"); code != 0 {
+		t.Fatalf("exit %d (%s)", code, stderr)
+	}
+	rows := readManifest(t, dir, "S1")
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want 1", len(rows))
+	}
+	if rows[0].Kind != "session" {
+		t.Errorf("kind = %q, want \"session\" — a consumer asking for the session's transcript must not be handed a seat's", rows[0].Kind)
+	}
+	if rows[0].TranscriptPath != f || !rows[0].Resolved {
+		t.Errorf("row did not record a resolvable transcript: %+v", rows[0])
+	}
+}
+
+// THE ALARM (plan §11.3). hook-surface-spike.md §3 claims every event carries
+// transcript_path, but that was never re-measured for SessionStart and a running
+// session cannot fire one to check. If the claim is wrong, this hook must write
+// NOTHING and say so — a row with an empty path resolves to nothing later,
+// silently, which is the failure this plugin exists to avoid.
+func TestSessionStartWithNoTranscriptPathWritesNoRow(t *testing.T) {
+	dir := t.TempDir()
+	in := `{"session_id":"S1","cwd":` + strconv.Quote(dir) + `}`
+	_, stderr, code := call(t, in, dir, okStat(0), "-event", "SessionStart")
+	if code != 0 {
+		t.Fatalf("a missing field must never cost the session its turn: exit %d", code)
+	}
+	if _, err := os.Stat(manifestPath(dir, "S1")); err == nil {
+		t.Error("a row was written for a payload with no transcript_path — it would resolve to nothing, silently")
+	}
+	if !strings.Contains(stderr, "transcript_path") {
+		t.Errorf("the alarm does not name the missing field: %q", stderr)
+	}
+}
+
+// The event comes from the wiring, not from guessing at which fields are present.
+// Default stays SubagentStop so existing hooks.json entries keep working.
+func TestTheEventComesFromTheFlagNotThePayload(t *testing.T) {
+	dir := t.TempDir()
+	// A payload with BOTH a transcript_path and an agent_transcript_path. Which row
+	// gets written must depend on the flag alone.
+	in := `{"session_id":"S1","transcript_path":"/t/s.jsonl","agent_transcript_path":"/t/a.jsonl","agent_type":"red","cwd":` + strconv.Quote(dir) + `}`
+	if _, _, code := call(t, in, dir, okStat(9)); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if rows := readManifest(t, dir, "S1"); len(rows) != 1 || rows[0].Kind != "seat" {
+		t.Fatalf("default did not produce a seat row: %+v", rows)
+	}
+}
