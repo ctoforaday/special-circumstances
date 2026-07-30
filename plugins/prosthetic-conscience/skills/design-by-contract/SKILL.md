@@ -22,7 +22,7 @@ All complex instructions MUST be state-based logical contracts.
   enums widened, the mass mapping distorted the next run; friction-to-file
   shipped, lens seats still had no write path). Classes and the minting
   discipline live in `feov-memory/protocol-class-registry.md`; `Rule-Class:` and
-  `Sibling-Sweep:` commit trailers record it and `scripts/rule-sweep.mjs`
+  `Sibling-Sweep:` commit trailers record it and `scripts/rulesweep`
   enforces it, because a sweep requirement nothing checks is itself the
   policy-without-mechanism class it would be enforcing. [[refactoring-safety]]
   already states this duty for CODE faults ("prevent the class, don't patch the
