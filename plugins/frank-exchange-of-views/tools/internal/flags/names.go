@@ -157,6 +157,11 @@ const (
 	// The operator `scorecard` command (ported from scorecards.mjs): a chair's in-run
 	// self-read. --run is the shared persistent flag; --chair selects the chair.
 	Chair = "chair"
+
+	// The operator `dashboard` command (ported from render-run-dashboard.mjs): the live run
+	// dashboard. --watch regenerates on a timer; --now injects the clock (test determinism).
+	Watch = "watch"
+	Now   = "now"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -185,6 +190,7 @@ func All() []string {
 		Line, Method, AccessDate, Observation,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, NoQmd,
 		Chair,
+		Watch, Now,
 	}
 }
 
