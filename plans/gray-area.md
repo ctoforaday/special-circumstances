@@ -382,11 +382,18 @@ an exact match that silently misses the piped form is not.
 
 It is the verdict this repo's own history demanded. On 2026-07-30 a note asserted
 `last run: PASS 2026-07-30T03:23Z` for the continuity check while the mechanism that would have
-re-armed it was dead (#165) — and the note went on presenting that pass as current for the rest of
-the session. Nothing caught it; it took a hand audit. `STALE` is that audit, mechanically: the
+re-armed it produced nothing for that check (#165) — and the note went on presenting that pass as
+current for the rest of the session. Nothing caught it; it took a hand audit. `STALE` is that audit, mechanically: the
 trajectory holds every `Write`/`Edit` with its target path and timestamp, so "a claim older than the
 last write to its own trigger surface" is computable without any cooperation from the mechanism that
 failed. **It does not depend on `FileChanged` firing**, which is precisely why it is worth having.
+
+> **Correction, 2026-07-30.** An earlier draft of this section called the re-arm mechanism *dead*.
+> Withdrawn — see #165. `FileChanged` does fire, including for the session's own edits; what is
+> unexplained is that coverage stops advancing partway through a session. The argument for `STALE`
+> is unchanged and arguably stronger, since it depends on that coverage not at all: it holds whether
+> the coverage is absent, patchy, or perfect. The runbook for settling it is
+> `plans/rearm-coverage-experiment.md`.
 
 ### 10.5 Scope held back, on purpose
 
