@@ -249,9 +249,8 @@ test('no module re-implements the scorecard row parser', async () => {
 // `Terminal dispute disposition` case, so those transcripts were filed as `other`
 // and their spend was misattributed in the report the bench's economics decisions
 // rest on. Both now re-export one table, and this test fails if they diverge again.
-test('the dashboard and the cost audit classify every seat identically', async () => {
+test('the cost audit classifies every seat identically (shared seat-classify table)', async () => {
   const { classifySeat, KNOWN_SEATS } = await import('../../skills/research-protocol/scripts/seat-classify.mjs')
-  const { classifySeat: dash } = await import('../../skills/research-protocol/scripts/render-run-dashboard.mjs')
   const { classifyTranscript: cost } = await import('../../skills/research-protocol/scripts/cost-audit.mjs')
   const heads = [
     'Red audit, round 3 — verify at the leaf',
@@ -260,7 +259,6 @@ test('the dashboard and the cost audit classify every seat identically', async (
     'frontier hypotheses', 'Final assembly', 'something unrecognised',
   ]
   for (const h of heads) {
-    assert.deepEqual(dash(h), classifySeat(h), `dashboard agrees on: ${h}`)
     assert.deepEqual(cost(h), classifySeat(h), `cost audit agrees on: ${h}`)
   }
   assert.deepEqual(cost('Terminal dispute disposition'), { seat: 'judge-terminal', round: 0 },

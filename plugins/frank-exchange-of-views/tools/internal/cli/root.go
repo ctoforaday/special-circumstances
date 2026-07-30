@@ -109,11 +109,15 @@ import (
 //	       scorecards.mjs (compute + renderChair), reading the record in-process. debate.js's
 //	       in-run self-read prompt now runs `feov-record scorecard --run --chair` when binDir is
 //	       set, so a stale binary lacks the command that self-read depends on.
+//	0.21.0 the root `dashboard` command (#121 slice 4) — the live run dashboard ported from
+//	       render-run-dashboard.mjs (buildModel + renderHtml), reading the record in-process.
+//	       /research's monitoring step now runs `feov-record dashboard --watch`, so a stale
+//	       binary lacks the command that step depends on.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.20.0"
+const Version = "0.21.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -154,6 +158,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
 		newCost(),        // operator: render cost.md from the Workflow transcripts (ported from cost-audit.mjs)
 		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
+		newDashboard(),   // operator: the live run dashboard.html (ported from render-run-dashboard.mjs)
 	)
 	return root
 }
