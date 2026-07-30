@@ -15,7 +15,7 @@ import (
 // shows in the render's undisposed footer, where a note that quietly evaporated would not.
 func newObserve() *cobra.Command {
 	c := seat.Prose(seat.New("observe",
-		"a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason",
+		"a below-bar observation with a FATE (the merge must dispose it): --kind "+record.MustEnum("observe", "kind").Spelling()+" [--label ...] --reason",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {
@@ -34,7 +34,7 @@ func newObserve() *cobra.Command {
 			return observeResult{FindingID: ev.Payload.Str("finding_id"), Label: seat.Str(cmd, flags.Label)}, nil
 		}))
 
-	c.Flags().String(flags.Kind, "", "note | checked-held — an observation's flavour; the merge must still dispose it")
+	c.Flags().String(flags.Kind, "", record.MustEnum("observe", "kind").Usage("an observation's flavour; the merge must still dispose it"))
 	c.Flags().String(flags.Label, "", "a stable local label, so the merge can name this observation when disposing it")
 	return c
 }

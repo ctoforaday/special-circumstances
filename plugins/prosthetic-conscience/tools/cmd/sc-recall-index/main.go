@@ -35,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
@@ -88,6 +89,7 @@ type hookInput struct {
 		FilePath string `json:"file_path"`
 		Path     string `json:"path"`
 	} `json:"tool_input"`
+	CWD string `json:"cwd"`
 }
 
 // decide is the pure, unit-tested gate: index only when qmd is installed and
@@ -159,6 +161,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
+	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
 	file := fileFrom(in)
 
 	doRun, reason := decide(qmdPresent, file)

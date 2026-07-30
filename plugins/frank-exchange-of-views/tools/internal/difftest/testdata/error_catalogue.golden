@@ -78,6 +78,26 @@ feov-record: bench: record: petition-rule requires --as granted|denied (got "hal
 exit 2
 feov-record: merge: record: "closed-with-regression" is not a closure class — did you mean `closed_with_regression`? It is matched exactly, and it is the one class that requires --successor, so a near-miss spelling would have closed the gap with its remainder dropped
 
+── dispute dimension outside the set
+exit 2
+feov-record: blue: record: dispute requires --dimension severity|likelihood|impact|complexity_cost (got "banana") — the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero
+
+── observation kind outside the set
+exit 2
+feov-record: lens: record: observe requires --kind note|checked-held (got "banana") — the two kinds are what an observation can BE — a note the merge may decline, or a check that was run and held. A third word exports into the findings projection as a flavour nothing downstream knows how to read
+
+── citation confidence outside the set
+exit 2
+feov-record: lens: record: cite requires --confidence high|medium|low (got "banana") — the grade is the whole content of a citation's claim about its source; an unreadable one makes the citation's confidence incomparable with every other row in the table it lands in
+
+── blue confidence outside the set
+exit 2
+feov-record: blue: record: confidence requires --confidence high|medium|low (got "banana") — the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable
+
+── petition class outside the set
+exit 2
+feov-record: blue: record: petition requires --petition-class ethical|safety|integrity|constitutional (got "banana") — the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine
+
 ── invalid seat id
 exit 2
 feov-record: merge: seat "not a seat id" does not belong to any role namespace (expected one of red-merge-) — the engine assigns the seat id; a hand-invented one records under an identity no dispatch created

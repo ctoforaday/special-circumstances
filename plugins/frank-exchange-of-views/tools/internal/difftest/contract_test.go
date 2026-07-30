@@ -102,6 +102,15 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"dispose outside the set", []string{"merge", "dispose", "--observation", "L1-F1", "--into", "R1-1", "--as", "banana"}},
 		{"petition ruling outside the set", []string{"bench", "petition-rule", "--petitioner", "red-merge-r1", "--petition-class", "scope", "--as", "halt", "--reason", "r"}},
 		{"closure class near-miss", []string{"merge", "close", "--id", "R1-1", "--as", "closed-with-regression", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t", "--reason", "r"}},
+		// The class sweep found five more set-shaped flags past --as. Each is here for
+		// the same reason as the rest of this catalogue: the refusal is the seat's
+		// teacher, and a refactor that turns a teaching message into a bare rejection
+		// would otherwise pass every other test in the suite.
+		{"dispute dimension outside the set", []string{"blue", "dispute", "--id", "R1-1", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
+		{"observation kind outside the set", []string{"lens", "observe", "--kind", "banana", "--label", "O1", "--reason", "r"}},
+		{"citation confidence outside the set", []string{"lens", "cite", "--claim", "c", "--reference", "r", "--confidence", "banana"}},
+		{"blue confidence outside the set", []string{"blue", "confidence", "--claim", "c", "--confidence", "banana"}},
+		{"petition class outside the set", []string{"blue", "petition", "--petition-class", "banana", "--relief", "x", "--reason", "r"}},
 		{"invalid seat id", []string{"merge", "mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check", "x", "--problem", "p"}},
 		{"verb outside the lens role", []string{"lens", "mint", "--class", "scope-creep"}},
 		{"verb outside the blue role", []string{"blue", "close", "--id", "R1-1"}},

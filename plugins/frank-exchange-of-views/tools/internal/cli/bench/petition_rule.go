@@ -22,7 +22,7 @@ import (
 // above a property rather than an intention.
 func newPetitionRule() *cobra.Command {
 	c := seat.Prose(seat.New("petition-rule",
-		"rule on a petition: --petitioner <seatId> --petition-class <class> --as "+record.EnumFields["petition-rule"].Spelling()+" --reason <opinion> (a halt is its own verb)",
+		"rule on a petition: --petitioner <seatId> --petition-class <class> --as "+record.MustEnum("petition-rule", "ruling").Spelling()+" --reason <opinion> (a halt is its own verb)",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {
@@ -39,8 +39,8 @@ func newPetitionRule() *cobra.Command {
 		}))
 
 	c.Flags().String(flags.Petitioner, "", "the seat that filed the petition")
-	c.Flags().String(flags.PetitionClass, "", flags.DescPetitionClass)
-	c.Flags().String(flags.As, "", record.EnumFields["petition-rule"].Usage("a halt is its own verb"))
+	c.Flags().String(flags.PetitionClass, "", record.MustEnum("petition-rule", "class").Usage("what the bench is being asked to hear"))
+	c.Flags().String(flags.As, "", record.MustEnum("petition-rule", "ruling").Usage("a halt is its own verb"))
 	return c
 }
 

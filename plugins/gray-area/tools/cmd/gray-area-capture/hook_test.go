@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -116,8 +117,33 @@ func TestNoProjectDirSaysSo(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.Contains(stderr, "CLAUDE_PROJECT_DIR") {
-		t.Errorf("stderr should name the missing variable, got %q", stderr)
+	for _, want := range []string{"CLAUDE_PROJECT_DIR", "cwd"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr should name %s, so a reader can tell WHICH input was missing: %q", want, stderr)
+		}
+	}
+}
+
+// ...but "missing" means missing from BOTH places the harness states it. The payload
+// carries `cwd`, this hook already parsed it, and it gave up anyway — losing a session's
+// whole trajectory for want of a value it had been handed.
+func TestProjectDirFallsBackToThePayloadCWD(t *testing.T) {
+	dir := t.TempDir()
+	_, stderr, code := call(t, `{"session_id":"s1","agent_id":"a","cwd":`+strconv.Quote(dir)+`}`, "", okStat(0))
+	if code != 0 {
+		t.Fatalf("exit %d (%s)", code, stderr)
+	}
+	if rows := readManifest(t, dir, "s1"); len(rows) != 1 {
+		t.Fatalf("rows = %d, want 1 — the payload said where the project was and capture ignored it: %s", len(rows), stderr)
+	}
+	// The environment still WINS when both are present: it is the harness's explicit
+	// statement, and cwd is only where the process happens to have been started.
+	envDir := t.TempDir()
+	if _, _, code := call(t, `{"session_id":"s2","agent_id":"a","cwd":`+strconv.Quote(dir)+`}`, envDir, okStat(0)); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if rows := readManifest(t, envDir, "s2"); len(rows) != 1 {
+		t.Errorf("the payload cwd overrode CLAUDE_PROJECT_DIR — the fallback became the primary")
 	}
 }
 

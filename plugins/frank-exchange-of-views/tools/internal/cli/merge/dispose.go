@@ -36,7 +36,7 @@ func newDispose() *cobra.Command {
 		})
 
 	c.Flags().String(flags.Observation, "", "the lens observation being disposed, by label or key")
-	c.Flags().String(flags.As, "", record.EnumFields["dispose"].Usage("the observation's fate"))
+	c.Flags().String(flags.As, "", record.MustEnum("dispose", "disposition").Usage("the observation's fate"))
 	c.Flags().String(flags.Into, "", "the gap id it was folded or minted into")
 	return seat.Prose(c)
 }

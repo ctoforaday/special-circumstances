@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
@@ -56,6 +57,7 @@ type hookInput struct {
 		FilePath string `json:"file_path"`
 		Path     string `json:"path"`
 	} `json:"tool_input"`
+	CWD string `json:"cwd"`
 }
 
 // runner is the process boundary, injected so both the healthy and the failing
@@ -287,6 +289,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, e env) int {
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
+	e.projectDir = hookenv.ProjectDir(e.projectDir, in.CWD)
 	file := fileFrom(in)
 
 	p := decide(e, file)
