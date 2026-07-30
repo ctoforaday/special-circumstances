@@ -105,11 +105,15 @@ import (
 //	       per seat-round token/dollar table, tier check (#111), and the board-telemetry join.
 //	       /research's capture step now generates cost.md via `feov-record cost` when it has the
 //	       binary, so a stale binary lacks the command that path depends on.
+//	0.20.0 the root `scorecard` command (#121 slice 3) — a chair's in-run self-read ported from
+//	       scorecards.mjs (compute + renderChair), reading the record in-process. debate.js's
+//	       in-run self-read prompt now runs `feov-record scorecard --run --chair` when binDir is
+//	       set, so a stale binary lacks the command that self-read depends on.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.19.0"
+const Version = "0.20.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -149,6 +153,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
 		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
 		newCost(),        // operator: render cost.md from the Workflow transcripts (ported from cost-audit.mjs)
+		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
 	)
 	return root
 }
