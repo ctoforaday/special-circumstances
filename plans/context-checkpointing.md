@@ -956,3 +956,67 @@ check 1 stale while naming check 2's surface as unresolvable.
 **What this does not do.** It does not re-run anything, and it does not tell the agent to. It
 records that a recorded result is stale. Acting on that is the `validation-loop` skill's business —
 the restore hook adds no imperative of its own (§3 C), and that rule has a test.
+
+---
+
+## 19. The loop, closed on this repo (2026-07-30)
+
+Every prior verification ran in a scratch project. This one ran here, on the repository the
+design was written for, with the hooks wired at locally built binaries via `.claude/settings.local.json`
+— the tracked `.claude/settings.json` is the wrong home, because hook wiring pointing at local
+build paths would ship to every clone.
+
+### What fired, in order
+
+```
+SessionStart  →  digest handed back (source: resume), carrying objective,
+                 validation loop, next actions, handles and foot-guns
+              →  watchPaths registered: plugins/prosthetic-conscience/tools,
+                 docs/setup-script.md, scripts, .claude/settings.local.json
+Write         →  FileChanged, event: add, on a new file under tools/
+              →  attributed to check 1 — the check that claimed that surface —
+                 and recorded in .claude/checkpoints/rearmed.json
+SessionStart  →  digest now reports check 1's `last run: pass` as STALE,
+                 naming the file that re-armed it
+```
+
+**`event: add`.** A newly *created* file triggered it. §6's first draft claimed the opposite —
+*"a newly created file never fires"* — and that claim was withdrawn when the matrix was tested
+properly. This is the corrected behaviour observed in production rather than in a fixture.
+
+### What this settles
+
+- **Restore works on a real session**, not just at a forced boundary. §17 B proved the attachment
+  crosses a compaction; this proves the digest is delivered and legible on `resume` too.
+- **The re-arm is attributed, not merely logged.** It names check 1 verbatim and the file that
+  caused it, which is the difference between a signal and a log (§18).
+- **The self-trigger guard held.** `.claude/settings.local.json` was a registered surface, and
+  nothing under `.claude/` re-armed anything.
+
+### Three things measured here that no scratch project would have shown
+
+1. **Per-tool-call hooks are hot; `watchPaths` is not.** Editing `settings.local.json` took effect
+   immediately for `PreToolUse`/`PostToolUse` — no restart. But the watch set is established at
+   `SessionStart`, so I2's watch cannot be registered mid-session. A consumer wiring this up will
+   see the gates work instantly and the re-arm do nothing until they start a new session.
+2. **A trigger surface needs a `/` or a leading `.` to be recognised.** The note first said
+   `re-armed by: scripts` and it resolved to nothing; `scripts/` resolves. The digest **reported**
+   the miss, which is the design working — the gap was visible, not silent — and correcting the
+   note was the intended loop. But the trailing slash being load-bearing is a sharp edge, and it
+   belongs either in the skill's schema example or in the resolver.
+3. **The secrets gate blocks writing tests of the secrets gate.** Two attempts to add
+   `payload_test.go` via Bash were denied, because the payload carrying the test literals *is* a
+   payload carrying secrets. Correct behaviour, and a real constraint on testing a control of this
+   shape: fixtures must be assembled from fragments.
+
+### The limit this run demonstrates on itself
+
+The digest's `In-flight handles` said *"level with origin/main at 5de625d; no open PRs"* while
+`main` had moved to `ba3da10` and another pull request had merged. The note is a **claim**, the
+digest says so in its own closing line, and nothing pretended otherwise — but it stays true only
+while the agent maintains it. No hook can take that duty over: §2's central argument is that the
+rich note must be agent-authored, and the cost of that is exactly this.
+
+Which is also why `status: done` is a weak signal for the pointer-only carve-out (§3 C). The note
+this repo carried before today was two days stale, described finished Phase 1 work, and was still
+`status: validating` — nobody closed it out. A forgotten note is the common case, not the edge.
