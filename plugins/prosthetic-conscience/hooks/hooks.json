@@ -61,6 +61,17 @@
         ]
       }
     ],
+    "FileChanged": [
+      {
+        "_comment": "No matcher: watchPaths is registered dynamically by sc-checkpoint-restore from the note's own trigger surfaces, so the set is per-session and cannot be written here. The hook narrows what the watch cannot — watchPaths takes directories, never patterns (hook-surface-spike.md §6) — by matching file_path back to the check that claimed the surface. Changes under .claude/ are ignored so the hooks' own writes cannot re-trigger them.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-filechanged-rearm\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "_comment": "-event is passed explicitly rather than read from the payload: the Phase 0 spike never verified that hook input carries hook_event_name, and this plan already spent a cycle on a capability inferred from an input field. PreCompact is the ONLY event where this binary speaks — its stdout becomes the summarizer's custom instructions.",

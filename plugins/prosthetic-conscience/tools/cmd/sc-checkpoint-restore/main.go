@@ -92,8 +92,9 @@ type hookInput struct {
 // field measured to arrive as a hook_additional_context attachment.
 type hookOutput struct {
 	HookSpecificOutput struct {
-		HookEventName     string `json:"hookEventName"`
-		AdditionalContext string `json:"additionalContext"`
+		HookEventName     string   `json:"hookEventName"`
+		AdditionalContext string   `json:"additionalContext,omitempty"`
+		WatchPaths        []string `json:"watchPaths,omitempty"`
 	} `json:"hookSpecificOutput"`
 }
 
@@ -175,7 +176,7 @@ func pointerOnly(source, status string) bool {
 // never contains an imperative that is not already the note's standing contract
 // (read-only until the next-actions list; verify each claim before acting) —
 // those come from the context-checkpointing skill the session is already under.
-func digest(raw, path, source string) string {
+func digest(raw, path, source string, rearm checkpoint.RearmState) string {
 	n := checkpoint.Parse(raw)
 
 	parts := selectSections(n)
@@ -206,6 +207,10 @@ func digest(raw, path, source string) string {
 	for _, p := range parts {
 		b.WriteString("\n" + p + "\n")
 	}
+	if rearmed := rearmLines(rearm); rearmed != "" {
+		b.WriteString("\n" + rearmed)
+	}
+
 	// Declarative, never imperative. Measured 2026-07-29: a digest closing with
 	// "verify each item before acting on it, and re-run the validation loop" was
 	// flagged by the model as prompt-injection-shaped, and it named that very
@@ -216,11 +221,68 @@ func digest(raw, path, source string) string {
 	// carries; this hook states facts and stops.
 	b.WriteString("\nThis is what was recorded before the seam. It has not been re-verified since.\n")
 
-	out := b.String()
-	if len(out) > maxDigest {
-		out = out[:maxDigest] + fmt.Sprintf("\n[truncated at %d chars — full note: %s]\n", maxDigest, path)
+	return b.String()
+}
+
+// clamp bounds the FINAL composed text. It lives at the end of composition
+// rather than inside digest() because everything appended after a truncation
+// would otherwise escape the cap — which is exactly what happened when the
+// unresolved-surfaces line was added downstream of it.
+func clamp(text, path string) string {
+	if len(text) <= maxDigest {
+		return text
 	}
-	return out
+	return text[:maxDigest] + fmt.Sprintf("\n[truncated at %d chars — full note: %s]\n", maxDigest, path)
+}
+
+// rearmLines states which checks have had their trigger surface move since the
+// note recorded a result. Declarative, like everything else the hook emits: it
+// says what changed and what recorded it, never what to do about it.
+//
+// Empty when nothing is re-armed, so a clean session start says nothing.
+func rearmLines(s checkpoint.RearmState) string {
+	rs := s.Sorted()
+	if len(rs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("Validation checks whose trigger surface changed after the recorded result — the `last run` above is stale for these:\n")
+	for _, r := range rs {
+		fmt.Fprintf(&b, "- check %d (%s) — %s %s at %s\n", r.Index, r.Check, r.Event, r.By, r.At)
+	}
+	return b.String()
+}
+
+// watchTargets resolves every check's trigger surface into paths the watcher
+// will accept, and returns the surfaces it could not resolve.
+//
+// Unresolvable is DATA, not an error: a surface expressed as prose ("a new
+// seal") has no path, and a session that silently watched nothing would look
+// identical to one that watched everything. The unresolved list goes into the
+// digest so the gap is visible to the agent that owns it.
+func watchTargets(n checkpoint.Note, projectDir string) (paths []string, unresolved []string) {
+	loop, ok := n.NonEmptySection("Validation loop")
+	if !ok {
+		return nil, nil
+	}
+	// Containment via os.Root, not path arithmetic: the note is agent-written,
+	// and a symlink inside the project would defeat any lexical check.
+	within, closeRoot := checkpoint.RootedWithin(projectDir)
+	defer func() { _ = closeRoot() }()
+	seen := map[string]bool{}
+	for _, c := range checkpoint.ParseValidationLoop(loop) {
+		got, why := checkpoint.WatchTargets(c.ReArmedBy, within)
+		for _, p := range got {
+			if !seen[p] {
+				seen[p] = true
+				paths = append(paths, p)
+			}
+		}
+		if len(got) == 0 && why != "" {
+			unresolved = append(unresolved, fmt.Sprintf("check %d: %s", c.Index, why))
+		}
+	}
+	return paths, unresolved
 }
 
 // pointer is the one-line form: continuity stays reachable without being
@@ -238,13 +300,18 @@ func pointer(raw, path, why string) string {
 // emit writes the structured SessionStart response. Silence is a valid outcome
 // and MUST stay silent — an empty additionalContext would spend tokens telling
 // the session there is nothing to tell it.
-func emit(stdout io.Writer, text string) {
-	if strings.TrimSpace(text) == "" {
+//
+// watchPaths is independent of the digest: a note may be worth watching for even
+// when there is nothing to say, so this emits when EITHER is non-empty. Both
+// fields are measured to work in one response (hook-surface-spike.md §6).
+func emit(stdout io.Writer, text string, watch []string) {
+	if strings.TrimSpace(text) == "" && len(watch) == 0 {
 		return
 	}
 	var out hookOutput
 	out.HookSpecificOutput.HookEventName = "SessionStart"
 	out.HookSpecificOutput.AdditionalContext = text
+	out.HookSpecificOutput.WatchPaths = watch
 	enc := json.NewEncoder(stdout)
 	_ = enc.Encode(out)
 }
@@ -278,16 +345,27 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	status := checkpoint.Parse(string(body)).Get("status")
-	if pointerOnly(in.Source, status) {
+	note := checkpoint.Parse(string(body))
+	if pointerOnly(in.Source, note.Get("status")) {
 		why := "the context was cleared"
 		if in.Source != clearIsPointerOnly {
 			why = "marked status: done"
 		}
-		emit(stdout, pointer(string(body), path, why))
+		// No watch on a pointer: the session is not resuming this work, so
+		// registering its surfaces would collect re-arms nobody asked for.
+		emit(stdout, pointer(string(body), path, why), nil)
 		return 0
 	}
-	emit(stdout, digest(string(body), path, in.Source))
+
+	watch, unresolved := watchTargets(note, projectDir)
+	rearm := checkpoint.LoadRearm(os.ReadFile, checkpoint.RearmPath(projectDir))
+
+	text := digest(string(body), path, in.Source, rearm)
+	if text != "" && len(unresolved) > 0 {
+		text += "\nTrigger surfaces that could not be resolved to a watched path, so a change there is not recorded: " +
+			strings.Join(unresolved, "; ") + ".\n"
+	}
+	emit(stdout, clamp(text, path), watch)
 	return 0
 }
 

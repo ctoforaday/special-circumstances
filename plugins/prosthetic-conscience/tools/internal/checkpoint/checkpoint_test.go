@@ -1,7 +1,9 @@
 package checkpoint
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -147,5 +149,230 @@ func TestNotePathIsDeterministicUnderAmbiguity(t *testing.T) {
 	}
 	if want := filepath.Join(root, "projects", "alpha", "CHECKPOINT.md"); first != want {
 		t.Errorf("got %q, want the lexicographically first: %q", first, want)
+	}
+}
+
+func TestParseValidationLoop(t *testing.T) {
+	loop := "1. `go test ./...`  → all ok  · re-armed by: any .go edit under tools/\n" +
+		"   last run: pass\n" +
+		"2. `qlty check`  → no issues\n" +
+		"   re-armed by: .qlty/qlty.toml · and any new plugin\n" +
+		"3. `make docs`  → builds\n"
+	got := ParseValidationLoop(loop)
+	if len(got) != 3 {
+		t.Fatalf("checks = %d, want 3: %+v", len(got), got)
+	}
+	if got[0].ReArmedBy != "any .go edit under tools/" {
+		t.Errorf("check 1 surface = %q", got[0].ReArmedBy)
+	}
+	// The marker on a CONTINUATION line still belongs to its check — an agent
+	// under pressure wraps, and losing the surface to a line break is silent.
+	if got[1].ReArmedBy != ".qlty/qlty.toml" {
+		t.Errorf("check 2 surface = %q — the · clause should be trimmed", got[1].ReArmedBy)
+	}
+	// Absent is distinct from empty: check 3 recorded no surface at all.
+	if got[2].ReArmedBy != "" {
+		t.Errorf("check 3 surface = %q, want empty", got[2].ReArmedBy)
+	}
+	if got[0].Index != 1 || got[2].Index != 3 {
+		t.Errorf("indices wrong: %+v", got)
+	}
+	if !strings.Contains(got[0].Line, "go test") {
+		t.Errorf("check line not captured verbatim: %q", got[0].Line)
+	}
+}
+
+// realProject builds an on-disk tree, because containment is now enforced by
+// os.Root and a map-backed fake cannot exercise a symlink escape.
+func realProject(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, d := range []string{"tools", "manifest", ".qlty"} {
+		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range []string{filepath.Join(".qlty", "qlty.toml"), "go.mod"} {
+		if err := os.WriteFile(filepath.Join(dir, f), []byte("x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func targets(t *testing.T, dir, prose string) ([]string, string) {
+	t.Helper()
+	within, closeRoot := RootedWithin(dir)
+	defer func() { _ = closeRoot() }()
+	return WatchTargets(prose, within)
+}
+
+// THE measured constraint (hook-surface-spike.md §6): watchPaths takes paths,
+// never patterns. A glob must be reduced to the directory that contains it, and
+// the result must be something the watcher will actually accept.
+func TestWatchTargetsReducesPatternsToDirectories(t *testing.T) {
+	dir := realProject(t)
+	cases := []struct {
+		name, prose string
+		want        []string
+	}{
+		{"glob reduces to its directory", "any edit to manifest/*.yml", []string{"manifest"}},
+		{"deep glob reduces too", "any change under tools/**/*.go", []string{"tools"}},
+		{"a literal file is watchable as itself", "the file .qlty/qlty.toml", []string{".qlty/qlty.toml"}},
+		{"a bare directory passes through", "anything under tools/", []string{"tools"}},
+		{"two surfaces both resolve", "tools/ or manifest/*.yml", []string{"manifest", "tools"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, why := targets(t, dir, c.prose)
+			if len(got) != len(c.want) {
+				t.Fatalf("targets = %v (reason %q), want %v", got, why, c.want)
+			}
+			for i := range got {
+				if got[i] != c.want[i] {
+					t.Fatalf("targets = %v, want %v", got, c.want)
+				}
+			}
+			if why != "" {
+				t.Errorf("resolved but still gave a reason: %q", why)
+			}
+		})
+	}
+}
+
+// A root watch was MEASURED to catch the hooks' own writes and re-trigger them
+// ten times over. Refusing it is a rule, not a preference, and it must say so.
+func TestWatchTargetsRefusesTheProjectRoot(t *testing.T) {
+	dir := realProject(t)
+	for _, prose := range []string{"any .go edit", "**/*.go", "./"} {
+		got, why := targets(t, dir, prose)
+		for _, p := range got {
+			if p == "." || p == "" {
+				t.Fatalf("%q registered the project root: %v", prose, got)
+			}
+		}
+		if len(got) == 0 && why == "" {
+			t.Errorf("%q resolved to nothing with no reason given", prose)
+		}
+	}
+}
+
+// Unresolvable is DATA. A surface expressed as prose has no path, and a session
+// that silently watched nothing must not look like one that watched everything.
+func TestWatchTargetsReportsWhyItFoundNothing(t *testing.T) {
+	dir := realProject(t)
+	got, why := targets(t, dir, "a new seal")
+	if len(got) != 0 {
+		t.Fatalf("targets = %v, want none", got)
+	}
+	if why == "" {
+		t.Error("silent failure — the gap must be visible")
+	}
+	if _, why := targets(t, dir, ""); why == "" {
+		t.Error("an absent surface must also report why")
+	}
+}
+
+// A checkpoint must not be able to point the watcher outside the project.
+func TestWatchTargetsCannotEscapeTheProject(t *testing.T) {
+	dir := realProject(t)
+	got, _ := targets(t, dir, "../../etc or ../secrets/")
+	if len(got) != 0 {
+		t.Errorf("escaped the project dir: %v", got)
+	}
+}
+
+// THE reason containment is os.Root and not path arithmetic.
+//
+// A lexical check — filepath.Rel, or the strings.HasPrefix it replaced — is
+// blind to symlinks by construction. Measured directly: with proj/watched a
+// symlink to an outside tree, Rel reports "contained: true" while os.Root
+// reports "path escapes from parent". The note is agent-written, so a surface
+// that resolves through a symlink is exactly the case that matters.
+func TestWatchTargetsRefusesASymlinkEscape(t *testing.T) {
+	dir := realProject(t)
+	outside := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(outside, "secrets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "watched")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	// Sanity: the escape is real, and a LEXICAL check would wave it through.
+	if _, err := os.Stat(link); err != nil {
+		t.Fatalf("fixture symlink is not traversable: %v", err)
+	}
+	rel, err := filepath.Rel(dir, filepath.Join(dir, "watched"))
+	if err != nil || strings.HasPrefix(rel, "..") {
+		t.Fatalf("fixture does not exercise the lexical blind spot (rel=%q)", rel)
+	}
+
+	got, why := targets(t, dir, "anything under watched/")
+	if len(got) != 0 {
+		t.Errorf("registered a watch that escapes via a symlink: %v", got)
+	}
+	if why == "" {
+		t.Error("refused the surface without saying so")
+	}
+}
+
+// Separator handling: targets come back in slash form so the re-arm hook can
+// compare them against a slash-normalised file_path on every platform.
+func TestWatchTargetsReturnSlashSeparatedPaths(t *testing.T) {
+	dir := realProject(t)
+	if err := os.MkdirAll(filepath.Join(dir, "a", "b"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := targets(t, dir, "a/b/*.go")
+	if len(got) != 1 || got[0] != "a/b" {
+		t.Fatalf("targets = %v, want [a/b] in slash form", got)
+	}
+	if strings.Contains(got[0], "\\") {
+		t.Errorf("target %q carries a backslash; the re-arm hook compares slash form", got[0])
+	}
+}
+
+// A project directory that cannot be opened must admit NOTHING. Refusing to
+// watch is the safe failure; watching something unverified is not.
+func TestUnopenableProjectAdmitsNothing(t *testing.T) {
+	got, why := targets(t, filepath.Join(t.TempDir(), "does-not-exist"), "tools/")
+	if len(got) != 0 {
+		t.Errorf("registered %v against a project dir that cannot be opened", got)
+	}
+	if why == "" {
+		t.Error("failed silently")
+	}
+}
+
+func TestRearmStateRoundTripsAndSorts(t *testing.T) {
+	raw := []byte(`{"rearmed":{"2":{"index":2,"check":"b","by":"x.go","event":"change","at":"t"},` +
+		`"1":{"index":1,"check":"a","by":"y.go","event":"add","at":"t"}}}`)
+	s := LoadRearm(func(string) ([]byte, error) { return raw, nil }, "ignored")
+	got := s.Sorted()
+	if len(got) != 2 || got[0].Index != 1 || got[1].Index != 2 {
+		t.Fatalf("sorted = %+v, want ascending by index", got)
+	}
+}
+
+// Losing re-arm history must never cost a session start.
+func TestRearmStateDegradesToEmpty(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		read func(string) ([]byte, error)
+	}{
+		{"missing file", func(string) ([]byte, error) { return nil, os.ErrNotExist }},
+		{"corrupt json", func(string) ([]byte, error) { return []byte("{not json"), nil }},
+		{"null map", func(string) ([]byte, error) { return []byte(`{"rearmed":null}`), nil }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := LoadRearm(c.read, "p")
+			if s.Rearmed == nil {
+				t.Error("nil map — callers would panic on write")
+			}
+			if len(s.Sorted()) != 0 {
+				t.Error("invented state from unreadable input")
+			}
+		})
 	}
 }

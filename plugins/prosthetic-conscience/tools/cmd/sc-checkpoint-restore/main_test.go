@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 )
 
 const note = `---
@@ -348,5 +350,138 @@ func TestVersion(t *testing.T) {
 	stdout, _, code := call(t, t.TempDir(), ``, "-version")
 	if code != 0 || !strings.Contains(stdout, "sc-checkpoint-restore") {
 		t.Errorf("version: code=%d stdout=%q", code, stdout)
+	}
+}
+
+// withTree builds a project whose trigger surfaces actually exist, since
+// WatchTargets refuses to register a path it cannot stat.
+func withTree(t *testing.T, body string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, d := range []string{filepath.Join(".claude", "checkpoints"), "tools", "manifest"} {
+		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func watchOf(t *testing.T, stdout string) []string {
+	t.Helper()
+	var out hookOutput
+	if strings.TrimSpace(stdout) == "" {
+		return nil
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("not a hook response: %v", err)
+	}
+	return out.HookSpecificOutput.WatchPaths
+}
+
+const watchNote = `---
+schema: 2
+status: in-progress
+objective: "wire the watcher"
+---
+## Validation loop
+1. ` + "`go test ./...`" + `  → ok  · re-armed by: any .go edit under tools/
+   last run: pass
+2. ` + "`make check`" + `  → ok  · re-armed by: manifest/*.yml
+   last run: pass
+`
+
+// The measured constraint end-to-end: a note's trigger surfaces come back as
+// DIRECTORIES the watcher accepts, never as the patterns the note wrote.
+func TestWatchPathsAreRegisteredAsDirectories(t *testing.T) {
+	dir := withTree(t, watchNote)
+	stdout, _, code := call(t, dir, `{"source":"compact"}`)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	got := watchOf(t, stdout)
+	if len(got) != 2 {
+		t.Fatalf("watchPaths = %v, want tools and manifest", got)
+	}
+	for _, p := range got {
+		if strings.ContainsAny(p, "*?[") {
+			t.Errorf("registered a pattern %q — measured to register NOTHING, silently", p)
+		}
+	}
+}
+
+// A pointer session is not resuming this work, so registering its surfaces would
+// collect re-arms nobody asked for.
+func TestPointerSessionsRegisterNoWatch(t *testing.T) {
+	dir := withTree(t, watchNote)
+	stdout, _, _ := call(t, dir, `{"source":"clear"}`)
+	if got := watchOf(t, stdout); len(got) != 0 {
+		t.Errorf("watchPaths on a cleared session: %v", got)
+	}
+}
+
+// An unresolvable surface is DATA. A session that silently watched nothing must
+// not look identical to one that watched everything.
+func TestUnresolvableSurfacesAreReported(t *testing.T) {
+	dir := withTree(t, `---
+schema: 2
+status: in-progress
+objective: "prose surfaces"
+---
+## Validation loop
+1. `+"`make release`"+`  → tagged  · re-armed by: a human deciding to ship
+   last run: pass
+`)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	if !strings.Contains(got, "could not be resolved") {
+		t.Errorf("silent about an unwatchable surface:\n%s", got)
+	}
+}
+
+// Re-armed checks are surfaced, because a compacted agent reading `last run:
+// pass` off its own note is exactly the failure I2 exists to catch.
+func TestRearmedChecksAppearInTheDigest(t *testing.T) {
+	dir := withTree(t, watchNote)
+	state := checkpoint.RearmState{Rearmed: map[string]checkpoint.Rearm{
+		"1": {Index: 1, Check: "1. `go test ./...`", By: "tools/x.go", Event: "change", At: "2026-07-29T12:00:00Z"},
+	}}
+	b, _ := json.Marshal(state)
+	if err := os.WriteFile(checkpoint.RearmPath(dir), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	got := injected(t, stdout)
+	for _, want := range []string{"stale", "check 1", "tools/x.go", "change"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("digest missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// Nothing re-armed says nothing: a clean start must not spend tokens reporting
+// the absence of a problem.
+func TestNoRearmsIsSilentOnTheSubject(t *testing.T) {
+	dir := withTree(t, watchNote)
+	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
+	if got := injected(t, stdout); strings.Contains(got, "stale") {
+		t.Errorf("reported staleness with no re-arms recorded:\n%s", got)
+	}
+}
+
+// Corrupt re-arm state must not cost a session start.
+func TestCorruptRearmStateDegradesToSilence(t *testing.T) {
+	dir := withTree(t, watchNote)
+	if err := os.WriteFile(checkpoint.RearmPath(dir), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout, _, code := call(t, dir, `{"source":"compact"}`)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if got := injected(t, stdout); got == "" || strings.Contains(got, "stale") {
+		t.Errorf("corrupt state changed the digest:\n%s", got)
 	}
 }

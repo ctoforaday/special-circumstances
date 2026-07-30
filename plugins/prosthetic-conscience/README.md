@@ -4,7 +4,7 @@
 
 The base plugin of [Special Circumstances](../../README.md). It carries the shared rule substrate the other plugins preload, plus the adversarial-partner behaviour for interactive work.
 
-**Status: shipping.** 20 skills, 5 commands, 2 agents, 7 hook binaries.
+**Status: shipping.** 20 skills, 5 commands, 2 agents, 8 hook binaries.
 
 ## The distinctive idea
 
@@ -28,6 +28,7 @@ Eight load on every session, the rest by description. `design-by-contract` is th
 | `sc-checkpoint-seal` | PreCompact · SessionEnd · SubagentStop | Seals the note at every seam; tells the summarizer what to preserve, on PreCompact only |
 | `sc-checkpoint-restore` | SessionStart | Hands the note back — every source, compaction included |
 | `sc-postcompact-observe` | PostCompact | Scores what each summary kept; observation only |
+| `sc-filechanged-rearm` | FileChanged | Marks a check stale when its trigger surface moves |
 
 Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from git *without* binaries, and an unguarded hook crash-storms every tool call in that window. The guard degrades to one stderr line pointing at `/prosthetic-conscience:doctor --fix`.
 
@@ -40,6 +41,10 @@ So the agent maintains one `CHECKPOINT.md`, overwritten in place. `SessionStart`
 **Compaction is not the only seam**, so the seal fires on three events. `PreCompact` snapshots the note and asks the summarizer to preserve what it already carries. `SessionEnd` catches a session that ends without ever compacting — on *every* reason, because a headless `claude -p` run reports `other` rather than one of the interactive reasons, and those are exactly the sessions with no human watching. `SubagentStop` seals a seat's note keyed by `agent_id`, since every subagent shares its parent's `session_id` and a name without it has concurrent seats overwriting each other.
 
 Only `PreCompact` speaks. `SubagentStop` stdout reaches a seat still working, and an instruction there is a directive that seat never established — the same rule the restore hook ships a test for.
+
+**And the note's own claims decay.** A compacted agent reading `last run: pass` off its checkpoint will believe a check is green; if the check's inputs moved after that run, the note is stale in the most dangerous way — it *looks* current. So `SessionStart` registers each check's trigger surface with the file watcher, and `FileChanged` marks the check stale when something under it changes, naming the file that did it. The next digest says so.
+
+Measured limits, because they shape the design: `watchPaths` takes **paths — files or directories — and no pattern of any kind**, not globs and not regex. A pattern registers nothing, silently. So a surface written `manifest/*.yml` is watched as `manifest/`, directories are recursive and do fire for files created later, and a surface that is prose rather than a path (*"a human deciding to ship"*) is **reported as unresolvable** instead of quietly watching nothing.
 
 Two constraints came from measurement rather than design, and both cost a cycle to learn:
 
