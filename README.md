@@ -46,6 +46,7 @@ On top of the always-on set it ships **on-demand skills** (pair-programming, spe
 | `sc-checkpoint-seal` | Seals the note at every seam — compaction, session end, seat finishing |
 | `sc-checkpoint-restore` | Hands the note back on session start — every source, compaction included |
 | `sc-postcompact-observe` | Scores what each summary kept, one row per boundary |
+| `sc-filechanged-rearm` | Marks a validation check stale when its trigger surface moves |
 
 **The distinctive idea:** the rules are defense in depth — a skill states the *semantic* rule for what a regex can't catch, and a hook enforces the *pattern-matchable* part where prompts never fire.
 

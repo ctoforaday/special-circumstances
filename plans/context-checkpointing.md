@@ -493,11 +493,11 @@ is also what Gray Area's capture wants. Both plugins may register on it; each wr
 | `commands/resume.md` | command | `/resume` — print the full current checkpoint and re-anchor. |
 | `hooks/precompact-seal.*` | hook (PreCompact) | Seal: ensure a checkpoint exists (skeleton from `git`/transcript tail if absent), snapshot to `.claude/checkpoints/`, prune to N, **emit preserve-verbatim compact instructions on stdout**, exit 0. Never blocks. |
 | `hooks/postcompact-observe.*` → **`sc-postcompact-observe`** ✅ | hook (PostCompact) | **Observability only** — `PostCompact` cannot inject (§3 C). Records what the summary preserved or dropped, as evidence for tuning the seal. Never restores; never writes to stdout, which reaches the human rather than the model. Scores each note section's distinctive vocabulary against the summary and appends one row per boundary; the row is labelled with its probe, because token overlap is exploration and can never back a finding. |
-| `hooks/sessionstart-restore.*` → **`sc-checkpoint-restore`** ✅ | hook (SessionStart) | **The restore path, all sources including `compact`.** Emits the terse digest via `additionalContext` (verified to reach the model as a `hook_additional_context` attachment). Pointer instead of digest in two cases, both by INTENT rather than by mechanism: `source == clear` (the human just wiped the context) and `status: done` (the note describes finished work, and a forgotten note would otherwise re-impose dead state forever). Age is deliberately not a criterion — a resume days later is when the note is worth most. `watchPaths` **not yet wired, and now scoped by measurement**: paths only, no wildcards of any form, but directories work and are recursive — so a trigger surface is registered as the directories containing it (§6 of the spike). Silent if no checkpoint. |
+| `hooks/sessionstart-restore.*` → **`sc-checkpoint-restore`** ✅ | hook (SessionStart) | **The restore path, all sources including `compact`.** Emits the terse digest via `additionalContext` (verified to reach the model as a `hook_additional_context` attachment). Pointer instead of digest in two cases, both by INTENT rather than by mechanism: `source == clear` (the human just wiped the context) and `status: done` (the note describes finished work, and a forgotten note would otherwise re-impose dead state forever). Age is deliberately not a criterion — a resume days later is when the note is worth most. `watchPaths` **wired 2026-07-29**: each validation check's trigger surface is resolved to the directories containing it — paths only, no wildcards of any form, directories recursive (§6 of the spike) — and a surface that resolves to nothing is **named in the digest** rather than silently unwatched. Silent if no checkpoint. |
 | **`internal/checkpoint`** ✅ | library | Shared by the seal and the restore: which file is the note, and what a section is. Two copies of that rule drift, and a restore reading a different file than the seal wrote is the failure with no symptom — both halves report success and the continuity is silently gone. |
 | `hooks/subagentstop-seal.*` | hook (SubagentStop) | **New.** Seal a seat's note at the moment it finishes, using `agent_id` and `agent_transcript_path` from the event — the only point where a seat's identity and its trajectory are both known. |
 | `hooks/sessionend-seal.*` | hook (SessionEnd) | **New.** Seal on a session that ends without ever compacting; reason-matched. |
-| `hooks/filechanged-rearm.*` | hook (FileChanged) | **New; spiked 2026-07-29, not yet built.** Re-arm a validation check when its trigger surface is edited (I2). Input carries `file_path` and `event` (`change` \| `add`). `sc-checkpoint-restore` registers the **directories** containing each check's trigger surface — recursive, and new files fire `add` — and this hook filters on `file_path`, which it must do anyway because a directory watch is coarser than the pattern it stands in for (`hook-surface-spike.md` §6). |
+| `hooks/filechanged-rearm.*` → **`sc-filechanged-rearm`** ✅ | hook (FileChanged) | **Built 2026-07-29.** Re-arm a validation check when its trigger surface is edited (I2). Input carries `file_path` and `event` (`change` \| `add`). `sc-checkpoint-restore` registers the **directories** containing each check's trigger surface — recursive, and new files fire `add` — and this hook filters on `file_path`, which it must do anyway because a directory watch is coarser than the pattern it stands in for (`hook-surface-spike.md` §6). |
 | `requirements.json` (existing) | manifest | Only `git` (already required). Hooks are capability-gated — degrade to no-op + one warning if a probe is missing, per the port plan's environment-preflight discipline. |
 
 Hooks are cross-platform per the suite convention (PowerShell + POSIX variants; the port
@@ -801,7 +801,7 @@ probe cannot separate those. The low row is the informative one.
 - ~~**`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is not a usable lever.**~~ **Wrong; it is, at `PCT=10`.
   See §17 A** — the failure was using it at 1 and 2, where the headroom above the fixed ~30.6k floor
   is a few thousand tokens and the next boundary is one turn away whatever the workload does.
-- `watchPaths` re-arming of validation triggers (I2) is **spiked but unwired** — both events work, `FileChanged` carries `file_path` + `event`, and a directory watch is recursive and catches new files. No wildcard form registers anything (`hook-surface-spike.md` §6), so surfaces are watched as directories.
+- ~~`watchPaths` re-arming of validation triggers (I2) is spiked but unwired.~~ **Built 2026-07-29** — see §18.
 - ~~`SubagentStop` and `SessionEnd` seals remain Phase 2 leftovers~~ — **shipped 2026-07-29** (§13
   Phase 2).
 
@@ -908,3 +908,51 @@ The difficulty — and the reason this is left as a design note rather than a re
 the session genuinely established is also a fact the summary may carry (§D), so the test needs a
 summary short enough to drop it. That is not directly controllable, which makes the honest
 acceptance criterion **the attachment's presence at the boundary (§B), not the agent's answer.**
+
+---
+
+## 18. I2 built: the note's own claims decay, and now say so (2026-07-29)
+
+Improvement I2 — *"reproduce, don't recall"* — had been discipline since §12. It has a mechanism.
+
+**The failure it closes.** A compacted agent reads `last run: pass` off its own checkpoint and
+believes a check is green. If that check's inputs moved after the run, the note is stale in the
+worst way available: it *looks* current, and it is the agent's own writing, so nothing prompts
+suspicion. The duty to notice is real and unenforceable. A file watcher is neither.
+
+**How it works.** `sc-checkpoint-restore` parses the validation loop, resolves each check's
+`re-armed by:` surface, and registers it via `watchPaths`. `sc-filechanged-rearm` fires on
+`FileChanged`, matches `file_path` back to the check that claimed that surface, and records the
+staleness beside the note. The next digest reports it.
+
+**Shaped entirely by §6's measurement.** `watchPaths` takes paths — files or directories — and no
+pattern of any kind. So `manifest/*.yml` is registered as `manifest/`; directories are recursive and
+fire `add`, so files created later are covered; and the re-arm hook does the narrowing the coarser
+watch cannot, matching by **longest** surface so a check naming `tools/internal` beats a sibling
+naming `tools`.
+
+**Three decisions worth stating.**
+
+*An unresolvable surface is data.* `re-armed by: a human deciding to ship` has no path. The restore
+digest names it — *"trigger surfaces that could not be resolved to a watched path, so a change there
+is not recorded"* — because a session that silently watched nothing looks identical to one that
+watched everything. This is the same rule Gray Area applies to an unresolvable trajectory.
+
+*An unclaimed change is recorded nowhere.* A directory watch is coarser than the surface it stands
+in for, so changes that match no check are expected and are not evidence. Logging them would turn a
+signal into a log.
+
+*State lives outside the watched tree, by rule.* §6 measured a `.`-watch catching the hook's own log
+and re-triggering ten times. The re-arm hook ignores every change under `.claude/`, so a note that
+names `.claude` as a surface cannot start a loop — closed by rule rather than by hoping no note
+ever does.
+
+**Verified.** Unit tests on the parser, the surface resolver (12 forms, including the root refusal
+and the escape guard), attribution, and the self-trigger guard. Then dogfooded against the **real**
+`FileChanged` payload shape from §6, not a synthetic one: restore emitted `watchPaths: ["watched"]`,
+a change to `watched/sub/deep.txt` re-armed check 1 and not check 2, and the next digest reported
+check 1 stale while naming check 2's surface as unresolvable.
+
+**What this does not do.** It does not re-run anything, and it does not tell the agent to. It
+records that a recorded result is stale. Acting on that is the `validation-loop` skill's business —
+the restore hook adds no imperative of its own (§3 C), and that rule has a test.

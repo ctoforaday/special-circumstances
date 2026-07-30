@@ -17,7 +17,9 @@
       "purpose": "GitHub PR / review flow; a Claude Code cloud session reaches GitHub through MCP tools instead and ships no gh, so its absence there is by design, not a defect",
       "tier": "recommended",
       "check_cmd": "gh --version",
-      "not_applicable_in": ["claude-code-remote"],
+      "not_applicable_in": [
+        "claude-code-remote"
+      ],
       "install": {
         "windows": "winget install --id GitHub.cli -e",
         "darwin": "brew install gh",
@@ -83,12 +85,17 @@
       {
         "name": "sc-checkpoint-restore",
         "event": "SessionStart(startup|resume|clear|compact|fork)",
-        "purpose": "hands the session back its own checkpoint as additionalContext — on EVERY source, because SessionStart is the only hook that can inject at a compaction boundary; a pointer rather than the digest on clear, which the human asked for deliberately"
+        "purpose": "hands the session back its own checkpoint as additionalContext — on EVERY source, because SessionStart is the only hook that can inject at a compaction boundary; a pointer rather than the digest on clear and on status: done. Also registers watchPaths from the note's validation-loop trigger surfaces — as DIRECTORIES, since watchPaths takes no patterns of any kind (hook-surface-spike.md §6) — and reports the surfaces it could not resolve rather than watching nothing silently"
       },
       {
         "name": "sc-postcompact-observe",
         "event": "PostCompact(manual|auto)",
         "purpose": "records how much of the note's vocabulary each harness summary carried, one append-only row per boundary — observation only, because PostCompact cannot inject and runs after the restore has already fired"
+      },
+      {
+        "name": "sc-filechanged-rearm",
+        "event": "FileChanged",
+        "purpose": "marks a validation check stale when a file under its trigger surface changes, so a resumed agent cannot trust `last run: pass` for a check whose inputs moved. Attributes by longest-matching surface, records nothing for unclaimed changes, and ignores everything under .claude/ so the hooks' own writes cannot re-trigger them"
       }
     ]
   }

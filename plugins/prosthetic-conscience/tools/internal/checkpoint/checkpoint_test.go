@@ -1,7 +1,9 @@
 package checkpoint
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -147,5 +149,166 @@ func TestNotePathIsDeterministicUnderAmbiguity(t *testing.T) {
 	}
 	if want := filepath.Join(root, "projects", "alpha", "CHECKPOINT.md"); first != want {
 		t.Errorf("got %q, want the lexicographically first: %q", first, want)
+	}
+}
+
+func TestParseValidationLoop(t *testing.T) {
+	loop := "1. `go test ./...`  → all ok  · re-armed by: any .go edit under tools/\n" +
+		"   last run: pass\n" +
+		"2. `qlty check`  → no issues\n" +
+		"   re-armed by: .qlty/qlty.toml · and any new plugin\n" +
+		"3. `make docs`  → builds\n"
+	got := ParseValidationLoop(loop)
+	if len(got) != 3 {
+		t.Fatalf("checks = %d, want 3: %+v", len(got), got)
+	}
+	if got[0].ReArmedBy != "any .go edit under tools/" {
+		t.Errorf("check 1 surface = %q", got[0].ReArmedBy)
+	}
+	// The marker on a CONTINUATION line still belongs to its check — an agent
+	// under pressure wraps, and losing the surface to a line break is silent.
+	if got[1].ReArmedBy != ".qlty/qlty.toml" {
+		t.Errorf("check 2 surface = %q — the · clause should be trimmed", got[1].ReArmedBy)
+	}
+	// Absent is distinct from empty: check 3 recorded no surface at all.
+	if got[2].ReArmedBy != "" {
+		t.Errorf("check 3 surface = %q, want empty", got[2].ReArmedBy)
+	}
+	if got[0].Index != 1 || got[2].Index != 3 {
+		t.Errorf("indices wrong: %+v", got)
+	}
+	if !strings.Contains(got[0].Line, "go test") {
+		t.Errorf("check line not captured verbatim: %q", got[0].Line)
+	}
+}
+
+// THE measured constraint (hook-surface-spike.md §6): watchPaths takes paths,
+// never patterns. A glob must be reduced to the directory that contains it, and
+// the result must be something the watcher will actually accept.
+func TestWatchTargetsReducesPatternsToDirectories(t *testing.T) {
+	dirs := map[string]bool{"/w/tools": true, "/w/manifest": true, "/w/.qlty": true}
+	files := map[string]bool{"/w/.qlty/qlty.toml": true, "/w/go.mod": true}
+	stat := func(p string) (bool, bool) {
+		if dirs[p] {
+			return true, true
+		}
+		if files[p] {
+			return false, true
+		}
+		return false, false
+	}
+	cases := []struct {
+		name, prose string
+		want        []string
+	}{
+		{"glob reduces to its directory", "any edit to manifest/*.yml", []string{"manifest"}},
+		{"deep glob reduces too", "any change under tools/**/*.go", []string{"tools"}},
+		{"a literal file is watchable as itself", "the file .qlty/qlty.toml", []string{".qlty/qlty.toml"}},
+		{"a bare directory passes through", "anything under tools/", []string{"tools"}},
+		{"two surfaces both resolve", "tools/ or manifest/*.yml", []string{"manifest", "tools"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, why := WatchTargets(c.prose, "/w", stat)
+			if len(got) != len(c.want) {
+				t.Fatalf("targets = %v (reason %q), want %v", got, why, c.want)
+			}
+			for i := range got {
+				if got[i] != c.want[i] {
+					t.Errorf("targets = %v, want %v", got, c.want)
+					break
+				}
+			}
+			if why != "" {
+				t.Errorf("resolved but still gave a reason: %q", why)
+			}
+		})
+	}
+}
+
+// A root watch was MEASURED to catch the hooks' own writes and re-trigger them
+// ten times over. Refusing it is a rule, not a preference, and it must say so.
+func TestWatchTargetsRefusesTheProjectRoot(t *testing.T) {
+	stat := func(string) (bool, bool) { return true, true }
+	for _, prose := range []string{"any .go edit", "**/*.go", "./"} {
+		got, why := WatchTargets(prose, "/w", stat)
+		for _, p := range got {
+			if p == "." || p == "" {
+				t.Fatalf("%q registered the project root: %v", prose, got)
+			}
+		}
+		if len(got) == 0 && why == "" {
+			t.Errorf("%q resolved to nothing with no reason given", prose)
+		}
+	}
+}
+
+// Unresolvable is DATA. A surface expressed as prose has no path, and a session
+// that silently watched nothing must not look like one that watched everything.
+func TestWatchTargetsReportsWhyItFoundNothing(t *testing.T) {
+	stat := func(string) (bool, bool) { return false, false }
+	got, why := WatchTargets("a new seal", "/w", stat)
+	if len(got) != 0 {
+		t.Fatalf("targets = %v, want none", got)
+	}
+	if why == "" {
+		t.Error("silent failure — the gap must be visible")
+	}
+	if _, why := WatchTargets("", "/w", stat); why == "" {
+		t.Error("an absent surface must also report why")
+	}
+}
+
+// A checkpoint must not be able to point the watcher outside the project.
+func TestWatchTargetsCannotEscapeTheProject(t *testing.T) {
+	stat := func(string) (bool, bool) { return true, true }
+	got, _ := WatchTargets("../../etc or ../secrets/", "/w", stat)
+	for _, p := range got {
+		if strings.HasPrefix(p, "..") {
+			t.Errorf("escaped the project dir: %v", got)
+		}
+	}
+}
+
+// A target that does not exist is not registered: watchPaths is silent about
+// paths it cannot resolve, so registering a guess buys a watch that never fires
+// and hides the fact.
+func TestWatchTargetsSkipsWhatDoesNotExist(t *testing.T) {
+	stat := func(p string) (bool, bool) { return false, p == "/w/real" }
+	got, _ := WatchTargets("real/ and imaginary/*.go", "/w", stat)
+	if len(got) != 1 || got[0] != "real" {
+		t.Errorf("targets = %v, want [real]", got)
+	}
+}
+
+func TestRearmStateRoundTripsAndSorts(t *testing.T) {
+	raw := []byte(`{"rearmed":{"2":{"index":2,"check":"b","by":"x.go","event":"change","at":"t"},` +
+		`"1":{"index":1,"check":"a","by":"y.go","event":"add","at":"t"}}}`)
+	s := LoadRearm(func(string) ([]byte, error) { return raw, nil }, "ignored")
+	got := s.Sorted()
+	if len(got) != 2 || got[0].Index != 1 || got[1].Index != 2 {
+		t.Fatalf("sorted = %+v, want ascending by index", got)
+	}
+}
+
+// Losing re-arm history must never cost a session start.
+func TestRearmStateDegradesToEmpty(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		read func(string) ([]byte, error)
+	}{
+		{"missing file", func(string) ([]byte, error) { return nil, os.ErrNotExist }},
+		{"corrupt json", func(string) ([]byte, error) { return []byte("{not json"), nil }},
+		{"null map", func(string) ([]byte, error) { return []byte(`{"rearmed":null}`), nil }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := LoadRearm(c.read, "p")
+			if s.Rearmed == nil {
+				t.Error("nil map — callers would panic on write")
+			}
+			if len(s.Sorted()) != 0 {
+				t.Error("invented state from unreadable input")
+			}
+		})
 	}
 }
