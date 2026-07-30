@@ -20,9 +20,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -137,6 +139,22 @@ func decide(e env, file string) plan {
 }
 
 // within resolves file against dir and reports whether it stays inside it.
+//
+// FIX (defect): containment used to be pure path arithmetic — filepath.Rel plus a
+// ".." prefix check — which is blind to symlinks by construction. With a link inside
+// the project pointing at a sibling tree, Rel reports a clean relative path and this
+// gate then hands it to `qlty fmt`, which REWRITES it. That is a modification outside
+// the working tree, which agent-guardrails says requires explicit approval, performed
+// silently by a hook. internal/checkpoint closed the same class at 67eb8fa; this call
+// site kept the arithmetic, so the class outlived the instance fix.
+//
+// The lexical pass stays: it normalises a relative path against the project and drops
+// the obvious climbs cheaply. os.Root is what makes containment a syscall-level fact —
+// it refuses a path that leaves the root through ANY component, symlink included.
+//
+// Absent-but-contained is deliberately NOT an escape. The caller distinguishes
+// "outside the project" from "not a readable file", and collapsing the two would make
+// this fix report the wrong cause for an ordinary missing file.
 func within(dir, file string) (string, bool) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
@@ -152,6 +170,14 @@ func within(dir, file string) (string, bool) {
 	}
 	rel, err := filepath.Rel(absDir, absFile)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	root, err := os.OpenRoot(absDir)
+	if err != nil {
+		return "", false // a project root we cannot open is one we cannot vouch for
+	}
+	defer func() { _ = root.Close() }()
+	if _, err := root.Stat(rel); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", false
 	}
 	return rel, true

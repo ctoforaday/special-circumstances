@@ -49,6 +49,20 @@ const debounceInterval = 60 * time.Second
 const stampName = "recall-index-stamp"
 
 // shouldUpdate is the pure, unit-tested debounce gate.
+//
+// KNOWN LIMIT (not a lock, deliberately): the stamp records COMPLETION, and the
+// sequence is read-stamp -> update -> write-stamp across separate hook PROCESSES. Two
+// invocations that overlap therefore both read a stale stamp and both run `qmd update`
+// — and overlap is exactly what a turn with parallel Edits produces, which is the burst
+// the debounce exists for. `go test -race` cannot see this: it observes one process.
+//
+// Left as-is on purpose. Claiming the window BEFORE the update (a lease) would close it,
+// at the cost of turning a failed update into a full interval of staleness, and the
+// premise — that the harness really does run these concurrently — is inferred from
+// parallel tool calls rather than measured here. The repo's own standard is to measure
+// before building, so this is written down as a known limit rather than fixed on a
+// guess. Cost if it is real: a duplicate 3.9s index update, no corruption of our own
+// state (both writers write the same empty file).
 func shouldUpdate(now, stamp time.Time, interval time.Duration) bool {
 	return stamp.IsZero() || now.Sub(stamp) >= interval
 }

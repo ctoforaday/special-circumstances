@@ -47,6 +47,18 @@ jobs:
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
       - run: go test ./...
+      # This module had no race leg at all, while gray-area ran `-race ./...` and
+      # feov-record ran it over internal/record. It passes clean today (measured, exit 0,
+      # zero DATA RACE), so the leg costs nothing now and only gets more expensive later.
+      #
+      # What it does NOT buy, stated so nobody reads a green leg as more than it is:
+      # -race sees one process. The concurrency these hooks actually meet is BETWEEN
+      # processes — parallel Edits in one turn fire parallel PostToolUse invocations, each
+      # its own binary, sharing state under .claude/. No race detector observes that; see
+      # the debounce note in cmd/sc-recall-index.
+      - run: go test -race ./...
+        env:
+          CGO_ENABLED: "1"
 
   feov-record:
     # The FEOV seat-side record runtime (plans/record-tool.md R2g). Its own Go
@@ -297,9 +309,13 @@ jobs:
       - run: >-
           node --test
           plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs
-          plugins/frank-exchange-of-views/tests/simulator/run-dashboard.test.mjs
           plugins/frank-exchange-of-views/tests/simulator/prompts.test.mjs
-          plugins/frank-exchange-of-views/tests/simulator/read-batching.test.mjs
+      # The list above is enumerated, not globbed (`node --test <dir>` fails on Windows),
+      # and `node --test` exits 0 on a path that does not exist. So the enumeration needs
+      # its own guard, or it drifts silently in both directions — measured 2026-07-30:
+      # two of the four suites named here had been deleted and CI was green.
+      - name: The enumerated mjs suites match the tree (node --test exits 0 on a missing path)
+        run: node .github/mjs-suite-parity.mjs
       - name: Validate all tracked JSON (manifests break silently)
         run: node .github/validate-json.mjs
       - name: Every frontmatter block parses (a broken one drops ALL its fields, silently)
