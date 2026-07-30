@@ -6,7 +6,7 @@ Trajectory evidence for [Special Circumstances](../../README.md): **what a sessi
 
 Named for the GCU *Gray Area* (*Excession*) — the Culture's mind-reader, the ship that establishes what happened by reading directly, and is shunned by other Minds for doing it. The capability is necessary and distasteful at once, and the name is meant to keep that uncomfortable.
 
-**Status: Phase 2 — capture, plus a reader.** The plugin records where each seat's trajectory is, and `gray-area tools` lists what a seat actually invoked, with provenance on every row. Nothing yet judges what it finds.
+**Status: Phase 5 — capture, a reader, and one adjudication.** The plugin records where each seat's trajectory is; `gray-area tools` lists what a seat actually invoked; and `gray-area checkpoint` puts a sealed checkpoint's validation-loop claims against what the session actually ran. It still concludes nothing on its own — every row cites both documents so a reader can check it.
 
 ## What it does today
 
@@ -57,3 +57,36 @@ This suite spent a full cycle removing self-report from the evidence chain; *"an
 - **Reading trajectories is a surveillance capability.** Transcripts carry user text, file paths, and whatever a tool result happened to contain. Inspections are declared and scoped; the manifest is gitignored; nothing leaves the box.
 
 Design: [`plans/gray-area.md`](../../plans/gray-area.md). Measured hook payloads: [`plans/hook-surface-spike.md`](../../plans/hook-surface-spike.md).
+
+## Adjudicating a checkpoint
+
+A sealed checkpoint note's validation loop is a set of **declared claims**: a command was run, it
+passed, and it was last run at a stated time. All three are self-report. The session transcript is
+the only independent record of what was actually invoked, so the two can be put side by side:
+
+```
+gray-area checkpoint .claude/checkpoints/CHECKPOINT.md ~/.claude/projects/<project>/<session>.jsonl
+```
+
+Four verdicts, and the negative one is deliberately weak:
+
+| | |
+|---|---|
+| `CITED` | a matching invocation is in the trajectory — uuid, file, line, timestamp |
+| `STALE` | a write under the check's own trigger surface happened **after** the claimed run time |
+| `NO-EVIDENCE` | nothing matched. **Not** "did not run" — it prints the tokens searched and how many events were searched, so a reader can see whether the note or the matcher is at fault |
+| `UNCHECKABLE` | the claim names no command, so there was nothing to look for |
+
+Exit is non-zero when anything is `STALE` or `NO-EVIDENCE`, so it composes into a gate.
+
+`STALE` is the row this exists for. On 2026-07-30 a note asserted a pass for a check whose
+re-arm mechanism was dead ([#165](https://github.com/ctoforaday/special-circumstances/issues/165)),
+and went on presenting that pass as current for the rest of the session; it took a hand audit to
+notice. This computes the same thing from the transcript alone — **it does not depend on the
+mechanism that failed.**
+
+### What it will not do
+
+It does not decide whether a check *should* have run, score a note's trustworthiness, or read
+thinking content. A `NO-EVIDENCE` row is an absence, stated as one. The transcript is append-only,
+not signed: this establishes what the record says, never that the record is authentic.
