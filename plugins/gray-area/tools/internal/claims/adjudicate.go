@@ -235,7 +235,10 @@ func Adjudicate(cs []Claim, res trajectory.Result) []Finding {
 		// STALENESS, computed without any help from the mechanism that is supposed
 		// to report it. The trajectory holds every write with its target and time,
 		// so "the claim is older than the last write to its own trigger surface" is
-		// answerable here even when FileChanged never fires (#165).
+		// answerable here whatever FileChanged does or does not report (#165).
+		// That issue first claimed the events never fire; withdrawn — they do, but
+		// coverage stops advancing mid-session for reasons still unexplained. This
+		// computation depends on none of it, which is the point.
 		if c.Surface != "" && c.At != "" {
 			if w := lastWriteUnder(citable, c.Surface, c.At); w != nil {
 				f.Verdict = Stale

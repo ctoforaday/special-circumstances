@@ -80,7 +80,8 @@ Four verdicts, and the negative one is deliberately weak:
 Exit is non-zero when anything is `STALE` or `NO-EVIDENCE`, so it composes into a gate.
 
 `STALE` is the row this exists for. On 2026-07-30 a note asserted a pass for a check whose
-re-arm mechanism was dead ([#165](https://github.com/ctoforaday/special-circumstances/issues/165)),
+re-arm mechanism recorded nothing for it ([#165](https://github.com/ctoforaday/special-circumstances/issues/165) — an earlier reading
+called that mechanism dead; withdrawn, its coverage is merely unreliable),
 and went on presenting that pass as current for the rest of the session; it took a hand audit to
 notice. This computes the same thing from the transcript alone — **it does not depend on the
 mechanism that failed.**

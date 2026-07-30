@@ -110,7 +110,8 @@ func TestAMissReportsWhatItSearchedForAndHowMuch(t *testing.T) {
 
 // THE #165 SHAPE, which is why this phase exists. A claim whose trigger surface
 // was written to AFTER the claimed run time is stale — computed from the
-// trajectory alone, with no help from the FileChanged mechanism that was dead.
+// trajectory alone, needing nothing from the FileChanged mechanism whose
+// coverage that issue records as unreliable.
 func TestAClaimIsStaleWhenItsTriggerSurfaceMovedAfterwards(t *testing.T) {
 	note := "## Validation loop\n1. `go test -C plugins/gray-area/tools ./...` · re-armed by: plugins/gray-area/tools/\n   last run: pass 2026-07-30T04:00Z\n"
 	res := trace(t,
