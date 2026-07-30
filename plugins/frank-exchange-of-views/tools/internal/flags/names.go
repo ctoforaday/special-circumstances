@@ -153,6 +153,10 @@ const (
 	BinDir        = "bin-dir"
 	MemoryDir     = "memory-dir"
 	NoQmd         = "no-qmd"
+
+	// The operator `scorecard` command (ported from scorecards.mjs): a chair's in-run
+	// self-read. --run is the shared persistent flag; --chair selects the chair.
+	Chair = "chair"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -180,6 +184,7 @@ func All() []string {
 		Deadlocked, Exhausted,
 		Line, Method, AccessDate, Observation,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, NoQmd,
+		Chair,
 	}
 }
 

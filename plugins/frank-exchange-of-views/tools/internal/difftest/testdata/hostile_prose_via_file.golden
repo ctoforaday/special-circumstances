@@ -20,10 +20,10 @@ finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FIND
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L5-NONCE002.jsonl
-{"key":"red-lens-r1-L5:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.19.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":3,"type":"register"}
+{"key":"red-lens-r1-L5:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.20.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":3,"type":"register"}
 {"key":"red-lens-r1-L5:finding:L5-F1","nonce":"NONCE002","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"low","label":"L5-F1","likelihood":"low","severity":"low","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":4,"type":"finding"}
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.19.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.20.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 

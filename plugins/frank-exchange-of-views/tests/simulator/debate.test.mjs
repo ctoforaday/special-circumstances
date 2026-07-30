@@ -952,6 +952,21 @@ test('priors-are-poison half-2: with scriptsDir, each chair is pointed at its OW
   assert.ok(!blue.includes('repair_regression_ratio 0.63'), 'the cross-run seed is still not injected')
 })
 
+test('priors-are-poison half-2 (binDir): the in-run self-read runs `feov-record scorecard`, not node, and takes no --bin (#121 slice 3)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, {
+    ...ARGS,
+    scriptsDir: '/plugin/skills/research-protocol/scripts',
+    binDir: '/plug/bin',
+  })
+  const promptOf = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
+  const blue = promptOf('blue-synthesize')
+  // With binDir set, the self-read is the Go subcommand — the command IS the tool, so no --bin.
+  assert.ok(blue.includes('/plug/bin/feov-record scorecard --run') && blue.includes('--chair blue'), 'blue reads its own scorecard via feov-record scorecard')
+  assert.ok(!blue.includes('scorecards.mjs'), 'the node fallback is NOT used when binDir is set')
+  assert.ok(!/feov-record scorecard[^\n]*--bin/.test(blue), 'the scorecard self-read takes no --bin')
+})
+
 test('W2h: no scorecards -> no clause (a first run is not told it scored nothing)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
