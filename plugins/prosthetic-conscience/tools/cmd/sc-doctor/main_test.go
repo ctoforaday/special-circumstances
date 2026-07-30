@@ -65,6 +65,15 @@ func TestVerifySHA256(t *testing.T) {
 			}
 		})
 	}
+	// A SHA256SUMS that says nothing must verify nothing. Both shapes reach this
+	// function when a release ships a truncated or malformed sums file, and the answer
+	// has to be refusal — "no line matched" must never read as "no objection".
+	if verifySHA256("", "sc-doctor_linux_arm64", "def456") {
+		t.Error("an empty SHA256SUMS must verify nothing")
+	}
+	if verifySHA256("garbage-with-no-second-field\n", "sc-doctor_linux_arm64", "def456") {
+		t.Error("an unparseable SHA256SUMS must verify nothing")
+	}
 }
 
 // A sibling plugin's binaries are the doctor's business too. prosthetic-conscience

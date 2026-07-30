@@ -62,4 +62,19 @@ func TestShouldUpdate(t *testing.T) {
 	if !shouldUpdate(now, now.Add(-90*time.Second), time.Minute) {
 		t.Fatal("stamp past the window must update")
 	}
+	// The BOUNDARY itself. `>=` and `>` differ on exactly one input, and a mutation
+	// sweep confirmed that changing it broke nothing: the cases above straddle the
+	// window at 30s and 90s and never land on it. An inequality boundary is the
+	// classic off-by-one that statement coverage always reports as covered.
+	if !shouldUpdate(now, now.Add(-time.Minute), time.Minute) {
+		t.Error("a stamp exactly one interval old must update — the window is closed at its end, not open")
+	}
+	if shouldUpdate(now, now.Add(-time.Minute+time.Nanosecond), time.Minute) {
+		t.Error("one nanosecond short of the interval must still debounce")
+	}
+	// A stamp in the FUTURE (clock skew, a restored file, a hand-edited stamp) must
+	// not read as "long overdue" via a negative duration.
+	if shouldUpdate(now, now.Add(time.Hour), time.Minute) {
+		t.Error("a future stamp must debounce, not update")
+	}
 }
