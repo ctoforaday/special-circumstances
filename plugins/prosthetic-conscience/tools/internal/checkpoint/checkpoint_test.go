@@ -182,31 +182,36 @@ func TestParseValidationLoop(t *testing.T) {
 	}
 }
 
+// realProject builds an on-disk tree, because containment is now enforced by
+// os.Root and a map-backed fake cannot exercise a symlink escape.
+func realProject(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, d := range []string{"tools", "manifest", ".qlty"} {
+		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range []string{filepath.Join(".qlty", "qlty.toml"), "go.mod"} {
+		if err := os.WriteFile(filepath.Join(dir, f), []byte("x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func targets(t *testing.T, dir, prose string) ([]string, string) {
+	t.Helper()
+	within, closeRoot := RootedWithin(dir)
+	defer func() { _ = closeRoot() }()
+	return WatchTargets(prose, within)
+}
+
 // THE measured constraint (hook-surface-spike.md §6): watchPaths takes paths,
 // never patterns. A glob must be reduced to the directory that contains it, and
 // the result must be something the watcher will actually accept.
 func TestWatchTargetsReducesPatternsToDirectories(t *testing.T) {
-	// Keys are built with filepath.Join because the code stats with it: on
-	// Windows that yields backslashes, and a fixture keyed on forward slashes
-	// passes on Linux and fails there — which is exactly what CI caught.
-	root := filepath.FromSlash("/w")
-	dirs := map[string]bool{}
-	for _, d := range []string{"tools", "manifest", ".qlty"} {
-		dirs[filepath.Join(root, d)] = true
-	}
-	files := map[string]bool{
-		filepath.Join(root, ".qlty", "qlty.toml"): true,
-		filepath.Join(root, "go.mod"):             true,
-	}
-	stat := func(p string) (bool, bool) {
-		if dirs[p] {
-			return true, true
-		}
-		if files[p] {
-			return false, true
-		}
-		return false, false
-	}
+	dir := realProject(t)
 	cases := []struct {
 		name, prose string
 		want        []string
@@ -219,14 +224,13 @@ func TestWatchTargetsReducesPatternsToDirectories(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got, why := WatchTargets(c.prose, root, stat)
+			got, why := targets(t, dir, c.prose)
 			if len(got) != len(c.want) {
 				t.Fatalf("targets = %v (reason %q), want %v", got, why, c.want)
 			}
 			for i := range got {
 				if got[i] != c.want[i] {
-					t.Errorf("targets = %v, want %v", got, c.want)
-					break
+					t.Fatalf("targets = %v, want %v", got, c.want)
 				}
 			}
 			if why != "" {
@@ -239,9 +243,9 @@ func TestWatchTargetsReducesPatternsToDirectories(t *testing.T) {
 // A root watch was MEASURED to catch the hooks' own writes and re-trigger them
 // ten times over. Refusing it is a rule, not a preference, and it must say so.
 func TestWatchTargetsRefusesTheProjectRoot(t *testing.T) {
-	stat := func(string) (bool, bool) { return true, true }
+	dir := realProject(t)
 	for _, prose := range []string{"any .go edit", "**/*.go", "./"} {
-		got, why := WatchTargets(prose, filepath.FromSlash("/w"), stat)
+		got, why := targets(t, dir, prose)
 		for _, p := range got {
 			if p == "." || p == "" {
 				t.Fatalf("%q registered the project root: %v", prose, got)
@@ -256,39 +260,88 @@ func TestWatchTargetsRefusesTheProjectRoot(t *testing.T) {
 // Unresolvable is DATA. A surface expressed as prose has no path, and a session
 // that silently watched nothing must not look like one that watched everything.
 func TestWatchTargetsReportsWhyItFoundNothing(t *testing.T) {
-	stat := func(string) (bool, bool) { return false, false }
-	got, why := WatchTargets("a new seal", "/w", stat)
+	dir := realProject(t)
+	got, why := targets(t, dir, "a new seal")
 	if len(got) != 0 {
 		t.Fatalf("targets = %v, want none", got)
 	}
 	if why == "" {
 		t.Error("silent failure — the gap must be visible")
 	}
-	if _, why := WatchTargets("", "/w", stat); why == "" {
+	if _, why := targets(t, dir, ""); why == "" {
 		t.Error("an absent surface must also report why")
 	}
 }
 
 // A checkpoint must not be able to point the watcher outside the project.
 func TestWatchTargetsCannotEscapeTheProject(t *testing.T) {
-	stat := func(string) (bool, bool) { return true, true }
-	got, _ := WatchTargets("../../etc or ../secrets/", filepath.FromSlash("/w"), stat)
-	for _, p := range got {
-		if strings.HasPrefix(p, "..") {
-			t.Errorf("escaped the project dir: %v", got)
-		}
+	dir := realProject(t)
+	got, _ := targets(t, dir, "../../etc or ../secrets/")
+	if len(got) != 0 {
+		t.Errorf("escaped the project dir: %v", got)
 	}
 }
 
-// A target that does not exist is not registered: watchPaths is silent about
-// paths it cannot resolve, so registering a guess buys a watch that never fires
-// and hides the fact.
-func TestWatchTargetsSkipsWhatDoesNotExist(t *testing.T) {
-	root := filepath.FromSlash("/w")
-	stat := func(p string) (bool, bool) { return false, p == filepath.Join(root, "real") }
-	got, _ := WatchTargets("real/ and imaginary/*.go", root, stat)
-	if len(got) != 1 || got[0] != "real" {
-		t.Errorf("targets = %v, want [real]", got)
+// THE reason containment is os.Root and not path arithmetic.
+//
+// A lexical check — filepath.Rel, or the strings.HasPrefix it replaced — is
+// blind to symlinks by construction. Measured directly: with proj/watched a
+// symlink to an outside tree, Rel reports "contained: true" while os.Root
+// reports "path escapes from parent". The note is agent-written, so a surface
+// that resolves through a symlink is exactly the case that matters.
+func TestWatchTargetsRefusesASymlinkEscape(t *testing.T) {
+	dir := realProject(t)
+	outside := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(outside, "secrets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "watched")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	// Sanity: the escape is real, and a LEXICAL check would wave it through.
+	if _, err := os.Stat(link); err != nil {
+		t.Fatalf("fixture symlink is not traversable: %v", err)
+	}
+	rel, err := filepath.Rel(dir, filepath.Join(dir, "watched"))
+	if err != nil || strings.HasPrefix(rel, "..") {
+		t.Fatalf("fixture does not exercise the lexical blind spot (rel=%q)", rel)
+	}
+
+	got, why := targets(t, dir, "anything under watched/")
+	if len(got) != 0 {
+		t.Errorf("registered a watch that escapes via a symlink: %v", got)
+	}
+	if why == "" {
+		t.Error("refused the surface without saying so")
+	}
+}
+
+// Separator handling: targets come back in slash form so the re-arm hook can
+// compare them against a slash-normalised file_path on every platform.
+func TestWatchTargetsReturnSlashSeparatedPaths(t *testing.T) {
+	dir := realProject(t)
+	if err := os.MkdirAll(filepath.Join(dir, "a", "b"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := targets(t, dir, "a/b/*.go")
+	if len(got) != 1 || got[0] != "a/b" {
+		t.Fatalf("targets = %v, want [a/b] in slash form", got)
+	}
+	if strings.Contains(got[0], "\\") {
+		t.Errorf("target %q carries a backslash; the re-arm hook compares slash form", got[0])
+	}
+}
+
+// A project directory that cannot be opened must admit NOTHING. Refusing to
+// watch is the safe failure; watching something unverified is not.
+func TestUnopenableProjectAdmitsNothing(t *testing.T) {
+	got, why := targets(t, filepath.Join(t.TempDir(), "does-not-exist"), "tools/")
+	if len(got) != 0 {
+		t.Errorf("registered %v against a project dir that cannot be opened", got)
+	}
+	if why == "" {
+		t.Error("failed silently")
 	}
 }
 
@@ -321,42 +374,5 @@ func TestRearmStateDegradesToEmpty(t *testing.T) {
 				t.Error("invented state from unreadable input")
 			}
 		})
-	}
-}
-
-// A sibling whose name merely STARTS with the project dir is not inside it.
-// The first version tested containment with strings.HasPrefix, so "/w2/x"
-// counted as inside "/w" — a checkpoint could point the watcher at a sibling
-// tree. Found while fixing a Windows-only fixture failure; kept because it is a
-// real escape, not a portability detail.
-func TestWatchTargetsRejectsSiblingPrefixPaths(t *testing.T) {
-	root := filepath.FromSlash("/w")
-	// Everything exists, so only the containment rule can reject anything.
-	stat := func(string) (bool, bool) { return true, true }
-	got, _ := WatchTargets("../w2/secrets/", root, stat)
-	for _, p := range got {
-		full := filepath.Join(root, p)
-		if rel, err := filepath.Rel(root, full); err != nil || strings.HasPrefix(rel, "..") {
-			t.Errorf("registered %q, which resolves outside the project", p)
-		}
-		if strings.HasPrefix(full, filepath.FromSlash("/w2")) {
-			t.Errorf("registered a sibling tree: %q", full)
-		}
-	}
-}
-
-// Separator handling is the point of the fix: targets come back in slash form so
-// the re-arm hook can compare them against a slash-normalised file_path on every
-// platform.
-func TestWatchTargetsReturnSlashSeparatedPaths(t *testing.T) {
-	root := filepath.FromSlash("/w")
-	want := filepath.Join(root, "a", "b")
-	stat := func(p string) (bool, bool) { return p == want, p == want }
-	got, _ := WatchTargets("a/b/*.go", root, stat)
-	if len(got) != 1 || got[0] != "a/b" {
-		t.Fatalf("targets = %v, want [a/b] in slash form", got)
-	}
-	if strings.Contains(got[0], "\\") {
-		t.Errorf("target %q carries a backslash; the re-arm hook compares slash form", got[0])
 	}
 }

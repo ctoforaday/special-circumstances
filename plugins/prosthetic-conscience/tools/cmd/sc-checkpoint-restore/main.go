@@ -265,16 +265,13 @@ func watchTargets(n checkpoint.Note, projectDir string) (paths []string, unresol
 	if !ok {
 		return nil, nil
 	}
-	stat := func(p string) (bool, bool) {
-		st, err := os.Stat(p)
-		if err != nil {
-			return false, false
-		}
-		return st.IsDir(), true
-	}
+	// Containment via os.Root, not path arithmetic: the note is agent-written,
+	// and a symlink inside the project would defeat any lexical check.
+	within, closeRoot := checkpoint.RootedWithin(projectDir)
+	defer func() { _ = closeRoot() }()
 	seen := map[string]bool{}
 	for _, c := range checkpoint.ParseValidationLoop(loop) {
-		got, why := checkpoint.WatchTargets(c.ReArmedBy, projectDir, stat)
+		got, why := checkpoint.WatchTargets(c.ReArmedBy, within)
 		for _, p := range got {
 			if !seen[p] {
 				seen[p] = true

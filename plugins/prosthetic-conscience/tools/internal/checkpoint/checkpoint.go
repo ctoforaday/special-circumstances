@@ -8,6 +8,7 @@ package checkpoint
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -214,6 +215,19 @@ func ParseValidationLoop(body string) []Check {
 	return out
 }
 
+// WithinRoot reports whether a project-relative path exists INSIDE the project.
+//
+// The production implementation is os.Root.Stat. That matters: containment here
+// is a security property, not a tidiness one — the checkpoint is agent-written,
+// and this design treats it as a claim rather than a fact, so a note must not be
+// able to aim the file watcher at an arbitrary directory.
+//
+// A lexical check (filepath.Rel, or the strings.HasPrefix it replaced) cannot do
+// this. Measured: with `proj/watched` a symlink to an outside tree, Rel reports
+// "contained: true" while os.Root reports "path escapes from parent". Lexical
+// path arithmetic is blind to symlinks by construction.
+type WithinRoot func(rel string) bool
+
 // WatchTargets turns a check's re-armed-by prose into paths a file watcher will
 // actually accept, plus a reason when it cannot.
 //
@@ -223,10 +237,9 @@ func ParseValidationLoop(body string) []Check {
 // fire `add` for files created later, so the right move for "any .go edit under
 // tools/" is to watch `tools/`, not to expand it.
 //
-// exists reports whether a path is present and whether it is a directory.
-// Everything is resolved relative to projectDir; a target that escapes it is
-// dropped, because a checkpoint should not be able to point the watcher at /etc.
-func WatchTargets(reArmedBy, projectDir string, exists func(string) (isDir bool, ok bool)) (paths []string, reason string) {
+// Results are project-relative and slash-separated, because the re-arm hook
+// compares them against a slash-normalised file_path on every platform.
+func WatchTargets(reArmedBy string, within WithinRoot) (paths []string, reason string) {
 	if strings.TrimSpace(reArmedBy) == "" {
 		return nil, "no trigger surface recorded"
 	}
@@ -243,15 +256,13 @@ func WatchTargets(reArmedBy, projectDir string, exists func(string) (isDir bool,
 			reason = "trigger surface resolves to the project root; refused (a root watch re-triggers on hook output)"
 			continue
 		}
-		full := filepath.Join(projectDir, p)
-		// Prefix comparison is NOT containment: "/w2/x" has the prefix "/w" and
-		// is not inside it. Rel is the honest test, and it is also the one that
-		// behaves the same on Windows, where Join produces backslashes.
-		if rel, err := filepath.Rel(projectDir, full); err != nil ||
-			rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		// A cheap lexical pre-filter. NOT the containment check — `within` is —
+		// but it drops the obvious cases before touching the filesystem and
+		// keeps an absolute path from being handed to a root-relative Stat.
+		if strings.HasPrefix(p, "..") || filepath.IsAbs(p) {
 			continue
 		}
-		if _, ok := exists(full); !ok {
+		if !within(p) {
 			continue
 		}
 		if !seen[p] {
@@ -267,6 +278,23 @@ func WatchTargets(reArmedBy, projectDir string, exists func(string) (isDir bool,
 		reason = ""
 	}
 	return paths, reason
+}
+
+// RootedWithin builds a WithinRoot backed by os.Root, so containment survives a
+// symlink. A project directory that cannot be opened yields a checker that
+// admits nothing — refusing to watch is the safe failure, and the caller reports
+// the surface as unresolved rather than watching something it could not verify.
+//
+// The returned closer must be called; it is the open directory handle.
+func RootedWithin(projectDir string) (WithinRoot, func() error) {
+	root, err := os.OpenRoot(projectDir)
+	if err != nil {
+		return func(string) bool { return false }, func() error { return nil }
+	}
+	return func(rel string) bool {
+		_, err := root.Stat(filepath.FromSlash(rel))
+		return err == nil
+	}, root.Close
 }
 
 // candidateTokens splits prose into things that might be paths. Deliberately

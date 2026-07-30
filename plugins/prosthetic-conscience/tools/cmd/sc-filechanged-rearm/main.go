@@ -125,15 +125,10 @@ func save(path string, s checkpoint.RearmState, stderr io.Writer) {
 // registration and the matching cannot disagree about what a surface means.
 func targetsFor(checks []checkpoint.Check, projectDir string) map[int][]string {
 	out := map[int][]string{}
-	stat := func(p string) (bool, bool) {
-		st, err := os.Stat(p)
-		if err != nil {
-			return false, false
-		}
-		return st.IsDir(), true
-	}
+	within, closeRoot := checkpoint.RootedWithin(projectDir)
+	defer func() { _ = closeRoot() }()
 	for _, c := range checks {
-		paths, _ := checkpoint.WatchTargets(c.ReArmedBy, projectDir, stat)
+		paths, _ := checkpoint.WatchTargets(c.ReArmedBy, within)
 		out[c.Index] = paths
 	}
 	return out
