@@ -113,11 +113,15 @@ import (
 //	       render-run-dashboard.mjs (buildModel + renderHtml), reading the record in-process.
 //	       /research's monitoring step now runs `feov-record dashboard --watch`, so a stale
 //	       binary lacks the command that step depends on.
+//	0.22.0 the root `capture` command (#121 slice 5) — the post-hoc capture auditor ported from
+//	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
+//	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
+//	       the command IS the tool), so a stale binary lacks the command that step depends on.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.21.0"
+const Version = "0.22.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -159,6 +163,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newCost(),        // operator: render cost.md from the Workflow transcripts (ported from cost-audit.mjs)
 		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
 		newDashboard(),   // operator: the live run dashboard.html (ported from render-run-dashboard.mjs)
+		newCapture(),     // operator: the post-hoc capture auditor (ported from capture-research-run.mjs)
 	)
 	return root
 }

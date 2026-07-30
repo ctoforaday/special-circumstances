@@ -49,6 +49,30 @@ func classTag(cls string) string {
 	return strings.SplitN(classNote[cls], " —", 2)[0]
 }
 
+// classNoteOrder is CLASS_NOTE's INSERTION order — the order JS `Object.values(CLASS_NOTE)`
+// yields, which ChairHeader joins. A Go map has no order, so the sequence is pinned here.
+var classNoteOrder = []string{"benchmark", "diagnostic", "detector", "measure"}
+
+// ChairHeader is the header a chair's scorecard file is born with — byte-identical to
+// scorecards.mjs chairHeader(chair). Written once (capture appends run-over-run beneath it).
+func ChairHeader(chair string) string {
+	notes := make([]string, len(classNoteOrder))
+	for i, k := range classNoteOrder {
+		notes[i] = classNote[k]
+	}
+	return strings.Join([]string{
+		"# " + chair + " scorecard — the numbers this chair is measured against",
+		"",
+		"Computed at capture from git-tracked run artifacts, appended run over run.",
+		"Setup mirrors this file into the next run's inputs/, and the engine puts the",
+		"headline numbers into this chair's seat prompts — the visibility loop, without",
+		"which a clause is measured and still invisible to the seat it governs.",
+		"",
+		"CLASSES: " + strings.Join(notes, " · "),
+		"",
+	}, "\n")
+}
+
 // RenderChair produces the STATS block a chair's in-run self-read prints — byte-identical to
 // scorecards.mjs renderChair(chair, rows, runLabel). (chair is unused in the body, as in JS.)
 func RenderChair(chair string, rows []Row, runLabel string) string {

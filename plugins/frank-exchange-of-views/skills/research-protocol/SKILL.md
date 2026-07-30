@@ -40,7 +40,7 @@ research/<date>_<slug>/
 │                      #   rules on the closings, the transcript, and the final artifact state only)
 │                      #   friction lives on the RECORD (the friction verb; read via `show --view friction`),
 │                      #   not a file — the pre-tool friction.md was retired 2026-07-19
-├── cost.md            # measured tokens + dollars per seat-round (scripts/cost-audit.mjs)
+├── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
 └── trajectories/      # journal.jsonl (tracked) + board-telemetry.jsonl (one JSON line per round:
                        #   board profile, mass under the pinned mapping, accepted-dispute deltas —
                        #   the SIGNAL the stopping judgment reads; convenience copy, never the

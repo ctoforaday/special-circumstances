@@ -12,6 +12,7 @@ Usage:
 Available Commands:
   bench        the bench — opinions, petition rulings, halt, certification. Never originates.
   blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
   completion   Generate the autocompletion script for the specified shell
   cost         render a run's cost.md from the Workflow transcripts (operator; per seat-round tokens + dollars)
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
@@ -47,6 +48,7 @@ Usage:
 Available Commands:
   bench        the bench — opinions, petition rulings, halt, certification. Never originates.
   blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
   completion   Generate the autocompletion script for the specified shell
   cost         render a run's cost.md from the Workflow transcripts (operator; per seat-round tokens + dollars)
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
@@ -82,6 +84,7 @@ Usage:
 Available Commands:
   bench        the bench — opinions, petition rulings, halt, certification. Never originates.
   blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
+  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
   completion   Generate the autocompletion script for the specified shell
   cost         render a run's cost.md from the Workflow transcripts (operator; per seat-round tokens + dollars)
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
@@ -255,7 +258,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.21.0
+feov-record version 0.22.0
 
 $ feov-record nonsuch help
 exit 2

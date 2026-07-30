@@ -930,41 +930,28 @@ test('priors-are-poison: the cross-run scorecard SEED is not injected into any c
   // A prior run's numbers are Goodhart bait, topic-confounded, cross-model, and
   // salience-priming (plans/priors-are-poison.md). No chair prompt carries the seed —
   // the `scorecards` arg feeds operator analytics only. A chair reads its OWN in-run
-  // scorecard via scorecards.mjs (half-2, below), never a predecessor's numbers.
+  // scorecard via `feov-record scorecard`, never a predecessor's numbers.
   assert.ok(!promptOf('blue-synthesize').includes('repair_regression_ratio 0.63'), 'blue is not seeded with its prior number')
   assert.ok(!promptOf('red-merge-r1').includes('anchored_closures_pct 89'), 'the merge is not seeded')
   assert.ok(!promptOf('assemble').includes('carried_share 0.98'), 'assembly is not seeded')
   assert.ok(!world.calls.some((c) => /YOUR CHAIR'S SCORECARD/.test(c.prompt)), 'the seed clause is gone entirely')
 })
 
-test('priors-are-poison half-2: with scriptsDir, each chair is pointed at its OWN in-run scorecard — still no cross-run seed', async () => {
+test('priors-are-poison half-2 (binDir): the in-run self-read runs `feov-record scorecard`, gated on binDir, and takes no --bin (#121 slice 3/5)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, {
     ...ARGS,
-    scriptsDir: '/plugin/skills/research-protocol/scripts',
-    scorecards: { blue: ['repair_regression_ratio 0.63 [BENCHMARK]'] },
-  })
-  const promptOf = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
-  const blue = promptOf('blue-synthesize')
-  // The chair runs the CLI for ITS chair, against THIS run — a self-read, not a seed.
-  assert.ok(blue.includes('scorecards.mjs --run') && blue.includes('--chair blue'), 'blue reads its own in-run scorecard')
-  assert.ok(promptOf('red-merge-r1').includes('--chair red'), 'the merge, a red chair, reads the red scorecard')
-  assert.ok(!blue.includes('repair_regression_ratio 0.63'), 'the cross-run seed is still not injected')
-})
-
-test('priors-are-poison half-2 (binDir): the in-run self-read runs `feov-record scorecard`, not node, and takes no --bin (#121 slice 3)', async () => {
-  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
-  await world.run(script, {
-    ...ARGS,
-    scriptsDir: '/plugin/skills/research-protocol/scripts',
     binDir: '/plug/bin',
+    scorecards: { blue: ['repair_regression_ratio 0.63 [BENCHMARK]'] },
   })
   const promptOf = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
   const blue = promptOf('blue-synthesize')
   // With binDir set, the self-read is the Go subcommand — the command IS the tool, so no --bin.
   assert.ok(blue.includes('/plug/bin/feov-record scorecard --run') && blue.includes('--chair blue'), 'blue reads its own scorecard via feov-record scorecard')
-  assert.ok(!blue.includes('scorecards.mjs'), 'the node fallback is NOT used when binDir is set')
+  assert.ok(promptOf('red-merge-r1').includes('--chair red'), 'the merge, a red chair, reads the red scorecard')
+  assert.ok(!blue.includes('scorecards.mjs'), 'the clause is binary-only — the node scorecards.mjs fallback is retired')
   assert.ok(!/feov-record scorecard[^\n]*--bin/.test(blue), 'the scorecard self-read takes no --bin')
+  assert.ok(!blue.includes('repair_regression_ratio 0.63'), 'the cross-run seed is still not injected')
 })
 
 test('W2h: no scorecards -> no clause (a first run is not told it scored nothing)', async () => {
