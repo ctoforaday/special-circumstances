@@ -20,15 +20,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/claims"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/trajectory"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
 const usage = `gray-area — trajectory evidence
 
   gray-area tools <transcript.jsonl>   list every tool invocation, with provenance
+  gray-area checkpoint <note.md> <transcript.jsonl>
+                                      adjudicate a checkpoint's validation-loop
+                                      claims against what the session actually ran
 
 Flags:
   -binary <name>   also resolve shell-aliased invocations of <name>
@@ -36,6 +41,16 @@ Flags:
                     matcher that greps for the binary name)
   -json            emit one JSON object per row instead of a table
   -version         print version and exit
+
+checkpoint verdicts:
+  CITED        a matching invocation is in the trajectory, with its uuid
+  STALE        a write under the check's own trigger surface happened AFTER the
+               claimed run time — the pass may have been real; it is not current
+  NO-EVIDENCE  nothing matched. NOT "did not run": the tokens searched and the
+               number of events searched are printed so the reader can judge
+  UNCHECKABLE  the claim names no command, so there was nothing to look for
+
+Exit is non-zero when anything is STALE or NO-EVIDENCE.
 `
 
 // row is what the tool emits. Provenance fields are first because they are the
@@ -132,12 +147,21 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 		fs.Usage()
 		return 2
 	}
-	if cmd != "tools" {
+	if cmd != "tools" && cmd != "checkpoint" {
 		fmt.Fprintf(stderr, "gray-area: unknown command %q\n", cmd)
 		fs.Usage()
 		return 2
 	}
 	rest := fs.Args()
+
+	if cmd == "checkpoint" {
+		if len(rest) < 2 {
+			fmt.Fprintln(stderr, "gray-area checkpoint: a note path and a transcript path are required")
+			return 2
+		}
+		return checkpoint(rest[0], rest[1], stdout, stderr, open, *asJSON)
+	}
+
 	if len(rest) < 1 {
 		fmt.Fprintln(stderr, "gray-area tools: a transcript path is required")
 		return 2
@@ -216,4 +240,82 @@ func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr, func(p string) (io.ReadCloser, error) {
 		return os.Open(p)
 	}))
+}
+
+// checkpoint adjudicates a sealed note's validation-loop claims against the
+// trajectory of the session that wrote them.
+//
+// It exits 1 when any claim is STALE or has NO-EVIDENCE, so this composes into a
+// gate. It exits 1 on an unreadable note too: a note whose format has moved out
+// from under the parser must not read as "no claims to check".
+func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(string) (io.ReadCloser, error), asJSON bool) int {
+	nf, err := open(notePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "gray-area: cannot open %s: %v\n", notePath, err)
+		return 1
+	}
+	declared, err := claims.Parse(nf, notePath)
+	_ = nf.Close()
+	if err != nil {
+		fmt.Fprintln(stderr, "gray-area:", err)
+		return 1
+	}
+	if len(declared) == 0 {
+		fmt.Fprintf(stderr, "gray-area: %s carries no validation loop — nothing was declared, so there is nothing to adjudicate\n", notePath)
+		return 0
+	}
+
+	tf, err := open(tracePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "gray-area: cannot open %s: %v\n", tracePath, err)
+		return 1
+	}
+	res, err := trajectory.Parse(tf, tracePath)
+	_ = tf.Close()
+	if err != nil {
+		fmt.Fprintf(stderr, "gray-area: reading %s: %v\n", tracePath, err)
+		return 1
+	}
+
+	findings := claims.Adjudicate(declared, res)
+
+	if asJSON {
+		enc := json.NewEncoder(stdout)
+		for _, f := range findings {
+			if err := enc.Encode(f); err != nil {
+				fmt.Fprintln(stderr, "gray-area: encoding finding:", err)
+				return 1
+			}
+		}
+	} else {
+		for _, f := range findings {
+			fmt.Fprintf(stdout, "%-11s %s:%d  [%s] %s\n", f.Verdict, f.NoteFile, f.NoteLine, f.Index, truncate(f.Claim, 90))
+			if f.ClaimedAt != "" || f.Claimed != "" {
+				fmt.Fprintf(stdout, "    claimed: %s\n", truncate(strings.TrimSpace(f.Claimed), 100))
+			}
+			if f.UUID != "" {
+				fmt.Fprintf(stdout, "    evidence: %s:%d %s %s  %s\n", f.File, f.Line, short(f.UUID), f.At, truncate(f.Command, 70))
+			}
+			if len(f.Searched) > 0 {
+				fmt.Fprintf(stdout, "    searched: %v across %d citable events\n", f.Searched, f.EventsSeen)
+			}
+			if f.Note != "" {
+				fmt.Fprintf(stdout, "    note: %s\n", f.Note)
+			}
+		}
+	}
+
+	// Coverage, reported the same way `tools` reports it: an adjudication over a
+	// subset that reads like one over the whole is the failure to avoid.
+	if res.BadLines > 0 {
+		fmt.Fprintf(stderr, "gray-area: WARNING %d of %d lines did not parse (first at %v) — this adjudication is over a SUBSET of %s\n",
+			res.BadLines, res.Lines, res.BadSample, tracePath)
+	}
+
+	for _, f := range findings {
+		if f.Verdict == claims.Stale || f.Verdict == claims.NoEvidence {
+			return 1
+		}
+	}
+	return 0
 }

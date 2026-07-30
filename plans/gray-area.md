@@ -272,7 +272,7 @@ than broken where its event is absent.
 | **2. The miner** | Go CLI over the manifest: act-vs-claim, rework, stalls. Provenance on every answer | ~~Re-derive by machine the two hand analyses from the 2026-07-18 run and reconcile against the hand results~~ — **not runnable, see below.** Substitute: parse a live-generated transcript, resolve the aliased-invocation case, and refuse to emit any row without provenance |
 | **3. Instrumented reasoning** | Launch runs with `--thinking-display summarized`; summaries feed exploration queries only | Summary text is present in seat transcripts **and** the miner refuses to return it on an adjudication query |
 | **4. Bench symmetry** | The same inspections aimed at the bench | An inspection of the bench produces the same declared, cited output shape as one aimed at a seat |
-| **5. Checkpoints as a mined input** | Read sealed notes as declared claims and adjudicate them against the trajectory | A checkpoint asserting a validation step that the trajectory shows never ran is reported as a finding, with provenance |
+| **5. Checkpoints as a mined input** ✅ | Read sealed notes as declared claims and adjudicate them against the trajectory | A checkpoint asserting a validation step that the trajectory shows never ran is reported as a finding, with provenance — **met**, see §10.7 |
 
 **Continuity is not a phase here.** It ships in `prosthetic-conscience` on its own schedule (§4) and
 does not gate any phase above. Phase 5 depends on it having shipped, and is the only one that does.
@@ -330,3 +330,118 @@ accident. Two consequences:
 - Commit and pull-request metrics on the same substrate — named as in scope by the operator,
   unscoped here. Note that `attributionAgent` is populated for seats and **empty in main sessions**,
   which is the immediate obstacle to attributing a commit to a session.
+
+---
+
+## 10. Phase 5 — checkpoints as a mined input
+
+**Written before implementation.** Phase 5 was gated on continuity shipping; it shipped in #164,
+so this is the design and the loop that proves it.
+
+### 10.1 The claim this phase adjudicates
+
+A sealed checkpoint note carries a validation loop, and each entry is a **declared claim about
+work that was done**:
+
+```
+1. `go test -C plugins/gray-area/tools ./...`  → 3 packages ok  · re-armed by: plugins/gray-area/tools/
+   last run: pass 2026-07-30T04:41Z
+```
+
+That asserts three separable things: a command was run, it passed, and it was last run at a stated
+time. All three are self-report. The trajectory is the only independent record of what a session
+actually invoked, so the two can be put against each other — which is the whole of this phase.
+
+### 10.2 Verdicts, and why the negative one is the delicate one
+
+| Verdict | Meaning | Provenance emitted |
+|---|---|---|
+| `CITED` | a matching invocation is in the trajectory | note file:line **and** transcript uuid+line+timestamp |
+| `STALE` | a write under the check's trigger surface happened AFTER the claimed run time | both, plus the citing write |
+| `NO-EVIDENCE` | nothing matched | note file:line, the exact tokens searched, and the number of events searched |
+| `UNCHECKABLE` | the claim names no command to look for | note file:line, and the reason |
+
+`NO-EVIDENCE` is deliberately **not** called "did not run", and this is the load-bearing decision of
+the section. A miner that reports absence as fact is G4 — a trusted component that lies silently —
+and the failure is one-directional: a matcher too narrow produces confident false accusations, while
+a matcher too broad produces a citation the reader can see is wrong. So the tool states what it
+searched for and how much it searched, and lets the reader convict. `UNCHECKABLE` exists for the
+same reason: a prose check ("the continuity loop itself") has no command, and guessing at one would
+manufacture exactly the false negative this row refuses to produce.
+
+### 10.3 Matching, stated rather than implied
+
+The note's command and the trajectory's command are not the same string, and cannot be made so —
+`go test -C x ./...` and `cd x && go test ./... 2>&1 | grep FAIL` are the same check. Matching is
+therefore **token containment**: the claimed command reduces to a signature (its binary, its
+subcommand, and any path-shaped argument), and a Bash event matches when its command contains all of
+them. The signature travels in the output. An approximate match that shows its working is honest;
+an exact match that silently misses the piped form is not.
+
+### 10.4 Why `STALE` is the row that pays for this phase
+
+It is the verdict this repo's own history demanded. On 2026-07-30 a note asserted
+`last run: PASS 2026-07-30T03:23Z` for the continuity check while the mechanism that would have
+re-armed it was dead (#165) — and the note went on presenting that pass as current for the rest of
+the session. Nothing caught it; it took a hand audit. `STALE` is that audit, mechanically: the
+trajectory holds every `Write`/`Edit` with its target path and timestamp, so "a claim older than the
+last write to its own trigger surface" is computable without any cooperation from the mechanism that
+failed. **It does not depend on `FileChanged` firing**, which is precisely why it is worth having.
+
+### 10.5 Scope held back, on purpose
+
+- No scoring, no ranking, no aggregate "trust" number. Rows and provenance only (the §5 line).
+- No reading of thinking/summary content — Phase 3 owns that, with its refusal.
+- The note parser is **restated, not shared**: `prosthetic-conscience`'s
+  `checkpoint.ParseValidationLoop` is canonical, and the plugins are separate Go modules by design.
+  The drift risk is real and is handled by failing loudly — a note with a validation-loop heading
+  and zero parsed claims is an error, never an empty result.
+
+### 10.6 Validation loop for this phase
+
+1. `go test ./...` in `plugins/gray-area/tools` — clean.  · **re-armed by:** `plugins/gray-area/tools/`
+2. A fixture note whose claim IS in the fixture trajectory yields `CITED` with a uuid that appears
+   in the transcript.  · **re-armed by:** the note parser or the matcher
+3. A fixture note whose claim is NOT in the trajectory yields `NO-EVIDENCE` **and prints the tokens
+   searched** — a bare "not found" fails this check.  · **re-armed by:** the matcher
+4. The #165 shape: a claim timestamped BEFORE a write under its own trigger surface yields `STALE`,
+   citing the write.  · **re-armed by:** the staleness rule
+5. A note with a `## Validation loop` heading and no parsable entries EXITS NON-ZERO. Silent success
+   on an unrecognized format is the failure mode this phase would otherwise ship.
+   · **re-armed by:** the note parser
+6. Every row carries provenance or is not emitted — the package contract, unchanged.
+
+### 10.7 Built, and what running it on real data taught
+
+Shipped as `gray-area checkpoint <note.md> <transcript.jsonl>`, plugin `0.3.0 → 0.4.0`. The loop in
+§10.6 passes, and the phase's acceptance criterion is met by construction: `STALE` reports exactly
+"a checkpoint asserting a validation step the trajectory contradicts", with both documents cited.
+
+**It was run against this repo's own note and this session's own 14 MB transcript** — 1232 citable
+events, 9 claims — rather than only against fixtures. That found two defects fixtures had not:
+
+1. **Heredoc bodies were being matched as commands.** A `python3 - <<'PY'` script that merely
+   *mentioned* `plugins/prosthetic-conscience/tools` was reported `CITED` as evidence that the tests
+   there had run. Two of nine claims were cited to heredocs that only quoted their paths. Fixed by
+   stripping heredoc bodies before matching, and the reasoning is recorded in the code: **a false
+   citation is worse than a miss.** A miss shows its search and invites a check; a wrong citation
+   looks settled.
+2. **The evidence line shown was not the line matched on.** A compound command that edited a file
+   and then ran the check displayed as `python3 - <<'PY'` — a correct citation presented as an
+   obviously wrong one, which costs precisely the trust provenance exists to build.
+
+Both are the same underlying lesson, and it is worth stating because it will recur across every
+later phase: **the fixtures could not have found either.** A fixture is written by whoever wrote the
+matcher and inherits their idea of what a command looks like. Real transcripts contain heredocs,
+compound commands, and pipes nobody thought to fixture. Phase 2's remaining inspections should be
+run against a real trajectory before they are believed, not only against tests that pass.
+
+**On the note parser's own near-miss.** The first draft took the command from any line of an entry,
+and a real note's prose entry continues "…re-armed by an `add` event" — so it searched the
+trajectory for `add` and would have reported `NO-EVIDENCE` against a check it had invented a command
+for. Caught by the parser test, and fixed by the same asymmetry: the command comes from the entry's
+first line only, because a missing command yields `UNCHECKABLE` (honest) while an invented one
+yields an accusation that reads as fact.
+
+**Still deferred:** Phase 2's re-derivation against a human result. Nothing here is evidence that the
+miner agrees with a human auditor — only that it reads real transcripts and cites what it finds.

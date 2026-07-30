@@ -129,3 +129,94 @@ func TestTargetPrefersCommandThenPath(t *testing.T) {
 		t.Errorf("target on empty input = %q, want empty", got)
 	}
 }
+
+// callFiles drives the two-file `checkpoint` command, serving each path its own
+// body — the single-body helper above cannot express a note AND a transcript.
+func callFiles(t *testing.T, files map[string]string, args ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	var o, e bytes.Buffer
+	code = run(args, &o, &e, func(p string) (io.ReadCloser, error) {
+		body, ok := files[p]
+		if !ok {
+			return nil, io.EOF
+		}
+		return io.NopCloser(strings.NewReader(body)), nil
+	})
+	return o.String(), e.String(), code
+}
+
+const staleNote = "## Validation loop\n" +
+	"1. `go test -C plugins/gray-area/tools ./...` · re-armed by: plugins/gray-area/tools/\n" +
+	"   last run: pass 2026-07-30T04:00Z\n"
+
+const staleTrace = `{"type":"assistant","uuid":"ran","timestamp":"2026-07-30T03:59Z","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go test -C plugins/gray-area/tools ./..."}}]}}
+{"type":"assistant","uuid":"edit","timestamp":"2026-07-30T04:30Z","message":{"content":[{"type":"tool_use","id":"t2","name":"Write","input":{"file_path":"/repo/plugins/gray-area/tools/internal/claims/claims.go","content":"x"}}]}}
+`
+
+// The whole point of the phase, driven through the binary: a note claiming a pass
+// whose inputs moved afterwards is reported, with both sides cited, and the exit
+// code is non-zero so this composes into a gate.
+func TestCheckpointReportsStalenessAndExitsNonZero(t *testing.T) {
+	stdout, _, code := callFiles(t, map[string]string{
+		"NOTE.md": staleNote, "s.jsonl": staleTrace,
+	}, "checkpoint", "NOTE.md", "s.jsonl")
+
+	if code == 0 {
+		t.Fatalf("a stale claim exited 0, so it cannot gate anything; output:\n%s", stdout)
+	}
+	for _, want := range []string{"STALE", "NOTE.md:2", "edit", "plugins/gray-area/tools/"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("output does not carry %q:\n%s", want, stdout)
+		}
+	}
+}
+
+// A drifted note format must FAIL, not report an empty clean run. Silence that
+// reads as success is the failure mode this phase would otherwise ship.
+func TestCheckpointFailsLoudlyOnANoteItCannotRead(t *testing.T) {
+	drifted := "## Validation loop\n- a bullet, not a numbered entry\n- another\n"
+	stdout, stderr, code := callFiles(t, map[string]string{
+		"NOTE.md": drifted, "s.jsonl": staleTrace,
+	}, "checkpoint", "NOTE.md", "s.jsonl")
+
+	if code == 0 {
+		t.Fatalf("an unreadable note exited 0; stdout:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "drifted") {
+		t.Errorf("stderr does not explain the drift: %q", stderr)
+	}
+}
+
+// JSON rows carry both sides of the provenance, so a consumer can drop to either
+// document. A row that cites only one is half an answer.
+func TestCheckpointJSONCarriesBothSidesOfTheProvenance(t *testing.T) {
+	stdout, _, _ := callFiles(t, map[string]string{
+		"NOTE.md": staleNote, "s.jsonl": staleTrace,
+	}, "checkpoint", "-json", "NOTE.md", "s.jsonl")
+
+	var f struct {
+		Verdict  string `json:"verdict"`
+		NoteFile string `json:"note_file"`
+		NoteLine int    `json:"note_line"`
+		UUID     string `json:"uuid"`
+		File     string `json:"file"`
+		Line     int    `json:"line"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stdout)), &f); err != nil {
+		t.Fatalf("not one JSON row: %v (%s)", err, stdout)
+	}
+	if f.NoteFile == "" || f.NoteLine == 0 {
+		t.Error("no note-side provenance")
+	}
+	if f.UUID == "" || f.File == "" || f.Line == 0 {
+		t.Error("no trajectory-side provenance")
+	}
+}
+
+// Both paths are required. Taking one and guessing the other would be a tool
+// answering a question it was not asked.
+func TestCheckpointRequiresBothPaths(t *testing.T) {
+	if _, _, code := callFiles(t, map[string]string{"NOTE.md": staleNote}, "checkpoint", "NOTE.md"); code != 2 {
+		t.Errorf("exit %d, want 2", code)
+	}
+}
