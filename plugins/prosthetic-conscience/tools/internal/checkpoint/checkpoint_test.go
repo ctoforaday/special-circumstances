@@ -29,6 +29,34 @@ func TestParseFrontmatterAndSections(t *testing.T) {
 	}
 }
 
+// The frontmatter lines that are NOT keys. Parse's job is to degrade rather than fail
+// — the note is agent-written under time pressure — but degrading must not mean
+// inventing keys, because the restore hook states this map back to the session as
+// recovered fact. A mutation sweep flipped the `k != "" && !HasPrefix(k, "#")` guard
+// with the suite still green: neither half was asserted by anything.
+func TestFrontmatterSkipsNonKeys(t *testing.T) {
+	n := Parse("---\n" +
+		"# objective: this is a comment, not a key\n" +
+		"  # indented: also a comment\n" +
+		": value with no key\n" +
+		"   : whitespace-only key\n" +
+		"no colon at all\n" +
+		"real: kept\n" +
+		"---\nbody\n")
+
+	if got := n.Get("real"); got != "kept" {
+		t.Errorf("a well-formed key must survive its malformed neighbours: %q", got)
+	}
+	for _, k := range []string{"# objective", "#objective", "objective", "", "#", "no colon at all"} {
+		if got := n.Get(k); got != "" {
+			t.Errorf("Parse invented key %q = %q — a commented-out or keyless line is not a fact the note recorded", k, got)
+		}
+	}
+	if len(n.Front) != 1 {
+		t.Errorf("frontmatter has %d keys, want exactly 1 (%v)", len(n.Front), n.Front)
+	}
+}
+
 // Absent and empty are different facts: an empty validation loop is a note that
 // recorded no checks; a missing one is a note written before they existed.
 func TestAbsentAndEmptyAreDistinct(t *testing.T) {
@@ -182,6 +210,84 @@ func TestParseValidationLoop(t *testing.T) {
 	}
 }
 
+// What OPENS a check, at the character level. The loop above is well-formed, so the
+// numbered() predicate was only ever asked easy questions: a mutation sweep flipped
+// every comparison in it — the digit range and the `i > 0 && i < len(t)` guard — with
+// the suite still green. This is the note's schema boundary, and the note is
+// hand-written under time pressure, which is precisely when it is malformed.
+func TestValidationLoopNumbering(t *testing.T) {
+	cases := []struct {
+		name  string
+		line  string
+		opens bool
+	}{
+		{"single digit", "1. `go test`", true},
+		{"multi digit", "12. `go test`", true},
+		// '9' is the top of the digit range and '0' the bottom; a range check that
+		// excludes either end reads a two-digit loop as prose. Both ends get a case.
+		{"nine", "9. `go test`", true},
+		{"nineteen", "19. `go test`", true},
+		{"indented", "   3. `go test`", true},
+		{"zero", "0. `go test`", true},
+		{"no dot", "1 go test", false},
+		{"dot with no digits", ". go test", false},
+		{"letter before the dot", "a. go test", false},
+		{"digit-adjacent but not a dot", "1x go test", false},
+		{"prose that merely contains a number", "we ran 3 checks. all passed", false},
+		{"bare digits, nothing after", "12", false},
+		{"digits then end-of-line dot only", "12.", true},
+		{"empty", "", false},
+		{"whitespace only", "   ", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := ParseValidationLoop(c.line)
+			if opened := len(got) == 1; opened != c.opens {
+				t.Errorf("ParseValidationLoop(%q) opened %d check(s); want opens=%v", c.line, len(got), c.opens)
+			}
+		})
+	}
+
+	// A re-arm marker BEFORE any numbered line has no check to belong to, and must
+	// not be silently attached to the first one that follows.
+	got := ParseValidationLoop("re-armed by: tools/\n1. `go test`\n")
+	if len(got) != 1 {
+		t.Fatalf("checks = %d, want 1", len(got))
+	}
+	if got[0].ReArmedBy != "" {
+		t.Errorf("a marker preceding every check was adopted by check 1: %q", got[0].ReArmedBy)
+	}
+
+	// Case-insensitive by contract — the schema writes "re-armed by:" but a
+	// hand-written note capitalises.
+	if got := ParseValidationLoop("1. `go test` · Re-Armed By: tools/\n"); got[0].ReArmedBy != "tools/" {
+		t.Errorf("marker must match case-insensitively, got %q", got[0].ReArmedBy)
+	}
+
+	// The marker at column ZERO of a continuation line. Every other case here has it
+	// mid-line or indented, so `i >= 0` was never distinguished from `i > 0` — under
+	// which an unindented continuation loses its surface silently, and a surface that
+	// is silently lost is the failure the whole re-arm path exists to prevent.
+	unindented := "1. `go test`\nre-armed by: tools/\n"
+	if got := ParseValidationLoop(unindented)[0].ReArmedBy; got != "tools/" {
+		t.Errorf("a marker at column 0 of a continuation line was dropped: %q", got)
+	}
+
+	// A "·" at position zero of the remainder — the clause separator with nothing
+	// before it. There is no surface here, and the answer must be "none recorded"
+	// rather than the separator and the following prose read as a path.
+	if got := ParseValidationLoop("1. `go test` · re-armed by: · a human deciding to ship\n")[0].ReArmedBy; got != "" {
+		t.Errorf("an empty surface before the · clause must record nothing, got %q", got)
+	}
+
+	// First marker wins: a check whose surface is stated twice keeps the first,
+	// rather than letting a later continuation line overwrite it.
+	twice := "1. `go test` · re-armed by: tools/\n   re-armed by: docs/\n"
+	if got := ParseValidationLoop(twice)[0].ReArmedBy; got != "tools/" {
+		t.Errorf("second marker overwrote the first: %q", got)
+	}
+}
+
 // realProject builds an on-disk tree, because containment is now enforced by
 // os.Root and a map-backed fake cannot exercise a symlink escape.
 func realProject(t *testing.T) string {
@@ -279,6 +385,36 @@ func TestWatchTargetsCannotEscapeTheProject(t *testing.T) {
 	got, _ := targets(t, dir, "../../etc or ../secrets/")
 	if len(got) != 0 {
 		t.Errorf("escaped the project dir: %v", got)
+	}
+}
+
+// An ABSOLUTE path in the prose. The relative escapes above are covered; this one was
+// not, and it takes a different route through the code: watchableDir drops the empty
+// leading segment, so "/etc/passwd" arrives at the containment check already looking
+// relative. The IsAbs pre-filter therefore never fires for it and containment is the
+// only thing standing there — which is fine, and is exactly why it has to be asserted
+// rather than assumed. The contract is about the OUTPUT: no absolute path, and nothing
+// the watcher could aim outside the project.
+func TestWatchTargetsRefusesAbsolutePaths(t *testing.T) {
+	dir := realProject(t)
+	for _, prose := range []string{
+		"/etc/passwd",
+		"any edit under /var/log/",
+		"C:/Windows/System32",
+		"//server/share/x",
+	} {
+		got, reason := targets(t, dir, prose)
+		for _, p := range got {
+			if filepath.IsAbs(p) {
+				t.Errorf("targets(%q) = %v — watchPaths must never be handed an absolute path", prose, got)
+			}
+			if _, err := os.Stat(filepath.Join(dir, p)); err != nil {
+				t.Errorf("targets(%q) = %v, which does not exist inside the project", prose, got)
+			}
+		}
+		if len(got) == 0 && reason == "" {
+			t.Errorf("targets(%q) resolved nothing and said nothing — an unresolved surface must be REPORTED, or it is a silent miss", prose)
+		}
 	}
 }
 

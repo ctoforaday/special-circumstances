@@ -337,6 +337,12 @@ func TestHelperVersionOutput(t *testing.T) {
 	case "oneline":
 		fmt.Print("  phantom 1.2.3  ") // no trailing newline at all
 		os.Exit(0)
+	case "leadingblank":
+		// A banner that opens with a blank line. The newline is then at index 0,
+		// which is the one input distinguishing `i >= 0` from `i > 0` — under the
+		// latter the whole multi-line banner lands in a single-column table.
+		fmt.Print("\nphantom 1.2.3\nsecond line must be dropped\n")
+		os.Exit(0)
 	default:
 		t.Skip("helper process, invoked by TestVersionOf")
 	}
@@ -346,10 +352,21 @@ func TestHelperVersionOutput(t *testing.T) {
 // column for it, and a multi-line banner would wreck the report. A command that emits
 // no newline at all must be trimmed the same way.
 func TestVersionOf(t *testing.T) {
-	for _, mode := range []string{"multiline", "oneline"} {
+	for _, mode := range []string{"multiline", "oneline", "leadingblank"} {
 		t.Run(mode, func(t *testing.T) {
 			t.Setenv("SC_DOCTOR_HELPER", mode)
 			got := versionOf(os.Args[0] + " -test.run=TestHelperVersionOutput")
+			if strings.Contains(got, "\n") {
+				t.Fatalf("versionOf = %q; the table has ONE column for this", got)
+			}
+			if mode == "leadingblank" {
+				// An empty first line carries no version, and reporting "" is
+				// honest — the table then shows a bare ✓ rather than a banner.
+				if got != "" {
+					t.Fatalf("versionOf = %q; want the (empty) first line", got)
+				}
+				return
+			}
 			if got != "phantom 1.2.3" {
 				t.Fatalf("versionOf = %q; want the trimmed first line", got)
 			}

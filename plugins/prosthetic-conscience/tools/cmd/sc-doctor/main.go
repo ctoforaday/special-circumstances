@@ -355,25 +355,43 @@ func fetchRelease(b binStatus) error {
 	return os.WriteFile(dst, data, 0o755)
 }
 
+// buildFromSource is the local-toolchain boundary: the dev-convenience fallback when
+// no release asset can be fetched. It returns the build output for the report.
+func buildFromSource(b binStatus) (string, error) {
+	out := filepath.Join(b.Root, "bin", b.Name+exeSuffix())
+	cmd := exec.Command("go", "build", "-C", filepath.Join(b.Root, "tools"), "-o", out, "./cmd/"+b.Name)
+	msg, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(msg)), err
+}
+
 // fix provisions every missing binary: CI-built release asset first (checksum-
 // verified); a from-source build is only the dev-convenience fallback.
 func fix(bins []binStatus) []string {
+	return fixWith(bins, fetchRelease, buildFromSource, toolchain.Present("go"))
+}
+
+// fixWith is fix with both process boundaries passed in — the network (gh) and the
+// local toolchain (go build).
+//
+// They are parameters because the REPORT is the product here: this is what `--fix`
+// prints to an operator whose session is already degraded, and every branch of it was
+// untested. Nine of the fifteen operator-mutation survivors in this file lived in the
+// fetch path, for the ordinary reason that a test cannot reach a function that shells
+// out to the network. Now it can.
+func fixWith(bins []binStatus, fetch func(binStatus) error, build func(binStatus) (string, error), goPresent bool) []string {
 	var report []string
-	goPresent := toolchain.Present("go")
 	for _, b := range bins {
 		if b.Built {
 			continue
 		}
-		fetchErr := fetchRelease(b)
+		fetchErr := fetch(b)
 		if fetchErr == nil {
 			report = append(report, fmt.Sprintf("%s (%s): fetched CI-built release asset (checksum verified)", b.Name, b.Plugin))
 			continue
 		}
 		if goPresent {
-			out := filepath.Join(b.Root, "bin", b.Name+exeSuffix())
-			cmd := exec.Command("go", "build", "-C", filepath.Join(b.Root, "tools"), "-o", out, "./cmd/"+b.Name)
-			if msg, err := cmd.CombinedOutput(); err != nil {
-				report = append(report, fmt.Sprintf("%s: fetch failed (%v); BUILD FAILED: %s", b.Name, fetchErr, strings.TrimSpace(string(msg))))
+			if msg, err := build(b); err != nil {
+				report = append(report, fmt.Sprintf("%s: fetch failed (%v); BUILD FAILED: %s", b.Name, fetchErr, msg))
 			} else {
 				report = append(report, fmt.Sprintf("%s: fetch failed (%v); built from source (dev fallback)", b.Name, fetchErr))
 			}
