@@ -31,9 +31,12 @@ const version = "0.2.0"
 const usage = `gray-area — trajectory evidence
 
   gray-area tools <transcript.jsonl>   list every tool invocation, with provenance
-  gray-area checkpoint <note.md> <transcript.jsonl>
+  gray-area checkpoint <note.md> [transcript.jsonl]
                                       adjudicate a checkpoint's validation-loop
-                                      claims against what the session actually ran
+                                      claims against what the session actually ran.
+                                      With no transcript, resolves this session's
+                                      from gray-area's own manifest and prints
+                                      which row it used
 
 Flags:
   -binary <name>   also resolve shell-aliased invocations of <name>
@@ -136,6 +139,7 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 	binary := fs.String("binary", "", "resolve shell-aliased invocations of this binary")
 	asJSON := fs.Bool("json", false, "emit JSON rows")
 	showVersion := fs.Bool("version", false, "print version and exit")
+	projectDir := fs.String("project", "", "project root whose .claude/gray-area/ manifest resolves this session's transcript (default: CLAUDE_PROJECT_DIR, else the working directory)")
 	if err := fs.Parse(flags); err != nil {
 		return 2
 	}
@@ -155,11 +159,15 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 	rest := fs.Args()
 
 	if cmd == "checkpoint" {
-		if len(rest) < 2 {
-			fmt.Fprintln(stderr, "gray-area checkpoint: a note path and a transcript path are required")
+		if len(rest) < 1 {
+			fmt.Fprintln(stderr, "gray-area checkpoint: a note path is required")
 			return 2
 		}
-		return checkpoint(rest[0], rest[1], stdout, stderr, open, *asJSON)
+		trace := ""
+		if len(rest) > 1 {
+			trace = rest[1]
+		}
+		return checkpoint(rest[0], trace, stdout, stderr, open, *asJSON, *projectDir)
 	}
 
 	if len(rest) < 1 {
@@ -242,13 +250,55 @@ func main() {
 	}))
 }
 
+// defaultProjectDir resolves the project root for the manifest lookup.
+//
+// A WORKING-DIRECTORY FALLBACK IS CORRECT HERE and wrong in a hook, so the
+// divergence is deliberate rather than an oversight. A hook is spawned by the
+// harness with no meaningful cwd, which is why prosthetic-conscience's hookenv
+// refuses os.Getwd() — there, "somewhere" is unrelated to the session. This is a
+// CLI a human runs from inside the repo, where the working directory is exactly
+// the statement of which project they mean.
+func defaultProjectDir(flagValue, env, wd string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if env != "" {
+		return env
+	}
+	return wd
+}
+
 // checkpoint adjudicates a sealed note's validation-loop claims against the
 // trajectory of the session that wrote them.
 //
 // It exits 1 when any claim is STALE or has NO-EVIDENCE, so this composes into a
 // gate. It exits 1 on an unreadable note too: a note whose format has moved out
 // from under the parser must not read as "no claims to check".
-func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(string) (io.ReadCloser, error), asJSON bool) int {
+func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(string) (io.ReadCloser, error), asJSON bool, projectDir string) int {
+	// RESOLVED, NOT GUESSED. With no transcript argument the path comes from this
+	// plugin's own manifest — written at SessionStart from what the harness handed
+	// over — never from a glob of ~/.claude/projects/ (plans/gray-area.md §3).
+	var resolved claims.SessionRow
+	if tracePath == "" {
+		var err error
+		wd, _ := os.Getwd()
+		root := defaultProjectDir(projectDir, os.Getenv("CLAUDE_PROJECT_DIR"), wd)
+		resolved, err = claims.ResolveSession(claims.ManifestDir(root), claims.GlobFS, os.ReadFile)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		if !resolved.Resolved {
+			fmt.Fprintf(stderr, "gray-area: %s:%d names a transcript that did not resolve (%s) — adjudicating against it would report NO-EVIDENCE for every claim, which is a lie about the session rather than about the note\n",
+				resolved.Manifest, resolved.Line, resolved.CaptureError)
+			return 1
+		}
+		tracePath = resolved.TranscriptPath
+		// The pick is a claim like any other, so it is cited.
+		fmt.Fprintf(stdout, "resolved this session's trajectory from %s:%d (session %s, captured %s)\n  -> %s\n\n",
+			resolved.Manifest, resolved.Line, short(resolved.SessionID), resolved.CapturedAt, tracePath)
+	}
+
 	nf, err := open(notePath)
 	if err != nil {
 		fmt.Fprintf(stderr, "gray-area: cannot open %s: %v\n", notePath, err)

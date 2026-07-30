@@ -63,7 +63,13 @@ type hookInput struct {
 // manifestRow is one seat's entry. Field names are snake_case to match the
 // harness payloads a reader will have alongside them.
 type manifestRow struct {
-	Schema              int      `json:"schema"`
+	Schema int `json:"schema"`
+	// Kind separates the two rows a manifest can hold. "seat" is a subagent's
+	// trajectory, handed over at SubagentStop; "session" is the MAIN session's,
+	// handed over at SessionStart. They are one file because they belong to one
+	// run, and they are distinguished because a consumer asking "where is this
+	// session's transcript" must not be answered with a seat's.
+	Kind                string   `json:"kind"`
 	CapturedAt          string   `json:"captured_at"`
 	SessionID           string   `json:"session_id"`
 	AgentID             string   `json:"agent_id"`
@@ -88,6 +94,7 @@ type statFunc func(string) (int64, error)
 func buildRow(in hookInput, now time.Time, stat statFunc) manifestRow {
 	r := manifestRow{
 		Schema:              schema,
+		Kind:                "seat",
 		CapturedAt:          now.UTC().Format(time.RFC3339),
 		SessionID:           in.SessionID,
 		AgentID:             in.AgentID,
@@ -151,10 +158,41 @@ func appendRow(path string, r manifestRow, stderr io.Writer) {
 	}
 }
 
+// buildSessionRow records what SessionStart handed over: where THIS session's
+// transcript is.
+//
+// It exists because the alternative is a glob of ~/.claude/projects/, which
+// plans/gray-area.md §3 rules out on principle — the design is that the harness
+// hands the path over deterministically rather than the tool guessing which file
+// belongs to whom. SubagentStop already does that for seats; this is the same
+// move one event earlier, for the session itself.
+func buildSessionRow(in hookInput, now time.Time, stat statFunc) manifestRow {
+	r := manifestRow{
+		Schema:            schema,
+		Kind:              "session",
+		CapturedAt:        now.UTC().Format(time.RFC3339),
+		SessionID:         in.SessionID,
+		TranscriptPath:    in.TranscriptPath,
+		BackgroundTaskIDs: []string{},
+	}
+	if size, err := stat(in.TranscriptPath); err == nil {
+		r.Resolved = true
+		r.SizeBytes = size
+	} else {
+		r.CaptureError = "transcript_path did not resolve: " + err.Error()
+	}
+	return r
+}
+
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, stat statFunc) int {
 	fs := flag.NewFlagSet("gray-area-capture", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	showVersion := fs.Bool("version", false, "print version and exit")
+	// TAKEN FROM hooks.json, NOT INFERRED FROM THE PAYLOAD. The precedent is
+	// prosthetic-conscience's sc-checkpoint-seal: the wiring already knows which
+	// event it registered for, and inferring it from which fields happen to be
+	// present is a guess that goes wrong silently when the payload shape moves.
+	event := fs.String("event", "SubagentStop", "SubagentStop | SessionStart — which hook registered this call")
 	if err := fs.Parse(args); err != nil {
 		return 0 // a bad flag is never worth costing a subagent its turn
 	}
@@ -185,6 +223,21 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// rather than writing a relative .claude/ wherever the process happens to be.
 	if projectDir == "" {
 		fmt.Fprintln(stderr, "gray-area-capture: no project root (CLAUDE_PROJECT_DIR unset and the hook payload carried no cwd) — trajectory not captured")
+		return 0
+	}
+
+	if *event == "SessionStart" {
+		// THE ALARM (plan §11.3). hook-surface-spike.md §3 states every event carries
+		// transcript_path, but that was not re-measured for SessionStart, and a
+		// running session cannot fire one to check. So an absent field writes NO ROW
+		// and says so: a manifest row whose path is empty would resolve to nothing
+		// later, silently, which is the failure this plugin exists to avoid. If this
+		// line is ever seen in the wild, the spike's claim is wrong for this event.
+		if in.TranscriptPath == "" {
+			fmt.Fprintln(stderr, "gray-area-capture: SessionStart carried no transcript_path — no session row written (see plans/gray-area.md §11.3; this refutes the spike's claim that every event carries it)")
+			return 0
+		}
+		appendRow(manifestPath(projectDir, in.SessionID), buildSessionRow(in, now, stat), stderr)
 		return 0
 	}
 

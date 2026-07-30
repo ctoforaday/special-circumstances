@@ -213,10 +213,34 @@ func TestCheckpointJSONCarriesBothSidesOfTheProvenance(t *testing.T) {
 	}
 }
 
-// Both paths are required. Taking one and guessing the other would be a tool
-// answering a question it was not asked.
-func TestCheckpointRequiresBothPaths(t *testing.T) {
-	if _, _, code := callFiles(t, map[string]string{"NOTE.md": staleNote}, "checkpoint", "NOTE.md"); code != 2 {
+// The note path is required; the transcript is not, because it can be RESOLVED
+// from the manifest. Guessing the note too would be a tool answering a question
+// it was not asked.
+func TestCheckpointRequiresTheNotePath(t *testing.T) {
+	if _, _, code := callFiles(t, map[string]string{}, "checkpoint"); code != 2 {
 		t.Errorf("exit %d, want 2", code)
+	}
+}
+
+// With no transcript AND no manifest, it must say WHY it cannot resolve one and
+// exit non-zero — never fall back to searching inside ~/.claude/projects/, which
+// is the attribution failure the manifest exists to remove (plan §3, §11.2).
+//
+// The first draft of this test asserted the message did not contain "guess", and
+// failed — because t.TempDir() embeds the TEST NAME in its path, and the name
+// ended "...RatherThanGuessing". The assertion was matching its own label. A
+// check that can be satisfied or broken by noise is not a check, so this one now
+// asserts on the two things a reader actually needs: what is missing, and what to
+// do about it.
+func TestCheckpointWithNoManifestSaysWhatIsMissing(t *testing.T) {
+	_, stderr, code := callFiles(t, map[string]string{"NOTE.md": staleNote},
+		"checkpoint", "-project", t.TempDir(), "NOTE.md")
+	if code == 0 {
+		t.Fatal("exited 0 with no transcript and no manifest")
+	}
+	for _, want := range []string{"manifest", "SessionStart"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr does not name %q, so a reader cannot act on it: %q", want, stderr)
+		}
 	}
 }

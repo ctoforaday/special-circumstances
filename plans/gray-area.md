@@ -445,3 +445,102 @@ yields an accusation that reads as fact.
 
 **Still deferred:** Phase 2's re-derivation against a human result. Nothing here is evidence that the
 miner agrees with a human auditor — only that it reads real transcripts and cites what it finds.
+
+---
+
+## 11. The surface layer — making Phase 5 reachable
+
+**Written before implementation.** Phase 5 shipped a capability nothing can invoke: `gray-area
+checkpoint` is a binary, and a session has no way to know it exists or when to run it. This is the
+smallest change from *built* to *used*.
+
+### 11.1 What the command layer is, and is not
+
+| plugin | commands | skills | agents |
+|---|---|---|---|
+| prosthetic-conscience | 5 | 20 | 2 |
+| frank-exchange-of-views | 1 | 1 | 3 |
+| **gray-area** | **0** | **0** | **0** |
+| sleeper-service | 0 | 0 | 0 |
+
+Gray Area is not an outlier for lacking one — sleeper-service does too. The pattern is narrower:
+the two plugins with **user-facing capability** ship a command layer, and Gray Area only acquired
+user-facing capability with Phase 5.
+
+**It is NOT wired into `prosthetic-conscience`'s seal hook, and must not be.** §4 and G6 are
+explicit that continuity cannot depend on the miner: reading trajectories is a surveillance
+capability, and a consumer has to be able to take compaction survival without taking it. A
+cross-plugin hook would quietly reverse that. The cost is real and is accepted here: a command a
+human or a session *chooses* to run is a weaker mechanism than a hook that always fires. Naming the
+weakness is the point — this narrows #166, it does not close it.
+
+### 11.2 The blocker, and why the obvious fix is forbidden
+
+The command needs **this session's transcript path**. The manifest only ever holds rows written by
+`SubagentStop`, so a main session that spawned no subagents has no manifest at all. The obvious
+answer — glob `~/.claude/projects/` for the newest file — is exactly what Phase 1's acceptance
+criterion forbids ("*no glob of the projects directory anywhere*"), and §3 explains why: the whole
+design principle is that the harness **hands over** the path, deterministically, rather than the
+tool guessing which file belongs to whom.
+
+So the enabler is a `SessionStart` hook that records what the harness hands it. Same shape as
+`SubagentStop`, one event earlier.
+
+### 11.3 An assumption that is NOT measured, and is built to fail loudly
+
+`hook-surface-spike.md` §3 states every event carries `session_id`, `transcript_path` and `cwd`. That
+is a recorded measurement, but it was **not re-measured for `SessionStart` here**, and this suite's
+own rule is to treat documentation as unverified until checked. There is no way to fire a
+`SessionStart` from inside a running session, so it cannot be closed in the same turn that writes it.
+
+Therefore the hook is built so the assumption's failure is *visible*: a payload with no
+`transcript_path` writes **no row** and says so on stderr, rather than writing a row whose path is
+empty. A manifest that silently cannot resolve is the failure this whole plugin exists to avoid.
+**The first session after this ships confirms or refutes it** — see §11.5.
+
+### 11.4 Resolution, with provenance
+
+`gray-area checkpoint <note.md>` with no transcript argument reads `.claude/gray-area/` — *our own
+manifest directory*, not the projects store — and takes the newest session row. Listing a directory
+this plugin writes is categorically different from guessing inside one it does not own.
+
+Which row was used is **printed**, because "the tool picked a transcript for you" is a claim like
+any other and gets cited like one.
+
+### 11.5 Validation loop
+
+1. `go test ./...` in `plugins/gray-area/tools` — clean.  · **re-armed by:** `plugins/gray-area/tools/`
+2. A `SessionStart` payload carrying `transcript_path` writes exactly one session row, resolvable.
+   · **re-armed by:** the capture hook
+3. A `SessionStart` payload with **no** `transcript_path` writes **no row** and says so on stderr.
+   · **re-armed by:** the capture hook — this is §11.3's alarm, and it is the check that matters
+4. `gray-area checkpoint <note>` with no transcript argument resolves from the manifest and PRINTS
+   which row it used. With no manifest it says so and exits non-zero rather than guessing.
+5. **OPEN, needs a fresh session:** the wired hook actually produces a session row on a real
+   `SessionStart`. Until that is observed, §11.3's assumption is unconfirmed and this row is the
+   evidence to look for.
+
+### 11.6 Built, and the one check that is still open
+
+Shipped as `/gray-area:audit-checkpoint` plus a `SessionStart` capture mode, plugin `0.4.0 → 0.5.0`.
+Loop items 1–4 pass; **item 5 remains open by construction** and is the honest state of §11.3.
+
+Verified end to end by feeding the hook a real `SessionStart` payload and then resolving from what
+it wrote — a session row, then `checkpoint` with no transcript argument printing the row it used and
+adjudicating 9 claims (5 `CITED`, 3 `STALE`, 1 `UNCHECKABLE`). That exercises every link except the
+one that cannot be exercised from inside a running session: **whether the harness actually puts
+`transcript_path` in a real `SessionStart` payload.** The hook is wired, so the next session in this
+repo answers it — look for a `kind: "session"` row in `.claude/gray-area/`, or for the stderr line
+naming the missing field.
+
+**A test that was measuring its own name.** The first draft of the no-manifest test asserted the
+error message did not contain "guess", and failed — because `t.TempDir()` embeds the test's name in
+the path it returns, and the name ended `...RatherThanGuessing`. The assertion was matching its own
+label. It is worth recording next to §10.7's lesson because it is the same family: a check that can
+be satisfied or broken by incidental text is not a check. It now asserts on the two things a reader
+needs — what is missing, and what to do about it.
+
+**What this does NOT close.** #166 asked for a mechanism, and a command is not one: it fires when a
+human or a session chooses to run it. The hook that would always fire belongs in
+`prosthetic-conscience`'s seal, and §4/G6 forbid putting it there. So this narrows the gap and
+leaves it open, deliberately, rather than buying enforcement with a coupling the design rules out.

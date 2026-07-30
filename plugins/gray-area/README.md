@@ -90,3 +90,18 @@ mechanism that failed.**
 It does not decide whether a check *should* have run, score a note's trustworthiness, or read
 thinking content. A `NO-EVIDENCE` row is an absence, stated as one. The transcript is append-only,
 not signed: this establishes what the record says, never that the record is authentic.
+
+## The command
+
+`/gray-area:audit-checkpoint` runs the adjudication above and relays the rows. With no argument it
+resolves this session's trajectory from gray-area's own manifest and prints which row it used.
+
+That resolution is why the plugin registers a `SessionStart` hook: `SubagentStop` only ever hands
+over a *seat's* transcript, so without a session row there is no non-guessing way to find the
+session's own. Searching `~/.claude/projects/` for a likely-looking file is the attribution failure
+this plugin is built to remove — a guessed transcript produces confident findings about the wrong
+session — so the tool refuses and says what is missing instead.
+
+The command is a weaker mechanism than a hook, on purpose. Wiring the adjudication into
+`prosthetic-conscience`'s seal would make continuity depend on the miner, and a consumer has to be
+able to take compaction survival without taking a surveillance capability.
