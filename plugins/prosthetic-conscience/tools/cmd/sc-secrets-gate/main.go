@@ -61,7 +61,11 @@ func run(args []string, stdin io.Reader, stdout io.Writer) int {
 		return 0
 	}
 
-	found := secrets.Scan(string(in.ToolInput))
+	// ScanPayload, not Scan: the raw wire bytes are an ENCODING of the input, and
+	// an escaped encoding of an identical secret does not match a pattern written
+	// against decoded text (measured — see secrets.ScanPayload). A gate whose
+	// result depends on the sender's escaping choices is not a gate.
+	found := secrets.ScanPayload(in.ToolInput)
 	if len(found) == 0 {
 		return 0 // allow
 	}

@@ -60,7 +60,7 @@
       {
         "name": "sc-secrets-gate",
         "event": "PreToolUse(WebFetch|WebSearch|Bash)",
-        "purpose": "deny outbound payloads matching secret patterns"
+        "purpose": "deny outbound payloads matching secret patterns — scans DECODED tool_input, not the wire bytes: an identical secret written with JSON \\u escapes evaded a raw scan (measured), and a gate whose result depends on the sender's encoding choices is not a gate"
       },
       {
         "name": "sc-toolchain-nudge",
