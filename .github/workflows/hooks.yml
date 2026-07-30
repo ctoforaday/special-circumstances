@@ -297,12 +297,8 @@ jobs:
       - run: >-
           node --test
           plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs
-          plugins/frank-exchange-of-views/tests/simulator/cost-audit.test.mjs
-          plugins/frank-exchange-of-views/tests/simulator/run-scripts.test.mjs
           plugins/frank-exchange-of-views/tests/simulator/run-dashboard.test.mjs
-          plugins/frank-exchange-of-views/tests/simulator/record-readers.test.mjs
           plugins/frank-exchange-of-views/tests/simulator/prompts.test.mjs
-          plugins/frank-exchange-of-views/tests/simulator/scorecards.test.mjs
           plugins/frank-exchange-of-views/tests/simulator/read-batching.test.mjs
       - name: Validate all tracked JSON (manifests break silently)
         run: node .github/validate-json.mjs

@@ -44,7 +44,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null, transcriptDir = null, scriptsDir = null } = a
+const { topic, runDir, lanes = 3, maxRounds = 12, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, scorecards = null, gapPatterns = null, transcriptDir = null } = a
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
@@ -203,20 +203,22 @@ const scorecardClause = (tool) => {
   // priors-are-poison (2026-07-19). Half-1 removed the cross-run SEED — a prior run's numbers
   // were Goodhart bait, topic-confounded, cross-model and salience-priming. Half-2 (here) gives
   // the chair its OWN in-run scorecard for THIS question, computed live from this run's record —
-  // via `feov-record scorecard` when binDir is set (#121 slice 3), else node scorecards.mjs (the
-  // one computation; no re-derivation). The `scorecards` arg now feeds operator analytics only.
-  // Gated on scriptsDir, so a run without it simply omits the clause.
+  // via `feov-record scorecard` (#121 slice 3; the one computation, no re-derivation). The
+  // `scorecards` arg now feeds operator analytics only.
+  // Gated on binDir: `feov-record scorecard` is the only reader, so a run without the binary
+  // simply omits the clause (the node scorecards.mjs fallback is retired — #121 slice 5).
   const chair = CHAIR[tool]
-  if (!scriptsDir || !chair) return ''
-  return ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  ${binDir ? `${binDir}/feov-record scorecard --run ${runDir} --chair ${chair}` : `node ${scriptsDir}/scorecards.mjs --run ${runDir} --chair ${chair}`}  and read how this chair is doing on the question in front of you so far. It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding). Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.`
+  if (!binDir || !chair) return ''
+  return ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  ${binDir}/feov-record scorecard --run ${runDir} --chair ${chair}  and read how this chair is doing on the question in front of you so far. It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding). Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.`
 }
 
 const RECORD_ROLE = { 'red-lens': 'lens', 'red-merge': 'merge', blue: 'blue', bench: 'bench' }
 const recordClause = (seatId, tool) => binDir
   ? `${scorecardClause(tool)} SEAT_ID: ${seatId}. THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritative, not "under test"): every board act happens through "${binDir}/feov-record" ${RECORD_ROLE[tool]}, and the tool's board — read it back with \`${RECORD_ROLE[tool]} show --view board\` (structured JSON) — is the ONLY source of truth for status. FIRST ACTION: "${binDir}/feov-record" ${RECORD_ROLE[tool]} register --run ${runDir} --seat-id ${seatId} — then the matching verb for each act. YOUR CONTRACT IS \`feov-record ${RECORD_ROLE[tool]} --help\` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you. Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes. If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write. Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose. It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.`
-  // The scorecard is NOT gated on dual-mode: a run without the record binary is
-  // still a run whose chairs have numbers, and a visibility loop that only closes
-  // when an unrelated feature is switched on is not a loop.
+  // The scorecard is gated on binDir now (#121 slice 5): `feov-record scorecard` is its only
+  // reader, so a run without the record binary gets no in-run scorecard clause. This else-branch
+  // fires only when binDir is falsy, where scorecardClause itself already returns '' — so a
+  // binary-less run carries neither the record contract nor the scorecard, which is the reality.
   : scorecardClause(tool)
 
 

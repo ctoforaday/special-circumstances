@@ -25,7 +25,7 @@ flowchart TB
     DBT["debate.md"]
   end
   merge["red-merge seat"]
-  score["scorecards.mjs<br/>(--bin → show --view findings)"]
+  score["feov-record scorecard<br/>(reads show --view findings)"]
   bench["lead-judge"]
 
   L -->|emit| FE

@@ -25,10 +25,10 @@ verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.21.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"low","likelihood":"low","problem":"from the stale dispatch","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 -- events-red-merge-r1-NONCE002.jsonl
-{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.21.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
+{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE002","payload":{"acceptance_check":"b","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"from the live dispatch","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"mint"}
 {"key":"red-merge-r1:verdict","nonce":"NONCE002","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":4,"type":"verdict"}
 

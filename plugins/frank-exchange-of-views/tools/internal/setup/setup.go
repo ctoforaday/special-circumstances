@@ -272,9 +272,10 @@ type RenderedRow struct {
 	Value  *string
 }
 
-// parseRenderedRowsRe mirrors scorecards.mjs parseRenderedRows exactly: a lazy clause
-// (.+?) terminates at the first colon actually followed by a value, so a clause that
-// itself contains a colon ("LOSS: additive violations") is read whole.
+// parseRenderedRowsRe was ported verbatim from the now-deleted scorecards.mjs parseRenderedRows
+// (its behaviour is canonical in scorecard.ParseRenderedRows): a lazy clause (.+?) terminates at
+// the first colon actually followed by a value, so a clause that itself contains a colon
+// ("LOSS: additive violations") is read whole.
 var parseRenderedRowsRe = regexp.MustCompile("`([a-z_]+)`\\s*\\[(benchmark|detector|diagnostic|measure)\\]\\s*—\\s*(.+?):\\s*(?:\\*\\*([^*]+)\\*\\*|_not computed_)")
 
 func ParseRenderedRows(section string) []RenderedRow {
