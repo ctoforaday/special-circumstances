@@ -485,6 +485,16 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if p.Str("closure_class") == "closed_with_regression" && !p.Has("successor") {
 			return fmt.Errorf("record: closed_with_regression requires --successor (lineage never drops)")
 		}
+		// THE NEAR MISS, refused as the typo it is.
+		//
+		// closure_class is an open set (enums.go says why), so a MISSPELLING of the one
+		// class that gates an invariant does not fail — it lands in the open part of the
+		// set and skips the successor check above, which is the opposite of "lineage
+		// never drops". Only spellings that differ in case or separator are caught: that
+		// is the whole typo class, and it cannot refuse a class somebody meant.
+		if cc := p.Str("closure_class"); cc != "closed_with_regression" && sameWord(cc, "closed_with_regression") {
+			return fmt.Errorf("record: %s is not a closure class — did you mean `closed_with_regression`? It is matched exactly, and it is the one class that requires --successor, so a near-miss spelling would have closed the gap with its remainder dropped", jsonish(cc))
+		}
 		// A closure is a claim, and the claim's substance is its argument: what was
 		// verified and why it holds. Checked after the anchor so the more specific
 		// refusal (an unauditable closure) leads when both are absent, and EXEMPT for a
@@ -551,9 +561,10 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireGap(runDir, p.Str("into"), "dispose", "--into"); err != nil {
 			return err
 		}
-		if !p.Has("disposition") || p.Str("disposition") == "" {
-			return fmt.Errorf("record: dispose requires --as minted-as|folded-into|declined|banked")
-		}
+		// The disposition itself is checked by the enum table at the top of validate:
+		// this used to be a presence-only check under a message that NAMED the four
+		// values, which meant the message was the only place the set existed and
+		// `dispose --as banana` passed the check that appeared to state it.
 	case "regrade":
 		if err := requireGap(runDir, p.Str("gap_id"), "regrade", "--id"); err != nil {
 			return err
@@ -649,7 +660,13 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			return fmt.Errorf("record: `halt` is not a disposition — it is the bench's own verb, so that the run's terminal act cannot be reached by a typo in a ruling. Use `bench halt` if you mean to stop the run")
 		}
 	}
-	return nil
+	// The closed sets, checked from one declaration (enums.go) rather than five
+	// hand-written copies. LAST, so the more specific refusal leads when a payload has
+	// several defects at once — the same ordering rule `close` states above, where the
+	// unauditable-closure message beats the missing-reason one. A seat fixing `dispose
+	// --observation N2` learns that N2 does not exist before it learns that --as was
+	// also blank; both refusals are reachable, in the order that gets it unstuck.
+	return checkEnum(typ, p)
 }
 
 // jsonish renders a value the way JSON.stringify would inside the oracle's error

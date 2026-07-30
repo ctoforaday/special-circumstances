@@ -24,7 +24,7 @@ import (
 // the working tree.
 func newVerdict() *cobra.Command {
 	c := seat.New("verdict",
-		"the seat's terminal act: --as PASS|FAIL — renders all projections and checkpoints records/ to the recovery mirror",
+		"the seat's terminal act: --as "+record.EnumFields["verdict"].Spelling()+" — renders all projections and checkpoints records/ to the recovery mirror",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
 			if _, err := record.Append(s.RunDir, s.SeatID, "verdict", p); err != nil {
@@ -41,7 +41,7 @@ func newVerdict() *cobra.Command {
 			return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: r.Open, Closed: r.Closed, Checkpoint: mirror}, nil
 		})
 
-	c.Flags().String(flags.As, "", "PASS | FAIL — the seat's terminal act")
+	c.Flags().String(flags.As, "", record.EnumFields["verdict"].Usage("the seat's terminal act"))
 	return c
 }
 

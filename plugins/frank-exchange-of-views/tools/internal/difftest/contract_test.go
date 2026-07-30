@@ -66,6 +66,14 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	capture(command(bin, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class", "scope-creep", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap"))
+	// And one real finding, so "dispose without disposition" refuses the MISSING
+	// DISPOSITION rather than an unknown observation. It did the latter for as long as
+	// this case has existed: the case was named for a refusal it never reached, and the
+	// golden recorded the wrong message without anything noticing.
+	capture(command(bin, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"))
+	capture(command(bin, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
+		"--location", "somewhere", "--reason", "a valid finding"))
 
 	cases := []struct {
 		name string
@@ -85,6 +93,15 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"dispose without disposition", []string{"merge", "dispose", "--observation", "L1-F1"}},
 		{"regrade without basis", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}},
 		{"opinion missing fields", []string{"bench", "opinion", "--id", "R1-1", "--as", "carried"}},
+		// The closed sets. Each names what would have worked AND what the near-miss
+		// would have done, because the near-miss is the case that used to be recorded
+		// silently rather than refused.
+		{"verdict in the wrong case", []string{"merge", "verdict", "--as", "pass"}},
+		{"verdict outside the set", []string{"merge", "verdict", "--as", "banana"}},
+		{"outcome in the wrong case", []string{"bench", "outcome", "--as", "ceiling"}},
+		{"dispose outside the set", []string{"merge", "dispose", "--observation", "L1-F1", "--into", "R1-1", "--as", "banana"}},
+		{"petition ruling outside the set", []string{"bench", "petition-rule", "--petitioner", "red-merge-r1", "--petition-class", "scope", "--as", "halt", "--reason", "r"}},
+		{"closure class near-miss", []string{"merge", "close", "--id", "R1-1", "--as", "closed-with-regression", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t", "--reason", "r"}},
 		{"invalid seat id", []string{"merge", "mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check", "x", "--problem", "p"}},
 		{"verb outside the lens role", []string{"lens", "mint", "--class", "scope-creep"}},
 		{"verb outside the blue role", []string{"blue", "close", "--id", "R1-1"}},

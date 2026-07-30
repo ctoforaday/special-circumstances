@@ -1106,6 +1106,44 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 	}
 }
 
+// ...AND THE GATE CANNOT BE SPELLED PAST.
+//
+// The guard above compares --as to the literal "PASS", so for as long as it has existed
+// every OTHER spelling of a pass simply missed it: measured on the shipped tree, `--as
+// pass`, `--as Pass` and `--as banana` were all recorded over an open board with the
+// check never running. That is a worse failure than the rubber-stamp it was written to
+// stop — the rubber-stamp at least left "PASS" on the record, where a re-audit could see
+// it. The set is closed at the write path now (record.EnumFields), and this pins the
+// route the original guard is reached BY, not just the guard.
+func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
+	seatID := "red-merge-r1"
+	for _, as := range []string{"pass", "Pass", "PASSED", "banana", ""} {
+		t.Run("as="+as, func(t *testing.T) {
+			runDir := t.TempDir()
+			if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+				"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"merge", "verdict", "--run", runDir, "--seat-id", seatID}
+			if as != "" {
+				args = append(args, "--as", as)
+			}
+			if _, err := run(t, args...); err == nil {
+				t.Fatalf("`verdict --as %q` was recorded over an open gap", as)
+			} else if !strings.Contains(err.Error(), "PASS|FAIL") {
+				t.Errorf("the refusal must name what would have worked, got: %v", err)
+			}
+			// AND NOTHING WAS WRITTEN. A refusal that still appends leaves a verdict on
+			// the record for every projection to read.
+			for _, e := range events(t, runDir) {
+				if e.Type == "verdict" {
+					t.Errorf("a refused verdict reached the log anyway: %+v", e.Payload)
+				}
+			}
+		})
+	}
+}
+
 // verdict is the merge seat's terminal act: it renders and checkpoints.
 func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	runDir := t.TempDir()
