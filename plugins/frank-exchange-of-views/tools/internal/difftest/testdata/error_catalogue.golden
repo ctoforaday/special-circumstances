@@ -44,7 +44,7 @@ feov-record: merge: record: closed_with_regression requires --successor (lineage
 
 ── dispose without disposition
 exit 2
-feov-record: merge: record: dispose --observation names L1-F1, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing
+feov-record: merge: record: dispose requires --as minted-as|folded-into|declined|banked (got "") — nothing was passed, and a fate outside the four is a fifth meaning nobody defined, and one finding gets one fate — an unreadable one cannot be audited as either given or withheld
 
 ── regrade without basis
 exit 2
@@ -53,6 +53,50 @@ feov-record: merge: record: regrade requires --reason (grade movement is recorde
 ── opinion missing fields
 exit 2
 feov-record: bench: record: opinion requires --principle (opinions, not dispositions)
+
+── verdict in the wrong case
+exit 2
+feov-record: merge: record: verdict requires --as PASS|FAIL (got "pass") — "pass" differs from "PASS" only in case, and a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+
+── verdict outside the set
+exit 2
+feov-record: merge: record: verdict requires --as PASS|FAIL (got "banana") — a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+
+── outcome in the wrong case
+exit 2
+feov-record: bench: record: outcome requires --as VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
+
+── dispose outside the set
+exit 2
+feov-record: merge: record: dispose requires --as minted-as|folded-into|declined|banked (got "banana") — a fate outside the four is a fifth meaning nobody defined, and one finding gets one fate — an unreadable one cannot be audited as either given or withheld
+
+── petition ruling outside the set
+exit 2
+feov-record: bench: record: petition-rule requires --as granted|denied (got "halt") — relief binds the coming seats only on an exact `granted`, so a near-miss grants nothing while reading as a grant on the record — and a halt is the bench's own verb, which this set closing is what actually makes true
+
+── closure class near-miss
+exit 2
+feov-record: merge: record: "closed-with-regression" is not a closure class — did you mean `closed_with_regression`? It is matched exactly, and it is the one class that requires --successor, so a near-miss spelling would have closed the gap with its remainder dropped
+
+── dispute dimension outside the set
+exit 2
+feov-record: blue: record: dispute requires --dimension severity|likelihood|impact|complexity_cost (got "banana") — the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero
+
+── observation kind outside the set
+exit 2
+feov-record: lens: record: observe requires --kind note|checked-held (got "banana") — the two kinds are what an observation can BE — a note the merge may decline, or a check that was run and held. A third word exports into the findings projection as a flavour nothing downstream knows how to read
+
+── citation confidence outside the set
+exit 2
+feov-record: lens: record: cite requires --confidence high|medium|low (got "banana") — the grade is the whole content of a citation's claim about its source; an unreadable one makes the citation's confidence incomparable with every other row in the table it lands in
+
+── blue confidence outside the set
+exit 2
+feov-record: blue: record: confidence requires --confidence high|medium|low (got "banana") — the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable
+
+── petition class outside the set
+exit 2
+feov-record: blue: record: petition requires --petition-class ethical|safety|integrity|constitutional (got "banana") — the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine
 
 ── invalid seat id
 exit 2

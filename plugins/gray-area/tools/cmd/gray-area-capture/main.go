@@ -167,10 +167,24 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 
+	// THE PAYLOAD ALSO SAYS WHERE THE PROJECT IS, and this used the environment alone.
+	// The refusal below is right — better than the silent no-op the same class produced
+	// in prosthetic-conscience's hooks — but it fired while `cwd` sat parsed and unread
+	// two lines up, so a session with CLAUDE_PROJECT_DIR unset lost its trajectory for
+	// want of a value it had been handed.
+	//
+	// Resolution order matches prosthetic-conscience's internal/hookenv, which is the
+	// canonical statement of this rule; it is restated here rather than imported because
+	// the two plugins are separate Go modules by design. In particular there is NO
+	// os.Getwd() fallback: "I do not know where the project is" must not become "I will
+	// write somewhere", and the somewhere is unrelated to the session.
+	if projectDir == "" {
+		projectDir = in.CWD
+	}
 	// No project dir means no durable place to key the manifest; say so once
 	// rather than writing a relative .claude/ wherever the process happens to be.
 	if projectDir == "" {
-		fmt.Fprintln(stderr, "gray-area-capture: CLAUDE_PROJECT_DIR unset — trajectory not captured")
+		fmt.Fprintln(stderr, "gray-area-capture: no project root (CLAUDE_PROJECT_DIR unset and the hook payload carried no cwd) — trajectory not captured")
 		return 0
 	}
 

@@ -47,6 +47,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 )
 
 const version = "0.1.0"
@@ -149,7 +150,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
-	if in.FilePath == "" || projectDir == "" {
+	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	if !hookenv.Explain(projectDir, stderr, "sc-filechanged-rearm") || in.FilePath == "" {
 		return 0
 	}
 

@@ -35,7 +35,7 @@ func newDisputeRespond() *cobra.Command {
 		})
 
 	c.Flags().String(flags.ID, "", "the gap id")
-	c.Flags().String(flags.As, "", "accepted | rejected — your answer to blue's grade dispute")
+	c.Flags().String(flags.As, "", record.MustEnum("dispute-respond", "response").Usage("your answer to blue's grade dispute"))
 	return seat.Prose(c)
 }
 

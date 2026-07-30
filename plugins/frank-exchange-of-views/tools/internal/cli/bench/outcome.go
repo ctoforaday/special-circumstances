@@ -24,11 +24,11 @@ import (
 // they decorate the stamp and are recorded alongside the verdict, never inferred later.
 func newOutcome() *cobra.Command {
 	c := seat.New("outcome",
-		"record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]",
+		"record the run's terminal verdict as a fact: --as "+record.MustEnum("outcome", "verdict").Spelling()+" [--deadlocked] [--exhausted]",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			verdict := seat.Str(cmd, flags.As)
 			if verdict == "" {
-				return nil, fmt.Errorf("outcome: --as <verdict> is required (VERIFIED | CEILING | HALTED | UNVERIFIED)")
+				return nil, fmt.Errorf("outcome: --as <verdict> is required (%s)", record.MustEnum("outcome", "verdict").Usage("the run's terminal verdict"))
 			}
 			deadlocked, _ := cmd.Flags().GetBool(flags.Deadlocked)
 			exhausted, _ := cmd.Flags().GetBool(flags.Exhausted)
@@ -42,7 +42,7 @@ func newOutcome() *cobra.Command {
 			return outcomeResult{Verdict: verdict, Deadlocked: deadlocked, Exhausted: exhausted}, nil
 		})
 
-	c.Flags().String(flags.As, "", "VERIFIED | CEILING | HALTED | UNVERIFIED — the run's terminal verdict")
+	c.Flags().String(flags.As, "", record.MustEnum("outcome", "verdict").Usage("the run's terminal verdict"))
 	c.Flags().Bool(flags.Deadlocked, false, "the run ended by judged deadlock")
 	c.Flags().Bool(flags.Exhausted, false, "the run ended by safety/round ceiling")
 	return c

@@ -66,7 +66,7 @@ func Petition(help, suffix string) *cobra.Command {
 		}
 		return petitionResult{Class: Str(cmd, flags.PetitionClass), Suffix: suffix}, nil
 	})
-	c.Flags().String(flags.PetitionClass, "", flags.DescPetitionClass)
+	c.Flags().String(flags.PetitionClass, "", record.MustEnum("petition", "class").Usage("what you are asking the bench to sit on"))
 	c.Flags().String(flags.Relief, "", "the relief sought, stated as it would bind the coming seats")
 	return Prose(c)
 }

@@ -53,6 +53,7 @@ import (
 	"unicode"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 )
 
 const version = "0.1.0"
@@ -70,6 +71,7 @@ type hookInput struct {
 	Trigger        string `json:"trigger"` // manual | auto
 	CompactSummary string `json:"compact_summary"`
 	AgentID        string `json:"agent_id"`
+	CWD            string `json:"cwd"`
 }
 
 // observation is one compaction boundary, one row.
@@ -177,6 +179,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
+	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	if !hookenv.Explain(projectDir, stderr, "sc-postcompact-observe") {
+		return 0
+	}
 
 	path := checkpoint.NotePath(projectDir, func(p string) bool {
 		st, err := os.Stat(p)

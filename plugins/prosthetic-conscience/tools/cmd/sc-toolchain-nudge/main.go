@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
@@ -65,10 +66,23 @@ func liveNudge(m *runlive.Marker) string {
 // run is the hook with its process boundary passed in. probe is a parameter rather
 // than a direct toolchain.Probe call so a test's verdict does not depend on what
 // happens to be installed on the machine running it.
-func run(args []string, stdout io.Writer, pluginRoot, projectDir string, probe func([]toolchain.Tool) []toolchain.Status) int {
+// stdin is read for ONE field: the payload's cwd, the second place the harness states
+// where the project is. This hook took the project root from the environment alone, and
+// with CLAUDE_PROJECT_DIR unset the live-run nudge went silent — a research run in
+// progress and nothing said so, which is the one job that nudge has.
+func run(args []string, stdin io.Reader, stdout io.Writer, pluginRoot, projectDir string, probe func([]toolchain.Tool) []toolchain.Status) int {
 	if len(args) > 0 && args[0] == "-version" {
 		fmt.Fprintln(stdout, "sc-toolchain-nudge", version)
 		return 0
+	}
+
+	if stdin != nil {
+		var in struct {
+			CWD string `json:"cwd"`
+		}
+		raw, _ := io.ReadAll(stdin)
+		_ = json.Unmarshal(raw, &in)
+		projectDir = hookenv.ProjectDir(projectDir, in.CWD)
 	}
 
 	// A missing/unreadable/malformed manifest degrades to silence, never to an error:
@@ -93,6 +107,6 @@ func run(args []string, stdout io.Writer, pluginRoot, projectDir string, probe f
 }
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout,
+	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout,
 		os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Getenv("CLAUDE_PROJECT_DIR"), toolchain.Probe))
 }

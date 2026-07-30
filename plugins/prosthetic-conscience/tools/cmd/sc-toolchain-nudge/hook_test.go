@@ -65,7 +65,7 @@ func projectWithMarker(t *testing.T, body string) string {
 func call(t *testing.T, root, project string, probe func([]toolchain.Tool) []toolchain.Status, args ...string) (string, int) {
 	t.Helper()
 	var out bytes.Buffer
-	code := run(args, &out, root, project, probe)
+	code := run(args, nil, &out, root, project, probe)
 	return out.String(), code
 }
 

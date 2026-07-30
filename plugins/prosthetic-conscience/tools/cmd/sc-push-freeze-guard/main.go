@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 )
 
@@ -28,6 +29,7 @@ type hookInput struct {
 	ToolInput struct {
 		Command string `json:"command"`
 	} `json:"tool_input"`
+	CWD string `json:"cwd"`
 }
 
 // isSeparator reports whether a token ends one command in a compound shell line.
@@ -184,7 +186,7 @@ func main() {
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 
-	if line := decide(runlive.Read(os.Getenv("CLAUDE_PROJECT_DIR")), in.ToolInput.Command); line != "" {
+	if line := decide(runlive.Read(hookenv.ProjectDir(os.Getenv("CLAUDE_PROJECT_DIR"), in.CWD)), in.ToolInput.Command); line != "" {
 		fmt.Fprintln(os.Stderr, line)
 	}
 	os.Exit(0)
