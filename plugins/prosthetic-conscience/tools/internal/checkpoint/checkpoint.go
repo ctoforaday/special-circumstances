@@ -244,7 +244,11 @@ func WatchTargets(reArmedBy, projectDir string, exists func(string) (isDir bool,
 			continue
 		}
 		full := filepath.Join(projectDir, p)
-		if !strings.HasPrefix(filepath.Clean(full), filepath.Clean(projectDir)) {
+		// Prefix comparison is NOT containment: "/w2/x" has the prefix "/w" and
+		// is not inside it. Rel is the honest test, and it is also the one that
+		// behaves the same on Windows, where Join produces backslashes.
+		if rel, err := filepath.Rel(projectDir, full); err != nil ||
+			rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}
 		if _, ok := exists(full); !ok {
