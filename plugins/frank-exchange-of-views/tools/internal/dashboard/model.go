@@ -12,12 +12,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// massD is the engine's pinned v1 mass mapping (grade-migration arithmetic only), mirroring
-// MASSD in render-run-dashboard.mjs.
-var massD = map[string]float64{
-	"trivial": 0.5, "low": 1, "low-medium": 1.5, "medium": 2, "medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
-}
-
 // Config carries the run's launch parameters the dashboard displays. File values (setup's
 // inputs/run-config.json) are overridden by any non-empty CLI flag — the JS merge order.
 type Config struct {
@@ -371,7 +365,7 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 			for _, gx := range gaps {
 				g, _ := gx.(map[string]any)
 				id, _ := g["id"].(string)
-				gm := massD[anyStr(g["likelihood"])] * massD[anyStr(g["impact"])]
+				gm := record.GapMass(anyStr(g["likelihood"]), anyStr(g["impact"]))
 				e := gapRounds[id]
 				if e == nil {
 					e = &ge{first: redSeen, firstMass: gm}

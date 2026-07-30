@@ -218,6 +218,35 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 	return out
 }
 
+// TierConfig reads the run's configured model tiers from inputs/run-config.json (empty strings if
+// absent) — the one place the run-config field names are read as bare keys.
+func TierConfig(runDir string) (model, judgmentModel string) {
+	if b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json")); err == nil {
+		var cfg map[string]any
+		if json.Unmarshal(b, &cfg) == nil {
+			model, _ = cfg["model"].(string)
+			judgmentModel, _ = cfg["judgmentModel"].(string)
+		}
+	}
+	return
+}
+
+// DedupTierFindings drops duplicate findings keyed on (seat|round|verdict|actual). TierMismatch
+// can emit repeats, and both the cost report and the capture model-tier audit dedup on this same
+// key — kept here so the key format lives once (they used to hand-copy it in two packages).
+func DedupTierFindings(fs []Finding) []Finding {
+	seen := map[string]bool{}
+	var out []Finding
+	for _, f := range fs {
+		k := fmt.Sprintf("%s|%d|%s|%s", f.Seat, f.Round, f.Verdict, f.Actual)
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // mtok renders a token count as the JS `(n/1e6).toFixed(2)+'M'`.
 func mtok(n int) string { return strconv.FormatFloat(float64(n)/1e6, 'f', 2, 64) + "M" }
 
@@ -293,28 +322,8 @@ func Report(transcriptDir, runDir string, out io.Writer) error {
 }
 
 func reportTierCheck(runDir string, rows []Row, p func(string)) {
-	model, judgmentModel := "", ""
-	if b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json")); err == nil {
-		var cfg map[string]any
-		if json.Unmarshal(b, &cfg) == nil {
-			if s, ok := cfg["model"].(string); ok {
-				model = s
-			}
-			if s, ok := cfg["judgmentModel"].(string); ok {
-				judgmentModel = s
-			}
-		}
-	}
-	seen := map[string]bool{}
-	var findings []Finding
-	for _, f := range TierMismatch(rows, model, judgmentModel) {
-		k := fmt.Sprintf("%s|%d|%s|%s", f.Seat, f.Round, f.Verdict, f.Actual)
-		if seen[k] {
-			continue
-		}
-		seen[k] = true
-		findings = append(findings, f)
-	}
+	model, judgmentModel := TierConfig(runDir)
+	findings := DedupTierFindings(TierMismatch(rows, model, judgmentModel))
 	p("\n## Tier check\n")
 	if len(findings) == 0 {
 		mDisp, jDisp := model, judgmentModel

@@ -28,9 +28,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
-// GRADES mirrors the oracle's enum exactly, including order.
-var GRADES = []string{"low", "low-medium", "medium", "medium-high", "high", "certain", "realized", "trivial"}
-
 // MassMappingVersion is pinned and mirrors debate.js; changing values bumps it.
 //
 // NOTE (W2g shipped v2 in the engine): the oracle library still carries v1, and
@@ -48,14 +45,9 @@ var MASS = map[string]float64{
 	"medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
 }
 
-func isGrade(s string) bool {
-	for _, g := range GRADES {
-		if g == s {
-			return true
-		}
-	}
-	return false
-}
+// isGrade validates against the single canonical grade set (flags.Grades) — record no longer
+// keeps its own copy. MASS's keys are held to that same set by a test (grade set never drifts).
+func isGrade(s string) bool { return flags.IsGrade(s) }
 
 // GapMass mirrors `(MASS[likelihood] ?? 0) * (MASS[impact] ?? 0)`: an unknown or
 // absent grade contributes zero rather than erroring.
