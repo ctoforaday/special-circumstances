@@ -132,6 +132,49 @@ func TestWithinRejectsEscapes(t *testing.T) {
 	}
 }
 
+// TestWithinRejectsSymlinkEscape is the case lexical path arithmetic cannot see.
+//
+// This gate does not merely READ what within() admits: in the default mode it runs
+// `qlty fmt`, which REWRITES the file. So a symlink inside the project pointing at a
+// sibling tree turns an ordinary Edit into a modification outside the working tree —
+// the act agent-guardrails says requires explicit approval.
+//
+// internal/checkpoint closed exactly this class at 67eb8fa ("containment is os.Root,
+// not path arithmetic") after measuring that filepath.Rel reports "contained: true"
+// for a symlinked directory. That fix was an INSTANCE fix; this call site kept the
+// arithmetic. Containment here is a security property, so it needs the syscall-level
+// check, not the string one.
+func TestWithinRejectsSymlinkEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation needs privilege on Windows")
+	}
+	dir, _ := project(t, "a.go")
+
+	outside := t.TempDir()
+	victim := filepath.Join(outside, "victim.go")
+	if err := os.WriteFile(victim, []byte("not ours to rewrite\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "linked")); err != nil {
+		t.Fatal(err)
+	}
+
+	through := filepath.Join(dir, "linked", "victim.go")
+	if rel, ok := within(dir, through); ok {
+		t.Errorf("within() admitted %q as project-relative %q — qlty fmt would rewrite a file outside the project", through, rel)
+	}
+	if p := decide(healthy(dir), through); p.run {
+		t.Errorf("decide() planned to run qlty on a symlinked path outside the project: %+v", p)
+	}
+
+	// A file that is genuinely absent but genuinely INSIDE must stay
+	// distinguishable from an escape: the operator reads a different reason for
+	// each, and conflating them would make this fix report the wrong cause.
+	if p := decide(healthy(dir), filepath.Join(dir, "ghost.go")); !strings.Contains(p.skip, "not a readable file") {
+		t.Errorf("a missing in-project file must read as unreadable, not as an escape: %q", p.skip)
+	}
+}
+
 func TestClampBoundsFeedback(t *testing.T) {
 	long := strings.Repeat("issue line\n", maxFeedbackLn*2)
 	got := clamp(long)

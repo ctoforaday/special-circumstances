@@ -286,6 +286,35 @@ func verifySHA256(sums, asset, digest string) bool {
 	return false
 }
 
+// downloadArgs builds the `gh release download` argv for one binary.
+//
+// The release is PINNED to the owning plugin's tag. Falling back to "latest"
+// would resolve to whichever plugin tagged most recently, whose assets do not
+// contain this binary at all — a download failure that reads like a network
+// problem rather than the version confusion it is.
+//
+// FIX (defect): that reasoning was in the comment and NOT in the code. The tag was
+// built only when plugin and version were both known, and an unknown one silently
+// omitted the positional tag argument — which is how `gh release download` is spelled
+// for "latest". The comment named the hazard and the fallback branch implemented it.
+//
+// Reachability, measured rather than assumed: neither constructor can currently
+// produce an empty Plugin or Version — hookBinaries derives both from path basenames,
+// and siblingBinaries skips a plugin whose newestVersionDir is "". So this was a
+// LATENT defect, not a live one. It is closed anyway, because the next constructor is
+// what makes a latent guard a live bug, and an unpinned install is not a failure this
+// suite should discover in the field.
+func downloadArgs(b binStatus, asset, dir string) ([]string, error) {
+	if b.Plugin == "" || b.Version == "" {
+		return nil, fmt.Errorf("cannot pin a release tag for %s (plugin=%q version=%q) — refusing an untagged download, which resolves to whichever plugin tagged most recently",
+			b.Name, b.Plugin, b.Version)
+	}
+	return []string{
+		"release", "download", fmt.Sprintf("%s--v%s", b.Plugin, b.Version),
+		"--repo", releaseRepo, "--pattern", asset, "--pattern", "SHA256SUMS", "--dir", dir,
+	}, nil
+}
+
 // fetchRelease downloads the CI-built asset for this platform, verifies its
 // checksum against the release SHA256SUMS, and installs it into bin/.
 func fetchRelease(b binStatus) error {
@@ -294,24 +323,15 @@ func fetchRelease(b binStatus) error {
 	}
 	root, name := b.Root, b.Name
 	asset := fmt.Sprintf("%s_%s_%s%s", name, runtime.GOOS, runtime.GOARCH, exeSuffix())
-	// The release is PINNED to the owning plugin's tag. Falling back to "latest"
-	// would resolve to whichever plugin tagged most recently, whose assets do not
-	// contain this binary at all — a download failure that reads like a network
-	// problem rather than the version confusion it is.
-	tag := ""
-	if b.Plugin != "" && b.Version != "" {
-		tag = fmt.Sprintf("%s--v%s", b.Plugin, b.Version)
-	}
 	tmp, err := os.MkdirTemp("", "sc-doctor-fetch-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	args := []string{"release", "download"}
-	if tag != "" {
-		args = append(args, tag)
+	args, err := downloadArgs(b, asset, tmp)
+	if err != nil {
+		return err
 	}
-	args = append(args, "--repo", releaseRepo, "--pattern", asset, "--pattern", "SHA256SUMS", "--dir", tmp)
 	dl := exec.Command("gh", args...)
 	if msg, err := dl.CombinedOutput(); err != nil {
 		return fmt.Errorf("release download failed: %s", strings.TrimSpace(string(msg)))
