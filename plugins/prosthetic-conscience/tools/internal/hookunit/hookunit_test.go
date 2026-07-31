@@ -115,12 +115,24 @@ func TestRunExecutesUnitsConcurrently(t *testing.T) {
 			return Result{Name: name}
 		}}
 	}
+	// FIVE units, so serial (300ms) and concurrent (~60ms) are far apart and the threshold
+	// is not a coin-flip on a loaded runner. This caught a real defect rather than flaking:
+	// an earlier version bounded the pool at runtime.NumCPU(), and a 2-core CI runner took
+	// exactly 2x the hold for three units because the third queued.
+	var units []Unit
+	for _, n := range []string{"a", "b", "c", "d", "e"} {
+		units = append(units, sleeper(n))
+	}
 	start := time.Now()
-	Run(ctx("{}"), []Unit{sleeper("a"), sleeper("b"), sleeper("c")})
+	got := Run(ctx("{}"), units)
 	elapsed := time.Since(start)
 
-	if elapsed > 2*hold {
-		t.Errorf("three %v units took %v — that is serial, and serial is a REGRESSION against process-per-hook", hold, elapsed)
+	if len(got) != len(units) {
+		t.Fatalf("ran %d of %d units", len(got), len(units))
+	}
+	if elapsed > 3*hold {
+		t.Errorf("%d %v units took %v — serial would be %v, and serial is a REGRESSION against process-per-hook",
+			len(units), hold, elapsed, time.Duration(len(units))*hold)
 	}
 }
 

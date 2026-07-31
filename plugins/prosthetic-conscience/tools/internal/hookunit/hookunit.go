@@ -32,7 +32,6 @@ package hookunit
 import (
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -117,19 +116,24 @@ type Unit struct {
 	Run     func(*Ctx) Result
 }
 
-// Run executes the applicable units concurrently on ONE bounded pool and returns their
-// results IN UNIT ORDER, so output is deterministic however the scheduling falls.
+// Run executes the applicable units concurrently and returns their results IN UNIT ORDER,
+// so output is deterministic however the scheduling falls.
+//
+// NOT BOUNDED BY NumCPU, and that was measured rather than reasoned: an earlier version
+// sized a semaphore to runtime.NumCPU(), and CI on a 2-core runner took 120ms for three
+// 60ms units — the third queued. These units are I/O- and SUBPROCESS-bound (sc-quality-gate
+// waits on qlty, sc-recall-index on qmd); sizing them to cores makes them queue for a
+// resource they are not competing for, which is the serialisation this design exists to
+// avoid. N is bounded by the units registered on one event, which is small by construction.
+//
+// A NumCPU pool belongs one level down, inside a unit that fans out over FILES — that work
+// is CPU-bound and does need a bound, and it needs ONE shared pool rather than N of them,
+// which is another thing a single process can provide and separate binaries cannot.
 //
 // A panicking unit yields a Result naming the panic and never takes down the event: losing
 // one check must not cost the others, which is the isolation a separate process gave for
 // free and this has to provide deliberately.
 func Run(ctx *Ctx, units []Unit) []Result {
-	limit := runtime.NumCPU()
-	if limit < 1 {
-		limit = 1
-	}
-	sem := make(chan struct{}, limit)
-
 	out := make([]Result, len(units))
 	var wg sync.WaitGroup
 	for i, u := range units {
@@ -139,8 +143,6 @@ func Run(ctx *Ctx, units []Unit) []Result {
 		wg.Add(1)
 		go func(i int, u Unit) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
 			defer func() {
 				if r := recover(); r != nil {
 					out[i] = Result{Name: u.Name,
