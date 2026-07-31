@@ -505,6 +505,10 @@ Therefore the hook is built so the assumption's failure is *visible*: a payload 
 empty. A manifest that silently cannot resolve is the failure this whole plugin exists to avoid.
 **The first session after this ships confirms or refutes it** — see §11.5.
 
+**Confirmed, 19/19 (§11.7, §11.9).** The assumption holds and this caveat is discharged. What
+replaced it is narrower and was not anticipated here: the path is carried but may not yet *exist* at
+`SessionStart`, so presence and resolvability are two different checks. §11.9 has the evidence.
+
 ### 11.4 Resolution, with provenance
 
 `gray-area checkpoint <note.md>` with no transcript argument reads `.claude/gray-area/` — *our own
@@ -523,7 +527,11 @@ any other and gets cited like one.
    · **re-armed by:** the capture hook — this is §11.3's alarm, and it is the check that matters
 4. `gray-area checkpoint <note>` with no transcript argument resolves from the manifest and PRINTS
    which row it used. With no manifest it says so and exits non-zero rather than guessing.
-5. ~~**OPEN, needs a fresh session:**~~ **CONFIRMED 2026-07-30T17:12Z.** See §11.7.
+5. ~~**OPEN, needs a fresh session:**~~ **CONFIRMED 2026-07-30T17:12Z**, re-confirmed **19/19** on
+   2026-07-31. See §11.7 — and §11.9 for the separate defect this does *not* cover: the path is
+   always carried, but on the first `SessionStart` of a newly minted session id it does not yet
+   exist, the row records `resolved: false` permanently, and `checkpoint` then refuses all session.
+   · **re-armed by:** the capture hook
 
 ### 11.6 Built, and the one check that is still open
 
@@ -589,3 +597,109 @@ Two things follow. The capture hook behaved correctly: it wrote the row with `re
 the reason, rather than a row that would silently resolve to nothing — the §11.3 design applied to a
 different field. And **Phase 1's acceptance criterion is not currently met**, so any Phase 2
 inspection that assumes a readable seat transcript needs this settled first. Added to the runbook.
+
+### 11.8 The `agent_transcript_path` question, SETTLED — and the race hypothesis refuted (#189)
+
+The paragraph above is right that the criterion is not met and right to hold one observation as one
+observation. Its guess at the cause was wrong, and the sentence "it may be a timing race" survived
+into the runbook as the leading hypothesis. It is refuted.
+
+**Eight seat rows now, eight `resolved: false`.** Every one carries the same `capture_error` shape.
+The named directory `…/-home-user-special-circumstances/937047bc…/` exists and holds only
+`tool-results/` — **no `subagents/` directory at all**, ~10 hours after the earliest of those rows.
+A race that has not resolved in ten hours is not a race.
+
+**The spike was not wrong; the behaviour changed under it.** §3's "real 12,997-byte file" still
+exists, byte-for-byte:
+
+```
+2026-07-28 11:37  12997  …/-tmp-claude-0--…-scratchpad-spike/937047bc…/subagents/agent-aeaae1e2e57179ff5.jsonl
+2026-07-27 19:35  15419  …/-tmp-claude-0--…-scratchpad-td4/937047bc…/subagents/agent-aa9ed822a09ab8138.jsonl
+```
+
+Those are the only two on disk anywhere under `/root/.claude`, both predate the wiring, and **neither
+id appears in any seat row**. Same session id, different working directory — the project directory is
+keyed to cwd, and the spike's cwd was a scratchpad. So the harness *did* write per-seat files on
+27–28 July and does not now, for the same session, under the repo's own project directory. What
+changed between those dates is unknown.
+
+**And the content is nowhere else.** The parent transcript (5,970 lines, 16.5 MB) holds **zero
+entries with `isSidechain: true`**. Each subagent id appears exactly twice — the `Agent` tool_use and
+its result. A seat's prompt and its return envelope are recoverable; nothing between them is.
+
+The consequence for the design is narrow and firm: **Phase 0's acceptance criterion cannot be met in
+this environment**, and any inspection over a seat's own turns has no input. Inspections over the
+parent trajectory are untouched. No fallback path search — a wrong file confidently attributed to a
+seat is precisely the false citation §10 exists to refuse.
+
+The methodological point is the one this section already had to learn once: the earlier paragraph did
+what it warned against, offering a mechanism ("a timing race") for a single unexplained observation.
+The mechanism then travelled into the runbook and became the thing to test. **A guess written beside
+an observation is read as part of it.**
+
+### 11.9 Re-run in a fresh session (2026-07-31T03:43–03:50Z): §11.8 is no longer general, and §11.3's assumption holds while its *resolution* does not
+
+The runbook was re-run cold after a `/clear`, which minted session `307f5c51`. Both prior answers
+moved, in opposite directions.
+
+**Q1 — `SessionStart` carries `transcript_path`: CONFIRMED, now 19/19.** Every session row ever
+written carries a non-empty path: 18 in session `937047bc`, 1 in `307f5c51`. §11.3's assumption is
+not in doubt.
+
+**But the path does not always EXIST when the hook fires, and that is new.** All 18 rows in
+`937047bc` are `resolved: true`; `307f5c51`'s single row is `resolved: false` — captured
+`03:43:31Z`, naming a file that was absent at that instant and present by `03:45:18Z` (331,017 bytes
+by `03:50Z`). The difference is not the source: those 18 firings all landed in a session whose
+transcript already existed, and this one was the **first `SessionStart` of a newly minted session
+id**, where the file is created after the hook runs.
+
+Nothing ever re-resolves a row. So the `resolved: false` is permanent, and `gray-area checkpoint`
+refuses for the entire life of that session:
+
+```
+gray-area: …/trajectories-307f5c51….jsonl:1 names a transcript that did not resolve (… no such file
+or directory) — adjudicating against it would report NO-EVIDENCE for every claim, which is a lie
+about the session rather than about the note        EXIT=1
+```
+
+**The refusal is correct and the state it refuses on is wrong.** The tool is right not to adjudicate
+against a manifest row it cannot trust; the defect is upstream, in a row that records a one-time
+`stat` as a permanent property. A capture that re-`stat`s on later firings, or a reader that
+re-checks a `resolved: false` path before refusing, would close this. **This is a real race** —
+unlike Q1b's, where the file never appears at all — and it is the one case where §11.8's "a race
+that has not resolved in ten hours is not a race" does not transfer.
+
+**Q1b — `agent_transcript_path`: §11.8's general claim is REFUTED. Per-seat transcripts ARE written
+in this environment.** A trivial `Explore` subagent produced a seat row that resolved:
+
+```
+captured 2026-07-31T03:45:23Z  resolved: true  16,442 bytes  agent_type: Explore
+…/-home-user-special-circumstances/307f5c51…/subagents/agent-a9c4e7847f2201f3a.jsonl
+```
+
+The file is on disk at exactly the recorded path, with a `.meta.json` beside it, and its first line
+is a real seat turn (`"isSidechain":true`, the seat's prompt verbatim). **Phase 0's acceptance
+criterion is met here.** §11.8's "cannot be met in this environment" must be read as scoped to
+session `937047bc`, not to the environment.
+
+What did *not* change:
+
+- The 10 failures are all `937047bc` (`2026-07-30T17:05:38Z` → `2026-07-31T03:42:51Z`). Every one of
+  those paths was re-`stat`ed at `03:46Z` and **all 10 are still absent** — the oldest 10h41m later.
+  That session's project directory still holds only `tool-results/`, never a `subagents/`.
+- Both parent transcripts still hold **zero** `isSidechain: true` entries. Seat content is still not
+  in the parent.
+- The two 27–28 July files under scratchpad-keyed project directories are unchanged and still match
+  no seat row.
+
+**The correlate is the session, not the clock.** The last failure (`03:42:51`) and the first success
+(`03:45:23`) are 2m32s apart, under two different session ids. A harness change inside that window
+is not excluded, but nothing observed here supports it, and **the mechanism remains unknown.**
+Recorded as an unexplained divergence, not as a cause — the capture hook composes nothing, it reads
+`agent_transcript_path` straight from the payload and `stat`s it, so both paths were supplied by the
+harness and only one of them was ever written.
+
+The operational consequence: **do not act on §11.8's blanket "not written here".** Whether a seat is
+recoverable has to be read off the row, per session. The refusal to add a fallback path search stands
+unchanged — it was right for the reason given (a wrong file is a false citation), not because seats
+were unrecoverable.
