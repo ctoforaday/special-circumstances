@@ -1,6 +1,6 @@
 ---
 name: semantic-consent
-description: Always-on consent boundary — the human owns intent, you own syntax; ask when instructions are vague, never guess.
+description: Always-on consent boundary — the human owns intent, you own syntax; on ambiguity, split by reversibility — decide and disclose what you can undo, ask before what you cannot.
 ---
 
 # semantic-consent

@@ -1,6 +1,6 @@
 ---
 name: terse-communication
-description: Always-on output discipline — strict token economy. No filler, no narration, no wrap-up summaries. Applies to every response.
+description: Always-on output discipline — strict token economy. No filler, no process play-by-play, no wrap-up summaries. Applies to every response.
 ---
 
 # terse-communication
