@@ -73,3 +73,47 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE003","payload":{"acceptance_check":"refetch and diff","class":"citation-drift","class_new":false,"complexity_cost":"medium","found_by":["L1-F1","L5-F1"],"gap_id":"R1-1","impact":"high","likelihood":"high","location":"## S2","problem":"the cited source does not say this","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":8,"type":"mint"}
 {"key":"red-merge-r1:position","nonce":"NONCE003","payload":{"text":"round one: FAIL"},"round":1,"seatId":"red-merge-r1","seq":3,"ts":9,"type":"position"}
 {"key":"red-merge-r1:verdict","nonce":"NONCE003","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":4,"ts":10,"type":"verdict"}
+
+═══ RENDERS ═══
+-- ledger
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — the cited source does not say this
+## S2
+severity high | high x high | cx medium | class citation-drift | found_by L1-F1,L5-F1
+required_fix: 
+acceptance_check: refetch and diff
+
+## CLOSURE INDEX
+
+
+
+## undisposed lens observations (every observation demands a merge disposition)
+
+- red-lens-r1-L1 L1-F1: citation does not support
+- red-lens-r1-L5 L5-F1: a leap of faith
+
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Round 1
+
+### RED
+round one: FAIL
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+claim one | https://example.invalid/a | high | r1 | 2026-07-18
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

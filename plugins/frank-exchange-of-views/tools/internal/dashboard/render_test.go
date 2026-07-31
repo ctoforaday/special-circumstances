@@ -27,19 +27,6 @@ func judFixture() Judiciary {
 	return j
 }
 
-// writeScorecardShadow drops a rendered scorecard into runDir/records/render-shadow/scorecards
-// so scorecardSection → ParseRenderedRows/LatestSection actually fire.
-func writeScorecardShadow(t *testing.T, runDir string) {
-	dir := filepath.Join(runDir, "records", "render-shadow", "scorecards")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	body := "# red scorecard\n\n## this run\n\n- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **100** (target 100)\n- `finding_precision` [detector] — Certification: **2**\n"
-	if err := os.WriteFile(filepath.Join(dir, "red-scorecard.md"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func baseModel(runDir string) Model {
 	tel := telFixture()
 	return Model{
@@ -63,7 +50,6 @@ func baseModel(runDir string) Model {
 // (label matches a done one) and a never-finished one drive both terminal-label branches.
 func TestRenderHTMLTerminal(t *testing.T) {
 	runDir := t.TempDir()
-	writeScorecardShadow(t, runDir)
 	m := baseModel(runDir)
 	m.Terminal = true
 	m.TerminalVerdict = "VERIFIED"
@@ -135,7 +121,8 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	must("Seats (run complete)")
 	must("superseded — a later attempt completed")
 	must("did not finish")
-	// #10 scorecard section (ParseRenderedRows fired)
+	// #10 scorecard section — computed in-process from the record (scorecard.Compute), no
+	// render-shadow read (the markdown round-trip retired with render-shadow, #203)
 	must("scorecards — this run")
 	must("anchored_closures_pct")
 	// #11 Recent completions (summarizeResult)

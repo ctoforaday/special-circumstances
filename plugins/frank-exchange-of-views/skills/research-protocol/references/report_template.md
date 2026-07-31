@@ -8,7 +8,7 @@
              lives in the audited document instead. A missing one is flagged, never filled.
 
     [RECORD] — composed by the tool from the event log + board. The source of truth is the
-               records/ event log, never the rendered projection .md files.
+               records/ event log; the views are rendered from it on read, never materialized.
 
   This file is the map, not a form to fill in.
 -->

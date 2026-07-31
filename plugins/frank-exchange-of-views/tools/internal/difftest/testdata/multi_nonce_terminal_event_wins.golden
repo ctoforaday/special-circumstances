@@ -31,3 +31,40 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE002","payload":{"acceptance_check":"b","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"from the live dispatch","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"mint"}
 {"key":"red-merge-r1:verdict","nonce":"NONCE002","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":4,"type":"verdict"}
+
+═══ RENDERS ═══
+-- ledger
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — from the live dispatch
+
+severity high | high x high | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: b
+
+## CLOSURE INDEX
+
+
+## render anomalies (never silently normalized)
+
+- multi-nonce seat red-merge-r1: 2 dispatches (NONCE001, NONCE002); winner NONCE002 by terminal event
+
+
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+
