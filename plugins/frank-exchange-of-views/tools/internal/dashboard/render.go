@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
@@ -163,37 +162,25 @@ func sliceStr(s string, n int) string {
 	return s
 }
 
-// scorecardSection renders THIS run's computed scorecards (render-shadow), or "" if none.
+// scorecardSection renders THIS run's scorecards, computed IN-PROCESS from the record via the
+// shared scorecard library — never by re-parsing a rendered markdown file. "" when nothing computes.
 func scorecardSection(runDir string) string {
-	dir := filepath.Join(runDir, "records", "render-shadow", "scorecards")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return ""
+	board, _ := record.BoardState(runDir)
+	cards := scorecard.Compute(runDir, scorecard.ReadResults(runDir), board)
+	chairs := make([]string, 0, len(cards))
+	for c := range cards {
+		chairs = append(chairs, c)
 	}
-	var cards []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), "-scorecard.md") {
-			cards = append(cards, e.Name())
-		}
-	}
-	sort.Strings(cards)
-	if len(cards) == 0 {
-		return ""
-	}
+	sort.Strings(chairs)
 	var blocks []string
-	for _, f := range cards {
-		chair := strings.TrimSuffix(f, "-scorecard.md")
-		body, err := os.ReadFile(filepath.Join(dir, f))
-		if err != nil {
-			continue
-		}
-		rows := scorecard.ParseRenderedRows(scorecard.LatestSection(string(body)))
+	for _, chair := range chairs {
+		rows := cards[chair]
 		if len(rows) == 0 {
 			continue
 		}
 		var trs strings.Builder
 		for _, r := range rows {
-			val := anyStr(r.Value)
+			val := scorecard.ValStr(r.Value)
 			fired := r.Cls == "detector" && val != "" && strings.TrimSpace(val) != "0"
 			style := "opacity:.8"
 			switch {
@@ -205,6 +192,9 @@ func scorecardSection(runDir string) string {
 				style = "opacity:.65"
 			}
 			shown := val
+			if shown == "" {
+				shown = r.Note
+			}
 			if shown == "" {
 				shown = "not computed"
 			}

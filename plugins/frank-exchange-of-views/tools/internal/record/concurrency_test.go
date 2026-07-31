@@ -43,7 +43,9 @@ func TestConcurrentSeatsRace(t *testing.T) {
 					errs <- err
 					continue
 				}
-				if _, err := Render(runDir, ""); err != nil {
+				// A concurrent READER (the replay every projection now runs on demand)
+				// racing the appenders: no write may be lost to a racing read.
+				if _, err := BoardState(runDir); err != nil {
 					errs <- err
 				}
 			}
@@ -91,15 +93,6 @@ func TestConcurrentSeatsRace(t *testing.T) {
 			t.Errorf("leaked temp artifact: %s", e.Name())
 		}
 	}
-	shadow, err := os.ReadDir(filepath.Join(runDir, "records", "render-shadow"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range shadow {
-		if strings.Contains(e.Name(), ".tmp-") {
-			t.Errorf("leaked temp render: %s", e.Name())
-		}
-	}
 }
 
 // TestAbandonedLockFileDoesNotBlock: with flock, the lock is the kernel's, not
@@ -112,21 +105,33 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// An empty lock file, as a crashed holder would leave behind.
-	if err := os.WriteFile(filepath.Join(runDir, "records", ".lock-render"), nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
 	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
 		t.Fatal(err)
 	}
+	// An empty lock file for the per-seat pointer lock an append acquires, as a crashed
+	// holder would leave behind. Under flock the file carries no lock, so the next
+	// append acquires immediately rather than serving the full bounded wait.
+	if err := os.WriteFile(filepath.Join(runDir, "records", ".lock-ptr-red-merge-r1"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	start := time.Now()
-	if _, err := Render(runDir, ""); err != nil {
-		t.Fatalf("render over an abandoned lock file: %v", err)
+	if _, err := Append(runDir, "red-merge-r1", "finding", NewPayload().Set("label", "F1").Set("text", "over an abandoned lock")); err != nil {
+		t.Fatalf("append over an abandoned lock file: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > lockWait {
-		t.Errorf("render waited %v on an unheld lock — the bounded wait was served instead of acquiring", elapsed)
+		t.Errorf("append waited %v on an unheld lock — the bounded wait was served instead of acquiring", elapsed)
 	}
-	if _, err := os.Stat(filepath.Join(runDir, "records", "render-shadow", "ledger.md")); err != nil {
-		t.Errorf("render did not complete: %v", err)
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := 0
+	for _, e := range m.Events {
+		if e.Type == "finding" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Errorf("the append did not land: %d finding events", got)
 	}
 }

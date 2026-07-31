@@ -113,7 +113,6 @@ func scenarios() []scenario {
 						"events-red-lens-r1-L1-NONCE002.jsonl": time.Unix(1_700_000_600, 0),
 					},
 				},
-				base("lens", "render", "--run", "{RUN}"),
 			},
 		},
 		{
@@ -135,30 +134,6 @@ func scenarios() []scenario {
 				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "N1", "--as", "declined", "--reason", "covered by R1-1"),
 				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "N-missing", "--as", "banked"),
 				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "N2"),
-			},
-		},
-		{
-			name: "telemetry_computed_not_self_reported", // oracle: repair_regression + edge_deltas
-			cmds: []cmd{
-				base("merge", "register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
-				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "citation-drift", "--check", "a",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--cx", "medium", "--problem", "first"),
-				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "scope-creep", "--check", "b",
-					"--severity", "low", "--likelihood", "trivial", "--impact", "low", "--cx", "low", "--problem", "second"),
-				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "scope-creep", "--check", "c",
-					"--severity", "medium", "--likelihood", "certain", "--impact", "medium", "--problem", "third"),
-				base("merge", "close", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-2",
-					"--anchor-seat", "L4", "--anchor-tool", "Read", "--anchor-target", "report.md#S3", "--reason", "checked and holds"),
-				base("merge", "register", "--run", "{RUN}", "--seat-id", "red-merge-r2"),
-				// lineage mint with a LOWER mass than its ancestor -> down_mass
-				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--class", "citation-drift", "--check", "d",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "low", "--supersedes", "R1-1", "--problem", "successor, shrunk"),
-				// lineage mint with a HIGHER mass -> up_mass
-				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--class", "scope-creep", "--check", "e",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--supersedes", "R1-3", "--problem", "successor, grown"),
-				base("merge", "close", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--id", "R1-1",
-					"--anchor-seat", "L5", "--anchor-tool", "Grep", "--anchor-target", "report.md", "--reason", "swept the sibling sites; none survive"),
-				base("merge", "render", "--run", "{RUN}"),
 			},
 		},
 		{

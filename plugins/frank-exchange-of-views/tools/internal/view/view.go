@@ -1,42 +1,26 @@
-package record
+// Package view is the shared just-in-time projection library: every view is
+// generated on read from the append-only event log, never materialized to disk
+// and never re-parsed from markdown. It replays through record.BoardState and
+// formats; the four telemetry consumers (dashboard, scorecard, cost, capture)
+// and the markdown `show` views all read through here, so the computation lives
+// once. view depends on record; record never depends on view.
+package view
 
 import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf16"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// RenderResult mirrors the oracle's return object.
-type RenderResult struct {
-	Out       string
-	Anomalies int
-	Open      int
-	Closed    int
-}
-
-// Render refreshes every projection under the render lock.
-func Render(runDir string, outDir string) (RenderResult, error) {
-	var res RenderResult
-	var err error
-	withLock(runDir, "render", func() { res, err = renderUnlocked(runDir, outDir) })
-	return res, err
-}
-
-// jsNum formats a float the way JSON.stringify / String() would.
-//
-// This is the drift class the R2g plan singles out: String(46) is "46" but Go's
-// %v on a float64 gives "46"; %.2f gives "46.00"; strconv with 'f' and -1
-// precision gives "46". JavaScript prints integral floats without a decimal point
-// and otherwise uses the shortest round-tripping representation — which is
-// exactly strconv.FormatFloat(v, 'g', -1, 64) for the magnitudes on this board,
-// with 'f' formatting substituted because JS only reaches exponent notation
-// beyond 1e21.
+// jsNum formats a float the way JSON.stringify / String() would: JavaScript
+// prints integral floats without a decimal point and otherwise the shortest
+// round-tripping representation, which is strconv 'f'/-1 for board magnitudes.
 func jsNum(v float64) string {
 	if math.IsInf(v, 0) || math.IsNaN(v) {
 		return "null"
@@ -58,10 +42,8 @@ func round2(v float64) float64 {
 }
 
 // jsText renders a value the way a JavaScript template literal would. nil is
-// `undefined`, and `${undefined}` is the five-character string "undefined" — not
-// the empty string. The oracle interpolates unguarded fields (grades, class,
-// acceptance_check, anchors, citation columns) directly, so every ledger for a
-// gap minted without --cx literally reads "cx undefined".
+// `undefined` — the five-character string, not empty — because the projections
+// interpolate unguarded payload fields directly.
 func jsText(v any) string {
 	switch t := v.(type) {
 	case nil:
@@ -82,7 +64,7 @@ func jsText(v any) string {
 }
 
 // undefStr is jsText for a payload key that may be absent.
-func undefStr(p *Payload, key string) string {
+func undefStr(p *record.Payload, key string) string {
 	v, ok := p.Get(key)
 	if !ok {
 		return "undefined"
@@ -90,14 +72,8 @@ func undefStr(p *Payload, key string) string {
 	return jsText(v)
 }
 
-// truncate is JavaScript's String.prototype.slice(0, n).
-//
-// JS strings are UTF-16, so slice counts CODE UNITS: an em-dash costs 1, "日" 1,
-// an emoji 2 — while Go's s[:n] counts BYTES, where those cost 3, 3 and 4. Seat
-// prose is routinely non-ASCII (em-dashes, check marks, CJK in cited titles), so
-// byte slicing silently cuts a different amount of text and can split a rune.
-// The differential gate caught this on the hostile-prose fixture; without it the
-// divergence would have surfaced as a mangled ledger mid-run.
+// truncate is JavaScript's String.prototype.slice(0, n): JS strings are UTF-16,
+// so it counts CODE UNITS, not Go's bytes — an em-dash costs 1, an emoji 2.
 func truncate(s string, n int) string {
 	units := utf16.Encode([]rune(s))
 	if len(units) <= n {
@@ -106,21 +82,104 @@ func truncate(s string, n int) string {
 	return string(utf16.Decode(units[:n]))
 }
 
-func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
-	// Shadow by default during dual-mode (plan R2); real paths are opt-in at R3.
-	out := outDir
-	if out == "" {
-		out = filepath.Join(recordsDir(runDir), "render-shadow")
+func massSum(gaps []*record.Gap) float64 {
+	var s float64
+	for _, g := range gaps {
+		s += record.GapMass(record.GradeStr(g.Likelihood), record.GradeStr(g.Impact))
 	}
-	if err := os.MkdirAll(out, 0o755); err != nil {
-		return RenderResult{}, err
-	}
-	b, err := BoardState(runDir)
-	if err != nil {
-		return RenderResult{}, err
-	}
+	return s
+}
 
-	var open, closed []*Gap
+// Counts returns the board's open/closed/anomaly tallies — the values the old
+// RenderResult carried, for verdict and any counts-only caller.
+func Counts(runDir string) (open, closed, anomalies int, err error) {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	for _, id := range b.GapOrder {
+		if b.Gaps[id].Open {
+			open++
+		} else {
+			closed++
+		}
+	}
+	return open, closed, len(b.Anomalies), nil
+}
+
+// Telemetry returns the per-round board-telemetry series, computed from the
+// record — the single source that replaced the materialized board-telemetry.jsonl.
+// Rows are decoded the way the consumers previously decoded the file (UseNumber),
+// so numeric leaves are json.Number and nested objects are map[string]any.
+func Telemetry(runDir string) ([]map[string]any, error) {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	lines, err := telemetryLines(b)
+	if err != nil {
+		return nil, err
+	}
+	var rows []map[string]any
+	for _, ln := range lines {
+		dec := json.NewDecoder(strings.NewReader(ln))
+		dec.UseNumber()
+		var m map[string]any
+		if dec.Decode(&m) == nil {
+			rows = append(rows, m)
+		}
+	}
+	return rows, nil
+}
+
+// TelemetryJSONL returns the board-telemetry series as the raw JSONL wire bytes
+// (one line per round, trailing newline when non-empty) — the byte-exact form the
+// old materialized telemetry file held, for callers that need the wire shape rather than
+// decoded rows.
+func TelemetryJSONL(runDir string) ([]byte, error) {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	lines, err := telemetryLines(b)
+	if err != nil {
+		return nil, err
+	}
+	out := strings.Join(lines, "\n")
+	if len(lines) > 0 {
+		out += "\n"
+	}
+	return []byte(out), nil
+}
+
+// Markdown returns one markdown projection, rendered in-memory from the record.
+// Byte-identical to what render.go formerly wrote to disk.
+func Markdown(runDir, name string) ([]byte, error) {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	switch name {
+	case "ledger":
+		return ledgerMD(b), nil
+	case "archive":
+		return archiveMD(b), nil
+	case "debate":
+		return debateMD(b), nil
+	case "changelog":
+		return changelogMD(b), nil
+	case "citation-ledger":
+		return citationLedgerMD(b), nil
+	case "lines-of-inquiry":
+		return inquiryMD(b), nil
+	default:
+		return nil, fmt.Errorf("unknown markdown view %q", name)
+	}
+}
+
+// ledgerMD — open gaps + closure index. NB: no trailing newline (render.go parity).
+func ledgerMD(b *record.Board) []byte {
+	var open, closed []*record.Gap
 	for _, id := range b.GapOrder {
 		g := b.Gaps[id]
 		if g.Open {
@@ -138,7 +197,7 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		}
 		anomalyFooter = "\n## render anomalies (never silently normalized)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
-	var undisposed []*Observation
+	var undisposed []*record.Observation
 	for _, o := range b.Observations {
 		if o.Disposition == nil {
 			undisposed = append(undisposed, o)
@@ -157,7 +216,6 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		notesFooter = "\n## undisposed lens observations (every observation demands a merge disposition)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
 
-	// ---- ledger.md ----
 	ledgerParts := []string{
 		"# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)",
 		"",
@@ -198,11 +256,17 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s | %s", g.ID, cc, truncate(g.Mint.Str("problem"), 60), succ))
 	}
 	ledgerParts = append(ledgerParts, anomalyFooter, notesFooter)
-	if err := writeAtomic(filepath.Join(out, "ledger.md"), []byte(strings.Join(ledgerParts, "\n"))); err != nil {
-		return RenderResult{}, err
-	}
+	return []byte(strings.Join(ledgerParts, "\n"))
+}
 
-	// ---- archive.md ----
+// archiveMD — closed gaps with closure records. NB: no trailing newline (render.go parity).
+func archiveMD(b *record.Board) []byte {
+	var closed []*record.Gap
+	for _, id := range b.GapOrder {
+		if g := b.Gaps[id]; !g.Open {
+			closed = append(closed, g)
+		}
+	}
 	archiveParts := []string{"# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)", ""}
 	for _, g := range closed {
 		cc := g.Closure.Str("closure_class")
@@ -220,11 +284,12 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s%s\n",
 			g.ID, cc, g.Mint.Str("problem"), anchor, successor))
 	}
-	if err := writeAtomic(filepath.Join(out, "archive.md"), []byte(strings.Join(archiveParts, "\n"))); err != nil {
-		return RenderResult{}, err
-	}
+	return []byte(strings.Join(archiveParts, "\n"))
+}
 
-	// ---- board-telemetry.jsonl: computed, never self-reported ----
+// telemetryLines computes the board-telemetry series as JSONL lines (the compute
+// that was inline in render.go), the shared source Telemetry decodes.
+func telemetryLines(b *record.Board) ([]string, error) {
 	var rounds []int
 	seenRound := map[int]bool{}
 	for _, id := range b.GapOrder {
@@ -238,7 +303,7 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 
 	var telemetry []string
 	for _, r := range rounds {
-		var openAtR, minted, closedAtR, lineage []*Gap
+		var openAtR, minted, closedAtR, lineage []*record.Gap
 		realizedOpen := 0
 		for _, id := range b.GapOrder {
 			g := b.Gaps[id]
@@ -248,9 +313,7 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 			}
 			if g.Round <= r && (g.Open || closedRound > r) {
 				openAtR = append(openAtR, g)
-				// realized: a materialized risk contributes 0 mass (it is no longer a
-				// probability), so it is counted here rather than lost in the mass sum.
-				if GradeStr(g.Likelihood) == "realized" {
+				if record.GradeStr(g.Likelihood) == "realized" {
 					realizedOpen++
 				}
 			}
@@ -271,7 +334,7 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 				if a == nil {
 					continue
 				}
-				d := GapMass(GradeStr(g.Likelihood), GradeStr(g.Impact)) - GapMass(GradeStr(a.Likelihood), GradeStr(a.Impact))
+				d := record.GapMass(record.GradeStr(g.Likelihood), record.GradeStr(g.Impact)) - record.GapMass(record.GradeStr(a.Likelihood), record.GradeStr(a.Impact))
 				if d < 0 {
 					down += -d
 				} else {
@@ -279,12 +342,8 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 				}
 			}
 		}
-		// by_severity keeps INSERTION order (first appearance among minted gaps),
-		// which a Go map would sort and thereby diverge byte-wise from the oracle.
-		bySev := NewPayload()
+		bySev := record.NewPayload()
 		for _, g := range minted {
-			// `bySev[g.severity]` with an undefined severity keys the literal
-			// string "undefined" in JS, so jsText is the key function here too.
 			k := jsText(g.Severity)
 			n := 0
 			if v, ok := bySev.Get(k); ok {
@@ -292,20 +351,16 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 			}
 			bySev.Set(k, n+1)
 		}
-		// max_severity: sort open gaps by descending mass of their severity grade and
-		// take the first. Array.prototype.sort is not stable across engines for this
-		// comparator, but the oracle's own output is what we match: SliceStable keeps
-		// first-appearance order among equal grades, which is what V8 does here.
-		// `[...].sort(...)[0] || null`: an absent or empty top grade is FALSY and
-		// becomes null, never the string "undefined".
 		maxSeverity := any(nil)
 		if len(openAtR) > 0 {
 			sevs := make([]any, len(openAtR))
 			for i, g := range openAtR {
 				sevs[i] = g.Severity
 			}
-			sort.SliceStable(sevs, func(i, j int) bool { return MASS[GradeStr(sevs[i])] > MASS[GradeStr(sevs[j])] })
-			if top := GradeStr(sevs[0]); top != "" {
+			sort.SliceStable(sevs, func(i, j int) bool {
+				return record.MASS[record.GradeStr(sevs[i])] > record.MASS[record.GradeStr(sevs[j])]
+			})
+			if top := record.GradeStr(sevs[0]); top != "" {
 				maxSeverity = top
 			}
 		}
@@ -313,40 +368,34 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		if len(closedAtR) > 0 {
 			ratio = round2(float64(len(lineage)) / float64(len(closedAtR)))
 		}
-		line := NewPayload().
+		line := record.NewPayload().
 			Set("round", r).
-			Set("mapping_version", MassMappingVersion).
+			Set("mapping_version", record.MassMappingVersion).
 			Set("open_count", len(openAtR)).
 			Set("max_severity", maxSeverity).
-			Set("new_mint", NewPayload().Set("count", len(minted)).Set("by_severity", bySev)).
+			Set("new_mint", record.NewPayload().Set("count", len(minted)).Set("by_severity", bySev)).
 			Set("mass", massSum(openAtR)).
 			Set("realized_open", realizedOpen).
-			Set("repair_regression", NewPayload().
+			Set("repair_regression", record.NewPayload().
 				Set("closures", len(closedAtR)).
 				Set("lineage_mints", len(lineage)).
 				Set("ratio", ratio)).
-			Set("edge_deltas", NewPayload().
+			Set("edge_deltas", record.NewPayload().
 				Set("down_mass", round2(down)).
 				Set("up_mass", round2(up)))
-		enc, err := marshalCompact(line)
+		enc, err := record.MarshalCompact(line)
 		if err != nil {
-			return RenderResult{}, err
+			return nil, err
 		}
 		telemetry = append(telemetry, string(enc))
 	}
-	telemetryOut := strings.Join(telemetry, "\n")
-	if len(telemetry) > 0 {
-		telemetryOut += "\n"
-	}
-	if err := writeAtomic(filepath.Join(out, "board-telemetry.jsonl"), []byte(telemetryOut)); err != nil {
-		return RenderResult{}, err
-	}
+	return telemetry, nil
+}
 
-	// ---- debate.md / CHANGELOG.md / citation-ledger.md ----
-	// The remaining hand-maintained records become renders; nothing cuts over
-	// unvalidated — all three are in the R2.5 parity set.
+// debateMD — the round-by-round transcript. Trailing newline (render.go parity).
+func debateMD(b *record.Board) []byte {
 	var roundOrder []int
-	byRound := map[int][]Event{}
+	byRound := map[int][]record.Event{}
 	for _, e := range b.Events {
 		if _, seen := byRound[e.Round]; !seen {
 			roundOrder = append(roundOrder, e.Round)
@@ -358,8 +407,8 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: records/ event log)"}
 	for _, r := range roundOrder {
 		re := byRound[r]
-		sec := func(typ, seatPrefix string) []Event {
-			var out []Event
+		sec := func(typ, seatPrefix string) []record.Event {
+			var out []record.Event
 			for _, e := range re {
 				if e.Type == typ && strings.HasPrefix(e.SeatID, seatPrefix) {
 					out = append(out, e)
@@ -380,9 +429,6 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		for _, c := range sec("closing", "blue") {
 			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("text")))
 		}
-		// Blue's per-claim calibration — its OWN confidence, surfaced so red can target and the
-		// bench read it as context. NON-AUTHORITATIVE: it sets no grade and never reaches the risk
-		// matrix; it is here as a signal, not a verdict.
 		var conf []string
 		for _, e := range re {
 			if e.Type == "confidence" {
@@ -392,10 +438,6 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		if len(conf) > 0 {
 			parts = append(parts, "### BLUE CONFIDENCE (self-assessment — non-authoritative; targeting signal, not a grade)\n"+strings.Join(conf, "\n"))
 		}
-		// Grade disputes + answers — the claim-level contest, rendered FROM the record so a seat
-		// reading `--view debate` (the judge, ruling on the docket) sees the argument. Since #62
-		// Stage 2, the evidence/rationale prose lives ONLY here (the envelope carries routing refs),
-		// so this block is the sole surface for it — without it the bench rules on refs alone.
 		var disp []string
 		for _, e := range re {
 			switch e.Type {
@@ -424,31 +466,23 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 			debateParts = append(debateParts, strings.Join(parts, "\n\n"))
 		}
 	}
-	if err := writeAtomic(filepath.Join(out, "debate.md"), []byte(strings.Join(debateParts, "\n")+"\n")); err != nil {
-		return RenderResult{}, err
-	}
+	return []byte(strings.Join(debateParts, "\n") + "\n")
+}
 
+// changelogMD — blue's per-round revision record. Trailing newline (render.go parity).
+func changelogMD(b *record.Board) []byte {
 	changelog := []string{"# blue CHANGELOG — RENDERED PROJECTION"}
 	for _, e := range b.Events {
 		if e.Type != "revision" {
 			continue
 		}
-		// claim_count was rendered here from the revision event until #70 dropped the
-		// --claim-count flag; the count now lives in the envelope (computed via the
-		// count-claims command), never on a revision event, so nothing sets it.
 		changelog = append(changelog, fmt.Sprintf("\n## Round %d\n%s", e.Round, e.Payload.Str("text")))
 	}
-	if err := writeAtomic(filepath.Join(out, "CHANGELOG.md"), []byte(strings.Join(changelog, "\n")+"\n")); err != nil {
-		return RenderResult{}, err
-	}
+	return []byte(strings.Join(changelog, "\n") + "\n")
+}
 
-	// ---- lines-of-inquiry.md: the exploration space, not just its conclusions ----
-	//
-	// Grouped by fate rather than by seat, because the question a reader asks is
-	// "what did you rule out, and why" — and because ABANDONED is the section
-	// worth reading twice: a dead end recorded here is a dead end a future run
-	// does not re-walk. Nothing preserved these before; they died in a seat's
-	// context along with the reasoning that produced them.
+// inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
+func inquiryMD(b *record.Board) []byte {
 	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
 	for _, status := range []string{"pursued", "abandoned", "declined"} {
 		var rows []string
@@ -473,10 +507,11 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		inquiry = append(inquiry, rows...)
 		inquiry = append(inquiry, "")
 	}
-	if err := writeAtomic(filepath.Join(out, "lines-of-inquiry.md"), []byte(strings.Join(inquiry, "\n")+"\n")); err != nil {
-		return RenderResult{}, err
-	}
+	return []byte(strings.Join(inquiry, "\n") + "\n")
+}
 
+// citationLedgerMD — verified claims with source/confidence. Trailing newline (render.go parity).
+func citationLedgerMD(b *record.Board) []byte {
 	cites := []string{"# red citation-ledger — RENDERED PROJECTION"}
 	for _, e := range b.Events {
 		if e.Type != "cite" {
@@ -485,34 +520,5 @@ func renderUnlocked(runDir string, outDir string) (RenderResult, error) {
 		cites = append(cites, fmt.Sprintf("%s | %s | %s | r%d | %s",
 			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "confidence"), e.Round, undefStr(e.Payload, "access_date")))
 	}
-	if err := writeAtomic(filepath.Join(out, "citation-ledger.md"), []byte(strings.Join(cites, "\n")+"\n")); err != nil {
-		return RenderResult{}, err
-	}
-
-	// findings.md: the human-readable projection of the lens findings that now live on the
-	// record (the structured form is `show --view findings`). It gives the dashboard and a
-	// reader a count and a per-finding line where the candidate files used to sit.
-	finds := []string{"# red findings — RENDERED PROJECTION (source of truth: records/ event log)"}
-	for _, e := range b.Events {
-		if e.Type != "finding" {
-			continue
-		}
-		finds = append(finds, fmt.Sprintf("- %s | %s | sev %s · %s x %s | r%d | %s",
-			undefStr(e.Payload, "label"), e.SeatID,
-			undefStr(e.Payload, "severity"), undefStr(e.Payload, "likelihood"), undefStr(e.Payload, "impact"),
-			e.Round, e.Payload.Str("text")))
-	}
-	if err := writeAtomic(filepath.Join(out, "findings.md"), []byte(strings.Join(finds, "\n")+"\n")); err != nil {
-		return RenderResult{}, err
-	}
-
-	return RenderResult{Out: out, Anomalies: len(b.Anomalies), Open: len(open), Closed: len(closed)}, nil
-}
-
-func massSum(gaps []*Gap) float64 {
-	var s float64
-	for _, g := range gaps {
-		s += GapMass(GradeStr(g.Likelihood), GradeStr(g.Impact))
-	}
-	return s
+	return []byte(strings.Join(cites, "\n") + "\n")
 }

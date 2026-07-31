@@ -30,44 +30,6 @@ closed R1-1 (closed)
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"refetch","class":"citation-drift","class_new":false,"complexity_cost":"medium","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"source moved","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:close:R1-1","nonce":"NONCE001","payload":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"closed","gap_id":"R1-1","prose":"refetched; the source now resolves and supports the claim"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"close"}
-
-═══ RENDERS ═══
--- CHANGELOG.md
-# blue CHANGELOG — RENDERED PROJECTION
-
--- archive.md
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
-## R1-1 — closed
-source moved
-verification anchor: L1 | WebFetch | https://example.invalid/spec#s3
-
--- board-telemetry.jsonl
-{"round":1,"mapping_version":"v1","open_count":0,"max_severity":null,"new_mint":{"count":1,"by_severity":{"high":1}},"mass":0,"realized_open":0,"repair_regression":{"closures":1,"lineage_mints":0,"ratio":0},"edge_deltas":{"down_mass":0,"up_mass":0}}
-
--- citation-ledger.md
-# red citation-ledger — RENDERED PROJECTION
-
--- debate.md
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- findings.md
-# red findings — RENDERED PROJECTION (source of truth: records/ event log)
-
--- ledger.md
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (0)
-
-## CLOSURE INDEX
-
-R1-1 | closed | source moved | -
-
-
--- lines-of-inquiry.md
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-

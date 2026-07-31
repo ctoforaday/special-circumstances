@@ -15,12 +15,13 @@ import (
 //
 // `show` closes it. These tests hold the property that makes it safe to rely on.
 
-// THE INVARIANT: stdout and the file are the same bytes.
+// THE INVARIANT: show is a thin wrapper over the ONE shared computation.
 //
-// If show re-derived the markdown instead of rendering and reading, it would be a SECOND
-// reader of one artifact — the defect class this tool exists to remove, reintroduced at
-// the read surface, and invisible until a seat and a human read the same run differently.
-func TestShowPrintsExactlyWhatTheProjectionFileContains(t *testing.T) {
+// There is now a single derivation for each view (internal/view), so show cannot be a
+// SECOND reader of the artifact — the defect class this tool exists to remove. This test
+// holds show's bytes to exactly that shared computation, so a divergent re-derivation at
+// the read surface fails loudly.
+func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "shown-gap", "read-surface")
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
@@ -30,23 +31,16 @@ func TestShowPrintsExactlyWhatTheProjectionFileContains(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	for _, view := range []struct{ name, file string }{
-		{"ledger", "ledger.md"},
-		{"archive", "archive.md"},
-		{"debate", "debate.md"},
-		{"changelog", "CHANGELOG.md"},
-		{"citation-ledger", "citation-ledger.md"},
-		{"lines-of-inquiry", "lines-of-inquiry.md"},
-	} {
-		t.Run(view.name, func(t *testing.T) {
-			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", view.name)
+	for _, name := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
+		t.Run(name, func(t *testing.T) {
+			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", name)
 			if err != nil {
-				t.Fatalf("show --view %s: %v", view.name, err)
+				t.Fatalf("show --view %s: %v", name, err)
 			}
-			want := readProjection(t, runDir, view.file)
+			want := readProjection(t, runDir, name)
 			if out != want {
-				t.Errorf("show --view %s does not match %s byte for byte. A read path that re-derives its answer is a second reader of one artifact, and the two WILL drift.\nstdout (%d bytes):\n%s\nfile (%d bytes):\n%s",
-					view.name, view.file, len(out), out, len(want), want)
+				t.Errorf("show --view %s does not match the shared view.Markdown computation byte for byte — a re-derivation at the read surface is a second reader.\nstdout (%d bytes):\n%s\ncomputed (%d bytes):\n%s",
+					name, len(out), out, len(want), want)
 			}
 		})
 	}

@@ -7,11 +7,11 @@ package fuzz
 // finding (in debate.js, the tool, or verify), reproducible from its seed.
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
-// not a happy path: lens (cite/finding/observe/avenue/friction/render), merge (position/closing/
+// not a happy path: lens (cite/finding/observe/avenue/friction), merge (position/closing/
 // mint/close incl. closed_with_regression/dispose across its full --as domain/regrade any axis/
-// dispute-respond/spot-check/verdict/petition/render), blue (position/closing/confidence/dispute
-// across all four dimensions/manifest-row/avenue/revision/retire/petition/render), bench
-// (opinion/outcome incl. --exhausted/--deadlocked/certify/assemble/petition-rule/render). The
+// dispute-respond/spot-check/verdict/petition), blue (position/closing/confidence/dispute
+// across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
+// (opinion/outcome incl. --exhausted/--deadlocked/certify/assemble/petition-rule). The
 // petition->petition-rule docket and the disputes docket are driven through the ENVELOPE (see
 // maybePetition/rulePetitions, raiseDisputes/answerDisputes), so debate.js's routing runs too.
 //
@@ -362,8 +362,6 @@ func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
 // cases above. Reference-taking verbs are gated on a referent existing.
 func (r *runner) extras(role, seatID string, open []string) {
 	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
-	// render is read-only and every role has it — the projection-refresh path (no --seat-id).
-	r.maybe(40, func() { r.exec(role, "render") })
 	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
 	avenue := func(role string) {
 		r.do(role, "avenue", seatID).set("--status", pick(r.rng, avenueStatus)).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method").run()

@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // Config carries the run's launch parameters the dashboard displays. File values (setup's
@@ -147,14 +148,9 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 		merged.Lanes = cfg.Lanes
 	}
 
-	// Telemetry: render-shadow if present, else legacy trajectories.
-	renderTel := filepath.Join(runDir, "records", "render-shadow", "board-telemetry.jsonl")
-	legacyTel := filepath.Join(runDir, "trajectories", "board-telemetry.jsonl")
-	telPath := legacyTel
-	if _, err := os.Stat(renderTel); err == nil {
-		telPath = renderTel
-	}
-	telemetry := jsonl(telPath)
+	// Telemetry: computed on read from the record via the shared view library — no
+	// materialized board-telemetry.jsonl, no markdown/jsonl intermediate.
+	telemetry, _ := view.Telemetry(runDir)
 	journal := jsonl(filepath.Join(transcriptDir, "journal.jsonl"))
 
 	// Lifecycle by agentId; identity by transcript-head classification; times from the file.

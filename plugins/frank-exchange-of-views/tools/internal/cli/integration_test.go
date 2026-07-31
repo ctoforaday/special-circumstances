@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // INTEGRATION: the seats are not independent, and until now nothing tested them together.
@@ -60,11 +62,11 @@ func gapID(out string) string {
 	return regexp.MustCompile(`R\d+-\d+`).FindString(out)
 }
 
-// readProjection reads a rendered file from the shadow — the projection red's board
-// would become if authority were flipped from the hand-written markdown to the events.
+// readProjection returns a markdown projection computed on read from the record via the
+// shared view library — the same bytes `show --view <name>` prints.
 func readProjection(t *testing.T, runDir, name string) string {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(runDir, "records", "render-shadow", name))
+	b, err := view.Markdown(runDir, name)
 	if err != nil {
 		t.Fatalf("projection %s: %v", name, err)
 	}

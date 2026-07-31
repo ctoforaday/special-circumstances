@@ -533,8 +533,8 @@ func TestReleaseHeldLocksIsSafeWhenNothingIsHeld(t *testing.T) {
 		t.Fatal(err)
 	}
 	releaseHeldLocks()
-	if _, err := Render(runDir, ""); err != nil {
-		t.Errorf("render after a spurious release: %v", err)
+	if _, err := BoardState(runDir); err != nil {
+		t.Errorf("board replay after a spurious release: %v", err)
 	}
 }
 
