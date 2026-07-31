@@ -154,13 +154,62 @@ func TestMalformedPayloadIsScannedNotWavedThrough(t *testing.T) {
 	if !strings.Contains(stdout, "AWS access key id") {
 		t.Errorf("the reason must name what matched: %s", stdout)
 	}
-	if !strings.Contains(stdout, "unparseable payload") {
-		t.Errorf("the reason must say the payload did not parse rather than leave a gap: %s", stdout)
+	if !strings.Contains(stdout, "could not be parsed") {
+		t.Errorf("the reason must say the payload did not parse rather than leave a gap where the tool name would be: %s", stdout)
 	}
 
 	// Instrumentation trouble still never blocks: broken WITHOUT a secret is allowed.
 	// Precision is what makes scanning raw safe — a false block on legitimate work is a bug.
 	if stdout, _ := call(`{"tool_name":"Bash","tool_input":{"command":"echo hello"`); stdout != "" {
 		t.Errorf("a merely-broken payload must still pass: %s", stdout)
+	}
+}
+
+// The deny reason is the ONE thing the model reads at the moment its call was refused, and
+// this is the refusal it CANNOT recover from by retrying: the same payload is blocked
+// identically, forever. A reason that only cites the rule leaves the agent with a dead end
+// and no exits, and the obvious next ideas — encode it, split it, rename it — are all worse
+// than the original call. So the text is pinned as instructions, not as prose.
+func TestDenyReasonTellsTheAgentWhatToDo(t *testing.T) {
+	for _, c := range []struct {
+		name, tool string
+		want       []string
+	}{
+		{"parsed payload", "Bash", []string{
+			"BLOCKED your Bash call", // what was refused
+			"did NOT run",            // and that it did not happen
+			"not a retryable failure",
+			"remove the secret from the Bash input", // the exits that exist
+			"pass the PATH rather than the contents",
+			"you cannot override the gate",
+			"MUST NOT encode, split, rename", // the exits that do not
+			"agent-guardrails",               // the escalation
+		}},
+		{"unparseable payload", "", []string{
+			"could not be parsed",
+			"cannot say which field", // why its advice differs from the parsed case
+			"did NOT run",
+			"not a retryable failure",
+			"send less",                     // the truncation exit
+			"redact, truncate or delete it", // the file exit — the human's call, not the agent's
+			"MUST NOT encode, split, rename",
+			"STOP and hand the human",
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := denyReason(c.tool, []string{"AWS access key id"})
+			for _, want := range c.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("reason is missing %q — an agent cannot act on a rule citation:\n%s", want, got)
+				}
+			}
+			if !strings.Contains(got, "AWS access key id") {
+				t.Errorf("the reason must name what matched: %s", got)
+			}
+			// It reaches the model, so it must stay one readable block rather than a wall.
+			if len(got) > 1200 {
+				t.Errorf("reason is %d chars — too long to be read at a refusal", len(got))
+			}
+		})
 	}
 }
