@@ -14,7 +14,6 @@ Available Commands:
   blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
   capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
   completion   Generate the autocompletion script for the specified shell
-  cost         render a run's cost.md from the Workflow transcripts (operator; per seat-round tokens + dollars)
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
   graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
@@ -50,7 +49,6 @@ Available Commands:
   blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
   capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
   completion   Generate the autocompletion script for the specified shell
-  cost         render a run's cost.md from the Workflow transcripts (operator; per seat-round tokens + dollars)
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
   graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
@@ -86,7 +84,6 @@ Available Commands:
   blue         blue seats — revisions, manifest rows, disputes. No board verbs at all.
   capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
   completion   Generate the autocompletion script for the specified shell
-  cost         render a run's cost.md from the Workflow transcripts (operator; per seat-round tokens + dollars)
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
   graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
