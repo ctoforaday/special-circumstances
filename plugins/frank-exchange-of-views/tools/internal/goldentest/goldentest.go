@@ -11,6 +11,7 @@ package goldentest
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -35,13 +36,17 @@ func Assert(t *testing.T, name, got string) {
 		}
 		return
 	}
-	want, err := os.ReadFile(path)
+	wantBytes, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("missing golden %q — record it with UPDATE_GOLDENS=1 go test ./... : %v", name, err)
 	}
-	if string(want) != got {
+	// Normalize CRLF→LF on the golden read: git checks .golden files out with the platform's
+	// line endings on some Windows runners (there is no *.golden eol rule), while the artifact
+	// is rendered with LF. The difftest harness does the same, so the two golden loops agree.
+	want := strings.ReplaceAll(string(wantBytes), "\r\n", "\n")
+	if want != got {
 		t.Errorf("%s differs from its golden. If this change is INTENTIONAL, regenerate with "+
 			"UPDATE_GOLDENS=1 go test ./... and review the testdata diff on its own.\n"+
-			"--- got ---\n%s\n--- want ---\n%s", name, got, string(want))
+			"--- got ---\n%s\n--- want ---\n%s", name, got, want)
 	}
 }
