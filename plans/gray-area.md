@@ -523,9 +523,7 @@ any other and gets cited like one.
    · **re-armed by:** the capture hook — this is §11.3's alarm, and it is the check that matters
 4. `gray-area checkpoint <note>` with no transcript argument resolves from the manifest and PRINTS
    which row it used. With no manifest it says so and exits non-zero rather than guessing.
-5. **OPEN, needs a fresh session:** the wired hook actually produces a session row on a real
-   `SessionStart`. Until that is observed, §11.3's assumption is unconfirmed and this row is the
-   evidence to look for.
+5. ~~**OPEN, needs a fresh session:**~~ **CONFIRMED 2026-07-30T17:12Z.** See §11.7.
 
 ### 11.6 Built, and the one check that is still open
 
@@ -551,3 +549,43 @@ needs — what is missing, and what to do about it.
 human or a session chooses to run it. The hook that would always fire belongs in
 `prosthetic-conscience`'s seal, and §4/G6 forbid putting it there. So this narrows the gap and
 leaves it open, deliberately, rather than buying enforcement with a coupling the design rules out.
+
+
+### 11.7 §11.3's assumption, CONFIRMED — and one Phase 0 claim that did not survive
+
+Once gray-area's hooks were wired locally, six real `SessionStart` firings each wrote a row:
+
+```
+kind='session' resolved=True at=2026-07-30T11:55:14Z … 17:12:35Z
+transcript_path='/root/.claude/projects/-home-user-.../<session-id>.jsonl'
+```
+
+Every one `resolved: true`, every one carrying a real path. **`SessionStart` does carry
+`transcript_path`**, so §11.3's assumption holds and `hook-surface-spike.md` §3 is right for this
+event. The stderr alarm never fired, which is the outcome that would have refuted it.
+
+**A wiring fact worth keeping, because it nearly produced a false negative.** The plugin cache is
+empty in this environment, so `plugins/*/hooks/hooks.json` **never loads** — hooks fire only because
+the gitignored `.claude/settings.local.json` points at locally built binaries, and gray-area's entry
+was not in it. The first "end to end" check in §11.6 fed the hook a payload by hand and proved only
+that the binary works. An absent manifest would have been evidence about the *wiring*, not about the
+harness. `plans/rearm-coverage-experiment.md` states this first, for exactly that reason.
+
+**Phase 0's `agent_transcript_path` claim does NOT hold here.** A `SubagentStop` fired at 17:05:38
+and its row reads:
+
+```
+kind='seat' resolved=False
+capture_error='agent_transcript_path did not resolve: stat …/subagents/agent-a9adb953cea6b9265.jsonl: no such file or directory'
+```
+
+`hook-surface-spike.md` §3 records that path resolving to a real 12,997-byte file, and Phase 0's
+acceptance criterion demands it be "present, **readable**, and pointing at the seat's own file".
+Here it is present and **not readable**. That is one observation and is not yet a general claim —
+it may be a timing race (the seat's file written after the hook fires), a cleanup, or a change in
+the harness. It is recorded rather than resolved.
+
+Two things follow. The capture hook behaved correctly: it wrote the row with `resolved: false` and
+the reason, rather than a row that would silently resolve to nothing — the §11.3 design applied to a
+different field. And **Phase 1's acceptance criterion is not currently met**, so any Phase 2
+inspection that assumes a readable seat transcript needs this settled first. Added to the runbook.

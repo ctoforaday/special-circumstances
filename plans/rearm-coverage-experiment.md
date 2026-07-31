@@ -8,7 +8,22 @@ Two questions cannot be answered from inside a running session, because both are
 
 ---
 
-## Q1 — Does `SessionStart` carry `transcript_path`? (gray-area §11.5 item 5)
+## Q1 — Does `SessionStart` carry `transcript_path`? **ANSWERED: yes** (gray-area §11.7)
+
+> Confirmed 2026-07-30T17:12Z: six firings, every row `resolved: true` with a real path. Keep the
+> procedure below — it is the check to re-run if the harness changes — but it is no longer open.
+
+### Q1b — NEW AND OPEN: does `agent_transcript_path` resolve?
+>
+> A `SubagentStop` at 17:05:38 produced `resolved: false` — *`stat …/subagents/agent-<id>.jsonl: no
+> such file or directory`*. `hook-surface-spike.md` §3 measured that path resolving to a real file,
+> and Phase 0's acceptance criterion requires it be readable. One observation, not yet a general
+> claim; it may be a timing race with the seat's file being written after the hook fires.
+>
+> **To settle it:** run a task that spawns a subagent, then check `.claude/gray-area/` for a
+> `kind: "seat"` row. If `resolved: false`, re-`stat` the recorded path a minute later — if it
+> exists by then, it is a race and the capture hook should retry or record later rather than
+> declaring it unresolvable.
 
 `plans/gray-area.md` §11.3 records this as an **explicitly unverified assumption**.
 `hook-surface-spike.md` §3 says every hook event carries `session_id`, `transcript_path` and `cwd`,
