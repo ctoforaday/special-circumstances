@@ -129,6 +129,36 @@ func main() {
 		}
 	}
 
+	// The same failure one layer down again: requirements.json documents the hook binaries
+	// a consumer should expect, and nothing recomputed it. It drifted twice — sc-strike-counter
+	// was never added, and the two PostToolUse binaries outlived the merge that replaced them.
+	// A manifest that quietly disagrees with the tree is worse than none: it is read as
+	// authoritative.
+	for _, mf := range manifestsOf(root, "requirements.json") {
+		plugin := strings.Split(filepath.ToSlash(mf), "/")[1]
+		listed, ok := hookBinariesIn(filepath.Join(root, mf))
+		if !ok {
+			continue // a plugin that documents no hook binaries makes no claim to check
+		}
+		onDisk := map[string]bool{}
+		for _, d := range cmdDirs {
+			if fi, err := os.Stat(d); err == nil && fi.IsDir() &&
+				strings.Contains(filepath.ToSlash(d), "plugins/"+plugin+"/") {
+				onDisk[filepath.Base(d)] = true
+			}
+		}
+		for _, n := range listed {
+			if !onDisk[n] {
+				fail("%s: documents hook binary %s, which has no directory under plugins/%s/tools/cmd/.", mf, n, plugin)
+			}
+		}
+		for n := range onDisk {
+			if !contains(listed, n) && !documentedException(n) {
+				fail("%s: plugins/%s/tools/cmd/%s exists and is not documented in _hook_binaries — a consumer reading this manifest would not know to expect it.", mf, plugin, n)
+			}
+		}
+	}
+
 	if failed {
 		os.Exit(1)
 	}
@@ -142,4 +172,43 @@ func contains(h []string, n string) bool {
 		}
 	}
 	return false
+}
+
+// documentedException names the cmd/ directories that are deliberately absent from a
+// plugin's _hook_binaries list. sc-doctor is an operator command, not a hook; it is
+// provisioned the same way and is called out in the manifest's own comment.
+func documentedException(name string) bool { return name == "sc-doctor" }
+
+// manifestsOf lists a filename under every plugin, repo-relative.
+func manifestsOf(root, name string) []string {
+	matches, _ := filepath.Glob(filepath.Join(root, "plugins", "*", name))
+	var out []string
+	for _, m := range matches {
+		rel, _ := filepath.Rel(root, m)
+		out = append(out, filepath.ToSlash(rel))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// hookBinariesIn reads the documented binary names, reporting whether the file makes the
+// claim at all.
+func hookBinariesIn(path string) ([]string, bool) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, false
+	}
+	var d struct {
+		HookBinaries struct {
+			Binaries []struct{ Name string } `json:"binaries"`
+		} `json:"_hook_binaries"`
+	}
+	if json.Unmarshal(b, &d) != nil || len(d.HookBinaries.Binaries) == 0 {
+		return nil, false
+	}
+	var out []string
+	for _, x := range d.HookBinaries.Binaries {
+		out = append(out, x.Name)
+	}
+	return out, true
 }

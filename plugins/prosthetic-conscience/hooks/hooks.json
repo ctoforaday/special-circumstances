@@ -23,15 +23,12 @@
     ],
     "PostToolUse": [
       {
+        "_comment": "ONE hook for this event (#201 step 3). The quality gate and the recall index are still separate UNITS with their own packages and tests; they now run in one process over one shared context. Measured (hook-surface-spike.md §4b): the client runs an event's hooks in PARALLEL, so this merge runs its units concurrently simply to MATCH that — parity is the floor. What it buys is what two processes could not share: the payload parsed once, the project root resolved once, ONE writer for the hook log (those two appends were concurrent by design), and a place for expensive reads to be memoised as they arrive. The matcher is the UNION of the units' own, and each unit still checks its own applicability.",
         "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
-          },
-          {
-            "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-recall-index\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
