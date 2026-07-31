@@ -16,9 +16,11 @@ package fuzz
 // maybePetition/rulePetitions, raiseDisputes/answerDisputes), so debate.js's routing runs too.
 //
 // ORACLES per run: (1) verify passes — whatever path the debate took, the record satisfies every
-// invariant; (2) the JSON views (findings/friction/debate) exit 0 and parse; (3) every dialectic
-// prose renders in the report (the A1-A3 write-here/read-there class); (4) #111 tier — every seat
-// dispatched on the configured tier. COVERAGE GATE: across the run set, every event-emitting verb
+// invariant; (2) the JSON views (findings/friction/debate) exit 0 and parse; (2c) the six markdown
+// views (ledger/archive/debate/changelog/citation-ledger/lines-of-inquiry) render in-memory via
+// view.Markdown and exit 0; (3) every dialectic prose renders in the report (the A1-A3
+// write-here/read-there class); (4) #111 tier — every seat dispatched on the configured tier.
+// COVERAGE GATE: across the run set, every event-emitting verb
 // in verbsWithEvents must fire at least once (a regression that silently drops one fails loudly).
 // `halt` terminates the run, so it is covered by the dedicated TestFuzzHaltPath, not the sweep.
 //
@@ -470,8 +472,8 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 					r.closeGap(seatID, id, first)
 				}
 			}
-			// The merge's TERMINAL act on a PASS: renders all projections + checkpoints records/ to
-			// the recovery mirror. A PASS ends the debate, so this round is terminal.
+			// The merge's TERMINAL act on a PASS: checkpoints records/ (the event log) to the
+			// recovery mirror. A PASS ends the debate, so this round is terminal.
 			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
 			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
@@ -749,6 +751,17 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			return res
 		}
 	}
+	// Oracle 1c: the SIX markdown views now render in-memory (view.Markdown) with no render-shadow
+	// round-trip. Each must exit 0 on whatever state the run reached — this restores the randomized
+	// coverage the `render` verb + the difftest RENDERS section used to give the projection renderer,
+	// which the render-shadow removal (#203) took away (view_test.go pins the bytes on fixed
+	// fixtures; only the fuzz drives them across arbitrary run shapes).
+	for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
+		if out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput(); err != nil {
+			res.err = "show --view " + v + " (markdown projection) failed:\n" + truncate(string(out))
+			return res
+		}
+	}
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
@@ -806,7 +819,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 }
 
 // verbsWithEvents are the record-event-emitting verbs the fuzz is meant to drive — the whole seat
-// surface bar the read-only ones (register/render/show emit no board event). The coverage gate
+// surface bar the read-only ones (register/show emit no board event). The coverage gate
 // asserts each fired at least once across the run set, so a regression that silently STOPS
 // emitting one fails loudly (the old gate guarded only cite/finding). `halt` terminates the run
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
