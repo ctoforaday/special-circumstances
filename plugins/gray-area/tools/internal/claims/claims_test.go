@@ -8,13 +8,20 @@ import (
 // The note format as prosthetic-conscience actually writes it, taken from a real
 // sealed note rather than invented — including the wrapped continuation lines and
 // the prose entry with no command, both of which broke earlier drafts.
+//
+// RENUMBERED 2026-07-31. This fixture was copied from a real note that was itself
+// off-spec: labels 0, 1, 7 sitting in positions 1, 2, 3. Copying it faithfully
+// carried the defect into the test data, which is why no test caught the
+// off-by-one that made rearmed.json's key 2 mean the note's `1.` (#192). A
+// fixture inherits its author's idea of what the format is; this one inherited a
+// wrong one from a real file, which is the harder version of that trap.
 const realNote = "---\nschema: 2\n---\n" + `
 ## Validation loop
-0. ` + "`go test -C plugins/gray-area/tools ./...`" + `  → 3 packages ok  · re-armed by: plugins/gray-area/tools/
+1. ` + "`go test -C plugins/gray-area/tools ./...`" + `  → 3 packages ok  · re-armed by: plugins/gray-area/tools/
    last run: pass 2026-07-30T04:41Z (on merged main, 667c716)
-1. ` + "`node .github/validate-json.mjs`" + `  → 16 files valid  · re-armed by: plugins/
+2. ` + "`node .github/validate-json.mjs`" + `  → 16 files valid  · re-armed by: plugins/
    last run: pass 2026-07-30T04:03Z
-7. The continuity loop itself: SessionStart digest arrives, watchPaths registers, a write under a
+3. The continuity loop itself: SessionStart digest arrives, watchPaths registers, a write under a
    watched surface produces rearmed.json naming the right check  · re-armed by: .claude/settings.local.json
    last run: PASS 2026-07-30T03:23Z — check 1 re-armed by an ` + "`add`" + ` event
 
@@ -54,13 +61,13 @@ func TestParsesTheRealNoteFormat(t *testing.T) {
 	}
 }
 
-// The entry numbered 7 is prose. It must survive parsing AND refuse to pretend it
+// The third entry is prose. It must survive parsing AND refuse to pretend it
 // has a command — a fabricated one would produce a confident false negative.
 func TestAProseClaimIsKeptButHasNoCommand(t *testing.T) {
 	cs := parse(t, realNote)
 	prose := cs[2]
-	if prose.Index != "7" {
-		t.Fatalf("expected entry 7, got %s", prose.Index)
+	if prose.Index != "3" {
+		t.Fatalf("expected entry 3, got %s", prose.Index)
 	}
 	if prose.HasCommand() {
 		t.Errorf("a prose check was given a command to look for: %q", prose.Cmd)

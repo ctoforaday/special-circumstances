@@ -283,6 +283,10 @@ func watchTargets(n checkpoint.Note, projectDir string) (paths []string, unresol
 			unresolved = append(unresolved, fmt.Sprintf("check %d: %s", c.Index, why))
 		}
 	}
+	// A malformed label costs the same thing an unresolvable surface costs — a
+	// check that is quietly not watched — so it is reported through the same
+	// channel rather than a new one. See checkpoint.LoopProblems (#192, #193).
+	unresolved = append(unresolved, checkpoint.LoopProblems(loop)...)
 	return paths, unresolved
 }
 

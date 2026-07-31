@@ -8,8 +8,10 @@ package checkpoint
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -213,6 +215,62 @@ func ParseValidationLoop(body string) []Check {
 		}
 	}
 	return out
+}
+
+// loopEntry matches a line that a reader would take for a validation-loop entry,
+// including the malformed spellings ParseValidationLoop declines to open a check
+// for. Detecting what was NOT parsed is the whole point of LoopProblems.
+var loopEntry = regexp.MustCompile(`^(\d+)([a-z]*)\.(\s|$)`)
+
+// LoopProblems reports validation-loop entries whose written label disagrees
+// with their ordinal position, and entries a reader would count that the parser
+// does not.
+//
+// The schema (skills/context-checkpointing/SKILL.md) numbers the loop `1.`, `2.`,
+// `3.` … so the written label and the ordinal are the same number. Nothing
+// enforced that, and two consequences followed, both live in this repo:
+//
+//   - A note numbered from `0.` made rearmed.json's key 2 mean the note's `1.`
+//     Every human and agent reader used the written label; the state file used
+//     the ordinal. Off by one at the seam, silently (#192).
+//   - Lettered sub-entries (`0b.`, `7b.`) open no check in EITHER this parser or
+//     gray-area's, so a loop a reader counts as eleven checks parses as nine.
+//     Two checks were neither watched nor adjudicated, and nothing said so (#193).
+//
+// Both are reported, never repaired. Silently renumbering would restore exactly
+// the ambiguity this exists to expose: the reader's number and the tool's number
+// have to be the same number, or the disagreement has to be visible.
+//
+// This does not refuse. It is called from hooks, and a hook that stopped working
+// because a hand-written note has a bad label would trade a numbering slip for a
+// loss of continuity — a worse failure than the one it reports. The ordinal
+// remains authoritative for attribution; the complaint rides out in the digest.
+// gray-area's parser makes the opposite call, correctly: it is a command a human
+// invokes, and it can afford to stop.
+func LoopProblems(body string) []string {
+	var problems []string
+	ordinal := 0
+	for _, line := range strings.Split(body, "\n") {
+		m := loopEntry.FindStringSubmatch(strings.TrimSpace(line))
+		if m == nil {
+			continue
+		}
+		if m[2] != "" {
+			// A lettered label never opens a check, so it does not advance the
+			// ordinal either — it is invisible, which is what makes it dangerous.
+			problems = append(problems, fmt.Sprintf(
+				"entry %q is not an ordinal: labels must be 1, 2, 3 … — this entry opens no check and is neither watched nor adjudicated",
+				m[1]+m[2]+"."))
+			continue
+		}
+		ordinal++
+		if n, err := strconv.Atoi(m[1]); err == nil && n != ordinal {
+			problems = append(problems, fmt.Sprintf(
+				"entry %q is in position %d: the written label and the ordinal must be the same number, or state keyed by ordinal will disagree with every reader",
+				m[1]+".", ordinal))
+		}
+	}
+	return problems
 }
 
 // WithinRoot reports whether a project-relative path exists INSIDE the project.

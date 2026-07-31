@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -51,7 +52,11 @@ var (
 	nextHead = regexp.MustCompile(`^#{1,6}\s+`)
 	// An entry opens with "N." at the left margin. Indented continuation lines
 	// belong to the entry above.
-	entry     = regexp.MustCompile(`^(\d+)\.\s+(.*)$`)
+	entry = regexp.MustCompile(`^(\d+)\.\s+(.*)$`)
+	// Anything a reader would count as an entry, including the spellings `entry`
+	// declines. Detecting what is NOT parsed is the point: a lettered label was
+	// invisible to both parsers, so a loop of eleven checks adjudicated as nine.
+	malformed = regexp.MustCompile(`^(\d+)([a-z]*)\.(\s|$)`)
 	backticks = regexp.MustCompile("`([^`]+)`")
 	rearmed   = regexp.MustCompile(`(?i)re-armed by:\s*(.+?)\s*$`)
 	lastRun   = regexp.MustCompile(`(?i)last run:\s*(.+?)\s*$`)
@@ -88,6 +93,20 @@ func Parse(r io.Reader, file string) ([]Claim, error) {
 		if nextHead.MatchString(line) {
 			inLoop = false
 			continue
+		}
+
+		// A label that is not its own ordinal makes every index in this output a
+		// lie, and the output's whole job is to be citable. Refused rather than
+		// reported: unlike prosthetic-conscience's parser, which runs inside
+		// hooks and must degrade rather than break continuity, this runs in a
+		// command a human invoked and can afford to stop. See #192, #193.
+		if m := malformed.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
+			if m[2] != "" {
+				return nil, fmt.Errorf("%s:%d: entry %q is not an ordinal — validation-loop labels must be 1, 2, 3 …; this entry opens no check, so adjudicating would silently omit it", file, lineNo, m[1]+m[2]+".")
+			}
+			if n, err := strconv.Atoi(m[1]); err == nil && n != len(out)+1 {
+				return nil, fmt.Errorf("%s:%d: entry %q is in position %d — the written label and the ordinal must be the same number, or every index this command prints disagrees with the state keyed by ordinal", file, lineNo, m[1]+".", len(out)+1)
+			}
 		}
 
 		if m := entry.FindStringSubmatch(line); m != nil {
