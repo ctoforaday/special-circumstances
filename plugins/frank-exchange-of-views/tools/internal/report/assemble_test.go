@@ -190,7 +190,7 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 		Gaps: map[string]*record.Gap{
 			"R1-1": {ID: "R1-1", Open: true, Severity: "low", Impact: "low", Likelihood: "low",
 				Mint: record.NewPayload().Set("problem", "a minor nit.").Set("required_fix", "tidy it")},
-			"R1-2": {ID: "R1-2", Open: true, Severity: "critical", Impact: "high", Likelihood: "high",
+			"R1-2": {ID: "R1-2", Open: true, Severity: "certain", Impact: "high", Likelihood: "high",
 				Mint: record.NewPayload().Set("problem", "a load-bearing flaw.").Set("required_fix", "fix the core")},
 			"R1-3": {ID: "R1-3", Open: false, Severity: "high", // closed — must not appear
 				Mint: record.NewPayload().Set("problem", "already closed.")},
@@ -204,7 +204,8 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 	if !strings.Contains(o, "re-examine the cost model before shipping") {
 		t.Errorf("orientation must promote the bench's certify statement:\n%s", o)
 	}
-	// Critical ranks above the minor nit, and the closed gap is absent.
+	// The load-bearing flaw (severity "certain", a top domain grade the old critical|high|medium|
+	// low table sank to rank 0) ranks above the minor nit, and the closed gap is absent.
 	ci := strings.Index(o, "a load-bearing flaw")
 	ni := strings.Index(o, "a minor nit")
 	if ci < 0 || ni < 0 || ci > ni {

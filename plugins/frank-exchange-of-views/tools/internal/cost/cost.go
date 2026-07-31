@@ -8,7 +8,6 @@
 package cost
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -423,13 +422,4 @@ func acceptedDeltas(m map[string]any) int {
 		return len(a)
 	}
 	return 0
-}
-
-// Bytes renders the report to a byte slice (test convenience).
-func Bytes(transcriptDir, runDir string) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := Report(transcriptDir, runDir, &buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }

@@ -288,20 +288,15 @@ func orientation(board *record.Board, evs []record.Event) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// sevRank maps a grade (critical..low) to 4..1, unknown to 0 — the ordering key for the
-// orientation ranking. It reads any because a gap's grades arrive as interface values.
+// sevRank orders a gap by one grade, using the canonical MASS weight (record.MASS) scaled to an
+// int — so all eight real domain grades sort correctly (realized 0 · trivial 1 · low 2 ·
+// low-medium 3 · medium 4 · medium-high 5 · high 6 · certain 7), consistent with how the rest of
+// the system weights grades. The earlier critical|high|medium|low table matched NONE of the
+// domain grades past high/medium/low and sank certain/realized/medium-high/low-medium/trivial to
+// 0 — the most severe open gaps sorted below the least. Reads any because grades arrive as
+// interface values; an absent/unknown grade is 0.
 func sevRank(v any) int {
-	switch strings.ToLower(grade(v)) {
-	case "critical":
-		return 4
-	case "high":
-		return 3
-	case "medium":
-		return 2
-	case "low":
-		return 1
-	}
-	return 0
+	return int(record.MASS[strings.ToLower(grade(v))] * 2)
 }
 
 func riskMatrix(bj record.BoardJSON) string {
