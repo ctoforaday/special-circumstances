@@ -107,20 +107,6 @@ func attribute(checks []checkpoint.Check, targets map[int][]string, projectDir, 
 	return checkpoint.Check{}, false
 }
 
-func save(path string, s checkpoint.RearmState, stderr io.Writer) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		fmt.Fprintln(stderr, "sc-filechanged-rearm: cannot create state dir:", err)
-		return
-	}
-	b, err := json.MarshalIndent(s, "", "  ")
-	if err != nil {
-		return
-	}
-	if err := os.WriteFile(path, append(b, '\n'), 0o644); err != nil {
-		fmt.Fprintln(stderr, "sc-filechanged-rearm: cannot write state:", err)
-	}
-}
-
 // targetsFor resolves every check's trigger surface, using the same rules the
 // restore hook used to register them. Shared through internal/checkpoint so the
 // registration and the matching cannot disagree about what a surface means.
@@ -183,24 +169,35 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	c, matched := attribute(checks, targetsFor(checks, projectDir), projectDir, in.FilePath)
-	if !matched {
-		// Recorded nowhere: a directory watch is coarser than the surface it
-		// stands in for, so unclaimed changes are expected and are not evidence
-		// of anything. Staying silent here is the difference between a signal
-		// and a log.
-		return 0
-	}
+	stamp := now.UTC().Format(time.RFC3339)
 
-	statePath := checkpoint.RearmPath(projectDir)
-	s := checkpoint.LoadRearm(os.ReadFile, statePath)
-	s.Rearmed[fmt.Sprint(c.Index)] = checkpoint.Rearm{
-		Index: c.Index,
-		Check: c.Line,
-		By:    relTo(projectDir, in.FilePath),
-		Event: in.Event,
-		At:    now.UTC().Format(time.RFC3339),
+	// One locked read-modify-write. Loading outside the lock is what lost two of
+	// six concurrent events, measured — see checkpoint.UpdateRearm.
+	err = checkpoint.UpdateRearm(checkpoint.RearmPath(projectDir), func(s *checkpoint.RearmState) {
+		// Stamped on EVERY delivered event, matched or not. This separates
+		// "nothing changed" from "nothing arrived": a watcher going quiet
+		// mid-session is invisible without it, because an unmatched event
+		// correctly records nothing else.
+		s.LastEvent = stamp
+		if !matched {
+			// A directory watch is coarser than the surface it stands in for,
+			// so unclaimed changes are expected and are NOT evidence about any
+			// check. Recording one per-check would be a log rather than a signal.
+			return
+		}
+		// Keyed by the check's IDENTITY, not its position: a renumbered note
+		// used to orphan every record here, silently (#192).
+		s.Rearmed[checkpoint.CheckKey(c.Line)] = checkpoint.Rearm{
+			Index: c.Index,
+			Check: c.Line,
+			By:    relTo(projectDir, in.FilePath),
+			Event: in.Event,
+			At:    stamp,
+		}
+	})
+	if err != nil {
+		fmt.Fprintln(stderr, "sc-filechanged-rearm: "+err.Error())
 	}
-	save(statePath, s, stderr)
 	return 0
 }
 
