@@ -317,6 +317,21 @@ func Set(cmd *cobra.Command, p *record.Payload, key, name string) *record.Payloa
 	return p
 }
 
+// SetReason reads the seat's prose (--reason / --reason-file / stdin) and, when non-empty, sets it
+// under key. It folds the read+error-guard+conditional-set that every prose-bearing verb otherwise
+// hand-rolls (evidence / basis / rationale / prose / reason) — close.go documents that a verb which
+// opts out of the shared READ drifts by construction; the same holds for the SET.
+func SetReason(cmd *cobra.Command, p *record.Payload, key string) error {
+	r, err := Reason(cmd)
+	if err != nil {
+		return err
+	}
+	if r != "" {
+		p.Set(key, r)
+	}
+	return nil
+}
+
 // SetGrade writes a typed grade only when the seat passed it. The typed value
 // carries the absent/present distinction itself, so this never consults the flag
 // set — one fewer place for the two to disagree.

@@ -31,13 +31,9 @@ func newRetire() *cobra.Command {
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// --reason is the prose channel (Prose provides it); it lands under `reason`,
 			// which validate requires — substance leaves the report only with its reason.
-			reason, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim)
-			if reason != "" {
-				p.Set("reason", reason)
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+				return nil, err
 			}
 			seat.Set(cmd, p, "superseded_by", flags.SupersededBy)
 			if _, err := record.Append(s.RunDir, s.SeatID, "retire", p); err != nil {

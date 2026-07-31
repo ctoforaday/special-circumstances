@@ -24,12 +24,8 @@ func newDispute() *cobra.Command {
 			seat.SetSame(cmd, p, flags.Dimension)
 			seat.SetGrade(p, "proposed", &proposed)
 			// Flag word --reason (the one prose word), payload key stays evidence.
-			reason, err := seat.Reason(cmd)
-			if err != nil {
+			if err := seat.SetReason(cmd, p, "evidence"); err != nil {
 				return nil, err
-			}
-			if reason != "" {
-				p.Set("evidence", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute", p); err != nil {
 				return nil, err

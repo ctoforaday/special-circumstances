@@ -26,12 +26,8 @@ func newRegrade() *cobra.Command {
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetGrade(p, "complexity_cost", &cx)
 			// Flag word --reason (the one prose word), payload key stays basis.
-			reason, err := seat.Reason(cmd)
-			if err != nil {
+			if err := seat.SetReason(cmd, p, "basis"); err != nil {
 				return nil, err
-			}
-			if reason != "" {
-				p.Set("basis", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "regrade", p); err != nil {
 				return nil, err

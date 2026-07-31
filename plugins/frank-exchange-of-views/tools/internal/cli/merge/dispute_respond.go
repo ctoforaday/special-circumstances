@@ -21,12 +21,8 @@ func newDisputeRespond() *cobra.Command {
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			seat.Set(cmd, p, "response", flags.As)
 			// Flag word --reason (the one prose word), payload key stays rationale.
-			reason, err := seat.Reason(cmd)
-			if err != nil {
+			if err := seat.SetReason(cmd, p, "rationale"); err != nil {
 				return nil, err
-			}
-			if reason != "" {
-				p.Set("rationale", reason)
 			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "dispute-respond", p); err != nil {
 				return nil, err
