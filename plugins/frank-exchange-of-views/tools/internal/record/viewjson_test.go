@@ -1,7 +1,6 @@
 package record
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -89,19 +88,9 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if redRounds != 2 {
 		t.Errorf("redRounds = %d, want 2", redRounds)
 	}
-
-	// Cross-check against the markdown render: every Red/Blue text the JSON view carries must
-	// appear under the matching "### RED"/"### BLUE" heading of debate.md.
-	res, err := Render(runDir, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	debate := readFile(t, filepath.Join(res.Out, "debate.md"))
-	for _, want := range []string{"### RED\nred r1", "### BLUE\nblue r1", "### RED\nred r2"} {
-		if !strings.Contains(debate, want) {
-			t.Errorf("debate.md missing %q — JSON view and markdown render disagree:\n%s", want, debate)
-		}
-	}
+	// The markdown debate render is cross-checked against these same events in the view
+	// package's tests (TestMarkdownDebateChangelogInquiryAndCitations); the render moved
+	// out of this package, so the JSON view is pinned here and the markdown there.
 }
 
 // --json is view-selected only where a JSON form exists. A JSON-native view rejects it (there

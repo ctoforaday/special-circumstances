@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // Classes is the closed set a row's class must be in.
@@ -73,6 +74,10 @@ func valStr(v any) string {
 	}
 }
 
+// ValStr is the exported row-value renderer, for consumers (the dashboard) that render
+// computed rows to their own format instead of re-parsing the markdown section.
+func ValStr(v any) string { return valStr(v) }
+
 // isZero reports whether a value is the integer 0 — JS `value !== 0` in headline ranking is
 // false only for a numeric zero; detector values are ints here.
 func isZero(v any) bool {
@@ -84,21 +89,15 @@ func isZero(v any) bool {
 
 // ---- telemetry + journal reads ----
 
-// ReadTelemetry returns the board telemetry lines (render-shadow preferred, trajectories
-// fallback), each a decoded object; [] when absent.
+// ReadTelemetry returns the board telemetry series, computed on read from the
+// record via the shared view library; nil when the run has no rounds. The series
+// is no longer materialized to disk — the record is the source.
 func ReadTelemetry(runDir string) []map[string]any {
-	paths := []string{
-		filepath.Join(runDir, "records", "render-shadow", "board-telemetry.jsonl"),
-		filepath.Join(runDir, "trajectories", "board-telemetry.jsonl"),
+	rows, err := view.Telemetry(runDir)
+	if err != nil {
+		return nil
 	}
-	var body []byte
-	for _, p := range paths {
-		if b, err := os.ReadFile(p); err == nil {
-			body = b
-			break
-		}
-	}
-	return decodeJSONL(body)
+	return rows
 }
 
 // ReadResults gathers the journal's `.result` envelopes (post-capture); [] mid-run.

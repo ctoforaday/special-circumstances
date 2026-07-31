@@ -25,6 +25,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // Audit is one check's result. Unreconciled is attestation-only (surfaced for the table test).
@@ -145,29 +146,20 @@ func jsString(v any) string {
 
 // ---- AUDIT 1: telemetry presence ----
 
-// TelemetryAudit checks one telemetry line per red round. redRounds comes from the debate view
-// (rounds with a red sitting), read in-process. No SKIP-without-record branch (the JS-only path).
+// TelemetryAudit checks one telemetry round per red round. redRounds comes from the debate view
+// (rounds with a red sitting), read in-process. Telemetry is now DERIVED from the record via the
+// shared view library (never a materialized file), so it cannot be "absent": the check is whether
+// the derived series covers every red round. SKIP when there were no red rounds.
 func TelemetryAudit(runDir string, redRounds int) Audit {
-	p := filepath.Join(runDir, "trajectories", "board-telemetry.jsonl")
-	b, err := os.ReadFile(p)
+	if redRounds == 0 {
+		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the debate record shows 0 red round(s)"}
+	}
+	lines, err := view.Telemetry(runDir)
 	if err != nil {
-		v := "FAIL"
-		if redRounds == 0 {
-			v = "SKIP"
-		}
-		return Audit{Check: "telemetry", Verdict: v, Detail: fmt.Sprintf("board-telemetry.jsonl absent; the debate record shows %d red round(s)", redRounds)}
+		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
 	rounds := map[string]bool{}
-	for _, l := range strings.Split(string(b), "\n") {
-		if l == "" {
-			continue
-		}
-		dec := json.NewDecoder(strings.NewReader(l))
-		dec.UseNumber()
-		var j map[string]any
-		if dec.Decode(&j) != nil {
-			continue
-		}
+	for _, j := range lines {
 		if r, ok := j["round"]; ok && r != nil {
 			rounds[jsString(r)] = true
 		}

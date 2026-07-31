@@ -133,6 +133,27 @@ is real; the altitude is wrong.
   policy-without-mechanism. If something is, but it guards a coarser surface than
   the invariant needs, it is this.
 
+### co-resident-rules-disagree
+Two rules that are ALWAYS loaded together fire at the same moment and give
+opposite instructions, so an agent obeying both literally must violate one. The
+cost is not the wasted words: it teaches that the rulebook is approximate, which
+discounts every other rule in it.
+- **Instance**: `semantic-consent` said "BEFORE acting on a vague instruction,
+  YOU MUST ask for the missing intent" while its own next clause said to split by
+  reversibility and DECIDE the reversible ones — the second written specifically
+  to stop the stalling the first caused. In the same set, `semantic-consent`
+  required stating the goal of every read-only search while `terse-communication`
+  forbade narrating process; every `Grep` fired both.
+- **Sweep question**: which OTHER always-on rules fire at the same moment as this
+  clause, and do they agree? A clause is not finished until that is checked
+  against the rules it will be loaded beside.
+- **Neighbour**: `invariant-at-wrong-level` — there ONE rule guards a surface
+  coarser than the thing it protects; here TWO rules guard the same moment and
+  disagree about it.
+- **Distinguisher**: is there a second rule firing at the same moment? If the
+  defect is one rule aimed at the wrong altitude, it is invariant-at-wrong-level.
+  If two rules collide, it is this.
+
 ### port-retarget
 A caller still invokes the runtime a port has replaced — a spawn/invocation site
 names the old script while the new implementation is the contract — so the pointer

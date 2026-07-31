@@ -207,17 +207,17 @@ func sortNonceLists(s string) string {
 }
 
 // collect reads the comparable state of a run dir: shard events (parsed) keyed by
-// normalized filename, plus every projection file's normalized bytes.
+// normalized filename, plus the active-pointer files. Projections are no longer
+// materialized to disk — they derive on read — so there is nothing to snapshot.
 type state struct {
 	events  map[string][]map[string]any
-	renders map[string]string
 	pointer map[string]string
 }
 
 func collect(t *testing.T, runDir string, m *nonceMapper) state {
 	t.Helper()
 	recs := filepath.Join(runDir, "records")
-	st := state{events: map[string][]map[string]any{}, renders: map[string]string{}, pointer: map[string]string{}}
+	st := state{events: map[string][]map[string]any{}, pointer: map[string]string{}}
 	entries, err := os.ReadDir(recs)
 	if err != nil {
 		return st
@@ -247,16 +247,6 @@ func collect(t *testing.T, runDir string, m *nonceMapper) state {
 				evs = append(evs, ev)
 			}
 			st.events[m.normalize(name)] = evs
-		}
-	}
-	shadow := filepath.Join(recs, "render-shadow")
-	if fs, err := os.ReadDir(shadow); err == nil {
-		for _, f := range fs {
-			if strings.Contains(f.Name(), ".tmp-") {
-				continue
-			}
-			b, _ := os.ReadFile(filepath.Join(shadow, f.Name()))
-			st.renders[f.Name()] = m.normalize(string(b))
 		}
 	}
 	return st

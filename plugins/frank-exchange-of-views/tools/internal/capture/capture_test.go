@@ -5,7 +5,37 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
+
+// recordWithRounds writes a minimal run whose board carries one minted gap per round, so the
+// derived telemetry (view.Telemetry, which TelemetryAudit now computes) has one row per round.
+func recordWithRounds(t *testing.T, n int) string {
+	t.Helper()
+	dir := t.TempDir()
+	recs := filepath.Join(dir, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for r := 1; r <= n; r++ {
+		seat := "red-merge-r" + itoa(r)
+		// The shard filename's nonce must be exactly 8 hex chars (record's shardRe).
+		nonce := "0000000" + string("0123456789abcdef"[r%16])
+		e := record.Event{Seq: 0, SeatID: seat, Nonce: nonce, Round: r, Type: "mint",
+			Key: seat + ":mint:R" + itoa(r) + "-1",
+			Payload: record.NewPayload().Set("gap_id", "R"+itoa(r)+"-1").Set("problem", "p").
+				Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium")}
+		line, err := record.MarshalEvent(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), append(line, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
 
 // These table tests carry the coverage of the deleted tests/simulator/{run-scripts,
 // record-readers}.test.mjs. The JS SKIP-without-`--bin` cases have no Go analogue (Go always
@@ -66,23 +96,25 @@ func itoa(n int) string {
 }
 
 func TestTelemetryAudit(t *testing.T) {
-	dir := fixtureRun(t, 2, 2)
-	if got := TelemetryAudit(dir, 2).Verdict; got != "PASS" {
+	// Telemetry is DERIVED from the record now, so the audit checks that the computed series
+	// (one row per round with a minted gap) covers every red round.
+	two := recordWithRounds(t, 2)
+	if got := TelemetryAudit(two, 2).Verdict; got != "PASS" {
 		t.Errorf("2 telemetry rounds cover 2 red rounds: want PASS, got %s", got)
 	}
 	// One telemetry round, three red rounds on the record → FAIL.
-	one := t.TempDir()
-	write(t, filepath.Join(one, "trajectories", "board-telemetry.jsonl"), `{"round":1}`+"\n")
+	one := recordWithRounds(t, 1)
 	if got := TelemetryAudit(one, 3).Verdict; got != "FAIL" {
 		t.Errorf("1 telemetry round vs 3 red: want FAIL, got %s", got)
 	}
-	// Absent telemetry with red rounds on record → FAIL; with none → SKIP.
-	noFile := t.TempDir()
-	if got := TelemetryAudit(noFile, 2).Verdict; got != "FAIL" {
-		t.Errorf("absent telemetry with red rounds: want FAIL, got %s", got)
+	// No board rounds with red rounds on record → FAIL (the derived series is empty); with
+	// no red rounds → SKIP.
+	empty := t.TempDir()
+	if got := TelemetryAudit(empty, 2).Verdict; got != "FAIL" {
+		t.Errorf("empty telemetry with red rounds: want FAIL, got %s", got)
 	}
-	if got := TelemetryAudit(noFile, 0).Verdict; got != "SKIP" {
-		t.Errorf("absent telemetry, no red rounds: want SKIP, got %s", got)
+	if got := TelemetryAudit(empty, 0).Verdict; got != "SKIP" {
+		t.Errorf("empty telemetry, no red rounds: want SKIP, got %s", got)
 	}
 }
 

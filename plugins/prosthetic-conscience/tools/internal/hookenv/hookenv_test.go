@@ -74,10 +74,23 @@ func TestAnUnresolvedRootSaysSoAndStopsTheCaller(t *testing.T) {
 //
 // This walks the real source. A new hook that reads the environment variable directly,
 // instead of resolving through this package, fails here.
+//
+// IT WALKS internal/*/main.go, NOT cmd/. When the hook logic moved to libraries (#201 step
+// 2) the cmd/ files became three-line shims that name no environment variable at all, so
+// this glob kept matching ten files, found nothing to object to, and PASSED VACUOUSLY. The
+// guard had stopped guarding and said so to nobody — the exact failure it was written
+// about, committed by the refactor that was tidying up after it.
+//
+// The count assertion below is what makes that survivable a second time: a walk that finds
+// implausibly few sources is now a failure, not a silent pass.
 func TestNoHookReadsTheEnvironmentVariableWithoutResolvingThroughThisPackage(t *testing.T) {
-	cmds, err := filepath.Glob(filepath.Join("..", "..", "cmd", "*", "main.go"))
-	if err != nil || len(cmds) == 0 {
-		t.Fatalf("found no hook sources to walk (%v) — a broken walk would pass this test silently forever", err)
+	cmds, err := filepath.Glob(filepath.Join("..", "*", "main.go"))
+	if err != nil {
+		t.Fatalf("walk failed: %v", err)
+	}
+	// Every hook package has one. If this collapses, the walk has broken again.
+	if len(cmds) < 8 {
+		t.Fatalf("walked only %d hook sources (%v) — a broken walk passes this test silently forever, which is how it broke the first time", len(cmds), cmds)
 	}
 
 	// The env var may be read ONCE per binary, in main(), as the first input to

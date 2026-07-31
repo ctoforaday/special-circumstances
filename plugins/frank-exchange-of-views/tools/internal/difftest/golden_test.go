@@ -110,13 +110,6 @@ func TestGolden(t *testing.T) {
 				transcript.WriteString("\n")
 			}
 
-			// Auto-render is gone (2026-07-19): mutations no longer refresh the projections.
-			// A run produces its markdown by rendering EXPLICITLY — the debate prompt does it,
-			// and capture does it at end-of-run. Mirror that here with one final render so the
-			// RENDERS section reflects the final state. Its stdout is intentionally NOT added
-			// to the transcript (the command loop above is done), so only the files change.
-			runGo(bin, runDir, cmd{role: "merge", args: []string{"render", "--run", runDir}})
-
 			st := collect(t, runDir, m)
 
 			// TIMESTAMPS BECOME THEIR RANK, not a placeholder.
@@ -147,11 +140,24 @@ func TestGolden(t *testing.T) {
 					transcript.WriteString("\n")
 				}
 			}
-			transcript.WriteString("\n═══ RENDERS ═══\n")
-			for _, name := range sortedKeys(st.renders) {
-				fmt.Fprintf(&transcript, "-- %s\n%s\n", name, st.renders[name])
-			}
 
+			// RENDERS: the markdown projections, pulled through the SAME path a seat uses —
+			// `show --view <v>`, which renders in-memory from the record via internal/view (no
+			// render-shadow). This byte-pins every projection across every scenario, the coverage
+			// the render-shadow removal (#203) dropped when it deleted the materialized snapshot.
+			// A view that errors on a given run (e.g. a pure-help/error scenario with no record)
+			// contributes nothing, so degenerate runs carry no RENDERS section — as before.
+			var renders strings.Builder
+			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
+				got := normalizeOutput(runGo(bin, runDir, cmd{role: "merge", args: []string{"show", "--view", v, "--run", runDir}}), runDir, m)
+				if got.code == 0 {
+					fmt.Fprintf(&renders, "-- %s\n%s\n", v, got.stdout)
+				}
+			}
+			if renders.Len() > 0 {
+				transcript.WriteString("\n═══ RENDERS ═══\n")
+				transcript.WriteString(renders.String())
+			}
 			compareGolden(t, sc.name, transcript.String())
 		})
 	}

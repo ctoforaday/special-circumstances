@@ -56,7 +56,7 @@ jobs:
       # -race sees one process. The concurrency these hooks actually meet is BETWEEN
       # processes — parallel Edits in one turn fire parallel PostToolUse invocations, each
       # its own binary, sharing state under .claude/. No race detector observes that; see
-      # the debounce note in cmd/sc-recall-index.
+      # the debounce note in internal/recallindex.
       - run: go test -race ./...
         env:
           CGO_ENABLED: "1"
@@ -202,6 +202,15 @@ jobs:
       - env:
           BASE_REF: ${{ github.base_ref }}
         run: go run ./rulesweep -base "origin/$BASE_REF"
+        working-directory: scripts
+      # A version that goes BACKWARDS ships nothing. Measured 2026-07-31: #198 set
+      # prosthetic-conscience to 0.22.0, #195 branched earlier and carried 0.21.0, and the
+      # later merge won the line — main kept both features' content at a version already
+      # shipped, so `/plugin update` would deliver neither. No test failed and no guard
+      # fired, because CLAUDE.md's first bullet had no mechanism behind it.
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+        run: go run ./versionguard -base "origin/$BASE_REF"
         working-directory: scripts
 
   scripts:

@@ -39,10 +39,9 @@ On top of the always-on set it ships **on-demand skills** (pair-programming, spe
 |---|---|
 | `sc-doctor` | Environment preflight — a READY / DEGRADED / BLOCKED verdict (`/prosthetic-conscience:doctor`) |
 | `sc-secrets-gate` | Blocks secrets/tokens from leaving in web calls |
-| `sc-quality-gate` | Runs `qlty fmt` + `qlty check` on every write, feeds findings back |
+| `sc-posttooluse` | One hook per event: runs the quality gate (`qlty fmt` + `qlty check`) and the recall index as units over one shared context |
 | `sc-push-freeze-guard` | Guards pushes |
 | `sc-toolchain-nudge` | Nudges toward the installed toolchain |
-| `sc-recall-index` | Indexes for recall |
 | `sc-checkpoint-seal` | Seals the note at every seam — compaction, session end, seat finishing |
 | `sc-checkpoint-restore` | Hands the note back on session start — every source, compaction included |
 | `sc-postcompact-observe` | Scores what each summary kept, one row per boundary |
@@ -64,7 +63,7 @@ Given a topic, it produces a verified research deliverable with the entire adver
 
 It runs as a **sandboxed workflow script** (`debate.js`) that drives the mechanics — best-of-N lanes and lenses, round sequencing, the **Catechism** (a "worth our time" decision adapted from Heilmeier), and a safety ceiling that bounds cost. **Termination is judged, never counted:** the run ends on a red PASS or on detected deadlock/spinning, and the round ceiling only caps spend.
 
-Every act is recorded through **`feov-record`, a Go CLI that is the single contract**. Seats don't hand-write state; they call the tool, and the tool validates every write — required fields, cross-reference integrity checked at write time, legal state transitions, and tool-assigned unguessable identifiers — then writes an **append-only JSONL event log** plus **rendered markdown projections** of the board, ledger, and archive. The event stream is the authoritative, queryable, attributable record; the markdown is a view of it.
+Every act is recorded through **`feov-record`, a Go CLI that is the single contract**. Seats don't hand-write state; they call the tool, and the tool validates every write — required fields, cross-reference integrity checked at write time, legal state transitions, and tool-assigned unguessable identifiers — then writes an **append-only JSONL event log** — the single authoritative, queryable, attributable record. The board, ledger, archive, and transcript are **markdown views rendered just-in-time from that log on read** (`show --view …`), never a second copy materialized to disk.
 
 **The distinctive idea:** the seat that builds is not the seat that judges, and the judge of the *gate* is not the judge of the *dispute* — three separated mandates, with a machine-checked event log so no seat can quietly rewrite the record.
 
@@ -111,7 +110,7 @@ A finished run lands in `research/<date>_<slug>/`:
 | `report.md` | The deliverable — verdict, TL;DR, the audited report. The one genuine file, not a projection |
 | `records/*.jsonl` | The append-only event log, one file per seat-turn — the authoritative record |
 | `debate.md` | The full three-party transcript (blue / red / bench), union not summary |
-| `blue/`, `red/` | Living reports, ledger, archive, citation ledger — markdown projections of the events |
+| `blue/`, `red/` | The seats' authored working surfaces — blue's living report + CHANGELOG, audited every round. The board, ledger, archive, and transcript are NOT files here: they are views rendered just-in-time from the event log |
 | `friction.md` | Every place a seat hit a missing verb or a rough edge — the backlog, self-reported |
 | `cost.md` | Per-seat, per-round token and dollar accounting |
 

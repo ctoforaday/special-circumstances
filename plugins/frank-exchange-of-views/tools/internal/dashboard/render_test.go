@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
 )
 
 func fp(f float64) *float64 { return &f }
@@ -27,19 +29,6 @@ func judFixture() Judiciary {
 	return j
 }
 
-// writeScorecardShadow drops a rendered scorecard into runDir/records/render-shadow/scorecards
-// so scorecardSection → ParseRenderedRows/LatestSection actually fire.
-func writeScorecardShadow(t *testing.T, runDir string) {
-	dir := filepath.Join(runDir, "records", "render-shadow", "scorecards")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	body := "# red scorecard\n\n## this run\n\n- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **100** (target 100)\n- `finding_precision` [detector] — Certification: **2**\n"
-	if err := os.WriteFile(filepath.Join(dir, "red-scorecard.md"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func baseModel(runDir string) Model {
 	tel := telFixture()
 	return Model{
@@ -59,11 +48,27 @@ func baseModel(runDir string) Model {
 	}
 }
 
+// A fixed run-dir BASENAME (not the raw t.TempDir() name, which is random per run and per
+// machine) makes the rendered page deterministic — the title embeds only the base — so the
+// whole-page golden reproduces on CI. Nothing embeds the parent path.
+func fixtureRunDir(t *testing.T) string {
+	t.Helper()
+	d := filepath.Join(t.TempDir(), "widget-run")
+	if err := os.MkdirAll(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
 // TERMINAL fixture: report.md present → verdict-terminal, no live ETA; a superseded live seat
-// (label matches a done one) and a never-finished one drive both terminal-label branches.
+// (label matches a done one) and a never-finished one drive both terminal-label branches. The
+// golden pins the WHOLE page (title, the 11 tiles, mass SVG, open/close rates, red's board,
+// judiciary, friction, both seat-label branches, the record-sourced scorecard section, recent
+// completions) — the .golden file is the review surface. The one invariant kept explicit is
+// negative: a complete run must NOT show the projected-remaining tile, and a golden regen must
+// not silently accept its return.
 func TestRenderHTMLTerminal(t *testing.T) {
-	runDir := t.TempDir()
-	writeScorecardShadow(t, runDir)
+	runDir := fixtureRunDir(t)
 	m := baseModel(runDir)
 	m.Terminal = true
 	m.TerminalVerdict = "VERIFIED"
@@ -77,75 +82,17 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	m.CostRows = []CostRow{{Round: 1, Seat: "red-lens", Tier: "haiku", Agents: 6, Cost: 0.42}}
 	h := RenderHTML(m)
 
-	must := func(sub string) {
-		t.Helper()
-		if !strings.Contains(h, sub) {
-			t.Errorf("terminal render missing %q", sub)
-		}
-	}
-	// #1 h1 + title + topic + run-config
-	must("<title>FEOV run — " + filepath.Base(runDir))
-	must("FEOV run · " + filepath.Base(runDir))
-	must("does the widget converge")
-	must("<b>sonnet</b>")
-	must("<b>opus</b>")
-	must("8 rounds")
-	// #3 progress bar (per-step states)
-	must(`<div class="seg done"`)
-	must(`<div class="seg live"`)
-	must(`<div class="seg todo"`)
-	// #4 the 11 tiles (cost SCALAR, verdict terminal, no projected-remaining on complete)
-	must("<b>6</b><span>board mass")
-	must("<b>2</b><span>open gaps")
-	must("<b>high</b><span>max severity")
-	must("<b>15</b><span>blue claims")
-	must("<b>9</b><span>lens findings")
-	must("<b>4</b><span>citations checked")
-	must("<b>VERIFIED</b><span>final verdict")
-	must("<b>2</b><span>friction entries")
-	must("<b>$12.34</b><span>cost so far")
-	must("<b>2/5</b><span>seats done")
-	// per-seat-round cost breakdown table
-	must("Cost by seat-round")
-	must("<td>red-lens</td>")
-	must("$0.42</td>")
 	if strings.Contains(h, "projected remaining") {
 		t.Error("terminal run must not show the projected-remaining tile")
 	}
-	// #5 mass SVG
-	must("<polyline points=")
-	must("board mass by round")
-	// #6 open/close rates (incl. sevRow mint codes; round 1 opened 3 closed 0; round 2 rate 50%)
-	must("<td>50%</td>")
-	must("2h 1m") // round-1 mints high:2 medium:1 → sorted high-first
-	// #7 Red's board — all three counts
-	must("closed gaps (closure index)</td><td>3")
-	must("archived closure records</td><td>3")
-	must("open gaps on the board</td><td>2")
-	// #8 Judiciary
-	must("judge sittings</td><td>1")
-	must("carried: 2")
-	must("raised 2 · accepted 1 · rejected 1")
-	must("down 1 · up 0 · flat 0")
-	must("3 chains")
-	// #9 Friction
-	must("2 friction events on the record")
-	must("needed a PDF extractor")
-	// #9b Seats (run complete) — both terminal-label branches
-	must("Seats (run complete)")
-	must("superseded — a later attempt completed")
-	must("did not finish")
-	// #10 scorecard section (ParseRenderedRows fired)
-	must("scorecards — this run")
-	must("anchored_closures_pct")
-	// #11 Recent completions (summarizeResult)
-	must("Recent completions")
-	must("verdict FAIL · 2 gaps · 1 ruling")
+	goldentest.Assert(t, "render-terminal", h)
 }
 
-// LIVE fixture: no report.md → ETA running + running-minutes + n× live-seat collapse.
+// LIVE fixture: no report.md → ETA running + running-minutes + n× live-seat collapse. The golden
+// pins the page; the seat StartedMs are offsets from the fixed clock (etaNow(m) derives from the
+// fixed m.Generated), so the ETA paragraph and "running 3 min" reproduce.
 func TestRenderHTMLLive(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := fixtureRunDir(t)
 	m := baseModel(runDir)
 	m.Terminal = false
 	m.Eta = Eta{State: "running", LowMin: 5, HighMin: 12, PerRoundLowMin: 8, PerRoundHighMin: 15, Basis: "3 completed seat(s) in this run", Unmeasured: []string{"assembly"}}
@@ -156,21 +103,11 @@ func TestRenderHTMLLive(t *testing.T) {
 		{Label: "red-lens-r1", Seat: "red-lens", Round: 1, Done: false, StartedMs: fp(nowMs - 2*60000)}, // duplicate → 2×
 	}
 	h := RenderHTML(m)
-	must := func(sub string) {
-		t.Helper()
-		if !strings.Contains(h, sub) {
-			t.Errorf("live render missing %q", sub)
-		}
+
+	if !strings.Contains(h, "projected remaining") {
+		t.Error("a live run must show the projected-remaining tile")
 	}
-	// #2 ETA paragraph + projected-remaining tile
-	must("projected <b>5–12 min</b> remaining")
-	must("roughly 8–15 min")
-	must("No completed precedent yet for: assembly")
-	must("<b>5–12m</b><span>projected remaining")
-	// #9b Seats live now: n× collapse + running-minutes
-	must("Seats live now")
-	must("2× red-lens-r1")
-	must("running 3 min")
+	goldentest.Assert(t, "render-live", h)
 }
 
 func TestSummarizeResult(t *testing.T) {

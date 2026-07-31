@@ -29,6 +29,10 @@ func marshalEvent(ev Event) ([]byte, error) {
 	return bytes.TrimRight(b.Bytes(), "\n"), nil
 }
 
+// MarshalEvent is the exported shard-line encoder, symmetric to ReadShard, for
+// tests in other packages (internal/view) that build a run's shards on disk.
+func MarshalEvent(ev Event) ([]byte, error) { return marshalEvent(ev) }
+
 // marshalCompact is marshalEvent's rule for any other value written to disk.
 func marshalCompact(v any) ([]byte, error) {
 	var b bytes.Buffer
@@ -39,6 +43,10 @@ func marshalCompact(v any) ([]byte, error) {
 	}
 	return bytes.TrimRight(b.Bytes(), "\n"), nil
 }
+
+// MarshalCompact is the exported form for the view package, which needs the
+// exact byte-identical encoding when it computes the telemetry JSONL on read.
+func MarshalCompact(v any) ([]byte, error) { return marshalCompact(v) }
 
 // ReadShard parses a shard, silently dropping unparseable lines — a torn fragment
 // from a crashed append stays visible in the file and inert in the replay.

@@ -35,31 +35,14 @@ feov-record: merge: record: dispose --observation names N2, which no observe or 
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L5-NONCE001.jsonl
-{"key":"red-lens-r1-L5:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":0,"type":"register"}
+{"key":"red-lens-r1-L5:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":0,"type":"register"}
 {"key":"red-lens-r1-L5:observe:N1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","kind":"note","label":"N1","text":"below bar but real"},"round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":1,"type":"observe"}
 -- events-red-merge-r1-NONCE002.jsonl
-{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
+{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
 {"key":"red-merge-r1:dispose:N1","nonce":"NONCE002","payload":{"disposition":"declined","observation":"N1","reason":"covered by R1-1"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"dispose"}
 
 ═══ RENDERS ═══
--- CHANGELOG.md
-# blue CHANGELOG — RENDERED PROJECTION
-
--- archive.md
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
--- board-telemetry.jsonl
-
--- citation-ledger.md
-# red citation-ledger — RENDERED PROJECTION
-
--- debate.md
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- findings.md
-# red findings — RENDERED PROJECTION (source of truth: records/ event log)
-
--- ledger.md
+-- ledger
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 
 ## OPEN GAPS (0)
@@ -68,7 +51,19 @@ feov-record: merge: record: dispose --observation names N2, which no observe or 
 
 
 
--- lines-of-inquiry.md
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+
+-- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
 

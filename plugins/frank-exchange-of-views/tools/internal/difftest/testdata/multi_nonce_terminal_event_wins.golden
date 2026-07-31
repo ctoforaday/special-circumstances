@@ -21,37 +21,19 @@ minted R1-1
 $ merge verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
 exit 0
 stdout:
-verdict FAIL — rendered (1 open, 0 closed) and checkpointed to {MIRROR}
+verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"low","likelihood":"low","problem":"from the stale dispatch","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 -- events-red-merge-r1-NONCE002.jsonl
-{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
+{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE002","payload":{"acceptance_check":"b","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"from the live dispatch","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"mint"}
 {"key":"red-merge-r1:verdict","nonce":"NONCE002","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":4,"type":"verdict"}
 
 ═══ RENDERS ═══
--- CHANGELOG.md
-# blue CHANGELOG — RENDERED PROJECTION
-
--- archive.md
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
--- board-telemetry.jsonl
-{"round":1,"mapping_version":"v1","open_count":1,"max_severity":"high","new_mint":{"count":1,"by_severity":{"high":1}},"mass":9,"realized_open":0,"repair_regression":{"closures":0,"lineage_mints":0,"ratio":null},"edge_deltas":{"down_mass":0,"up_mass":0}}
-
--- citation-ledger.md
-# red citation-ledger — RENDERED PROJECTION
-
--- debate.md
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- findings.md
-# red findings — RENDERED PROJECTION (source of truth: records/ event log)
-
--- ledger.md
+-- ledger
 # red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
 
 ## OPEN GAPS (1)
@@ -70,7 +52,19 @@ acceptance_check: b
 - multi-nonce seat red-merge-r1: 2 dispatches (NONCE001, NONCE002); winner NONCE002 by terminal event
 
 
--- lines-of-inquiry.md
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+
+-- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
 

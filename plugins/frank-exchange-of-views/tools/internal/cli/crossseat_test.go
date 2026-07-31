@@ -22,10 +22,7 @@ import (
 // assertion that let the original bench-closure defect pass.
 func gapIsOpen(t *testing.T, runDir, id string) bool {
 	t.Helper()
-	if _, err := run(t, "merge", "render", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
-		t.Fatalf("render: %v", err)
-	}
-	ledger := readProjection(t, runDir, "ledger.md")
+	ledger := readProjection(t, runDir, "ledger")
 	cut := strings.Index(strings.ToLower(ledger), "closure index")
 	if cut < 0 {
 		t.Fatalf("the projection has no closure index; open and closed cannot be distinguished.\n%s", ledger)

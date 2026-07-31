@@ -394,11 +394,12 @@ test('friction aggregates from every seat with attribution', async () => {
 
 // ---- Efficiency phase (run-4 ratified levers; plans/efficiency-phase.md PR-A) ----
 
-test('telemetry: red-merge is told the line is TOOL-COMPUTED (via render), not hand-written', async () => {
+test('telemetry: red-merge is told the line is TOOL-COMPUTED, not hand-written', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
-  assert.ok(merge.prompt.includes('COMPUTED BY THE TOOL') && merge.prompt.includes('feov-record merge render'), 'telemetry is computed by render, not appended by the seat')
+  assert.ok(merge.prompt.includes('COMPUTED BY THE TOOL') && merge.prompt.includes('you do NOT hand-write it'), 'telemetry is tool-computed, not appended by the seat')
+  assert.ok(!merge.prompt.includes('feov-record merge render'), 'the manual render step is retired — telemetry derives just-in-time on read, not from a seat-run render')
   assert.ok(!merge.prompt.includes('trajectories/board-telemetry.jsonl'), 'the seat no longer hand-writes a telemetry sink — the self-report is retired')
 })
 
