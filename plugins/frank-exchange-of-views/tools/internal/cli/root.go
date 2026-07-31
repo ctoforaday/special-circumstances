@@ -160,7 +160,6 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newGraph(),       // operator: render a run's actual behaviour from the record
 		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
 		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
-		newCost(),        // operator: render cost.md from the Workflow transcripts (ported from cost-audit.mjs)
 		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
 		newDashboard(),   // operator: the live run dashboard.html (ported from render-run-dashboard.mjs)
 		newCapture(),     // operator: the post-hoc capture auditor (ported from capture-research-run.mjs)
