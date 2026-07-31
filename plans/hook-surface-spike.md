@@ -248,6 +248,75 @@ Both are cheap; the inference that skipped them cost a full cycle.
   reasoning, and "was thinking configured, at what budget" must be recorded alongside any mining
   result.
 
+## 4b. Multiple hooks on ONE event run in PARALLEL (measured 2026-07-31)
+
+The question #201 turns on, and the one nobody had asked: when two hooks match the same
+event, does the client run them one after another or at once?
+
+**Method.** A scratch project registering TWO hooks on one event, each writing a start
+timestamp, sleeping 2s, then writing an end timestamp. Serial execution cannot produce
+overlapping intervals; parallel execution cannot avoid them.
+
+`SessionStart`, two hooks:
+
+```
+A start 1785487925434853787
+B start 1785487925438412360      <- 3.6ms after A started
+A end   1785487927437397313      <- A was still sleeping when B began
+B end   1785487927440755630
+```
+
+`PostToolUse` with one `Read` matcher — the shape `sc-quality-gate` + `sc-recall-index` use:
+
+```
+Q start 1785487957883223391
+R start 1785487957884189478      <- 0.97ms
+Q end   1785487959885816405
+R end   1785487959886465847
+```
+
+Both events: the second hook starts ~1–4ms after the first, while the first is still
+running. Wall clock is **2.006s and 2.003s for two 2-second hooks** — the MAX, not the sum.
+
+### What this costs #201, and the boundary of that claim
+
+For the units we have TODAY, merging buys no concurrency: the OS already provides it, free,
+with process isolation thrown in. A merged binary runs its units SEQUENTIALLY unless it
+reimplements the concurrency, so a naive merge is a REGRESSION — `sc-quality-gate`'s qlty
+shell-out (30s ceiling) and `sc-recall-index`'s `qmd update` (3.9s measured) would go from
+overlapping to additive. Step 3's success criterion is therefore PARITY, not speedup.
+
+**`max(A,B)` for free holds only while the units SHARE NOTHING.** Today they share a tiny
+JSON payload and a project-root string, so the measurement above is the whole story. It
+stops being the whole story the moment a unit reads something expensive, and the roadmap is
+entirely made of those:
+
+- **Shared expensive reads.** Ten units each parsing the same transcript, SQLite store
+  (#197) or git state is 10x the dominant cost, and process parallelism makes it WORSE
+  rather than better — ten concurrent readers of one file, ten database connections, page
+  cache contention. One process parses once and hands the structure to every unit; the
+  saving scales with how expensive the shared input becomes.
+- **A shared prelude.** "Validate the VCS state first" is work every unit needs and only one
+  should do. Across processes that requires a cache file, which requires staleness handling,
+  which is a new defect surface invented to avoid doing the work once.
+- **Fan-out inside a unit.** By-file goroutines in one binary use a single pool sized to
+  NumCPU. Across N processes it is N pools each sized to NumCPU, oversubscribing the machine
+  with no global scheduler — and it degrades as both N and the file count grow.
+
+So this measurement bounds a claim rather than settling the design: it says the OS's free
+parallelism is a LOCAL MAXIMUM, good exactly while the units stay trivial and independent.
+The non-latency case — one payload parse, one project-root resolve, one log writer, fewer
+binaries, names that match the events — holds regardless, and is what the shape should be
+chosen on.
+
+### And one hazard this promotes from theoretical to certain
+
+`sc-quality-gate` and `sc-recall-index` both append to
+`.claude/prosthetic-conscience-hook.log` on the same event. Parallel execution means those
+two writes are CONCURRENT BY DESIGN, not merely possible — the known limit recorded in
+`internal/hooklog` is a live condition on every markdown write, not an edge case. Single-
+writer consolidation is the fix; a lock would be the alternative.
+
 ## 5. Status of the load-bearing claims
 
 | Claim | Status |
@@ -258,6 +327,7 @@ Both are cheap; the inference that skipped them cost a full cycle.
 | **`SessionStart(source=compact)` injects into the post-compaction context** | **VERIFIED** — `hook_additional_context` attachment, transcript line 42 (§3a) |
 | `SubagentStart` can inject per-seat context | Event and fields verified; injection not exercised |
 | `PostToolUseFailure` carries what a strike counter needs | **VERIFIED**, plus `is_interrupt` |
+| **Multiple hooks on one event run in parallel** | **VERIFIED** — overlapping intervals on `SessionStart` and `PostToolUse`; wall clock is the max, not the sum (§4b) |
 | `SessionStart` still fires on `compact` | **VERIFIED** — and §3's first reading of *why that matters* was wrong (§3a) |
 | **`PreCompact` stdout becomes custom compact instructions** | **VERIFIED** — marker survived 2/2 |
 
