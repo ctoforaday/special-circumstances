@@ -1,6 +1,6 @@
 ---
 name: agent-guardrails
-description: Always-on safety guardrails — single-purpose agents, no privileged mutations without approval, no sensitive data off-box. The backstop for when permission gating is relaxed.
+description: Always-on safety guardrails — no privileged mutations without approval, no sensitive data off-box. The backstop for when permission gating is relaxed.
 ---
 
 # agent-guardrails
