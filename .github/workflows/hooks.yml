@@ -203,6 +203,15 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: go run ./rulesweep -base "origin/$BASE_REF"
         working-directory: scripts
+      # A version that goes BACKWARDS ships nothing. Measured 2026-07-31: #198 set
+      # prosthetic-conscience to 0.22.0, #195 branched earlier and carried 0.21.0, and the
+      # later merge won the line — main kept both features' content at a version already
+      # shipped, so `/plugin update` would deliver neither. No test failed and no guard
+      # fired, because CLAUDE.md's first bullet had no mechanism behind it.
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+        run: go run ./versionguard -base "origin/$BASE_REF"
+        working-directory: scripts
 
   scripts:
     # The repo's dev tooling, now Go: rule-sweep, golden, the four CI guards and the
