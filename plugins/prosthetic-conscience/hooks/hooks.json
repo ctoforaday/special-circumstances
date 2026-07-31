@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-filechanged-rearm\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-filechanged-rearm\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -101,6 +101,17 @@
           {
             "type": "command",
             "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-checkpoint-seal\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SubagentStop; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "_comment": "No matcher: a spin is a spin whatever tool it runs through, and anti-spinning names none. The counter keys on (tool, target) itself, and skips is_interrupt so the rule's other half — honor the cancel — does not fight this one (measured: plans/hook-surface-spike.md §2).",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-strike-counter\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
