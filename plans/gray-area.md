@@ -589,3 +589,42 @@ Two things follow. The capture hook behaved correctly: it wrote the row with `re
 the reason, rather than a row that would silently resolve to nothing — the §11.3 design applied to a
 different field. And **Phase 1's acceptance criterion is not currently met**, so any Phase 2
 inspection that assumes a readable seat transcript needs this settled first. Added to the runbook.
+
+### 11.8 The `agent_transcript_path` question, SETTLED — and the race hypothesis refuted (#189)
+
+The paragraph above is right that the criterion is not met and right to hold one observation as one
+observation. Its guess at the cause was wrong, and the sentence "it may be a timing race" survived
+into the runbook as the leading hypothesis. It is refuted.
+
+**Eight seat rows now, eight `resolved: false`.** Every one carries the same `capture_error` shape.
+The named directory `…/-home-user-special-circumstances/937047bc…/` exists and holds only
+`tool-results/` — **no `subagents/` directory at all**, ~10 hours after the earliest of those rows.
+A race that has not resolved in ten hours is not a race.
+
+**The spike was not wrong; the behaviour changed under it.** §3's "real 12,997-byte file" still
+exists, byte-for-byte:
+
+```
+2026-07-28 11:37  12997  …/-tmp-claude-0--…-scratchpad-spike/937047bc…/subagents/agent-aeaae1e2e57179ff5.jsonl
+2026-07-27 19:35  15419  …/-tmp-claude-0--…-scratchpad-td4/937047bc…/subagents/agent-aa9ed822a09ab8138.jsonl
+```
+
+Those are the only two on disk anywhere under `/root/.claude`, both predate the wiring, and **neither
+id appears in any seat row**. Same session id, different working directory — the project directory is
+keyed to cwd, and the spike's cwd was a scratchpad. So the harness *did* write per-seat files on
+27–28 July and does not now, for the same session, under the repo's own project directory. What
+changed between those dates is unknown.
+
+**And the content is nowhere else.** The parent transcript (5,970 lines, 16.5 MB) holds **zero
+entries with `isSidechain: true`**. Each subagent id appears exactly twice — the `Agent` tool_use and
+its result. A seat's prompt and its return envelope are recoverable; nothing between them is.
+
+The consequence for the design is narrow and firm: **Phase 0's acceptance criterion cannot be met in
+this environment**, and any inspection over a seat's own turns has no input. Inspections over the
+parent trajectory are untouched. No fallback path search — a wrong file confidently attributed to a
+seat is precisely the false citation §10 exists to refuse.
+
+The methodological point is the one this section already had to learn once: the earlier paragraph did
+what it warned against, offering a mechanism ("a timing race") for a single unexplained observation.
+The mechanism then travelled into the runbook and became the thing to test. **A guess written beside
+an observation is read as part of it.**

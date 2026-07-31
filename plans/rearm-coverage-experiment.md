@@ -13,17 +13,37 @@ Two questions cannot be answered from inside a running session, because both are
 > Confirmed 2026-07-30T17:12Z: six firings, every row `resolved: true` with a real path. Keep the
 > procedure below — it is the check to re-run if the harness changes — but it is no longer open.
 
-### Q1b — NEW AND OPEN: does `agent_transcript_path` resolve?
+### Q1b — does `agent_transcript_path` resolve? **ANSWERED: no. Not a race** (#189, gray-area §11.8)
+
+> **The race hypothesis below is REFUTED — read it only to see how it got here.** Eight seat rows,
+> eight `resolved: false`; the named `subagents/` directory does not exist ~10 hours later; the two
+> per-seat files that exist anywhere on disk both predate the wiring, sit under cwd-keyed project
+> directories, and share no id with any seat row; and the parent transcript holds zero
+> `isSidechain: true` entries, so the content is not there either. Full evidence on **#189**.
 >
-> A `SubagentStop` at 17:05:38 produced `resolved: false` — *`stat …/subagents/agent-<id>.jsonl: no
+> **Phase 0's acceptance criterion cannot be met in this environment.** Do not add a fallback path
+> search — a wrong file confidently attributed to a seat is the false citation the adjudicator exists
+> to refuse.
+>
+> **Still worth re-running**, which is why the procedure stays: it is cheap, it is the check that
+> fires if the harness changes back, and more evidence costs nothing. Spawn a subagent, then look for
+> a `kind: "seat"` row in `.claude/gray-area/`. A `resolved: true` row would mean the behaviour
+> returned — report it, don't assume it.
+
+> ~~A `SubagentStop` at 17:05:38 produced `resolved: false` — *`stat …/subagents/agent-<id>.jsonl: no
 > such file or directory`*. `hook-surface-spike.md` §3 measured that path resolving to a real file,
 > and Phase 0's acceptance criterion requires it be readable. One observation, not yet a general
-> claim; it may be a timing race with the seat's file being written after the hook fires.
+> claim; **it may be a timing race** with the seat's file being written after the hook fires.~~
 >
-> **To settle it:** run a task that spawns a subagent, then check `.claude/gray-area/` for a
+> ~~**To settle it:** run a task that spawns a subagent, then check `.claude/gray-area/` for a
 > `kind: "seat"` row. If `resolved: false`, re-`stat` the recorded path a minute later — if it
 > exists by then, it is a race and the capture hook should retry or record later rather than
-> declaring it unresolvable.
+> declaring it unresolvable.~~
+>
+> The struck text is kept because of what it did: "it may be a timing race" was a guess offered
+> beside a single observation, and it became the thing this runbook told the next session to test.
+> The observation was sound; the mechanism was invented. **A guess written beside an observation is
+> read as part of it** — the same failure as the 100ms probe below, one level up.
 
 `plans/gray-area.md` §11.3 records this as an **explicitly unverified assumption**.
 `hook-surface-spike.md` §3 says every hook event carries `session_id`, `transcript_path` and `cwd`,
@@ -143,6 +163,8 @@ holds itself to when it reports `NO-EVIDENCE` rather than "did not run".
 ## Where to write the answer
 
 - Q1 → `plans/gray-area.md` §11.5 item 5 and §11.3, then the plugin README if the answer changes it
+- Q1b → a comment on **#189**, then `plans/gray-area.md` §11.8. Only a `resolved: true` row is news;
+  another `resolved: false` confirms what is already recorded and needs no write-up beyond the count
 - Q2 → a comment on #165, then `plans/context-checkpointing.md`
 - Both → the checkpoint note's validation loop, so the next session inherits the answer rather than
   the question
