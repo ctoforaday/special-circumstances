@@ -67,7 +67,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
@@ -192,6 +194,9 @@ func digest(raw, path, source string, rearm checkpoint.RearmState) string {
 	if u := n.Get("updated"); u != "" {
 		fmt.Fprintf(&b, " · written: %s", u)
 	}
+	if age := staleness(n.Get("head"), commitsSince); age != "" {
+		fmt.Fprintf(&b, " · %s", age)
+	}
 	if s := n.Get("session_id"); s != "" {
 		fmt.Fprintf(&b, " · session: %s", s)
 	}
@@ -223,6 +228,51 @@ func digest(raw, path, source string, rearm checkpoint.RearmState) string {
 	b.WriteString("\nThis is what was recorded before the seam. It has not been re-verified since.\n")
 
 	return b.String()
+}
+
+// staleness turns the note's recorded head into a fact a reader can act on.
+//
+// WHY THE FIELD EXISTS (#166 option 3). `objective:` is free prose, so "next is the FEOV
+// verdict-case bypass" and "the FEOV verdict-case bypass is done" are indistinguishable to
+// any checker — which is how a note describing work that had already shipped kept
+// presenting itself as current for 37 minutes. The head is the one field that makes the
+// note's age FALSIFIABLE without new plumbing or harness cooperation.
+//
+// Silence when the note records no head (an older note, or one written outside a repo),
+// when the head is the current one, or when git cannot answer. A restore that guessed here
+// would be inventing provenance, which is the one thing this hook must never do.
+func staleness(head string, since func(string) (int, bool)) string {
+	if strings.TrimSpace(head) == "" || head == "null" {
+		return ""
+	}
+	n, ok := since(head)
+	if !ok {
+		// The commit is gone — rebased, amended, or from another branch. That is a
+		// STRONGER staleness signal than a count, not a reason to stay quiet.
+		return "written against " + head + ", which is no longer reachable from HEAD"
+	}
+	switch n {
+	case 0:
+		return "" // current; saying so would spend a line on "nothing has changed"
+	case 1:
+		return "written 1 commit ago (" + head + ")"
+	}
+	return fmt.Sprintf("written %d commits ago (%s)", n, head)
+}
+
+// commitsSince counts commits from a recorded head to HEAD, reporting whether the commit is
+// reachable at all. Best-effort: no git, no repo, or an unknown ref all mean "unreachable",
+// and the restore hook must never fail over provenance.
+func commitsSince(head string) (int, bool) {
+	out, err := exec.Command("git", "rev-list", "--count", head+"..HEAD").Output()
+	if err != nil {
+		return 0, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 // clamp bounds the FINAL composed text. It lives at the end of composition
