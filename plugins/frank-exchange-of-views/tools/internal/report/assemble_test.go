@@ -353,3 +353,27 @@ func TestCellEscapesTableBreakers(t *testing.T) {
 		t.Error("a blank cell should be a dash")
 	}
 }
+
+func TestRevisionHistoryFromEvents(t *testing.T) {
+	evs := []record.Event{
+		{Round: 1, Type: "revision", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("text", "expanded the caching section; retired the stale figure")},
+		{Round: 2, Type: "revision", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("text", "addressed R2-1 in the analysis")},
+		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("text", "not a revision")},
+	}
+	got := revisionHistory(evs)
+	if !strings.Contains(got, "## Report revision history") {
+		t.Fatalf("missing heading:\n%s", got)
+	}
+	if !strings.Contains(got, "### Round 1 — blue-respond-r1") || !strings.Contains(got, "expanded the caching section") {
+		t.Errorf("round-1 revision not rendered:\n%s", got)
+	}
+	if !strings.Contains(got, "### Round 2 — blue-respond-r2") {
+		t.Errorf("round-2 revision not rendered:\n%s", got)
+	}
+	if strings.Contains(got, "not a revision") {
+		t.Errorf("a non-revision event leaked into the revision history:\n%s", got)
+	}
+	if revisionHistory(nil) != "" {
+		t.Error("no revisions must yield empty (section omitted), not a bare heading")
+	}
+}
