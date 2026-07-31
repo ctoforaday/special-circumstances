@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
@@ -63,6 +64,15 @@ type Judiciary struct {
 	VerdictRound  int
 }
 
+// CostRow is one seat-round-tier cost bucket for the dashboard's per-seat-round breakdown.
+type CostRow struct {
+	Round  int
+	Seat   string
+	Tier   string
+	Agents int
+	Cost   float64
+}
+
 // Model is what renderHtml consumes — the Go analogue of buildModel's returned object.
 type Model struct {
 	RunDir          string
@@ -70,6 +80,7 @@ type Model struct {
 	Latest          map[string]any
 	Seats           []Seat
 	Cost            float64
+	CostRows        []CostRow
 	APIRounds       int
 	Agents          int
 	Friction        Friction
@@ -199,6 +210,7 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 
 	// Cost from transcripts.
 	var costTotal float64
+	var costRows []CostRow
 	apiRounds, agents := 0, 0
 	if entries, err := os.ReadDir(transcriptDir); err == nil {
 		var files []string
@@ -225,6 +237,25 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 				costTotal += (numOr(u["input_tokens"], 0)*p[0] + numOr(u["output_tokens"], 0)*p[1] +
 					numOr(u["cache_read_input_tokens"], 0)*p[2] + numOr(u["cache_creation_input_tokens"], 0)*p[3]) / 1e6
 			}
+		}
+		// Per-seat-round breakdown, single-sourced from cost.ScanTranscript/Aggregate (the pricing
+		// cost.md uses), so the dashboard shows WHERE the spend went, not only the total.
+		var crows []cost.Row
+		for _, f := range files {
+			if b, err := os.ReadFile(filepath.Join(transcriptDir, f)); err == nil {
+				crows = append(crows, cost.ScanTranscript(string(b)))
+			}
+		}
+		agg := cost.Aggregate(crows)
+		keys := make([]string, 0, len(agg))
+		for k := range agg {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			parts := strings.SplitN(k, "|", 3)
+			rnd, _ := strconv.Atoi(parts[0])
+			costRows = append(costRows, CostRow{Round: rnd, Seat: parts[1], Tier: parts[2], Agents: agg[k].N, Cost: agg[k].Cost})
 		}
 	}
 
@@ -285,7 +316,7 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 
 	return Model{
 		RunDir: runDir, Telemetry: telemetry, Latest: latest, Seats: seats,
-		Cost: costTotal, APIRounds: apiRounds, Agents: agents, Friction: friction,
+		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
 		Shards: shards, BlueClaims: blueClaims, Steps: steps, Rates: rates,
 		Judiciary: jud, Eta: eta, Config: merged,
 		TerminalVerdict: readTerminalVerdict(runDir), Terminal: fileExists(filepath.Join(runDir, "report.md")),

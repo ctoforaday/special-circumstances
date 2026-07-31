@@ -977,6 +977,47 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 
 // ---- orchestration ----
 
+// appendCostToReport folds the per-seat-round cost table from cost.md into report.md as a ## Cost
+// section, so the final report carries the cost breakdown. No-op (returns "") when report.md is
+// absent (a pre-record run), already carries a ## Cost section (idempotent across re-runs), or
+// cost.md has no table. cost.md itself is left byte-identical.
+func appendCostToReport(reportPath, costPath string) string {
+	report, err := os.ReadFile(reportPath)
+	if err != nil {
+		return ""
+	}
+	if strings.Contains(string(report), "\n## Cost\n") {
+		return ""
+	}
+	costMd, err := os.ReadFile(costPath)
+	if err != nil {
+		return ""
+	}
+	table := perSeatRoundTable(string(costMd))
+	if table == "" {
+		return ""
+	}
+	body := strings.TrimRight(string(report), "\n") + "\n\n## Cost\n\n" + table + "\n"
+	if err := os.WriteFile(reportPath, []byte(body), 0o644); err != nil {
+		return "report.md: cost append FAILED — " + jsSlice(err.Error(), 200)
+	}
+	return "report.md: cost breakdown folded in (## Cost)"
+}
+
+// perSeatRoundTable slices the "## Per seat-round" table out of a rendered cost.md — from that
+// heading up to the "## Notes" section — or "" if the markers are absent.
+func perSeatRoundTable(costMd string) string {
+	start := strings.Index(costMd, "## Per seat-round")
+	if start < 0 {
+		return ""
+	}
+	rest := costMd[start:]
+	if end := strings.Index(rest, "\n## Notes"); end >= 0 {
+		rest = rest[:end]
+	}
+	return strings.TrimRight(rest, "\n")
+}
+
 // Run executes capture: mechanics + the nine audits, writes run-record-audit.md, and returns the
 // audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
 // (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
@@ -1009,6 +1050,13 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 	} else {
 		costF.Close()
 		lines = append(lines, "cost.md: written (telemetry join included)")
+		// Fold the per-seat-round cost table into report.md as a ## Cost section — the final
+		// report carries the cost breakdown. report.md is assembled mid-run WITHOUT transcript
+		// access (the transcript dir reaches only capture), so this is the one stage that can.
+		// Slices the already-rendered cost.md (kept byte-identical) rather than re-generate.
+		if msg := appendCostToReport(filepath.Join(runDir, "report.md"), filepath.Join(runDir, "cost.md")); msg != "" {
+			lines = append(lines, msg)
+		}
 	}
 
 	results, friction := ReadJournal(filepath.Join(runDir, "trajectories"))

@@ -74,6 +74,7 @@ func TestRenderHTMLTerminal(t *testing.T) {
 		{Label: "red-merge-r1", Seat: "red-merge", Round: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge-r1", Seat: "judge", Round: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
+	m.CostRows = []CostRow{{Round: 1, Seat: "red-lens", Tier: "haiku", Agents: 6, Cost: 0.42}}
 	h := RenderHTML(m)
 
 	must := func(sub string) {
@@ -104,6 +105,10 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	must("<b>2</b><span>friction entries")
 	must("<b>$12.34</b><span>cost so far")
 	must("<b>2/5</b><span>seats done")
+	// per-seat-round cost breakdown table
+	must("Cost by seat-round")
+	must("<td>red-lens</td>")
+	must("$0.42</td>")
 	if strings.Contains(h, "projected remaining") {
 		t.Error("terminal run must not show the projected-remaining tile")
 	}
@@ -207,6 +212,17 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 	}
 	if m.Cost <= 0 {
 		t.Errorf("cost should be > 0, got %v", m.Cost)
+	}
+	if len(m.CostRows) == 0 {
+		t.Error("cost breakdown (CostRows) should be populated from the transcript")
+	} else {
+		var sum float64
+		for _, r := range m.CostRows {
+			sum += r.Cost
+		}
+		if sum <= 0 || m.CostRows[0].Tier != "haiku" {
+			t.Errorf("cost breakdown wrong: %+v (sum %v)", m.CostRows, sum)
+		}
 	}
 	if m.Agents != 1 {
 		t.Errorf("agents = %d, want 1", m.Agents)

@@ -424,3 +424,37 @@ func TestJsSliceCountsUTF16Units(t *testing.T) {
 		t.Fatalf("ascii jsSlice = %q, want %q", got, "hello")
 	}
 }
+
+func TestAppendCostToReport(t *testing.T) {
+	dir := t.TempDir()
+	report := filepath.Join(dir, "report.md")
+	costMd := filepath.Join(dir, "cost.md")
+	os.WriteFile(report, []byte("# Report\n\n## Analysis\n\nbody.\n"), 0o644)
+	os.WriteFile(costMd, []byte("# Cost audit\n\n## Per seat-round\n\n| round | seat | $ |\n|---|---|---|\n| 1 | red-lens | $0.42 |\n| | **TOTAL** | **$0.42** |\n\n## Notes\n\n- cache stuff\n"), 0o644)
+
+	msg := appendCostToReport(report, costMd)
+	if msg == "" {
+		t.Fatal("expected a fold-in message")
+	}
+	got, _ := os.ReadFile(report)
+	if !strings.Contains(string(got), "## Cost\n\n## Per seat-round") {
+		t.Errorf("cost table not folded under ## Cost:\n%s", got)
+	}
+	if !strings.Contains(string(got), "red-lens | $0.42") {
+		t.Errorf("table rows missing:\n%s", got)
+	}
+	if strings.Contains(string(got), "## Notes") {
+		t.Errorf("only the table (not Notes/tier) should fold in:\n%s", got)
+	}
+	// Idempotent: a second call must not double-append.
+	before := string(got)
+	appendCostToReport(report, costMd)
+	after, _ := os.ReadFile(report)
+	if string(after) != before {
+		t.Error("second append changed report.md — not idempotent")
+	}
+	// No report.md → no-op, no panic.
+	if appendCostToReport(filepath.Join(dir, "nope.md"), costMd) != "" {
+		t.Error("absent report.md should be a silent no-op")
+	}
+}
