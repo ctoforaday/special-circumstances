@@ -133,3 +133,34 @@ func TestVersionFlag(t *testing.T) {
 		t.Fatalf("version output = %q; want the name and %s", stdout, version)
 	}
 }
+
+// A payload that does not parse must not be a way past the gate.
+//
+// Measured before the fix: this exact input was ALLOWED, carrying a real key. Truncating
+// the JSON is a sender's encoding choice, which is the class f60046b closed for \uXXXX
+// escaping under the rule this gate is built on — a gate whose result depends on the
+// sender's encoding is not a gate. secrets.ScanPayload always documented the fallback
+// ("must not become a bypass"); its only caller returned before reaching it.
+func TestMalformedPayloadIsScannedNotWavedThrough(t *testing.T) {
+	truncated := `{"tool_name":"Bash","tool_input":{"command":"echo AKIAIOSFODNN7EXAMPLE"`
+
+	stdout, code := call(truncated)
+	if code != 0 {
+		t.Fatalf("the block travels in the JSON, never the status: exit %d", code)
+	}
+	if !strings.Contains(stdout, `"permissionDecision":"deny"`) {
+		t.Fatalf("a truncated payload carrying a key was allowed:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "AWS access key id") {
+		t.Errorf("the reason must name what matched: %s", stdout)
+	}
+	if !strings.Contains(stdout, "unparseable payload") {
+		t.Errorf("the reason must say the payload did not parse rather than leave a gap: %s", stdout)
+	}
+
+	// Instrumentation trouble still never blocks: broken WITHOUT a secret is allowed.
+	// Precision is what makes scanning raw safe — a false block on legitimate work is a bug.
+	if stdout, _ := call(`{"tool_name":"Bash","tool_input":{"command":"echo hello"`); stdout != "" {
+		t.Errorf("a merely-broken payload must still pass: %s", stdout)
+	}
+}

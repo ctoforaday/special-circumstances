@@ -56,23 +56,45 @@ func run(args []string, stdin io.Reader, stdout io.Writer) int {
 
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
-	if err := json.Unmarshal(raw, &in); err != nil {
-		// Malformed input: never block the tool call over instrumentation trouble.
-		return 0
+	payload := raw
+	if err := json.Unmarshal(raw, &in); err == nil {
+		payload = in.ToolInput
 	}
-
+	// FIX (defect): a payload that did not parse used to return ALLOW here, before the
+	// scan. Measured — this got through, carrying a real key:
+	//
+	//	{"tool_name":"Bash","tool_input":{"command":"echo AKIA…EXAMPLE"
+	//
+	// Truncating the JSON is a sender's ENCODING CHOICE, which is the exact class f60046b
+	// closed for \uXXXX escaping with the rule this gate is built on: a gate whose result
+	// depends on the sender's encoding is not a gate. secrets.ScanPayload already documents
+	// and implements the answer — "undecodable input falls back to the raw scan rather than
+	// allowing… it must not become a bypass" — and its only caller returned before reaching
+	// it, so the library was safe and the gate was not.
+	//
+	// Unparseable input is now scanned RAW. Precision is what makes that safe to do: the
+	// patterns are high-precision by design, so a malformed payload with no secret in it
+	// still passes, and only actual matched secret material is refused. Instrumentation
+	// trouble still never blocks — a payload that is merely broken is allowed; a payload
+	// that is broken AND carries a key is not.
+	//
 	// ScanPayload, not Scan: the raw wire bytes are an ENCODING of the input, and
 	// an escaped encoding of an identical secret does not match a pattern written
-	// against decoded text (measured — see secrets.ScanPayload). A gate whose
-	// result depends on the sender's escaping choices is not a gate.
-	found := secrets.ScanPayload(in.ToolInput)
+	// against decoded text (measured — see secrets.ScanPayload).
+	found := secrets.ScanPayload(payload)
 	if len(found) == 0 {
 		return 0 // allow
 	}
 
+	// Name the tool when the payload said which; say so plainly when it did not, rather
+	// than emitting a gap where the name should be.
+	what := in.ToolName + " payload"
+	if in.ToolName == "" {
+		what = "unparseable payload"
+	}
 	reason := fmt.Sprintf(
-		"sc-secrets-gate: blocked %s payload — matched secret pattern(s): %s. Remove the secret material and retry; secrets never leave the box (agent-guardrails).",
-		in.ToolName, strings.Join(found, ", "))
+		"sc-secrets-gate: blocked %s — matched secret pattern(s): %s. Remove the secret material and retry; secrets never leave the box (agent-guardrails).",
+		what, strings.Join(found, ", "))
 	out, _ := json.Marshal(deny(reason))
 	fmt.Fprintln(stdout, string(out))
 	return 0
