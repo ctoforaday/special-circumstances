@@ -284,6 +284,19 @@ func RenderHTML(m Model) string {
 		w(`<tr><td>blue lanes <span class="muted">best-of-N candidate drafts</span></td><td class="nowrap">` + ln + "</td></tr>\n</table>")
 	}
 
+	if len(m.CostRows) > 0 {
+		w("\n<h2>Cost by seat-round (est., list-rate — where the spend went)</h2>\n<table>\n")
+		w("<tr><th>round</th><th>seat</th><th>model</th><th>agents</th><th>$</th></tr>\n")
+		for _, r := range m.CostRows {
+			rnd := "—"
+			if r.Round > 0 {
+				rnd = itoa(r.Round)
+			}
+			w("<tr><td>" + rnd + "</td><td>" + esc(r.Seat) + "</td><td>" + esc(r.Tier) + `</td><td class="nowrap">` + itoa(r.Agents) + `</td><td class="nowrap">$` + strconv.FormatFloat(r.Cost, 'f', 2, 64) + "</td></tr>\n")
+		}
+		w("</table>\n")
+	}
+
 	w("\n<h2>Progress (rounds segmented by the ceiling — judged termination may end the run earlier)</h2>\n")
 	etaRunning := m.Eta.State == "running" && (m.Eta.LowMin != 0 || m.Eta.HighMin != 0)
 	if etaRunning {
