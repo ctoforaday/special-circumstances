@@ -62,7 +62,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		{"merge regrade", "basis", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
 		{"merge dispute-respond", "rationale", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1", "--id", id, "--as", "accepted"}},
 		{"blue dispute", "evidence", []string{"blue", "dispute", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"lens petition", "basis", []string{"lens", "petition", "--seat-id", "red-lens-r1-L1", "--petition-class", "safety", "--relief", "halt"}},
+		{"merge petition", "basis", []string{"merge", "petition", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			args := append([]string{c.args[0], c.args[1], "--run", runDir}, c.args[2:]...)

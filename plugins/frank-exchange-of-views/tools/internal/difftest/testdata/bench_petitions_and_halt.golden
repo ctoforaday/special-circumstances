@@ -1,17 +1,17 @@
-$ lens petition --run {RUN} --seat-id red-lens-r1-L6 --petition-class safety --reason the design erodes a consent gate --relief halt and escalate
+$ merge petition --run {RUN} --seat-id red-merge-r1 --petition-class safety --reason the design erodes a consent gate --relief halt and escalate
 exit 0
 stdout:
-petition filed (safety) — the bench hears it before the debate continues
+petition filed (safety)
 
 $ bench register --run {RUN} --seat-id judge-petition
 exit 0
 stdout:
 registered judge-petition (shard nonce NONCE002)
 
-$ bench petition-rule --run {RUN} --seat-id judge-petition --petitioner red-lens-r1-L6 --petition-class safety --as granted --reason the relief binds the coming seats
+$ bench petition-rule --run {RUN} --seat-id judge-petition --petitioner red-merge-r1 --petition-class safety --as granted --reason the relief binds the coming seats
 exit 0
 stdout:
-petition granted (red-lens-r1-L6)
+petition granted (red-merge-r1)
 
 $ bench halt --run {RUN} --seat-id judge-petition --reason continuing would compromise the consent gate
 exit 0
@@ -21,11 +21,11 @@ JUDICIAL HALT recorded — capture relays this verbatim
 ═══ EVENTS ═══
 -- events-judge-petition-NONCE002.jsonl
 {"key":"judge-petition:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.22.0"},"round":0,"seatId":"judge-petition","seq":0,"ts":2,"type":"register"}
-{"key":"judge-petition:petition-rule:#1","nonce":"NONCE002","payload":{"class":"safety","opinion":"the relief binds the coming seats","petitioner":"red-lens-r1-L6","ruling":"granted"},"round":0,"seatId":"judge-petition","seq":1,"ts":3,"type":"petition-rule"}
+{"key":"judge-petition:petition-rule:#1","nonce":"NONCE002","payload":{"class":"safety","opinion":"the relief binds the coming seats","petitioner":"red-merge-r1","ruling":"granted"},"round":0,"seatId":"judge-petition","seq":1,"ts":3,"type":"petition-rule"}
 {"key":"judge-petition:halt:#1","nonce":"NONCE002","payload":{"opinion":"continuing would compromise the consent gate"},"round":0,"seatId":"judge-petition","seq":2,"ts":4,"type":"halt"}
--- events-red-lens-r1-L6-NONCE001.jsonl
-{"key":"red-lens-r1-L6:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-lens-r1-L6","seq":0,"ts":0,"type":"register"}
-{"key":"red-lens-r1-L6:petition:#1","nonce":"NONCE001","payload":{"basis":"the design erodes a consent gate","class":"safety","relief":"halt and escalate"},"round":1,"seatId":"red-lens-r1-L6","seq":1,"ts":1,"type":"petition"}
+-- events-red-merge-r1-NONCE001.jsonl
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:petition:#1","nonce":"NONCE001","payload":{"basis":"the design erodes a consent gate","class":"safety","relief":"halt and escalate"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"petition"}
 
 ═══ RENDERS ═══
 -- CHANGELOG.md

@@ -980,8 +980,9 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 		})
 	}
 
-	// petition takes a role-specific SUFFIX while recording the same event.
-	for _, tc := range cases[:3] {
+	// petition records the same event across the seats that can file it. Only merge
+	// and blue carry the verb (cases[1:3]); lens surfaces findings, it does not petition.
+	for _, tc := range cases[1:3] {
 		t.Run("petition/"+tc.role, func(t *testing.T) {
 			runDir := t.TempDir()
 			out, err := run(t, tc.role, "petition", "--run", runDir, "--seat-id", tc.seatID,
@@ -991,12 +992,6 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 			}
 			if !strings.Contains(out, "petition filed (safety)") {
 				t.Errorf("petition said %q", out)
-			}
-			if tc.role == "lens" && !strings.Contains(out, "the bench hears it before the debate continues") {
-				t.Errorf("the lens suffix is missing: %q", out)
-			}
-			if tc.role != "lens" && strings.Contains(out, "the bench hears it") {
-				t.Errorf("%s got the lens's suffix: %q", tc.role, out)
 			}
 			ev := lastOfType(t, runDir, "petition")
 			for k, want := range map[string]string{"class": "safety", "basis": "what happened", "relief": "the relief sought"} {
