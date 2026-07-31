@@ -83,7 +83,14 @@ warned patterns anyway.
 A rule with no enforcer — sometimes because the enforcer was withdrawn and the
 invariant was assumed to hold on its own.
 - **Instances**: the round-record requirement before W1.7 gated it; the sweep
-  requirement this registry describes, had it shipped as prose.
+  requirement this registry describes, had it shipped as prose; the checkpoint
+  note's validation-loop numbering (#192/#193) — the schema *showed* `1.`, `2.`,
+  `3.` in an example and never stated it as a rule, so two parsers in two plugins
+  each assumed it independently. A note numbered from `0.` then made re-arm state
+  key `2` mean the note's `1.`, and lettered sub-entries opened no check in either
+  parser, so a loop a reader counted as eleven adjudicated as nine. **An example
+  is not a mechanism, and it is not even a policy** — nothing could break, because
+  nothing was stated to break.
 - **Sweep question**: what fails, loudly, when this rule is broken?
 - **Found by the first sweep this registry demanded**: `refactoring-safety`
   already required fixing the class rather than the instance, for code faults.

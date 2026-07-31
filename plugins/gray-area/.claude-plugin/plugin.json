@@ -1,7 +1,7 @@
 {
   "name": "gray-area",
   "displayName": "Gray Area",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Trajectory evidence for Special Circumstances: what a session actually did, as against what it reported. Captures each seat's own transcript by path at SubagentStop, and reads it back with provenance on every row \u2014 so an inspection cites the primary record rather than a summary of it.",
   "author": {
     "name": "Gregory Block"
