@@ -26,3 +26,56 @@ finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FIND
 {"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
+
+═══ RENDERS ═══
+-- ledger
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash 
+
+severity medium | medium x medium | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: x
+
+## CLOSURE INDEX
+
+
+
+## undisposed lens observations (every observation demands a merge disposition)
+
+- red-lens-r1-L5 L5-F1: quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ 
+
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Round 1
+
+### RED
+quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

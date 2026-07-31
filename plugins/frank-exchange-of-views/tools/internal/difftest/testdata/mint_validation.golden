@@ -32,3 +32,36 @@ minted R1-1
 -- events-red-merge-r1-NONCE001.jsonl
 {"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"grep the sites","class":"scope-creep","class_new":false,"complexity_cost":"low","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"high","problem":"a real one","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
+
+═══ RENDERS ═══
+-- ledger
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — a real one
+
+severity high | high x medium | cx low | class scope-creep
+required_fix: 
+acceptance_check: grep the sites
+
+## CLOSURE INDEX
+
+
+
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

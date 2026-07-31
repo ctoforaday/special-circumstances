@@ -23,3 +23,42 @@ minted R3-2
 {"key":"red-merge-r3:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":3,"seatId":"red-merge-r3","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r3:mint:R3-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-1","impact":"medium","likelihood":"medium","mint_key":"L5-F3","problem":"minted once","severity":"medium","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r3:mint:R3-2","nonce":"NONCE001","payload":{"acceptance_check":"y","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-2","impact":"low","likelihood":"low","mint_key":"L6-F1","problem":"a different key mints","severity":"low","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":2,"ts":2,"type":"mint"}
+
+═══ RENDERS ═══
+-- ledger
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (2)
+
+### R3-1 — minted once
+
+severity medium | medium x medium | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: x
+
+### R3-2 — a different key mints
+
+severity low | low x low | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: y
+
+## CLOSURE INDEX
+
+
+
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+

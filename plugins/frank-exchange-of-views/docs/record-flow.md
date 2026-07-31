@@ -18,7 +18,7 @@ flowchart TB
     CE["cite events"]
     ME["mint / close / dispose events"]
   end
-  subgraph views["projections (show --view … / render)"]
+  subgraph views["projections (show --view … — rendered just-in-time from the record)"]
     FV["findings (live JSON)"]
     CL["citation-ledger.md"]
     BD["board (live JSON)"]
@@ -52,8 +52,9 @@ flowchart TB
 - **The merge reads the findings VIEW**, structured JSON, and coalesces findings into gaps.
   A gap's `found_by` names finding **labels** (`L1-F1`), which `verify.foundByResolves`
   checks against the recorded findings.
-- **Two readers of one replay never drift.** `viewjson.go` (the live views) and `render.go`
-  (the markdown projections) both derive from `BoardState`; neither parses the other's output.
+- **Two readers of one replay never drift.** `viewjson.go` (the live JSON views) and
+  `internal/view` (the markdown projections, rendered just-in-time on read) both derive from
+  `BoardState`; neither parses the other's output, and neither materializes to disk.
 - **citations_checked** is the board's `counts.citations` (a tally of `cite` events), not a
   self-report (#70/#71 — the citation half of this same migration).
 

@@ -89,3 +89,64 @@ certification recorded
 {"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 {"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","text":"red's closing"},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"closing"}
+
+═══ RENDERS ═══
+-- ledger
+# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
+
+## OPEN GAPS (1)
+
+### R1-1 — docketed
+
+severity medium | medium x medium | cx undefined | class scope-creep
+required_fix: 
+acceptance_check: x
+
+## CLOSURE INDEX
+
+
+
+-- archive
+# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
+
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Round 1
+
+### RED
+red's round position
+
+### RED CLOSING (round 1) — R1-1
+red's closing
+
+### BLUE
+blue's round position
+
+### BLUE CLOSING (round 1) — R1-1
+blue's closing
+
+### BLUE CONFIDENCE (self-assessment — non-authoritative; targeting signal, not a grade)
+- C7 → **medium**
+
+### Grade disputes
+- **blue-respond-r1** disputes R1-1/likelihood → low: the harm needs two failures
+
+### LEAD
+- R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
+the rationale body
+
+-- changelog
+# blue CHANGELOG — RENDERED PROJECTION
+
+## Round 1
+repairs landed
+
+-- citation-ledger
+# red citation-ledger — RENDERED PROJECTION
+throughput doubled | https://example.invalid/paper | high | r1 | 2026-07-18
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+
