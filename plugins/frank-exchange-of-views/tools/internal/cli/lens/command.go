@@ -23,8 +23,5 @@ func NewCommand() *cobra.Command {
 		newObserve(),
 		newCite(),
 		seat.Friction("attributed friction (survives aborts as an event): --reason"),
-		seat.Petition(
-			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."`,
-			" — the bench hears it before the debate continues"),
 	)
 }

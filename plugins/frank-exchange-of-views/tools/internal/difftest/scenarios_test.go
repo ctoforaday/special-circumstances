@@ -226,10 +226,10 @@ func scenarios() []scenario {
 		{
 			name: "bench_petitions_and_halt", // oracle: W2c verbs
 			cmds: []cmd{
-				base("lens", "petition", "--run", "{RUN}", "--seat-id", "red-lens-r1-L6", "--petition-class", "safety",
+				base("merge", "petition", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--petition-class", "safety",
 					"--reason", "the design erodes a consent gate", "--relief", "halt and escalate"),
 				base("bench", "register", "--run", "{RUN}", "--seat-id", "judge-petition"),
-				base("bench", "petition-rule", "--run", "{RUN}", "--seat-id", "judge-petition", "--petitioner", "red-lens-r1-L6",
+				base("bench", "petition-rule", "--run", "{RUN}", "--seat-id", "judge-petition", "--petitioner", "red-merge-r1",
 					"--petition-class", "safety", "--as", "granted", "--reason", "the relief binds the coming seats"),
 				base("bench", "halt", "--run", "{RUN}", "--seat-id", "judge-petition", "--reason", "continuing would compromise the consent gate"),
 			},

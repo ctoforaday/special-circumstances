@@ -166,20 +166,20 @@ func TestLensWorkReachesTheBoardAndEveryObservationGetsAFate(t *testing.T) {
 	}
 }
 
-// A petition crosses roles in both directions: a LENS files it, the BENCH rules on it,
+// A petition crosses roles in both directions: a MERGE files it, the BENCH rules on it,
 // and the relief is meant to bind the seats that come after. Both halves must be in the
 // one record, or "heard before the debate continues" is unenforceable.
-func TestPetitionCrossesFromLensToBenchAndItsReliefIsRecorded(t *testing.T) {
+func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	runDir := seatRun(t)
 
-	if _, err := run(t, "lens", "petition", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "merge", "petition", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--petition-class", "safety",
 		"--reason", "continuing would require asserting a consent gate exists where it does not",
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
-		t.Fatalf("lens petition: %v", err)
+		t.Fatalf("merge petition: %v", err)
 	}
 	if _, err := run(t, "bench", "petition-rule", "--run", runDir, "--seat-id", "judge-r1",
-		"--petitioner", "red-lens-r1-L1", "--petition-class", "safety", "--as", "granted",
+		"--petitioner", "red-merge-r1", "--petition-class", "safety", "--as", "granted",
 		"--reason", "the relief binds the coming seats"); err != nil {
 		t.Fatalf("bench petition-rule: %v", err)
 	}
@@ -192,8 +192,8 @@ func TestPetitionCrossesFromLensToBenchAndItsReliefIsRecorded(t *testing.T) {
 	if got := rule.Payload.Str("ruling"); got != "granted" {
 		t.Errorf("the ruling recorded %q, want granted", got)
 	}
-	if got := rule.Payload.Str("petitioner"); got != "red-lens-r1-L1" {
-		t.Errorf("the ruling names petitioner %q, want the lens that filed it — an unattributed ruling cannot be matched to its petition", got)
+	if got := rule.Payload.Str("petitioner"); got != "red-merge-r1" {
+		t.Errorf("the ruling names petitioner %q, want the merge seat that filed it — an unattributed ruling cannot be matched to its petition", got)
 	}
 }
 

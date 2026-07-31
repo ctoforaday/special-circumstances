@@ -104,7 +104,7 @@ feov-record: merge: seat "not a seat id" does not belong to any role namespace (
 
 ── verb outside the lens role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, petition, render, show)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, render, show)
 
 ── verb outside the blue role
 exit 2

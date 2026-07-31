@@ -1,7 +1,7 @@
 $ lens mint --run {RUN} --seat-id red-lens-r1-L1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, petition, render, show)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, render, show)
 
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
@@ -37,7 +37,6 @@ Available Commands:
   finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> [--reason "..."] [--location "..."]
   friction    attributed friction (survives aborts as an event): --reason
   observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason
-  petition    petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   render      read-only projection refresh (any seat may invoke)
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
