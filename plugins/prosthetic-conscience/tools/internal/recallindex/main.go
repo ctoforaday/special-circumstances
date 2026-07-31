@@ -36,6 +36,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
@@ -137,26 +139,6 @@ func runUpdate() string {
 	return "qmd update ok"
 }
 
-// appendHookLog records one firing under projectDir/.claude. Best-effort by design:
-// instrumentation trouble must never cost the Write/Edit, and an empty projectDir
-// disables it rather than writing a relative .claude/ wherever the process started.
-func appendHookLog(projectDir, line string) {
-	if projectDir == "" {
-		return
-	}
-	logDir := filepath.Join(projectDir, ".claude")
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return
-	}
-	f, err := os.OpenFile(filepath.Join(logDir, "prosthetic-conscience-hook.log"),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	_, _ = f.WriteString(line)
-	_ = f.Close()
-}
-
 // run is the hook with its process boundary passed in. qmdPresent and update are
 // parameters rather than lookups so a test can reach every branch without a qmd on
 // the machine — and, more importantly, without a test ever mutating a real index.
@@ -178,6 +160,20 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
 	file := fileFrom(in)
 
+	hooklog.Append(projectDir, index(projectDir, qmdPresent, now, update, in.ToolName, file).Log)
+
+	// Recall is an optional capability: absence is never worth a per-write nag
+	// (sc-toolchain-nudge covers discovery at SessionStart). Never block the tool.
+	return 0
+}
+
+// index is the unit's whole decision, with no I/O of its own beyond the qmd call it was
+// always going to make: the standalone binary and the merged PostToolUse binary both run
+// THIS, so the two paths cannot drift.
+//
+// The log line is RETURNED rather than written — see internal/hooklog for why one writer
+// matters now that an event's hooks are known to run in parallel.
+func index(projectDir string, qmdPresent bool, now time.Time, update func() string, toolName, file string) hookunit.Result {
 	doRun, reason := decide(qmdPresent, file)
 	outcome := ""
 	if doRun {
@@ -192,13 +188,34 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			outcome = " | debounced (index at most " + debounceInterval.String() + " stale)"
 		}
 	}
+	return hookunit.Result{Name: "sc-recall-index",
+		Log: fmt.Sprintf("%s sc-recall-index %s -> %s | %s%s\n",
+			now.UTC().Format(time.RFC3339), toolName, file, reason, outcome)}
+}
 
-	appendHookLog(projectDir, fmt.Sprintf("%s sc-recall-index %s -> %s | %s%s\n",
-		now.UTC().Format(time.RFC3339), in.ToolName, file, reason, outcome))
+// Unit exposes the indexer to the merged PostToolUse binary, wired to the real environment.
+func Unit() hookunit.Unit {
+	qmdPresent := toolchain.Present("qmd")
+	return hookunit.Unit{
+		Name:    "sc-recall-index",
+		Applies: func(c *hookunit.Ctx) bool { return c.ToolName == "Write" || c.ToolName == "Edit" },
+		Run: func(c *hookunit.Ctx) hookunit.Result {
+			return index(c.ProjectDir, qmdPresent, c.Now, runUpdate, c.ToolName, fileFromInput(c.ToolInput))
+		},
+	}
+}
 
-	// Recall is an optional capability: absence is never worth a per-write nag
-	// (sc-toolchain-nudge covers discovery at SessionStart). Never block the tool.
-	return 0
+// fileFromInput reads the subject out of a raw tool_input, for the merged binary which
+// parses the payload once and hands the fragment on.
+func fileFromInput(raw json.RawMessage) string {
+	var ti struct {
+		FilePath string `json:"file_path"`
+		Path     string `json:"path"`
+	}
+	_ = json.Unmarshal(raw, &ti)
+	var in hookInput
+	in.ToolInput.FilePath, in.ToolInput.Path = ti.FilePath, ti.Path
+	return fileFrom(in)
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

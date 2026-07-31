@@ -22,8 +22,7 @@ Eight load on every session, the rest by description. `design-by-contract` is th
 |---|---|---|
 | `sc-secrets-gate` | PreToolUse | Blocks secrets leaving via web calls and shell |
 | `sc-push-freeze-guard` | PreToolUse | Refuses pushes to pinned paths while a research run is live |
-| `sc-quality-gate` | PostToolUse | Runs `qlty fmt` + `qlty check` on every write, feeds findings back |
-| `sc-recall-index` | PostToolUse | Keeps the recall index fresh on markdown writes |
+| `sc-posttooluse` | PostToolUse | One hook per event: the quality gate (`qlty fmt` + `qlty check`) and the recall index, as units over one shared context |
 | `sc-toolchain-nudge` | SessionStart | One line when a recommended tool is missing, silence when healthy |
 | `sc-checkpoint-seal` | PreCompact · SessionEnd · SubagentStop | Seals the note at every seam; tells the summarizer what to preserve, on PreCompact only |
 | `sc-checkpoint-restore` | SessionStart | Hands the note back — every source, compaction included |

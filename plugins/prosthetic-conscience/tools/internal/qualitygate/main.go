@@ -33,6 +33,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
@@ -269,6 +271,19 @@ func execute(e env, p plan) (feedback, logged string) {
 	}
 }
 
+// fileFromInput reads the subject out of a raw tool_input, for the merged binary which
+// parses the payload once and hands the fragment on.
+func fileFromInput(raw json.RawMessage) string {
+	var ti struct {
+		FilePath string `json:"file_path"`
+		Path     string `json:"path"`
+	}
+	_ = json.Unmarshal(raw, &ti)
+	var in hookInput
+	in.ToolInput.FilePath, in.ToolInput.Path = ti.FilePath, ti.Path
+	return fileFrom(in)
+}
+
 func fileFrom(in hookInput) string {
 	if in.ToolInput.FilePath != "" {
 		return in.ToolInput.FilePath
@@ -277,27 +292,6 @@ func fileFrom(in hookInput) string {
 		return in.ToolInput.Path
 	}
 	return "unknown"
-}
-
-// appendHookLog records one firing under projectDir/.claude. Instrumentation is
-// best-effort by design: a log that cannot be written must never cost the tool call,
-// so every error here is deliberately swallowed. An empty projectDir disables it
-// rather than writing a relative .claude/ wherever the process happens to be.
-func appendHookLog(projectDir, line string) {
-	if projectDir == "" {
-		return
-	}
-	logDir := filepath.Join(projectDir, ".claude")
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return
-	}
-	f, err := os.OpenFile(filepath.Join(logDir, "prosthetic-conscience-hook.log"),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	_, _ = f.WriteString(line)
-	_ = f.Close()
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, e env) int {
@@ -318,29 +312,58 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, e env) int {
 	e.projectDir = hookenv.ProjectDir(e.projectDir, in.CWD)
 	file := fileFrom(in)
 
-	p := decide(e, file)
+	out := gate(e, in.ToolName, file, time.Now())
+	hooklog.Append(e.projectDir, out.Log)
+	if out.Stderr != "" {
+		fmt.Fprintln(stderr, out.Stderr)
+	}
+	return out.Exit
+}
 
+// gate is the unit's whole decision, with no I/O of its own: the standalone binary and the
+// merged PostToolUse binary both run THIS, so the two paths cannot drift into disagreeing
+// about what the gate does.
+//
+// The log line is RETURNED rather than written. Two processes used to append to one log
+// concurrently — proven concurrent by design once hooks were measured to run in parallel
+// (hook-surface-spike.md §4b) — and collecting lines for one writer is the fix.
+func gate(e env, toolName, file string, now time.Time) hookunit.Result {
+	p := decide(e, file)
 	msg := p.skip
 	feedback := ""
 	if p.run {
 		feedback, msg = execute(e, p)
 	}
-
 	// Instrumentation: record every firing (proves the hook reaches here, incl. subagents).
-	appendHookLog(e.projectDir, fmt.Sprintf("%s sc-quality-gate %s -> %s | %s\n",
-		time.Now().UTC().Format(time.RFC3339), in.ToolName, file, msg))
+	r := hookunit.Result{Name: "sc-quality-gate",
+		Log: fmt.Sprintf("%s sc-quality-gate %s -> %s | %s\n", now.UTC().Format(time.RFC3339), toolName, file, msg)}
+	switch {
+	case p.warn:
+		r.Stderr = p.skip
+	case feedback != "":
+		// Exit 2 is how a PostToolUse hook hands stderr back to the model. The write
+		// already happened — this reports on it, it does not revoke it.
+		r.Stderr, r.Exit = feedback, 2
+	}
+	return r
+}
 
-	if p.warn {
-		fmt.Fprintln(stderr, p.skip)
-		return 0
+// Unit exposes the gate to the merged PostToolUse binary, wired to the real environment.
+func Unit() hookunit.Unit {
+	e := env{
+		qltyPresent: toolchain.Present("qlty"),
+		mode:        parseMode(os.Getenv("SC_QUALITY_GATE")),
+		timeout:     parseTimeout(os.Getenv("SC_QUALITY_GATE_TIMEOUT_SECONDS")),
+		exec:        execQlty,
 	}
-	if feedback != "" {
-		// Exit 2 is how a PostToolUse hook hands stderr back to the model. The
-		// write already happened — this reports on it, it does not revoke it.
-		fmt.Fprintln(stderr, feedback)
-		return 2
+	return hookunit.Unit{
+		Name:    "sc-quality-gate",
+		Applies: func(c *hookunit.Ctx) bool { return c.ToolName == "Write" || c.ToolName == "Edit" },
+		Run: func(c *hookunit.Ctx) hookunit.Result {
+			e.projectDir = c.ProjectDir
+			return gate(e, c.ToolName, fileFromInput(c.ToolInput), c.Now)
+		},
 	}
-	return 0
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

@@ -39,10 +39,9 @@ On top of the always-on set it ships **on-demand skills** (pair-programming, spe
 |---|---|
 | `sc-doctor` | Environment preflight — a READY / DEGRADED / BLOCKED verdict (`/prosthetic-conscience:doctor`) |
 | `sc-secrets-gate` | Blocks secrets/tokens from leaving in web calls |
-| `sc-quality-gate` | Runs `qlty fmt` + `qlty check` on every write, feeds findings back |
+| `sc-posttooluse` | One hook per event: runs the quality gate (`qlty fmt` + `qlty check`) and the recall index as units over one shared context |
 | `sc-push-freeze-guard` | Guards pushes |
 | `sc-toolchain-nudge` | Nudges toward the installed toolchain |
-| `sc-recall-index` | Indexes for recall |
 | `sc-checkpoint-seal` | Seals the note at every seam — compaction, session end, seat finishing |
 | `sc-checkpoint-restore` | Hands the note back on session start — every source, compaction included |
 | `sc-postcompact-observe` | Scores what each summary kept, one row per boundary |
