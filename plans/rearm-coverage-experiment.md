@@ -6,6 +6,20 @@ Everything below is designed to be executed by someone with no memory of the ses
 Two questions cannot be answered from inside a running session, because both are about what happens
 *at* a session start. This is the runbook for both. It should take under ten minutes.
 
+> **RUN 2026-07-31T03:43–03:50Z (session `307f5c51`, `/clear`-minted). Read this before re-running.**
+>
+> - **Q1: still confirmed, 19/19.** But a new defect appeared beside it: on the **first**
+>   `SessionStart` of a newly minted session id the path is carried and **does not yet exist**, so the
+>   row is `resolved: false` **permanently** and `gray-area checkpoint` refuses all session. That is a
+>   genuine race. Evidence: gray-area §11.9.
+> - **Q1b: the answer CHANGED. A seat row resolved `true`** — 16,442 bytes, real per-seat file with
+>   `isSidechain: true` turns. #189's "never resolves / not written in this environment" is scoped to
+>   the old session, not the environment. Report on #189, gray-area §11.9.
+> - **Q2: NOT answered, and NOT answerable from a `/clear` session.** The `/clear` this runbook
+>   prescribes is what disables the mechanism under test — see step 2's correction and
+>   `plans/context-checkpointing.md` §20. **Next runner: do NOT `/clear` if Q2 is the goal.** The
+>   two instructions are in conflict and Q2 loses.
+
 ---
 
 ## Q1 — Does `SessionStart` carry `transcript_path`? **ANSWERED: yes** (gray-area §11.7)
@@ -13,7 +27,14 @@ Two questions cannot be answered from inside a running session, because both are
 > Confirmed 2026-07-30T17:12Z: six firings, every row `resolved: true` with a real path. Keep the
 > procedure below — it is the check to re-run if the harness changes — but it is no longer open.
 
-### Q1b — does `agent_transcript_path` resolve? **ANSWERED: no. Not a race** (#189, gray-area §11.8)
+### Q1b — does `agent_transcript_path` resolve? ~~**ANSWERED: no. Not a race**~~ **SOMETIMES — re-opened 2026-07-31** (#189, gray-area §11.8 → §11.9)
+
+> **The "no" below held for 10 rows in session `937047bc` and is FALSE as a general claim.** Re-run
+> on 2026-07-31 produced `resolved: true` on the first attempt in a new session: a real 16,442-byte
+> per-seat transcript at exactly the recorded path. The 10 old failures are still failures — every
+> path re-`stat`ed 10h41m later, still absent — so both observations stand and the mechanism that
+> separates them is **unknown**. Do not write a cause here. Read resolvability off the row, per
+> session. Detail: gray-area §11.9.
 
 > **The race hypothesis below is REFUTED — read it only to see how it got here.** Eight seat rows,
 > eight `resolved: false`; the named `subagents/` directory does not exist ~10 hours later; the two
@@ -98,12 +119,24 @@ old while its surface is being actively edited is **not**.
    Record which check indices are present and their `at` timestamps.
 
 2. Confirm what is actually being watched this session — do not assume.
+
+   > **CORRECTED 2026-07-31. This step used to hard-code `"source":"resume"` and call the result
+   > "what is actually being watched this session". In a `/clear`-minted session that is FALSE: it
+   > prints a populated list the session never registered.** Substitute the source this session
+   > really started with.
+
    ```bash
+   SRC=clear   # <-- the source THIS session started with: startup | resume | compact | clear
    CLAUDE_PROJECT_DIR=$PWD plugins/prosthetic-conscience/bin/sc-checkpoint-restore \
-     <<< '{"session_id":"probe","cwd":"'"$PWD"'","hook_event_name":"SessionStart","source":"resume"}' \
+     <<< '{"session_id":"probe","cwd":"'"$PWD"'","hook_event_name":"SessionStart","source":"'"$SRC"'"}' \
      | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"].get("watchPaths"))'
    ```
-   This shows what the restore hook *would* register from the current note. Pick a surface from it.
+
+   **If this prints `None`, STOP — steps 3–6 cannot answer anything.** A `clear`-sourced session
+   registers zero watchPaths deliberately (`TestPointerSessionsRegisterNoWatch`: "a pointer session
+   is not resuming this work"). Any null you measure afterwards is caused by that, not by #165, and
+   the two are indistinguishable from the outside. Q2 needs a session started with `startup`,
+   `resume` or `compact`. Otherwise pick a surface from the list and continue.
 
 3. Edit a real file under that surface with the **Edit or Write tool** (not Bash — the point is to
    test the session's own edits).

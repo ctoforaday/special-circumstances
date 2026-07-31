@@ -1020,3 +1020,86 @@ rich note must be agent-authored, and the cost of that is exactly this.
 Which is also why `status: done` is a weak signal for the pointer-only carve-out (§3 C). The note
 this repo carried before today was two days stale, described finished Phase 1 work, and was still
 `status: validating` — nobody closed it out. A forgotten note is the common case, not the edge.
+
+## 20. Q2 (#165) NOT answered — and the runbook that asked it cannot ask it (2026-07-31)
+
+`plans/rearm-coverage-experiment.md` instructs the next session to `/clear` and then measure whether
+a re-arm record advances after an edit under a watched surface. **That experiment cannot run in the
+session the runbook creates.** The `/clear` that makes the runbook readable cold is the same act that
+disables the mechanism under test.
+
+### What was measured
+
+Wiring first, as the runbook demands: all 8 hook events present in `settings.local.json`, both
+`gray-area-capture` rows, every binary built. Nothing was concluded from an absence before this.
+
+**A `/clear`-sourced `SessionStart` registers ZERO `watchPaths`, by design.**
+
+```
+source=resume → watchPaths: [plugins/gray-area/tools, …/frank-exchange-of-views/tools, …, plugins]
+source=clear  → watchPaths: None                                   (ctx len 496, pointer only)
+```
+
+`TestPointerSessionsRegisterNoWatch` asserts exactly this: *"A pointer session is not resuming this
+work, so registering its surfaces would collect re-arms nobody asked for."* Deliberate, tested, and
+in this instance load-bearing in the wrong direction.
+
+So the experiment ran and returned the predicted null: an `Edit` under
+`plugins/frank-exchange-of-views/tools` and a `Write` under `plugins/gray-area/tools`, then a
+**127-second** wait (over double the mandated 60s), then `rearmed.json` — unchanged, same single
+record, mtime still `01:40`. **That null says nothing about #165.** It is attributable to zero
+registration, and would look identical whether or not #165's failure exists.
+
+### The runbook's step 2 actively hides this
+
+Step 2 probes with `{"source":"resume"}` and calls the result *"what is actually being watched this
+session"*. In a `/clear` session that is false — it prints a populated list the session never
+registered. Corrected in the runbook.
+
+### What was established, by feeding the hook directly
+
+Since the watcher could not deliver events, the hook was fed three payloads by hand — the only way
+left to separate #165's hypothesis (3) from the rest. All three attributed correctly against the
+**current** note:
+
+| fed | → check | index |
+|---|---|---|
+| `plugins/gray-area/tools/rearm-probe.txt` (`add`) | `0. go test -C plugins/gray-area/tools` | 1 |
+| `…/frank-exchange-of-views/tools/internal/cli/merge/close.go` (`change`) | `1. go test -C …frank-exchange…` | 2 |
+| `…/prosthetic-conscience/tools/internal/checkpoint/checkpoint.go` (`change`) | `2. go test -C …prosthetic-conscience…` | 3 |
+
+- **#165 hypothesis (3) — "`attribute()` stopped matching" — REFUTED** for the current note text.
+  Three surfaces, three correct checks, longest-target rule intact.
+- **Merge works.** Three keys coexisted after three events. Sparse records are not caused by the
+  save path dropping siblings.
+
+State was backed up before the hand-feed and restored after, so the live `rearmed.json` still holds
+only the one genuine record; the three synthetic ones were removed rather than left to look like
+evidence.
+
+### A previously unrecorded way for coverage to reset
+
+`LoadRearm` returns an **empty** map when the file is unreadable, and `save` then writes a
+single-key file. So **any deletion of `rearmed.json` silently resets coverage to exactly the shape
+#165 describes** — a lone old record beside surfaces that are demonstrably being edited.
+
+Consistent with the baseline found this session: #165 documented **four** records on 2026-07-30; the
+file now holds **one**, mtime `2026-07-31T01:40`. Nothing in the repository deletes it, and the whole
+of `.claude/checkpoints/` is gitignored, so a `git clean -xdf` or a workspace reset would remove it
+without trace. **This is a hypothesis with a mechanism, not a finding** — the deletion itself was not
+observed, and it is recorded here so the next session tests it rather than inherits it as a cause.
+
+### What #165 still needs
+
+A session started with `source ∈ {startup, resume, compact}` — **not** `clear` — that edits under a
+registered surface, waits ≥60s, and re-checks. Everything else is now eliminated: attribution works,
+merge works, the hook and its wiring work. What is untested is only whether `FileChanged` events keep
+being *delivered* for a session's whole life.
+
+### The methodological residue
+
+The runbook exists because a conclusion was once drawn from a 100ms probe. It then told the next
+session to do something whose result would be uninterpretable for a different reason — a null the
+reader would have read as data. **A wiring check is not a formality before the experiment; it is what
+decides whether the experiment's null means anything.** The runbook's own instruction to check wiring
+first is what caught its own instruction to `/clear`.
