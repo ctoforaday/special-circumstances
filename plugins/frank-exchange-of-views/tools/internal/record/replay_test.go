@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 // Replay is where the log becomes state. Winner selection, dedup and the anomaly
@@ -568,7 +571,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 			}
 		})
 		t.Run(field+"/accepts every canonical grade", func(t *testing.T) {
-			for _, g := range GRADES {
+			for _, g := range flags.GradeNames() {
 				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 				if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err != nil {
 					t.Errorf("%s=%s refused: %v", field, g, err)
@@ -1002,5 +1005,27 @@ func TestJsonish(t *testing.T) {
 				t.Errorf("jsonish(%v) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestMASSKeysAreExactlyTheCanonicalGrades binds MASS's grade set to flags.Grades — the single
+// grade authority. Add/remove/rename a grade in flags and this fails until MASS is updated, so the
+// mass mapping can never carry a grade the validator rejects (or miss one it accepts). This is the
+// cross-package binding record.GRADES used to lack (it was a second, untested grade list).
+func TestMASSKeysAreExactlyTheCanonicalGrades(t *testing.T) {
+	got := make([]string, 0, len(MASS))
+	for k := range MASS {
+		got = append(got, k)
+	}
+	sort.Strings(got)
+	want := flags.GradeNames()
+	sort.Strings(want)
+	if len(got) != len(want) {
+		t.Fatalf("MASS has %d grades, flags.Grades has %d:\n got=%v\nwant=%v", len(got), len(want), got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("MASS grade set diverges from flags.Grades:\n got=%v\nwant=%v", got, want)
+		}
 	}
 }

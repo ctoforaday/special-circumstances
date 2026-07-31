@@ -44,6 +44,17 @@ func GradeNames() []string {
 	return out
 }
 
+// IsGrade reports whether s is one of the canonical grades — the single membership authority, so
+// other packages validate against Grades rather than keeping their own copy of the set.
+func IsGrade(s string) bool {
+	for _, g := range Grades {
+		if string(g) == s {
+			return true
+		}
+	}
+	return false
+}
+
 // GradeValue is the pflag.Value implementation. It is a POINTER to a Grade so an
 // unset flag stays distinguishable from a set one — the record format requires
 // that distinction (a flag never passed must not appear in the event at all),

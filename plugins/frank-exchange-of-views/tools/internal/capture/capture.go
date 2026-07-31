@@ -768,12 +768,7 @@ func jsStringify(v any) string {
 // ---- AUDIT 9: model-tier ----
 
 func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
-	var cfg map[string]any
-	if b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json")); err == nil {
-		_ = json.Unmarshal(b, &cfg)
-	}
-	model, _ := cfg["model"].(string)
-	judgmentModel, _ := cfg["judgmentModel"].(string)
+	model, judgmentModel := cost.TierConfig(runDir)
 	if model == "" && judgmentModel == "" {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "no run-config models (pre-#111 run)"}
 	}
@@ -785,16 +780,7 @@ func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
 		}
 		rows = append(rows, cost.ScanTranscript(string(b)))
 	}
-	seen := map[string]bool{}
-	var findings []cost.Finding
-	for _, f := range cost.TierMismatch(rows, model, judgmentModel) {
-		k := fmt.Sprintf("%s|%d|%s|%s", f.Seat, f.Round, f.Verdict, f.Actual)
-		if seen[k] {
-			continue
-		}
-		seen[k] = true
-		findings = append(findings, f)
-	}
+	findings := cost.DedupTierFindings(cost.TierMismatch(rows, model, judgmentModel))
 	fails, warns := 0, 0
 	for _, f := range findings {
 		if f.Verdict == "FAIL" {
