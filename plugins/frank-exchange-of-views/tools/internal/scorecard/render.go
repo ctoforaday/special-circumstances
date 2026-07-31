@@ -2,39 +2,8 @@ package scorecard
 
 import (
 	"encoding/json"
-	"regexp"
 	"strings"
 )
-
-// parseRowRe mirrors scorecards.mjs parseRenderedRows' regex EXACTLY (RE2 supports the
-// non-greedy `.+?`). Group 4 is the bolded value; empty ⟺ the `_not computed_` alternative.
-var parseRowRe = regexp.MustCompile("`([a-z_]+)`\\s*\\[(benchmark|detector|diagnostic|measure)\\]\\s*—\\s*(.+?):\\s*(?:\\*\\*([^*]+)\\*\\*|_not computed_)")
-
-// ParseRenderedRows reads a rendered scorecard section back into rows — the port of
-// scorecards.mjs parseRenderedRows. Value is nil for a `_not computed_` row (m[4]==""),
-// else the bolded string; Note/Joint are not recovered (the format does not round-trip them).
-func ParseRenderedRows(section string) []Row {
-	ms := parseRowRe.FindAllStringSubmatch(section, -1)
-	rows := make([]Row, 0, len(ms))
-	for _, m := range ms {
-		r := Row{Metric: m[1], Cls: m[2], Clause: m[3]}
-		if m[4] != "" {
-			r.Value = m[4]
-		} // else nil — _not computed_
-		rows = append(rows, r)
-	}
-	return rows
-}
-
-// LatestSection returns the last `## `-delimited block — the port of scorecards.mjs
-// latestSection (a scorecard is appended run-over-run, so the last block is this run's).
-func LatestSection(body string) string {
-	s := regexp.MustCompile(`(?m)^## `).Split(body, -1)
-	if len(s) == 0 {
-		return ""
-	}
-	return s[len(s)-1]
-}
 
 // classNote mirrors scorecards.mjs CLASS_NOTE; classTag is the leading label headline() shows
 // (`CLASS_NOTE[cls].split(' —')[0]`).

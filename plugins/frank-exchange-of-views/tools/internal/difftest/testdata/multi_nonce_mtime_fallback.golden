@@ -18,56 +18,10 @@ exit 0
 stdout:
 finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
-$ lens render --run {RUN}
-exit 0
-stdout:
-{TOOL}: rendered to {RUN}/records/render-shadow (0 open, 0 closed, 1 anomalies)
-
 ═══ EVENTS ═══
 -- events-red-lens-r1-L1-NONCE001.jsonl
-{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
+{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
 {"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"low","label":"L1-F1","likelihood":"low","severity":"low","text":"older shard"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":1,"type":"finding"}
 -- events-red-lens-r1-L1-NONCE002.jsonl
-{"key":"red-lens-r1-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.22.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":2,"type":"register"}
+{"key":"red-lens-r1-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":2,"type":"register"}
 {"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE002","payload":{"finding_id":"FINDING001","finding_key":"F2","impact":"low","label":"L1-F1","likelihood":"low","severity":"low","text":"newer shard"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":3,"type":"finding"}
-
-═══ RENDERS ═══
--- CHANGELOG.md
-# blue CHANGELOG — RENDERED PROJECTION
-
--- archive.md
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
--- board-telemetry.jsonl
-
--- citation-ledger.md
-# red citation-ledger — RENDERED PROJECTION
-
--- debate.md
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- findings.md
-# red findings — RENDERED PROJECTION (source of truth: records/ event log)
-- L1-F1 | red-lens-r1-L1 | sev low · low x low | r1 | newer shard
-
--- ledger.md
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (0)
-
-## CLOSURE INDEX
-
-
-## render anomalies (never silently normalized)
-
-- multi-nonce seat red-lens-r1-L1: 2 dispatches (NONCE001, NONCE002); winner NONCE002 by mtime fallback
-
-
-## undisposed lens observations (every observation demands a merge disposition)
-
-- red-lens-r1-L1 L1-F1: newer shard
-
--- lines-of-inquiry.md
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-

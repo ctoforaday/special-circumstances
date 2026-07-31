@@ -11,38 +11,6 @@ feov-record: merge: --seat-id is required (the engine assigns it; it is in your 
 $ merge not-a-verb --run {RUN} --seat-id red-merge-r1
 exit 2
 stderr:
-feov-record: verb "not-a-verb" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, render, show)
+feov-record: verb "not-a-verb" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, show)
 
 ═══ EVENTS ═══
-
-═══ RENDERS ═══
--- CHANGELOG.md
-# blue CHANGELOG — RENDERED PROJECTION
-
--- archive.md
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
--- board-telemetry.jsonl
-
--- citation-ledger.md
-# red citation-ledger — RENDERED PROJECTION
-
--- debate.md
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- findings.md
-# red findings — RENDERED PROJECTION (source of truth: records/ event log)
-
--- ledger.md
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (0)
-
-## CLOSURE INDEX
-
-
-
--- lines-of-inquiry.md
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-

@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // Prices are $/MTok: input, output, cache-read, cache-write.
@@ -341,41 +342,9 @@ func reportTierCheck(runDir string, rows []Row, p func(string)) {
 }
 
 func reportTelemetry(runDir string, p func(string)) {
-	telPath := ""
-	for _, c := range []string{
-		filepath.Join(runDir, "records", "render-shadow", "board-telemetry.jsonl"),
-		filepath.Join(runDir, "trajectories", "board-telemetry.jsonl"),
-	} {
-		if _, err := os.Stat(c); err == nil {
-			telPath = c
-			break
-		}
-	}
-	var lines []map[string]any
-	if telPath != "" {
-		b, err := os.ReadFile(telPath)
-		if err != nil {
-			p("\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never appended: check run-record-audit.md)")
-			return
-		}
-		for _, ln := range strings.Split(string(b), "\n") {
-			if strings.TrimSpace(ln) == "" {
-				continue
-			}
-			dec := json.NewDecoder(strings.NewReader(ln))
-			dec.UseNumber()
-			var m map[string]any
-			if dec.Decode(&m) == nil {
-				lines = append(lines, m)
-			}
-		}
-	}
-	if len(lines) == 0 {
-		if telPath != "" {
-			p("\n## Board telemetry\n\n(board-telemetry.jsonl present but empty)")
-		} else {
-			p("\n## Board telemetry\n\n(no board-telemetry.jsonl in the run dir — pre-telemetry run, or the merge seat never rendered: check run-record-audit.md)")
-		}
+	lines, err := view.Telemetry(runDir)
+	if err != nil || len(lines) == 0 {
+		p("\n## Board telemetry\n\n(no telemetry rounds on the record — pre-telemetry run, or no gaps minted yet)")
 		return
 	}
 	p("\n## Board telemetry (per round)\n")

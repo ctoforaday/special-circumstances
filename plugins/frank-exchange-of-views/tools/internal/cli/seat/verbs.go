@@ -2,14 +2,13 @@ package seat
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // The verbs every role shares, defined once.
@@ -98,34 +97,6 @@ func Closing(help string) *cobra.Command {
 		return closingResult{ID: Str(cmd, flags.ID)}, nil
 	}))
 	c.Flags().String(flags.ID, "", "the gap id this closing argues")
-	return c
-}
-
-// Render is available to every seat and mutates nothing.
-func Render() *cobra.Command {
-	c := &cobra.Command{
-		Use:          "render",
-		Short:        "read-only projection refresh (any seat may invoke)",
-		Args:         cobra.NoArgs,
-		SilenceUsage: true,
-	}
-	c.RunE = func(cmd *cobra.Command, _ []string) error {
-		role := roleOf(cmd)
-		runDir := Str(cmd, flags.Run)
-		if runDir == "" {
-			return fmt.Errorf("%s: --run <runDir> is required", role)
-		}
-		r, err := record.Render(runDir, "")
-		if err != nil {
-			return err
-		}
-		extra := ""
-		if r.Anomalies > 0 {
-			extra = fmt.Sprintf(", %d anomalies", r.Anomalies)
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "feov-record %s: rendered to %s (%d open, %d closed%s)\n", role, r.Out, r.Open, r.Closed, extra)
-		return nil
-	}
 	return c
 }
 
@@ -260,40 +231,25 @@ func Show() *cobra.Command {
 		if want == "" {
 			return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
 		}
-		var file string
+		known := false
 		for _, v := range views {
 			if v.name == want {
-				file = viewFile(v.name)
+				known = true
 			}
 		}
-		if file == "" {
+		if !known {
 			return fmt.Errorf("%s show: unknown view %q (one of: %s)", role, want, strings.Join(viewNames(), ", "))
 		}
 
-		r, err := record.Render(runDir, "")
+		b, err := view.Markdown(runDir, want)
 		if err != nil {
 			return err
-		}
-		b, err := os.ReadFile(filepath.Join(r.Out, file))
-		if err != nil {
-			return fmt.Errorf("%s show: the %s projection is not on disk after a render — this is a renderer defect, not a missing artifact: %w", role, want, err)
 		}
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
 	c.Flags().String(flags.View, "", "which projection to read: "+strings.Join(viewNames(), " | ")+" (defaults to this role's own)")
 	return c
-}
-
-// viewFile maps a view name to the file the renderer writes. The renderer's filenames
-// are its own business; a seat should never have to know them.
-func viewFile(view string) string {
-	switch view {
-	case "changelog":
-		return "CHANGELOG.md"
-	default:
-		return view + ".md"
-	}
 }
 
 // Role assembles a role's command from the verbs it was given.
@@ -326,8 +282,6 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 		names = append(names, v.Name())
 		c.AddCommand(v)
 	}
-	c.AddCommand(Render())
-	names = append(names, "render")
 	c.AddCommand(Show())
 	names = append(names, "show")
 	available := join(names)

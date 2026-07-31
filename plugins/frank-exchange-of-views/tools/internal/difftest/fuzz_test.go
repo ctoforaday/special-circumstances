@@ -95,9 +95,8 @@ func TestReplayDeterminism(t *testing.T) {
 			if diff := cmp.Diff(rankTimestamps(first.events), rankTimestamps(second.events)); diff != "" {
 				t.Errorf("event log is not reproducible across identical runs\nsequence: %s\n%s", dumpSeq(cmds), diff)
 			}
-			if diff := cmp.Diff(first.renders, second.renders); diff != "" {
-				t.Errorf("projections are not reproducible across identical runs\nsequence: %s\n%s", dumpSeq(cmds), diff)
-			}
+			// Projections are no longer materialized; they derive as a pure function of the
+			// event log, which the rank-diff above already proves reproducible.
 			if diff := cmp.Diff(first.output, second.output); diff != "" {
 				t.Errorf("CLI output is not reproducible across identical runs\nsequence: %s\n%s", dumpSeq(cmds), diff)
 			}
@@ -106,9 +105,8 @@ func TestReplayDeterminism(t *testing.T) {
 }
 
 type replayResult struct {
-	events  map[string][]map[string]any
-	renders map[string]string
-	output  []string
+	events map[string][]map[string]any
+	output []string
 }
 
 func replay(t *testing.T, bin string, cmds []cmd) replayResult {
@@ -123,7 +121,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 		out = append(out, fmt.Sprintf("exit=%d out=%q err=%q", got.code, got.stdout, got.stderr))
 	}
 	st := collect(t, runDir, m)
-	return replayResult{events: st.events, renders: st.renders, output: out}
+	return replayResult{events: st.events, output: out}
 }
 
 var (

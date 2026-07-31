@@ -13,24 +13,26 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // verdict: the merge seat's terminal act.
 //
-// It renders and then CHECKPOINTS the whole records/ directory to a mirror
-// outside the run. The run directory is untracked-by-design until capture, and
-// the 2026-07-17 incident showed how a stray git operation can delete a live
-// blackboard mid-round; a mirror keyed by the run path means the events survive
-// the working tree.
+// It CHECKPOINTS the whole records/ directory (the append-only event log) to a
+// mirror outside the run. The run directory is untracked-by-design until
+// capture, and the 2026-07-17 incident showed how a stray git operation can
+// delete a live blackboard mid-round; a mirror keyed by the run path means the
+// events survive the working tree. Projections are regenerated on read from the
+// mirror, so the frozen snapshot is the source, not a materialized cache.
 func newVerdict() *cobra.Command {
 	c := seat.New("verdict",
-		"the seat's terminal act: --as "+record.MustEnum("verdict", "verdict").Spelling()+" — renders all projections and checkpoints records/ to the recovery mirror",
+		"the seat's terminal act: --as "+record.MustEnum("verdict", "verdict").Spelling()+" — checkpoints records/ to the recovery mirror",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
 			if _, err := record.Append(s.RunDir, s.SeatID, "verdict", p); err != nil {
 				return nil, err
 			}
-			r, err := record.Render(s.RunDir, "")
+			open, closed, _, err := view.Counts(s.RunDir)
 			if err != nil {
 				return nil, err
 			}
@@ -38,7 +40,7 @@ func newVerdict() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: r.Open, Closed: r.Closed, Checkpoint: mirror}, nil
+			return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
 		})
 
 	c.Flags().String(flags.As, "", record.MustEnum("verdict", "verdict").Usage("the seat's terminal act"))
@@ -112,5 +114,5 @@ type verdictResult struct {
 }
 
 func (r verdictResult) Human() string {
-	return fmt.Sprintf("verdict %s — rendered (%d open, %d closed) and checkpointed to %s", r.Verdict, r.Open, r.Closed, r.Checkpoint)
+	return fmt.Sprintf("verdict %s (%d open, %d closed) and checkpointed to %s", r.Verdict, r.Open, r.Closed, r.Checkpoint)
 }

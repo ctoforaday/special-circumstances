@@ -198,7 +198,7 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 			if !strings.Contains(err.Error(), fmt.Sprintf("verb %q is outside this seat's role", tc.verb)) {
 				t.Errorf("error = %q, want it to name the verb as out of role", err)
 			}
-			if !strings.Contains(err.Error(), "available:") || !strings.Contains(err.Error(), "render") {
+			if !strings.Contains(err.Error(), "available:") || !strings.Contains(err.Error(), "show") {
 				t.Errorf("the refusal must list what IS available: %q", err)
 			}
 		})
@@ -265,10 +265,10 @@ func TestBoardVerbsExistOnlyInTheMergeRole(t *testing.T) {
 			t.Errorf("blue has %q; blue is additive-only and must not be able to subtract", v)
 		}
 	}
-	// Every role can render, and every role can register.
+	// Every role can show, and every role can register.
 	for _, role := range []string{"lens", "merge", "blue", "bench"} {
-		if !verbs[role]["render"] {
-			t.Errorf("%s cannot render", role)
+		if !verbs[role]["show"] {
+			t.Errorf("%s cannot show", role)
 		}
 		if !verbs[role]["register"] {
 			t.Errorf("%s cannot register", role)
@@ -289,11 +289,6 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if !strings.Contains(out, "registered "+seatID) || !strings.Contains(out, "shard nonce") {
 		t.Errorf("register said %q", out)
 	}
-	// register is EXEMPT from the after-render: it creates the seat rather than
-	// changing the board.
-	if _, serr := os.Stat(filepath.Join(runDir, "records", "render-shadow")); serr == nil {
-		t.Error("register triggered a render; it mutates nothing on the board")
-	}
 
 	out, err = run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID,
 		"--key", "F1", "--severity", "high", "--likelihood", "medium", "--impact", "high",
@@ -305,18 +300,6 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	// "recorded" has to invent a way to refer to this later.
 	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "L1-F1") {
 		t.Errorf("finding said %q", out)
-	}
-	// Auto-render is GONE: a mutation no longer refreshes the projections on every write.
-	ledger := filepath.Join(runDir, "records", "render-shadow", "ledger.md")
-	if _, serr := os.Stat(ledger); serr == nil {
-		t.Error("a mutation rendered — auto-render was dropped; render is explicit now")
-	}
-	// An EXPLICIT render produces the projection, the way the prompt and capture do.
-	if _, rerr := run(t, "lens", "render", "--run", runDir); rerr != nil {
-		t.Fatal(rerr)
-	}
-	if _, serr := os.Stat(ledger); serr != nil {
-		t.Errorf("explicit render did not produce the ledger projection: %v", serr)
 	}
 
 	ev := lastOfType(t, runDir, "finding")
@@ -889,64 +872,6 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 	}
 	if got := lastOfType(t, runDir, "opinion").Payload.Str("rationale"); got != "the rationale" {
 		t.Errorf("rationale = %q", got)
-	}
-}
-
-// render is available to every seat, mutates nothing, and needs only --run.
-func TestRenderVerbIsAvailableToEverySeatAndNeedsOnlyRun(t *testing.T) {
-	runDir := t.TempDir()
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatal(err)
-	}
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
-		t.Run(role, func(t *testing.T) {
-			// No --seat-id: render is read-only and belongs to no seat.
-			out, err := run(t, role, "render", "--run", runDir)
-			if err != nil {
-				t.Fatalf("render: %v", err)
-			}
-			if !strings.Contains(out, "feov-record "+role+": rendered to ") {
-				t.Errorf("render said %q", out)
-			}
-			if !strings.Contains(out, "(1 open, 0 closed)") {
-				t.Errorf("render did not report the board: %q", out)
-			}
-		})
-	}
-	_, err := run(t, "lens", "render")
-	if err == nil {
-		t.Fatal("render ran without --run")
-	}
-	if !strings.Contains(err.Error(), "--run <runDir> is required") {
-		t.Errorf("error = %q", err)
-	}
-}
-
-// The anomaly count reaches the seat's own output: a render that hides a double
-// dispatch is how a divergence goes unexplained.
-func TestRenderReportsAnomalies(t *testing.T) {
-	runDir := t.TempDir()
-	seatID := "red-lens-r1-L1"
-	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", seatID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID, "--key", "F1", "--reason", "a"); err != nil {
-		t.Fatal(err)
-	}
-	// A second dispatch of the same seat: a crash re-run.
-	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", seatID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID, "--key", "F2", "--reason", "b"); err != nil {
-		t.Fatal(err)
-	}
-	out, err := run(t, "lens", "render", "--run", runDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(out, "anomalies") {
-		t.Errorf("render did not report the double dispatch: %q", out)
 	}
 }
 

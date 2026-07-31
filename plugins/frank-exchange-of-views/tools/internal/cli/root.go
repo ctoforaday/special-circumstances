@@ -117,11 +117,17 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.23.0 the materialized-projection cache is eliminated: the standalone `render` verb is REMOVED
+//	       and projections are no longer written to disk. Every markdown `show` view and the telemetry derive
+//	       just-in-time from the record via the shared internal/view library; `merge verdict`
+//	       checkpoints the event log only. A prompt that called `<seat> render` or `merge render`
+//	       gets an unknown-verb refusal, and debate.js no longer issues those calls, so a stale
+//	       binary still exposes a verb the engine has stopped driving.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.22.0"
+const Version = "0.23.0"
 
 func init() { record.ToolVersion = Version }
 

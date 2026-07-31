@@ -34,7 +34,7 @@ import (
 
 // Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
 // carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
-// the report from those two — no --inputs, no render-shadow round-trip.
+// the report from those two — no --inputs, no intermediate round-trip.
 func Assemble(runDir string) (string, error) {
 	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
 
