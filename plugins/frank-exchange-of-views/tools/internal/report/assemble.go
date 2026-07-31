@@ -77,6 +77,9 @@ func Assemble(runDir string) (string, error) {
 	if f := frictionLog(evs); f != "" {
 		p(f)
 	}
+	if r := revisionHistory(evs); r != "" {
+		p(r)
+	}
 
 	out := collapseBlanks(b.String())
 	path := filepath.Join(runDir, "report.md")
@@ -610,6 +613,26 @@ func frictionLog(evs []record.Event) string {
 		return ""
 	}
 	return "## Friction (tooling gaps the run hit)\n\n" + strings.Join(rows, "\n")
+}
+
+// revisionHistory is blue's per-round revision record (the CHANGELOG) folded into the report as
+// bottom-of-document provenance — how the report evolved round by round. Composed from revision
+// events; a run with no revisions omits it. This is the report home the standalone changelog
+// projection lacked, which is why that view is retired.
+func revisionHistory(evs []record.Event) string {
+	var rows []string
+	for _, e := range evs {
+		if e.Type != "revision" {
+			continue
+		}
+		if t := strings.TrimSpace(e.Payload.Str("text")); t != "" {
+			rows = append(rows, fmt.Sprintf("### Round %d — %s\n\n%s", e.Round, e.SeatID, t))
+		}
+	}
+	if len(rows) == 0 {
+		return ""
+	}
+	return "## Report revision history\n\n" + strings.Join(rows, "\n\n")
 }
 
 func grade(v any) string {
