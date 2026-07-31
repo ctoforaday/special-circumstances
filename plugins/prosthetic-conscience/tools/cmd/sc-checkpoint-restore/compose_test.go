@@ -175,3 +175,49 @@ func TestPointerObjectiveFallback(t *testing.T) {
 		}
 	}
 }
+
+// The note's age, made falsifiable (#166 option 3). `objective:` is prose, so "next is X"
+// and "X is done" read identically to any checker — which is how a note describing shipped
+// work kept presenting itself as current. The head is the field that can be checked.
+func TestStaleness(t *testing.T) {
+	reachable := func(n int) func(string) (int, bool) {
+		return func(string) (int, bool) { return n, true }
+	}
+	gone := func(string) (int, bool) { return 0, false }
+
+	if got := staleness("abc1234", reachable(0)); got != "" {
+		t.Errorf("a current note must say nothing, got %q", got)
+	}
+	if got := staleness("abc1234", reachable(1)); got != "written 1 commit ago (abc1234)" {
+		t.Errorf("singular commit: %q", got)
+	}
+	if got := staleness("abc1234", reachable(12)); got != "written 12 commits ago (abc1234)" {
+		t.Errorf("plural commits: %q", got)
+	}
+	// A commit that no longer exists is a STRONGER signal than a count — rebased away,
+	// amended, or from a branch this checkout does not have.
+	if got := staleness("abc1234", gone); !strings.Contains(got, "no longer reachable") {
+		t.Errorf("an unreachable head must be named as such, got %q", got)
+	}
+	// A note with no head recorded, or written outside a repo, must not be guessed at:
+	// inventing provenance is the one thing the restore hook must never do.
+	for _, head := range []string{"", "   ", "null"} {
+		if got := staleness(head, reachable(99)); got != "" {
+			t.Errorf("head=%q must produce nothing, got %q", head, got)
+		}
+	}
+}
+
+// The staleness line rides in the digest's provenance run, beside where it came from and
+// when it was written.
+func TestDigestCarriesStaleness(t *testing.T) {
+	note := "---\nschema: 2\nupdated: 2026-07-30T04:00:00Z\nhead: deadbee\nobjective: ship it\n---\n" +
+		"## Next intended steps\n1. do the thing\n"
+	got := digest(note, "p/CHECKPOINT.md", "startup", checkpoint.RearmState{})
+	if !strings.Contains(got, "deadbee") {
+		t.Errorf("the recorded head must reach the digest:\n%s", got)
+	}
+	if !strings.Contains(got, "written: 2026-07-30T04:00:00Z") {
+		t.Errorf("the timestamp must survive alongside it:\n%s", got)
+	}
+}

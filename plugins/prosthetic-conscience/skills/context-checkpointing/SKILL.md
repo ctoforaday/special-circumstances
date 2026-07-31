@@ -15,6 +15,7 @@ One file, **overwritten in place** — `CHECKPOINT.md` in the active `projects/<
 ---
 schema: 2
 updated: <UTC ISO>
+head: <short sha|null>    # the branch head this was written against — makes staleness checkable
 session_id: <id>          # NOT unique — every subagent shares the parent's
 agent_id: <id|null>       # the seat's own id, when running as a subagent
 objective: "<what I am trying to achieve right now>"
@@ -35,6 +36,7 @@ status: <in-progress|blocked|validating|done>
 
 ## The contracts
 
+- BEFORE writing the note, YOU MUST record `head:` — the current branch head (`git rev-parse --short HEAD`). `objective:` is free prose, so "next is X" and "X is done" read identically to any checker; the head is the one field that makes the note's age FALSIFIABLE. A restore compares it to the current head and reports how far the note has fallen behind, which is how a note describing work that already shipped stops presenting itself as current.
 - BEFORE a risky step, and on crossing beyond the plan's scope (`beyond_plan: true`), YOU MUST write the checkpoint. Auto-compaction gives no warning, so YOU MUST NOT defer this to the moment you need it.
 - During the session, YOU MUST update the note when the **validation loop** is established or changes, when a decision is reached or rejected, and when background work starts — recording each check's **trigger surface**, because compaction drops that first.
 - YOU MUST keep **one block, overwritten** — never accumulate. An accumulating note outgrows the harness's auto-recall budget and silently degrades from an anchor to a pointer you may not follow.

@@ -76,6 +76,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
 )
 
 const version = "0.1.0"
@@ -92,9 +93,14 @@ type hookInput struct {
 	Trigger            string `json:"trigger"`             // PreCompact: "manual" | "auto"
 	CustomInstructions string `json:"custom_instructions"` // manual /compact only
 	AgentID            string `json:"agent_id"`
-	AgentType          string `json:"agent_type"` // SubagentStop
-	Reason             string `json:"reason"`     // SessionEnd: clear|logout|prompt_input_exit|other
-	HookEventName      string `json:"hook_event_name"`
+	// AgentTranscriptPath is the SEAT'S OWN transcript, distinct from the parent's.
+	// Measured by gray-area's Phase 0 spike (plans/hook-surface-spike.md): SubagentStop
+	// carries it, and it resolves to a real per-seat file. Without it a SubagentStop seal
+	// reads the PARENT's transcript and attributes the whole session's writes to the seat.
+	AgentTranscriptPath string `json:"agent_transcript_path"`
+	AgentType           string `json:"agent_type"` // SubagentStop
+	Reason              string `json:"reason"`     // SessionEnd: clear|logout|prompt_input_exit|other
+	HookEventName       string `json:"hook_event_name"`
 }
 
 // The events this binary is registered on.
@@ -257,6 +263,105 @@ func prune(names []string, keep int) []string {
 	return sorted[:len(sorted)-keep]
 }
 
+// maxNamed bounds how many paths a drift line lists. The line is read at a seam, often by
+// an operator with a compaction in progress; a wall of paths is not read at all.
+const maxNamed = 3
+
+// covers reports whether a watched surface claims a written path. A surface is a directory
+// or a file, never a pattern (hook-surface-spike.md §6), so containment is the whole test.
+func covers(surface, written string) bool {
+	surface = strings.TrimSuffix(surface, "/")
+	return written == surface || strings.HasPrefix(written, surface+"/")
+}
+
+// name lists up to maxNamed paths, with a count when there are more.
+func name(paths []string) string {
+	if len(paths) <= maxNamed {
+		return strings.Join(paths, ", ")
+	}
+	return fmt.Sprintf("%s and %d more", strings.Join(paths[:maxNamed], ", "), len(paths)-maxNamed)
+}
+
+// drift reports, in one line, that the note's validation loop does not cover the work this
+// session did. Empty means nothing to say.
+//
+// THE FAILURE IT NAMES (#166). A session inherited a note whose objective read "next is the
+// FEOV verdict-case bypass", then spent 37 minutes building exactly that — new packages, a
+// table-driven redesign, golden regeneration, a mutation check — and did not touch the note
+// once. An auto-compaction fired at 03:49Z, well inside the window. Worse than the stale
+// objective: the inherited loop watched `plugins/prosthetic-conscience/tools/` while every
+// edit landed in `plugins/frank-exchange-of-views/tools/`, so the note's checks reported
+// `last run: pass` about code nobody had moved, and NO check covered the code that moved.
+// Every CI gate was green throughout, because none of them looks at the note.
+//
+// This is the cheapest real enforcement available: it cannot know whether a loop is honest,
+// only whether it points anywhere near the work. Presence, not truth — the same tier as
+// rule-sweep, and the tier that catches the failure actually measured, which was nobody
+// noticing the loop and the work had come apart.
+//
+// It NEVER blocks. The seal's contract is that every path exits 0, because a hook that
+// wedges a compaction costs more than the drift it reports.
+func drift(note string, written []string, within checkpoint.WithinRoot) string {
+	// A session that wrote nothing through the edit tools cannot be SHOWN to have
+	// drifted. It may have written plenty through Bash — see internal/transcript — so
+	// silence here is "no evidence", never "no drift".
+	if len(written) == 0 {
+		return ""
+	}
+
+	n := checkpoint.Parse(note)
+	body, _ := n.NonEmptySection("Validation loop")
+	checks := checkpoint.ParseValidationLoop(body)
+	if len(checks) == 0 {
+		return fmt.Sprintf("sc-checkpoint-seal: the note records NO validation loop, and this session wrote %d file(s) (%s). "+
+			"validation-loop says to write the loop BEFORE implementing; a loop written afterwards is the one a compaction loses.",
+			len(written), name(written))
+	}
+
+	seen := map[string]bool{}
+	var surfaces []string
+	for _, c := range checks {
+		paths, _ := checkpoint.WatchTargets(c.ReArmedBy, within)
+		for _, p := range paths {
+			if !seen[p] {
+				seen[p] = true
+				surfaces = append(surfaces, p)
+			}
+		}
+	}
+	sort.Strings(surfaces)
+
+	if len(surfaces) == 0 {
+		return fmt.Sprintf("sc-checkpoint-seal: none of the loop's %d check(s) records a resolvable trigger surface, so nothing claims the %d file(s) this session wrote (%s). "+
+			"A check whose re-armed-by cannot be resolved is a check nothing re-arms.",
+			len(checks), len(written), name(written))
+	}
+
+	for _, w := range written {
+		for _, s := range surfaces {
+			if covers(s, w) {
+				return "" // the loop reaches the work; nothing to report
+			}
+		}
+	}
+	return fmt.Sprintf("sc-checkpoint-seal: the note's validation loop watches %s, and this session wrote %s — NO check covers the work. "+
+		"Either the loop is pointed at a tree nobody is touching, or the note belongs to earlier work (#166).",
+		name(surfaces), name(written))
+}
+
+// driftTranscript picks whose work the drift check is about.
+//
+// On SubagentStop the seat has its OWN transcript, and reading the parent's would blame a
+// seat for every file the parent touched. gray-area measured this field in the Phase 0
+// spike and its capture hook has depended on it since; the fallback covers an event or a
+// client that does not send it.
+func driftTranscript(in hookInput) string {
+	if in.AgentTranscriptPath != "" {
+		return in.AgentTranscriptPath
+	}
+	return in.TranscriptPath
+}
+
 // notePath returns the live checkpoint location, or "" when none exists.
 // Shared with the restore hook — see checkpoint.NotePath for why.
 func notePath(projectDir string, exists func(string) bool) string {
@@ -339,6 +444,23 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			body = string(b)
 		}
 		seal(projectDir, note, now, event, in, stderr)
+
+		// The drift check runs on EVERY event, because drift is drift at any seam: a
+		// compaction, a session ending, and a seat finishing all discard the same
+		// context. stderr does not reach the transcript, so this costs the session no
+		// tokens and lands where `claude --debug` and the seal's other diagnostics
+		// already go.
+		within, closeRoot := checkpoint.RootedWithin(projectDir)
+		written, unreadable := transcript.Read(driftTranscript(in), projectDir)
+		if unreadable != "" {
+			// The check cannot run, and MUST NOT read as "no drift". A broken reader
+			// that stays quiet is indistinguishable from a healthy session, which is
+			// the flattering direction and the one nobody investigates.
+			fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot check the note against this session's work — "+unreadable)
+		} else if line := drift(body, written, within); line != "" {
+			fmt.Fprintln(stderr, line)
+		}
+		_ = closeRoot()
 	}
 
 	// Steering is PreCompact-only. On SubagentStop stdout reaches a seat still
