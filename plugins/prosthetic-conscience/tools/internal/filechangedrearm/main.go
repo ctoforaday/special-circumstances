@@ -171,6 +171,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	c, matched := attribute(checks, targetsFor(checks, projectDir), projectDir, in.FilePath)
 	stamp := now.UTC().Format(time.RFC3339)
 
+	var dropped []string
+
 	// One locked read-modify-write. Loading outside the lock is what lost two of
 	// six concurrent events, measured — see checkpoint.UpdateRearm.
 	if err := checkpoint.UpdateRearm(checkpoint.RearmPath(projectDir), func(s *checkpoint.RearmState) {
@@ -179,6 +181,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// mid-session is invisible without it, because an unmatched event
 		// correctly records nothing else.
 		s.LastEvent = stamp
+		// Drop records whose check no longer exists in the note (#217). This runs on
+		// every delivered event, matched or not, because a check's text can be edited in
+		// a turn that never touches a watched surface — waiting for a match would leave
+		// the orphan until the next unrelated file change.
+		//
+		// `checks` is what THIS hook parsed from the live note moments ago, and
+		// PruneOrphans refuses to act on an empty slice: a note that failed to parse must
+		// not be read as "no checks exist" and wipe the history.
+		dropped = s.PruneOrphans(checks)
 		if !matched {
 			// A directory watch is coarser than the surface it stands in for,
 			// so unclaimed changes are expected and are NOT evidence about any
@@ -196,6 +207,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 	}); err != nil {
 		fmt.Fprintln(stderr, "sc-filechanged-rearm: "+err.Error())
+	} else if len(dropped) > 0 {
+		// Reported only AFTER the write commits. Said from inside the callback it would
+		// announce a prune that an abandoned update (#215) never performed — a message
+		// about state must not outrun the state.
+		fmt.Fprintf(stderr, "sc-filechanged-rearm: dropped %d re-arm record(s) whose check no longer appears in the note — the check's text was edited, so those records name a check that is gone. Nothing else changed; the surviving records and this event's re-arm are unaffected.\n", len(dropped))
 	}
 	return 0
 }

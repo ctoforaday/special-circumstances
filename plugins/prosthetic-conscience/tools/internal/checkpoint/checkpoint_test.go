@@ -572,3 +572,116 @@ func keysOf(s RearmState) []string {
 	}
 	return out
 }
+
+// #215: release must only remove a lock we still hold. The stale-breaker cannot tell an
+// abandoned lock from a slow one, so a displaced holder used to delete its SUCCESSOR's lock
+// — after which a third hook could acquire while the second was mid-update.
+func TestReleaseOnlyRemovesItsOwnLock(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rearmed.json")
+
+	a, err := lockRearm(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Another hook breaks A's lock as stale and takes its own.
+	if err := os.Remove(a.path); err != nil {
+		t.Fatal(err)
+	}
+	b, err := lockRearm(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a.release() // A finishes, unaware it was displaced
+
+	if !b.owned() {
+		t.Error("A's release deleted B's lock — that is the mutual-exclusion violation #215 reported")
+	}
+	b.release()
+	if _, err := os.Stat(b.path); !os.IsNotExist(err) {
+		t.Error("B's own release must remove its lock")
+	}
+}
+
+// A displaced holder must ABANDON its write rather than overwrite the successor's. Losing
+// an event is the documented cheap failure; a lost update is the bug the lock exists for.
+func TestUpdateAbandonsWhenItsLockWasBroken(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rearmed.json")
+
+	// Seed a record so there is something to lose.
+	if err := UpdateRearm(path, func(s *RearmState) {
+		s.Rearmed[CheckKey("1. `go build` → ok")] = Rearm{Check: "1. `go build` → ok"}
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := UpdateRearm(path, func(s *RearmState) {
+		// Mid-update, another hook breaks this lock as stale and takes its own.
+		_ = os.Remove(path + ".lock")
+		if _, err := lockRearm(path); err != nil {
+			t.Fatal(err)
+		}
+		s.Rearmed["clobber"] = Rearm{Check: "should never be written"}
+	})
+	if err == nil {
+		t.Fatal("a displaced holder must refuse to commit, not write over the successor")
+	}
+	if !strings.Contains(err.Error(), "nothing is damaged") {
+		t.Errorf("the error must say the cost is one lost event: %v", err)
+	}
+
+	s, err := LoadRearm(os.ReadFile, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.Rearmed["clobber"]; ok {
+		t.Error("the abandoned update was written anyway")
+	}
+	if _, ok := s.Rearmed[CheckKey("1. `go build` → ok")]; !ok {
+		t.Error("the pre-existing record was lost")
+	}
+}
+
+// #217: a record whose check no longer exists is dropped — but ONLY when the caller
+// actually parsed a loop. An empty slice means "nothing parsed", never "prune everything".
+func TestPruneOrphansNeedsAParsedLoop(t *testing.T) {
+	seed := func() *RearmState {
+		return &RearmState{Rearmed: map[string]Rearm{
+			CheckKey("1. `go test ./...` → ok"):     {Check: "current wording"},
+			CheckKey("1. `go test ./...` → all ok"): {Check: "an older wording, now orphaned"},
+		}}
+	}
+	live := []Check{{Line: "1. `go test ./...` → ok"}}
+
+	s := seed()
+	dropped := s.PruneOrphans(live)
+	if len(dropped) != 1 {
+		t.Fatalf("dropped = %v; want exactly the orphaned wording", dropped)
+	}
+	if len(s.Rearmed) != 1 {
+		t.Errorf("state = %v; the current check's record must survive", s.Rearmed)
+	}
+	if _, ok := s.Rearmed[CheckKey("1. `go test ./...` → ok")]; !ok {
+		t.Error("the wrong record was dropped")
+	}
+
+	// THE GUARD. A note that failed to parse yields no checks; treating that as "no checks
+	// exist" would wipe the history rather than tidy it.
+	s = seed()
+	if dropped := s.PruneOrphans(nil); dropped != nil || len(s.Rearmed) != 2 {
+		t.Errorf("an unparsed loop must delete nothing: dropped=%v left=%d", dropped, len(s.Rearmed))
+	}
+	s = seed()
+	if dropped := s.PruneOrphans([]Check{}); dropped != nil || len(s.Rearmed) != 2 {
+		t.Errorf("an empty slice must delete nothing: dropped=%v left=%d", dropped, len(s.Rearmed))
+	}
+
+	// Renumbering must NOT orphan: identity strips the ordinal, which is why #213 keyed
+	// records this way in the first place.
+	s = seed()
+	if dropped := s.PruneOrphans([]Check{{Line: "7. `go test ./...` → ok"}}); len(dropped) != 1 {
+		t.Errorf("a renumbered check must still match its record: dropped=%v", dropped)
+	}
+}
