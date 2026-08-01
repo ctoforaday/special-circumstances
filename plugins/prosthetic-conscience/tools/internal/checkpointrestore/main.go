@@ -71,6 +71,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
@@ -84,6 +85,12 @@ const version = "0.1.0"
 // attention instead of anchoring it. Overflow is truncated with the note's path
 // left in place, so the full text is always one read away.
 const maxDigest = 4000
+
+// truncationReserve keeps room for what digest() appends AFTER the sections — the
+// shortened-to-fit line, re-arm notes, and the closing statement. Without it the sections
+// would spend the whole budget and the clamp would cut the very lines explaining that
+// something had been cut.
+const truncationReserve = 400
 
 type hookInput struct {
 	SessionID string `json:"session_id"`
@@ -106,11 +113,20 @@ type hookOutput struct {
 // most-dropped-by-a-summary first. Sections absent from this list stay in the
 // note and out of the digest — Files touched and Open threads are recovery
 // detail, read via /resume when wanted, not context spent on every start.
+// digestSections is the emission order, and it is also the BUDGET PRIORITY order when the
+// digest does not fit (see fitSections).
+//
+// Foot-guns sit second, not last. They used to be last, which put the section a resumed
+// session most needs BEFORE acting first in line to be cut — measured on this repo's own
+// note: a 4052-char digest against a 4000 cap dropped the foot-guns entirely, including the
+// line that stops a session amending published commits (#218). The schema marks the
+// validation loop load-bearing, so it stays first; everything after it is ordered by what
+// costs most to have missing.
 var digestSections = []string{
 	"Validation loop",
+	"Invariants / foot-guns",
 	"Next intended steps",
 	"In-flight handles",
-	"Invariants / foot-guns",
 }
 
 // lowValueSections are excluded from the fallback below. They are recovery
@@ -211,8 +227,18 @@ func digest(raw, path, source string, rearm checkpoint.RearmState) string {
 	if bp := n.Get("beyond_plan"); bp == "true" {
 		b.WriteString("\nbeyond_plan: true — the work recorded here had crossed the scope of its plan.\n")
 	}
-	for _, p := range parts {
+	// Sections are fitted to what is left of the budget AFTER the provenance header, so a
+	// long header cannot silently eat the sections. clamp() below remains as a final
+	// backstop for everything appended after this point.
+	fitted, shortened := fitSections(parts, maxDigest-b.Len()-truncationReserve, path)
+	for _, p := range fitted {
 		b.WriteString("\n" + p + "\n")
+	}
+	if len(shortened) > 0 {
+		// Name what was reduced. A digest that drops what a session needed must not read
+		// like a digest that had nothing to drop (#218).
+		fmt.Fprintf(&b, "\nShortened to fit: %s — read %s for the full text.\n",
+			strings.Join(shortened, ", "), path)
 	}
 	if rearmed := rearmLines(rearm); rearmed != "" {
 		b.WriteString("\n" + rearmed)
@@ -284,7 +310,85 @@ func clamp(text, path string) string {
 	if len(text) <= maxDigest {
 		return text
 	}
-	return text[:maxDigest] + fmt.Sprintf("\n[truncated at %d chars — full note: %s]\n", maxDigest, path)
+	return cut(text, maxDigest) + fmt.Sprintf("\n[truncated at %d chars — full note: %s]\n", maxDigest, path)
+}
+
+// cut truncates to at most n BYTES without splitting a rune.
+//
+// FIX (defect): this used to be text[:n], a byte slice. Checkpoint notes are routinely
+// non-ASCII — em-dashes, arrows, check marks, the "←" the schema itself uses — so a cut
+// landing mid-rune produced invalid UTF-8 in the one artifact a resumed session reads as
+// authoritative. FEOV's record renderer carries the same lesson in its own truncate: byte
+// slicing "silently cuts a different amount of text and can split a rune".
+func cut(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
+}
+
+// fitSections makes every selected section VISIBLE within the budget, truncating inside
+// sections rather than letting the tail fall off the end.
+//
+// WHY (#218). The digest used to be joined and then cut at maxDigest, so the last sections
+// vanished — heading and all — and the reader was told only that something had been cut, not
+// what. Measured on this repo's own note: the foot-guns section disappeared silently, twice,
+// and shortening an earlier section by ~180 chars moved the digest length by 2, because the
+// cut point is fixed. A digest that drops the section a session needed reads exactly like a
+// digest that had nothing to drop, which is the silent-absence class this suite keeps
+// finding in everything except itself.
+//
+// Every section is now represented at minimum by its heading and a pointer. Budget beyond
+// that goes in digestSections order, so the load-bearing sections keep their content and the
+// ones that lose it still announce that they exist.
+func fitSections(parts []string, budget int, path string) (out []string, shortened []string) {
+	if len(parts) == 0 {
+		return nil, nil
+	}
+	total := 0
+	for _, p := range parts {
+		total += len(p) + 2 // the blank line between sections
+	}
+	if total <= budget {
+		return parts, nil
+	}
+
+	// Reserve the heading and a pointer for every section first: no section may vanish.
+	type sec struct{ head, body, stub string }
+	secs := make([]sec, 0, len(parts))
+	reserved := 0
+	for _, p := range parts {
+		head, body, _ := strings.Cut(p, "\n")
+		stub := head + "\n[omitted here — read " + path + "]"
+		secs = append(secs, sec{head, body, stub})
+		reserved += len(stub) + 2
+	}
+	spare := budget - reserved
+
+	for i := range secs {
+		full := len(secs[i].head) + 1 + len(secs[i].body)
+		if spare >= full-len(secs[i].stub) {
+			out = append(out, secs[i].head+"\n"+secs[i].body)
+			spare -= full - len(secs[i].stub)
+			continue
+		}
+		if spare > 0 {
+			kept := cut(secs[i].body, spare)
+			if kept != "" {
+				out = append(out, secs[i].head+"\n"+kept+
+					fmt.Sprintf("\n[section truncated, %d chars omitted — read %s]", len(secs[i].body)-len(kept), path))
+				shortened = append(shortened, strings.TrimPrefix(secs[i].head, "## "))
+				spare = 0
+				continue
+			}
+		}
+		out = append(out, secs[i].stub)
+		shortened = append(shortened, strings.TrimPrefix(secs[i].head, "## "))
+	}
+	return out, shortened
 }
 
 // rearmLines states which checks have had their trigger surface move since the
