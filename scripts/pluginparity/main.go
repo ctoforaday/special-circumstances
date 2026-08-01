@@ -27,6 +27,10 @@ import (
 )
 
 var (
+	// importLine matches CLAUDE.md's always-on imports: `@plugins/…/SKILL.md`.
+	importLine = regexp.MustCompile(`(?m)^@(\S+\.md)\s*$`)
+	// alwaysOn matches a skill whose frontmatter description declares it always-on.
+	alwaysOn      = regexp.MustCompile(`(?m)^description:.*Always-on`)
 	bootstrapList = regexp.MustCompile(`(?m)^PLUGINS=\(([^)]*)\)`)
 	snippetList   = regexp.MustCompile(`(?m)^for p in ([^;]+); do$`)
 	claimedCount  = regexp.MustCompile(`(\d+) at the time of writing`)
@@ -159,6 +163,10 @@ func main() {
 		}
 	}
 
+	for _, p := range alwaysOnProblems(root) {
+		fail("%s", p)
+	}
+
 	if failed {
 		os.Exit(1)
 	}
@@ -211,4 +219,62 @@ func hookBinariesIn(path string) ([]string, bool) {
 		out = append(out, x.Name)
 	}
 	return out, true
+}
+
+// alwaysOnProblems reports every disagreement between CLAUDE.md's @ imports and the skills
+// that describe themselves as always-on. Separated from main so the failure it exists to
+// catch is reproducible in a scratch tree.
+func alwaysOnProblems(root string) []string {
+	var problems []string
+	add := func(format string, a ...any) { problems = append(problems, fmt.Sprintf(format, a...)) }
+	// THE ALWAYS-ON IMPORT LIST. CLAUDE.md's @ imports decide which rules load in every
+	// session of every consuming project, and nothing checked them. Deleting one line
+	// silently disables a rule: the SKILL.md still exists, still passes every check, still
+	// carries its trailers — and is never loaded again. Same shape as record.test.mjs never
+	// running, and as the hookenv guard that kept passing after its glob stopped matching:
+	// the failure is invisible because nothing is WRONG, only absent.
+	//
+	// Keyed on each skill's own "Always-on" description rather than a hardcoded list, so the
+	// check cannot drift the way the list it guards would.
+	//
+	// NOTE ON WHAT IS *NOT* DONE HERE: #214 also proposed adding CLAUDE.md to rule-sweep's
+	// protocol surfaces. That would gate the whole FILE — the repo guide, the structure
+	// table, the dev notes — to protect one list inside it, which is `invariant-at-wrong-
+	// level` from the registry: enforcement at a surface coarser than the thing it protects.
+	// This check guards the list itself.
+	claude := ""
+	if b, err := os.ReadFile(filepath.Join(root, "CLAUDE.md")); err == nil {
+		claude = string(b)
+	}
+	imports := map[string]bool{}
+	for _, m := range importLine.FindAllStringSubmatch(claude, -1) {
+		rel := filepath.ToSlash(m[1])
+		imports[rel] = true
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			add("CLAUDE.md imports %s, which does not exist — that rule is silently not loaded.", rel)
+		}
+	}
+	if len(imports) == 0 {
+		add("CLAUDE.md declares no @ imports at all — either every always-on rule just stopped loading, or the pattern this check greps for has moved and it has been passing without reading anything.")
+	}
+
+	skills, _ := filepath.Glob(filepath.Join(root, "plugins", "*", "skills", "*", "SKILL.md"))
+	sort.Strings(skills)
+	for _, abs := range skills {
+		rel, _ := filepath.Rel(root, abs)
+		rel = filepath.ToSlash(rel)
+		b, err := os.ReadFile(abs)
+		if err != nil {
+			continue
+		}
+		declared := alwaysOn.MatchString(string(b))
+		switch {
+		case declared && !imports[rel]:
+			add("%s describes itself as Always-on and is NOT imported by CLAUDE.md — it does not load, in any session, and nothing else would say so.", rel)
+		case !declared && imports[rel]:
+			add("%s is imported by CLAUDE.md but does not describe itself as Always-on — the marker is what this check keys on, so an unmarked import makes the guard blind to its own removal.", rel)
+		}
+	}
+
+	return problems
 }
