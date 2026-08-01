@@ -112,6 +112,10 @@ const (
 	Problem = "problem"
 	Fix     = "fix"
 	Check   = "check"
+	// Existence is the leaf-check axis: was the defect VERIFIED present or SUSPECTED?
+	// Orthogonal to the grades (which score the consequence). The board reads it; this
+	// is the flag that writes it.
+	Existence = "existence"
 
 	// Lineage. Supersedes (a minted gap's ancestors) and SupersededBy (the claim that
 	// replaces a retired one) are different directions of a different relation on
@@ -188,7 +192,7 @@ func All() []string {
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
-		Problem, Fix, Check,
+		Problem, Fix, Check, Existence,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,

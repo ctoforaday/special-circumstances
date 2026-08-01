@@ -16,9 +16,10 @@ import (
 func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 	var supersedes, foundBy flags.CSV
+	var existence flags.ExistenceValue
 
 	c := seat.Prose(seat.New("mint",
-		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
+		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// Crash-retry idempotency: --key (the stable local label, e.g. the source
 			// lens finding) makes a retried mint return the EXISTING id.
@@ -59,6 +60,11 @@ func newMint() *cobra.Command {
 			seat.SetGrade(p, "likelihood", &likelihood)
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetGrade(p, "complexity_cost", &cx)
+			// The leaf-check axis lands on the board (viewjson reads it); before this write
+			// path it was required by the envelope, read by the board, and never written.
+			if existence.IsSet() {
+				p.Set("existence", existence.String())
+			}
 			seat.SetList(p, "supersedes", &supersedes)
 			seat.SetList(p, "found_by", &foundBy)
 
@@ -89,6 +95,7 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
 	c.Flags().Var(&cx, flags.Complexity, "complexity_cost — what fixing it costs, on the same scale")
+	c.Flags().Var(&existence, flags.Existence, "the leaf-check axis: verified (you checked the defect at the leaf) | suspected (inferred) — orthogonal to the grades")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
 	return c
