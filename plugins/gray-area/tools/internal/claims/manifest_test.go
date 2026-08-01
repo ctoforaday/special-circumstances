@@ -1,6 +1,7 @@
 package claims
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -48,12 +49,29 @@ func sessionRow(at, id, path string, resolved bool) string {
 	return r + `false,"capture_error":"stat: no such file"}`
 }
 
+// statOnly reports nil for the listed paths and an error for anything else, so a
+// test states which transcripts exist ON DISK independently of what the manifest
+// rows CLAIM. Those are different facts, and conflating them is the defect
+// ResolveSession's re-check exists to fix (§11.9).
+func statOnly(readable ...string) func(string) error {
+	set := map[string]bool{}
+	for _, p := range readable {
+		set[p] = true
+	}
+	return func(p string) error {
+		if set[p] {
+			return nil
+		}
+		return fmt.Errorf("stat %s: no such file or directory", p)
+	}
+}
+
 func TestResolvesTheNewestSessionRow(t *testing.T) {
 	glob, open := fakeFS(map[string]string{
 		manifestFile("S1"): seatRow + "\n" + sessionRow("2026-07-30T09:00:00Z", "S1", "/t/old.jsonl", true) + "\n",
 		manifestFile("S2"): sessionRow("2026-07-30T10:00:00Z", "S2", "/t/new.jsonl", true) + "\n",
 	})
-	got, err := ResolveSession(manifestDir(), glob, open)
+	got, err := ResolveSession(manifestDir(), glob, open, statOnly("/t/old.jsonl", "/t/new.jsonl"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +91,7 @@ func TestSeatRowsAreNeverOfferedAsTheSessionsTranscript(t *testing.T) {
 	glob, open := fakeFS(map[string]string{
 		manifestFile("S1"): seatRow + "\n" + seatRow + "\n",
 	})
-	_, err := ResolveSession(manifestDir(), glob, open)
+	_, err := ResolveSession(manifestDir(), glob, open, statOnly())
 	if err == nil {
 		t.Fatal("a seat row was offered as the session's transcript")
 	}
@@ -89,7 +107,7 @@ func TestAnUnresolvedRowIsReturnedSoTheCallerCanExplainIt(t *testing.T) {
 	glob, open := fakeFS(map[string]string{
 		manifestFile("S1"): sessionRow("2026-07-30T09:00:00Z", "S1", "/gone.jsonl", false) + "\n",
 	})
-	got, err := ResolveSession(manifestDir(), glob, open)
+	got, err := ResolveSession(manifestDir(), glob, open, statOnly())
 	if err != nil {
 		t.Fatalf("an unresolved row was treated as no row at all: %v", err)
 	}
@@ -104,7 +122,7 @@ func TestAnUnresolvedRowIsReturnedSoTheCallerCanExplainIt(t *testing.T) {
 // No manifest at all names the actionable fix rather than just failing.
 func TestNoManifestNamesTheFix(t *testing.T) {
 	glob, open := fakeFS(map[string]string{})
-	_, err := ResolveSession(manifestDir(), glob, open)
+	_, err := ResolveSession(manifestDir(), glob, open, statOnly())
 	if err == nil {
 		t.Fatal("an empty directory resolved to something")
 	}
@@ -119,7 +137,7 @@ func TestAMalformedRowDoesNotCostTheWholeLookup(t *testing.T) {
 	glob, open := fakeFS(map[string]string{
 		manifestFile("S1"): "{not json\n" + sessionRow("2026-07-30T09:00:00Z", "S1", "/t/ok.jsonl", true) + "\n",
 	})
-	got, err := ResolveSession(manifestDir(), glob, open)
+	got, err := ResolveSession(manifestDir(), glob, open, statOnly("/t/ok.jsonl"))
 	if err != nil {
 		t.Fatalf("one bad line lost the whole manifest: %v", err)
 	}

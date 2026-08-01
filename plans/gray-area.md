@@ -669,6 +669,29 @@ re-checks a `resolved: false` path before refusing, would close this. **This is 
 unlike Q1b's, where the file never appears at all — and it is the one case where §11.8's "a race
 that has not resolved in ten hours is not a race" does not transfer.
 
+> **FIXED 2026-08-01, in the READER.** Of the two options above, the reader-side one is right and
+> the capture-side one is not sufficient: a later firing does write a fresh row, but a session whose
+> only `SessionStart` is its first has no later row to write. Re-checking at read time covers both.
+>
+> `claims.ResolveSession` now takes a `stat` and treats the row's `resolved` as what it is — an
+> observation made at capture time, not a property of the transcript:
+>
+> - a row recorded `resolved: false` whose transcript is readable now is **`Recovered`** and usable,
+>   and the command says so rather than proceeding silently against a row that still reads `false`;
+> - a row recorded `resolved: true` whose transcript has since vanished is **demoted**, with a reason
+>   that distinguishes it from one that never resolved — the same principle in the other direction;
+> - selection prefers a row that resolves **now** over a newer one that does not, because the
+>   question is which transcript can be read, not which claim about one was written last.
+>
+> Verified end to end against the binary by reconstructing this exact condition — a row stamped
+> `03:43:31Z` with `resolved: false` naming a file that exists — which previously refused with
+> `EXIT=1` and now resolves, prints the correction, and adjudicates.
+>
+> **The capture hook is deliberately unchanged.** It records what the harness handed it and what it
+> saw at that instant; that record is accurate and is the evidence this section was written from.
+> Making the writer retroactively edit its own observation would destroy exactly the trail that made
+> the defect findable.
+
 **Q1b — `agent_transcript_path`: §11.8's general claim is REFUTED. Per-seat transcripts ARE written
 in this environment.** A trivial `Explore` subagent produced a seat row that resolved:
 
