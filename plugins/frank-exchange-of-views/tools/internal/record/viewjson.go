@@ -223,6 +223,115 @@ func BoardJSONBytes(runDir string) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
+// WorklistJSON is the merge's SHRINKING working set: OPEN gaps only, in the lean shape a
+// merge acts on turn to turn, plus a prose-free index of the closed gaps so a near-match
+// screen has ids and locations to hit without carrying every closed gap's full prose.
+//
+// It exists because the full board JSON grows monotonically (every closed gap stays, with
+// all its prose), and the merge re-read that whole thing every round only to act on the
+// open few. The worklist is the once-per-turn read: open gaps carry their grades + a
+// TRUNCATED problem synopsis (enough to recognise, not the whole record — the ledger/board
+// views still serve the full prose when a seat needs it), and closed gaps collapse to
+// {id, location, class}. Like every other JSON view it derives from BoardState.
+type WorklistJSON struct {
+	Open        []WorklistGapJSON `json:"open"`
+	ClosedIndex []ClosedIndexJSON `json:"closed_index"`
+	Counts      struct {
+		Open   int `json:"open"`
+		Closed int `json:"closed"`
+	} `json:"counts"`
+}
+
+// WorklistGapJSON is an open gap in its lean form: the grades a merge weighs, its class and
+// location, a synopsis of the problem, and the lens findings that surfaced it. NOT the full
+// prose — required_fix and acceptance_check stay on the board (--view board / ledger) for the
+// seat that opens the gap; the worklist is for scanning the open set, not re-deriving it.
+type WorklistGapJSON struct {
+	ID              string   `json:"id"`
+	Severity        any      `json:"severity"`
+	Likelihood      any      `json:"likelihood"`
+	Impact          any      `json:"impact"`
+	ComplexityCost  any      `json:"complexity_cost"`
+	Class           string   `json:"class,omitempty"`
+	Location        string   `json:"location,omitempty"`
+	ProblemSynopsis string   `json:"problem_synopsis,omitempty"`
+	FoundBy         []string `json:"found_by,omitempty"`
+}
+
+// ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
+// class — with NO prose. The full closure record (with anchors and the problem) is behind
+// --view archive for the seat that has to audit a specific closure.
+type ClosedIndexJSON struct {
+	ID       string `json:"id"`
+	Location string `json:"location,omitempty"`
+	Class    string `json:"class,omitempty"`
+}
+
+// synopsisLimit is the rune budget for an open gap's problem synopsis in the worklist — long
+// enough to recognise which gap this is, short enough that the open set stays a scan.
+const synopsisLimit = 140
+
+// synopsis truncates on a rune boundary and marks the cut with an ellipsis, so a
+// multi-byte problem string is never split mid-rune.
+func synopsis(s string) string {
+	r := []rune(s)
+	if len(r) <= synopsisLimit {
+		return s
+	}
+	return strings.TrimRight(string(r[:synopsisLimit]), " ") + "…"
+}
+
+// WorklistJSONOf projects the replayed board into the merge's working set. It walks the same
+// GapOrder as BoardJSONOf so the two views agree on membership and order — open gaps to the
+// lean worklist shape, closed gaps to the prose-free index.
+func WorklistJSONOf(b *Board) WorklistJSON {
+	out := WorklistJSON{Open: []WorklistGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
+	for _, id := range b.GapOrder {
+		g, ok := b.Gaps[id]
+		if !ok {
+			continue
+		}
+		if g.Open {
+			wg := WorklistGapJSON{
+				ID:       g.ID,
+				Severity: g.Severity, Likelihood: g.Likelihood,
+				Impact: g.Impact, ComplexityCost: g.ComplexityCost,
+			}
+			if g.Mint != nil {
+				wg.Class = g.Mint.Str("class")
+				wg.Location = g.Mint.Str("location")
+				wg.ProblemSynopsis = synopsis(g.Mint.Str("problem"))
+				wg.FoundBy = g.Mint.StrList("found_by")
+			}
+			out.Open = append(out.Open, wg)
+		} else {
+			ci := ClosedIndexJSON{ID: g.ID}
+			if g.Mint != nil {
+				ci.Location = g.Mint.Str("location")
+				ci.Class = g.Mint.Str("class")
+			}
+			out.ClosedIndex = append(out.ClosedIndex, ci)
+		}
+	}
+	out.Counts.Open = len(out.Open)
+	out.Counts.Closed = len(out.ClosedIndex)
+	return out
+}
+
+// WorklistJSONBytes renders the worklist as indented JSON (a seat reads it in a terminal
+// transcript), mirroring BoardJSONBytes.
+func WorklistJSONBytes(runDir string) ([]byte, error) {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	out, err := json.MarshalIndent(WorklistJSONOf(b), "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
+}
+
 // FindingJSON is one lens finding, in the form the merge coalesces on and scorecards
 // attribute per role/round from. It replaces the red/candidates/*.md file the merge used
 // to `cat` and hand-transcribe — the finding is now a record event, read structured.

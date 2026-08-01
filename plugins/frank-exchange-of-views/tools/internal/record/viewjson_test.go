@@ -1,6 +1,7 @@
 package record
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -107,6 +108,69 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	}
 	if !strings.Contains(string(out), `"rounds"`) || !strings.Contains(string(out), `"red"`) {
 		t.Errorf("DebateJSONBytes output missing expected keys:\n%s", out)
+	}
+}
+
+// TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse pins the merge's shrinking working set:
+// OPEN gaps only in a lean shape (grades + class + location + a TRUNCATED problem synopsis +
+// found_by, but NOT required_fix/acceptance_check), and closed gaps collapsed to a prose-free
+// {id, location, class} index. This is the once-per-turn read the full board is not.
+func TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
+	runDir := t.TempDir()
+	m := "red-merge-r1"
+	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
+	writeShard(t, runDir, m, "aaaaaaaa", []Event{
+		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
+			Set("gap_id", "R1-1").Set("problem", longProblem).Set("location", "§open").
+			Set("class", "correctness").Set("required_fix", "SECRET_FIX_PROSE").
+			Set("acceptance_check", "SECRET_CHECK_PROSE").Set("severity", "high").
+			Set("found_by", []string{"L1-F1"})),
+		ev(m, "aaaaaaaa", 1, 1, "mint", m+":mint:R1-2", NewPayload().
+			Set("gap_id", "R1-2").Set("problem", "a closed problem").Set("location", "§closed").
+			Set("class", "citation").Set("required_fix", "fix").Set("acceptance_check", "chk")),
+		ev(m, "aaaaaaaa", 2, 1, "close", m+":close:R1-2", NewPayload().
+			Set("gap_id", "R1-2").Set("class", "resolved")),
+	})
+
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := WorklistJSONOf(b)
+
+	if len(w.Open) != 1 || w.Open[0].ID != "R1-1" {
+		t.Fatalf("worklist Open = %+v, want the single open gap R1-1", w.Open)
+	}
+	if len(w.ClosedIndex) != 1 || w.ClosedIndex[0].ID != "R1-2" {
+		t.Fatalf("worklist ClosedIndex = %+v, want the single closed gap R1-2", w.ClosedIndex)
+	}
+	if w.Counts.Open != 1 || w.Counts.Closed != 1 {
+		t.Errorf("counts = %+v, want open 1 closed 1", w.Counts)
+	}
+	// The open gap's problem is TRUNCATED to the synopsis budget, and the full-prose fields
+	// (required_fix, acceptance_check) are absent from the JSON entirely.
+	if r := []rune(w.Open[0].ProblemSynopsis); len(r) > synopsisLimit+1 { // +1 for the ellipsis
+		t.Errorf("problem synopsis is %d runes, want <= %d + ellipsis", len(r), synopsisLimit)
+	}
+	if !strings.HasSuffix(w.Open[0].ProblemSynopsis, "…") {
+		t.Errorf("a truncated synopsis must be marked with an ellipsis: %q", w.Open[0].ProblemSynopsis)
+	}
+	blob, _ := json.Marshal(w)
+	for _, secret := range []string{"SECRET_FIX_PROSE", "SECRET_CHECK_PROSE", "a closed problem"} {
+		if strings.Contains(string(blob), secret) {
+			t.Errorf("the worklist must not carry prose %q — it is lean by design:\n%s", secret, blob)
+		}
+	}
+	// The lean open gap keeps its grades, class, location and found_by.
+	if w.Open[0].Severity != "high" || w.Open[0].Class != "correctness" || w.Open[0].Location != "§open" {
+		t.Errorf("open gap lost a lean field: %+v", w.Open[0])
+	}
+	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "L1-F1" {
+		t.Errorf("open gap lost found_by: %+v", w.Open[0].FoundBy)
+	}
+	// The closed index carries id/location/class only — no problem prose.
+	if w.ClosedIndex[0].Location != "§closed" || w.ClosedIndex[0].Class != "citation" {
+		t.Errorf("closed index lost id/location/class: %+v", w.ClosedIndex[0])
 	}
 }
 

@@ -63,6 +63,10 @@ const (
 	Row       = "row"
 	View      = "view"
 	Format    = "format" // operator output selector (graph: mermaid | dot)
+	// Candidate is the merge's near-match query: the problem text of a gap it is about
+	// to mint, screened against the board (open + closed) before minting so a
+	// near-duplicate surfaces as a reopen rather than a fresh gap. One word, read-only.
+	Candidate = "candidate"
 
 	// Disposition and justification.
 	//
@@ -180,7 +184,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Label, Claim, Key, Location, Reference, Row, View, Format,
+		ID, IDs, Label, Claim, Key, Location, Reference, Row, View, Format, Candidate,
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,

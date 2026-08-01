@@ -117,6 +117,13 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.24.0 the merge gets its shrinking working set: a new `worklist` view (OPEN gaps only, lean —
+//	       grades + class + location + a problem synopsis + found_by — plus a prose-free closed_index)
+//	       becomes `merge show`'s default, and a new `merge near-match --candidate "<text>"` screens a
+//	       candidate against the board (open + closed) by lexical overlap so a near-duplicate surfaces
+//	       as a reopen rather than a fresh gap. The screen is read-only and moves off the seat: the
+//	       tool ranks, the seat decides. (Envelope-refs Phase 2.)
+//
 //	0.23.0 the materialized-projection cache is eliminated: the standalone `render` verb is REMOVED
 //	       and projections are no longer written to disk. Every markdown `show` view and the telemetry derive
 //	       just-in-time from the record via the shared internal/view library; `merge verdict`
@@ -127,7 +134,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.23.0"
+const Version = "0.24.0"
 
 func init() { record.ToolVersion = Version }
 
