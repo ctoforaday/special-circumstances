@@ -531,6 +531,33 @@ func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
 	}
 }
 
+// --existence writes the leaf-check axis to the board — the write path the board was
+// reading (viewjson g.Mint existence) before anything set it. verified|suspected are the
+// only legal values; a value outside the enum is refused at parse time (one way, a wrong
+// guess errors, never a silent empty axis).
+func TestMintExistenceLandsOnBoardAndRejectsBadValue(t *testing.T) {
+	runDir := t.TempDir()
+	seatID := "red-merge-r1"
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+		"--class", "correctness", "--check", "c", "--likelihood", "medium", "--impact", "medium",
+		"--problem", "p", "--existence", "verified"); err != nil {
+		t.Fatal(err)
+	}
+	if got := lastOfType(t, runDir, "mint").Payload.Str("existence"); got != "verified" {
+		t.Errorf("existence = %q, want verified (the write path must land it on the board)", got)
+	}
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+		"--class", "correctness", "--check", "c", "--likelihood", "low", "--impact", "low",
+		"--problem", "p2", "--existence", "suspected"); err != nil {
+		t.Fatalf("suspected must be accepted: %v", err)
+	}
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+		"--class", "correctness", "--check", "c", "--likelihood", "low", "--impact", "low",
+		"--problem", "p3", "--existence", "probable"); err == nil {
+		t.Error("--existence probable must be rejected (enum is verified|suspected)")
+	}
+}
+
 // --problem and the prose channel are alternatives; --problem wins when both
 // are given, and --file carries anything above trivial size.
 func TestProseChannelResolution(t *testing.T) {

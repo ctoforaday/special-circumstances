@@ -24,6 +24,7 @@ func NewCommand() *cobra.Command {
 		newManifestRow(),
 		newDispute(),
 		newConfidence(),
+		newClaimIndex(),
 		seat.Position("the round's ### BLUE section (prose via --reason)"),
 		seat.Closing("a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
 		seat.Friction("attributed friction (survives aborts as an event): --reason"),

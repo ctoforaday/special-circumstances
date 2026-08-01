@@ -20,11 +20,11 @@ JUDICIAL HALT recorded — capture relays this verbatim
 
 ═══ EVENTS ═══
 -- events-judge-petition-NONCE002.jsonl
-{"key":"judge-petition:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.24.0"},"round":0,"seatId":"judge-petition","seq":0,"ts":2,"type":"register"}
+{"key":"judge-petition:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.25.0"},"round":0,"seatId":"judge-petition","seq":0,"ts":2,"type":"register"}
 {"key":"judge-petition:petition-rule:#1","nonce":"NONCE002","payload":{"class":"safety","opinion":"the relief binds the coming seats","petitioner":"red-merge-r1","ruling":"granted"},"round":0,"seatId":"judge-petition","seq":1,"ts":3,"type":"petition-rule"}
 {"key":"judge-petition:halt:#1","nonce":"NONCE002","payload":{"opinion":"continuing would compromise the consent gate"},"round":0,"seatId":"judge-petition","seq":2,"ts":4,"type":"halt"}
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.24.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.25.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:petition:#1","nonce":"NONCE001","payload":{"basis":"the design erodes a consent gate","class":"safety","relief":"halt and escalate"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"petition"}
 
 ═══ RENDERS ═══

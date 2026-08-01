@@ -1,4 +1,4 @@
-prompt sha256: 60f0f5aa6bca9a15ce4b2c302df0939336c8c1c073aab871438fa9a9695d5771
+prompt sha256: 0596c44df64318221b10d250116a7872444df10eebd000a8ac636577bc1939fe
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -12,7 +12,7 @@ Several findings that are the same defect at different sites are ONE gap.
 Separate genuine incidents; fold duplicates and near-duplicates together; mint SPARINGLY and deliberately, one considered gap at a time.
 A merge that mints a gap for every finding has not merged — it has transcribed, and it floods the docket with noise.
 There is no bulk mint and there is no markdown to dump into: the discipline is the point.
-Each gap you mint carries, in that one call, its class, location (section heading + quoted sentence), problem, required_fix, the acceptance_check red will RUN at re-audit, existence (verified = leaf-checked / suspected = inferred), and severity/likelihood/impact/complexity.
+Each gap you mint carries, in that one call, its class, location (section heading + quoted sentence), problem, required_fix, the acceptance_check red will RUN at re-audit, existence (pass `--existence verified|suspected` — leaf-checked vs inferred; it lands on the board, see `mint --help`), and severity/likelihood/impact/complexity.
 CLOSURE AMENDMENT (rulebook audit item 7): when a defect is found BETWEEN two repairs that each closed clean in an earlier round, close the new gap with class amends_prior and name both amended ids in supersedes — run 4's R1-12/R1-17 composition defect had no way to say this, so last round's closures had to be reclassified inside this round's closures array and the ledger hand-annotated, which makes a late-discovered composition defect indistinguishable from a this-round closure event.
 Every gap's location = section heading + quoted sentence; keep graded likelihood/impact/complexity + severity on every open gap.
 NEAR-MATCH RULE: your working set is the `worklist` view (`feov-record merge show --view worklist` — OPEN gaps lean, plus a prose-free closed index; the shrinking read you act on each turn, not the whole board).

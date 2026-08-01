@@ -117,6 +117,13 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.25.0 blue's read-once + the existence write-path (Envelope-refs Phase 3): a new read-only
+//	       `blue claim-index` enumerates, per footnote label, every site a claim appears
+//	       ({label, occurrences:[{heading, line, sentence_hash}]}) so blue propagates a correction to
+//	       all sites from one query instead of re-reading the whole report; it reuses count-claims'
+//	       exclusion rule (one scanner, two readings). And `merge mint` gains `--existence
+//	       verified|suspected`, the write path for the leaf-check axis the board already reads. A stale
+//	       binary lacks claim-index and drops the existence axis on the floor.
 //	0.24.0 the merge gets its shrinking working set: a new `worklist` view (OPEN gaps only, lean —
 //	       grades + class + location + a problem synopsis + found_by — plus a prose-free closed_index)
 //	       becomes `merge show`'s default, and a new `merge near-match --candidate "<text>"` screens a
@@ -134,7 +141,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.24.0"
+const Version = "0.25.0"
 
 func init() { record.ToolVersion = Version }
 

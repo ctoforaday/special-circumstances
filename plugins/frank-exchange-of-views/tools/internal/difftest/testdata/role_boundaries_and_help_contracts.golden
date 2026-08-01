@@ -6,12 +6,12 @@ feov-record: verb "mint" is outside this seat's role (available: register, findi
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, show)
+feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, position, closing, friction, petition, show)
+feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
@@ -70,7 +70,7 @@ Available Commands:
   dispose         every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
   dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --reason "..."
   friction        attributed friction: --reason
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
   near-match      screen a candidate against the board before minting: --candidate "<problem text>" [--location "<section>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   petition        petition the bench: --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
   position        the round's ### RED section (prose via --reason)
@@ -106,6 +106,7 @@ Usage:
 
 Available Commands:
   avenue       record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
   dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --reason "..."
