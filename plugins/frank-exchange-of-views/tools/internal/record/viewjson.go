@@ -70,6 +70,14 @@ type GapJSON struct {
 	Problem        string `json:"problem,omitempty"`
 	RequiredFix    string `json:"required_fix,omitempty"`
 	AcceptanceGate string `json:"acceptance_check,omitempty"`
+	// Existence (verified|suspected — checked at the leaf vs inferred) and the lineage
+	// (found_by, supersedes) used to live ONLY inside the raw `mint` object, which also
+	// re-stated every field above — so each gap carried its prose twice. These are now
+	// first-class and the nested `mint` is gone: one copy, and the leaf-check axis a reader
+	// needs is no longer buried in a duplicate.
+	Existence  string   `json:"existence,omitempty"`
+	FoundBy    []string `json:"found_by,omitempty"`
+	Supersedes []string `json:"supersedes,omitempty"`
 
 	ClosedRound   int  `json:"closed_round,omitempty"`
 	ClosedByBench bool `json:"closed_by_bench,omitempty"`
@@ -78,7 +86,6 @@ type GapJSON struct {
 	// sentence that the scorecard then failed to parse back out.
 	Closure  map[string]any   `json:"closure,omitempty"`
 	Regrades []map[string]any `json:"regrades,omitempty"`
-	Mint     map[string]any   `json:"mint,omitempty"`
 }
 
 type ObservationJSON struct {
@@ -121,12 +128,14 @@ func BoardJSONOf(b *Board) BoardJSON {
 			ClosedByBench: g.ClosedByBench,
 		}
 		if g.Mint != nil {
-			gj.Mint = payloadMap(g.Mint)
 			gj.Class = g.Mint.Str("class")
 			gj.Location = g.Mint.Str("location")
 			gj.Problem = g.Mint.Str("problem")
 			gj.RequiredFix = g.Mint.Str("required_fix")
 			gj.AcceptanceGate = g.Mint.Str("acceptance_check")
+			gj.Existence = g.Mint.Str("existence")
+			gj.FoundBy = g.Mint.StrList("found_by")
+			gj.Supersedes = g.Mint.StrList("supersedes")
 		}
 		if g.HasClosed {
 			gj.ClosedRound = g.ClosedRound
