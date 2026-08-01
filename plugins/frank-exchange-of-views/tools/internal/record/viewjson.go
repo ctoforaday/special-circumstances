@@ -168,7 +168,13 @@ func BoardJSONOf(b *Board) BoardJSON {
 		}
 		if o.Disposition != nil {
 			oj.Fate = payloadMap(o.Disposition)
-		} else {
+		} else if o.Kind == "observe" {
+			// Only an OBSERVE without a fate is "undisposed". A FINDING (Kind "finding" here — Kind
+			// is the event TYPE) is addressed by being named in a gap's found_by — coalescence,
+			// never the dispose verb — so a finding without a fate is NOT an undisposed
+			// observation. Counting both lumped every finding in: a run with 37 findings and zero
+			// observes reported "37 undisposed observations", a permanent false detector hit. The
+			// metric now measures what its name says.
 			out.Counts.UndisposedObserv++
 		}
 		out.Observations = append(out.Observations, oj)
