@@ -257,7 +257,7 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 
 // ---- row builders ----
 
-func blueRows(runDir string, results []map[string]any, telemetry []map[string]any) []Row {
+func blueRows(runDir string, results []map[string]any, telemetry []map[string]any, board *record.Board) []Row {
 	var rows []Row
 
 	// repair_regression_ratio
@@ -318,13 +318,21 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 
 	// unrecorded_claim_loss
 	var counts []float64
-	retires := 0
 	for _, r := range results {
 		if v, ok := num(r["claim_count"]); ok {
 			counts = append(counts, v)
 		}
-		if rt, ok := r["retired"].([]any); ok {
-			retires += len(rt)
+	}
+	// Retires come from the RECORD (retire events), NOT a BLUE_ENVELOPE field. The envelope
+	// never carried `retired`, so this detector counted zero and flagged every LEGITIMATE
+	// retirement as an unrecorded loss — the additive-integrity guard was blind in both
+	// directions. A claim leaves the report ONLY through the retire verb, which is on the record.
+	retires := 0
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "retire" {
+				retires++
+			}
 		}
 	}
 	drop := 0.0
@@ -540,7 +548,7 @@ func benchRows(results []map[string]any, board *record.Board) []Row {
 func Compute(runDir string, results []map[string]any, board *record.Board) map[string][]Row {
 	telemetry := ReadTelemetry(runDir)
 	return map[string][]Row{
-		"blue":  blueRows(runDir, results, telemetry),
+		"blue":  blueRows(runDir, results, telemetry, board),
 		"red":   redRows(results, telemetry, board),
 		"bench": benchRows(results, board),
 	}
