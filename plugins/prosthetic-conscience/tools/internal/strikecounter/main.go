@@ -121,7 +121,8 @@ func message(in hookInput, key string, count int) string {
 	if e := excerpt(in.Error); e != "" {
 		fmt.Fprintf(&b, "Last error: %s. ", e)
 	}
-	b.WriteString("The rule: STOP, summarize what was tried, and escalate — and re-running the same action is not a retry, so a fourth attempt needs a DIFFERENT approach, not another go. " +
+	// It never blocks, and a message arriving at a failure reads like the cause of it.
+	b.WriteString("This hook blocked nothing — the failure above is the tool's own. The rule: STOP, summarize what was tried, and escalate — and re-running the same action is not a retry, so a fourth attempt needs a DIFFERENT approach, not another go. " +
 		"This hook counts tool failures only: it cannot see a command that exits 0 while the work still failed, so its silence is not evidence the loop was broken.")
 	return b.String()
 }

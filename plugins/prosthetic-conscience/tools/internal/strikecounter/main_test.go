@@ -175,3 +175,21 @@ func TestExcerptBoundsTheError(t *testing.T) {
 		t.Errorf("a blank error must yield nothing, got %q", got)
 	}
 }
+
+// The counter never blocks, and a message arriving at a failure reads like the cause of it.
+// An agent that thinks this hook refused the call will try to work around the hook rather
+// than change its approach — the opposite of what the rule asks (#212).
+func TestMessageSaysItBlockedNothing(t *testing.T) {
+	got := message(bash("go test ./..."), strikes.Key("Bash", []byte(`{"command":"go test ./..."}`)), 3)
+	for _, want := range []string{
+		"blocked nothing",         // what did NOT happen
+		"the tool's own",          // whose failure it actually was
+		"STOP",                    // what to do
+		"DIFFERENT approach",      // and what does not count as doing it
+		"silence is not evidence", // the coverage limit
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("message is missing %q:\n%s", want, got)
+		}
+	}
+}
