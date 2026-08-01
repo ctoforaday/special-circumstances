@@ -300,13 +300,15 @@ const petitionClause = (who) => ` PETITIONS: if fulfilling this seat's instructi
 
 const BLUE_ENVELOPE = {
   type: 'object',
-  required: ['path', 'tldr', 'claim_count', 'saturation_reached', 'open_questions', 'round_record_appended'],
+  // ENVELOPE → REFS (move (a)): `tldr` and `open_questions` are AUTHORED into blue/report.md and
+  // lifted from it by assembly (`sectionOr`) — never consumed by the sandboxed engine, so they are
+  // not round-tripped here. `path` was a constant the script already knows. Dropped: the report is
+  // the source, the envelope carries only what the engine threads (claim_count, the attestations,
+  // the manifest, the routing refs).
+  required: ['claim_count', 'saturation_reached', 'round_record_appended'],
   properties: {
-    path: { type: 'string' },
-    tldr: { type: 'string' },
     claim_count: { type: 'number' },
     saturation_reached: { type: 'boolean' },
-    open_questions: { type: 'array', items: { type: 'string' } },
     // W1.7 round-parity attestation (run-5: blue's round-2 revision shipped with no ### BLUE
     // block or CHANGELOG entry; a lens misjudged the round state and the judge had to
     // reconstruct blue's position from red's records). TRUE only after debate.md carries this
@@ -358,32 +360,30 @@ const RED_ENVELOPE = {
   properties: {
     verdict: { type: 'string', enum: ['PASS', 'FAIL'] },
     petitions: PETITIONS,
+    // ENVELOPE → REFS (envelope-refs move (a)): the gap's PROSE — location, problem, required_fix,
+    // acceptance_check, found_by — is written to the BOARD by the `mint` verb and read back from the
+    // record (assembly re-derives it via g.Mint; the ledger/board views render it for blue and the
+    // judge). It is NOT round-tripped here: the envelope carries REFS ONLY — the id, its grades, its
+    // existence axis, and its lineage. debate.js threads these into the next round's prompts as a
+    // LOSSY summary, and the prompts already send blue/judge to the board for the prose. Corroboration
+    // and judge rationale stay in their envelopes (the sandboxed engine threads them between rounds);
+    // gap prose does not, because every consumer of it is a tool step or a record-reading seat.
     gaps: {
       type: 'array',
       items: {
         type: 'object',
-        required: ['id', 'location', 'problem', 'required_fix', 'acceptance_check', 'existence', 'severity', 'likelihood', 'impact', 'complexity_cost'],
+        required: ['id', 'existence', 'severity', 'likelihood', 'impact', 'complexity_cost'],
         properties: {
-          id: { type: 'string' }, location: { type: 'string' }, problem: { type: 'string' },
-          required_fix: { type: 'string' },
-          // W2b acceptance-check-at-mint (repair-quality program A.1): the exact falsifiable
-          // check red will run at re-audit — a probe command, a recompute, a quote-anchor.
-          // Blue runs it BEFORE announcing; red's re-audit becomes a spot-audit of a
-          // pre-agreed contract instead of a re-derivation.
-          acceptance_check: { type: 'string' },
+          id: { type: 'string' },
           // W2g existence-vs-consequence split: is the DEFECT verified present
           // (leaf-checked) or suspected? Orthogonal to likelihood, which now
-          // grades the CONSEQUENCE only.
+          // grades the CONSEQUENCE only. A ref (a grade), not prose — stays.
           existence: { type: 'string', enum: ['verified', 'suspected'] },
           severity: GRADE, likelihood: GRADE, impact: GRADE, complexity_cost: GRADE,
           // Lineage (retrospective §3 row 23): a successor gap MUST name the prior-round
           // gap id(s) it descends from, so the contested docket can follow regression chains.
+          // A ref (ids), not prose — stays.
           supersedes: { type: 'array', items: { type: 'string' } },
-          // Capture-recapture input (run-4 §2.5 item 2): which lens FINDINGS surfaced this gap,
-          // named by their labels (L5-F3). Auditable against the findings view on the record
-          // (verify checks each label names a recorded finding), and an actuation review
-          // re-derives a sample independently at a non-red seat.
-          found_by: { type: 'array', items: { type: 'string' } },
         },
       },
     },
@@ -797,7 +797,7 @@ Decide the binary verdict — PASS only when every remaining unadjudicated gap i
   if (contested.length > 0) {
     log(`round ${round}: docket — ${contested.length} contested item(s) to the judge (closings filed)`)
     const judge = await agent(
-      `Adjudication, round ${round}, topic "${topic}". Contested docket: ${JSON.stringify(contested)}.${withheld.length ? ` OPEN GAPS WITHHELD FROM THE DOCKET (with the reason each was withheld): ${JSON.stringify(withheld)}. These are NOT docketed, and you are not obliged to rule on them — but a gap BOTH SIDES argued to closing that reached no ruling is a docket defect, not a decision. If you find one, say so in your opinion and rule on it: an unadjudicated gap returns to red’s verdict pool as though nobody had considered it.` : ''} STALENESS: every docketed gap’s problem text and acceptance check were SNAPSHOTTED when red merged, and blue may have repaired afterwards — in the 2026-07-18 run both docketed premises asserted "blue took no round-3 turn" and were false by the time the bench sat. Re-run each DOCUMENT-PROBE acceptance check against the artifact AS IT NOW STANDS before ruling, and rule on what you find rather than on what the docket asserts. Both sides have filed closings for this docket on the RECORD (red's "### RED CLOSING" and blue's "### BLUE CLOSING", rendered from the closing events). YOUR RULING BASIS IS CONFINED TO: (1) the two closings, (2) the full transcript (${binDir ? `read it from the record: "${binDir}/feov-record" bench show --run ${runDir} --view debate` : `${runDir}/debate.md`}), and (3) the final state of the artifacts — the board (pull it FRESH through the tool: feov-record bench show --run ${runDir} --view ledger — the tool computes it from the event log on read, so it is never stale) and ${runDir}/blue/report.md as they now stand. Weigh the closings as each side's best case; a claim in a closing that the record does not support counts AGAINST the side that made it.${lawClause} Resolution set (full, for every gap class — blue has answered everything docketed): closed (blue's response resolves it) | rebuttal_sustained (blue's evidence beats the challenge) | risk_accepted (valid, rejected on likelihood x impact x complexity) | carried (still live — state what further research blue owes) | unresolved | moot (the predicate expired — the claim or artifact it attached to no longer exists in the report) | grade_adjusted (for grade_dispute_* items: state the corrected grade in the rationale; red applies it next round) | routed_to_infrastructure (valid finding whose FIX is owned outside the debate — run tooling, harness, or the lead; state the owed fix in the rationale; it leaves red's verdict pool and ships as a named infrastructure debt, recorded never dropped). DEMANDED READS: for every ruling on a gap with a supersedes chain, you MUST read the named ancestors' records (pull them through the tool: feov-record bench show --run ${runDir} --view archive) first and NAME the records read in your rationale. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. ${binDir ? `Record each resolution as an opinion event — "${binDir}/feov-record" bench opinion --id <gap> --as <disposition> --principle "..." --tension "..." --review-flag "..." --reason "<rationale>" — one per docketed gap; they render as the round's "### LEAD" from the record, so do NOT hand-write debate.md.` : `Append your "### LEAD" resolutions to ${runDir}/debate.md.`}${frictionClause(`judge-r${round}`)}${speedClause}${recordClause(`judge-r${round}`, 'bench')} Return the judge envelope.`,
+      `Adjudication, round ${round}, topic "${topic}". Contested docket: ${JSON.stringify(contested)}.${withheld.length ? ` OPEN GAPS WITHHELD FROM THE DOCKET (with the reason each was withheld): ${JSON.stringify(withheld)}. These are NOT docketed, and you are not obliged to rule on them — but a gap BOTH SIDES argued to closing that reached no ruling is a docket defect, not a decision. If you find one, say so in your opinion and rule on it: an unadjudicated gap returns to red’s verdict pool as though nobody had considered it.` : ''} STALENESS: the contested docket above carries each gap's id and grades ONLY (envelope-refs) — a gap's problem text and acceptance_check live on the BOARD, so read them FRESH from the ledger (feov-record bench show --run ${runDir} --view ledger, computed from the event log on read, so never a stale snapshot). The docket is a routing list, not the evidence: in the 2026-07-18 run the bench mis-ruled on snapshotted docket premises that were false by the time it sat — reading the record fresh is the fix. Re-run each DOCUMENT-PROBE acceptance check (as the board states it) against the artifact AS IT NOW STANDS before ruling, and rule on what you find rather than on what any snapshot asserts. Both sides have filed closings for this docket on the RECORD (red's "### RED CLOSING" and blue's "### BLUE CLOSING", rendered from the closing events). YOUR RULING BASIS IS CONFINED TO: (1) the two closings, (2) the full transcript (${binDir ? `read it from the record: "${binDir}/feov-record" bench show --run ${runDir} --view debate` : `${runDir}/debate.md`}), and (3) the final state of the artifacts — the board (pull it FRESH through the tool: feov-record bench show --run ${runDir} --view ledger — the tool computes it from the event log on read, so it is never stale) and ${runDir}/blue/report.md as they now stand. Weigh the closings as each side's best case; a claim in a closing that the record does not support counts AGAINST the side that made it.${lawClause} Resolution set (full, for every gap class — blue has answered everything docketed): closed (blue's response resolves it) | rebuttal_sustained (blue's evidence beats the challenge) | risk_accepted (valid, rejected on likelihood x impact x complexity) | carried (still live — state what further research blue owes) | unresolved | moot (the predicate expired — the claim or artifact it attached to no longer exists in the report) | grade_adjusted (for grade_dispute_* items: state the corrected grade in the rationale; red applies it next round) | routed_to_infrastructure (valid finding whose FIX is owned outside the debate — run tooling, harness, or the lead; state the owed fix in the rationale; it leaves red's verdict pool and ships as a named infrastructure debt, recorded never dropped). DEMANDED READS: for every ruling on a gap with a supersedes chain, you MUST read the named ancestors' records (pull them through the tool: feov-record bench show --run ${runDir} --view archive) first and NAME the records read in your rationale. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. ${binDir ? `Record each resolution as an opinion event — "${binDir}/feov-record" bench opinion --id <gap> --as <disposition> --principle "..." --tension "..." --review-flag "..." --reason "<rationale>" — one per docketed gap; they render as the round's "### LEAD" from the record, so do NOT hand-write debate.md.` : `Append your "### LEAD" resolutions to ${runDir}/debate.md.`}${frictionClause(`judge-r${round}`)}${speedClause}${recordClause(`judge-r${round}`, 'bench')} Return the judge envelope.`,
       { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`judge round ${round} returned null (agent failed) — aborting cleanly`)
     for (const r of judge.resolutions) {
