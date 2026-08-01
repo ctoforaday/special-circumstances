@@ -141,8 +141,11 @@ That is the price to weigh, and it is why the server is the destination, not the
 Each promotion is gated by **measurement** (the cheaper tier proved insufficient) and by the
 **render-shadow test** (the new state stays a projection of the record):
 
-1. **Now — stateless.** Shared labels + value-transclusion + cite-markers + the confirmation loop.
-   No process, no source-of-truth fork, most of the win. The claim-index is recompute-on-read.
+1. **Now — stateless.** A SET of independent, separately-shippable slices, none needing a process or
+   forking the source of truth: (1a) the confirmation loop + recompute-on-read claim-index; (1b)
+   cite-markers; (1c) shared labels; (1d) value-transclusion. They land incrementally — **(1a) is the
+   first**, and the (c) spec ships exactly that one. The rest are still stage-1 (stateless), not a
+   later tier; deferring them is a sequencing choice, not a promotion.
 2. **Recorded edits.** Blue's edits become recorded operations, so the anchor map is maintained
    incrementally instead of recomputed. Promote only if measurement shows recompute is the cost.
 3. **Live read-model.** The document served as a process with a maintained in-memory index (and
@@ -157,11 +160,12 @@ Do not cache until the derivation is proven expensive. That is the render-shadow
   detector (#226), undisposed metric (#227).
 - **Specced (the (c) work):** the worklist view, `merge near-match`, the claim-index (recompute-on-
   read, footnote-marker enumeration reconciled with `claimcount.Count`), `mint --existence`. The (c)
-  spec's Phase 3 is **tier-1 of this model** — the confirmation loop with the retained report-wide
-  stale-string sweep as the T3 backstop.
-- **Proposed, not specced:** cite-markers, shared-label semantics, value-transclusion, recorded
-  edits, the live read-model. Each is a slice under this model; each earns its promotion by the two
-  gates above.
+  spec's Phase 3 is **slice (1a)** — the confirmation loop with the retained report-wide stale-string
+  sweep as the T3 backstop. It is the FIRST slice of the stateless stage, not the whole stage.
+- **Proposed, not specced:** the rest of the stateless stage — cite-markers (1b), shared-label
+  semantics (1c), value-transclusion (1d) — plus the stateful stages (recorded edits, the live
+  read-model). Each is a separate slice; each earns its turn by the two gates above. NB (1b–1d) are
+  *stateless*, the same stage as (1a) — deferred by sequencing, not held back to a later tier.
 
 ## Prior art
 
