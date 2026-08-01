@@ -306,3 +306,66 @@ func TestVersion(t *testing.T) {
 		t.Errorf("version = %q", o.String())
 	}
 }
+
+// #217. A check whose text is REWRITTEN gets a new identity, so its old record can never
+// match again — it just sits in the file forever, and every consumer that counts records
+// (sc-doctor, the SessionStart summary) reads a stale check as still re-armed. The record
+// must go when its check does.
+func TestRecordsAreDroppedWhenTheirCheckIsRewritten(t *testing.T) {
+	dir := project(t)
+	if code := fire(t, dir, filepath.Join(dir, "tools", "internal", "x.go"), "change"); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	before := stateOf(t, dir)
+	if len(before.Rearmed) != 1 {
+		t.Fatalf("setup: want one record, got %v", before.Rearmed)
+	}
+
+	// The human rewords check 1. Same check, new identity.
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"),
+		strings.Replace(note, "→ all packages ok", "→ every package ok", 1))
+
+	// An UNMATCHED event, deliberately: the prune must not wait for a change that happens
+	// to re-arm something, or the orphan outlives the note that explained it.
+	write(t, filepath.Join(dir, "unclaimed.txt"), "x")
+	if code := fire(t, dir, filepath.Join(dir, "unclaimed.txt"), "change"); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	if got := stateOf(t, dir).Rearmed; len(got) != 0 {
+		t.Errorf("orphan survived the rewrite: %v", got)
+	}
+
+	// And the message names the cause, because a record vanishing is otherwise indis-
+	// tinguishable from the hook never having recorded it.
+	dir2 := project(t)
+	fire(t, dir2, filepath.Join(dir2, "tools", "internal", "x.go"), "change")
+	write(t, filepath.Join(dir2, ".claude", "checkpoints", "CHECKPOINT.md"),
+		strings.Replace(note, "→ all packages ok", "→ every package ok", 1))
+	in, _ := json.Marshal(hookInput{FilePath: filepath.Join(dir2, ".qlty", "qlty.toml"), Event: "change"})
+	var o, e bytes.Buffer
+	run(nil, bytes.NewReader(in), &o, &e, dir2, noon)
+	if !strings.Contains(e.String(), "no longer appears in the note") {
+		t.Errorf("stderr = %q; a silent deletion is the failure mode this replaces", e.String())
+	}
+	// The event's own re-arm still landed — pruning is not a stop-the-world.
+	if got := stateOf(t, dir2).Rearmed; len(got) != 1 {
+		t.Errorf("state = %v; want only the check this event re-armed", got)
+	}
+}
+
+// A note that stops parsing must not be read as "no checks exist". The hook returns before
+// the update in that case, so nothing is pruned AND nothing is recorded.
+func TestAnUnparsableNoteDeletesNothing(t *testing.T) {
+	dir := project(t)
+	fire(t, dir, filepath.Join(dir, "tools", "internal", "x.go"), "change")
+	if len(stateOf(t, dir).Rearmed) != 1 {
+		t.Fatal("setup: want one record")
+	}
+
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), "---\nschema: 2\n---\n## Notes\nnothing here\n")
+	fire(t, dir, filepath.Join(dir, "tools", "internal", "x.go"), "change")
+
+	if got := stateOf(t, dir).Rearmed; len(got) != 1 {
+		t.Errorf("state = %v; a note we could not parse is not evidence that its checks are gone", got)
+	}
+}

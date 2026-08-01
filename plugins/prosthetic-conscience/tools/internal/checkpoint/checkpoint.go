@@ -7,6 +7,8 @@
 package checkpoint
 
 import (
+	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -457,6 +459,43 @@ func CheckKey(line string) string {
 	return strings.TrimSpace(loopEntry.ReplaceAllString(strings.TrimSpace(line), ""))
 }
 
+// PruneOrphans drops records whose check no longer exists in the note.
+//
+// WHY (#217). Records are keyed by check IDENTITY — the check line with its ordinal label
+// stripped — which is what stopped a renumbered note orphaning every record. The cost is
+// that editing a check's TEXT changes its identity, and nothing ever removed the old
+// record. Observed live in this repo: two records for one check, one per wording, after the
+// note was compressed. Every future edit to a check's first line adds another.
+//
+// It grows without bound, it renders into the digest and spends the context budget
+// truncation is already fighting for, and it MISLEADS — two records for what a human reads
+// as one check invites exactly the misattribution #192 was about.
+//
+// THE GUARD IS THE WHOLE DESIGN. This destroys recorded state, so it runs only when the
+// caller has a validation loop it actually parsed: `live` empty means the note was missing,
+// malformed, or had no loop, and in that case every record looks orphaned and pruning would
+// wipe the history rather than tidy it. Callers MUST pass the checks they parsed, never an
+// empty slice as a shorthand for "prune everything".
+func (s *RearmState) PruneOrphans(live []Check) (dropped []string) {
+	if len(live) == 0 || len(s.Rearmed) == 0 {
+		return nil // nothing parsed: say nothing, delete nothing
+	}
+	keep := make(map[string]bool, len(live))
+	for _, c := range live {
+		keep[CheckKey(c.Line)] = true
+	}
+	for id := range s.Rearmed {
+		if !keep[id] {
+			dropped = append(dropped, id)
+		}
+	}
+	sort.Strings(dropped)
+	for _, id := range dropped {
+		delete(s.Rearmed, id)
+	}
+	return dropped
+}
+
 // RearmPath is where the state lives for a project.
 func RearmPath(projectDir string) string {
 	return filepath.Join(projectDir, ".claude", "checkpoints", RearmFile)
@@ -522,11 +561,11 @@ func LoadRearm(read func(string) ([]byte, error), path string) (RearmState, erro
 // the lock — loading before acquiring it reintroduces the same lost update with
 // extra steps.
 func UpdateRearm(path string, mutate func(*RearmState)) error {
-	unlock, err := lockRearm(path)
+	lock, err := lockRearm(path)
 	if err != nil {
 		return err
 	}
-	defer unlock()
+	defer lock.release()
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("cannot create state dir: %w", err)
@@ -544,6 +583,14 @@ func UpdateRearm(path string, mutate func(*RearmState)) error {
 	// Write-then-rename. os.WriteFile truncates, so it cannot tear on its own —
 	// but two of them racing can, because truncate and write are not one step.
 	// A rename is.
+	// Ownership is checked AGAIN here, not only at release. A stale-break may have handed
+	// the lock to another hook while this one was reading and mutating; writing anyway is
+	// the lost-update this lock exists to prevent, arriving through the recovery path.
+	// Losing an event is the documented cheap failure — losing the file is not.
+	if !lock.owned() {
+		return fmt.Errorf("re-arm state at %s: this hook's lock was broken as stale while it worked, so its update is abandoned rather than written over the holder's — this event is not recorded, nothing is damaged", path)
+	}
+
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
 		return fmt.Errorf("cannot write state: %w", err)
@@ -560,30 +607,79 @@ func UpdateRearm(path string, mutate func(*RearmState)) error {
 // worse than a hook that occasionally loses one, so this is short.
 const lockRearmTimeout = 2 * time.Second
 
+// rearmLock is a held lock plus the identity that proves it is still ours.
+type rearmLock struct {
+	path  string
+	nonce string
+}
+
+// owned reports whether the lock file still carries THIS holder's nonce.
+//
+// A stale-break can hand the lock to someone else while we are still working — the breaker
+// cannot tell an abandoned lock from a slow one. Checking ownership is how a slow holder
+// discovers it was displaced instead of writing over the successor.
+func (l rearmLock) owned() bool {
+	b, err := os.ReadFile(l.path)
+	return err == nil && string(b) == l.nonce
+}
+
+// release removes the lock ONLY if we still hold it.
+//
+// FIX (defect, #215): release used to be an unconditional os.Remove. If another hook had
+// broken our lock as stale and taken its own, our release deleted THEIRS — after which a
+// third hook could acquire while the second was mid-update. Two writers, no mutual
+// exclusion, from a recovery path meant to prevent a wedge.
+func (l rearmLock) release() {
+	if l.owned() {
+		_ = os.Remove(l.path)
+	}
+}
+
 // lockRearm takes an exclusive lock via O_EXCL create, which works on every
 // platform this ships to — unlike flock, which would need a Windows variant for
 // the CI this repo actually runs.
-func lockRearm(path string) (func(), error) {
-	lock := path + ".lock"
+//
+// The lock file carries a nonce so its holder is identifiable. O_EXCL remains the primitive
+// that makes acquisition atomic; the nonce only makes RELEASE and COMMIT safe against a
+// stale-break that displaced us.
+func lockRearm(path string) (rearmLock, error) {
+	lock := rearmLock{path: path + ".lock", nonce: nonce()}
 	deadline := time.Now().Add(lockRearmTimeout)
 	for {
-		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		f, err := os.OpenFile(lock.path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 		if err == nil {
+			_, _ = f.WriteString(lock.nonce)
 			_ = f.Close()
-			return func() { _ = os.Remove(lock) }, nil
+			return lock, nil
 		}
 		// A process that died holding the lock must not wedge the mechanism
 		// forever — the whole point is that losing a re-arm is cheap and losing
 		// the file is not.
-		if fi, statErr := os.Stat(lock); statErr == nil && time.Since(fi.ModTime()) > lockRearmTimeout {
-			_ = os.Remove(lock)
+		//
+		// Breaking is still a guess: an abandoned lock and a slow one look identical from
+		// here. What makes it SAFE is that the displaced holder finds out — it checks
+		// ownership before committing and abandons its write rather than racing us.
+		if fi, statErr := os.Stat(lock.path); statErr == nil && time.Since(fi.ModTime()) > lockRearmTimeout {
+			_ = os.Remove(lock.path)
 			continue
 		}
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("re-arm state at %s is locked by another hook and did not free within %s — this event is not recorded, nothing is damaged", path, lockRearmTimeout)
+			return rearmLock{}, fmt.Errorf("re-arm state at %s is locked by another hook and did not free within %s — this event is not recorded, nothing is damaged", path, lockRearmTimeout)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+}
+
+// nonce identifies one lock holder. The pid alone is not enough: two hooks on one event are
+// separate processes, but a pid can be reused, and the random half costs nothing.
+func nonce() string {
+	var b [8]byte
+	if _, err := crand.Read(b[:]); err != nil {
+		// Degrading to the pid alone is weaker but never wrong-in-a-new-way: it only
+		// makes two holders harder to tell apart, which is the case we already handle.
+		return fmt.Sprintf("%d-fallback", os.Getpid())
+	}
+	return fmt.Sprintf("%d-%s", os.Getpid(), hex.EncodeToString(b[:]))
 }
 
 // Sorted returns the re-arm records in check order, so a digest lists them the
