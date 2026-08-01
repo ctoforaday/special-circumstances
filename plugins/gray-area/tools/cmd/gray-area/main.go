@@ -283,20 +283,27 @@ func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(
 		var err error
 		wd, _ := os.Getwd()
 		root := defaultProjectDir(projectDir, os.Getenv("CLAUDE_PROJECT_DIR"), wd)
-		resolved, err = claims.ResolveSession(claims.ManifestDir(root), claims.GlobFS, os.ReadFile)
+		resolved, err = claims.ResolveSession(claims.ManifestDir(root), claims.GlobFS, os.ReadFile, statReadable)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
 		if !resolved.Resolved {
-			fmt.Fprintf(stderr, "gray-area: %s:%d names a transcript that did not resolve (%s) — adjudicating against it would report NO-EVIDENCE for every claim, which is a lie about the session rather than about the note\n",
+			fmt.Fprintf(stderr, "gray-area: %s:%d names a transcript that is not readable (%s) — adjudicating against it would report NO-EVIDENCE for every claim, which is a lie about the session rather than about the note\n",
 				resolved.Manifest, resolved.Line, resolved.CaptureError)
 			return 1
 		}
 		tracePath = resolved.TranscriptPath
 		// The pick is a claim like any other, so it is cited.
-		fmt.Fprintf(stdout, "resolved this session's trajectory from %s:%d (session %s, captured %s)\n  -> %s\n\n",
+		fmt.Fprintf(stdout, "resolved this session's trajectory from %s:%d (session %s, captured %s)\n  -> %s\n",
 			resolved.Manifest, resolved.Line, short(resolved.SessionID), resolved.CapturedAt, tracePath)
+		if resolved.Recovered {
+			// Not a warning — a correction, and worth stating because the row still
+			// says otherwise. A reader who greps the manifest will see resolved:false
+			// and should know why the tool proceeded anyway (§11.9).
+			fmt.Fprintf(stdout, "  (the row records resolved:false — the transcript did not exist when the hook fired and does now; re-checked here)\n")
+		}
+		fmt.Fprintln(stdout)
 	}
 
 	nf, err := open(notePath)
@@ -368,4 +375,19 @@ func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(
 		}
 	}
 	return 0
+}
+
+// statReadable reports nil when a path is a readable regular file. It is the
+// production stat for ResolveSession's re-check: a manifest row's `resolved` is
+// an observation made at capture time, and on the first SessionStart of a new
+// session id the transcript does not exist yet (plans/gray-area.md §11.9).
+func statReadable(p string) error {
+	st, err := os.Stat(p)
+	if err != nil {
+		return err
+	}
+	if st.IsDir() {
+		return fmt.Errorf("%s is a directory, not a transcript", p)
+	}
+	return nil
 }
