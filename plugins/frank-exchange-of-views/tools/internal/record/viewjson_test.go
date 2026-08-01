@@ -144,3 +144,25 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 		t.Errorf("the problem prose appears %d times, want exactly 1 (the duplication this removed)", n)
 	}
 }
+
+// TestUndisposedObservationsCountsOnlyRealObserves: a finding (empty Kind) is addressed by
+// found_by, never disposed, so it must NOT count as an undisposed observation. Only a real
+// `observe` (kind note|checked-held) without a fate does. The old counter lumped both, so every
+// finding read as an undisposed observation — a permanent false detector hit.
+func TestUndisposedObservationsCountsOnlyRealObserves(t *testing.T) {
+	runDir := t.TempDir()
+	s := "red-lens-r1-L1"
+	writeShard(t, runDir, s, "aaaaaaaa", []Event{
+		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("text", "a finding")),
+		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("text", "another finding")),
+		ev(s, "aaaaaaaa", 2, 1, "observe", s+":observe:L1-O1", NewPayload().Set("label", "L1-O1").Set("kind", "note").Set("text", "a real observation")),
+	})
+	b, err := BoardJSONBytes(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two findings + one undisposed observe → exactly 1, not 3.
+	if got := string(b); !strings.Contains(got, `"undisposed_observations": 1`) {
+		t.Errorf("undisposed_observations should be 1 (the observe only; the two findings are coalesced, not disposed):\n%s", got)
+	}
+}
