@@ -3,20 +3,12 @@
   "hooks": {
     "PreToolUse": [
       {
+        "_comment": "ONE hook for this event (#201 step 3). The secrets gate and the push-freeze guard are still separate UNITS with OPPOSITE postures — the gate fails CLOSED and can deny, including on an undecodable payload (#211); the freeze guard NEVER blocks, because the freeze is a commitment the human may consciously override. The merge keeps both: deny wins and only one permission document is emitted, while warnings survive a denial because the operator needs both facts. The matcher is the UNION of the units' own (the gate watches WebFetch|WebSearch|Bash, the guard only Bash), and each unit still checks its own applicability so merging cannot widen what it acts on.",
         "matcher": "WebFetch|WebSearch|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-secrets-gate\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-push-freeze-guard\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

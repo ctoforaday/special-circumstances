@@ -54,24 +54,19 @@
     "_comment": "OUR compiled HOOKS, not external deps. One per directory under tools/cmd/ EXCEPT sc-doctor, which is an operator command rather than a hook and is provisioned the same way. scripts/pluginparity fails when this list and tools/cmd/ disagree — it drifted twice before that check existed (sc-strike-counter was never added; the PostToolUse pair outlived its merge). /prosthetic-conscience:doctor --fix fetches the CI-built release asset <name>_{goos}_{goarch}{exe} (SHA256-verified) into bin/, falling back to go build only as a dev convenience. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
     "binaries": [
       {
+        "name": "sc-pretooluse",
+        "event": "PreToolUse(WebFetch|WebSearch|Bash)",
+        "purpose": "ONE hook for the event: the secrets gate (fails CLOSED, can deny) and the push-freeze guard (never blocks) as units over one shared context, each keeping its own matcher and its own posture. Separate binaries until #201 step 3."
+      },
+      {
         "name": "sc-posttooluse",
         "event": "PostToolUse(Write|Edit)",
         "purpose": "ONE hook for the event, running the quality gate and the recall index as units over one shared context: payload parsed once, project root resolved once, ONE writer for the hook log. They were separate binaries until #201 step 3."
       },
       {
-        "name": "sc-secrets-gate",
-        "event": "PreToolUse(WebFetch|WebSearch|Bash)",
-        "purpose": "deny outbound payloads matching secret patterns — scans DECODED tool_input, not the wire bytes: an identical secret written with JSON \\u escapes evaded a raw scan (measured), and a gate whose result depends on the sender's encoding choices is not a gate"
-      },
-      {
         "name": "sc-toolchain-nudge",
         "event": "SessionStart",
         "purpose": "one-line warning when a recommended tool is missing"
-      },
-      {
-        "name": "sc-push-freeze-guard",
-        "event": "PreToolUse(Bash)",
-        "purpose": "warns on git push while a research run is live (.run-live marker) — the pinned-path freeze made unforgettable, never blocking"
       },
       {
         "name": "sc-checkpoint-seal",
