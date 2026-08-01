@@ -74,6 +74,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 )
 
 const version = "0.1.0"
@@ -391,29 +392,36 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
+	text, watch := compose(projectDir, in.Source)
+	emit(stdout, text, watch)
+	return 0
+}
+
+// compose is the restore's whole product — the digest text and the paths to watch — with no
+// I/O of its own. The standalone binary and the merged SessionStart binary both run THIS, so
+// the two cannot drift into restoring differently.
+func compose(projectDir, source string) (string, []string) {
 	path := checkpoint.NotePath(projectDir, func(p string) bool {
 		st, err := os.Stat(p)
 		return err == nil && !st.IsDir()
 	}, filepath.Glob)
 	if path == "" {
-		return 0 // no note: nothing was established, so say nothing
+		return "", nil // no note: nothing was established, so say nothing
 	}
 	body, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Fprintln(stderr, "sc-checkpoint-restore: cannot read checkpoint:", err)
-		return 0
+		return "", nil
 	}
 
 	note := checkpoint.Parse(string(body))
-	if pointerOnly(in.Source, note.Get("status")) {
+	if pointerOnly(source, note.Get("status")) {
 		why := "the context was cleared"
-		if in.Source != clearIsPointerOnly {
+		if source != clearIsPointerOnly {
 			why = "marked status: done"
 		}
 		// No watch on a pointer: the session is not resuming this work, so
 		// registering its surfaces would collect re-arms nobody asked for.
-		emit(stdout, pointer(string(body), path, why), nil)
-		return 0
+		return pointer(string(body), path, why), nil
 	}
 
 	watch, unresolved := watchTargets(note, projectDir)
@@ -426,13 +434,32 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		unresolved = append(unresolved, rearmErr.Error())
 	}
 
-	text := digest(string(body), path, in.Source, rearm)
+	text := digest(string(body), path, source, rearm)
 	if text != "" && len(unresolved) > 0 {
 		text += "\nTrigger surfaces that could not be resolved to a watched path, so a change there is not recorded: " +
 			strings.Join(unresolved, "; ") + ".\n"
 	}
-	emit(stdout, clamp(text, path), watch)
-	return 0
+	return clamp(text, path), watch
+}
+
+// Unit exposes the restore to the merged SessionStart binary.
+//
+// It RETURNS its text and watch paths rather than emitting them, so the event's binary can
+// compose ONE response: two hooks each emitting their own JSON document would have the
+// second overwrite or corrupt the first, which is a thing separate processes got away with
+// only because the harness merged their outputs for us.
+func Unit() hookunit.Unit {
+	return hookunit.Unit{
+		Name: "sc-checkpoint-restore",
+		Run: func(c *hookunit.Ctx) hookunit.Result {
+			var src struct {
+				Source string `json:"source"`
+			}
+			_ = json.Unmarshal(c.Raw, &src)
+			text, watch := compose(c.ProjectDir, src.Source)
+			return hookunit.Result{Name: "sc-checkpoint-restore", Stdout: text, Watch: watch}
+		},
+	}
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

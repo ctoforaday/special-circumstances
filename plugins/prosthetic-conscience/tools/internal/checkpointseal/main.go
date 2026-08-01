@@ -105,9 +105,16 @@ type hookInput struct {
 
 // The events this binary is registered on.
 const (
-	evPreCompact   = "PreCompact"
-	evSessionEnd   = "SessionEnd"
-	evSubagentStop = "SubagentStop"
+	EvPreCompact   = "PreCompact"
+	EvSessionEnd   = "SessionEnd"
+	EvSubagentStop = "SubagentStop"
+)
+
+// Unexported aliases keep the existing body and its tests unchanged.
+const (
+	evPreCompact   = EvPreCompact
+	evSessionEnd   = EvSessionEnd
+	evSubagentStop = EvSubagentStop
 )
 
 // resolveEvent picks the event name: the explicit flag, then the payload field
@@ -410,10 +417,23 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	}
 }
 
+// runEvent is run() with the event already known. The flag path stays for the existing
+// tests, which drive -event directly; both funnel into the same body.
+func runEvent(event string, args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
+	return runWith(event, args, stdin, stdout, stderr, projectDir, now)
+}
+
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
+	return runWith("", args, stdin, stdout, stderr, projectDir, now)
+}
+
+func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
 	fs := flag.NewFlagSet("sc-checkpoint-seal", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	showVersion := fs.Bool("version", false, "print version and exit")
+	// The flag is vestigial in production: each binary now serves one event and passes it
+	// to runEvent. It stays because the existing suite drives run() through it, and because
+	// a stale hooks.json from before the split still passes -event rather than nothing.
 	flagEvent := fs.String("event", "",
 		"the hook event this invocation serves: PreCompact | SessionEnd | SubagentStop")
 	if err := fs.Parse(args); err != nil {
@@ -431,7 +451,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if !hookenv.Explain(projectDir, stderr, "sc-checkpoint-seal") {
 		return 0
 	}
-	event := resolveEvent(*flagEvent, in)
+	event := fixedEvent
+	if event == "" {
+		event = resolveEvent(*flagEvent, in)
+	}
 
 	note := notePath(projectDir, func(p string) bool {
 		st, err := os.Stat(p)
@@ -478,9 +501,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	return 0
 }
 
-// Main is the process boundary: it wires the real environment in and returns the
-// exit code, so cmd/ stays a three-line shim and this stays testable.
-func Main() int {
-	return run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
+// MainFor is the process boundary for ONE seal event.
+//
+// The event is a parameter rather than a flag because each binary now serves exactly one
+// event and knows which by construction. That deletes resolveEvent, the -event flag and its
+// hook_event_name fallback — machinery that existed solely because one binary served three
+// events, and whose only failure mode was a stale hooks.json passing no flag at all.
+func MainFor(event string) int {
+	return runEvent(event, os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
 		os.Getenv("CLAUDE_PROJECT_DIR"), time.Now())
 }

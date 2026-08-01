@@ -104,6 +104,10 @@ type Result struct {
 	Stdout string
 	Stderr string
 	Exit   int
+	// Watch is a unit's contribution to SessionStart's watchPaths. It is a typed field
+	// rather than a generic bag because two consumers do not justify one: if a third event
+	// needs its own channel, that is the moment to reconsider the shape, not before.
+	Watch []string
 	// Log is the unit's hook-log line, returned rather than written. Two processes used to
 	// append to one log file concurrently — measured to be concurrent BY DESIGN once hooks
 	// were known to run in parallel. Collecting the lines and writing them from one place
