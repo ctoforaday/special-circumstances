@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
@@ -104,6 +105,41 @@ func run(args []string, stdin io.Reader, stdout io.Writer, pluginRoot, projectDi
 		fmt.Fprintln(stdout, line)
 	}
 	return 0
+}
+
+// Unit exposes the nudge to the merged SessionStart binary.
+//
+// It returns TEXT rather than writing it. The standalone binary printed the line straight to
+// stdout on the strength of "SessionStart stdout reaches the session" — a claim that is NOT
+// in plans/hook-surface-spike.md §5's verified list. What IS verified there is
+// additionalContext ("hook_additional_context attachment, transcript line 42"), and one
+// process cannot emit both a bare line and a JSON document on stdout without corrupting the
+// document. So the merge puts this on the channel that was actually measured.
+func Unit(pluginRoot string, probe func([]toolchain.Tool) []toolchain.Status) hookunit.Unit {
+	return hookunit.Unit{
+		Name: "sc-toolchain-nudge",
+		Run: func(c *hookunit.Ctx) hookunit.Result {
+			var lines []string
+			// A missing/unreadable/malformed manifest degrades to silence, never to an
+			// error: a SessionStart hook that fails is a session that fails.
+			if pluginRoot != "" {
+				if raw, err := os.ReadFile(filepath.Join(pluginRoot, "requirements.json")); err == nil {
+					var req requirements
+					if err := json.Unmarshal(raw, &req); err == nil {
+						if line := nudge(probe(req.Tools)); line != "" {
+							lines = append(lines, line)
+						}
+					}
+				}
+			}
+			// INDEPENDENT of the manifest: a live research run must be announced even when
+			// there is no plugin root to read requirements from.
+			if line := liveNudge(runlive.Read(c.ProjectDir)); line != "" {
+				lines = append(lines, line)
+			}
+			return hookunit.Result{Name: "sc-toolchain-nudge", Stdout: strings.Join(lines, "\n")}
+		},
+	}
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

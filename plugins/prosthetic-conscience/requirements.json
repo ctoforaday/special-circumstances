@@ -59,24 +59,14 @@
         "purpose": "ONE hook for the event: the secrets gate (fails CLOSED, can deny) and the push-freeze guard (never blocks) as units over one shared context, each keeping its own matcher and its own posture. Separate binaries until #201 step 3."
       },
       {
+        "name": "sc-sessionstart",
+        "event": "SessionStart",
+        "purpose": "ONE hook for the event: the toolchain nudge and the checkpoint restore as units, composing one additionalContext response plus watchPaths. Separate binaries until #201 step 3."
+      },
+      {
         "name": "sc-posttooluse",
         "event": "PostToolUse(Write|Edit)",
         "purpose": "ONE hook for the event, running the quality gate and the recall index as units over one shared context: payload parsed once, project root resolved once, ONE writer for the hook log. They were separate binaries until #201 step 3."
-      },
-      {
-        "name": "sc-toolchain-nudge",
-        "event": "SessionStart",
-        "purpose": "one-line warning when a recommended tool is missing"
-      },
-      {
-        "name": "sc-checkpoint-seal",
-        "event": "PreCompact(manual|auto) + SessionEnd(any reason) + SubagentStop",
-        "purpose": "seals CHECKPOINT.md to a pruned snapshot dir at every seam — a compaction, a session ending, a seat finishing. Takes -event from hooks.json rather than inferring it from the payload. Emits compact instructions on PreCompact ONLY, naming only what the note already carries; silent elsewhere, because stdout on SubagentStop reaches a live seat. Never blocks, and stays cheap because auto-compaction thrashes"
-      },
-      {
-        "name": "sc-checkpoint-restore",
-        "event": "SessionStart(startup|resume|clear|compact|fork)",
-        "purpose": "hands the session back its own checkpoint as additionalContext — on EVERY source, because SessionStart is the only hook that can inject at a compaction boundary; a pointer rather than the digest on clear and on status: done. Also registers watchPaths from the note's validation-loop trigger surfaces — as DIRECTORIES, since watchPaths takes no patterns of any kind (hook-surface-spike.md §6) — and reports the surfaces it could not resolve rather than watching nothing silently"
       },
       {
         "name": "sc-postcompact-observe",
@@ -92,6 +82,21 @@
         "name": "sc-strike-counter",
         "event": "PostToolUseFailure",
         "purpose": "Counts repeated failures of the same (tool, target) so anti-spinning's 3-strike limit is not enforced by the agent against itself. Skips user interrupts."
+      },
+      {
+        "name": "sc-precompact",
+        "event": "PreCompact",
+        "purpose": "Seals the live CHECKPOINT.md at the PreCompact seam. One binary per event over one shared seal unit; sc-checkpoint-seal served all three until #201 step 3."
+      },
+      {
+        "name": "sc-sessionend",
+        "event": "SessionEnd",
+        "purpose": "Seals the live CHECKPOINT.md at the SessionEnd seam. One binary per event over one shared seal unit; sc-checkpoint-seal served all three until #201 step 3."
+      },
+      {
+        "name": "sc-subagentstop",
+        "event": "SubagentStop",
+        "purpose": "Seals the live CHECKPOINT.md at the SubagentStop seam. One binary per event over one shared seal unit; sc-checkpoint-seal served all three until #201 step 3."
       }
     ]
   }
