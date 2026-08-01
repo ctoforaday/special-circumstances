@@ -109,3 +109,38 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 		t.Errorf("DebateJSONBytes output missing expected keys:\n%s", out)
 	}
 }
+
+// TestBoardJSONFlattensMintWithoutDuplicating pins the board de-duplication: a gap's lineage
+// (found_by, supersedes) and leaf-check axis (existence) used to live ONLY inside a nested `mint`
+// object that ALSO re-stated every top-level field, so each gap carried its prose twice. They are
+// now first-class and the nested object is gone — one copy, and nothing a reader needs is buried.
+func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
+	runDir := t.TempDir()
+	m := "red-merge-r1"
+	writeShard(t, runDir, m, "aaaaaaaa", []Event{
+		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
+			Set("gap_id", "R1-1").Set("problem", "an open problem").Set("location", "§1").
+			Set("required_fix", "do the thing").Set("acceptance_check", "run the check").
+			Set("severity", "high").Set("existence", "verified").
+			Set("found_by", []string{"L1-F1", "L5-F3"}).Set("supersedes", []string{"R0-9"})),
+	})
+	b, err := BoardJSONBytes(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	// The lineage + leaf-check fields are promoted to the top level (their only home now).
+	// Tokens, not a compact substring — BoardJSONBytes pretty-prints.
+	for _, want := range []string{`"existence"`, `"verified"`, `"found_by"`, `"L1-F1"`, `"L5-F3"`, `"supersedes"`, `"R0-9"`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
+		}
+	}
+	// The redundant nested `mint` object is gone, so the prose appears exactly ONCE.
+	if strings.Contains(s, `"mint":`) {
+		t.Error("the board still carries the redundant nested `mint` object")
+	}
+	if n := strings.Count(s, "an open problem"); n != 1 {
+		t.Errorf("the problem prose appears %d times, want exactly 1 (the duplication this removed)", n)
+	}
+}
