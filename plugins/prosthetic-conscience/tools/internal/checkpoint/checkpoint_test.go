@@ -484,31 +484,91 @@ func TestUnopenableProjectAdmitsNothing(t *testing.T) {
 func TestRearmStateRoundTripsAndSorts(t *testing.T) {
 	raw := []byte(`{"rearmed":{"2":{"index":2,"check":"b","by":"x.go","event":"change","at":"t"},` +
 		`"1":{"index":1,"check":"a","by":"y.go","event":"add","at":"t"}}}`)
-	s := LoadRearm(func(string) ([]byte, error) { return raw, nil }, "ignored")
+	s, err := LoadRearm(func(string) ([]byte, error) { return raw, nil }, "ignored")
+	if err != nil {
+		t.Fatalf("LoadRearm: %v", err)
+	}
 	got := s.Sorted()
 	if len(got) != 2 || got[0].Index != 1 || got[1].Index != 2 {
 		t.Fatalf("sorted = %+v, want ascending by index", got)
 	}
 }
 
-// Losing re-arm history must never cost a session start.
-func TestRearmStateDegradesToEmpty(t *testing.T) {
+// A MISSING file is an empty state and no error — the first run has no history.
+// This is the only case that may degrade silently.
+func TestAMissingStateFileIsNotAnError(t *testing.T) {
+	s, err := LoadRearm(func(string) ([]byte, error) { return nil, os.ErrNotExist }, "p")
+	if err != nil {
+		t.Fatalf("a missing file must not error: %v", err)
+	}
+	if s.Rearmed == nil {
+		t.Error("nil map — callers would panic on write")
+	}
+}
+
+// A file that EXISTS but cannot be read is an error, and the reason is #165.
+//
+// The old contract returned an empty state here, and the caller's next save
+// wrote a single fresh key. So any damage to this file silently reset coverage
+// to one lone record beside surfaces demonstrably being edited — indistinguishable
+// from the bug the file exists to report on. It cost three sessions.
+func TestAnUnreadableStateFileIsAnErrorSoNothingOverwritesIt(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		read func(string) ([]byte, error)
 	}{
-		{"missing file", func(string) ([]byte, error) { return nil, os.ErrNotExist }},
 		{"corrupt json", func(string) ([]byte, error) { return []byte("{not json"), nil }},
 		{"null map", func(string) ([]byte, error) { return []byte(`{"rearmed":null}`), nil }},
+		{"permission denied", func(string) ([]byte, error) { return nil, os.ErrPermission }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			s := LoadRearm(c.read, "p")
-			if s.Rearmed == nil {
-				t.Error("nil map — callers would panic on write")
+			s, err := LoadRearm(c.read, "p")
+			if err == nil {
+				t.Fatal("returned an empty state instead of an error; the next save would silently reset coverage")
 			}
-			if len(s.Sorted()) != 0 {
-				t.Error("invented state from unreadable input")
+			if !strings.Contains(err.Error(), "refusing to overwrite") {
+				t.Errorf("the error must tell the reader nothing was destroyed: %v", err)
+			}
+			if s.Rearmed == nil {
+				t.Error("nil map — a caller that ignores the error would panic")
 			}
 		})
 	}
+}
+
+// Keyed by identity, not position. A renumbered note used to orphan every record.
+func TestRecordsSurviveARenumberBecauseTheyAreKeyedByCheckText(t *testing.T) {
+	// Written when the check was numbered 2.
+	raw := []byte(`{"rearmed":{"2":{"index":2,"check":"2. ` + "`go test ./b`" + ` · re-armed by: b/","by":"b/x.go","event":"change","at":"t"}}}`)
+	s, err := LoadRearm(func(string) ([]byte, error) { return raw, nil }, "p")
+	if err != nil {
+		t.Fatalf("LoadRearm: %v", err)
+	}
+	// The same check, now numbered 5 after entries were inserted above it.
+	key := CheckKey("5. `go test ./b` · re-armed by: b/")
+	if _, ok := s.Rearmed[key]; !ok {
+		t.Fatalf("the record did not survive a renumber; keys are %v, wanted %q", keysOf(s), key)
+	}
+}
+
+func TestCheckKeyIgnoresTheLabelAndOnlyTheLabel(t *testing.T) {
+	a := CheckKey("1. `go test ./a`  · re-armed by: a/")
+	b := CheckKey("11. `go test ./a`  · re-armed by: a/")
+	if a != b {
+		t.Errorf("label affected identity: %q vs %q", a, b)
+	}
+	if a == "" {
+		t.Fatal("identity is empty — every check would collide on one key")
+	}
+	if CheckKey("1. `go test ./a`") == CheckKey("1. `go test ./b`") {
+		t.Error("two different checks share an identity")
+	}
+}
+
+func keysOf(s RearmState) []string {
+	out := make([]string, 0, len(s.Rearmed))
+	for k := range s.Rearmed {
+		out = append(out, k)
+	}
+	return out
 }

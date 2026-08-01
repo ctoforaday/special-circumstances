@@ -417,7 +417,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	watch, unresolved := watchTargets(note, projectDir)
-	rearm := checkpoint.LoadRearm(os.ReadFile, checkpoint.RearmPath(projectDir))
+	// An unreadable state file must not block a restore — the digest is the
+	// load-bearing half and re-arm history is an annotation on it. But it is
+	// reported rather than swallowed: silence here is what let a torn file look
+	// like "coverage stopped" for three sessions (#165).
+	rearm, rearmErr := checkpoint.LoadRearm(os.ReadFile, checkpoint.RearmPath(projectDir))
+	if rearmErr != nil {
+		unresolved = append(unresolved, rearmErr.Error())
+	}
 
 	text := digest(string(body), path, in.Source, rearm)
 	if text != "" && len(unresolved) > 0 {

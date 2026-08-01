@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Exists reports whether a path is a readable regular file. Injected so callers
@@ -424,10 +425,36 @@ type Rearm struct {
 	At    string `json:"at"`    // UTC RFC3339
 }
 
-// RearmState is the whole file: newest entry per check index. A check re-armed
-// twice is re-armed; the count is not the signal, the fact is.
+// RearmState is the whole file: newest entry per check IDENTITY. A check
+// re-armed twice is re-armed; the count is not the signal, the fact is.
+//
+// LastEvent is stamped on every delivered event, matched or not. That is the
+// only field here that can distinguish "nothing has changed" from "nothing has
+// ARRIVED" — the distinction #165 cost three sessions for want of. An unmatched
+// event still records nothing per-check, deliberately (a directory watch is
+// coarser than the surface it stands for, so unclaimed changes are expected and
+// are not evidence); but it does prove the watcher is alive, and that is worth
+// exactly one timestamp.
 type RearmState struct {
-	Rearmed map[string]Rearm `json:"rearmed"`
+	Rearmed   map[string]Rearm `json:"rearmed"`
+	LastEvent string           `json:"last_event,omitempty"` // UTC RFC3339, any delivered event
+}
+
+// CheckKey is a check's identity: its line with the ordinal label stripped.
+//
+// KEYED BY IDENTITY, NOT POSITION. Keying by ordinal made this file's key `2`
+// mean the note's `1.` (#192), and made every renumber orphan every record
+// silently — measured: promoting two sub-entries shifted nine keys at once, and
+// the only reason it was visible at all is that each record also stores its
+// check line. If the line is what identifies the record, the position never
+// needed to be the key.
+//
+// The tradeoff, stated: editing a check's first line changes its identity and
+// orphans its record. That is the right failure — an edited check has a
+// different expectation, so its old `last run` should not carry over — and it
+// costs one stale entry rather than a whole file re-pointed at the wrong checks.
+func CheckKey(line string) string {
+	return strings.TrimSpace(loopEntry.ReplaceAllString(strings.TrimSpace(line), ""))
 }
 
 // RearmPath is where the state lives for a project.
@@ -435,20 +462,128 @@ func RearmPath(projectDir string) string {
 	return filepath.Join(projectDir, ".claude", "checkpoints", RearmFile)
 }
 
-// LoadRearm reads the state. A missing or corrupt file yields an empty state
-// rather than an error: losing re-arm history must never cost a tool call, and
-// must never block a session start either.
-func LoadRearm(read func(string) ([]byte, error), path string) RearmState {
+// LoadRearm reads the state, distinguishing ABSENT from UNREADABLE.
+//
+// A missing file is an empty state and no error: the first run has no history.
+// Anything else — unreadable, corrupt, truncated — is an ERROR, and the caller
+// must not save over it.
+//
+// The old behaviour returned an empty state for both, and `save` then wrote a
+// single-key file. So any damage to this file silently reset coverage to a lone
+// record beside surfaces that were demonstrably being edited — which is exactly
+// the symptom #165 described and spent three sessions failing to explain. A
+// state file whose loss is indistinguishable from the bug it reports on is worse
+// than no state file.
+//
+// Migration is automatic and quiet: records written under the old ordinal keys
+// carry their check line, so identity is recoverable from the record itself.
+func LoadRearm(read func(string) ([]byte, error), path string) (RearmState, error) {
 	s := RearmState{Rearmed: map[string]Rearm{}}
 	b, err := read(path)
 	if err != nil {
-		return s
+		if os.IsNotExist(err) {
+			return s, nil
+		}
+		return s, fmt.Errorf("re-arm state at %s exists but could not be read: %w — refusing to overwrite it; delete it deliberately if that is what you want", path, err)
 	}
 	var parsed RearmState
-	if json.Unmarshal(b, &parsed) == nil && parsed.Rearmed != nil {
-		s = parsed
+	if err := json.Unmarshal(b, &parsed); err != nil || parsed.Rearmed == nil {
+		return s, fmt.Errorf("re-arm state at %s is present but unparsable — refusing to overwrite it; delete it deliberately if that is what you want", path)
 	}
-	return s
+	s.LastEvent = parsed.LastEvent
+	for k, r := range parsed.Rearmed {
+		// Re-key on load. Old files keyed by ordinal migrate here, because the
+		// record has always carried the line that identifies it.
+		if want := CheckKey(r.Check); r.Check != "" && want != k {
+			k = want
+		}
+		s.Rearmed[k] = r
+	}
+	return s, nil
+}
+
+// UpdateRearm is the ONLY safe way to modify the state file.
+//
+// MEASURED, not theorised: six FileChanged events fired concurrently against a
+// six-check note recorded FOUR records. Two were lost. Every hook process was
+// doing its own read-modify-write on one file — each loaded the state as it
+// stood, added its own key, and wrote the whole map back, so the last writer
+// erased whatever landed after its own read. The state file also tore: a short
+// write over a longer file left the previous document's tail behind, producing
+// JSON that parses as garbage. A live file in this repo was found in exactly
+// that condition, with five records stamped the same second.
+//
+// That is #165. The symptom was "coverage stops advancing" and the suspected
+// cause was someone deleting the file; the actual cause is that concurrent
+// events destroy each other's records, and the old LoadRearm turned the
+// resulting corruption into a silent reset.
+//
+// So: lock, read, mutate, write atomically, unlock. The read MUST happen inside
+// the lock — loading before acquiring it reintroduces the same lost update with
+// extra steps.
+func UpdateRearm(path string, mutate func(*RearmState)) error {
+	unlock, err := lockRearm(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("cannot create state dir: %w", err)
+	}
+	s, err := LoadRearm(os.ReadFile, path)
+	if err != nil {
+		return err
+	}
+	mutate(&s)
+
+	b, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		return err
+	}
+	// Write-then-rename. os.WriteFile truncates, so it cannot tear on its own —
+	// but two of them racing can, because truncate and write are not one step.
+	// A rename is.
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
+		return fmt.Errorf("cannot write state: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("cannot commit state: %w", err)
+	}
+	return nil
+}
+
+// lockRearmTimeout bounds how long a hook waits for its turn, and how old a lock
+// must be before it is assumed abandoned. A hook that blocks a file event is
+// worse than a hook that occasionally loses one, so this is short.
+const lockRearmTimeout = 2 * time.Second
+
+// lockRearm takes an exclusive lock via O_EXCL create, which works on every
+// platform this ships to — unlike flock, which would need a Windows variant for
+// the CI this repo actually runs.
+func lockRearm(path string) (func(), error) {
+	lock := path + ".lock"
+	deadline := time.Now().Add(lockRearmTimeout)
+	for {
+		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if err == nil {
+			_ = f.Close()
+			return func() { _ = os.Remove(lock) }, nil
+		}
+		// A process that died holding the lock must not wedge the mechanism
+		// forever — the whole point is that losing a re-arm is cheap and losing
+		// the file is not.
+		if fi, statErr := os.Stat(lock); statErr == nil && time.Since(fi.ModTime()) > lockRearmTimeout {
+			_ = os.Remove(lock)
+			continue
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("re-arm state at %s is locked by another hook and did not free within %s — this event is not recorded, nothing is damaged", path, lockRearmTimeout)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 // Sorted returns the re-arm records in check order, so a digest lists them the

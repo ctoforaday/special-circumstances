@@ -63,7 +63,11 @@ func fire(t *testing.T, dir, filePath, event string) int {
 
 func stateOf(t *testing.T, dir string) checkpoint.RearmState {
 	t.Helper()
-	return checkpoint.LoadRearm(os.ReadFile, checkpoint.RearmPath(dir))
+	s, err := checkpoint.LoadRearm(os.ReadFile, checkpoint.RearmPath(dir))
+	if err != nil {
+		t.Fatalf("LoadRearm: %v", err)
+	}
+	return s
 }
 
 // The core claim: a change under a check's trigger surface marks THAT check
