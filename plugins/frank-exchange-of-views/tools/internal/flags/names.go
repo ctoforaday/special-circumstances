@@ -159,9 +159,11 @@ const (
 	Chair = "chair"
 
 	// The operator `dashboard` command (ported from render-run-dashboard.mjs): the live run
-	// dashboard. --watch regenerates on a timer; --now injects the clock (test determinism).
+	// dashboard. --watch regenerates on a timer; --now injects the clock (test determinism);
+	// --serve hosts it over HTTP, rendered fresh per request from the record.
 	Watch = "watch"
 	Now   = "now"
+	Serve = "serve"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -190,7 +192,7 @@ func All() []string {
 		Line, Method, AccessDate, Observation,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, NoQmd,
 		Chair,
-		Watch, Now,
+		Watch, Now, Serve,
 	}
 }
 
