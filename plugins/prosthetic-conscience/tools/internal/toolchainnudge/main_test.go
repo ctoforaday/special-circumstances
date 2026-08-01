@@ -64,3 +64,31 @@ func TestNudgeSkipsNotApplicableTools(t *testing.T) {
 		t.Fatalf("the exempt tool leaked into the nudge: %q", got)
 	}
 }
+
+// "quality hooks degrade" told an agent nothing it could weigh (#212). The line must name
+// WHICH capability is absent, and say whether to carry on — otherwise the agent either
+// stops unnecessarily or treats a clean run as proof the checks passed.
+func TestNudgeNamesTheCapabilityAndWhetherToContinue(t *testing.T) {
+	got := nudge([]toolchain.Status{
+		{Tool: toolchain.Tool{Name: "qlty", Purpose: "format + lint quality gate", Tier: "recommended"}, Found: false},
+		{Tool: toolchain.Tool{Name: "git", Purpose: "version control", Tier: "required"}, Found: true},
+	})
+	if got == "" {
+		t.Fatal("a missing recommended tool must be announced")
+	}
+	for _, want := range []string{
+		"qlty",                       // which tool
+		"format + lint quality gate", // which CAPABILITY is absent
+		"SKIPPED",                    // what did not happen
+		"nothing is blocked",         // whether to carry on
+		"do not read a clean run",    // and what the silence does NOT prove
+		"doctor --fix",               // the exit that exists
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("nudge is missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "git") {
+		t.Errorf("a tool that IS present must not be named: %s", got)
+	}
+}

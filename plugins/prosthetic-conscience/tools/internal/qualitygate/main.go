@@ -247,7 +247,8 @@ func execute(e env, p plan) (feedback, logged string) {
 		if after := digest(abs); after != before && after != "" {
 			// The model's cached copy of the file is now stale; an Edit against
 			// it would fail on a string mismatch. Say so before it tries.
-			parts = append(parts, "qlty fmt rewrote "+p.rel+" — re-read it before your next Edit.")
+			// Criterion: say what DID happen, and what the agent must do about it.
+			parts = append(parts, "qlty fmt rewrote "+p.rel+" on disk. Your cached copy is now stale: RE-READ it before your next Edit, or the edit fails on a string mismatch. Nothing was lost — the formatter only reformatted what you wrote.")
 		}
 	}
 
@@ -258,7 +259,14 @@ func execute(e env, p plan) (feedback, logged string) {
 		return strings.Join(parts, "\n"), "qlty check could not run: " + err.Error()
 	}
 	if code != 0 {
-		parts = append(parts, "qlty check found issues in "+p.rel+":", clamp(out))
+		// THE THING AN AGENT GETS WRONG HERE. Exit 2 at PostToolUse is a FEEDBACK channel,
+		// not a rejection — the write already happened and was not reverted. An agent that
+		// reads a non-zero exit as "my edit failed" re-applies it, which duplicates the
+		// change or fights the formatter. Say so before the findings, not after.
+		parts = append(parts,
+			"qlty check found issues in "+p.rel+". YOUR WRITE ALREADY HAPPENED and was not reverted — this is feedback on it, not a rejection, so do NOT re-apply the edit. "+
+				"Fix these in a follow-up edit; run `qlty check --no-fix "+p.rel+"` to see the full set:",
+			clamp(out))
 	}
 
 	switch {
