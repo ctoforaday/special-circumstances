@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 )
 
@@ -172,6 +173,33 @@ func decide(m *runlive.Marker, command string) string {
 		}
 	}
 	return ""
+}
+
+// Unit exposes the guard to the merged PreToolUse binary.
+//
+// Applies to Bash ONLY. The merged binary registers the union of its units' matchers
+// (WebFetch|WebSearch|Bash, widened by sc-secrets-gate), so without this the guard would
+// start warning about web calls it has never watched — merging must not widen a matcher.
+//
+// It NEVER blocks, and that posture is preserved unit-by-unit rather than centrally: the
+// freeze is a commitment the human may consciously override, and this guard's job is making
+// it impossible to forget, not impossible to break. sc-secrets-gate shares this event and
+// fails the other way; the merge keeps both.
+func Unit() hookunit.Unit {
+	return hookunit.Unit{
+		Name:    "sc-push-freeze-guard",
+		Applies: func(c *hookunit.Ctx) bool { return c.ToolName == "Bash" },
+		Run: func(c *hookunit.Ctx) hookunit.Result {
+			var ti struct {
+				Command string `json:"command"`
+			}
+			_ = json.Unmarshal(c.ToolInput, &ti)
+			return hookunit.Result{
+				Name:   "sc-push-freeze-guard",
+				Stderr: decide(runlive.Read(c.ProjectDir), ti.Command),
+			}
+		},
+	}
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

@@ -48,6 +48,12 @@ type Ctx struct {
 	ToolName   string
 	ToolInput  json.RawMessage
 	Now        time.Time
+	// Parsed reports whether the payload was decodable at all. A unit that must behave
+	// differently on undecodable input needs this rather than inferring it from an empty
+	// ToolInput: a well-formed payload with no tool_input field looks identical otherwise,
+	// and sc-secrets-gate's answer to those two differs — one is allowed, the other is
+	// scanned RAW so that truncating the JSON is not a way past the gate (#211).
+	Parsed bool
 
 	mu    sync.Mutex
 	memo  map[string]any
@@ -62,7 +68,7 @@ func NewCtx(event string, raw []byte, projectDir string, now time.Time) *Ctx {
 		ToolName  string          `json:"tool_name"`
 		ToolInput json.RawMessage `json:"tool_input"`
 	}
-	_ = json.Unmarshal(raw, &in)
+	c.Parsed = json.Unmarshal(raw, &in) == nil
 	c.ToolName, c.ToolInput = in.ToolName, in.ToolInput
 	return c
 }

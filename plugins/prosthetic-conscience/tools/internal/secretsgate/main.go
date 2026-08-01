@@ -18,6 +18,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secrets"
 )
 
@@ -75,6 +76,35 @@ func denyReason(toolName string, found []string) string {
 		"(3) if this is a false positive — a fixture or a documentation example — you cannot override the gate: STOP, say exactly what matched and where, and let the human decide. " +
 		"YOU MUST NOT encode, split, rename or otherwise disguise the value to get it past this gate — that is the same act, and it is the one this gate exists to stop. " +
 		"Secrets never leave the box (agent-guardrails)."
+}
+
+// Unit exposes the gate to the merged PreToolUse binary.
+//
+// Applies to the same set the standalone matcher covered — a merged binary registers the
+// UNION of its units' matchers, so widening here would silently scan calls this gate never
+// watched, and narrowing would stop scanning ones it did.
+//
+// It reads Ctx.Raw when the payload did not parse. That is not an optimisation: returning
+// allow on an undecodable payload was the bypass #211 closed, and a merge that handed this
+// unit only the parsed fragment would reintroduce it while every test still passed.
+func Unit() hookunit.Unit {
+	watched := map[string]bool{"WebFetch": true, "WebSearch": true, "Bash": true}
+	return hookunit.Unit{
+		Name:    "sc-secrets-gate",
+		Applies: func(c *hookunit.Ctx) bool { return watched[c.ToolName] || !c.Parsed },
+		Run: func(c *hookunit.Ctx) hookunit.Result {
+			payload := c.ToolInput
+			if !c.Parsed {
+				payload = c.Raw
+			}
+			found := secrets.ScanPayload(payload)
+			if len(found) == 0 {
+				return hookunit.Result{Name: "sc-secrets-gate"} // allow
+			}
+			out, _ := json.Marshal(deny(denyReason(c.ToolName, found)))
+			return hookunit.Result{Name: "sc-secrets-gate", Stdout: string(out) + "\n"}
+		},
+	}
 }
 
 func deny(reason string) decision {
