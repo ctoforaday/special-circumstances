@@ -70,14 +70,21 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
 | **`halt`** | end the run on a safety boundary | `petition-rule --as halt` (debate.js-driven) vs the standalone `halt` verb (tool-designed, orphaned); **the enum rejects `halt`, so the driven path fails to record** | **DECIDE** — the live fork: make `petition-rule` accept `halt` (align with the driver; retire the `halt` verb) OR route halt through the `halt` verb (change debate.js) |
 | `certify` | a run-end certification | read by assembly but driven by no prompt | DECIDE — wire it or fold into `outcome` |
 
-## Open decisions (the `DECIDE` rows, for a human)
+## Resolved decisions (the `DECIDE` rows)
 
-1. **halt channel** — `petition-rule --as halt` vs the `halt` verb. Evidence favours petition-rule
-   (debate.js drives it; the halt verb is orphaned) — but that reverses the tool's stated design.
-2. **petition filing** — the `petition` event vs the envelope `petitions[]` origination.
-3. **spot-check / manifest-row** — verb (on the record) vs envelope array.
-4. **existence** — add `mint --existence` (record-resident, dedups) vs drop the board plumbing.
-5. **certify** — wire a driver vs fold into `outcome`.
+1. **halt channel → the `halt` verb is canonical.** The tool's original design stands: a halt is
+   the bench's own verb, not a petition ruling. debate.js changes so a halt-on-petition routes
+   through `bench halt` (carrying the opinion); `petition-rule` records `granted|denied` only, and
+   its enum stays as-is. The `halt` verb is KEPT and wired; it is not orphaned once debate.js names
+   it. *(Decided against aligning the enum to the driven path — the design intent that halt is a
+   first-class terminal act, distinct from a petition disposition, won.)*
+2. **existence → add `mint --existence`.** Wire the write-path (enum `verified|suspected`) so the
+   leaf-check axis lands on the record and dedups out of the envelope. The board already reads it.
+3. **petition filing / spot-check / manifest-row → the record verb is the single source.** The verb
+   event is canonical; the envelope carries a routing ref, not the data. (manifest's `row` prose is
+   genuinely envelope-only today — the verb must store it for this to hold.)
+4. **certify → fold into `outcome`.** A certification is part of the terminal verdict; retire the
+   `certify` verb and let `outcome` carry it.
 
 ## Status of the collapses
 
