@@ -20,11 +20,12 @@ import (
 func newDashboard() *cobra.Command {
 	var watch bool
 	var now int64
+	var serve int
 	var model, judgmentModel, maxRounds, lanes string
 	c := &cobra.Command{
 		Use:           "dashboard <runDir> <transcriptDir>",
 		Short:         "render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)",
-		Long:          "dashboard renders the run's own instruments — board-mass trend, open/close rates, live seats + completion ETA, cost-so-far, judiciary analytics, friction, and this run's scorecards — into <runDir>/dashboard.html (meta-refreshes every 20s). Reads the record in-process plus the Workflow transcripts. --watch regenerates every 15s until the .run-live marker is removed. Ported from render-run-dashboard.mjs.",
+		Long:          "dashboard renders the run's own instruments — board-mass trend, open/close rates, live seats + completion ETA, cost-so-far, judiciary analytics, friction, and this run's scorecards — into <runDir>/dashboard.html (meta-refreshes every 20s). Reads the record in-process plus the Workflow transcripts. --watch regenerates every 15s until the .run-live marker is removed. --serve <port> instead HOSTS it over HTTPS behind a per-run secret URL (rendered fresh per request, self-tears-down when the run ends) so it is reachable across the local network. Ported from render-run-dashboard.mjs.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -41,6 +42,16 @@ func newDashboard() *cobra.Command {
 				}
 				return float64(time.Now().UnixMilli())
 			}
+			// --serve hosts the dashboard over HTTPS as an ephemeral, capability-gated,
+			// self-tearing-down server (see serveDashboard): each request renders FRESH from the
+			// record in-process — the same JIT discipline the projections follow — behind a
+			// per-run secret URL, and the page's own 20s meta-refresh keeps a browser current.
+			if serve != 0 {
+				return serveDashboard(cmd.OutOrStdout(), runDir, serve, func() string {
+					return dashboard.RenderHTML(dashboard.BuildModel(runDir, transcriptDir, cfg, clock()))
+				})
+			}
+
 			out := filepath.Join(runDir, "dashboard.html")
 			generate := func() error {
 				html := dashboard.RenderHTML(dashboard.BuildModel(runDir, transcriptDir, cfg, clock()))
@@ -71,6 +82,7 @@ func newDashboard() *cobra.Command {
 		},
 	}
 	c.Flags().BoolVar(&watch, flags.Watch, false, "regenerate every 15s until the run-live marker is removed")
+	c.Flags().IntVar(&serve, flags.Serve, 0, "host the dashboard over HTTP on this port (0.0.0.0, rendered fresh per request) instead of writing a file — UNAUTHENTICATED, exposes the run on the local network")
 	c.Flags().Int64Var(&now, flags.Now, 0, "inject the clock in unix-ms (default: real time) — for deterministic tests")
 	c.Flags().StringVar(&model, flags.Model, "", "bulk-tier model, for the run-config header (else read from inputs/run-config.json)")
 	c.Flags().StringVar(&judgmentModel, flags.JudgmentModel, "", "judgment-tier model, for the run-config header")
