@@ -109,6 +109,7 @@ var views = []struct {
 }{
 	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on", "merge"},
 	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", "merge"},
+	{"worklist", "STRUCTURED JSON: the merge's shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here", "merge"},
 	{"friction", "STRUCTURED JSON: every friction event on the record (seat, round, text) — capability/protocol complaints as events; read by the dashboard instead of parsing a markdown file", ""},
 	{"ledger", "the board as markdown, for a human verification pass", ""},
 	{"archive", "closed gaps with their closure records and anchors", ""},
@@ -180,12 +181,12 @@ func Show() *cobra.Command {
 				}
 				cmd.OutOrStdout().Write(b)
 				return nil
-			case "board", "findings", "friction":
+			case "board", "findings", "friction", "worklist":
 				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
 			case "":
 				return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
 			default:
-				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction are JSON by name)", role, want)
+				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction/worklist are JSON by name)", role, want)
 			}
 		}
 
@@ -222,6 +223,17 @@ func Show() *cobra.Command {
 		}
 		if want == "friction" {
 			b, err := record.FrictionJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
+		}
+		// worklist is JSON by name too — the merge ACTS on it (scans the open set, screens
+		// candidates), so it reads structured fields, not prose. It is the shrinking
+		// once-per-turn read that the full board JSON is not.
+		if want == "worklist" {
+			b, err := record.WorklistJSONBytes(runDir)
 			if err != nil {
 				return err
 			}
@@ -303,14 +315,7 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 }
 
 func join(names []string) string {
-	out := ""
-	for i, n := range names {
-		if i > 0 {
-			out += ", "
-		}
-		out += n
-	}
-	return out
+	return strings.Join(names, ", ")
 }
 
 // registerResult, petitionResult and closingResult are the shared-verb results: these

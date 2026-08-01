@@ -52,11 +52,14 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 	runDir := seatRun(t)
 	mintGap(t, runDir, "role-views", "read-surface")
 
-	// merge's own view is the structured BOARD, not the markdown ledger: the merge seat
-	// is the one that acts on gap state, and it should get it in the form it acts on
-	// rather than prose it has to parse back.
+	// merge's own view is the structured WORKLIST — its shrinking working set (OPEN gaps
+	// lean + a prose-free closed_index), the once-per-turn read it acts on. It is the
+	// last-wins default among the merge's views (board, findings, worklist all default to
+	// merge; worklist is registered last), so a bare `merge show` resolves here. The marker
+	// is `closed_index`, which ONLY the worklist carries — board/findings would also match a
+	// bare `"counts"`, so pinning on the unique key is what fixes the default to worklist.
 	for _, c := range []struct{ role, marker string }{
-		{"merge", `"counts"`},
+		{"merge", `"closed_index"`},
 		{"blue", "CHANGELOG"},
 		{"lens", "citation-ledger"},
 		{"bench", "debate.md"},
@@ -149,7 +152,7 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 
 	// --json on a JSON-by-name view is refused (no alias to that JSON).
-	for _, v := range []string{"board", "findings", "friction"} {
+	for _, v := range []string{"board", "findings", "friction", "worklist"} {
 		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}
