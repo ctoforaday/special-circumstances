@@ -225,9 +225,32 @@ func ParseValidationLoop(body string) []Check {
 // for. Detecting what was NOT parsed is the whole point of LoopProblems.
 var loopEntry = regexp.MustCompile(`^(\d+)([a-z]*)\.(\s|$)`)
 
+// NoteLoopProblems is LoopProblems over a WHOLE note: it extracts the validation
+// loop itself and reports on that.
+//
+// It exists because LoopProblems takes the SECTION, and handing it the note is a
+// mistake that reads as working — `## Next intended steps` is a numbered list in
+// the schema, so every step would be counted as a loop entry and reported as a
+// label disagreeing with its ordinal. Wrong, loud, and about the wrong section.
+// Three call sites now want this from the note; the extraction belongs here once
+// rather than in each of them.
+//
+// No loop section means no problems. An absent loop is a different complaint,
+// raised where it can be acted on — see checkpointseal.drift.
+func NoteLoopProblems(note string) []string {
+	loop, ok := Parse(note).NonEmptySection("Validation loop")
+	if !ok {
+		return nil
+	}
+	return LoopProblems(loop)
+}
+
 // LoopProblems reports validation-loop entries whose written label disagrees
 // with their ordinal position, and entries a reader would count that the parser
 // does not.
+//
+// body is the validation loop SECTION, not the note — see NoteLoopProblems,
+// which is the right entry point when you are holding a whole note.
 //
 // The schema (skills/context-checkpointing/SKILL.md) numbers the loop `1.`, `2.`,
 // `3.` … so the written label and the ordinal are the same number. Nothing
