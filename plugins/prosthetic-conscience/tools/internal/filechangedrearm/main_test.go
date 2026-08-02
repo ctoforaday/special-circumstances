@@ -369,3 +369,97 @@ func TestAnUnparsableNoteDeletesNothing(t *testing.T) {
 		t.Errorf("state = %v; a note we could not parse is not evidence that its checks are gone", got)
 	}
 }
+
+// #219. This hook is where a malformed entry actually COSTS something: the entry opens no
+// check, so nothing claims the files under its surface, so they are never re-armed. It used
+// to say nothing at all — the complaint reached the operator once, at the next session start,
+// from a different hook.
+func TestAnUnmatchedChangeReportsWhatTheParserDropped(t *testing.T) {
+	dir := project(t)
+	// Entry 2b. names .qlty/ and opens no check, so a .qlty change re-arms nothing.
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), `---
+schema: 2
+---
+## Validation loop
+1. `+"`go test ./...`"+`  → ok  · re-armed by: any .go edit under tools/
+   last run: pass
+2b. `+"`qlty check`"+`  → no issues  · re-armed by: .qlty/qlty.toml
+   last run: pass
+## Next intended steps
+1. one
+2. two
+`)
+
+	in, _ := json.Marshal(hookInput{FilePath: filepath.Join(dir, ".qlty", "qlty.toml"), Event: "change"})
+	var o, e bytes.Buffer
+	if code := run(nil, bytes.NewReader(in), &o, &e, dir, noon); code != 0 {
+		t.Fatalf("exit = %d; this hook must never block a tool call", code)
+	}
+	if !strings.Contains(e.String(), "2b.") || !strings.Contains(e.String(), "no check claimed it") {
+		t.Errorf("stderr = %q; want the unclaimed file AND the entry that would have claimed it", e.String())
+	}
+	if o.String() != "" {
+		t.Errorf("stdout = %q; this hook never writes to stdout", o.String())
+	}
+	// The numbered next-steps must not be read as loop entries.
+	if strings.Contains(e.String(), "position 3") {
+		t.Errorf("a section other than the loop was parsed: %q", e.String())
+	}
+}
+
+// A change that DID re-arm a check is not the moment to complain: this hook fires once per
+// file, and an unconditional warning would repeat dozens of times a turn and be tuned out.
+func TestAMatchedChangeStaysQuietEvenWithAMalformedLoop(t *testing.T) {
+	dir := project(t)
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"),
+		strings.Replace(note, "\n2. ", "\n2b. ", 1))
+
+	in, _ := json.Marshal(hookInput{FilePath: filepath.Join(dir, "tools", "internal", "x.go"), Event: "change"})
+	var o, e bytes.Buffer
+	run(nil, bytes.NewReader(in), &o, &e, dir, noon)
+
+	if e.String() != "" {
+		t.Errorf("stderr = %q; a change that re-armed its check has nothing to answer for", e.String())
+	}
+	if len(stateOf(t, dir).Rearmed) != 1 {
+		t.Error("the re-arm itself must still be recorded")
+	}
+}
+
+// The severe case: a loop a reader counts and the parser opens NOTHING from. Every file
+// change re-arms nothing, all session. The hook returned here before saying a word.
+func TestALoopThatOpensNoChecksSaysSo(t *testing.T) {
+	dir := project(t)
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), `---
+schema: 2
+---
+## Validation loop
+1a. `+"`go test ./...`"+`  → ok  · re-armed by: any .go edit under tools/
+1b. `+"`qlty check`"+`  → no issues  · re-armed by: .qlty/qlty.toml
+`)
+
+	in, _ := json.Marshal(hookInput{FilePath: filepath.Join(dir, "tools", "internal", "x.go"), Event: "change"})
+	var o, e bytes.Buffer
+	if code := run(nil, bytes.NewReader(in), &o, &e, dir, noon); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	if !strings.Contains(e.String(), "opens NO checks") {
+		t.Errorf("stderr = %q; a loop that watches nothing must not be silent", e.String())
+	}
+	if !strings.Contains(e.String(), "1a.") || !strings.Contains(e.String(), "1b.") {
+		t.Errorf("stderr = %q; name the entries, or there is nothing to fix", e.String())
+	}
+}
+
+// A note with no problems and no match is silent — the common case, and the one that
+// decides whether anybody still reads this channel.
+func TestAnUnmatchedChangeUnderAHealthyLoopIsSilent(t *testing.T) {
+	dir := project(t)
+	write(t, filepath.Join(dir, "unclaimed.txt"), "x")
+	in, _ := json.Marshal(hookInput{FilePath: filepath.Join(dir, "unclaimed.txt"), Event: "change"})
+	var o, e bytes.Buffer
+	run(nil, bytes.NewReader(in), &o, &e, dir, noon)
+	if e.String() != "" {
+		t.Errorf("stderr = %q; an unclaimed change under a healthy loop is expected, not a fault", e.String())
+	}
+}

@@ -368,3 +368,66 @@ func TestSnapshotNamesCannotEscapeTheDirectory(t *testing.T) {
 		t.Errorf("path traversal survived into the filename: %q", snaps[0])
 	}
 }
+
+// #219. A malformed loop used to be reported ONLY by sc-checkpoint-restore — next session,
+// after the snapshot froze the bad note. The seam is where the session that WROTE it is
+// still holding the context that explains it, so that is where it has to be said.
+func TestSealReportsAMalformedLoopWithoutRefusingToSeal(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"),
+		"---\nschema: 2\nstatus: in-progress\n---\n"+
+			"## Validation loop\n1. `go test ./...` · re-armed by: tools/\n"+
+			"3. `qlty check` · re-armed by: .qlty/\n"+
+			"3b. `make release` · re-armed by: a human\n"+
+			"## Next intended steps\n1. one\n2. two\n")
+
+	_, stderr, code := call(t, input(t, hookInput{Trigger: "auto"}), dir, noon, "-event", evPreCompact)
+
+	if code != 0 {
+		t.Errorf("exit = %d; the seal must never refuse over a numbering slip", code)
+	}
+	if len(snapshots(t, dir)) != 1 {
+		t.Errorf("snapshots = %v; the note must still be sealed", snapshots(t, dir))
+	}
+	for _, want := range []string{"3.", "3b.", "fix the LIVE note"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr missing %q:\n%s", want, stderr)
+		}
+	}
+	// The numbered "Next intended steps" must not be counted as loop entries — the
+	// report says two problems because the LOOP has two, not four.
+	if n := strings.Count(stderr, "\n  - "); n != 2 {
+		t.Errorf("reported %d problems, want 2 — anything more means a section other than the loop was read:\n%s", n, stderr)
+	}
+}
+
+// A well-formed note says nothing, and sampleNote is the case that matters: it carries a
+// numbered `## Next intended steps`, so a seal that read the whole note would complain
+// about a healthy note on every compaction.
+func TestSealIsSilentOnAWellFormedLoop(t *testing.T) {
+	for _, event := range []string{evPreCompact, evSessionEnd, evSubagentStop} {
+		dir := t.TempDir()
+		writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), sampleNote)
+		_, stderr, _ := call(t, input(t, hookInput{Trigger: "auto"}), dir, noon, "-event", event)
+		if strings.Contains(stderr, "validation-loop problem") {
+			t.Errorf("%s: complained about a well-formed note:\n%s", event, stderr)
+		}
+	}
+}
+
+// Reported at EVERY seam, not just compaction: a session that ends without ever compacting
+// is the one whose note nobody else is going to look at first.
+func TestSealReportsTheLoopOnEverySealEvent(t *testing.T) {
+	bad := "---\nschema: 2\n---\n## Validation loop\n2. `go test ./...` · re-armed by: tools/\n"
+	for _, event := range []string{evPreCompact, evSessionEnd, evSubagentStop} {
+		dir := t.TempDir()
+		writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), bad)
+		_, stderr, code := call(t, input(t, hookInput{}), dir, noon, "-event", event)
+		if code != 0 {
+			t.Errorf("%s: exit = %d", event, code)
+		}
+		if !strings.Contains(stderr, "validation-loop problem") {
+			t.Errorf("%s: silent about a mislabelled loop:\n%s", event, stderr)
+		}
+	}
+}

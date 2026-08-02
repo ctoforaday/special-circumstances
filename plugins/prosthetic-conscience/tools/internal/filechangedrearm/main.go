@@ -164,11 +164,34 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 	checks := checkpoint.ParseValidationLoop(loop)
+
+	// A malformed entry costs a re-arm that never happens, and this hook is where that
+	// cost lands (#219). Until now only sc-checkpoint-restore said anything, once, at
+	// session start — so an entry that opens no check was silent for the whole session
+	// it was actually failing in.
+	problems := checkpoint.LoopProblems(loop)
+
 	if len(checks) == 0 {
+		// The severe case: the note carries a loop a reader would count and the parser
+		// opens nothing from. No file change re-arms anything, all session, silently.
+		if len(problems) > 0 {
+			fmt.Fprintf(stderr, "sc-filechanged-rearm: this note's validation loop opens NO checks, so no file change re-arms anything — %s\n", strings.Join(problems, "; "))
+		}
 		return 0
 	}
 
 	c, matched := attribute(checks, targetsFor(checks, projectDir), projectDir, in.FilePath)
+
+	// Said only on an UNMATCHED change, and deliberately: this hook fires once per file,
+	// so an unconditional complaint would repeat dozens of times a turn and be tuned out.
+	// An unmatched change is the moment a dropped entry could be the cause — the entry
+	// that should have claimed this file is exactly the kind that fails to parse. This
+	// does not CLAIM that correlation (the problems are strings, not entries with
+	// surfaces); it reports both facts at the moment they might be the same fact.
+	if !matched && len(problems) > 0 {
+		fmt.Fprintf(stderr, "sc-filechanged-rearm: %s changed and no check claimed it, and the loop has entries a reader counts that the parser does not — the check that should have claimed this file may be one of them: %s\n",
+			relTo(projectDir, in.FilePath), strings.Join(problems, "; "))
+	}
 	stamp := now.UTC().Format(time.RFC3339)
 
 	var dropped []string
