@@ -163,6 +163,27 @@ func segmentLabels(seg string) []string {
 	return out
 }
 
+// findingMarkerRe matches an invisible finding-anchor token "<!--fx:f-<hex>-->" (slice
+// 1b). A finding-marker is an HTML COMMENT, not a footnote, so it never touches Count
+// or the claim-index; it is extracted here purely for the tampering detector.
+var findingMarkerRe = regexp.MustCompile(`<!--fx:(f-[0-9a-f]+)-->`)
+
+// FindingAnchorIDs returns the distinct finding-anchor ids PRESENT in the report, in
+// first-seen order. This is the immortal-marker detector's PRESENT set: an anchored
+// finding_id absent from it is a dropped marker (a hard violation). Pure id membership
+// over the report text.
+func FindingAnchorIDs(md string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range findingMarkerRe.FindAllStringSubmatch(md, -1) {
+		if id := m[1]; !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // sentenceHash is the FNV-1a hash of the whitespace-normalized segment: a locator
 // stable under line-number shift, so blue can match an occurrence after edits move
 // it. strings.Fields collapses whitespace runs and trims.

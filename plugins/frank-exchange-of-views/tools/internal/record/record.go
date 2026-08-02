@@ -365,6 +365,17 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		}
 	}
 	switch typ {
+	case "anchor":
+		// The finding-marker's record: it says "finding <id> has a marker at <location>
+		// in blue/report.md". EXPECTED for the immortal-marker detector is exactly the set
+		// of these. It keys on `id` (a finding_id) via deriveKey, so it is idempotent per
+		// finding — a re-anchor of the same finding writes one event, not a second marker's.
+		if !p.Has("id") || p.Str("id") == "" {
+			return fmt.Errorf("record: anchor requires id (the finding_id the marker carries)")
+		}
+		if !p.Has("location") || p.Str("location") == "" {
+			return fmt.Errorf("record: anchor requires location (the section + quoted sentence the marker sits at)")
+		}
 	case "mint":
 		if !p.Has("acceptance_check") || p.Str("acceptance_check") == "" {
 			return fmt.Errorf("record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)")

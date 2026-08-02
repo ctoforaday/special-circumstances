@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -35,6 +36,15 @@ import (
 // Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
 // carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
 // the report from those two — no --inputs, no intermediate round-trip.
+// findingMarker matches the invisible finding-anchor token "<!--fx:f-<id>-->" (slice
+// 1b). It is stripped from the FINAL assembled output — not just blue's lifted content
+// — because a finding's location/reason text can carry the token into the
+// record-derived findings/transcript sections, which a blue-only strip misses.
+var findingMarker = regexp.MustCompile(`<!--fx:[^>]*-->`)
+
+// StripFindingMarkers removes every finding-anchor token from report markdown.
+func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllString(md, "") }
+
 func Assemble(runDir string) (string, error) {
 	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
 
@@ -81,7 +91,11 @@ func Assemble(runDir string) (string, error) {
 		p(r)
 	}
 
-	out := collapseBlanks(b.String())
+	// Strip finding-markers from the WHOLE composed report, not just blue's lifted
+	// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
+	// the record-derived findings/transcript sections, and only a final-output strip
+	// catches those. No raw marker ships (the leak fix).
+	out := StripFindingMarkers(collapseBlanks(b.String()))
 	path := filepath.Join(runDir, "report.md")
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.md: %w", err)

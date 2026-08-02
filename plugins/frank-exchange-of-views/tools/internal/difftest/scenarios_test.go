@@ -26,7 +26,7 @@ func scenarios() []scenario {
 				base("blue", "friction", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
-					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--reason", "unfounded leap"),
+					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--location", "## S2", "--reason", "unfounded leap"),
 			},
 		},
 		{
@@ -102,12 +102,12 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "older shard"),
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--location", "## S2", "--reason", "older shard"),
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
 				{
 					role: "lens",
 					args: []string{"finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F2",
-						"--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "newer shard"},
+						"--severity", "low", "--likelihood", "low", "--impact", "low", "--location", "## S2", "--reason", "newer shard"},
 					mtimes: map[string]time.Time{
 						"events-red-lens-r1-L1-NONCE001.jsonl": time.Unix(1_700_000_000, 0),
 						"events-red-lens-r1-L1-NONCE002.jsonl": time.Unix(1_700_000_600, 0),
@@ -119,9 +119,9 @@ func scenarios() []scenario {
 			name: "finding_labels_run_unique_per_role_across_rounds", // oracle: the tool assigns L{role}-F{N}, the sequence spanning rounds — a lens cannot reuse a label, so round two gets L1-F2, not another L1-F1
 			cmds: []cmd{
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "round one"),
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--location", "## S2", "--reason", "round one"),
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r2-L1", "--key", "F1",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "round two"),
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--location", "## S2", "--reason", "round two"),
 			},
 		},
 		{
@@ -170,7 +170,7 @@ func scenarios() []scenario {
 				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "scope-creep", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason-file", "{RUN}/prose.md"),
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--reason-file", "{RUN}/prose.md"),
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--location", "## S2", "--reason-file", "{RUN}/prose.md"),
 			},
 		},
 		{

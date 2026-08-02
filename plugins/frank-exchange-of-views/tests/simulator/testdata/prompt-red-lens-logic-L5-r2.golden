@@ -1,8 +1,8 @@
-prompt sha256: 23571f61557bd965fd5cd05fbde6851a50fe8bf685c38fd75b9222bbb697bad7
+prompt sha256: 3a3d393c331a67e1ae3ad205ffd1a9c19838cde900288e126548101b75cd9c2e
 
 Red audit, round 2, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance).
 Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); blue's change log research/2026-01-01_golden/blue/CHANGELOG.md is a navigation hint only.
-Anchor every finding to a section heading plus a quoted sentence.
+Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
 Record EACH finding as an event via the finding verb (--key <local F1> --severity/--likelihood/--impact --location --reason) — the TOOL assigns the run-unique label L5-F{N} (your lens number 5 is your ROLE, stable across rounds: L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so found_by stays comparable run-wide) and returns it.
