@@ -177,7 +177,7 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
-		"--key", "F1", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
+		"--key", "F1", "--location", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "findings")

@@ -1,4 +1,4 @@
-prompt sha256: 1a62b6620e409ba0dea3215b8b10b1a6d66515122f30bf15eff757be4f8ea1fc
+prompt sha256: b5d7dab65ea2496592e0622d0719653c453fadf82895a920b542652c8626d133
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; footnote-block ownership follows the slice (instance 1 owns the footnote definitions its sections reference).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -11,7 +11,7 @@ WebSearch is for DISCOVERY (find the URL); the read that GRADES a claim is alway
 If a source is too large for your context, read it in SECTIONS (paginate, curl byte ranges, or pdftotext then grep the region) and name the sections you read.
 A truncated read is NOT a read: state truncation in your pass, and never grade a body you could not fully read..
 Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
-Anchor every finding to a section heading plus a quoted sentence.
+Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
 Record EACH finding as an event via the finding verb (--key <local F1> --severity/--likelihood/--impact --location --reason) — the TOOL assigns the run-unique label L1-F{N} (your lens number 1 is your ROLE, stable across rounds: L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so found_by stays comparable run-wide) and returns it.

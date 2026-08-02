@@ -59,7 +59,12 @@ func TestGoldenHelpContracts(t *testing.T) {
 func TestGoldenErrorCatalogue(t *testing.T) {
 	bin := buildBinary(t)
 	runDir := t.TempDir()
-	seed(t, runDir, map[string]string{"records/class-registry.json": registry})
+	// The finding below anchors into blue/report.md (slice 1b) with --location "somewhere",
+	// so the report must contain that quote or the finding is rejected as a mis-quote.
+	seed(t, runDir, map[string]string{
+		"records/class-registry.json": registry,
+		"blue/report.md":              "# H\n\nA claim lives somewhere in this report.\n",
+	})
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board.

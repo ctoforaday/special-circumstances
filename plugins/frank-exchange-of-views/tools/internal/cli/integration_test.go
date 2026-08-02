@@ -35,6 +35,11 @@ func seatRun(t *testing.T) string {
 			t.Fatalf("register %s: %v", s.id, err)
 		}
 	}
+	// A lens finding is now anchored into blue/report.md and rejected unless its
+	// --location quote is present (slice 1b). Seed a report carrying the quotes the
+	// finding tests use, mirroring the real run where blue-synthesize wrote the report
+	// before red-lens files findings.
+	seedBlueReport(t, runDir)
 	return runDir
 }
 

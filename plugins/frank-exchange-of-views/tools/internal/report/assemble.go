@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -35,8 +36,20 @@ import (
 // Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
 // carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
 // the report from those two — no --inputs, no intermediate round-trip.
+// findingMarker matches a finding-anchor "[^f-<id>]" (slice 1b). These invisible
+// tool anchors are stripped at assembly so no raw marker ships. Stripping ONCE at the
+// blue read below covers every downstream verbatim-lift site by construction.
+var findingMarker = regexp.MustCompile(`\[\^f-[^\]]+\]`)
+
+// StripFindingMarkers removes every finding-anchor token from report markdown.
+func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllString(md, "") }
+
 func Assemble(runDir string) (string, error) {
-	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
+	// Strip finding-markers before ANY lift: [^f-<id>] anchors are invisible and never
+	// shipped. A resolved finding's marker simply vanishes; an unresolved finding stays
+	// SURFACED via the record-derived findings section (below), so nothing dangles and
+	// no raw "[^f-" reaches the assembled report.
+	blue := StripFindingMarkers(readOr(filepath.Join(runDir, "blue", "report.md"), ""))
 
 	board, err := record.BoardState(runDir)
 	if err != nil {

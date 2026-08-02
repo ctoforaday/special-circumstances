@@ -699,6 +699,11 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 
 func runOne(wrapped, bin string, seed int64) outcome {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
+	// A lens finding anchors into blue/report.md and is rejected unless its --location
+	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
+	// ("§ fuzz") so findings are accepted and the coverage gate sees them.
+	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
+	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n"), 0o644)
 	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
 	res := outcome{seed: seed, runDir: runDir}

@@ -119,7 +119,7 @@ Usage:
 
 Available Commands:
   cite        citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
-  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> [--reason "..."] [--location "..."]
+  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<section + quoted sentence>"
   friction    attributed friction (survives aborts as an event): --reason
   observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
@@ -252,7 +252,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.25.0
+feov-record version 0.26.0
 
 $ feov-record nonsuch help
 exit 2

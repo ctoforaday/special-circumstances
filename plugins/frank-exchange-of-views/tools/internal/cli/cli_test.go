@@ -43,6 +43,24 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	return out.String(), err
 }
 
+// seedBlueReport writes a blue/report.md whose prose contains the quoted sentences
+// the finding tests anchor to (slice 1b: a lens finding is rejected unless its
+// --location quote is present in the report). One generous body covers the tokens
+// the suite uses (§1..§3, the parser quote, sec 1, a quoted sentence).
+func seedBlueReport(t *testing.T, runDir string) {
+	t.Helper()
+	body := "# §1\n\n§1 first — a finding sits in sec 1 here.\n\n" +
+		"# §2\n\n§2 the finding prose lands in a quoted sentence.\n\n" +
+		"# §3\n\nthe parser accepts an empty body in this line.\n"
+	dir := filepath.Join(runDir, "blue")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // help captures a command's own help output, which cobra writes to its writer.
 func help(t *testing.T, args ...string) string {
 	t.Helper()
@@ -280,6 +298,7 @@ func TestBoardVerbsExistOnlyInTheMergeRole(t *testing.T) {
 
 func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	runDir := t.TempDir()
+	seedBlueReport(t, runDir)
 	seatID := "red-lens-r1-L1"
 
 	out, err := run(t, "lens", "register", "--run", runDir, "--seat-id", seatID)
@@ -324,16 +343,19 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 // absent/present distinction the record format rests on.
 func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	runDir := t.TempDir()
+	seedBlueReport(t, runDir)
 	seatID := "red-lens-r1-L1"
+	// --location and --reason are required (1b); likelihood/impact are still optional,
+	// so they are the unpassed flags whose absence this pins.
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID,
-		"--key", "F1", "--severity", "high", "--reason", "t"); err != nil {
+		"--key", "F1", "--severity", "high", "--location", "§1", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
 	keys := payloadKeys(lastOfType(t, runDir, "finding"))
 	if !keys["label"] || !keys["severity"] || !keys["text"] {
 		t.Errorf("a passed flag is missing from the payload: %v", keys)
 	}
-	for _, absent := range []string{"likelihood", "impact", "location"} {
+	for _, absent := range []string{"likelihood", "impact"} {
 		if keys[absent] {
 			t.Errorf("%q appears in the payload though the seat never passed it", absent)
 		}
@@ -777,6 +799,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
+			seedBlueReport(t, runDir)
 			seatID := "red-merge-r1"
 			// The referenced gap and observation must EXIST, or the reference check
 			// fires first and this test asserts on the wrong refusal — it is about the

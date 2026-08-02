@@ -53,12 +53,23 @@ var (
 // Segment is one kept unit of the report — a sentence/line-bounded piece that
 // survived the exclusions — with the position and heading context a reader needs to
 // locate it, and the DISTINCT footnote labels it carries.
+//
+// FINDING-ANCHOR NAMESPACE (slice 1b). A footnote whose label begins "f-" is NOT a
+// blue claim footnote — it is a tool-inserted FINDING-MARKER (the label is the
+// finding_id, e.g. "[^f-abc]"). It is routed to Anchors, NOT Labels, so Count (which
+// counts Labels) is provably unchanged by markers — the monotonicity the retire-vs-
+// drop detector rests on. The reserved rule: a blue claim label must never begin "f-".
 type Segment struct {
 	Text    string   // the segment's raw text
 	Line    int      // 1-based line number in the original report where the segment sits
 	Heading string   // nearest preceding markdown heading (stripped of leading # and space)
-	Labels  []string // distinct footnote labels used inline in this segment, in first-seen order
+	Labels  []string // distinct CLAIM footnote labels used inline (never an "f-" finding-anchor)
+	Anchors []string // distinct FINDING-ANCHOR ids ("f-…") used inline; a locator, not a claim unit
 }
+
+// findingAnchorPrefix marks the reserved namespace: a footnote label beginning with
+// it is a finding-marker, not a claim.
+const findingAnchorPrefix = "f-"
 
 // Scan walks report markdown once and returns the kept segments in reading order.
 // Fenced code blocks, footnote-DEFINITION lines (the bibliography), and headings are
@@ -86,7 +97,8 @@ func Scan(md string) []Segment {
 			continue
 		}
 		for _, seg := range claimBoundary.Split(ln, -1) {
-			segs = append(segs, Segment{Text: seg, Line: i + 1, Heading: heading, Labels: segmentLabels(seg)})
+			labels, anchors := segmentMarkers(seg)
+			segs = append(segs, Segment{Text: seg, Line: i + 1, Heading: heading, Labels: labels, Anchors: anchors})
 		}
 	}
 	return segs
@@ -144,20 +156,44 @@ func Index(md string) []LabelOccurrences {
 	return out
 }
 
-// segmentLabels returns the DISTINCT footnote labels used inline in a segment, in
-// first-seen order. A label repeated in one segment is one site, not two.
-func segmentLabels(seg string) []string {
+// segmentMarkers returns the DISTINCT inline footnote markers in a segment, PARTITIONED
+// by namespace: claim labels (labels) and finding-anchors (anchors, "f-…"). First-seen
+// order within each; a marker repeated in one segment is one site, not two. The `f-`
+// split is what keeps Count (over labels) unchanged by finding-markers.
+func segmentMarkers(seg string) (labels, anchors []string) {
 	ms := inlineMarker.FindAllString(seg, -1)
 	if len(ms) == 0 {
-		return nil
+		return nil, nil
 	}
 	seen := map[string]bool{}
-	var out []string
 	for _, m := range ms {
 		label := m[2 : len(m)-1] // strip the "[^" prefix and "]" suffix
-		if !seen[label] {
-			seen[label] = true
-			out = append(out, label)
+		if seen[label] {
+			continue
+		}
+		seen[label] = true
+		if strings.HasPrefix(label, findingAnchorPrefix) {
+			anchors = append(anchors, label)
+		} else {
+			labels = append(labels, label)
+		}
+	}
+	return labels, anchors
+}
+
+// FindingAnchorIDs returns the distinct finding-anchor ids ("f-…") PRESENT in the
+// report, in first-seen order. This is the immortal-marker detector's PRESENT set: an
+// anchored finding_id absent from it is a dropped marker (a hard violation). Pure id
+// membership over the report text — no claim, no Count interaction.
+func FindingAnchorIDs(md string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range Scan(md) {
+		for _, id := range s.Anchors {
+			if !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
 		}
 	}
 	return out

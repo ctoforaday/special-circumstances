@@ -117,6 +117,14 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.26.0 finding-markers (slice 1b): a `lens finding` now REQUIRES --location + --reason, VALIDATES
+//	       that the quoted --location text is present in blue/report.md (a mis-quote is rejected), and
+//	       anchors the finding by inserting an invisible immortal footnote marker `[^<finding_id>]` at
+//	       that sentence — written under a lock via the new `record.MutateBlueReport`, with a new
+//	       `anchor` event as the record of it. claimcount routes the `f-` namespace out of the claim
+//	       count; assembly strips every `[^f-…]` so none ships; a scorecard detector flags an anchored
+//	       marker that vanished from the report (blue dropping red's audit point). A stale binary would
+//	       record findings without anchoring them and miss the tampering detector.
 //	0.25.0 blue's read-once + the existence write-path (Envelope-refs Phase 3): a new read-only
 //	       `blue claim-index` enumerates, per footnote label, every site a claim appears
 //	       ({label, occurrences:[{heading, line, sentence_hash}]}) so blue propagates a correction to
@@ -141,7 +149,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.25.0"
+const Version = "0.26.0"
 
 func init() { record.ToolVersion = Version }
 

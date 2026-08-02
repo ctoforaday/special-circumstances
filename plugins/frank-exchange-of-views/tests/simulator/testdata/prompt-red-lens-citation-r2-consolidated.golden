@@ -1,4 +1,4 @@
-prompt sha256: 7f97e38580c0ea13f37c13c951679764d9b98660d03990d10993732e65be14b7
+prompt sha256: 98f34c60446d9febe9968c7667dca1b93d8ea5c0d2e01cbf71a67de79173cc18
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 CITATION LEDGER: read research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
@@ -13,7 +13,7 @@ CONSOLIDATED CITATION SEAT (W2i): from round 2 the citation seats are deliberate
 Your duty is three things, in order: (1) verify every claim in your slice that is NEW or whose section CHANGED this round (blue's CHANGELOG names them); (2) re-fetch everything in your slice the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of your slice's already-verified pairs — your discretion which, and reopen any that has drifted.
 COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep, and the consolidation is only sound while the gap is visible..
 Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); blue's change log research/2026-01-01_golden/blue/CHANGELOG.md is a navigation hint only.
-Anchor every finding to a section heading plus a quoted sentence.
+Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
 Record EACH finding as an event via the finding verb (--key <local F1> --severity/--likelihood/--impact --location --reason) — the TOOL assigns the run-unique label L1-F{N} (your lens number 1 is your ROLE, stable across rounds: L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so found_by stays comparable run-wide) and returns it.

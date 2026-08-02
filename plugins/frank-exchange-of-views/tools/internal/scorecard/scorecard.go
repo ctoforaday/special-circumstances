@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -351,6 +352,39 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
 			Note: "needs at least two rounds reporting claim_count"})
 	}
+
+	// dropped_finding_markers (immortal-marker tampering, slice 1b). A red finding is
+	// anchored in blue/report.md with an invisible [^f-<id>] marker; the marker is
+	// IMMORTAL — a citation is red's and blue may never delete it. EXPECTED = the anchor
+	// events; PRESENT = the f- ids in the current report. An anchored id absent from the
+	// report is blue silently dropping red's audit point — a hard additive-integrity
+	// violation, keyed by id with no text match and no legitimate-removal exception.
+	expectedMarkers := map[string]bool{}
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "anchor" {
+				if id := e.Payload.Str("id"); id != "" {
+					expectedMarkers[id] = true
+				}
+			}
+		}
+	}
+	presentMarkers := map[string]bool{}
+	if md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md")); err == nil {
+		for _, id := range claimcount.FindingAnchorIDs(string(md)) {
+			presentMarkers[id] = true
+		}
+	}
+	droppedMarkers := 0
+	for id := range expectedMarkers {
+		if !presentMarkers[id] {
+			droppedMarkers++
+		}
+	}
+	rows = append(rows, Row{Clause: "TAMPER: dropped finding-markers", Metric: "dropped_finding_markers", Cls: "detector",
+		Value: droppedMarkers,
+		Note:  strconv.Itoa(len(expectedMarkers)) + " finding-marker(s) anchored, " + strconv.Itoa(droppedMarkers) + " missing from the report",
+		Joint: "a marker red anchored that is gone from blue's report is blue dropping red's audit point — markers are immortal, so any absence is tampering"})
 
 	// lines_of_inquiry (object value, insertion-order byStatus)
 	var statusOrder []string
