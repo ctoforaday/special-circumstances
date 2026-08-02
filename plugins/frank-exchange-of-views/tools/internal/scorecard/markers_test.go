@@ -28,7 +28,7 @@ func anchorEv(id string) record.Event {
 func TestDroppedFindingMarkersDetector(t *testing.T) {
 	// f-a present, f-b MISSING, plus an orphan f-orphan in the report with no anchor.
 	runDir := t.TempDir()
-	seedReport(t, runDir, "A claim.[^f-a] Stray.[^f-orphan]")
+	seedReport(t, runDir, "A claim.<!--fx:f-a--> Stray.<!--fx:f-orphan-->")
 	board := &record.Board{Events: []record.Event{anchorEv("f-a"), anchorEv("f-b")}}
 
 	r := rowByMetric(blueRows(runDir, nil, nil, board), "dropped_finding_markers")
@@ -43,7 +43,7 @@ func TestDroppedFindingMarkersDetector(t *testing.T) {
 // All anchored markers present → no hit.
 func TestDroppedFindingMarkersAllPresent(t *testing.T) {
 	runDir := t.TempDir()
-	seedReport(t, runDir, "One.[^f-a] Two.[^f-b]")
+	seedReport(t, runDir, "One.<!--fx:f-a--> Two.<!--fx:f-b-->")
 	board := &record.Board{Events: []record.Event{anchorEv("f-a"), anchorEv("f-b")}}
 	r := rowByMetric(blueRows(runDir, nil, nil, board), "dropped_finding_markers")
 	if v, _ := r.Value.(int); v != 0 {

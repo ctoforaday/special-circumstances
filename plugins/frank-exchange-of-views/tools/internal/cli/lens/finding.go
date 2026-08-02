@@ -54,7 +54,11 @@ func newFinding() *cobra.Command {
 			// Mint the id UP FRONT: it forms the marker, so it must exist before the
 			// report write. Append will not re-mint (finding_id already present).
 			findingID := record.NewFindingID()
-			marker := "[^" + findingID + "]"
+			// An INVISIBLE HTML-comment token, not a footnote: a "[^id]" marker rendered
+			// as an undefined footnote AND red audited it as one, and a finding's quoted
+			// location/reason text carried the marker into the record-derived sections. A
+			// comment renders as nothing and is no footnote, so no seat audits it.
+			marker := "<!--fx:" + findingID + "-->"
 
 			// Insert the marker at the located quote UNDER THE LOCK, atomically. NOT
 			// FOUND -> reject (a mis-quote): the transform returns an error, nothing is

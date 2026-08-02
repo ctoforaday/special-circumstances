@@ -36,20 +36,17 @@ import (
 // Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
 // carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
 // the report from those two — no --inputs, no intermediate round-trip.
-// findingMarker matches a finding-anchor "[^f-<id>]" (slice 1b). These invisible
-// tool anchors are stripped at assembly so no raw marker ships. Stripping ONCE at the
-// blue read below covers every downstream verbatim-lift site by construction.
-var findingMarker = regexp.MustCompile(`\[\^f-[^\]]+\]`)
+// findingMarker matches the invisible finding-anchor token "<!--fx:f-<id>-->" (slice
+// 1b). It is stripped from the FINAL assembled output — not just blue's lifted content
+// — because a finding's location/reason text can carry the token into the
+// record-derived findings/transcript sections, which a blue-only strip misses.
+var findingMarker = regexp.MustCompile(`<!--fx:[^>]*-->`)
 
 // StripFindingMarkers removes every finding-anchor token from report markdown.
 func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllString(md, "") }
 
 func Assemble(runDir string) (string, error) {
-	// Strip finding-markers before ANY lift: [^f-<id>] anchors are invisible and never
-	// shipped. A resolved finding's marker simply vanishes; an unresolved finding stays
-	// SURFACED via the record-derived findings section (below), so nothing dangles and
-	// no raw "[^f-" reaches the assembled report.
-	blue := StripFindingMarkers(readOr(filepath.Join(runDir, "blue", "report.md"), ""))
+	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
 
 	board, err := record.BoardState(runDir)
 	if err != nil {
@@ -94,7 +91,11 @@ func Assemble(runDir string) (string, error) {
 		p(r)
 	}
 
-	out := collapseBlanks(b.String())
+	// Strip finding-markers from the WHOLE composed report, not just blue's lifted
+	// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
+	// the record-derived findings/transcript sections, and only a final-output strip
+	// catches those. No raw marker ships (the leak fix).
+	out := StripFindingMarkers(collapseBlanks(b.String()))
 	path := filepath.Join(runDir, "report.md")
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.md: %w", err)

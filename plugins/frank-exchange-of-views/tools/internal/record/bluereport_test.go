@@ -24,13 +24,13 @@ func TestMutateBlueReportWritesAndReads(t *testing.T) {
 		if string(old) != "hello world" {
 			t.Errorf("transform saw %q, want %q", old, "hello world")
 		}
-		return []byte("hello world[^f-abc]"), nil
+		return []byte("hello world<!--fx:f-abc-->"), nil
 	})
 	if err != nil {
 		t.Fatalf("MutateBlueReport: %v", err)
 	}
 	got, _ := os.ReadFile(blueReportPath(runDir))
-	if string(got) != "hello world[^f-abc]" {
+	if string(got) != "hello world<!--fx:f-abc-->" {
 		t.Errorf("report = %q, want the marker appended", got)
 	}
 }
@@ -67,7 +67,7 @@ func TestMutateBlueReportConcurrentInsertsBothLand(t *testing.T) {
 		t.Fatal(err)
 	}
 	done := make(chan error, 2)
-	for _, mark := range []string{"[^f-1]", "[^f-2]"} {
+	for _, mark := range []string{"<!--fx:f-1-->", "<!--fx:f-2-->"} {
 		go func() {
 			done <- MutateBlueReport(runDir, func(old []byte) ([]byte, error) {
 				return append(append([]byte{}, old...), []byte(mark)...), nil
@@ -81,7 +81,7 @@ func TestMutateBlueReportConcurrentInsertsBothLand(t *testing.T) {
 	}
 	got, _ := os.ReadFile(blueReportPath(runDir))
 	s := string(got)
-	if !strings.Contains(s, "[^f-1]") || !strings.Contains(s, "[^f-2]") {
+	if !strings.Contains(s, "<!--fx:f-1-->") || !strings.Contains(s, "<!--fx:f-2-->") {
 		t.Errorf("a concurrent insert was lost: %q", s)
 	}
 }

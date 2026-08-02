@@ -30,8 +30,8 @@ func TestLocateEndExactAndFlexible(t *testing.T) {
 func TestInsertMarkerAtOffset(t *testing.T) {
 	report := []byte("The sky is blue.")
 	end := locateEnd(string(report), "sky is blue")
-	got := string(insertMarker(report, end, "[^f-abc]"))
-	if got != "The sky is blue[^f-abc]." {
+	got := string(insertMarker(report, end, "<!--fx:f-abc-->"))
+	if got != "The sky is blue<!--fx:f-abc-->." {
 		t.Errorf("insertMarker = %q", got)
 	}
 }

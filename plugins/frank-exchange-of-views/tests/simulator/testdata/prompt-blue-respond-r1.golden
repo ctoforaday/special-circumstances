@@ -1,4 +1,4 @@
-prompt sha256: 0d83d9dc1898779c55e2f0a7d94e836baee732e1353545a7aa14e3a2e5627f0a
+prompt sha256: 923b0e6a94f21e9e4e4a920eb10d2f7fd8a2036a99d0602f5b6c75b72d3ed508
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -14,10 +14,10 @@ Address every open gap ADDITIVELY in research/2026-01-01_golden/blue/report.md �
 Propagate every correction to ALL sites that state the corrected claim, not only the flagged sentence (incomplete propagation was run 3's dominant blue failure class — 5 regressions in 5 rounds).
 Two locators, both cheap scans of your OWN report (not a whole-report re-read — that is the once-per-cycle working-set read you already did): for a FOOTNOTED claim, the claim-index lists every site of each footnote label (see `blue claim-index --help`) — fix each; AND for an unfootnoted restatement a marker index cannot see (a bare corrected FIGURE), grep the corrected strings/figures report-wide.
 Log the sites checked in the CHANGELOG.
-PRESERVE RED'S MARKERS: red anchors each finding with an invisible `[^f-<id>]` footnote-marker at the quoted sentence — it is red's immortal audit record, not yours to remove.
-Edit AROUND the markers; when you rewrite or move a sentence, carry its marker with the edit — NEVER delete a `[^f-…]`.
+PRESERVE RED'S MARKERS: red anchors each finding with an invisible HTML-comment token `<!--fx:<finding_id>-->` at the quoted sentence — it renders as nothing, it is red's immortal audit record, and it is not yours to remove.
+Edit AROUND the markers; when you rewrite or move a sentence, carry its marker with the edit — NEVER delete a `<!--fx:...-->` token.
 A citation leaves only when RED withdraws it; a marker you dropped is scored against you as tampering (the dropped-finding-markers detector).
-Before closing the round, grep `[^f-` and confirm every marker you started with is still present.
+Before closing the round, grep `<!--fx:` and confirm every marker you started with is still present.
 GRADE DISPUTES (your contest path on red's grading): to dispute a gap's severity/likelihood/impact/complexity_cost, append it under "### Grade disputes" in research/2026-01-01_golden/debate.md; AND list each in the envelope's grade_disputes as a ROUTING REF ONLY (gap_id, dimension, proposed — no prose: the evidence lives on the record, not a second copy in the envelope) so the docket routes it — max 5 per round (overflow is batch-docketed to the judge as one item).
 PROBE CLASSES (W1.10): where a fix demands a probe, discharge a DOCUMENT-PROBE now (against shipped artifacts) or, for a LIVE-PROBE needing built artifacts, name it as a deferred acceptance test with its pass condition — never call a file read a live probe.
 THE MANIFEST (W2b — your self-audit's receipt; your constitution carries the full eight rows): for EVERY gap you repair, run the correctness manifest — figures recomputed, universals enumerated, consistency sites swept report-wide, the repair's own boundary case asked, compositions noted where edits share text, sibling sweep or declared-open enumeration, the gap's acceptance_check RUN with its result, new claims tagged verified-at-leaf/derived/asserted — and return one manifest row per repaired gap in the envelope's manifest array ({gap_id, row}: what you checked and what it showed, compressed).

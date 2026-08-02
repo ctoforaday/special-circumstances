@@ -5,43 +5,29 @@ import (
 	"testing"
 )
 
-// The load-bearing Count-safety pin for slice 1b: a finding-marker "[^f-…]" is routed
-// to Anchors, never Labels, so Count is UNCHANGED by markers — the monotonicity the
-// retire-vs-drop detector rests on.
-func TestFindingAnchorsDoNotAffectCount(t *testing.T) {
+// A finding-marker is an invisible HTML comment, not a footnote, so it never affects
+// Count. This pins that a report peppered with markers counts only its real claims.
+func TestFindingMarkersDoNotAffectCount(t *testing.T) {
 	base := "Water is wet.[^L1]\n\nThe sky is blue."
-	withMarker := "Water is wet.[^L1][^f-abc]\n\nThe sky is blue.[^f-xyz]"
-
+	withMarker := "Water is wet.[^L1]<!--fx:f-abc-->\n\nThe sky is blue.<!--fx:f-9f2-->"
 	if got := Count(base); got != 1 {
 		t.Fatalf("base Count = %d, want 1 (the [^L1] claim)", got)
 	}
 	if got := Count(withMarker); got != 1 {
-		t.Errorf("Count with finding-markers = %d, want 1 UNCHANGED — a marker must never enter Labels", got)
-	}
-	// The claim index (Labels) is likewise unchanged: still one [^L1] claim occurrence.
-	if got := occCount(Index(withMarker)); got != 1 {
-		t.Errorf("Index occurrences = %d, want 1 (markers are not claims)", got)
+		t.Errorf("Count with finding-markers = %d, want 1 UNCHANGED (a comment is not a claim)", got)
 	}
 }
 
-// A label beginning "f" but NOT "f-" (e.g. "food") is a CLAIM label, not a marker —
-// it stays in Labels and counts. Guards the exact over-match the bare-`f` predicate
-// would have caused.
-func TestNonHyphenFLabelStaysAClaim(t *testing.T) {
-	if got := Count("A tasty note.[^food]"); got != 1 {
-		t.Errorf("[^food] Count = %d, want 1 — 'food' begins 'f' but not 'f-', so it is a claim", got)
-	}
-	if ids := FindingAnchorIDs("A tasty note.[^food]"); len(ids) != 0 {
-		t.Errorf("[^food] wrongly routed to anchors: %v", ids)
-	}
-}
-
-// FindingAnchorIDs is the detector's PRESENT set: the distinct f- ids in the report.
+// FindingAnchorIDs is the detector's PRESENT set: the distinct finding ids in the
+// <!--fx:...--> comment tokens, first-seen order.
 func TestFindingAnchorIDs(t *testing.T) {
-	md := "One.[^f-a] Two.[^f-b] Three.[^f-a]\n\nFour.[^L1]"
+	md := "One.<!--fx:f-a--> Two.<!--fx:f-b--> Three.<!--fx:f-a-->\n\nFour.[^L1]"
 	got := FindingAnchorIDs(md)
-	want := []string{"f-a", "f-b"} // distinct, first-seen; the L1 claim is not an anchor
+	want := []string{"f-a", "f-b"} // distinct, first-seen; the [^L1] claim is not a marker
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("FindingAnchorIDs = %v, want %v", got, want)
+	}
+	if ids := FindingAnchorIDs("no markers here.[^L1]"); len(ids) != 0 {
+		t.Errorf("a report with no markers yielded %v", ids)
 	}
 }
