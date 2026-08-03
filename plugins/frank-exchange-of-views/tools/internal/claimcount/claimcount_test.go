@@ -4,60 +4,66 @@ import "testing"
 
 // The counter is only worth trusting if the RULE is pinned at its boundaries: what
 // counts as one claim, what is excluded, and — the property the retire-vs-drop
-// detector rests on — that it moves by exactly one when one claim leaves.
+// detector rests on — that it moves by exactly one when one claim leaves. The claim unit
+// is now the tool-inserted citation anchor "<!--cite:c-…-->", not the old "[^label]".
 func TestCount(t *testing.T) {
 	cases := []struct {
 		name string
 		md   string
 		want int
 	}{
-		{"unfootnoted prose counts zero", "The sky is blue. Water is wet.", 0},
-		{"one footnoted sentence", "The sky is blue[^a].", 1},
-		{"two footnoted sentences", "The sky is blue[^a]. Water is wet[^b].", 2},
+		{"uncited prose counts zero", "The sky is blue. Water is wet.", 0},
+		{"one cited sentence", "The sky is blue<!--cite:c-a-->.", 1},
+		{"two cited sentences", "The sky is blue<!--cite:c-a-->. Water is wet<!--cite:c-b-->.", 2},
 		{
-			"a multi-marker sentence still counts once",
-			"Both hold[^a][^b] together.",
+			"a multi-anchor sentence still counts once",
+			"Both hold<!--cite:c-a--><!--cite:c-b--> together.",
 			1,
 		},
 		{
-			"footnote-definition lines are the bibliography, not claims",
-			"Claim one[^a].\n\n[^a]: https://example.com\n[^b]: https://other.example",
+			"a finding anchor is not a claim and never counts",
+			"A finding sits here<!--fx:f-a--> but nothing cites it.",
+			0,
+		},
+		{
+			"footnote-definition lines are not claims",
+			"Claim one<!--cite:c-a-->.\n\n[^a]: https://example.com\n[^b]: https://other.example",
 			1,
 		},
 		{
-			"headings are excluded even when they carry a marker",
-			"# Title[^a]\n\nBody claim[^b].",
+			"headings are excluded even when they carry an anchor",
+			"# Title<!--cite:c-a-->\n\nBody claim<!--cite:c-b-->.",
 			1,
 		},
 		{
-			"a footnoted list counts one per line",
-			"- first[^a]\n- second[^b]\n- third[^c]",
+			"a cited list counts one per line",
+			"- first<!--cite:c-a-->\n- second<!--cite:c-b-->\n- third<!--cite:c-c-->",
 			3,
 		},
 		{
 			"a claim spanning two lines counts once",
-			"This claim wraps across\ntwo physical lines[^a] before it ends.",
+			"This claim wraps across\ntwo physical lines<!--cite:c-a--> before it ends.",
 			1,
 		},
 		{
-			"markers inside a code fence are literals, not claims",
-			"Real claim[^a].\n\n```\nexample[^b] in code\nanother[^c]\n```\n",
+			"anchors inside a code fence are literals, not claims",
+			"Real claim<!--cite:c-a-->.\n\n```\nexample<!--cite:c-b--> in code\nanother<!--cite:c-c-->\n```\n",
 			1,
 		},
 		{
 			"tilde fences are excluded too",
-			"Real claim[^a].\n\n~~~\nexample[^b]\n~~~\n",
+			"Real claim<!--cite:c-a-->.\n\n~~~\nexample<!--cite:c-b-->\n~~~\n",
 			1,
 		},
 		{"empty input is zero", "", 0},
 		{
 			"a line break bounds the unit without punctuation",
-			"first[^a]\nsecond[^b]",
+			"first<!--cite:c-a-->\nsecond<!--cite:c-b-->",
 			2,
 		},
 		{
 			"punctuation bounds two claims on one line",
-			"first[^a]! second[^b]?",
+			"first<!--cite:c-a-->! second<!--cite:c-b-->?",
 			2,
 		},
 	}
@@ -72,11 +78,11 @@ func TestCount(t *testing.T) {
 
 // MONOTONICITY is the load-bearing property: the capture detector reads an
 // unaccounted fall in claim_count as a dropped claim, so removing exactly one
-// footnoted claim must lower the count by exactly one — never zero, never two.
+// cited claim must lower the count by exactly one — never zero, never two.
 func TestCountMonotonicOnClaimRemoval(t *testing.T) {
-	full := "Alpha[^a]. Beta[^b]. Gamma[^c].\n\n[^a]: x\n[^b]: y\n[^c]: z"
-	minusOne := "Alpha[^a]. Gamma[^c].\n\n[^a]: x\n[^c]: z"
+	full := "Alpha<!--cite:c-a-->. Beta<!--cite:c-b-->. Gamma<!--cite:c-c-->."
+	minusOne := "Alpha<!--cite:c-a-->. Gamma<!--cite:c-c-->."
 	if a, b := Count(full), Count(minusOne); a-b != 1 {
-		t.Fatalf("removing one footnoted claim changed the count by %d (%d -> %d), want exactly 1", a-b, a, b)
+		t.Fatalf("removing one cited claim changed the count by %d (%d -> %d), want exactly 1", a-b, a, b)
 	}
 }

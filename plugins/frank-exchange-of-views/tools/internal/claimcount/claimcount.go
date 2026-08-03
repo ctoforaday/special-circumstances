@@ -17,11 +17,18 @@
 // footnoted claim lowers the count by exactly one, the property the retire-vs-drop
 // detector rests on.
 //
-// THE RULE. A claim is a sentence carrying at least one inline footnote marker
-// ([^label]). The claim unit is bounded by sentence punctuation (. ! ?) OR a line
-// break, so a footnoted list emits one claim per line and a claim spanning two
-// lines counts once. Excluded, because none is a declarative claim: fenced code,
-// footnote-DEFINITION lines (the bibliography, "[^L1]: https://..."), and headings.
+// THE RULE. A claim is a sentence carrying at least one tool-inserted citation
+// anchor ("<!--cite:c-<hex>-->"). The citation axis replaced the hand-typed
+// "[^label]" footnote as the claim unit: citations are tool-managed, so what a
+// report CITES is exactly what it ANCHORS, and counting the anchor counts the
+// backed claim. A finding anchor ("<!--fx:f-<hex>-->") is NOT a claim and never
+// counts (the regex is cite-prefix-specific). The claim unit is bounded by
+// sentence punctuation (. ! ?) OR a line break, so a cited list emits one claim
+// per line and a claim spanning two lines counts once. Excluded, because none is a
+// declarative claim: fenced code, footnote-DEFINITION lines ("[^L1]: https://..."),
+// and headings. NOTE: this counts the PRE-assembly report, whose citations are
+// invisible anchors; the visible [^N] footnotes exist only after assembly weaves
+// them, and nothing counts the assembled report.
 //
 // ONE SCANNER, TWO READINGS. Scan walks the report once and yields the KEPT
 // segments (exclusions applied) with their position, heading context, and the
@@ -44,11 +51,49 @@ import (
 )
 
 var (
-	footnoteDef   = regexp.MustCompile(`^\s*\[\^[^\]]+\]:`) // "[^L1]: https://..." — the bibliography
-	inlineMarker  = regexp.MustCompile(`\[\^[^\]]+\]`)      // "[^L1]" used inline
-	claimBoundary = regexp.MustCompile(`[\n.!?]+`)          // sentence punctuation OR a line break
-	fenceLine     = regexp.MustCompile("^\\s*(```|~~~)")
+	footnoteDef = regexp.MustCompile(`^\s*\[\^[^\]]+\]:`) // "[^L1]: https://..." — a footnote definition line
+	fenceLine   = regexp.MustCompile("^\\s*(```|~~~)")
 )
+
+// splitClaims splits one line into claim segments at sentence punctuation (. ! ?),
+// collapsing runs, exactly as the old `[\n.!?]+` regexp split did — EXCEPT that
+// punctuation INSIDE an HTML comment is not a boundary. A citation anchor
+// "<!--cite:c-1-->" carries a '!' (in "<!--") that is not a sentence end; treating the
+// comment as opaque (the same skip annotationLen uses when matching) keeps the anchor
+// whole in one segment so segmentLabels can see it. (Line breaks are handled by Scan
+// splitting on "\n" before this runs, so only .!? matter here.)
+func splitClaims(line string) []string {
+	boundary := make([]bool, len(line))
+	for i := 0; i < len(line); {
+		if strings.HasPrefix(line[i:], "<!--") {
+			if j := strings.Index(line[i:], "-->"); j >= 0 {
+				i += j + 3 // skip the whole comment: its punctuation is not a boundary
+				continue
+			}
+		}
+		switch line[i] {
+		case '.', '!', '?':
+			boundary[i] = true
+		}
+		i++
+	}
+	var segs []string
+	var cur []byte
+	inRun := false
+	for i := 0; i < len(line); i++ {
+		if boundary[i] {
+			if !inRun {
+				segs = append(segs, string(cur))
+				cur = cur[:0]
+				inRun = true
+			}
+			continue
+		}
+		inRun = false
+		cur = append(cur, line[i])
+	}
+	return append(segs, string(cur))
+}
 
 // Segment is one kept unit of the report — a sentence/line-bounded piece that
 // survived the exclusions — with the position and heading context a reader needs to
@@ -57,7 +102,7 @@ type Segment struct {
 	Text    string   // the segment's raw text
 	Line    int      // 1-based line number in the original report where the segment sits
 	Heading string   // nearest preceding markdown heading (stripped of leading # and space)
-	Labels  []string // distinct footnote labels used inline in this segment, in first-seen order
+	Labels  []string // distinct citation labels (c-<hex>) anchored inline in this segment, first-seen order
 }
 
 // Scan walks report markdown once and returns the kept segments in reading order.
@@ -85,7 +130,7 @@ func Scan(md string) []Segment {
 		if footnoteDef.MatchString(ln) { // the bibliography: a definition, not a claim
 			continue
 		}
-		for _, seg := range claimBoundary.Split(ln, -1) {
+		for _, seg := range splitClaims(ln) {
 			segs = append(segs, Segment{Text: seg, Line: i + 1, Heading: heading, Labels: segmentLabels(seg)})
 		}
 	}
@@ -144,17 +189,21 @@ func Index(md string) []LabelOccurrences {
 	return out
 }
 
-// segmentLabels returns the DISTINCT footnote labels used inline in a segment, in
-// first-seen order. A label repeated in one segment is one site, not two.
+// segmentLabels returns the DISTINCT citation labels anchored inline in a segment, in
+// first-seen order. A claim is now a sentence carrying a tool-inserted "<!--cite:c-…-->"
+// anchor (the citation axis replaced the hand-typed "[^label]" footnote as the claim unit —
+// citations are tool-managed, so what a report cites is exactly what it anchors). The
+// label comes straight from citationMarkerRe's capture, so Index yields the real c-<hex>
+// ids, never a mangled "--cite:c-ab--". A label repeated in one segment is one site.
 func segmentLabels(seg string) []string {
-	ms := inlineMarker.FindAllString(seg, -1)
+	ms := citationMarkerRe.FindAllStringSubmatch(seg, -1)
 	if len(ms) == 0 {
 		return nil
 	}
 	seen := map[string]bool{}
 	var out []string
 	for _, m := range ms {
-		label := m[2 : len(m)-1] // strip the "[^" prefix and "]" suffix
+		label := m[1] // the c-<hex> id captured by citationMarkerRe
 		if !seen[label] {
 			seen[label] = true
 			out = append(out, label)
@@ -168,14 +217,33 @@ func segmentLabels(seg string) []string {
 // or the claim-index; it is extracted here purely for the tampering detector.
 var findingMarkerRe = regexp.MustCompile(`<!--fx:(f-[0-9a-f]+)-->`)
 
+// citationMarkerRe matches an invisible citation-anchor token "<!--cite:c-<hex>-->" (the
+// bibliography axis, symmetric to the finding marker). Unlike a finding marker it DOES
+// bound a claim — a sentence carrying one counts (see the package doc and inlineMarker) —
+// and it is the anchor the assembly weaves into a visible [^N]. Here it feeds the
+// citation-id extractor behind the bijection detector and the lockdown class-sweep.
+var citationMarkerRe = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
+
 // FindingAnchorIDs returns the distinct finding-anchor ids PRESENT in the report, in
 // first-seen order. This is the immortal-marker detector's PRESENT set: an anchored
 // finding_id absent from it is a dropped marker (a hard violation). Pure id membership
 // over the report text.
-func FindingAnchorIDs(md string) []string {
+func FindingAnchorIDs(md string) []string { return anchorIDs(findingMarkerRe, md) }
+
+// CitationAnchorIDs returns the distinct citation-anchor ids PRESENT in the report, in
+// first-seen order — the citation-axis twin of FindingAnchorIDs. It is the PRESENT set
+// behind the unbacked_citations detector and the blue-edit lockdown's cite class-sweep:
+// under the cite⟺anchor bijection it equals the set of cite-event labels, and any
+// divergence (a hand-typed footnote, a tampered anchor) is a real defect.
+func CitationAnchorIDs(md string) []string { return anchorIDs(citationMarkerRe, md) }
+
+// anchorIDs returns the distinct capture-group-1 ids matched by re in md, first-seen
+// order — the shared extractor behind both anchor classes so their membership logic
+// cannot drift.
+func anchorIDs(re *regexp.Regexp, md string) []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, m := range findingMarkerRe.FindAllStringSubmatch(md, -1) {
+	for _, m := range re.FindAllStringSubmatch(md, -1) {
 		if id := m[1]; !seen[id] {
 			seen[id] = true
 			out = append(out, id)
@@ -184,22 +252,53 @@ func FindingAnchorIDs(md string) []string {
 	return out
 }
 
-// MissingAnchorIDs returns the ids in `expected` that do NOT appear as finding-markers in
-// reportMD (in expected's order). It is the shared EXPECTED⊄PRESENT check behind BOTH the
-// scorecard's dropped_finding_markers detector and the blue-report lockdown's PostToolUse
-// backstop — a marker red anchored that is gone from the report is blue tampering.
-func MissingAnchorIDs(expected []string, reportMD string) []string {
-	present := map[string]bool{}
-	for _, id := range FindingAnchorIDs(reportMD) {
-		present[id] = true
+// ProtectedAnchorIDs returns the distinct ids of BOTH immortal anchor classes present in
+// the report — finding markers (f-…) then citation anchors (c-…), each first-seen. The two
+// classes never collide (distinct prefixes), so this is the union both the blue-edit
+// lockdown and the PostToolUse backstop sweep: an edit may drop NEITHER a finding nor a
+// citation, and keying the guard on this union means a future third anchor class is added
+// in ONE place, not patched per call site.
+func ProtectedAnchorIDs(md string) []string {
+	return append(FindingAnchorIDs(md), CitationAnchorIDs(md)...)
+}
+
+// missingFrom returns the ids in `expected` absent from `present` (in expected's order) —
+// the shared EXPECTED⊄PRESENT set-diff behind every dropped-anchor check.
+func missingFrom(expected, present []string) []string {
+	have := map[string]bool{}
+	for _, id := range present {
+		have[id] = true
 	}
 	var missing []string
 	for _, id := range expected {
-		if !present[id] {
+		if !have[id] {
 			missing = append(missing, id)
 		}
 	}
 	return missing
+}
+
+// MissingAnchorIDs returns the ids in `expected` that do NOT appear as FINDING-markers in
+// reportMD (in expected's order). It backs the scorecard's dropped_finding_markers detector —
+// a marker red anchored that is gone from the report is blue tampering. (Citations have
+// their own EXPECTED⊄PRESENT check, MissingCitationAnchorIDs; the PostToolUse backstop
+// sweeps both via MissingProtectedAnchorIDs.)
+func MissingAnchorIDs(expected []string, reportMD string) []string {
+	return missingFrom(expected, FindingAnchorIDs(reportMD))
+}
+
+// MissingCitationAnchorIDs returns the ids in `expected` (cite-event labels) absent from the
+// report's citation anchors — the citation-axis twin of MissingAnchorIDs, behind the
+// unbacked_citations detector.
+func MissingCitationAnchorIDs(expected []string, reportMD string) []string {
+	return missingFrom(expected, CitationAnchorIDs(reportMD))
+}
+
+// MissingProtectedAnchorIDs returns the ids in `expected` (findings AND cite labels) absent
+// from the report's anchors of EITHER class — the union check the PostToolUse lockdown
+// backstop runs, so a raw write that drops a finding marker OR a citation anchor is caught.
+func MissingProtectedAnchorIDs(expected []string, reportMD string) []string {
+	return missingFrom(expected, ProtectedAnchorIDs(reportMD))
 }
 
 // sentenceHash is the FNV-1a hash of the whitespace-normalized segment: a locator

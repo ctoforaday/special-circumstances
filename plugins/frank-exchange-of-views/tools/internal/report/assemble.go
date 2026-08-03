@@ -45,6 +45,62 @@ var findingMarker = regexp.MustCompile(`<!--fx:[^>]*-->`)
 // StripFindingMarkers removes every finding-anchor token from report markdown.
 func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllString(md, "") }
 
+// citeAnchor matches an invisible citation anchor "<!--cite:c-<id>-->" — the tool-inserted
+// immortal marker blue cite splices at a cited sentence. Unlike a finding marker (stripped),
+// a citation is RESOLVED at assembly: rewritten to a visible [^N] and listed in the composed
+// bibliography.
+var citeAnchor = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
+
+// weaveCitations turns the invisible citation layer into a visible one: each "<!--cite:c-…-->"
+// anchor becomes a footnote reference [^N] (N in first-appearance order; a label used twice
+// shares one N), and a "## Bibliography" of "[^N]: <title>. <url> (accessed <date>)" is
+// appended, composed from the cite events. A dangling anchor — one with no source on the
+// record (bijection-impossible under the lockdown, but defended) — becomes an explicit
+// unresolved-citation line rather than a crash or a silent drop. With no citations the report
+// is returned unchanged (no empty bibliography).
+func weaveCitations(md string, sources []record.Source) string {
+	byLabel := map[string]record.Source{}
+	for _, s := range sources {
+		byLabel[s.Label] = s
+	}
+	var order []string
+	num := map[string]int{}
+	body := citeAnchor.ReplaceAllStringFunc(md, func(tok string) string {
+		label := citeAnchor.FindStringSubmatch(tok)[1]
+		n, seen := num[label]
+		if !seen {
+			n = len(order) + 1
+			num[label] = n
+			order = append(order, label)
+		}
+		return fmt.Sprintf("[^%d]", n)
+	})
+	if len(order) == 0 {
+		return body
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimRight(body, "\n"))
+	b.WriteString("\n\n## Bibliography\n\n")
+	for _, label := range order {
+		n := num[label]
+		s, ok := byLabel[label]
+		if !ok {
+			fmt.Fprintf(&b, "[^%d]: _(unresolved citation %s — no source on the record)_\n", n, label)
+			continue
+		}
+		title := strings.TrimSpace(s.Title)
+		if title == "" {
+			title = "_(untitled)_"
+		}
+		accessed := ""
+		if s.AccessDate != "" {
+			accessed = fmt.Sprintf(" (accessed %s)", s.AccessDate)
+		}
+		fmt.Fprintf(&b, "[^%d]: %s. %s%s\n", n, title, s.URL, accessed)
+	}
+	return b.String()
+}
+
 func Assemble(runDir string) (string, error) {
 	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
 
@@ -96,6 +152,16 @@ func Assemble(runDir string) (string, error) {
 	// the record-derived findings/transcript sections, and only a final-output strip
 	// catches those. No raw marker ships (the leak fix).
 	out := StripFindingMarkers(collapseBlanks(b.String()))
+
+	// Resolve the citation layer: rewrite every "<!--cite:c-…-->" anchor to a visible [^N]
+	// and append the composed "## Bibliography" from the cite events. Findings are STRIPPED,
+	// citations are RESOLVED — orthogonal passes over the same document, strip first.
+	sources, err := record.CitedSources(runDir)
+	if err != nil {
+		return "", fmt.Errorf("assemble: cited sources: %w", err)
+	}
+	out = collapseBlanks(weaveCitations(out, sources))
+
 	path := filepath.Join(runDir, "report.md")
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.md: %w", err)
@@ -113,22 +179,24 @@ func readOr(path, fallback string) string {
 
 // blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
 // synthesis surfaces are dropped (they appear at the top), and the sections blue must never
-// author — the risk matrix, red findings, the debate, a verdict — are dropped as fabrication
-// (the tool composes those from the record; blue cannot know red's findings or the run's
-// outcome). What survives is genuinely ADDITIONAL blue content — including blue's Footnotes,
-// its citation apparatus, which the tool does not yet compose a bibliography for, so they are
-// KEPT here rather than lost. Empty output means blue authored only what it should; the caller
-// then omits the embed entirely rather than lift-AND-embed the same sections twice.
+// author — the risk matrix, red findings, the debate, a verdict, and now the footnotes /
+// bibliography — are dropped as fabrication (the tool composes those from the record; blue
+// cannot know red's findings or the run's outcome, and citations are tool-managed, woven from
+// the cite events at assembly). What survives is genuinely ADDITIONAL blue content. Empty
+// output means blue authored only what it should; the caller then omits the embed entirely
+// rather than lift-AND-embed the same sections twice.
 func blueEmbed(blue string) string {
 	drop := map[string]bool{
 		// lifted to the top verbatim
 		"tl;dr": true, "the catechism": true, "technical foundations": true,
 		"analysis": true, "open questions": true,
-		// tool-owned — composed from the record, never blue's to author. NOTE: footnotes are
-		// NOT here — they are blue's own citations and nothing else composes them yet.
+		// tool-owned — composed from the record, never blue's to author. Footnotes /
+		// bibliography are now tool-composed too (woven from the cite events), so a
+		// blue-authored one is dropped rather than shipped alongside the composed one.
 		"risk matrix": true, "the expansions": true, "expansions": true,
 		"alternatives considered": true, "red team findings": true,
 		"the debate": true, "blue team report": true, "verdict": true,
+		"footnotes": true, "bibliography": true,
 	}
 	var out []string
 	fence, keep, inPreamble := false, false, true

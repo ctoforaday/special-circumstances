@@ -20,7 +20,7 @@ minted R3-2
 
 ═══ EVENTS ═══
 -- events-red-merge-r3-NONCE001.jsonl
-{"key":"red-merge-r3:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.27.0"},"round":3,"seatId":"red-merge-r3","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r3:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.28.0"},"round":3,"seatId":"red-merge-r3","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r3:mint:R3-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-1","impact":"medium","likelihood":"medium","mint_key":"L5-F3","problem":"minted once","severity":"medium","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r3:mint:R3-2","nonce":"NONCE001","payload":{"acceptance_check":"y","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-2","impact":"low","likelihood":"low","mint_key":"L6-F1","problem":"a different key mints","severity":"low","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":2,"ts":2,"type":"mint"}
 

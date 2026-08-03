@@ -1,6 +1,7 @@
 package lens
 
 import (
+	"errors"
 	"strings"
 )
 
@@ -34,11 +35,14 @@ func isSpace(b byte) bool {
 }
 
 // annotationLen returns the byte length of an annotation span starting at s[i:] — an
-// invisible finding-marker "<!--fx:…-->" or a footnote reference "[^label]" — or 0 if
-// none starts there. These spans are the "invisible layer": the matcher skips them so a
-// quote of the semantic prose still anchors even when markers/footnotes are spliced in.
+// invisible HTML-comment anchor ("<!--fx:…-->" finding, "<!--cite:…-->" citation, or any
+// other) or a footnote reference "[^label]" — or 0 if none starts there. These spans are
+// the "invisible layer": the matcher skips them so a quote of the semantic prose still
+// anchors even when markers/footnotes are spliced in. The whole HTML-comment class is
+// skipped (not just fx) so a sentence already carrying a citation anchor is still locatable
+// for a finding, and vice versa — the two anchor axes never block each other.
 func annotationLen(s string, i int) int {
-	if strings.HasPrefix(s[i:], "<!--fx:") {
+	if strings.HasPrefix(s[i:], "<!--") {
 		if j := strings.Index(s[i:], "-->"); j >= 0 {
 			return j + 3
 		}
@@ -174,6 +178,33 @@ func insertMarker(report []byte, at int, marker string) []byte {
 	out = append(out, marker...)
 	out = append(out, report[at:]...)
 	return out
+}
+
+// ErrMisQuote and ErrInFence are the two ways an anchor placement is refused: the quote is
+// not present (a mis-quote — never place a marker on content that is not there), or it
+// resolves inside a code fence (a marker there would ship literally / corrupt the fence).
+// Callers map them to a verb-specific message; the shared machinery only classifies.
+var (
+	ErrMisQuote = errors.New("the quoted content was not found in report.md")
+	ErrInFence  = errors.New("the quote resolves inside a code fence")
+)
+
+// InsertAnchor is the shared invisible-anchor placement behind lens finding and blue cite:
+// it extracts the quote from `location`, locates it in report across the invisible
+// annotation layer, and returns report with `marker` spliced at the quote's end — or
+// ErrMisQuote / ErrInFence. marker is the full token, "<!--fx:f-…-->" for a finding or
+// "<!--cite:c-…-->" for a citation. Both axes place their immortal anchor by exactly this
+// rule, so a citation and a finding are located, fenced, and spliced identically.
+func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
+	quote := extractQuote(location)
+	end := locateEnd(string(report), quote)
+	if end < 0 {
+		return nil, ErrMisQuote
+	}
+	if insideFence(string(report), end) {
+		return nil, ErrInFence
+	}
+	return insertMarker(report, end, marker), nil
 }
 
 // insideFence reports whether byte offset `at` falls inside a ``` / ~~~ fenced code

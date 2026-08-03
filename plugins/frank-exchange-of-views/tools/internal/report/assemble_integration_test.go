@@ -42,9 +42,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"## Risk Matrix",
 		"blue's fabricated risk row that the tool must not echo.",
 		"",
-		// Blue's citations — kept (no bibliography composer yet).
+		// Blue hand-authors footnotes — DROPPED now (citations are tool-composed from the
+		// cite events; a blue-authored bibliography is fabrication).
 		"## Footnotes",
-		"[^cache]: a real citation blue authored.",
+		"[^cache]: a citation blue tried to hand-author.",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -119,18 +120,17 @@ func TestAssembleEndToEnd(t *testing.T) {
 		// The reviewer-facing orientation, composed from the board.
 		"## Read this first",
 		"(R1-1)",
-		// Blue's citations survive in the embed.
-		"a real citation blue authored",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("assembled report missing %q\n---\n%s", want, got)
 		}
 	}
 
-	// Blue over-authored a Risk Matrix and a stale verdict; neither may be echoed. The tool's
-	// own "## Risk matrix" is authoritative, and blue's fabricated row / stale verdict must not
-	// appear anywhere in the assembled report.
-	for _, forbidden := range []string{"blue's fabricated risk row", "UNVERIFIED (Round 0)"} {
+	// Blue over-authored a Risk Matrix, a stale verdict, and hand-authored footnotes; none may
+	// be echoed. The tool's "## Risk matrix" is authoritative; blue's fabricated row / stale
+	// verdict / hand-authored citation must not appear anywhere. With no cite events on the
+	// record, no "## Bibliography" is composed either.
+	for _, forbidden := range []string{"blue's fabricated risk row", "UNVERIFIED (Round 0)", "a citation blue tried to hand-author", "## Bibliography"} {
 		if strings.Contains(got, forbidden) {
 			t.Errorf("blue's fabricated/duplicated content leaked into the report (%q)\n---\n%s", forbidden, got)
 		}

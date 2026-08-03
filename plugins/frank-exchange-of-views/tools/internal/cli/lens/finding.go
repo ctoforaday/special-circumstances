@@ -1,6 +1,7 @@
 package lens
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -60,20 +61,20 @@ func newFinding() *cobra.Command {
 			// comment renders as nothing and is no footnote, so no seat audits it.
 			marker := "<!--fx:" + findingID + "-->"
 
-			// Insert the marker at the located quote UNDER THE LOCK, atomically. NOT
+			// Insert the marker at the located quote UNDER THE LOCK, atomically, via the
+			// shared anchor-insert (the same rule blue cite anchors a citation by). NOT
 			// FOUND -> reject (a mis-quote): the transform returns an error, nothing is
 			// written, and the finding is not recorded. The events are appended ONLY
 			// after a confirmed write (so a failed write leaves no id in EXPECTED).
-			quote := extractQuote(location)
 			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
-				end := locateEnd(string(old), quote)
-				if end < 0 {
+				next, err := InsertAnchor(old, location, marker)
+				switch {
+				case errors.Is(err, ErrMisQuote):
 					return nil, fmt.Errorf("lens finding: the quoted content was not found in report.md — quote the EXACT text you are flagging (via --location); check the section and wording")
-				}
-				if insideFence(string(old), end) {
+				case errors.Is(err, ErrInFence):
 					return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
 				}
-				return insertMarker(old, end, marker), nil
+				return next, err
 			}); err != nil {
 				return nil, err
 			}
