@@ -68,6 +68,12 @@ const (
 	// near-duplicate surfaces as a reopen rather than a fresh gap. One word, read-only.
 	Candidate = "candidate"
 
+	// `blue edit` is the ONLY write path to blue/report.md for a response seat: it replaces
+	// the exact current span --old with --new, preserving red's finding-markers. The words
+	// mirror the Edit tool's old_string/new_string so a seat reaches for what it knows.
+	Old = "old"
+	New = "new"
+
 	// Disposition and justification.
 	//
 	// --reason (declared above with the prose payload) is now the ONE word for every
@@ -188,7 +194,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Label, Claim, Key, Location, Reference, Row, View, Format, Candidate,
+		ID, IDs, Label, Claim, Key, Location, Reference, Row, View, Format, Candidate, Old, New,
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,

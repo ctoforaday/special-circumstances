@@ -184,6 +184,24 @@ func FindingAnchorIDs(md string) []string {
 	return out
 }
 
+// MissingAnchorIDs returns the ids in `expected` that do NOT appear as finding-markers in
+// reportMD (in expected's order). It is the shared EXPECTED⊄PRESENT check behind BOTH the
+// scorecard's dropped_finding_markers detector and the blue-report lockdown's PostToolUse
+// backstop — a marker red anchored that is gone from the report is blue tampering.
+func MissingAnchorIDs(expected []string, reportMD string) []string {
+	present := map[string]bool{}
+	for _, id := range FindingAnchorIDs(reportMD) {
+		present[id] = true
+	}
+	var missing []string
+	for _, id := range expected {
+		if !present[id] {
+			missing = append(missing, id)
+		}
+	}
+	return missing
+}
+
 // sentenceHash is the FNV-1a hash of the whitespace-normalized segment: a locator
 // stable under line-number shift, so blue can match an occurrence after edits move
 // it. strings.Fields collapses whitespace runs and trims.

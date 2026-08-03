@@ -47,3 +47,21 @@ func MutateBlueReport(runDir string, transform func(old []byte) ([]byte, error))
 	})
 	return retErr
 }
+
+// ReadBlueReport returns the current blue/report.md bytes under the blue-report flock — a
+// consistent snapshot for `blue edit` to validate a span against before it applies the
+// mutation. Returns nil bytes (no error) if the file is absent.
+func ReadBlueReport(runDir string) ([]byte, error) {
+	path := filepath.Join(runDir, "blue", "report.md")
+	var out []byte
+	var retErr error
+	withLock(runDir, "blue-report", func() {
+		b, err := os.ReadFile(path)
+		if err != nil && !os.IsNotExist(err) {
+			retErr = err
+			return
+		}
+		out = b
+	})
+	return out, retErr
+}

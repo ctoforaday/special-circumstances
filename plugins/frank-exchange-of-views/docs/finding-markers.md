@@ -81,13 +81,37 @@ Red-gated at every step, as the lifecycle already is:
 Blue never resolves unilaterally and never removes a marker; "blue can't remove what red verified
 without red's assent" holds because the marker is immortal and every content change is red-confirmed.
 
-## Two-layer integrity
+## The write-time lockdown (0.27.0) — blue cannot drop a marker in the first place
 
+Immortality was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and never delete one); a live
+run showed that is not enough. It is now **enforced at the write**. `blue/report.md` is **read-only to
+every seat except the allowlisted author `agent_type`** (`frank-exchange-of-views:blue-synthesizer`, the
+round-0 synthesis seat). A response seat changes the report ONLY through **`feov-record blue edit --old
+<exact current span> --new <replacement> --reason <why>`** — an exact-on-stripped span replace (reusing
+`lens.LocateSpan`, the finding-marker matcher) that **REJECTS any edit whose span would drop or split a
+`<!--fx:…-->` marker** (edit AROUND a marker: quote a span that ends before it) and appends a `blue_edit`
+event — an append-only diff-stack that replays onto the round-0 report. Enforcement is a plugin
+PreToolUse/PostToolUse hook (`feov-record hook pretooluse|posttooluse`) that reads `agent_type` from the
+hook stdin:
+- **PreToolUse (prevent):** a non-author raw write to `blue/report.md` is DENIED — Edit/Write by
+  `file_path` (airtight), common Bash by target-path resolution (`cp`/`mv`/`tee`/`>`/`sed -i`).
+- **PostToolUse (detect + force-repair):** after a non-author call, a dropped marker (via any mechanism,
+  including exotic Bash the PreToolUse verb-set cannot enumerate) blocks and forces the seat to restore it
+  — reusing the same `claimcount.MissingAnchorIDs` check as the scorecard detector.
+The tool's own writes (`record.MutateBlueReport`, in-process) bypass the hook, so `lens finding` and
+`blue edit` still anchor/amend under the lock.
+
+## Integrity in depth
+
+- **Write-time prevention (primary):** the lockdown above — a response seat has NO path that drops a
+  marker; `blue edit` refuses the span, and a raw write is denied.
 - **Mechanical screen (cheap):** immortal markers ⇒ the present set MUST contain the expected set; a
-  missing marker = tampering. Pure id set-membership, no text matching.
+  missing marker = tampering. Pure id set-membership, no text matching (the scorecard's
+  `dropped_finding_markers`, and the PostToolUse backstop, share `claimcount.MissingAnchorIDs`).
 - **Red's semantic read (the real check):** the screen cannot see a marker dragged to a dead zone or
   offending content left behind. Red reads the doc, grounded in the {content, reason} snapshot, to
-  confirm the fix. The screen catches silent drops; the read catches gaming. Neither alone suffices.
+  confirm the fix. Prevention blocks the drop; the screen catches a drop that slipped an exotic path; the
+  read catches gaming (a marker MOVED but present). No single layer suffices.
 
 ## Assembly — findings are STRIPPED; resolution belongs to the citation axis
 

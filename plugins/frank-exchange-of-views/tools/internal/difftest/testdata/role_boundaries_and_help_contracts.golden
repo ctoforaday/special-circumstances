@@ -6,12 +6,12 @@ feov-record: verb "mint" is outside this seat's role (available: register, findi
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "mint" is outside this seat's role (available: register, edit, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "close" is outside this seat's role (available: register, edit, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
@@ -110,6 +110,7 @@ Available Commands:
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
   dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --reason "..."
+  edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
   friction     attributed friction (survives aborts as an event): --reason
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
   petition     petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
