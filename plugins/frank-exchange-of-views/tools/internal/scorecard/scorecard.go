@@ -382,6 +382,32 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 		Note:  strconv.Itoa(len(expectedSet)) + " finding-marker(s) anchored, " + strconv.Itoa(droppedMarkers) + " missing from the report",
 		Joint: "a marker red anchored that is gone from blue's report is blue dropping red's audit point — markers are immortal, so any absence is tampering"})
 
+	// unbacked_citations (the citation-axis twin of dropped_finding_markers; bibliography
+	// core). A blue citation is anchored in blue/report.md with an invisible
+	// <!--cite:c-<id>--> marker; like a finding marker it is IMMORTAL and tool-managed.
+	// EXPECTED = the cite events' labels; PRESENT = the c- ids in the current report. Under
+	// the cite⟺anchor bijection the two sets are equal; a mismatch means a hand-typed
+	// footnote or a tampered anchor — a real defect, keyed by id with no text match.
+	citeExpectedSet := map[string]bool{}
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "cite" {
+				if id := e.Payload.Str("label"); id != "" {
+					citeExpectedSet[id] = true
+				}
+			}
+		}
+	}
+	citeExpected := make([]string, 0, len(citeExpectedSet))
+	for id := range citeExpectedSet {
+		citeExpected = append(citeExpected, id)
+	}
+	unbackedCitations := len(claimcount.MissingCitationAnchorIDs(citeExpected, string(md)))
+	rows = append(rows, Row{Clause: "TAMPER: unbacked citations", Metric: "unbacked_citations", Cls: "detector",
+		Value: unbackedCitations,
+		Note:  strconv.Itoa(len(citeExpectedSet)) + " citation(s) anchored, " + strconv.Itoa(unbackedCitations) + " missing from the report",
+		Joint: "a citation the tool anchored that is gone from the report breaks the cite⟺anchor bijection — citations are tool-managed, so any absence is a hand-typed footnote or tampering"})
+
 	// lines_of_inquiry (object value, insertion-order byStatus)
 	var statusOrder []string
 	statusCount := map[string]int{}

@@ -83,3 +83,25 @@ func TestPostDropped(t *testing.T) {
 		t.Errorf("non-report call → %v, want nil", got)
 	}
 }
+
+// §V.5 — the backstop sweeps BOTH anchor classes: a dropped CITATION anchor is caught the
+// same way a dropped finding marker is (the EXPECTED set is the union of both).
+func TestPostDroppedCatchesCitationAndBothClasses(t *testing.T) {
+	// EXPECTED union: a finding and a citation.
+	anchors := func(runDir string) ([]string, error) { return []string{"f-a", "c-1"}, nil }
+	intact := func(path string) (string, error) { return "x <!--fx:f-a--> y <!--cite:c-1--> z", nil }
+	citeGone := func(path string) (string, error) { return "x <!--fx:f-a--> y z", nil }   // c-1 dropped
+	findGone := func(path string) (string, error) { return "x y <!--cite:c-1--> z", nil } // f-a dropped
+
+	edit := mkInput(t, responder, "Edit", map[string]string{"file_path": "/r/x/blue/report.md"})
+
+	if got, _ := PostDropped(edit, anchors, intact); len(got) != 0 {
+		t.Errorf("both anchors present → %v, want empty", got)
+	}
+	if got, _ := PostDropped(edit, anchors, citeGone); len(got) != 1 || got[0] != "c-1" {
+		t.Errorf("dropped citation → %v, want [c-1]", got)
+	}
+	if got, _ := PostDropped(edit, anchors, findGone); len(got) != 1 || got[0] != "f-a" {
+		t.Errorf("dropped finding → %v, want [f-a]", got)
+	}
+}

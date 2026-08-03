@@ -6,12 +6,12 @@ feov-record: verb "mint" is outside this seat's role (available: register, findi
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, edit, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "mint" is outside this seat's role (available: register, edit, cite, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, edit, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "close" is outside this seat's role (available: register, edit, cite, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
@@ -106,6 +106,7 @@ Usage:
 
 Available Commands:
   avenue       record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<section + quoted sentence>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low

@@ -117,6 +117,18 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.28.0 the bibliography core (#256): a citation axis symmetric to the finding markers. A new root
+//	       `fetch --run --url` is a cached, hash-verified web read that REPLACES WebFetch — fetch once,
+//	       cache to `<run>/cache/<sha256>`, serve every seat the same bytes (a second fetch is a cache
+//	       hit; red re-reads exactly what blue cited). A new `blue cite --location --url --title` fetches
+//	       through the cache and splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at the quoted
+//	       sentence (reusing the `lens.InsertAnchor` machinery); an unreachable source is rejected + auto-
+//	       friction. The lockdown's `blue edit` guard now protects citation anchors too (class-swept to the
+//	       fx∪cite union), so the set of cite events is a strict bijection with the doc's anchors. claimcount
+//	       counts the cite anchor as the claim unit (the `[^label]` footnote is retired); assembly weaves
+//	       the anchors into visible `[^N]` footnotes + a composed `## Bibliography`; a scorecard
+//	       `unbacked_citations` detector flags a broken bijection. A stale binary lacks `fetch`/`blue cite`,
+//	       so citations are unmanaged and the weave/detector silently do not engage.
 //	0.27.0 the blue-report lockdown + append-only diff-stack (#250/#251): blue/report.md is READ-ONLY to
 //	       every seat except the allowlisted author `agent_type` (frank-exchange-of-views:blue-synthesizer).
 //	       A new `blue edit --old --new --reason` is the ONE write path for a response seat — an
@@ -159,7 +171,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.27.0"
+const Version = "0.28.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -197,6 +209,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newVerify(),      // operator cross-check, not a seat role — read-only over the record
 		newGraph(),       // operator: render a run's actual behaviour from the record
 		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
+		newFetch(),       // operator: cached, hash-verified web read (replaces WebFetch) — feeds the run source cache
 		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
 		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
 		newDashboard(),   // operator: the live run dashboard.html (ported from render-run-dashboard.mjs)

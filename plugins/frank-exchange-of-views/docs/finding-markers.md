@@ -17,10 +17,13 @@ invisible*, below). They are two axes with two forms:
 - **Findings → INVISIBLE in-doc anchors** (this note). Red anchors each audit point with an invisible
   HTML-comment token; the anchor is a machine-readable locator, NOT reader-facing content; it can never
   silently leave; every content change under it is red-gated.
-- **Citations → the bibliography system** (a separate, later feature). URL → download **once** → local
-  cache → **hash-verified-unchanging** → a VISIBLE footnote-by-reference resolving to an external
-  source in a bibliography section. This is where the visible-footnote / resolve-at-assembly machinery
-  belongs — NOT on findings.
+- **Citations → the bibliography system** (built in 0.28.0/#256 — see `record-flow.md`). A citation is
+  *also* a tool-inserted **invisible immortal** anchor — `<!--cite:c-…-->`, splice-identical to a
+  finding marker (it reuses `lens.InsertAnchor`) — but with the OPPOSITE assembly fate: where a finding
+  is STRIPPED, a citation is **RESOLVED**. `blue cite` fetches the source **once** to a hash-addressed
+  cache (`<run>/cache/<sha256>`, so red re-reads the exact bytes blue cited), then anchors the sentence;
+  assembly weaves every anchor into a VISIBLE `[^N]` footnote + a composed `## Bibliography`. This is
+  where the visible-footnote / resolve-at-assembly machinery belongs — NOT on findings.
 
 ## The marker
 
@@ -126,11 +129,12 @@ Unresolved findings remain **surfaced** to the reader the way they always were �
 findings/risk sections — independent of the marker layer.
 
 The "every footnote resolves to a definition (in-doc or bibliography), validate no dangling" model is a
-real design, but it is the **citation axis's** concern (a citation IS reader-facing content that
-resolves to a source). It is DEFERRED with the bibliography system and does not apply to the invisible
-finding-anchors. *(Slice 1b ships the integrity core + strip; the clickable in-doc-argument exposure for
-findings, if ever wanted, is a separate follow-up — but note it would re-introduce reader-facing
-finding content, which is exactly what the live run cautioned against.)*
+real design, and it is the **citation axis's** concern (a citation IS reader-facing content that
+resolves to a source). It is now BUILT there (0.28.0/#256): assembly composes the `## Bibliography` from
+the `cite` events, weaves each `<!--cite:-->` anchor to a `[^N]`, and surfaces a dangling anchor (no
+source) as an explicit unresolved line — none of which applies to the invisible, stripped
+finding-anchors. *(Slice 1b ships the finding integrity core + strip; the citation weave is its
+resolve-at-assembly twin.)*
 
 ## Status
 
@@ -142,6 +146,11 @@ finding content, which is exactly what the live run cautioned against.)*
 - **Superseded drafts:** the `cite`-based draft (no unique id; `retire` collided with the marker
   lifecycle — both dissolved by anchoring *findings*) and the visible-`[^f-]`-footnote draft (audited as
   undefined footnotes + leaked; dissolved by the invisible comment form).
-- **Deferred (own tracks):** the bibliography/citation system (download-once, cached, hash-verified,
-  programmatic definitions, validator — the visible-footnote axis); 1c shared-labels; 1d
-  value-transclusion. `grep` remains only the transitional net for bare figures pending 1d.
+- **Built (citation axis, 0.28.0/#256):** the bibliography/citation system — `fetch` (download-once,
+  cached, hash-verified) + `blue cite` (invisible immortal `<!--cite:-->` anchor, class-swept into the
+  blue-edit lockdown so it is a strict cite⟺anchor bijection) + the assembly weave (anchors → visible
+  `[^N]` + composed `## Bibliography`) + the `unbacked_citations` detector. The claim unit is now the
+  cite anchor (the hand-typed `[^label]` footnote is retired). See `record-flow.md`.
+- **Deferred (own tracks):** the citation **trust-gate** (Slice 2, #247 — Iffy blocklist, Crossref
+  DOI/retraction, provenance); 1c shared-labels; 1d value-transclusion. `grep` remains only the
+  transitional net for bare figures pending 1d.

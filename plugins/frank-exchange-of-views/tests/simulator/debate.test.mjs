@@ -550,13 +550,13 @@ test('closing arguments: judge sits AFTER blue, both sides file closings, ruling
   assert.ok(judge2.prompt.includes('counts AGAINST the side that made it'), 'overstatement penalty stated to the judge')
   assert.ok(!judge2.prompt.includes('structurally unavailable'), 'dead-options patch removed — full resolution set for all classes')
 })
-test('lane footnote namespaces: every lane prompt assigns a lane-prefixed label convention', async () => {
+test('lanes record source notes as prose and do NOT mint footnote labels (citations are tool-managed at synthesis)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const lanes = world.calls.filter(c => c.opts.label.startsWith('blue-lane'))
   assert.equal(lanes.length, 3)
   for (const [i, c] of lanes.entries()) {
-    assert.ok(c.prompt.includes('FOOTNOTE NAMESPACE') && c.prompt.includes(`[^L${i + 1}`), `lane ${i + 1} prefix`)
+    assert.ok(c.prompt.includes('SOURCE NOTES') && c.prompt.includes('Do NOT mint footnote labels'), `lane ${i + 1} source-note convention`)
   }
 })
 
@@ -572,12 +572,12 @@ test('lens prompts carry harness notes: windowed full read, Grep counts lines, n
   }
 })
 
-test('multi-instance citation slices are assigned footnote-block ownership', async () => {
+test('multi-instance citation slices are assigned citation ownership', async () => {
   const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: 200 })], red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const citation = world.calls.filter(c => c.opts.label.startsWith('red-lens')).slice(0, 4)
   assert.equal(citation.length, 4, 'claim_count 200 scales to 4 citation instances')
-  for (const c of citation) assert.ok(c.prompt.includes('footnote-block ownership follows the slice'))
+  for (const c of citation) assert.ok(c.prompt.includes('citation ownership follows the slice'))
 })
 
 test('claim_count is echoed to the tracked CHANGELOG at synthesis and every blue response', async () => {
@@ -675,7 +675,7 @@ test('W1.6: pinned claim unit reaches synthesis and response prompts', async () 
   await world.run(script, ARGS)
   for (const seat of ['blue-synthesize', 'blue-respond-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
-    assert.ok(c.prompt.includes('CLAIM UNIT') && c.prompt.includes('FOOTNOTED'), `${seat} missing pinned claim unit`)
+    assert.ok(c.prompt.includes('CLAIM UNIT') && c.prompt.includes('CITED'), `${seat} missing pinned claim unit`)
   }
 })
 

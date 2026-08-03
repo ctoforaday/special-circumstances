@@ -110,12 +110,13 @@ func reportPathFrom(in Input) string {
 }
 
 // PostDropped is the PostToolUse backstop: after a NON-author tool call that referenced a
-// run's blue/report.md, it returns the finding-marker ids that are now MISSING (dropped) —
-// via ANY write mechanism, including the exotic Bash the PreToolUse arm cannot enumerate.
-// The author is never checked; a call that did not reference report.md returns nil. It is
-// presence-only (a moved-but-present marker is red's semantic-audit job, not this check).
-// readReport reads the report bytes; anchorIDs supplies the EXPECTED set (both injected so
-// the logic stays pure and testable).
+// run's blue/report.md, it returns the immortal-anchor ids of EITHER class — a finding
+// marker (f-…) or a citation anchor (c-…) — that are now MISSING (dropped), via ANY write
+// mechanism, including the exotic Bash the PreToolUse arm cannot enumerate. The author is
+// never checked; a call that did not reference report.md returns nil. It is presence-only (a
+// moved-but-present anchor is red's semantic-audit job, not this check). readReport reads the
+// report bytes; anchorIDs supplies the EXPECTED set — the union of finding anchors and
+// citation labels (both injected so the logic stays pure and testable).
 func PostDropped(in Input, anchorIDs func(runDir string) ([]string, error), readReport func(path string) (string, error)) ([]string, error) {
 	if in.AgentType == AuthorAgentType {
 		return nil, nil
@@ -138,8 +139,21 @@ func PostDropped(in Input, anchorIDs func(runDir string) ([]string, error), read
 		// integrity signal, but surfacing it as an error lets the CLI fail-closed.
 		return nil, err
 	}
-	return claimcount.MissingAnchorIDs(expected, md), nil
+	return claimcount.MissingProtectedAnchorIDs(expected, md), nil
 }
 
-// DefaultAnchorIDs / DefaultReadReport are the production injections for PostDropped.
-func DefaultAnchorIDs(runDir string) ([]string, error) { return record.AnchorIDs(runDir) }
+// DefaultAnchorIDs is the production EXPECTED set for PostDropped: the UNION of finding
+// anchors (from `anchor` events) and citation labels (from blue `cite` events), so the
+// backstop catches a dropped anchor of either class. Finding ids (f-…) and citation ids
+// (c-…) never collide, so the concatenation is a clean union.
+func DefaultAnchorIDs(runDir string) ([]string, error) {
+	findings, err := record.AnchorIDs(runDir)
+	if err != nil {
+		return nil, err
+	}
+	cites, err := record.CitationLabels(runDir)
+	if err != nil {
+		return nil, err
+	}
+	return append(findings, cites...), nil
+}

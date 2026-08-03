@@ -80,7 +80,7 @@ func newHookPre() *cobra.Command {
 func newHookPost() *cobra.Command {
 	return &cobra.Command{
 		Use:           "posttooluse",
-		Short:         "block + force repair if a non-author call dropped a finding-marker (reads a PostToolUse event on stdin)",
+		Short:         "block + force repair if a non-author call dropped a finding-marker or citation anchor (reads a PostToolUse event on stdin)",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -114,8 +114,8 @@ func emitPreDeny(cmd *cobra.Command, reason string) {
 // emitPostBlock writes the PostToolUse block document (decision:block + reason), which
 // forces the seat to repair before proceeding.
 func emitPostBlock(cmd *cobra.Command, missing []string) {
-	reason := fmt.Sprintf("you removed finding-marker(s) %s — blue/report.md is red's record and markers are immortal. "+
-		"Restore the removed marker(s) exactly, and make every change through `feov-record blue edit` (never a raw write).",
+	reason := fmt.Sprintf("you removed immortal anchor(s) %s — blue/report.md carries red's finding-markers and blue's tool-managed citation anchors, and both are immortal. "+
+		"Restore the removed anchor(s) exactly, and make every change through `feov-record blue edit` (never a raw write).",
 		strings.Join(missing, ", "))
 	out := map[string]any{"decision": "block", "reason": reason}
 	_ = json.NewEncoder(cmd.OutOrStdout()).Encode(out)

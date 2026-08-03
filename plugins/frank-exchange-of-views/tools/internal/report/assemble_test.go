@@ -162,17 +162,17 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 		"## Risk Matrix", "blue fabricated a risk matrix.", "", // tool-owned — dropped
 		"## Red Team Findings (in full)", "blue cannot know red's findings.", "", // dropped
 		"## Blue Team Report (in full)", "[to be filled]", "", // recursive stub — dropped
-		"## Footnotes", "[^a]: a real citation blue authored.", "", // KEPT — no bibliography composer yet
+		"## Footnotes", "[^a]: a citation blue tried to author.", "", // DROPPED — citations are tool-composed now
 		"## Appendix: raw benchmarks", "novel blue content.", "", // KEPT — genuinely additional
 	}, "\n")
 	got := blueEmbed(blue)
 
-	for _, kept := range []string{"## Footnotes", "a real citation", "## Appendix: raw benchmarks", "novel blue content."} {
+	for _, kept := range []string{"## Appendix: raw benchmarks", "novel blue content."} {
 		if !strings.Contains(got, kept) {
 			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
 		}
 	}
-	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED"} {
+	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
 		if strings.Contains(got, dropped) {
 			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
 		}

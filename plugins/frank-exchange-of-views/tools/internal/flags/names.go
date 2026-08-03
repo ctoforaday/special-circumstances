@@ -60,9 +60,15 @@ const (
 	Key       = "key"
 	Location  = "location"
 	Reference = "reference"
-	Row       = "row"
-	View      = "view"
-	Format    = "format" // operator output selector (graph: mermaid | dot)
+	// The citation axis (bibliography core). --url is the source a `fetch` reads and a
+	// `blue cite` anchors; --title is the human name that source carries into the composed
+	// bibliography. One canonical word each — a citation is tool-managed, so these are the
+	// only two facts a seat supplies about a source.
+	URL    = "url"
+	Title  = "title"
+	Row    = "row"
+	View   = "view"
+	Format = "format" // operator output selector (graph: mermaid | dot)
 	// Candidate is the merge's near-match query: the problem text of a gap it is about
 	// to mint, screened against the board (open + closed) before minting so a
 	// near-duplicate surfaces as a reopen rather than a fresh gap. One word, read-only.
@@ -194,7 +200,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Label, Claim, Key, Location, Reference, Row, View, Format, Candidate, Old, New,
+		ID, IDs, Label, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New,
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
