@@ -30,19 +30,28 @@
 // pressing stop three times reads as a spin, and the counter would nag about the very act
 // of cancelling.
 //
-// # An unverified channel, marked as such
+// # Two channels, both now verified (#234, measured 2026-08-03)
 //
-// #127 proposes emitting `additionalContext` so the count reaches the MODEL. The spike
-// verified that this event CARRIES what a counter needs; it did not verify that this event
-// can INJECT. That distinction is not pedantry here — §3a of the same spike records
-// `PostCompact` carrying the compaction summary and being unable to inject it ("absent from
-// the output union", marker NOT-SEEN end-to-end), which is the identical assumption made
-// one event over.
+// #127 proposed emitting `additionalContext` so the count reaches the MODEL. The spike had
+// verified that this event CARRIES what a counter needs; it had NOT verified that this event
+// can INJECT — and §3a of the same spike records `PostCompact` carrying the compaction
+// summary and being unable to inject it, which was the identical assumption one event over.
+// So this shipped emitting both channels and saying which one was a guess.
 //
-// So this emits BOTH: the documented `additionalContext` shape on stdout, and the same line
-// on stderr, which is the channel the issue itself notes reaches the operator. If injection
-// works, the model sees it at the moment the rule says to stop. If it does not, the operator
-// still does, and the hook has not pretended otherwise. Measuring it is filed, not assumed.
+// It is no longer a guess. Measured end-to-end under headless `claude -p` — the case the
+// issue worried about most, since that is where no operator is watching stderr:
+//
+//	{"attachment":{"type":"hook_additional_context","hookEvent":"PostToolUseFailure",
+//	 "hookName":"PostToolUseFailure:Read","content":["MARKER-PTUF-SUBJECT-9K2M"]}}
+//
+// Same attachment type that verified `SessionStart` injection, in the same turn as the
+// failure, with a `SessionStart` marker as the positive control so a NOT-SEEN could not be
+// confused with a run where the hook never fired. The model then reported both markers
+// verbatim. See plans/hook-surface-spike.md §2a.
+//
+// BOTH channels stay, now as a choice rather than a hedge. stderr is what an operator reads
+// while watching a session, and it is the channel that survives a model deciding an injected
+// token looks like a prompt-injection attempt — behaviour the spike observed twice (§3b).
 package strikecounter
 
 import (
@@ -168,7 +177,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	msg := message(in, key, count)
-	// Both channels, deliberately — see the package comment on the unverified one.
+	// Both channels, deliberately — see the package comment. Injection is measured (#234);
+	// stderr is for the operator watching the session, not a fallback for a doubted one.
 	var out hookOutput
 	out.HookSpecificOutput.HookEventName = "PostToolUseFailure"
 	out.HookSpecificOutput.AdditionalContext = msg

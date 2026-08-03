@@ -80,6 +80,44 @@ Everything a counter needs, keyed on `(tool_name, target)` out of `tool_input`.
 the cancel* — a user interrupt must not be counted as a strike, or the rule's two halves fight each
 other. The field distinguishes them. #127's mechanism should key on `is_interrupt == false`.
 
+### 2a. `PostToolUseFailure` CAN inject (measured 2026-08-03, #234)
+
+The paragraph above verifies what the event *carries*. It says nothing about whether the event's
+*output* is honoured, and §3a is the standing proof those are different questions: `PostCompact`
+carried the compaction summary and could not inject a byte of it. `sc-strike-counter` shipped
+emitting `additionalContext` anyway, marked in its own source as the unverified half — the count
+reaching the MODEL rather than only the operator is the whole difference between `anti-spinning`
+having a mechanism and having a log line.
+
+Measured under **headless `claude -p`**, deliberately: that is the case the issue worried about,
+because it is where no operator is reading stderr. Same client as the rest of this record — 2.1.220
+— so this sits alongside §3a's refutation rather than describing a different build.
+
+Two hooks, one run. `SessionStart` emitted `MARKER-SS-CONTROL-7Q4X` as a **positive control** — its
+injection is already verified (§3a), so a subject that came back NOT-SEEN could not be blamed on a
+run where nothing fired. `PostToolUseFailure` emitted `MARKER-PTUF-SUBJECT-9K2M`. Both hooks logged
+their raw payload to a file, so *fired but ignored* stays distinguishable from *never fired*.
+
+Result: **both** markers present, as attachments of the same type that settled the `SessionStart`
+case, with the subject arriving in the same turn as the failure it describes.
+
+```json
+{"attachment":{"type":"hook_additional_context","hookEvent":"PostToolUseFailure",
+ "hookName":"PostToolUseFailure:Read","content":["MARKER-PTUF-SUBJECT-9K2M"]}}
+```
+
+Asked afterwards which markers it could see, the model returned both, verbatim. That is the weaker
+of the two lines of evidence and is recorded second, deliberately: the attachment is the leaf.
+
+**What this changes.** `sc-strike-counter` reaches the model at the moment the rule says to stop,
+in exactly the unattended runs where the rule matters most. Its two channels stop being a hedge and
+become a choice — stderr is for the operator watching a session, and it is also what survives a
+model treating an injected token as a suspected prompt injection (§3b, observed twice).
+
+**What it does not change.** Injection reaching context is not the model acting on it, and the
+counter still cannot see a command that exits 0 while the work failed. Its silence remains
+[[anti-spinning]]'s documented blind spot, not evidence the loop was broken.
+
 ### `SubagentStart`
 
 ```
@@ -327,6 +365,7 @@ writer consolidation is the fix; a lock would be the alternative.
 | **`SessionStart(source=compact)` injects into the post-compaction context** | **VERIFIED** — `hook_additional_context` attachment, transcript line 42 (§3a) |
 | `SubagentStart` can inject per-seat context | Event and fields verified; injection not exercised |
 | `PostToolUseFailure` carries what a strike counter needs | **VERIFIED**, plus `is_interrupt` |
+| **`PostToolUseFailure` can inject the count into the model's context** | **VERIFIED** — `hook_additional_context` attachment under headless `claude -p`, against a `SessionStart` positive control (§2a) |
 | **Multiple hooks on one event run in parallel** | **VERIFIED** — overlapping intervals on `SessionStart` and `PostToolUse`; wall clock is the max, not the sum (§4b) |
 | `SessionStart` still fires on `compact` | **VERIFIED** — and §3's first reading of *why that matters* was wrong (§3a) |
 | **`PreCompact` stdout becomes custom compact instructions** | **VERIFIED** — marker survived 2/2 |
