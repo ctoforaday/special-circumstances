@@ -80,38 +80,48 @@ func normalizeQuote(q string) string {
 }
 
 // locateEnd returns the byte offset in report just past the last CONTENT char of the
-// quote, or -1 if the quote is not present. It is an EXACT match run against the report
-// minus its invisible annotation layer — the same exact-match semantics the Edit tool
-// uses, with markers/footnotes skipped and whitespace runs treated as a single
-// separator. A single streaming pass: the report cursor IS the raw insert offset (no
-// offset-map). -1 == a mis-quote. No fuzzy/edit-distance matching (see docs/finding-
-// markers.md and the #248 spec).
+// quote, or -1 if not present — the insert-point half of LocateSpan, used by the
+// finding-marker anchor (which needs only the end).
 func locateEnd(report, quote string) int {
+	_, end := LocateSpan(report, quote)
+	return end
+}
+
+// LocateSpan returns the raw [start,end) byte span in report matched by quote — an EXACT
+// match run against the report minus its invisible annotation layer (markers/footnotes
+// skipped, whitespace runs treated as a single separator) — or (-1,-1) if the quote is not
+// present. `start` is the first matched CONTENT byte; `end` is just past the last matched
+// content byte (before any trailing annotation). A single streaming pass: the report cursor
+// IS the raw offset (no offset-map). `blue edit` replaces report[start:end], leaving the
+// invisible marker layer intact; a span that INTERNALLY contains a marker is the caller's to
+// reject (edit around it). No fuzzy/edit-distance matching.
+func LocateSpan(report, quote string) (int, int) {
 	nq := normalizeQuote(quote)
 	if nq == "" { // empty or all-trailing-punctuation → reject, never match at 0
-		return -1
+		return -1, -1
 	}
 	for start := 0; start < len(report); {
 		if n := annotationLen(report, start); n > 0 { // never start inside an annotation
 			start += n
 			continue
 		}
-		if end, ok := matchFrom(report, start, nq); ok {
-			return end
+		if s, e, ok := matchFrom(report, start, nq); ok {
+			return s, e
 		}
 		start++
 	}
-	return -1
+	return -1, -1
 }
 
-// matchFrom attempts to match the normalized quote nq against report beginning at
-// `start`. Returns the offset just past the last matched content char and true, or 0,
-// false. Annotation spans in the report are skipped (consume no quote char); a quote
-// separator matches a run of report whitespace; a quote content char must match exactly.
-// A whitespace run containing a blank line (paragraph break) is a hard boundary — a
-// single quoted sentence never spans one — so the match fails there.
-func matchFrom(report string, start int, nq string) (int, bool) {
+// matchFrom attempts to match the normalized quote nq against report beginning at `start`.
+// Returns (spanStart, end, true) — spanStart = first matched content byte, end = just past
+// the last matched content byte — or (0,0,false). Annotation spans in the report are skipped
+// (consume no quote char); a quote separator matches a run of report whitespace; a quote
+// content char must match exactly. A whitespace run containing a blank line (paragraph
+// break) is a hard boundary — a single quoted sentence never spans one — so the match fails.
+func matchFrom(report string, start int, nq string) (int, int, bool) {
 	ri := start
+	firstContent := -1
 	lastContentEnd := -1
 	for qi := 0; qi < len(nq); {
 		if n := annotationLen(report, ri); n > 0 {
@@ -121,7 +131,7 @@ func matchFrom(report string, start int, nq string) (int, bool) {
 		if nq[qi] == ' ' {
 			// The quote wants a separator; the report must have whitespace here.
 			if ri >= len(report) || !isSpace(report[ri]) {
-				return 0, false // else-branch: report content where the quote wants a space → fail
+				return 0, 0, false // else-branch: report content where the quote wants a space → fail
 			}
 			newlines := 0
 			for ri < len(report) {
@@ -138,20 +148,23 @@ func matchFrom(report string, start int, nq string) (int, bool) {
 				ri++
 			}
 			if newlines >= 2 {
-				return 0, false // crossed a paragraph break
+				return 0, 0, false // crossed a paragraph break
 			}
 			qi++
 			continue
 		}
 		// A content char (letters, digits, internal punctuation) must match exactly.
 		if ri >= len(report) || report[ri] != nq[qi] {
-			return 0, false
+			return 0, 0, false
+		}
+		if firstContent < 0 {
+			firstContent = ri
 		}
 		ri++
 		qi++
 		lastContentEnd = ri
 	}
-	return lastContentEnd, true
+	return firstContent, lastContentEnd, true
 }
 
 // insertMarker splices marker into report at byte offset `at`.

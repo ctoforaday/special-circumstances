@@ -117,6 +117,16 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.27.0 the blue-report lockdown + append-only diff-stack (#250/#251): blue/report.md is READ-ONLY to
+//	       every seat except the allowlisted author `agent_type` (frank-exchange-of-views:blue-synthesizer).
+//	       A new `blue edit --old --new --reason` is the ONE write path for a response seat — an
+//	       exact-on-stripped span replace (extends the finding-marker matcher with `lens.LocateSpan`) that
+//	       REJECTS an edit dropping/spanning a `<!--fx:…-->` marker and appends a `blue_edit` diff-stack op
+//	       (event-first, crash-reconciled). A new `hook pretooluse`/`hook posttooluse` command group backs
+//	       the plugin's first hooks.json: PreToolUse denies a non-author raw write to report.md (Edit/Write
+//	       by file_path, common Bash by target), PostToolUse blocks + forces repair on a dropped marker via
+//	       any mechanism (reusing the shared claimcount.MissingAnchorIDs check). A stale binary lacks
+//	       `blue edit` and the hook backends, so the lockdown silently does not engage.
 //	0.26.0 finding-markers (slice 1b): a `lens finding` now REQUIRES --location + --reason, VALIDATES
 //	       that the quoted --location text is present in blue/report.md (a mis-quote is rejected), and
 //	       anchors the finding by inserting an invisible immortal footnote marker `[^<finding_id>]` at
@@ -149,7 +159,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.26.0"
+const Version = "0.27.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -191,6 +201,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
 		newDashboard(),   // operator: the live run dashboard.html (ported from render-run-dashboard.mjs)
 		newCapture(),     // operator: the post-hoc capture auditor (ported from capture-research-run.mjs)
+		newHook(),        // hook backend: the blue-report lockdown PreToolUse/PostToolUse gates (invoked by hooks.json)
 	)
 	return root
 }

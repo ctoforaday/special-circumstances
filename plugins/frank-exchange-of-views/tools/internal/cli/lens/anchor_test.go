@@ -43,6 +43,31 @@ func TestExtractQuotePrefersQuotedSpan(t *testing.T) {
 	}
 }
 
+func TestLocateSpanReturnsRawSpan(t *testing.T) {
+	// A marker sits AFTER "time" (trailing), a footnote after "grows".
+	report := "The cost is rising over time<!--fx:f-1--> now. Volume grows[^v] fast."
+	start, end := LocateSpan(report, "rising over time")
+	if start < 0 {
+		t.Fatal("LocateSpan failed to match")
+	}
+	if report[start:end] != "rising over time" {
+		t.Errorf("span = %q, want the raw matched text", report[start:end])
+	}
+	// End stops before the trailing marker (a content boundary), so the marker is OUT of span.
+	if strings.Contains(report[start:end], "<!--fx:") {
+		t.Errorf("span wrongly includes a trailing marker: %q", report[start:end])
+	}
+	// A span that INTERNALLY crosses a footnote includes it (caller rejects such an edit).
+	s2, e2 := LocateSpan(report, "Volume grows fast")
+	if s2 < 0 || !strings.Contains(report[s2:e2], "[^v]") {
+		t.Errorf("marker-crossing span should include the footnote: %q", report[s2:e2])
+	}
+	// Absent → (-1,-1).
+	if s, e := LocateSpan(report, "not present here"); s != -1 || e != -1 {
+		t.Errorf("absent quote → (%d,%d), want (-1,-1)", s, e)
+	}
+}
+
 func TestLocateEndExactAndFlexible(t *testing.T) {
 	report := "# H1\n\nThe scheduler is preemptive and fair.\n"
 	// Exact substring.
