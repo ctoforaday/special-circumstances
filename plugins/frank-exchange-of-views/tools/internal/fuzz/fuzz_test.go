@@ -433,6 +433,37 @@ func (r *runner) extras(role, seatID string, open []string) {
 				set("--title", "unreachable "+seatID).
 				run()
 		})
+		// THE ONLY WRITE PATH to blue/report.md, driven end to end through the real binary.
+		// It swaps the seeded edit-target sentence between two phrasings, so a valid unique
+		// --old exists whichever way the previous edit left the file — no state to thread.
+		//
+		// --answers carries the PROVENANCE (#267): the gap this edit responds to. Sent when
+		// the board has an open gap, omitted otherwise, so BOTH validation branches run —
+		// the reference check and the legal no-gap edit. The --reason deliberately names no
+		// gap: prose naming a real gap with --answers empty is REFUSED, and this drive must
+		// exercise the path that is allowed to succeed.
+		r.maybe(45, func() {
+			cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+			if err != nil {
+				return
+			}
+			oldSpan, newSpan := "rising over time", "climbing sharply"
+			if !strings.Contains(string(cur), oldSpan) {
+				oldSpan, newSpan = newSpan, oldSpan
+			}
+			if !strings.Contains(string(cur), oldSpan) {
+				return // an anchor landed mid-span; skip rather than force a mis-quote
+			}
+			c := r.do("blue", "edit", seatID).
+				set("--old", oldSpan).
+				set("--new", newSpan).
+				set("--reason", "fuzz edit: sharper phrasing").
+				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2)))
+			if len(open) > 0 {
+				c = c.set("--answers", pick(r.rng, open))
+			}
+			c.run()
+		})
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
 			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
@@ -666,6 +697,10 @@ type outcome struct {
 	// silently. These two counters are what actually pin the new path.
 	citeAnchors int
 	cacheFiles  int
+	// #267 provenance: blue_edit events carrying --answers. The verb gate below is satisfied
+	// by ANY blue_edit, so an edit drive that never sent the flag would pass it silently —
+	// exactly the false green the citation counters exist to prevent for cite.
+	editAnswers int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -765,7 +800,10 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
 	// ("§ fuzz") so findings are accepted and the coverage gate sees them.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
-	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n"), 0o644)
+	// The trailing sentence is the EDIT TARGET: `blue edit` swaps it between two fixed
+	// phrasings, so every round has a valid unique span to replace whichever way the last
+	// edit left it, while the anchor quote above stays untouched for findings and cites.
+	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
 	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
 	res := outcome{seed: seed, runDir: runDir}
@@ -847,6 +885,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	if md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md")); err == nil {
 		res.citeAnchors = strings.Count(string(md), "<!--cite:")
 	}
+	for _, e := range board.Events {
+		if e.Type == "blue_edit" && e.Payload.Str("answers") != "" {
+			res.editAnswers++
+		}
+	}
 	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
 		for _, e := range ents {
 			if !e.IsDir() && e.Name() != "index" {
@@ -906,6 +949,7 @@ var verbsWithEvents = []string{
 	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
 	"confidence", "cite", "finding", "observe", "avenue", "friction", "revision", "retire",
 	"manifest-row", "dispose", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
+	"blue_edit",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -1045,6 +1089,7 @@ func TestFuzzDebate(t *testing.T) {
 	roundHist := map[int]int{}
 	dcov := map[string]int{}
 	citeAnchors, cacheFiles := 0, 0 // dialectic-event coverage across all runs (proves the fuzz emits them)
+	editAnswers := 0                // #267: blue_edit events that carried the provenance key
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -1063,6 +1108,7 @@ func TestFuzzDebate(t *testing.T) {
 			}
 			citeAnchors += o.citeAnchors
 			cacheFiles += o.cacheFiles
+			editAnswers += o.editAnswers
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -1073,8 +1119,8 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached",
-		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"])
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -1106,6 +1152,12 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if cacheFiles == 0 {
 			t.Errorf("fuzz cached ZERO sources across %d runs — `fetch`/`blue cite` never populated <run>/cache (false green); the fetch path is unexercised", completed)
+		}
+		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
+		// that stopped sending --answers would satisfy it while the join key every #267
+		// measurement reads went silently missing.
+		if editAnswers == 0 {
+			t.Errorf("fuzz recorded ZERO blue_edit events carrying --answers across %d runs — the provenance key is unexercised (false green)", completed)
 		}
 	}
 	if completed < 40 {

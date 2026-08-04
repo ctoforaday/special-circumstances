@@ -90,12 +90,27 @@ Immortality was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and ne
 run showed that is not enough. It is now **enforced at the write**. `blue/report.md` is **read-only to
 every seat except the allowlisted author `agent_type`** (`frank-exchange-of-views:blue-synthesizer`, the
 round-0 synthesis seat). A response seat changes the report ONLY through **`feov-record blue edit --old
-<exact current span> --new <replacement> --reason <why>`** — an exact-on-stripped span replace (reusing
-`lens.LocateSpan`, the finding-marker matcher) that **REJECTS any edit whose span would drop or split a
-`<!--fx:…-->` marker** (edit AROUND a marker: quote a span that ends before it) and appends a `blue_edit`
-event — an append-only diff-stack that replays onto the round-0 report. Enforcement is a plugin
-PreToolUse/PostToolUse hook (`feov-record hook pretooluse|posttooluse`) that reads `agent_type` from the
-hook stdin:
+<exact current span> --new <replacement> --reason <why> [--answers <gap-id>]`** — an exact-on-stripped span replace (reusing
+`lens.LocateSpan`, the finding-marker matcher) that appends a `blue_edit` event, an append-only
+diff-stack replaying onto the round-0 report.
+
+**Anchors TRANSIT an edit; they are never created, destroyed or duplicated by one.** The rule was once
+"reject any span containing a marker — edit around it", and that produced a DEADLOCK (demonstrated,
+0.28.x): where a word appears twice and the only disambiguating context carries red's anchor, the minimal
+quote is refused as ambiguous and the contextual quote is refused as anchor-spanning, so the anchored
+occurrence — the one red actually flagged — became the only uneditable one. 71% of anchored quotes in the
+2026-08-04 smoke had their anchor mid-span, so that was the common shape, not a corner. What the tool
+checks now is the multiset of anchor ids in `--old` against `--new`: blue may carry an anchor across
+verbatim, and may not change WHICH anchors exist. That is strictly stronger than the old rule, which said
+nothing about `--new` at all — 5 smoke edits smuggled an anchor INTO `--new` and duplicated it.
+
+`--answers <gap-id>` records which gap the edit responds to (0.29.0, #267), validated against the board
+like every other reference. It is the join key between the `required_fix` red asked for and the change
+blue actually made; naming a real gap in `--reason` while `--answers` is empty is refused, so the key
+cannot decay back into the 73%-reliable convention it replaced.
+
+The READ-ONLY half is enforced by a plugin PreToolUse/PostToolUse hook (`feov-record hook
+pretooluse|posttooluse`) that reads `agent_type` from the hook stdin:
 - **PreToolUse (prevent):** a non-author raw write to `blue/report.md` is DENIED — Edit/Write by
   `file_path` (airtight), common Bash by target-path resolution (`cp`/`mv`/`tee`/`>`/`sed -i`).
 - **PostToolUse (detect + force-repair):** after a non-author call, a dropped marker (via any mechanism,

@@ -426,6 +426,34 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return fmt.Errorf("record: mint supersedes %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
+	case "blue_edit":
+		// PROVENANCE IS A KEY, NOT A CONVENTION.
+		//
+		// --answers names the gap this edit responds to, and it is checked against the board
+		// like every other reference in this file (refs.go: twelve of twelve were once
+		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
+		if err := requireGap(runDir, p.Str("answers"), "blue edit", "--answers"); err != nil {
+			return err
+		}
+		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
+		// 2026-08-04 smoke: 19 of 26 edits opened --reason with the gap id ("R1-5: Quantify
+		// confidence…") and 7 did not, so the link existed 73% of the time — reliable enough
+		// to look like a key and not reliable enough to be one. Every #267 measurement joins
+		// `required_fix` to the change blue actually made; a 73% join silently drops the
+		// quarter of the data most likely to be the interesting quarter.
+		//
+		// Only a gap the board actually knows triggers this, so prose is not pattern-policed:
+		// blue may write anything that is not the name of a real open question it is
+		// answering without saying so.
+		if p.Str("answers") == "" {
+			named, err := gapNamedIn(runDir, p.Str("text"))
+			if err != nil {
+				return err
+			}
+			if named != "" {
+				return fmt.Errorf("record: blue edit --reason names gap %s but --answers is empty — say it with --answers %s so the edit joins to the fix red asked for; --reason is the argument, not the key", named, named)
+			}
+		}
 	case "close":
 		if !p.Has("gap_id") || p.Str("gap_id") == "" {
 			return fmt.Errorf("record: close requires --id")

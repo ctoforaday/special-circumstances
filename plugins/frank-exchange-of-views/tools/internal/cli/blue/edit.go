@@ -24,6 +24,12 @@ import (
 // (edit around it). Each applied edit appends a `blue_edit` event — an append-only diff-stack
 // that replays onto the round-0 report to equal the current head.
 //
+// PROVENANCE: --answers names the gap this edit responds to. It is validated against the
+// board like every other reference (refs.go), and it is what makes `required_fix` and the
+// change blue actually made JOINABLE — the pair every #267 measurement reads. Naming a real
+// gap id in --reason while leaving --answers empty is REFUSED: the convention it replaces
+// held 19 times in 26 and that is exactly the reliability a key may not have.
+//
 // Crash-safety is EVENT-FIRST: the event is appended only AFTER validation succeeds (so a
 // mis-quote never lands a phantom op), then the write is applied; a crash between leaves the
 // event durable and the write reconciled idempotently on retry — no wedge, no phantom op.
@@ -74,6 +80,7 @@ func newEdit() *cobra.Command {
 			// Event-first: commit the diff-stack op, then apply the write.
 			p := record.NewPayload()
 			seat.Set(cmd, p, "edit_key", flags.Key)
+			seat.Set(cmd, p, "answers", flags.Answers)
 			p.Set("old", oldStr)
 			p.Set("new", newStr)
 			p.Set("text", reason)
@@ -89,6 +96,7 @@ func newEdit() *cobra.Command {
 	c.Flags().String(flags.Key, "", "a stable local handle (your own F1, F2 …) making a retried edit idempotent")
 	c.Flags().String(flags.Old, "", "REQUIRED — the EXACT current span to replace (matched across the invisible anchor layer; rejected if absent or if it contains a finding-marker or a citation anchor)")
 	c.Flags().String(flags.New, "", "the replacement text")
+	c.Flags().String(flags.Answers, "", "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
 	return c
 }
 
