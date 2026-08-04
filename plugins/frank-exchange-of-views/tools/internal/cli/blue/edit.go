@@ -102,9 +102,15 @@ var errMisQuote = errors.New("blue edit: the --old text was not found in report.
 // the lock live in applyEdit; the validation peek reuses this via validateEdit. Fuzzed
 // directly (edit_fuzz_test.go).
 func planEdit(report, old, new string) (string, error) {
-	start, end := lens.LocateSpan(report, old)
+	start, end, ambiguous := lens.LocateSpanUnique(report, old)
 	if start < 0 {
 		return "", errMisQuote
+	}
+	// AMBIGUITY IS REFUSED, NOT GUESSED. Taking the first of several matches silently edits a site
+	// blue may not have meant — and blue is explicitly told to propagate corrections to every site
+	// stating a claim, so repeated text is the expected shape of a real report.
+	if ambiguous {
+		return "", fmt.Errorf("blue edit: your --old span appears MORE THAN ONCE in report.md, so the edit target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)")
 	}
 	// The span may not split a WORD (see splice.go for why this is not a whitespace rule).
 	if !spanBoundaryOK(report, start, end) {

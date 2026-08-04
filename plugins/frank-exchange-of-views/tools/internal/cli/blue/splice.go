@@ -74,18 +74,6 @@ func tidySeam(s string, at int) (string, bool) {
 // reject every edit of an anchored word — the common case, since red anchors exactly the
 // sentences blue is asked to repair.
 
-func isSpaceByte(b byte) bool { return b == ' ' || b == '\t' || b == '\n' || b == '\r' }
-
-// annotationEndsAt reports whether an invisible annotation token ends exactly at offset i.
-func annotationEndsAt(s string, i int) bool {
-	return (i >= 3 && s[i-3:i] == "-->") || (i >= 1 && s[i-1] == ']')
-}
-
-// annotationStartsAt reports whether an invisible annotation token begins exactly at offset i.
-func annotationStartsAt(s string, i int) bool {
-	return strings.HasPrefix(s[i:], "<!--") || strings.HasPrefix(s[i:], "[^")
-}
-
 // spanBoundaryOK reports whether [start,end) splits a WORD. It rejects only that: a boundary
 // with an alphanumeric character on both sides.
 //

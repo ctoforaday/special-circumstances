@@ -1,6 +1,9 @@
 package blue
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // The exact splice damage measured on the 2026-08-04 smoke, where blue spent 6 of 17 round-2
 // edits repairing punctuation it had created itself. Each case is a seam an edit manufactures.
@@ -80,5 +83,26 @@ func TestSpanBoundaryOK(t *testing.T) {
 				t.Errorf("spanBoundaryOK(%q, %d, %d) = %v, want %v — segment %q", c.s, c.a, c.b, got, c.want, c.s[c.a:c.b])
 			}
 		})
+	}
+}
+
+// AMBIGUITY MUST BE REFUSED, NOT GUESSED. LocateSpan takes the FIRST match and says nothing, so a
+// quote appearing twice silently edits whichever came first. blue is explicitly instructed to
+// propagate a correction to every site stating a claim, so repeated text is the expected shape of
+// a real report — this is the case where guessing is worst.
+func TestPlanEditRefusesAnAmbiguousSpan(t *testing.T) {
+	const rep = "# H\n\nThe value is stable.\n\nElsewhere, again: The value is stable.\n"
+	if _, err := planEdit(rep, "The value is stable.", "The value is steady."); err == nil {
+		t.Fatal("an --old span matching twice was accepted — it silently edits the first site")
+	} else if !strings.Contains(err.Error(), "MORE THAN ONCE") {
+		t.Errorf("error = %v, want it to name the ambiguity", err)
+	}
+	// A quote carrying enough context to be unique still applies.
+	out, err := planEdit(rep, "Elsewhere, again: The value is stable.", "Elsewhere, again: The value is steady.")
+	if err != nil {
+		t.Fatalf("a uniquely-quoted span was refused: %v", err)
+	}
+	if !strings.Contains(out, "Elsewhere, again: The value is steady.") || !strings.Contains(out, "\n\nThe value is stable.") {
+		t.Errorf("the disambiguated edit hit the wrong site:\n%s", out)
 	}
 }

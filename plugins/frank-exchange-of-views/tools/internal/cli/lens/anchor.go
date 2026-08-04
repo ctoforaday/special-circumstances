@@ -171,6 +171,31 @@ func matchFrom(report string, start int, nq string) (int, int, bool) {
 	return firstContent, lastContentEnd, true
 }
 
+// LocateSpanUnique is LocateSpan plus an AMBIGUITY verdict: it reports whether the quote matches
+// at MORE THAN ONE place. LocateSpan takes the first match and says nothing, which is silent
+// mis-targeting — the edit or the anchor lands on the wrong occurrence and no one is told.
+//
+// The risk is structural rather than hypothetical: debate.js instructs blue to "propagate every
+// correction to ALL sites that state the corrected claim", so repeated text is the EXPECTED shape
+// of a mature report, and the claim-index exists precisely because one claim appears at many
+// sites. A short quote ("7 is prime", a bare figure) collides easily. The 2026-08-04 smoke showed
+// zero collisions, but its report was 56 lines; the run before it reached 1,668.
+//
+// Callers should refuse an ambiguous quote and ask for more context rather than guess.
+func LocateSpanUnique(report, quote string) (start, end int, ambiguous bool) {
+	start, end = LocateSpan(report, quote)
+	if start < 0 {
+		return start, end, false
+	}
+	// Look for a SECOND match beyond the first one's end.
+	if rest := end; rest < len(report) {
+		if s2, _ := LocateSpan(report[rest:], quote); s2 >= 0 {
+			return start, end, true
+		}
+	}
+	return start, end, false
+}
+
 // insertMarker splices marker into report at byte offset `at`.
 func insertMarker(report []byte, at int, marker string) []byte {
 	out := make([]byte, 0, len(report)+len(marker))
