@@ -1,7 +1,7 @@
 // Package hooklog is the suite's one hook-firing log, and the one place that knows how to
 // write it.
 //
-// WHY IT EXISTS. sc-quality-gate and sc-recall-index carried byte-identical copies of this
+// WHY IT EXISTS. sc-quality-gate and the since-retired sc-recall-index carried byte-identical copies of this
 // function, and both append to the SAME file on the same PostToolUse event. Measured
 // (hook-surface-spike.md §4b): the client runs an event's hooks in PARALLEL, so those two
 // writes were CONCURRENT BY DESIGN — not a possible interleaving, a certain one.

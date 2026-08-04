@@ -268,14 +268,6 @@ func TestRecordToolVersion(t *testing.T) {
 	}
 }
 
-// QmdRefresh: a not-installed binary is a stated no-op.
-func TestQmdRefreshNotInstalled(t *testing.T) {
-	r := QmdRefresh("qmd", func(string, []string) ExecResult { return ExecResult{Err: errors.New("ENOENT")} })
-	if r.Ran || !has(r.Reason, "not installed") {
-		t.Errorf("not-installed branch: %+v", r)
-	}
-}
-
 // MirrorScorecards: empty corpus explains itself instead of an undefined reason.
 func TestMirrorScorecardsEmptyCorpus(t *testing.T) {
 	mem, runDir := t.TempDir(), t.TempDir()

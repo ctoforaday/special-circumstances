@@ -4,7 +4,7 @@
 
 The base plugin of [Special Circumstances](../../README.md). It carries the shared rule substrate the other plugins preload, plus the adversarial-partner behaviour for interactive work.
 
-**Status: shipping.** 20 skills, 5 commands, 2 agents, 8 hook binaries.
+**Status: shipping.** 21 skills, 5 commands, 2 agents, 8 hook binaries.
 
 ## The distinctive idea
 
@@ -22,7 +22,7 @@ Nine load on every session, the rest by description. `design-by-contract` is the
 |---|---|---|
 | `sc-secrets-gate` | PreToolUse | Blocks secrets leaving via web calls and shell |
 | `sc-push-freeze-guard` | PreToolUse | Refuses pushes to pinned paths while a research run is live |
-| `sc-posttooluse` | PostToolUse | One hook per event: the quality gate (`qlty fmt` + `qlty check`) and the recall index, as units over one shared context |
+| `sc-posttooluse` | PostToolUse | The quality gate (`qlty fmt` + `qlty check`), as a unit over one shared context |
 | `sc-toolchain-nudge` | SessionStart | One line when a recommended tool is missing, silence when healthy |
 | `sc-checkpoint-seal` | PreCompact · SessionEnd · SubagentStop | Seals the note at every seam; tells the summarizer what to preserve, on PreCompact only |
 | `sc-checkpoint-restore` | SessionStart | Hands the note back — every source, compaction included |

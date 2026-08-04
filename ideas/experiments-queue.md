@@ -102,7 +102,7 @@ Levers, ranked: (1) window-aware fetch limits at lenses — whole primary source
 kills the truncation friction; (2) blue-respond reads the full source per repaired
 gap before the fix ships (R3-14 operationalized — the lossy-gap-JSON repair class);
 (3) generous bench conduct reads; (4) whole-pinned-corpus in-context at lanes
-(qmd finds, the window holds) — test in E4 where saturation is measurable.
+(the window holds the pinned corpus outright) — test in E4 where saturation is measurable.
 Engine-computed ingestion manifests per seat (automation doctrine — same structural
 mechanism queued for batching). Measure: context-USE telemetry (fill% per seat)
 against regression ratio and round count. BET: ~$40-60/run of fuller ingestion buys
@@ -117,7 +117,9 @@ gaps share no vocabulary; same-subsystem different-class gaps embed as
 neighbors), and at 38 labels the whole registry fits in the merge's context.
 TEST (cheap, we hold ground truth): embed the 38 class definitions, classify
 the 224 seed-labeled gaps by nearest match, score top-1/top-3 vs the seed.
-Regardless of outcome, the RETRIEVAL-shaped uses go in: qmd-powered near-match
+Regardless of outcome, the RETRIEVAL-shaped uses go in — but they now need a MECHANISM:
+qmd was retired 2026-08-04 (indexed our own run artifacts, 0 seat calls in a live run), so
+whatever serves these does it over the RECORD, not a document corpus: near-match
 screening at mint (instance-to-instance, topic-similarity is the RIGHT axis —
 serves the retained reopen-vs-new judgment clause), cross-run recurrence
 lookup, and friction near-duplicate detection (the paraphrase-blind class).

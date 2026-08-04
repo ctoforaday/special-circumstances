@@ -2,15 +2,16 @@
   "mcpServers": {
     "arxiv-latex": {
       "command": "uvx",
-      "args": ["arxiv-latex-mcp==0.2.2"]
+      "args": [
+        "arxiv-latex-mcp==0.2.2"
+      ]
     },
     "pdf-reader": {
       "command": "npx",
-      "args": ["-y", "@sylphx/pdf-reader-mcp@3.0.14"]
-    },
-    "qmd": {
-      "command": "qmd",
-      "args": ["mcp"]
+      "args": [
+        "-y",
+        "@sylphx/pdf-reader-mcp@3.0.14"
+      ]
     }
   }
 }

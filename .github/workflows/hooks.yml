@@ -55,8 +55,8 @@ jobs:
       # What it does NOT buy, stated so nobody reads a green leg as more than it is:
       # -race sees one process. The concurrency these hooks actually meet is BETWEEN
       # processes — parallel Edits in one turn fire parallel PostToolUse invocations, each
-      # its own binary, sharing state under .claude/. No race detector observes that; see
-      # the debounce note in internal/recallindex.
+      # its own binary, sharing state under .claude/. No race detector observes that: any
+      # cross-process ordering a hook depends on has to be enforced by the hook itself.
       - run: go test -race ./...
         env:
           CGO_ENABLED: "1"

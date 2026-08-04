@@ -100,8 +100,7 @@ CLAUDE_CODE_PLUGIN_CACHE_DIR="$tmp" bash ./scripts/bootstrap-plugins.sh
 | Unreachable marketplace | **exit 0**, warns, session startup unaffected |
 | Warm, already installed | exit 0, skips marketplace and plugin installs, rebuilds binaries |
 
-The DEGRADED verdict is `qlty` and `qmd` missing, both recommended rather than
-required. `gh` is *not* part of it: it is absent by design in cloud sessions,
+The DEGRADED verdict is `qlty` missing — recommended rather than required. `gh` is *not* part of it: it is absent by design in cloud sessions,
 which reach GitHub through MCP tools, and the manifest declares that with
 `not_applicable_in` so the doctor reports it as n/a rather than as a defect
 with install advice nobody can act on.

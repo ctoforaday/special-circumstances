@@ -25,7 +25,6 @@ type Config struct {
 	Lanes         string
 	BinDir        string
 	MemoryDir     string
-	NoQmd         bool
 
 	Cwd           string
 	Home          string
@@ -37,7 +36,7 @@ type Config struct {
 }
 
 // Run reproduces the mjs main(): the four fail-fast gates (runDir→1; model tiers→2;
-// pin miss→2; --bin-dir preflight→2), then the run-dir build + mirrors + marker + qmd,
+// pin miss→2; --bin-dir preflight→2), then the run-dir build + mirrors + marker,
 // then the summary. Returns the process exit code; writes to the given streams.
 func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.Git == nil {
@@ -51,7 +50,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 
 	if cfg.RunDir == "" || strings.HasPrefix(cfg.RunDir, "--") {
-		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --model <m> --judgment-model <m> [--cite <path>[@pin]]... [--bin-dir <dir>] [--memory-dir <dir>] [--no-qmd]`)
+		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --model <m> --judgment-model <m> [--cite <path>[@pin]]... [--bin-dir <dir>] [--memory-dir <dir>]`)
 		return 1
 	}
 	topic := cfg.Topic
@@ -148,12 +147,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		pinnedPaths = append(pinnedPaths, p)
 	}
 	marker := WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now)
-	var qmd QmdResult
-	if cfg.NoQmd {
-		qmd = QmdResult{Ran: false, Reason: "skipped (--no-qmd)"}
-	} else {
-		qmd = QmdRefresh("qmd", cfg.Exec)
-	}
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))
@@ -208,11 +201,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  record binary: NOT AVAILABLE — %s (this run will not record through the tool; pass --bin-dir to require it)\n", pre.Reason)
 	}
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
-	if qmd.Ran {
-		fmt.Fprintf(stdout, "  qmd refresh: update %s, embed %s\n", okFailed(qmd.Update), okFailed(qmd.Embed))
-	} else {
-		fmt.Fprintf(stdout, "  qmd refresh: %s\n", qmd.Reason)
-	}
 	return 0
 }
 

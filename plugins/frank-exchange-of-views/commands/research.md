@@ -21,8 +21,7 @@ is two script invocations.
    `--model` and `--judgment-model` are REQUIRED — setup refuses without both (the engine never guesses or inherits a tier), so resolve them BEFORE this step and never omit either.
    Pass the SAME resolved config you will hand the workflow in step 3 (models per stage, the round ceiling, the lane count) — setup records it as the canonical `inputs/run-config.json` so the dashboard (and any post-hoc reader) can show which models ran at which stage and the ceiling in force, without being told separately. Relay its summary. `setup` VALIDATES every cite at its pin and refuses on a miss
    (W1.1) — a failure names the missing paths and the two remedies; fix and re-run, never
-   work around. If qmd is reported missing, that is fine (optional tier — the doctor
-   installs it; NEVER install it here and NEVER run it via npx). If gap-patterns reports "no
+   work around. If gap-patterns reports "no
    memory dir", pass `--memory-dir <session project dir>/.claude/agent-memory/frank-exchange-of-views-red-auditor`
    — red's memory accrues under the LAUNCHING session's project, which may not be this repo.
    ACCESS PRECONDITION (W1.11): if the run directory lies outside the session's registered
