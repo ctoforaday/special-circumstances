@@ -126,7 +126,7 @@ func TestBlueEditIdempotentRetry(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe cost is rising fast.\n")
 	registerBlue(t, runDir)
 	args := []string{"blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "rising fast", "--new", "climbing fast", "--reason", "r"}
+		"--key", "E1", "--old", "rising fast.", "--new", "climbing fast.", "--reason", "r"}
 	if _, err := run(t, args...); err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	}
 	// Retry with the same key → reconcile forward.
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "rising fast", "--new", "climbing fast", "--reason", "r"); err != nil {
+		"--key", "E1", "--old", "rising fast.", "--new", "climbing fast.", "--reason", "r"); err != nil {
 		t.Fatalf("reconcile retry errored: %v", err)
 	}
 	if !strings.Contains(readReport(t, runDir), "climbing fast") {

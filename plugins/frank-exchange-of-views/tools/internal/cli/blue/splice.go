@@ -59,3 +59,49 @@ func tidySeam(s string, at int) (string, bool) {
 	}
 	return string(b), changed
 }
+
+// EDIT BOUNDARIES SIT AT WHITESPACE — the precondition that makes splice damage impossible
+// rather than merely repairable.
+//
+// tidySeam above REPAIRS a doubled mark after the fact. This prevents it: if the --old span both
+// begins and ends at a boundary, a --new ending in "." cannot abut another "." because the next
+// character is a space. It also forces blue to OWN the punctuation it is editing — quoting "the
+// value is stable." rather than "the value is stable" — which makes the diff-stack legible
+// (the smoke produced three ONE-BYTE edits, one of them deleting "ly", which read as noise).
+//
+// An annotation edge counts as a boundary. Anchors are spliced flush against the last content
+// character ("Eratosthenes<!--fx:f-…-->"), so demanding literal whitespace after a span would
+// reject every edit of an anchored word — the common case, since red anchors exactly the
+// sentences blue is asked to repair.
+
+func isSpaceByte(b byte) bool { return b == ' ' || b == '\t' || b == '\n' || b == '\r' }
+
+// annotationEndsAt reports whether an invisible annotation token ends exactly at offset i.
+func annotationEndsAt(s string, i int) bool {
+	return (i >= 3 && s[i-3:i] == "-->") || (i >= 1 && s[i-1] == ']')
+}
+
+// annotationStartsAt reports whether an invisible annotation token begins exactly at offset i.
+func annotationStartsAt(s string, i int) bool {
+	return strings.HasPrefix(s[i:], "<!--") || strings.HasPrefix(s[i:], "[^")
+}
+
+// spanBoundaryOK reports whether [start,end) splits a WORD. It rejects only that: a boundary
+// with an alphanumeric character on both sides.
+//
+// It deliberately does NOT require whitespace. LocateSpan normalises a quote by TRIMMING trailing
+// punctuation (#248, so a quote may include or omit a terminal period and still match), which
+// means a matched span ALWAYS ends before the period — a whitespace requirement would reject every
+// sentence-final edit, including a correctly-quoted one. That same trim is the doubling mechanism
+// tidySeam exists for: blue quotes "rising fast.", the matcher matches "rising fast", the verbatim
+// --new "climbing fast." lands against the surviving period and yields "climbing fast..". The seam
+// tidy handles that; this predicate handles the other half — a span starting or ending inside a
+// word, which produces edits like the smoke's one-byte "delete ly" that are unreadable in the
+// diff-stack and mean blue is editing letters rather than language.
+func spanBoundaryOK(s string, start, end int) bool {
+	word := func(b byte) bool {
+		return b == '_' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+	}
+	splits := func(i int) bool { return i > 0 && i < len(s) && word(s[i-1]) && word(s[i]) }
+	return !splits(start) && !splits(end)
+}

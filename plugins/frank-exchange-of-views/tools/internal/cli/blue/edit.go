@@ -106,6 +106,10 @@ func planEdit(report, old, new string) (string, error) {
 	if start < 0 {
 		return "", errMisQuote
 	}
+	// The span may not split a WORD (see splice.go for why this is not a whitespace rule).
+	if !spanBoundaryOK(report, start, end) {
+		return "", fmt.Errorf("blue edit: your --old span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops nobody can read in the diff-stack")
+	}
 	if has, id := spanMarker(report[start:end]); has {
 		return "", fmt.Errorf("blue edit: your --old span contains %s — anchors are immortal; edit AROUND it (split your edit so the anchor sits between two edits)", anchorLabel(id))
 	}
