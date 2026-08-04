@@ -679,20 +679,39 @@ test('W1.6: pinned claim unit reaches synthesis and response prompts', async () 
   }
 })
 
-test('W1.7: blue-respond without the round-record attestation aborts with the parity error', async () => {
+// W1.7 + #249: the attestation duty stays; the CONSEQUENCE is recovery, not a dead run. Two
+// consecutive haiku validation runs died on this guard after 16-22 completed agents, so a missed
+// round record must degrade, never discard.
+test('W1.7/#249: blue-respond without the attestation is RE-PROMPTED, then continues with friction', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] })],
-    blueRespond: [blueEnv({ round_record_appended: false })],
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    blueRespond: [blueEnv({ round_record_appended: false })], // the retry re-serves the same false envelope
   }))
-  await assert.rejects(world.run(script, ARGS), /round-parity.*not on the record/)
+  const out = await world.run(script, ARGS) // MUST NOT throw — that is the whole fix
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-respond-r1-round-record')), 'the seat was re-prompted for its round record')
+  assert.ok(out.friction.some((f) => /round-parity.*UNRESOLVED/.test(f)), 'the unresolved parity gap is logged as friction')
 })
 
-test('W1.7: blue-synthesize without the Round 0 CHANGELOG attestation aborts before any red seat spawns', async () => {
+test('W1.7/#249: blue-synthesize without the Round 0 attestation continues — red still audits', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ round_record_appended: false })],
+    red: [redEnv({ verdict: 'PASS' })],
   }))
-  await assert.rejects(world.run(script, ARGS), /round-parity.*Round 0/)
-  assert.ok(!world.calls.some((c) => c.opts.label.startsWith('red-')), 'no red seat dispatched after a desynced synthesis')
+  const out = await world.run(script, ARGS)
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-synthesize-round-record')), 'synthesize was re-prompted')
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('red-')), 'red seats still dispatch — a bookkeeping miss no longer discards the run')
+  assert.ok(out.friction.some((f) => /round-parity.*UNRESOLVED/.test(f)), 'the gap is scored as friction')
+})
+
+test('W1.7/#249: a seat that attests ON THE RETRY continues with NO friction', async () => {
+  const world = makeWorld(makeResponder({
+    // first envelope misses the attestation; the re-prompt returns an attested one
+    blueSynth: [blueEnv({ round_record_appended: false }), blueEnv({ round_record_appended: true })],
+    red: [redEnv({ verdict: 'PASS' })],
+  }))
+  const out = await world.run(script, ARGS)
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-synthesize-round-record')), 'the retry happened')
+  assert.ok(!out.friction.some((f) => /round-parity/.test(f)), 'a recovered attestation logs no parity friction')
 })
 
 test('W1.8: empty spot-checks are EXEMPT when the archive entered the round with zero records (round 1 closed nothing)', async () => {
