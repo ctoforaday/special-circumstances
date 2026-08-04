@@ -260,7 +260,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.28.0
+feov-record version 0.29.0
 
 $ feov-record nonsuch help
 exit 2
