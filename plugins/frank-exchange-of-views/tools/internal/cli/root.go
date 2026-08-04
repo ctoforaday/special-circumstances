@@ -117,6 +117,13 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.29.0 edit provenance (#267): `blue edit` takes `--answers <gap-id>` — the gap the edit
+//	       responds to, validated against the board like every other reference. It replaces a
+//	       CONVENTION: 19 of 26 edits in the 2026-08-04 smoke opened --reason with the gap id and
+//	       7 did not, so the link that every #267 measurement joins on existed 73% of the time.
+//	       Prose naming a real gap while --answers is empty is now REFUSED, so the key cannot
+//	       decay back into prose. A stale binary rejects --answers outright, which fails every
+//	       edit the seat prompt now instructs — the hard break this version gate exists for.
 //	0.28.0 the bibliography core (#256): a citation axis symmetric to the finding markers. A new root
 //	       `fetch --run --url` is a cached, hash-verified web read that REPLACES WebFetch — fetch once,
 //	       cache to `<run>/cache/<sha256>`, serve every seat the same bytes (a second fetch is a cache
@@ -171,7 +178,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.28.0"
+const Version = "0.29.0"
 
 func init() { record.ToolVersion = Version }
 
