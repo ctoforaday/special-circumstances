@@ -2,9 +2,11 @@ package cli
 
 import (
 	"crypto/x509"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -108,5 +110,26 @@ func TestServeHelpMatchesTheTransport(t *testing.T) {
 	}
 	if !strings.Contains(h, "secret") {
 		t.Error("--serve help does not mention the per-run secret URL — the only access control there is")
+	}
+}
+
+// THE SERVED DASHBOARD MAY NOT OUTLIVE ITS RUN. It used to serve a finished run "until killed",
+// which on 2026-08-04 left a dashboard exposed on the LAN after its run ended, with nothing to
+// close it. Binding is now refused unless the run is live.
+func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
+	dir := t.TempDir()
+	prev := runLiveMarker
+	runLiveMarker = filepath.Join(dir, "absent-run-live.json")
+	t.Cleanup(func() { runLiveMarker = prev })
+
+	err := serveDashboard(io.Discard, dir, 0, func() string { return "<html></html>" })
+	if err == nil {
+		t.Fatal("serveDashboard bound a socket for a run that is not live")
+	}
+	if !strings.Contains(err.Error(), "not live") {
+		t.Errorf("error = %v, want it to say the run is not live", err)
+	}
+	if !strings.Contains(err.Error(), "dashboard.html") {
+		t.Error("the refusal should point at the static snapshot as the way to read a finished run")
 	}
 }

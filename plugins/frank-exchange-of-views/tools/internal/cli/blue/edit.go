@@ -121,6 +121,11 @@ func planEdit(report, old, new string) (string, error) {
 		return "", fmt.Errorf("blue edit: your --new text contains %s — an anchor is placed by the tool, never typed into a replacement. Drop it from --new; an anchor outside your --old span stays put on its own", anchorLabel(id))
 	}
 	next := report[:start] + new + report[end:]
+	// SPLICE HYGIENE (see splice.go): tidy the two seams this edit created before anything else
+	// looks at the result. Deterministic, narrow, and silent — the alternative, measured, is blue
+	// spending a third of a round repairing its own doubled punctuation by hand.
+	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
+	next, _ = tidySeam(next, start)
 	if dropped := droppedMarker(report, next); dropped != "" {
 		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchorLabel(dropped))
 	}
