@@ -82,7 +82,12 @@ func newDashboard() *cobra.Command {
 		},
 	}
 	c.Flags().BoolVar(&watch, flags.Watch, false, "regenerate every 15s until the run-live marker is removed")
-	c.Flags().IntVar(&serve, flags.Serve, 0, "host the dashboard over HTTP on this port (0.0.0.0, rendered fresh per request) instead of writing a file — UNAUTHENTICATED, exposes the run on the local network")
+	// The old help said "over HTTP … UNAUTHENTICATED", which the code has never done: serveDashboard
+	// runs ListenAndServeTLS with a TLS 1.2 floor and gates every request on a random per-run secret
+	// in the URL path. Two co-resident statements of one contract disagreed — and on a SECURITY
+	// property, so the wrong one is the kind of thing that stops a careful reader using the feature
+	// (or, worse, makes a careless one think the exposure is already understood).
+	c.Flags().IntVar(&serve, flags.Serve, 0, "host the dashboard over HTTPS on this port instead of writing a file — bound to 0.0.0.0 so it is reachable across the local network, gated by a per-run secret URL (self-signed cert, rendered fresh per request, self-tears-down when the run ends)")
 	c.Flags().Int64Var(&now, flags.Now, 0, "inject the clock in unix-ms (default: real time) — for deterministic tests")
 	c.Flags().StringVar(&model, flags.Model, "", "bulk-tier model, for the run-config header (else read from inputs/run-config.json)")
 	c.Flags().StringVar(&judgmentModel, flags.JudgmentModel, "", "judgment-tier model, for the run-config header")

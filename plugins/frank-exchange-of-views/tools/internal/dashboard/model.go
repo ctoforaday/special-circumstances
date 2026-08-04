@@ -301,6 +301,21 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 	}
 
 	jud := buildJudiciary(journal)
+	// CHRONOLOGICAL, NOT JOURNAL ORDER. idOrder is first-appearance in the workflow journal, which
+	// is DISPATCH order — and dispatch order is arbitrary for a parallel() batch (the round-1
+	// lenses landed L6, L5, L1) and is reshuffled again by a resume, where cached agents replay
+	// instead of re-dispatching. A reader scanning the seat list is asking "what happened, in what
+	// order", so sort by when each seat actually STARTED. StartedMs is already computed above;
+	// nothing was using it to order. Seats with no transcript yet (never started) sort last, and
+	// the sort is STABLE so a genuine tie keeps journal order as its tiebreak.
+	sort.SliceStable(seats, func(i, j int) bool {
+		a, b := seats[i].StartedMs, seats[j].StartedMs
+		if a == nil || b == nil {
+			return a != nil // a started, b did not → a first
+		}
+		return *a < *b
+	})
+
 	steps := buildSteps(seats, merged.MaxRounds)
 	rates := buildRates(telemetry)
 

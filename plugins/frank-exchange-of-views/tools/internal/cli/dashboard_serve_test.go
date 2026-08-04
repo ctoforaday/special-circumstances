@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -87,5 +88,25 @@ func TestHostIPv4sSkipsLoopbackAndLinkLocal(t *testing.T) {
 		if ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 			t.Errorf("%v should have been filtered (loopback/link-local)", ip)
 		}
+	}
+}
+
+// THE HELP MUST NOT CONTRADICT THE TRANSPORT. `--serve`'s help once read "over HTTP …
+// UNAUTHENTICATED" while serveDashboard has always run ListenAndServeTLS behind a per-run secret.
+// Two co-resident statements of one contract, disagreeing on a SECURITY property — the class the
+// protocol registry calls co-resident-rules-disagree. A golden pins the STRING; nothing pinned the
+// AGREEMENT, so a reviewer regenerating a golden would not notice a security claim flip.
+func TestServeHelpMatchesTheTransport(t *testing.T) {
+	h := help(t, "dashboard", "--help")
+	if !strings.Contains(h, "HTTPS") {
+		t.Error("--serve help does not say HTTPS, but serveDashboard uses ListenAndServeTLS")
+	}
+	for _, lie := range []string{"UNAUTHENTICATED", "over HTTP on this port"} {
+		if strings.Contains(h, lie) {
+			t.Errorf("--serve help claims %q — the server is TLS + secret-gated; the help must not understate it", lie)
+		}
+	}
+	if !strings.Contains(h, "secret") {
+		t.Error("--serve help does not mention the per-run secret URL — the only access control there is")
 	}
 }
