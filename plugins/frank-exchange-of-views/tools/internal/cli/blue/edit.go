@@ -114,7 +114,7 @@ func planEdit(report, old, new string) (string, error) {
 	}
 	// The span may not split a WORD (see splice.go for why this is not a whitespace rule).
 	if !spanBoundaryOK(report, start, end) {
-		return "", fmt.Errorf("blue edit: your --old span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops nobody can read in the diff-stack")
+		return "", fmt.Errorf("blue edit: your --old span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record")
 	}
 	// ANCHORS MAY TRANSIT AN EDIT — but never be created, destroyed or duplicated by one.
 	//
