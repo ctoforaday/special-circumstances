@@ -1,4 +1,4 @@
-prompt sha256: c8648e15bdc4874f50de9fb9fb3734b4d6d58e5b52958c8b2bb9e2a72feaf9b2
+prompt sha256: 92a5045dd162c8733e4db421ebe166ab262c93aa293f4ef28eb458f0ee296fbb
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -26,7 +26,7 @@ THE MANIFEST (W2b — your self-audit's receipt; your constitution carries the f
 An unmanifested repair is unaudited by your own standard; the script rejects an EMPTY manifest on a round with open gaps, and coverage is scored at capture.
 CLAIM UNIT (pinned): claim_count = CITED declarative claims (a sentence carrying at least one citation anchor counts once; uncited prose counts zero).
 Log edits to research/2026-01-01_golden/blue/CHANGELOG.md (Round 1, including claim_count); append your "### BLUE" section for round 1 to research/2026-01-01_golden/debate.md.
-ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH the "### BLUE" round-1 section in debate.md AND the CHANGELOG Round 1 entry exist — the script aborts on false; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).
+ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH the "### BLUE" round-1 section in debate.md AND the CHANGELOG Round 1 entry exist — on false the script re-prompts you once for the round record and, failing that, logs friction and continues — the run is not discarded, but the parity gap is scored against you at capture; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-respond-r1).
 FRICTION (blue-respond-r1): report any friction in the envelope's friction field AND through the tool's friction verb — the verb is the durable record that survives a later phase abort.
 Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
