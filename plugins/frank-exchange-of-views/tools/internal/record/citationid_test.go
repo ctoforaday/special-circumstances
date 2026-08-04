@@ -37,3 +37,25 @@ func TestCitationID_DistinctFromFindingID(t *testing.T) {
 		t.Fatalf("finding id prefix = %q, want %q", got, "f-")
 	}
 }
+
+// The two cite provenances must never be counted as one. Measured on the 2026-08-04 smoke: the
+// board reported 10 "citations checked" where the truth was 3 blue-authored + 7 red-verified —
+// 43% inflation on RED's own audit-volume tile, which debate.js tells red to copy into its
+// envelope. The inflation grows with every use of the citation axis.
+func TestCiteProvenanceIsDiscriminated(t *testing.T) {
+	authored := Event{Type: "cite", Payload: NewPayload().Set("label", "c-abc").Set("url", "https://x").Set("title", "T")}
+	verified := Event{Type: "cite", Payload: NewPayload().Set("claim", "c").Set("reference", "https://y").Set("confidence", "high")}
+	other := Event{Type: "finding", Payload: NewPayload().Set("label", "L1-F1")}
+
+	if !IsAuthoredCite(authored) || IsVerifiedCite(authored) {
+		t.Error("a blue cite (carries label) must read as AUTHORED, not verified")
+	}
+	if !IsVerifiedCite(verified) || IsAuthoredCite(verified) {
+		t.Error("a red lens cite (no label) must read as VERIFIED, not authored")
+	}
+	// A finding also carries a label — the discriminator must key on TYPE too, or every finding
+	// would count as an authored citation.
+	if IsAuthoredCite(other) || IsVerifiedCite(other) {
+		t.Error("a non-cite event must be neither")
+	}
+}

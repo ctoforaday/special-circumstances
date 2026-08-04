@@ -250,7 +250,7 @@ func Compute(b *record.Board) Stats {
 				findingLabels[l] = true
 			}
 		}
-		if e.Type == "cite" {
+		if record.IsVerifiedCite(e) { // red's verifications only — blue's authored cites are not audit volume
 			s.Citations++
 		}
 		if gid := e.Payload.Str("gap_id"); gid != "" {
