@@ -95,8 +95,12 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected a reject; out %q", out)
 	}
-	if !strings.Contains(err.Error(), "f-1") || !strings.Contains(strings.ToLower(err.Error()), "around") {
-		t.Errorf("reject message should name the marker and say edit around it: %v", err)
+	// An edit whose span holds an anchor is refused only when --new DROPS it. The message must
+	// name the marker and tell blue how to succeed — carry the token across — rather than the old
+	// "edit around it", which deadlocked against the uniqueness guard whenever the disambiguating
+	// context was the anchored text itself.
+	if !strings.Contains(err.Error(), "f-1") || !strings.Contains(err.Error(), "<!--fx:f-1-->") {
+		t.Errorf("reject message should name the marker and quote the token to reproduce: %v", err)
 	}
 	if strings.Contains(readReport(t, runDir), "vital") {
 		t.Error("report was mutated on a rejected marker-spanning edit")

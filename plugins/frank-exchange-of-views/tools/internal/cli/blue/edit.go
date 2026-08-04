@@ -116,19 +116,23 @@ func planEdit(report, old, new string) (string, error) {
 	if !spanBoundaryOK(report, start, end) {
 		return "", fmt.Errorf("blue edit: your --old span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops nobody can read in the diff-stack")
 	}
-	if has, id := spanMarker(report[start:end]); has {
-		return "", fmt.Errorf("blue edit: your --old span contains %s — anchors are immortal; edit AROUND it (split your edit so the anchor sits between two edits)", anchorLabel(id))
-	}
-	// AN ANCHOR MAY NOT BE COPIED, EITHER. The guards above stop an anchor being DROPPED or
-	// SPLIT; nothing stopped one being DUPLICATED by pasting it into --new. Measured on the
-	// 2026-08-04 smoke: 5 edits carried an "<!--fx:" into their replacement, leaving 22 distinct
-	// finding ids present at 28 sites. A duplicated anchor is not a lost one, so the
-	// dropped-marker detector reads clean while red's audit point now addresses two places at
-	// once — and for a citation it would double-count the claim. blue edit never legitimately
-	// introduces an anchor: `lens finding` and `blue cite` are the only ways one is born, and an
-	// anchor sitting outside the replaced span floats to the end of the replacement on its own.
-	if has, id := spanMarker(new); has {
-		return "", fmt.Errorf("blue edit: your --new text contains %s — an anchor is placed by the tool, never typed into a replacement. Drop it from --new; an anchor outside your --old span stays put on its own", anchorLabel(id))
+	// ANCHORS MAY TRANSIT AN EDIT — but never be created, destroyed or duplicated by one.
+	//
+	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with the
+	// uniqueness guard above that produces a DEADLOCK, demonstrated: when a word appears twice and
+	// the only disambiguating context carries red's anchor, the minimal quote is refused as
+	// ambiguous and the contextual quote is refused as anchor-spanning. The anchored occurrence —
+	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
+	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
+	// not a corner.
+	//
+	// The invariant worth keeping is not "blue never touches an anchor"; it is "an edit never
+	// changes WHICH anchors exist". That is checkable HERE, in the tool, on the exact bytes: the
+	// multiset of anchor ids in --old must equal that in --new. Blue merely carries them across.
+	// This is strictly stronger than the old rule, which said nothing about --new at all (5 edits
+	// in the smoke smuggled an anchor INTO --new and duplicated it).
+	if err := anchorsTransitUnchanged(report[start:end], new); err != nil {
+		return "", err
 	}
 	next := report[:start] + new + report[end:]
 	// SPLICE HYGIENE (see splice.go): tidy the two seams this edit created before anything else
