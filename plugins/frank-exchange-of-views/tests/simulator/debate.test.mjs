@@ -160,17 +160,29 @@ test('lineage: a successor gap with supersedes arms the docket even under a fres
   assert.ok(judgeCalls[0].prompt.includes('"R2-1"'))
 })
 
-test('lineage enforcement: closed_with_regression without a successor naming it throws (R5-5)', async () => {
+// LINEAGE: the guard reads the ENVELOPE, which is a lossy summary of the record — so it reports
+// and continues rather than killing the run. Measured 2026-08-04: red closed R1-1 with regression
+// and correctly minted R2-1 with --supersedes R1-1 ON THE RECORD (the board showed
+// `R2-1 supersedes -> [R1-1]`), then omitted the field from its envelope. The old hard throw
+// discarded a 12-agent, 723k-token run whose lineage was entirely intact. `verify`'s
+// supersedes-resolve checks lineage where the truth lives; this clause only stops the engine
+// trusting the summary over the source.
+test('lineage: an envelope missing supersedes REPORTS and continues — the record is authoritative', async () => {
   const world = makeWorld(makeResponder({
     red: [
       redEnv({ gaps: [gap('R1-1')] }),
       redEnv({
-        gaps: [gap('R2-1')], // fresh id, NO supersedes — the silent-lineage-drop shape
+        gaps: [gap('R2-1')], // fresh id, NO supersedes in the ENVELOPE — the lossy-report shape
         closures: [{ id: 'R1-1', class: 'closed_with_regression' }],
       }),
+      redEnv({ verdict: 'PASS' }),
     ],
   }))
-  await assert.rejects(world.run(script, ARGS), /closed gap R1-1 WITH REGRESSION but no successor gap names it/)
+  const out = await world.run(script, ARGS) // MUST NOT throw — that is the fix
+  assert.ok(
+    out.friction.some((f) => /closed R1-1 WITH REGRESSION and no successor in the ENVELOPE/.test(f)),
+    'the reporting gap is logged as friction so it is still visible',
+  )
 })
 
 test('docket window is the whole debate: an id re-raised after skipping a round still arms the judge', async () => {

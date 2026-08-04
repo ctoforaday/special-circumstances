@@ -49,6 +49,9 @@ type CountsJSON struct {
 	// reference-keyed, so this is DISTINCT sources verified (a re-verification of the
 	// same reference updates in place, matching the citation-ledger projection).
 	Citations int `json:"citations"`
+	// CitationsAuthored is blue's tool-inserted citations (#256). Kept SEPARATE from Citations:
+	// counting them together inflated red's audit-volume metric by 43% on the 2026-08-04 smoke.
+	CitationsAuthored int `json:"citations_authored"`
 }
 
 type GapJSON struct {
@@ -184,8 +187,12 @@ func BoardJSONOf(b *Board) BoardJSON {
 	}
 
 	for _, e := range b.Events {
-		if e.Type == "cite" {
+		// Citations counts what RED VERIFIED (see IsVerifiedCite). Blue's authored cites are
+		// counted separately: a number red reads as its audit volume must not grow when blue writes.
+		if IsVerifiedCite(e) {
 			out.Counts.Citations++
+		} else if IsAuthoredCite(e) {
+			out.Counts.CitationsAuthored++
 		}
 	}
 

@@ -102,14 +102,44 @@ var errMisQuote = errors.New("blue edit: the --old text was not found in report.
 // the lock live in applyEdit; the validation peek reuses this via validateEdit. Fuzzed
 // directly (edit_fuzz_test.go).
 func planEdit(report, old, new string) (string, error) {
-	start, end := lens.LocateSpan(report, old)
+	start, end, ambiguous := lens.LocateSpanUnique(report, old)
 	if start < 0 {
 		return "", errMisQuote
 	}
-	if has, id := spanMarker(report[start:end]); has {
-		return "", fmt.Errorf("blue edit: your --old span contains %s — anchors are immortal; edit AROUND it (split your edit so the anchor sits between two edits)", anchorLabel(id))
+	// AMBIGUITY IS REFUSED, NOT GUESSED. Taking the first of several matches silently edits a site
+	// blue may not have meant — and blue is explicitly told to propagate corrections to every site
+	// stating a claim, so repeated text is the expected shape of a real report.
+	if ambiguous {
+		return "", fmt.Errorf("blue edit: your --old span appears MORE THAN ONCE in report.md, so the edit target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)")
+	}
+	// The span may not split a WORD (see splice.go for why this is not a whitespace rule).
+	if !spanBoundaryOK(report, start, end) {
+		return "", fmt.Errorf("blue edit: your --old span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record")
+	}
+	// ANCHORS MAY TRANSIT AN EDIT — but never be created, destroyed or duplicated by one.
+	//
+	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with the
+	// uniqueness guard above that produces a DEADLOCK, demonstrated: when a word appears twice and
+	// the only disambiguating context carries red's anchor, the minimal quote is refused as
+	// ambiguous and the contextual quote is refused as anchor-spanning. The anchored occurrence —
+	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
+	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
+	// not a corner.
+	//
+	// The invariant worth keeping is not "blue never touches an anchor"; it is "an edit never
+	// changes WHICH anchors exist". That is checkable HERE, in the tool, on the exact bytes: the
+	// multiset of anchor ids in --old must equal that in --new. Blue merely carries them across.
+	// This is strictly stronger than the old rule, which said nothing about --new at all (5 edits
+	// in the smoke smuggled an anchor INTO --new and duplicated it).
+	if err := anchorsTransitUnchanged(report[start:end], new); err != nil {
+		return "", err
 	}
 	next := report[:start] + new + report[end:]
+	// SPLICE HYGIENE (see splice.go): tidy the two seams this edit created before anything else
+	// looks at the result. Deterministic, narrow, and silent — the alternative, measured, is blue
+	// spending a third of a round repairing its own doubled punctuation by hand.
+	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
+	next, _ = tidySeam(next, start)
 	if dropped := droppedMarker(report, next); dropped != "" {
 		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchorLabel(dropped))
 	}

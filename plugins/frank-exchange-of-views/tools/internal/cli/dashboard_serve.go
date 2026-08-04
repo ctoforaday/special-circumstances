@@ -30,11 +30,21 @@ import (
 //     not to prove identity, so a browser will warn on the untrusted cert. That is expected.
 //   - SELF-TEARDOWN keyed to the .run-live marker: once the run ends (run-capture removes the
 //     marker) the socket closes on its own. A dashboard that outlives its run is an exposure with
-//     no owner. If the marker is already absent at startup (a completed run being reviewed), it
-//     serves until killed instead — the teardown fires only on the live→ended transition.
+//     no owner. The server therefore REFUSES TO BIND when the marker is already absent: its
+//     lifetime is bounded by the run's at both ends, not just the tail. A finished run is reviewed
+//     through the written snapshot, which needs no listening socket.
 //
 // render is the per-request page (rendered fresh from the record, no materialized file).
 func serveDashboard(out io.Writer, runDir string, port int, render func() string) error {
+	// THE SERVER LIVES ONLY WHILE THE RUN DOES. Refuse to start when the run is not live, rather
+	// than serving a finished run "until killed" — that mode left a dashboard exposed on the LAN
+	// with nothing to end it, which is precisely the exposure-with-no-owner the teardown exists to
+	// prevent (observed 2026-08-04: a server outlived its run and had to be killed by hand). A
+	// completed run is reviewed through the static snapshot, which needs no listening socket.
+	if _, err := os.Stat(runLiveMarker); err != nil {
+		return fmt.Errorf("dashboard --serve: this run is not live (no %s) — the served dashboard exists only for the duration of a run; for a finished run drop --serve and read the written %s",
+			runLiveMarker, filepath.Join(runDir, "dashboard.html"))
+	}
 	secret, err := randToken()
 	if err != nil {
 		return fmt.Errorf("could not generate the run secret: %w", err)
@@ -85,18 +95,18 @@ func dashboardHandler(secret string, render func() string) http.HandlerFunc {
 	}
 }
 
-// watchAndShutdown shuts srv down once the .run-live marker goes from present to absent. It fires
-// ONLY after having seen the marker, so serving an already-completed run (marker gone at start)
-// stays up until the process is killed.
+// runLiveMarker is the file run-capture removes when a run ends. serveDashboard requires it to
+// exist before binding, so the server's lifetime is bounded by the run's by construction.
+var runLiveMarker = filepath.Join(".claude", "run-live.json")
+
+// watchAndShutdown shuts srv down as soon as the .run-live marker goes absent. No "seen it first"
+// condition is needed any more: serveDashboard refuses to bind unless the marker is already there,
+// so absence can only mean the run ended.
 func watchAndShutdown(srv *http.Server) {
-	marker := filepath.Join(".claude", "run-live.json")
-	seen := false
 	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
 	for range tick.C {
-		if _, err := os.Stat(marker); err == nil {
-			seen = true
-		} else if seen {
+		if _, err := os.Stat(runLiveMarker); err != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			_ = srv.Shutdown(ctx)
 			cancel()

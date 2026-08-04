@@ -115,3 +115,33 @@ func ExistingCiteByKey(runDir, seatID, key string) (string, error) {
 	}
 	return "", nil
 }
+
+// TWO KINDS OF `cite` EVENT SHARE ONE TYPE — and conflating them inflates red's audit metric.
+//
+// `lens cite` records RED VERIFYING a source (a citation-ledger row: claim / reference /
+// confidence / access_date). `blue cite` records BLUE AUTHORING one (label / url / sha256 /
+// title / location, plus an immortal anchor in the report). Only blue's carries `label`, which
+// is what distinguishes them — the same discriminator CitedSources and CitationLabels use.
+//
+// Counting both as "citations" makes an AUDIT-VOLUME number grow when BLUE writes, which is the
+// one thing the engine most needs to keep apart. Measured on the 2026-08-04 smoke: the board
+// reported 10 where the truth was 3 authored + 7 verified — 43% inflation on a tile labelled
+// "citations checked" on RED's board, and debate.js tells red to copy that figure into its own
+// envelope. The error grows with every use of the citation axis, so it worsens precisely as
+// #256 is adopted.
+//
+// This is the FIRST of a family: a single event type carrying two provenances that a reader must
+// not confuse. Red's coming `fix_basis: verified | proposed` (does a required_fix name a remedy
+// red CHECKED, or one it merely proposes?) is the same shape and belongs beside this — a
+// discriminator on the record, read at the counting site, never a rendering-time guess.
+
+// IsAuthoredCite reports whether a `cite` event is BLUE authoring a citation (it carries a
+// tool-assigned label) rather than RED recording a verification.
+func IsAuthoredCite(e Event) bool {
+	return e.Type == "cite" && e.Payload.Str("label") != ""
+}
+
+// IsVerifiedCite reports whether a `cite` event is RED recording a verified source.
+func IsVerifiedCite(e Event) bool {
+	return e.Type == "cite" && e.Payload.Str("label") == ""
+}

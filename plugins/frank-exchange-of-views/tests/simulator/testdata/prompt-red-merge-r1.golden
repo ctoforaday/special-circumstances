@@ -1,4 +1,4 @@
-prompt sha256: 0596c44df64318221b10d250116a7872444df10eebd000a8ac636577bc1939fe
+prompt sha256: ed18650eb8c0bd40739b00e22756ec5e95088164b7df0266bcfe8326afc1038e
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -23,7 +23,9 @@ PROBE CLASSES (W1.10): any required_fix that demands a probe MUST class it — D
 An unclassed probe demand risks blue overclaiming a file read as a probe or stalling on an impossible obligation.
 FOUND_BY: on every gap, name the lens FINDINGS that surfaced it by their labels (found_by: ["L1-F1","L5-F3",...] — the findings view lists them); verify checks each names a recorded finding, so a role alone (L1) or an invented label will not resolve.
 Gap ids are stable across rounds (R1-1 stays R1-1); assign fresh R1-N ids to genuinely new gaps only.
-LINEAGE IS MANDATORY: when you close a gap WITH REGRESSION and mint a successor, the successor gap's "supersedes" array MUST name the closed gap's id, and your envelope's "closures" array MUST record the closure with class "closed_with_regression" — the docket detector follows these chains and an undeclared lineage is a protocol violation the script rejects.
+LINEAGE IS MANDATORY: when you close a gap WITH REGRESSION and mint a successor, the successor gap's "supersedes" array MUST name the closed gap's id, and your envelope's "closures" array MUST record the closure with class "closed_with_regression" — the docket detector follows these chains and an undeclared lineage is a protocol violation.
+EVERY gap in your envelope carries a "supersedes" array — an EMPTY array for a gap minted fresh this round, the ancestor id(s) for a successor.
+It is REQUIRED on every gap, never omitted: recording lineage with the mint verb's --supersedes flag but leaving it out of your envelope is the exact desync that once killed a whole run whose record was correct.
 BOARD TELEMETRY (the stopping-judgment signal): the per-round line (open_count, mass, max_severity, new_mint, realized_open, repair_regression, edge_deltas) is COMPUTED BY THE TOOL from your board — the dashboard and the cost audit derive it just-in-time from the record on read — you do NOT hand-write it.
 A seat-authored telemetry line is the self-report this migration removed (a haiku smoke made up archive_blocks:22 in a round with 0); the tool recomputes the full per-round series from the record every time it is read, so it is always current.
 GAP RECORDS: every gap you mint carries acceptance_check — the exact falsifiable check you will run at re-audit (probe command, recount command, quote-anchor); a fix-spec naming instances states the class-closure rule or declares the enumeration open (the sweep clause).
