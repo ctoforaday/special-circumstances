@@ -12,7 +12,7 @@ Research that survives an adversary.
 - BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record them; searches then test hypotheses instead of wandering.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
-- During writing, YOU MUST cite with semantic word-based footnotes — `[^WordLabel]` carrying title, source, and access date. Numbered footnotes are deprecated: labels stay meaningful while drafts move.
+- During writing, YOU MUST add every citation with the TOOL — `blue cite --location "<the exact sentence>" --url <u> --title <t>` — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged as friction.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
 - For PDF-only sources, YOU MUST try the document-extraction MCP tools before grading down on a lossy fetch: `arxiv-latex` (exact LaTeX for arXiv figures/tables) and `pdf-reader` (page/table extraction with provenance) — discoverable via ToolSearch when the project's `.mcp.json` servers are approved. Two runs of friction ranked lossy PDF fetches the #1 capability gap; a claim capped at "unable to corroborate" without trying these is an incomplete audit.
 
@@ -76,8 +76,11 @@ discipline:
 2. **Full read for the document under audit** — red reads blue's living report whole, in
    context, every round. Retrieval NEVER substitutes: a decontextualized snippet is how audits
    go blind. This clause outranks any token saving.
-3. **Leaf-node fetch for verification** — a citation is checked against its source (WebFetch,
-   PDF MCPs, MCP `get` for corpus-internal references), never against a search snippet.
+3. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
+   search snippet. For a source BLUE CITED, read the exact bytes blue read from the run cache
+   (`fetch --url <the cited url>` — a cache hit, so you audit the same artifact, not a page that may
+   have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs,
+   MCP `get` for corpus-internal references). WebFetch is not used: it returns a summary, not the source.
 
 Freshness is deterministic, not remembered: the `sc-recall-index` hook runs a fast FTS update
 on every markdown write (measured ~0.7s), so lexical results are never stale. Semantic

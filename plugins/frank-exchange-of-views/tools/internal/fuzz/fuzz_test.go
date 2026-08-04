@@ -32,6 +32,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,6 +53,27 @@ import (
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-merge-r1." — or the
 // malformed id makes every tool call fail silently and the fuzz degrades to trivial PASS runs.
 var seatRe = regexp.MustCompile(`SEAT_ID:\s*([A-Za-z0-9-]+)`)
+
+// THE CITATION AXIS NEEDS A SOURCE TO FETCH (#256). `feov-record fetch` performs a REAL http GET —
+// that IS the code under test, caps and all — so this harness serves it from 127.0.0.1 rather than
+// stubbing it out. Loopback only: the same discipline internal/fetchcache's own tests use, so CI
+// touches no external network while the whole fetch → cache → cite → anchor path runs end to end
+// through the real binary. One server per test binary; the path varies so distinct URLs exercise
+// cache misses as well as hits.
+var (
+	sourceSrvOnce sync.Once
+	sourceSrvURL  string
+)
+
+func sourceURL(path string) string {
+	sourceSrvOnce.Do(func() {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			fmt.Fprintf(w, "fuzz source body for %s\n", req.URL.Path)
+		}))
+		sourceSrvURL = srv.URL // deliberately never closed: it lives for the test binary
+	})
+	return sourceSrvURL + path
+}
 
 // runner shells the real binary for one run's seats. runDir + bin are fixed per fuzz iteration.
 type runner struct {
@@ -382,6 +405,34 @@ func (r *runner) extras(role, seatID string, open []string) {
 		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
+		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
+		// the source through the run cache and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor
+		// at the quoted sentence. --location must appear VERBATIM in blue/report.md, so it quotes the
+		// seeded "§ fuzz" text the same way lens finding does. A --key from a small space exercises
+		// the retry short-circuit; a shared URL across seats exercises the cache HIT path (fetch-once),
+		// while the per-seat path exercises the MISS path.
+		r.maybe(55, func() {
+			url := sourceURL("/blue-shared")
+			if r.coin(50) {
+				url = sourceURL("/" + seatID)
+			}
+			r.do("blue", "cite", seatID).
+				set("--location", "§ fuzz").
+				set("--url", url).
+				set("--title", "fuzz source "+seatID).
+				on(50, "--claim", "fuzz cited claim "+seatID).
+				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
+				run()
+		})
+		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
+		// auto-logged as friction. Driving it here proves the reject path never wedges the run.
+		r.maybe(15, func() {
+			r.do("blue", "cite", seatID).
+				set("--location", "§ fuzz").
+				set("--url", "http://127.0.0.1:1/unreachable").
+				set("--title", "unreachable "+seatID).
+				run()
+		})
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
 			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
@@ -571,6 +622,10 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
+				// Red verifies a cited source by reading the CACHED bytes (#256): the same
+				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
+				// store, hit — real in the fuzz rather than unit-tested only.
+				_, _ = r.exec("fetch", "--url", sourceURL("/"+seatID))
 				r.extras("lens", seatID, nil)
 			}
 		}
@@ -604,6 +659,13 @@ type outcome struct {
 	verdict   string         // the terminal verdict this run reached (coverage signal)
 	rounds    int            // how many rounds it ran (coverage signal)
 	dialectic map[string]int // dialectic events this run left on the record (coverage signal)
+	// #256 citation axis: the fetch -> cache -> cite -> anchor chain leaves TWO artifacts a
+	// `cite` event alone does not prove — a cached source file and an INVISIBLE anchor spliced
+	// into blue/report.md. `cite` is already in verbsWithEvents but is satisfied by red's
+	// `lens cite`, which touches neither, so a blue-cite regression would pass the verb gate
+	// silently. These two counters are what actually pin the new path.
+	citeAnchors int
+	cacheFiles  int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -780,6 +842,18 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.err = m
 	}
 	res.dialectic = tallyDialectic(board)
+	// #256: count the citation axis's two real artifacts (see outcome). A cite that fetched and
+	// anchored leaves BOTH; a cite event alone leaves neither.
+	if md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md")); err == nil {
+		res.citeAnchors = strings.Count(string(md), "<!--cite:")
+	}
+	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
+		for _, e := range ents {
+			if !e.IsDir() && e.Name() != "index" {
+				res.cacheFiles++
+			}
+		}
+	}
 	return res
 }
 
@@ -969,7 +1043,8 @@ func TestFuzzDebate(t *testing.T) {
 	var completed int
 	verdicts := map[string]int{}
 	roundHist := map[int]int{}
-	dcov := map[string]int{} // dialectic-event coverage across all runs (proves the fuzz emits them)
+	dcov := map[string]int{}
+	citeAnchors, cacheFiles := 0, 0 // dialectic-event coverage across all runs (proves the fuzz emits them)
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -986,6 +1061,8 @@ func TestFuzzDebate(t *testing.T) {
 			for k, v := range o.dialectic {
 				dcov[k] += v
 			}
+			citeAnchors += o.citeAnchors
+			cacheFiles += o.cacheFiles
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -996,7 +1073,8 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v", completed, len(failures), verdicts, roundHist, dcov)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -1016,7 +1094,21 @@ func TestFuzzDebate(t *testing.T) {
 				t.Errorf("fuzz drove ZERO %s events across %d runs — that seat verb is unexercised (false green); a generator branch dropped it", k, completed)
 			}
 		}
-	} else {
+	}
+	// #256 CITATION-CHAIN GATE. `cite` in the verb gate above is satisfied by red's `lens cite`,
+	// which neither fetches nor anchors — so a blue-cite regression would sail through it. These
+	// two assert the chain that actually matters ran end to end through the real binary: a source
+	// was FETCHED into <run>/cache (loopback server, see sourceURL) and an INVISIBLE anchor was
+	// spliced into blue/report.md. Zero of either across the whole sweep is a false green.
+	if completed >= 40 {
+		if citeAnchors == 0 {
+			t.Errorf("fuzz spliced ZERO <!--cite:--> anchors across %d runs — `blue cite` never anchored (false green); the citation axis is unexercised", completed)
+		}
+		if cacheFiles == 0 {
+			t.Errorf("fuzz cached ZERO sources across %d runs — `fetch`/`blue cite` never populated <run>/cache (false green); the fetch path is unexercised", completed)
+		}
+	}
+	if completed < 40 {
 		for _, k := range []string{"cite", "finding"} {
 			if dcov[k] == 0 {
 				t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, completed)

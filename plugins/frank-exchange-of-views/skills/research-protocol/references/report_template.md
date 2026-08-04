@@ -45,4 +45,6 @@
                                               disputes, then the bench's opinions and petition rulings; then the terminal
                                               bench disposition (halt / certification) -->
 
-## Footnotes                            <!-- [RECORD] the consolidated bibliography from the citation record (forthcoming) -->
+<!-- [RECORD] ## Bibliography is COMPOSED AT ASSEMBLY from the cite events — do NOT author it, and do
+     not author a "## Footnotes" section either: assembly drops a blue-authored one and weaves every
+     invisible <!--cite:--> anchor into the visible [^N] refs plus the bibliography. Cite with the tool. -->
