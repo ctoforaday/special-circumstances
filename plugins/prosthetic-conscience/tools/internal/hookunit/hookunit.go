@@ -131,10 +131,9 @@ type Unit struct {
 //
 // NOT BOUNDED BY NumCPU, and that was measured rather than reasoned: an earlier version
 // sized a semaphore to runtime.NumCPU(), and CI on a 2-core runner took 120ms for three
-// 60ms units — the third queued. These units are I/O- and SUBPROCESS-bound (sc-quality-gate
-// waits on qlty, sc-recall-index on qmd); sizing them to cores makes them queue for a
-// resource they are not competing for, which is the serialisation this design exists to
-// avoid. N is bounded by the units registered on one event, which is small by construction.
+// 60ms units — the third queued. These units are I/O- and SUBPROCESS-bound (the quality gate
+// waits on qlty); sizing them to cores makes them queue for a resource they are not
+// competing for, which is the serialisation this design exists to avoid. N is bounded by the units registered on one event, which is small by construction.
 //
 // A NumCPU pool belongs one level down, inside a unit that fans out over FILES — that work
 // is CPU-bound and does need a bound, and it needs ONE shared pool rather than N of them,

@@ -45,7 +45,7 @@ type Tool struct {
 	//
 	// This is deliberately NOT a tier override. "Less important here" and "not a
 	// thing here" are different claims, and only the second one is true of gh.
-	// A tool that is merely uninstalled — qlty, qmd in a fresh container — stays
+	// A tool that is merely uninstalled — qlty in a fresh container — stays
 	// a real DEGRADED, because installing it is a real remedy.
 	NotApplicableIn []string `json:"not_applicable_in,omitempty"`
 }

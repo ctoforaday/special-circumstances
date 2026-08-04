@@ -2,7 +2,7 @@
 // steps 1-3 — into the feov-record binary. It creates the run's blackboard
 // skeleton, pins the evidence base, mirrors red's gap-pattern + law + scorecard
 // memory into inputs/, writes the .run-live marker, and preflights the record
-// binary and qmd. Behaviour is preserved byte-for-byte against the mjs it replaces
+// binary. Behaviour is preserved byte-for-byte against the mjs it replaces
 // (the sole non-deterministic field is the marker's `started` timestamp, and the
 // marker lives outside the run dir).
 //
@@ -452,7 +452,7 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 	return p
 }
 
-// ---- purge, preflight, version, qmd ----
+// ---- purge, preflight, version ----
 
 // PurgeStaleMirrors removes checkpoint mirrors older than maxAgeDays (default 30).
 func PurgeStaleMirrors(mirrorRoot string, now time.Time, maxAgeDays int) int {
@@ -557,23 +557,6 @@ func PreflightRecordBinary(expectVersion, bin string, run ExecFunc) Preflight {
 		}
 	}
 	return Preflight{OK: true, Version: got}
-}
-
-// QmdResult reports the qmd recall-index refresh.
-type QmdResult struct {
-	Ran    bool
-	Update bool
-	Embed  bool
-	Reason string
-}
-
-func QmdRefresh(bin string, run ExecFunc) QmdResult {
-	if run(bin, []string{"--version"}).errored() {
-		return QmdResult{Ran: false, Reason: "qmd not installed (optional — doctor installs it)"}
-	}
-	upd := run(bin, []string{"update"})
-	emb := run(bin, []string{"embed"})
-	return QmdResult{Ran: true, Update: !upd.errored(), Embed: !emb.errored()}
 }
 
 func (r ExecResult) errored() bool { return r.Err != nil || r.Status != 0 }

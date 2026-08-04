@@ -3,7 +3,8 @@
 //
 // THE CLASS. Seven binaries read `os.Getenv("CLAUDE_PROJECT_DIR")` and, finding it empty,
 // each did something quiet and different: sc-checkpoint-restore returned 0 with no output
-// — indistinguishable from "this project has no checkpoint" — while sc-recall-index once
+// — indistinguishable from "this project has no checkpoint" — while sc-recall-index (since
+// retired) once
 // resolved its state file RELATIVE, writing debounce state into whatever directory the
 // process happened to start in. That second one was found and fixed IN PLACE, with a
 // comment noting that "the log writer in this same binary already guarded against exactly
@@ -16,7 +17,7 @@
 //	CLAUDE_PROJECT_DIR  ->  the payload's cwd  ->  nothing
 //
 // NOTHING, deliberately — never os.Getwd(). Falling back to the working directory is the
-// defect sc-recall-index already had: it turns "I do not know where the project is" into
+// defect sc-recall-index had: it turns "I do not know where the project is" into
 // "I will write somewhere", and the somewhere is unrelated to the session. A hook that
 // cannot locate the project must do nothing, and SAY it did nothing.
 package hookenv

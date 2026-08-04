@@ -56,37 +56,24 @@ it automates the one call that belongs to judgment. NEVER change models on the r
 
 All artifacts are git-tracked; nothing is summarized away. The payload is the file; the envelope is the handle — no large content travels through agent return values.
 
-## Recall (qmd) — three access modes, never confused
+## Reading the corpus — two access modes, never confused
 
-When qmd is installed (`/prosthetic-conscience:doctor` installs the pinned version on consent)
-and the project's `.mcp.json` declares the `qmd` server, the corpus is searchable instead of
-only re-readable. Exactly ONE qmd exists — the installed binary; the MCP server and the
-`sc-recall-index` hook both run it, so read and write paths can never skew on index schema.
-ALL seat access goes through the MCP server (tools `query`/`get`/`multi_get`/`status`,
-discoverable via ToolSearch) — the resident process loads models once; the bare CLI reloads
-~1–2GB per invocation (36s measured) and MUST NOT be used for search from any seat. The
-discipline:
+There is no search index. Retrieval-by-search was retired (2026-08-04): the index covered past
+RUN artifacts rather than the sources under audit, no seat ever queried it across a full run, and
+it cost an embedding pass per run for that. What remains is the two modes that were always the
+load-bearing ones:
 
-1. **Retrieval for evidence and context** — finding what the corpus says about a question.
-   Use the MCP `query` tool and author the `searches` array yourself — you know the domain
-   vocabulary; there is no auto-expander to mangle it. Cheap and lexical: a single
-   `{type: "lex", query: "<terms>"}` sub-query (BM25, line-anchored `qmd://` URIs citable as
-   locations). Semantic, when phrasing won't match wording: add `vec` (rephrasings) and `hyde`
-   (a hypothetical passage that would answer you) sub-queries.
-2. **Full read for the document under audit** — red reads blue's living report whole, in
-   context, every round. Retrieval NEVER substitutes: a decontextualized snippet is how audits
+1. **Full read for the document under audit** — red reads blue's living report whole, in
+   context, every round. A snippet NEVER substitutes: a decontextualized quote is how audits
    go blind. This clause outranks any token saving.
-3. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
-   search snippet. For a source BLUE CITED, read the exact bytes blue read from the run cache
+2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
+   summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
    (`fetch --url <the cited url>` — a cache hit, so you audit the same artifact, not a page that may
-   have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs,
-   MCP `get` for corpus-internal references). WebFetch is not used: it returns a summary, not the source.
+   have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs).
+   WebFetch is not used: it returns a summary, not the source.
 
-Freshness is deterministic, not remembered: the `sc-recall-index` hook runs a fast FTS update
-on every markdown write (measured ~0.7s), so lexical results are never stale. Semantic
-embeddings refresh at phase tops (incremental) — at worst one phase stale; grade accordingly
-or confirm with a lex-only query (always current). Index maintenance (collections, update,
-embed) is lead/hook mechanics, never seat work.
+To find text inside the run's own artifacts, use `Grep` — the terms you want are the terms you
+already have, and a lexical match over a known file beats a ranked guess over a corpus.
 
 ## Harness contract (one referenceable paragraph — three seats re-derived this at token cost)
 
