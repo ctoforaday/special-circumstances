@@ -92,3 +92,35 @@ func sameSet(a, b []string) bool {
 	}
 	return true
 }
+
+// AN ANCHOR MAY NOT BE DUPLICATED. The lockdown always stopped an edit DROPPING or SPLITTING an
+// anchor; nothing stopped one being COPIED into the replacement. The 2026-08-04 smoke measured the
+// consequence live: 5 edits carried a marker into --new, leaving 22 distinct finding ids present at
+// 28 sites. A duplicate is not a drop, so the dropped-marker detector stays clean while red's audit
+// point silently addresses two places.
+func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
+	for _, c := range []struct{ name, anchor, want string }{
+		{"finding marker", "<!--fx:f-abc123-->", "finding-marker"},
+		{"citation anchor", "<!--cite:c-abc123-->", "citation anchor"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			runDir := t.TempDir()
+			writeReport(t, runDir, "# H\n\nThe value is stable over time. A second sentence"+c.anchor+" is anchored.\n")
+			registerBlue(t, runDir)
+
+			_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+				"--key", "E1", "--old", "The value is stable", "--new", "The value is steady"+c.anchor,
+				"--reason", "pasting an anchor into the replacement")
+			if err == nil {
+				t.Fatal("an edit whose --new duplicated an anchor was ACCEPTED")
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Errorf("message = %q, want it to name the %s", err.Error(), c.want)
+			}
+			// The report is untouched: the anchor still appears exactly once.
+			if got := strings.Count(readReport(t, runDir), c.anchor); got != 1 {
+				t.Errorf("anchor occurrences = %d, want 1 (the rejected edit must not duplicate it)", got)
+			}
+		})
+	}
+}

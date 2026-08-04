@@ -61,6 +61,30 @@ func TestHTTPFetcherCapsRedirects(t *testing.T) {
 	}
 }
 
+// THE FETCHER MUST IDENTIFY ITSELF. Go's default "Go-http-client/1.1" is blocked outright by
+// major sources: the 2026-08-04 smoke lost four citations to Wikipedia 403s, including the most
+// obvious source for the question being researched. This asserts the header actually reaches the
+// server — the previous code compiled, passed every test, and sent nothing.
+func TestHTTPFetcherSendsDescriptiveUserAgent(t *testing.T) {
+	got := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got <- r.UserAgent()
+		fmt.Fprint(w, "ok")
+	}))
+	defer srv.Close()
+
+	if _, err := NewHTTPFetcher().Fetch(srv.URL); err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	ua := <-got
+	if ua == "" || strings.HasPrefix(ua, "Go-http-client") {
+		t.Fatalf("User-Agent = %q — the default (or empty) agent is what sources 403", ua)
+	}
+	if !strings.Contains(ua, "feov-record") {
+		t.Errorf("User-Agent = %q, want it to name the tool so an operator can attribute the traffic", ua)
+	}
+}
+
 // A non-200 is an error, not a cached body.
 func TestHTTPFetcherRejectsNon200(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

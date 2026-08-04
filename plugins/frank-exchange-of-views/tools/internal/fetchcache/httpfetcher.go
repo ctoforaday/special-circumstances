@@ -17,6 +17,13 @@ const (
 	fetchTimeout  = 15 * time.Second
 	maxFetchBytes = 5 << 20 // 5 MiB — a source document, not a download
 	maxRedirects  = 5
+
+	// userAgent identifies the tool to the sources it reads (see Fetch). Contact-bearing by
+	// convention so a site operator can attribute and complain rather than only block.
+	userAgent = "feov-record/" + fetchUAVersion + " (Special Circumstances research debate; +https://github.com/ctoforaday/special-circumstances)"
+	// fetchUAVersion is kept separate from cli.Version to avoid an import cycle (cli imports
+	// fetchcache). It moves when the fetch behaviour changes, not with every tool release.
+	fetchUAVersion = "1.0"
 )
 
 type httpFetcher struct {
@@ -53,6 +60,15 @@ func (h *httpFetcher) Fetch(rawURL string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetch: %w", err)
 	}
+	// IDENTIFY OURSELVES OR BE REFUSED. Go sends "Go-http-client/1.1" by default, which major
+	// sources block outright. Measured on the 2026-08-04 smoke: blue tried to cite the Fundamental
+	// Theorem of Arithmetic for "is 7 a prime number" and Wikipedia returned 403 — four cites lost,
+	// the most obvious source for the question among them. Verified at the leaf: the default UA and
+	// an empty UA both 403; a descriptive one returns 200. Neither gate could catch this — the
+	// fuzzer serves from loopback with no UA policy, and the real-data check used example.com,
+	// which does not care. A descriptive agent string is also simply what a well-behaved fetcher
+	// owes the sites it reads: who we are and how to complain.
+	req.Header.Set("User-Agent", userAgent)
 	resp, err := h.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch: %w", err)

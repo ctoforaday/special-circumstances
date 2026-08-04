@@ -109,6 +109,17 @@ func planEdit(report, old, new string) (string, error) {
 	if has, id := spanMarker(report[start:end]); has {
 		return "", fmt.Errorf("blue edit: your --old span contains %s — anchors are immortal; edit AROUND it (split your edit so the anchor sits between two edits)", anchorLabel(id))
 	}
+	// AN ANCHOR MAY NOT BE COPIED, EITHER. The guards above stop an anchor being DROPPED or
+	// SPLIT; nothing stopped one being DUPLICATED by pasting it into --new. Measured on the
+	// 2026-08-04 smoke: 5 edits carried an "<!--fx:" into their replacement, leaving 22 distinct
+	// finding ids present at 28 sites. A duplicated anchor is not a lost one, so the
+	// dropped-marker detector reads clean while red's audit point now addresses two places at
+	// once — and for a citation it would double-count the claim. blue edit never legitimately
+	// introduces an anchor: `lens finding` and `blue cite` are the only ways one is born, and an
+	// anchor sitting outside the replaced span floats to the end of the replacement on its own.
+	if has, id := spanMarker(new); has {
+		return "", fmt.Errorf("blue edit: your --new text contains %s — an anchor is placed by the tool, never typed into a replacement. Drop it from --new; an anchor outside your --old span stays put on its own", anchorLabel(id))
+	}
 	next := report[:start] + new + report[end:]
 	if dropped := droppedMarker(report, next); dropped != "" {
 		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchorLabel(dropped))
