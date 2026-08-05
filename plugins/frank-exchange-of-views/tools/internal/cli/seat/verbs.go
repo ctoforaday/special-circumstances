@@ -115,6 +115,7 @@ var views = []struct {
 	{"archive", "closed gaps with their closure records and anchors", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits)", "bench"},
 	{"changelog", "blue's revision record, per round", "blue"},
+	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed", ""},
 	{"citation-ledger", "verified claims with source, confidence and access date", "lens"},
 	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned", ""},
 }
@@ -253,7 +254,16 @@ func Show() *cobra.Command {
 			return fmt.Errorf("%s show: unknown view %q (one of: %s)", role, want, strings.Join(viewNames(), ", "))
 		}
 
-		b, err := view.Markdown(runDir, want)
+		// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
+		// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored).
+		// Silently dropping it is the worse failure here — a seat that asked for one gap's
+		// edits and received every edit would read the answer as the answer to its question.
+		scope := Str(cmd, flags.ID)
+		if scope != "" && want != "changes" {
+			return fmt.Errorf("%s show: --id scopes --view changes and nothing else; --view %s has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
+		}
+
+		b, err := view.Markdown(runDir, want, scope)
 		if err != nil {
 			return err
 		}
@@ -261,6 +271,7 @@ func Show() *cobra.Command {
 		return nil
 	}
 	c.Flags().String(flags.View, "", "which projection to read: "+strings.Join(viewNames(), " | ")+" (defaults to this role's own)")
+	c.Flags().String(flags.ID, "", "scope the view to one gap — `--view changes --id <gap>` only")
 	return c
 }
 

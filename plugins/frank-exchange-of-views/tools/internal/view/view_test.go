@@ -48,7 +48,7 @@ func ev(seatID, nonce string, seq, round int, typ, key string, p *record.Payload
 // md is view.Markdown or a fatal.
 func md(t *testing.T, runDir, name string) string {
 	t.Helper()
-	b, err := Markdown(runDir, name)
+	b, err := Markdown(runDir, name, "")
 	if err != nil {
 		t.Fatalf("Markdown(%q): %v", name, err)
 	}
@@ -219,8 +219,8 @@ func TestMarkdownOnAnEmptyRun(t *testing.T) {
 	if open != 0 || closed != 0 || anomalies != 0 {
 		t.Errorf("empty run reported open=%d closed=%d anomalies=%d", open, closed, anomalies)
 	}
-	for _, name := range []string{"ledger", "archive", "debate", "changelog", "lines-of-inquiry", "citation-ledger"} {
-		if _, err := Markdown(runDir, name); err != nil {
+	for _, name := range []string{"ledger", "archive", "debate", "changelog", "lines-of-inquiry", "citation-ledger", "changes"} {
+		if _, err := Markdown(runDir, name, ""); err != nil {
 			t.Errorf("projection %s errored on an empty run: %v", name, err)
 		}
 	}

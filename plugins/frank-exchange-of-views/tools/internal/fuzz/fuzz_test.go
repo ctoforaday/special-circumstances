@@ -856,14 +856,28 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			return res
 		}
 	}
-	// Oracle 1c: the SIX markdown views now render in-memory (view.Markdown) with no render-shadow
+	// Oracle 1c: the markdown views now render in-memory (view.Markdown) with no render-shadow
 	// round-trip. Each must exit 0 on whatever state the run reached — this restores the randomized
 	// coverage the `render` verb + the difftest RENDERS section used to give the projection renderer,
 	// which the render-shadow removal (#203) took away (view_test.go pins the bytes on fixed
 	// fixtures; only the fuzz drives them across arbitrary run shapes).
-	for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
+	for _, v := range []string{"ledger", "archive", "debate", "changelog", "changes", "citation-ledger", "lines-of-inquiry"} {
 		if out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput(); err != nil {
 			res.err = "show --view " + v + " (markdown projection) failed:\n" + truncate(string(out))
+			return res
+		}
+	}
+	// And the SCOPED form, over a gap the run actually minted: `--view changes --id <gap>`
+	// takes a different path (it resolves the gap and renders the comparison), so the unscoped
+	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
+	// rendered empty — the read-side twin of requireGap.
+	if ids := mintedGapIDs(runDir); len(ids) > 0 {
+		if out, err := exec.Command(bin, "merge", "show", "--view", "changes", "--id", ids[0], "--run", runDir).CombinedOutput(); err != nil {
+			res.err = "show --view changes --id " + ids[0] + " failed:\n" + truncate(string(out))
+			return res
+		}
+		if out, err := exec.Command(bin, "merge", "show", "--view", "changes", "--id", "R9-99", "--run", runDir).CombinedOutput(); err == nil {
+			res.err = "show --view changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -1188,4 +1202,20 @@ func buildBinary(t *testing.T) string {
 		t.Fatalf("build feov-record: %v\n%s", err, out)
 	}
 	return bin
+}
+
+// mintedGapIDs lists the gaps a run actually created, so a scoped-view oracle asks about
+// something real rather than about a shape the fuzz happened not to produce this seed.
+func mintedGapIDs(runDir string) []string {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range b.Events {
+		if e.Type == "mint" {
+			out = append(out, e.Payload.Str("gap_id"))
+		}
+	}
+	return out
 }

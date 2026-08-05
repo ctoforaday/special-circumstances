@@ -154,12 +154,15 @@ func TelemetryJSONL(runDir string) ([]byte, error) {
 
 // Markdown returns one markdown projection, rendered in-memory from the record.
 // Byte-identical to what render.go formerly wrote to disk.
-func Markdown(runDir, name string) ([]byte, error) {
+// scope narrows a view that supports it (today: `changes`, by gap id). "" is unscoped.
+func Markdown(runDir, name, scope string) ([]byte, error) {
 	b, err := record.BoardState(runDir)
 	if err != nil {
 		return nil, err
 	}
 	switch name {
+	case "changes":
+		return changesMD(b, scope)
 	case "ledger":
 		return ledgerMD(b), nil
 	case "archive":

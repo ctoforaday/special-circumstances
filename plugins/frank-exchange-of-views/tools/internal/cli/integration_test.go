@@ -71,7 +71,7 @@ func gapID(out string) string {
 // shared view library — the same bytes `show --view <name>` prints.
 func readProjection(t *testing.T, runDir, name string) string {
 	t.Helper()
-	b, err := view.Markdown(runDir, name)
+	b, err := view.Markdown(runDir, name, "")
 	if err != nil {
 		t.Fatalf("projection %s: %v", name, err)
 	}
