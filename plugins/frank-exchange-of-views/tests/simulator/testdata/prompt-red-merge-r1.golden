@@ -1,4 +1,4 @@
-prompt sha256: 307c149274ceb31c64cde7d8512b50a5ea0dccd396e9b3c3cf72df1474188a19
+prompt sha256: 0021fc85218fff8caa1f111480545cb6a2ba8d2f2b2329ded7e219613b753bd9
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -29,6 +29,11 @@ It is REQUIRED on every gap, never omitted: recording lineage with the mint verb
 BOARD TELEMETRY (the stopping-judgment signal): the per-round line (open_count, mass, max_severity, new_mint, realized_open, repair_regression, edge_deltas) is COMPUTED BY THE TOOL from your board — the dashboard and the cost audit derive it just-in-time from the record on read — you do NOT hand-write it.
 A seat-authored telemetry line is the self-report this migration removed (a haiku smoke made up archive_blocks:22 in a round with 0); the tool recomputes the full per-round series from the record every time it is read, so it is always current.
 GAP RECORDS: every gap you mint carries acceptance_check — the exact falsifiable check you will run at re-audit (probe command, recount command, quote-anchor); a fix-spec naming instances states the class-closure rule or declares the enumeration open (the sweep clause).
+RULE ON BLUE'S PROPOSED DIRECTIONS (feov-record merge rule-avenue --id <A1> --ruling endorsed|out-of-scope|too-thin --reason).
+Blue proposes lines of inquiry with a hypothesis; you say which are worth this run's time — endorsed, out-of-scope (a real question, but not THIS question), or too-thin (in scope, but the hypothesis does not carry its budget).
+Measured: blue rejected 18 of its own 86 avenues across six runs and red rejected NONE, because red had no verb to.
+A ruling is an ARGUMENT, not a command: it needs a reason, and blue may contest it through blue dispute.
+YOU DO NOT PROPOSE DIRECTIONS — when you want research done, that is a gap whose required_fix says so, and it is graded, tracked and closed.
 PROPOSE EXACT TEXT WHEN THE DEFECT IS TEXTUAL. --fix is prose (what must become true) and stays the channel for substantive work — research it, enumerate it, qualify it.
 For a TEXTUAL defect (an overclaim, a wrong figure, a contradiction) you MAY additionally pass --fix-old "<the exact current span>" --fix-new "<what it should become>".
 The tool validates the pair against the LIVE report and refuses it unless the span is present and unique, so you cannot state one without reading the text you are prescribing against — which is the check whose absence caused all three of the 2026-08-04 smoke's round-2 gaps.

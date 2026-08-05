@@ -30,7 +30,7 @@ minted R1-1
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.32.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.33.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"grep the sites","class":"scope-creep","class_new":false,"complexity_cost":"low","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"high","problem":"a real one","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 
 ═══ RENDERS ═══
@@ -64,4 +64,7 @@ acceptance_check: grep the sites
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

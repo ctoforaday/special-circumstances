@@ -116,7 +116,7 @@ feov-record: verb "mint" is outside this seat's role (available: register, opini
 
 ── unknown verb
 exit 2
-feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, near-match, position, closing, verdict, friction, petition, show)
+feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, near-match, avenue-rule, position, closing, verdict, friction, petition, show)
 
 ── unknown role
 exit 2
