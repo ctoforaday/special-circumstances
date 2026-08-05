@@ -88,6 +88,16 @@ const (
 	// happened to open --reason with the gap id, and 7 did not. Prose that usually carries
 	// a fact is not a join key, and every measurement in #267 needs one.
 	Answers = "answers"
+	// An avenue's ABSTRACT: what would be true if this line of inquiry pays off (#246).
+	// Distinct from --problem (a defect) and --reason (the argument for an act) because it
+	// is a forward claim, and it is what makes a later abandonment checkable — an avenue
+	// abandoned against its own stated hypothesis is evidence of choosing; one abandoned on
+	// a shrug is not.
+	Hypothesis = "hypothesis"
+	// Red's fate for a proposed direction. A separate word from --as (an observation's
+	// disposal) and --status (an avenue's own lifecycle state) because it is a different
+	// party ruling on a different question: is this worth the run's time at all.
+	Ruling = "ruling"
 	// A CONCRETE proposed fix (#267 stage 3): the exact span red says is wrong and the exact
 	// text it should become. Distinct words from --old/--new, which are the edit blue APPLIES;
 	// these are what red PROPOSES, and one word per act keeps a seat from typing red's
@@ -222,7 +232,7 @@ func All() []string {
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
-		Problem, Fix, Check, Existence, FixOld, FixNew,
+		Problem, Fix, Check, Existence, FixOld, FixNew, Hypothesis, Ruling,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,

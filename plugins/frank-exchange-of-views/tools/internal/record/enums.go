@@ -68,6 +68,14 @@ var EnumFields = map[string][]EnumField{
 		Key: "verdict", Flag: flags.As, Values: []string{"VERIFIED", "CEILING", "HALTED", "UNVERIFIED"},
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
 	}},
+	"avenue": {{
+		Key: "status", Flag: flags.Status, Values: AvenueStatuses,
+		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
+	}},
+	"avenue-rule": {{
+		Key: "ruling", Flag: flags.Ruling, Values: AvenueRulings,
+		Why: "blue reads the ruling to decide whether to pursue, contest or drop a direction; an unrecognized fate reads as no ruling at all, so red's refusal of a line silently becomes permission",
+	}},
 	"dispose": {{
 		Key: "disposition", Flag: flags.As, Values: []string{"minted-as", "folded-into", "declined", "banked"},
 		Why: "a fate outside the four is a fifth meaning nobody defined, and one finding gets one fate — an unreadable one cannot be audited as either given or withheld",

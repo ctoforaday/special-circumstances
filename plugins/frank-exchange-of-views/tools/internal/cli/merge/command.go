@@ -24,6 +24,7 @@ func NewCommand() *cobra.Command {
 		newDisputeRespond(),
 		newSpotCheck(),
 		newNearMatch(),
+		newAvenueRule(),
 		seat.Position("the round's ### RED section (prose via --reason)"),
 		seat.Closing("a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
 		newVerdict(),

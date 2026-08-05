@@ -607,7 +607,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"retire without --reason", "retire", NewPayload().Set("claim", "c"), "retire requires --reason"},
 		{"retire complete", "retire", NewPayload().Set("claim", "c").Set("reason", "r"), ""},
 
-		{"avenue with an unknown status", "avenue", NewPayload().Set("status", "shelved").Set("line", "l"), "avenue requires --status declined|abandoned|pursued"},
+		{"avenue with an unknown status", "avenue", NewPayload().Set("status", "shelved").Set("line", "l"), "avenue requires --status"},
 		{"avenue with no status at all", "avenue", NewPayload().Set("line", "l"), "avenue requires --status"},
 		{"avenue without --line", "avenue", NewPayload().Set("status", "pursued"), "avenue requires --line"},
 		{"a declined avenue needs a reason", "avenue", NewPayload().Set("status", "declined").Set("line", "l"), "requires --reason"},

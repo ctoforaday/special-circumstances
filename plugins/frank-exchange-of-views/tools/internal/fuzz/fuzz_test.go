@@ -377,7 +377,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 		"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec")
 }
 
-var avenueStatus = []string{"pursued", "abandoned", "declined"}
+var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined"}
 var obsKind = []string{"note", "checked-held"}
 var disposeAs = []string{"declined", "banked"}
 
@@ -404,6 +404,23 @@ func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
 func (r *runner) extras(role, seatID string, open []string) {
 	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
 	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
+	// #246: an avenue now has an id and a LIFECYCLE. Propose, then sometimes move it — the
+	// move is the path the old one-shot append could not record at all (measured: 0 of 86
+	// events across six runs ever changed status).
+	moveAvenue := func(seatID string) {
+		b, err := record.BoardState(r.runDir)
+		if err != nil {
+			return
+		}
+		open := record.StaleAvenues(b)
+		if len(open) == 0 {
+			return
+		}
+		a := open[r.rng.Intn(len(open))]
+		st := pick(r.rng, []string{"pursued", "declined", "abandoned"})
+		r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", st).
+			set("--reason", "fuzz: what changed for "+a.ID).run()
+	}
 	avenue := func(role string) {
 		// A DECLINED OR ABANDONED avenue requires --reason (record.go: an unexplained
 		// non-pursuit is the decoration this verb exists to refuse). Without it two of the
@@ -411,8 +428,10 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// record while the verb gate read as covered. Found by the execution tally
 		// (blue avenue: 48 of 72 calls refused).
 		st := pick(r.rng, avenueStatus)
-		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method")
-		if st != "pursued" {
+		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", "fuzz avenue "+seatID).
+			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").
+			on(50, "--method", "fuzz-method")
+		if st != "pursued" && st != "proposed" {
 			c = c.set("--reason", "fuzz: why this line was not pursued")
 		}
 		c.run()
@@ -432,6 +451,20 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.maybe(45, func() {
 			r.do("merge", "spot-check", seatID).bare("--none").set("--reason", "fuzz: nothing to sample").run()
 		})
+		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
+		// rejected 18 of its own 86 avenues and red rejected none, because it could not.
+		r.maybe(45, func() {
+			b, err := record.BoardState(r.runDir)
+			if err != nil {
+				return
+			}
+			if open := record.StaleAvenues(b); len(open) > 0 {
+				a := open[r.rng.Intn(len(open))]
+				r.do("merge", "avenue-rule", seatID).set("--id", a.ID).
+					set("--ruling", pick(r.rng, []string{"endorsed", "out-of-scope", "too-thin"})).
+					set("--reason", "fuzz ruling on "+a.ID).run()
+			}
+		})
 		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
 		// left no event and no gate saw it — while the merge prompt calls it every round.
 		r.maybe(40, func() {
@@ -439,6 +472,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
+		r.maybe(45, func() { moveAvenue(seatID) })
 		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
 		// the source through the run cache and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor
 		// at the quoted sentence. --location must appear VERBATIM in blue/report.md, so it quotes the
@@ -1042,7 +1076,7 @@ var verbsWithEvents = []string{
 	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
 	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
 	// write, `outcome` is the bench's.
-	"blue_edit", "anchor", "class-new", "outcome",
+	"blue_edit", "anchor", "class-new", "outcome", "avenue-rule",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
