@@ -117,6 +117,21 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.34.0 PROOF — the engine may compute an answer, not only cite one (#277). Every seat has
+//	       had Write/Edit/Bash since it shipped and across six runs NO SEAT EVER WROTE A
+//	       PROGRAM to settle a question: never tied, never invited. Measured cost — the smoke's
+//	       R1-2 asked for the protocol to be tested on a false claim, blue answered in PROSE
+//	       that it had been, and R2-2 refused it for showing no evidence: a round, for three
+//	       lines of trial division. New `blue prove --location --script [--cites]` runs the
+//	       script TWICE, caches script+output under <run>/proofs/<sha256>, and splices an
+//	       invisible `<!--proof:p-…-->` anchor — a third class on the one immortal-anchor
+//	       mechanism, protected by the same lockdown. The basis is DERIVED: identical output is
+//	       `reproducible`, moving output is `observed` (still evidence, of a system in motion,
+//	       and the drift is named). A non-zero exit is a RESULT, not an error — disproving is
+//	       worth as much as confirming. New `lens reproduce --id <sha256>` re-EXECUTES and
+//	       compares: the one audit that does not end in believing bytes someone else chose.
+//	       It is the citation model with the last mile walked — cite the METHOD, compute the
+//	       INSTANCE. A stale binary lacks both verbs.
 //	0.33.0 the avenue LIFECYCLE (#246): an avenue was a one-shot append — measured over 86
 //	       events in six runs, ZERO lines were recorded twice, ZERO statuses ever changed, and
 //	       83 of 86 landed in round 0. So "pursued" meant "I intend to", nothing could falsify
@@ -224,7 +239,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.33.0"
+const Version = "0.34.0"
 
 func init() { record.ToolVersion = Version }
 

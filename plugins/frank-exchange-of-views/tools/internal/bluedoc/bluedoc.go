@@ -103,10 +103,14 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 // AnchorToken rebuilds the literal token for an anchor id, so a message can quote what must
 // be reproduced verbatim.
 func AnchorToken(id string) string {
-	if strings.HasPrefix(id, "c-") {
+	switch {
+	case strings.HasPrefix(id, "c-"):
 		return "<!--cite:" + id + "-->"
+	case strings.HasPrefix(id, "p-"):
+		return "<!--proof:" + id + "-->"
+	default:
+		return "<!--fx:" + id + "-->"
 	}
-	return "<!--fx:" + id + "-->"
 }
 
 // AnchorLabel describes an anchor id by its class, so a seat is told which KIND of anchor
@@ -115,6 +119,8 @@ func AnchorLabel(id string) string {
 	switch {
 	case strings.HasPrefix(id, "c-"):
 		return "citation anchor " + id + " (citations are tool-managed — remove one with the tool, never a raw edit)"
+	case strings.HasPrefix(id, "p-"):
+		return "proof anchor " + id + " (a computation backs this sentence — the script and its output are cached; remove one with the tool, never a raw edit)"
 	case strings.HasPrefix(id, "f-"):
 		return "finding-marker " + id
 	default:

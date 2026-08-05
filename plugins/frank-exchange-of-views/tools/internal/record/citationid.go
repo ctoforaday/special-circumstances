@@ -145,3 +145,33 @@ func IsAuthoredCite(e Event) bool {
 func IsVerifiedCite(e Event) bool {
 	return e.Type == "cite" && e.Payload.Str("label") == ""
 }
+
+// NewProofID mints a proof anchor id. Same shape as a citation's, different class prefix:
+// one immortal-anchor mechanism carrying three classes now (fx: a finding, cite: a source,
+// proof: a computation).
+func NewProofID() string {
+	b := make([]byte, 4)
+	if _, err := rand.Read(b); err != nil {
+		panic("record: entropy unavailable: " + err.Error())
+	}
+	return "p-" + hex.EncodeToString(b)
+}
+
+// ExistingProofByKey gives `blue prove` crash-retry idempotency: a seat whose message died
+// after the event landed re-runs the same key and gets the recorded sha back rather than
+// executing the script a second time and splicing a second anchor.
+func ExistingProofByKey(runDir, seatID, key string) (string, error) {
+	if key == "" {
+		return "", nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range m.Events {
+		if e.Type == "proof" && e.SeatID == seatID && e.Payload.Str("proof_key") == key {
+			return e.Payload.Str("sha256"), nil
+		}
+	}
+	return "", nil
+}

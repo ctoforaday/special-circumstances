@@ -22,6 +22,7 @@ func NewCommand() *cobra.Command {
 		newFinding(),
 		newObserve(),
 		newCite(),
+		newReproduce(),
 		seat.Friction("attributed friction (survives aborts as an event): --reason"),
 	)
 }

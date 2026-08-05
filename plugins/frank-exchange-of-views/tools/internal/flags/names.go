@@ -94,6 +94,12 @@ const (
 	// abandoned against its own stated hypothesis is evidence of choosing; one abandoned on
 	// a shrug is not.
 	Hypothesis = "hypothesis"
+	// The proof axis (#277). --script is the program that settles a claim; --cites names the
+	// METHOD citation it applies. Separate words from --url/--title (a document's identity)
+	// because a computation and a source are different things a claim can rest on — and
+	// deliberately NOT --method, which already means "the source class an avenue belonged to".
+	Script = "script"
+	Cites  = "cites"
 	// Red's fate for a proposed direction. A separate word from --as (an observation's
 	// disposal) and --status (an avenue's own lifecycle state) because it is a different
 	// party ruling on a different question: is this worth the run's time at all.
@@ -232,7 +238,7 @@ func All() []string {
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
-		Problem, Fix, Check, Existence, FixOld, FixNew, Hypothesis, Ruling,
+		Problem, Fix, Check, Existence, FixOld, FixNew, Hypothesis, Ruling, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,
