@@ -242,6 +242,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
+	noteExec(args, err)
 	return string(out), err
 }
 
@@ -404,19 +405,37 @@ func (r *runner) extras(role, seatID string, open []string) {
 	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
 	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
 	avenue := func(role string) {
-		r.do(role, "avenue", seatID).set("--status", pick(r.rng, avenueStatus)).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method").run()
+		// A DECLINED OR ABANDONED avenue requires --reason (record.go: an unexplained
+		// non-pursuit is the decoration this verb exists to refuse). Without it two of the
+		// three statuses were rejected on every call, so only `pursued` ever reached the
+		// record while the verb gate read as covered. Found by the execution tally
+		// (blue avenue: 48 of 72 calls refused).
+		st := pick(r.rng, avenueStatus)
+		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method")
+		if st != "pursued" {
+			c = c.set("--reason", "fuzz: why this line was not pursued")
+		}
+		c.run()
 	}
 	switch role {
 	case "lens":
 		r.maybe(45, func() {
 			r.do("lens", "observe", seatID).set("--label", fmt.Sprintf("O%d", r.rng.Intn(1_000_000))).set("--kind", pick(r.rng, obsKind)).set("--reason", "fuzz observation").run()
 		})
-		r.maybe(45, func() { avenue("lens") })
+		// NO avenue DRIVE HERE: the lens role has no avenue verb (register/finding/observe/
+		// cite/friction/show). This called it 183 times per sweep, every one refused, while
+		// the verb gate stayed green on blue's avenue events — a dead drive that read as
+		// coverage. Found by the execution tally (lens avenue: 183 of 183 refused).
 	case "merge":
 		// W1.8 archive spot-check — the merge's duty. --none is always valid (an empty archive at
 		// round start); it exercises the verb and its --none/--reason branch.
 		r.maybe(45, func() {
 			r.do("merge", "spot-check", seatID).bare("--none").set("--reason", "fuzz: nothing to sample").run()
+		})
+		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
+		// left no event and no gate saw it — while the merge prompt calls it every round.
+		r.maybe(40, func() {
+			r.readOnly("merge", "near-match", seatID, "--candidate", "fuzz candidate problem text for screening")
 		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
@@ -491,6 +510,11 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			c.run()
 		})
+		// READ-ONLY, PROMPT-CALLED, AND PREVIOUSLY UNFUZZED. claim-index records nothing, so the
+		// event-type coverage gate cannot see it — yet blue's response prompt tells blue to call
+		// it when propagating a correction to every site of a claim. A crash here costs a real
+		// round; no gate would have noticed.
+		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
 			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
@@ -662,12 +686,15 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	default: // frontier, blue lanes, red lenses — register, and lenses record onto the channel
 		if seatID != "" {
+			// THE DEFAULT IS lens, SO EVERY MAPPING MISS IS A SILENTLY UNREGISTERED SEAT.
+			// `frontier` is a BLUE seat (roles.go: blue owns blue-*, frontier) and was mapped
+			// to lens here, so its register was REFUSED once per run, in every run, and that
+			// seat's whole path went unexercised behind a green sweep. Found by the execution
+			// tally (lens register: exactly 60 refusals across 60 runs — one per run is a
+			// pattern, not noise).
 			role := "lens"
-			switch {
-			case strings.HasPrefix(seatID, "blue"):
+			if strings.HasPrefix(seatID, "blue") || strings.HasPrefix(seatID, "frontier") {
 				role = "blue"
-			case strings.HasPrefix(seatID, "frontier"):
-				role = "lens"
 			}
 			r.register(role, seatID)
 			// The non-prose lens channel is the RECORD now, not red/candidates files: a
@@ -866,7 +893,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	// Oracle 1: the record the run left must pass verify.
-	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
+	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
 		res.err = "verify FAILED:\n" + truncate(string(out))
 		return res
 	}
@@ -875,7 +902,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
 	for _, v := range []string{"findings", "friction"} {
-		out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput()
+		out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show --view " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -883,7 +910,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	{
-		out, err := exec.Command(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir).CombinedOutput()
+		out, err := tracked(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show --view debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -896,7 +923,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// which the render-shadow removal (#203) took away (view_test.go pins the bytes on fixed
 	// fixtures; only the fuzz drives them across arbitrary run shapes).
 	for _, v := range []string{"ledger", "archive", "debate", "changelog", "changes", "citation-ledger", "lines-of-inquiry"} {
-		if out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput(); err != nil {
+		if out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir); err != nil {
 			res.err = "show --view " + v + " (markdown projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -906,14 +933,21 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
-		if out, err := exec.Command(bin, "merge", "show", "--view", "changes", "--id", ids[0], "--run", runDir).CombinedOutput(); err != nil {
+		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", ids[0], "--run", runDir); err != nil {
 			res.err = "show --view changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := exec.Command(bin, "merge", "show", "--view", "changes", "--id", "R9-99", "--run", runDir).CombinedOutput(); err == nil {
+		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", "R9-99", "--run", runDir); err == nil {
 			res.err = "show --view changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
+	}
+	// Oracle 1d: THE READ-ONLY CENSUS. Every record-nothing surface must survive whatever
+	// shape this run reached. These emit no events, so the verb-coverage gate below is blind
+	// to them by construction — this is the only thing that exercises them at all.
+	if msg := sweepReadOnly(bin, runDir); msg != "" {
+		res.err = msg
+		return res
 	}
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
@@ -1003,7 +1037,12 @@ var verbsWithEvents = []string{
 	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
 	"confidence", "cite", "finding", "observe", "avenue", "friction", "revision", "retire",
 	"manifest-row", "dispose", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
-	"blue_edit",
+	// Added 2026-08-04 by a census of every type record.Append can write: these three were
+	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
+	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
+	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
+	// write, `outcome` is the bench's.
+	"blue_edit", "anchor", "class-new", "outcome",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -1045,7 +1084,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	if halts == 0 {
 		t.Fatal("no halt event on the record — the halt verb never ran")
 	}
-	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
+	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
 		t.Fatalf("verify FAILED on the halted run (a safety exit must still be a valid record):\n%s", truncate(string(out)))
 	}
 }
@@ -1231,6 +1270,23 @@ func TestFuzzDebate(t *testing.T) {
 			}
 		}
 	}
+	// FULL-SURFACE GATE, DERIVED FROM THE COMMAND TREE.
+	//
+	// The harness tallies EVERY invocation it makes (noteExec), so "what did the fuzz drive"
+	// is observed rather than declared. cli.CommandPaths() walks the real cobra tree for
+	// "what exists". Nothing hand-written states the surface, which is the point: the gap
+	// this closes was created by a hand list going stale — 18 of 44 seat verbs and 7 of 9
+	// root commands undriven, every undriven seat verb one that records nothing and so was
+	// invisible to the event gate above.
+	//
+	// The only hand-written list left is exemptSurfaces, and each entry states its reason.
+	if completed >= 40 {
+		if un := unreachedSurfaces(); len(un) > 0 {
+			t.Errorf("%d command path(s) exist in the tool and were NEVER invoked across %d runs (false green — add a drive, or an exemption with its reason):\n  %s",
+				len(un), completed, strings.Join(un, "\n  "))
+		}
+		t.Log(execReport())
+	}
 	if len(failures) > 0 {
 		show := failures
 		if len(show) > 8 {
@@ -1283,4 +1339,88 @@ func (r *runner) someProposal() (string, string, string) {
 		}
 	}
 	return "", "", ""
+}
+
+// ---- read-only INVOCATION: the surfaces the event gate is blind to ----
+//
+// These verbs RECORD NOTHING, so the event-type gate cannot see them: of 44 seat verbs, every
+// one with zero fuzz coverage was of this kind, plus 7 of 9 root commands. What follows only
+// CALLS them — the counting is done by the execution tally (noteExec), which observes every
+// invocation the harness makes rather than keeping a second ledger of its own.
+
+// readOnly invokes a record-nothing seat verb. r.exec tallies it; a non-zero exit shows up in
+// the report's refusal count, which is where the dead `lens avenue` drive and the misrouted
+// `frontier` registration were both found.
+func (r *runner) readOnly(role, verb, seatID string, extra ...string) {
+	args := append([]string{role, verb, "--seat-id", seatID}, extra...)
+	_, _ = r.exec(args...)
+}
+
+// readOnlySurfaces is the CENSUS, not a sample: every record-nothing surface a seat or the
+// operator can reach, with the argv that exercises it. Adding a read-only verb without adding
+// it here leaves it unfuzzed, and the gate below is what says so out loud.
+//
+// `setup` and `capture` are deliberately absent and that is stated rather than silently
+// omitted: setup CREATES a run (the fuzz builds its run dir directly, so driving setup would
+// mean fuzzing a different thing), and capture needs a transcript directory the harness has no
+// analogue for. Both carry their own package tests. `hook` reads a JSON payload on stdin rather
+// than argv and is covered by internal/cli's hook tests.
+var readOnlySurfaces = [][]string{
+	// Every role's `show` with NO --view, which resolves that role's DEFAULT view. Only the
+	// merge's was ever driven, so a regression in any other role's default was invisible.
+	{"lens", "show"}, {"merge", "show"}, {"blue", "show"}, {"bench", "show"},
+	// The operator renders, over whatever shape the run actually reached.
+	{"graph", "--format", "mermaid"},
+	{"graph", "--format", "dot"},
+	{"count-claims"},
+	{"scorecard", "--chair", "red"},
+}
+
+// dashboardArgv is separate because `dashboard` is POSITIONAL — `dashboard <runDir>
+// <transcript-dir>` — not `--run`. Discovered by this very census: the first version of it
+// passed --run and dashboard failed on all 60 runs with a usage error, which is the census
+// working (the surface had never been driven, so nothing here was known).
+func dashboardArgv(runDir string) []string { return []string{"dashboard", runDir, runDir} }
+
+// sweepReadOnly runs the census against a finished run and reports the first surface that
+// fails. Run AFTER the debate so the state is arbitrary rather than empty — an empty run
+// proves only that nothing crashed on nothing.
+func sweepReadOnly(bin, runDir string) string {
+	// The transcript dir is the run dir here: dashboard tolerates finding no agent-*.jsonl,
+	// and what is under test is that it RENDERS whatever board shape the run reached.
+	if out, err := tracked(bin, dashboardArgv(runDir)...); err != nil {
+		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
+	}
+	for _, argv := range readOnlySurfaces {
+		args := append(append([]string{}, argv...), "--run", runDir)
+		if len(argv) == 2 && argv[1] == "show" {
+			args = append(args, "--seat-id", seatFor(argv[0]))
+		}
+		if out, err := tracked(bin, args...); err != nil {
+			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
+		}
+	}
+	return ""
+}
+
+// seatFor returns a seat id bound to the role, since `show` is role-scoped like any verb.
+func seatFor(role string) string {
+	switch role {
+	case "lens":
+		return "red-lens-r1-L1"
+	case "merge":
+		return "red-merge-r1"
+	case "blue":
+		return "blue-respond-r1"
+	default:
+		return "judge-r1"
+	}
+}
+
+func sumCounts(m map[string]int) int {
+	n := 0
+	for _, v := range m {
+		n += v
+	}
+	return n
 }
