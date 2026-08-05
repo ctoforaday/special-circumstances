@@ -79,6 +79,15 @@ const (
 	// mirror the Edit tool's old_string/new_string so a seat reaches for what it knows.
 	Old = "old"
 	New = "new"
+	// Answers is the edit's PROVENANCE: the gap id this edit is blue's response to.
+	// A distinct word from --id (which names the gap an act is ABOUT) because the
+	// relation differs — the same reason --into, --successor, --superseded-by and
+	// --carried-from each get their own word rather than overloading one.
+	//
+	// It exists because the link was a CONVENTION: 19 of 26 edits in the 2026-08-04 smoke
+	// happened to open --reason with the gap id, and 7 did not. Prose that usually carries
+	// a fact is not a join key, and every measurement in #267 needs one.
+	Answers = "answers"
 
 	// Disposition and justification.
 	//
@@ -199,7 +208,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Label, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New,
+		ID, IDs, Label, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New, Answers,
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,

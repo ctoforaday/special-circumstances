@@ -336,3 +336,36 @@ func requirePassClosesAllGaps(runDir string) error {
 	return fmt.Errorf("record: verdict PASS refused — %d gap(s) still OPEN: %s. PASS requires every gap resolved through `close --id <id> --as closed|risk_accepted|rebuttal_sustained|routed_to_infrastructure`; close them, or issue `--as FAIL`",
 		len(open), strings.Join(open, ", "))
 }
+
+// gapNamedIn returns the first gap id from the board that appears as a WHOLE TOKEN in
+// prose, or "". It exists for one refusal: `blue edit` prose that names the gap the edit
+// answers while `--answers` is empty (validate, case "blue_edit").
+//
+// It matches against the BOARD, never against a pattern. A regex for "gap-id-shaped" would
+// have to guess the shape (R1-5, R1-11 today) and would fire on any prose that happens to
+// look like one — a version number, a section reference, a matrix cell. Membership in the
+// set of ids some mint actually created is exact, needs no shape at all, and costs the same
+// read requireGap already does.
+//
+// Tokens break on anything outside [A-Za-z0-9-], so "R1-5: Quantify…" yields "R1-5" with
+// its trailing colon shed, and a longer id is never matched by a shorter one's prefix.
+func gapNamedIn(runDir, prose string) (string, error) {
+	if strings.TrimSpace(prose) == "" {
+		return "", nil
+	}
+	ids, err := allGapIDs(runDir)
+	if err != nil {
+		return "", err
+	}
+	if len(ids) == 0 {
+		return "", nil
+	}
+	for _, tok := range strings.FieldsFunc(prose, func(r rune) bool {
+		return !(r == '-' || (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z'))
+	}) {
+		if ids[tok] {
+			return tok, nil
+		}
+	}
+	return "", nil
+}

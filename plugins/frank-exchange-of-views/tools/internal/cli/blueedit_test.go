@@ -178,3 +178,119 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 		t.Errorf("reconcile appended a second op (%d), want 1", n)
 	}
 }
+
+// ---- --answers: provenance as a join key (#267) ----
+
+// The happy path: --answers lands on the event as the join key every #267 measurement reads.
+func TestBlueEditRecordsTheGapItAnswers(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	gap := mintGap(t, runDir, "G1", "overclaimed-independence")
+	registerBlue(t, runDir)
+
+	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E1", "--old", "Five independent verification", "--new", "Five verification",
+		"--answers", gap, "--reason", "drop the independence claim"); err != nil {
+		t.Fatalf("blue edit --answers: %v", err)
+	}
+	if got := lastOfType(t, runDir, "blue_edit").Payload.Str("answers"); got != gap {
+		t.Errorf("answers = %q, want %q — without it required_fix and the actual change cannot be joined", got, gap)
+	}
+}
+
+// A gap no mint created is refused HERE, while the seat is still there to fix it. An
+// unchecked reference is accepted at write time and DROPPED at replay (refs.go).
+func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
+	mintGap(t, runDir, "G1", "overclaimed-independence")
+	registerBlue(t, runDir)
+
+	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--answers", "R9-99", "--reason", "why")
+	if err == nil {
+		t.Fatal("an edit answering a gap no mint created was accepted")
+	}
+	if !strings.Contains(err.Error(), "R9-99") {
+		t.Errorf("the refusal must name the dangling id: %v", err)
+	}
+	if n := countType(t, runDir, "blue_edit"); n != 0 {
+		t.Errorf("a refused edit still recorded %d op(s) — validation must precede the append", n)
+	}
+	if strings.Contains(readReport(t, runDir), "prose to revise") {
+		t.Error("a refused edit still wrote to report.md")
+	}
+}
+
+// THE CONVENTION IS REFUSED, NOT DEPRECATED. 19 of 26 smoke edits opened --reason with the
+// gap id and 7 did not; a 73% link looks like a key and is not one.
+func TestBlueEditRefusesAGapIDHidingInTheReason(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
+	gap := mintGap(t, runDir, "G1", "overclaimed-independence")
+	registerBlue(t, runDir)
+
+	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--reason", gap+": acknowledge the shared definition")
+	if err == nil {
+		t.Fatal("the free-text convention was accepted while --answers was empty")
+	}
+	if !strings.Contains(err.Error(), "--answers") || !strings.Contains(err.Error(), gap) {
+		t.Errorf("the refusal must name both the gap and the flag that fixes it: %v", err)
+	}
+	if n := countType(t, runDir, "blue_edit"); n != 0 {
+		t.Errorf("a refused edit recorded %d op(s)", n)
+	}
+}
+
+// The guard matches the BOARD, not a pattern: prose that merely looks id-shaped, or names
+// a gap this run never minted, is blue's business and passes.
+func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
+	mintGap(t, runDir, "G1", "overclaimed-independence")
+	registerBlue(t, runDir)
+
+	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--reason", "tightened per R9-99 and section 3-2 of the style note"); err != nil {
+		t.Fatalf("prose naming no real gap was refused: %v", err)
+	}
+	if countType(t, runDir, "blue_edit") != 1 {
+		t.Error("the edit did not land")
+	}
+}
+
+// An edit that answers no gap — blue's own authorial work, or the punctuation repair that
+// was 6 of the smoke's 26 edits — stays legal with --answers absent.
+func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
+	mintGap(t, runDir, "G1", "overclaimed-independence")
+	registerBlue(t, runDir)
+
+	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--reason", "clearer phrasing, self-directed"); err != nil {
+		t.Fatalf("a self-directed edit was refused: %v", err)
+	}
+	if got := lastOfType(t, runDir, "blue_edit").Payload.Str("answers"); got != "" {
+		t.Errorf("answers = %q, want empty", got)
+	}
+}
+
+// The help IS the seat's contract (contract_test.go's premise). A flag whose description
+// drifts out of the help teaches nothing, and the seat's only teacher is what it can read.
+func TestBlueEditHelpTeachesTheProvenanceFlag(t *testing.T) {
+	h := help(t, "blue", "edit", "--help")
+	if !strings.Contains(h, "--answers ") {
+		t.Fatalf("blue edit --help never names --answers, so the join key is undiscoverable:\n%s", h)
+	}
+	for _, want := range []string{"gap id", "provenance"} {
+		if !strings.Contains(h, want) {
+			t.Errorf("blue edit --help does not say %q — a seat cannot tell what --answers takes:\n%s", want, h)
+		}
+	}
+}
