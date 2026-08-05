@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -102,44 +102,32 @@ func newEdit() *cobra.Command {
 
 // errMisQuote is the sentinel for "--old is not present" — applyEdit distinguishes it to
 // drive the crash-reconcile branch (old gone but new already present ⇒ the write landed).
-var errMisQuote = errors.New("blue edit: the --old text was not found in report.md — quote the EXACT current span you are replacing (whitespace and the invisible marker layer are ignored; everything else must match)")
+// It is bluedoc's, because the CHECK is bluedoc's; this alias keeps the local reads short.
+var errMisQuote = bluedoc.ErrMisQuote
 
 // planEdit is the PURE core: it computes the new report from replacing the span of `old`
-// with `new`, or an error if old is absent (errMisQuote) or its span contains an immortal
-// anchor of either class (a finding marker or a citation anchor). The crash-reconcile and
-// the lock live in applyEdit; the validation peek reuses this via validateEdit. Fuzzed
-// directly (edit_fuzz_test.go).
+// with `new`.
+//
+// The three LEGALITY checks — present-and-unique, no word split, and anchors transit
+// unchanged — live in internal/bluedoc, because `merge mint` now has to answer the same
+// question about a concrete proposed fix before red may attach one. What stays here is the
+// part only blue does: the SPLICE. The crash-reconcile and the lock live in applyEdit; the
+// validation peek reuses this via validateEdit. Fuzzed directly (edit_fuzz_test.go).
 func planEdit(report, old, new string) (string, error) {
-	start, end, ambiguous := lens.LocateSpanUnique(report, old)
-	if start < 0 {
-		return "", errMisQuote
-	}
-	// AMBIGUITY IS REFUSED, NOT GUESSED. Taking the first of several matches silently edits a site
-	// blue may not have meant — and blue is explicitly told to propagate corrections to every site
-	// stating a claim, so repeated text is the expected shape of a real report.
-	if ambiguous {
-		return "", fmt.Errorf("blue edit: your --old span appears MORE THAN ONCE in report.md, so the edit target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)")
-	}
-	// The span may not split a WORD (see splice.go for why this is not a whitespace rule).
-	if !spanBoundaryOK(report, start, end) {
-		return "", fmt.Errorf("blue edit: your --old span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record")
+	start, end, err := bluedoc.LocateUnique("blue edit", report, old)
+	if err != nil {
+		return "", err
 	}
 	// ANCHORS MAY TRANSIT AN EDIT — but never be created, destroyed or duplicated by one.
 	//
-	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with the
-	// uniqueness guard above that produces a DEADLOCK, demonstrated: when a word appears twice and
+	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with
+	// the uniqueness guard that produces a DEADLOCK, demonstrated: when a word appears twice and
 	// the only disambiguating context carries red's anchor, the minimal quote is refused as
 	// ambiguous and the contextual quote is refused as anchor-spanning. The anchored occurrence —
 	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
 	// not a corner.
-	//
-	// The invariant worth keeping is not "blue never touches an anchor"; it is "an edit never
-	// changes WHICH anchors exist". That is checkable HERE, in the tool, on the exact bytes: the
-	// multiset of anchor ids in --old must equal that in --new. Blue merely carries them across.
-	// This is strictly stronger than the old rule, which said nothing about --new at all (5 edits
-	// in the smoke smuggled an anchor INTO --new and duplicated it).
-	if err := anchorsTransitUnchanged(report[start:end], new); err != nil {
+	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
 		return "", err
 	}
 	next := report[:start] + new + report[end:]
@@ -149,7 +137,7 @@ func planEdit(report, old, new string) (string, error) {
 	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
 	next, _ = tidySeam(next, start)
 	if dropped := droppedMarker(report, next); dropped != "" {
-		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchorLabel(dropped))
+		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", bluedoc.AnchorLabel(dropped))
 	}
 	return next, nil
 }
@@ -177,25 +165,6 @@ func applyEdit(runDir, old, new string) error {
 	})
 }
 
-// spanMarker reports whether span contains an immortal anchor of EITHER class — a finding
-// marker ("<!--fx:") or a citation anchor ("<!--cite:") — and names the first id. A bare
-// prefix with no well-formed id still rejects, named generically: never allow a partial
-// anchor of either class to be split.
-func spanMarker(span string) (bool, string) {
-	hasFinding := strings.Contains(span, "<!--fx:")
-	hasCitation := strings.Contains(span, "<!--cite:")
-	if !hasFinding && !hasCitation {
-		return false, ""
-	}
-	if ids := claimcount.ProtectedAnchorIDs(span); len(ids) > 0 {
-		return true, ids[0]
-	}
-	if hasFinding {
-		return true, "a finding-marker"
-	}
-	return true, "a citation anchor"
-}
-
 // droppedMarker returns an immortal-anchor id (finding OR citation) present in before but
 // absent from after, or "". The union sweep is what makes the cite⟺anchor bijection hold:
 // no raw edit can drop a citation any more than it can drop a finding.
@@ -210,20 +179,6 @@ func droppedMarker(before, after string) string {
 		}
 	}
 	return ""
-}
-
-// anchorLabel describes an immortal-anchor id for an error message, by its class prefix, so
-// a seat is told which kind of anchor its edit would have disturbed. A generic name (from
-// spanMarker's partial-prefix case) is passed through unchanged.
-func anchorLabel(id string) string {
-	switch {
-	case strings.HasPrefix(id, "c-"):
-		return "citation anchor " + id + " (citations are tool-managed — remove one with the tool, never a raw edit)"
-	case strings.HasPrefix(id, "f-"):
-		return "finding-marker " + id
-	default:
-		return id
-	}
 }
 
 type editResult struct {

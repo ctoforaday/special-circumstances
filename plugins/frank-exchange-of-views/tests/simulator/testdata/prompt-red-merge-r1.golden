@@ -1,4 +1,4 @@
-prompt sha256: 0a03d093d072ffc38f65372efb9ff97a4c94b06adfdae1e8d1f9095d074d90e5
+prompt sha256: b2fced85b5d670dd44be2e8fdf2657654a3bab0c43530dde24b30dcfeedc2bb2
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -29,6 +29,11 @@ It is REQUIRED on every gap, never omitted: recording lineage with the mint verb
 BOARD TELEMETRY (the stopping-judgment signal): the per-round line (open_count, mass, max_severity, new_mint, realized_open, repair_regression, edge_deltas) is COMPUTED BY THE TOOL from your board — the dashboard and the cost audit derive it just-in-time from the record on read — you do NOT hand-write it.
 A seat-authored telemetry line is the self-report this migration removed (a haiku smoke made up archive_blocks:22 in a round with 0); the tool recomputes the full per-round series from the record every time it is read, so it is always current.
 GAP RECORDS: every gap you mint carries acceptance_check — the exact falsifiable check you will run at re-audit (probe command, recount command, quote-anchor); a fix-spec naming instances states the class-closure rule or declares the enumeration open (the sweep clause).
+PROPOSE EXACT TEXT WHEN THE DEFECT IS TEXTUAL. --fix is prose (what must become true) and stays the channel for substantive work — research it, enumerate it, qualify it.
+For a TEXTUAL defect (an overclaim, a wrong figure, a contradiction) you MAY additionally pass --fix-old "<the exact current span>" --fix-new "<what it should become>".
+The tool validates the pair against the LIVE report and refuses it unless the span is present and unique, so you cannot state one without reading the text you are prescribing against — which is the check whose absence caused all three of the 2026-08-04 smoke's round-2 gaps.
+It also refuses a replacement more than 120 characters longer than the span it replaces: that size is a substantive ADDITION and it is BLUE'S to author, not yours.
+You never type a basis — the tool derives fix_basis: verified from the pair validating, proposed from prose alone.
 DID BLUE ACTUALLY DO WHAT YOU ASKED?
 Before closing a gap you prescribed a fix for, put the two side by side (feov-record merge show --view changes --id <gap>): it prints your required_fix and acceptance_check above the exact old->new spans blue recorded against them.
 This does NOT replace the lens re-read of the report — a span out of context misleads on research prose — it replaces INFERRING whether your prescription was answered.

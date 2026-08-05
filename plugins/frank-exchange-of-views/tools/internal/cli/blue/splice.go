@@ -1,10 +1,7 @@
 package blue
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 )
 
 // SPLICE HYGIENE — the punctuation a tool should own, not a debate round.
@@ -78,64 +75,3 @@ func tidySeam(s string, at int) (string, bool) {
 // character ("Eratosthenes<!--fx:f-…-->"), so demanding literal whitespace after a span would
 // reject every edit of an anchored word — the common case, since red anchors exactly the
 // sentences blue is asked to repair.
-
-// spanBoundaryOK reports whether [start,end) splits a WORD. It rejects only that: a boundary
-// with an alphanumeric character on both sides.
-//
-// It deliberately does NOT require whitespace. LocateSpan normalises a quote by TRIMMING trailing
-// punctuation (#248, so a quote may include or omit a terminal period and still match), which
-// means a matched span ALWAYS ends before the period — a whitespace requirement would reject every
-// sentence-final edit, including a correctly-quoted one. That same trim is the doubling mechanism
-// tidySeam exists for: blue quotes "rising fast.", the matcher matches "rising fast", the verbatim
-// --new "climbing fast." lands against the surviving period and yields "climbing fast..". The seam
-// tidy handles that; this predicate handles the other half — a span starting or ending inside a
-// word, which produces edits like the smoke's one-byte "delete ly" that are unreadable in the
-// diff-stack and mean blue is editing letters rather than language.
-func spanBoundaryOK(s string, start, end int) bool {
-	word := func(b byte) bool {
-		return b == '_' || (b >= '0' && b <= '9') || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
-	}
-	splits := func(i int) bool { return i > 0 && i < len(s) && word(s[i-1]) && word(s[i]) }
-	return !splits(start) && !splits(end)
-}
-
-// anchorsTransitUnchanged enforces the one anchor invariant an edit must satisfy: the edit may
-// not change WHICH anchors exist. The multiset of anchor ids in the replaced span must equal the
-// multiset in its replacement — so blue may carry an anchor across an edit (and rewrite the prose
-// around it), but may never introduce, drop or duplicate one.
-//
-// Anchors are still born ONLY from `lens finding` and `blue cite`, and still die only by tool.
-// Transit is not authorship: the tool checks the bytes, so nothing is delegated to the model.
-func anchorsTransitUnchanged(oldSpan, newText string) error {
-	count := func(s string) map[string]int {
-		m := map[string]int{}
-		for _, id := range claimcount.ProtectedAnchorIDs(s) {
-			m[id] = strings.Count(s, anchorToken(id))
-		}
-		return m
-	}
-	o, n := count(oldSpan), count(newText)
-	for id, want := range o {
-		switch got := n[id]; {
-		case got == 0:
-			return fmt.Errorf("blue edit: your --old span contains %s but --new does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in --new", anchorLabel(id), anchorToken(id))
-		case got != want:
-			return fmt.Errorf("blue edit: %s appears %d time(s) in --old but %d in --new — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", anchorLabel(id), want, got)
-		}
-	}
-	for id, got := range n {
-		if o[id] == 0 {
-			return fmt.Errorf("blue edit: your --new introduces %s, which was not in the span you replaced — anchors are placed by `lens finding` and `blue cite`, never typed into a replacement (got %d occurrence(s))", anchorLabel(id), got)
-		}
-	}
-	return nil
-}
-
-// anchorToken rebuilds the literal token for an anchor id, so a message can quote what blue must
-// reproduce verbatim.
-func anchorToken(id string) string {
-	if strings.HasPrefix(id, "c-") {
-		return "<!--cite:" + id + "-->"
-	}
-	return "<!--fx:" + id + "-->"
-}

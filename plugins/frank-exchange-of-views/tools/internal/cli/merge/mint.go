@@ -1,8 +1,11 @@
 package merge
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -55,6 +58,37 @@ func newMint() *cobra.Command {
 			seat.SetSame(cmd, p, flags.Definition, flags.Neighbor, flags.Distinguisher, flags.Location)
 			p.Set("problem", problem)
 			seat.Set(cmd, p, "required_fix", flags.Fix)
+			// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
+			//
+			// `required_fix` is prose ("acknowledge the shared definition"), which blue cannot
+			// apply verbatim. Red MAY instead state the exact span and the exact replacement —
+			// and stating one legally is impossible from memory of what the report probably
+			// says, which is the forced re-read this whole axis exists for: all three of the
+			// smoke's round-2 gaps were contradictions between blue's new text and text red
+			// never re-read before prescribing.
+			//
+			// So `fix_basis` is COMPUTED from whether a validated pair is present. It is not a
+			// flag. A seat asked to self-report "verified | proposed" reports the flattering
+			// one, and the field becomes decoration — the same reason the finding label and the
+			// gap id are tool-assigned rather than claimed.
+			basis := "proposed"
+			if seat.Given(cmd, flags.FixOld) || seat.Given(cmd, flags.FixNew) {
+				fixOld, fixNew := seat.Str(cmd, flags.FixOld), seat.Str(cmd, flags.FixNew)
+				if fixOld == "" || fixNew == "" {
+					return nil, fmt.Errorf("merge mint: a concrete proposal needs BOTH --fix-old (the exact span you say is wrong) and --fix-new (the exact text it should become) — one alone is half a proposal blue cannot apply")
+				}
+				report, err := record.ReadBlueReport(s.RunDir)
+				if err != nil {
+					return nil, err
+				}
+				if err := bluedoc.ValidateProposal("merge mint", string(report), fixOld, fixNew); err != nil {
+					return nil, err
+				}
+				p.Set("fix_old", fixOld)
+				p.Set("fix_new", fixNew)
+				basis = "verified"
+			}
+			p.Set("fix_basis", basis)
 			seat.Set(cmd, p, "acceptance_check", flags.Check)
 			seat.SetGrade(p, "severity", &severity)
 			seat.SetGrade(p, "likelihood", &likelihood)
@@ -89,7 +123,9 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.Distinguisher, "", "the tie-break question that tells the two apart")
 	c.Flags().String(flags.Location, "", "where the defect lives: a section heading plus a quoted sentence")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
-	c.Flags().String(flags.Fix, "", "the required fix")
+	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
+	c.Flags().String(flags.FixOld, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact current span you say is wrong (must be present and unique in blue/report.md — a proposal you cannot state legally is one blue cannot apply). Requires --fix-new")
+	c.Flags().String(flags.FixNew, "", "the exact text that span should become. Bounded: a replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Together these two derive fix_basis: verified")
 	c.Flags().String(flags.Check, "", "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")

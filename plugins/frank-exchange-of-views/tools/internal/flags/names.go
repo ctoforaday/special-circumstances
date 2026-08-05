@@ -88,6 +88,16 @@ const (
 	// happened to open --reason with the gap id, and 7 did not. Prose that usually carries
 	// a fact is not a join key, and every measurement in #267 needs one.
 	Answers = "answers"
+	// A CONCRETE proposed fix (#267 stage 3): the exact span red says is wrong and the exact
+	// text it should become. Distinct words from --old/--new, which are the edit blue APPLIES;
+	// these are what red PROPOSES, and one word per act keeps a seat from typing red's
+	// proposal into blue's write verb by muscle memory.
+	//
+	// Optional, and bounded: a proposal that grows the span past bluedoc.MaxProposalGrowth is
+	// refused as authoring. Their presence is what DERIVES `fix_basis: verified` — the basis is
+	// never a word a seat types about its own work.
+	FixOld = "fix-old"
+	FixNew = "fix-new"
 
 	// Disposition and justification.
 	//
@@ -212,7 +222,7 @@ func All() []string {
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
-		Problem, Fix, Check, Existence,
+		Problem, Fix, Check, Existence, FixOld, FixNew,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,

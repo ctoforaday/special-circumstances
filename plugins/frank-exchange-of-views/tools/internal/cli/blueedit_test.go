@@ -294,3 +294,93 @@ func TestBlueEditHelpTeachesTheProvenanceFlag(t *testing.T) {
 		}
 	}
 }
+
+// ---- concrete proposals: fix_basis is DERIVED, never claimed (#267 stage 3) ----
+
+// Prose alone stays legal and is honestly labelled `proposed`. This is the substantive
+// channel — "research X", "enumerate the residual risks" — and it must not be second-class.
+func TestMintWithoutAConcreteProposalIsBasisProposed(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	mintGap(t, runDir, "G1", "overclaim")
+
+	ev := lastOfType(t, runDir, "mint")
+	if got := ev.Payload.Str("fix_basis"); got != "proposed" {
+		t.Errorf("fix_basis = %q, want %q — a prose fix red did not check against the document is proposed", got, "proposed")
+	}
+}
+
+// A validated pair EARNS `verified`. The basis is computed from the check passing, so red
+// cannot assert it: there is no flag to type.
+func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "G1", "--class-new", "overclaim", "--definition", "d", "--neighbor", "n",
+		"--distinguisher", "x", "--location", "§1", "--problem", "the defect",
+		"--fix", "drop the independence claim", "--check", "the section no longer claims independence",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
+		"--fix-old", "Five independent verification", "--fix-new", "Five verification"); err != nil {
+		t.Fatalf("a legal concrete proposal was refused: %v", err)
+	}
+	ev := lastOfType(t, runDir, "mint")
+	if got := ev.Payload.Str("fix_basis"); got != "verified" {
+		t.Errorf("fix_basis = %q, want %q — a pair validated against the live report is verified", got, "verified")
+	}
+	if ev.Payload.Str("fix_old") == "" || ev.Payload.Str("fix_new") == "" {
+		t.Error("the proposal itself was not recorded, so blue cannot apply what red proposed")
+	}
+}
+
+// There is NO --fix-basis flag. A seat asked to self-report verified|proposed reports the
+// flattering one; the whole axis depends on the basis being unclaimable.
+func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nSome text.\n")
+	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "G1", "--class", "x", "--check", "c", "--problem", "p",
+		"--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
+	if err == nil {
+		t.Fatal("--fix-basis was accepted — the basis must be derived, never asserted")
+	}
+	if !strings.Contains(err.Error(), "fix-basis") {
+		t.Errorf("the refusal should name the unknown flag: %v", err)
+	}
+}
+
+// Half a proposal is not a proposal: blue could not apply it, so it is refused at the source
+// rather than recorded as something blue must interpret.
+func TestHalfAProposalIsRefused(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "G1", "--class", "x", "--check", "c", "--problem", "p",
+		"--likelihood", "medium", "--impact", "medium",
+		"--fix-old", "Five independent verification")
+	if err == nil {
+		t.Fatal("--fix-old without --fix-new was accepted")
+	}
+	if !strings.Contains(err.Error(), "--fix-new") {
+		t.Errorf("the refusal must name the missing half: %v", err)
+	}
+	if n := countType(t, runDir, "mint"); n != 0 {
+		t.Errorf("a refused mint still recorded %d event(s)", n)
+	}
+}
+
+// A proposal red could not have written without reading the document is the point of the
+// axis; one quoting text that is not there proves the opposite, and is refused.
+func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "G1", "--class", "x", "--check", "c", "--problem", "p",
+		"--likelihood", "medium", "--impact", "medium",
+		"--fix-old", "a sentence the report never contained", "--fix-new", "anything")
+	if err == nil {
+		t.Fatal("a proposal against absent text was accepted, so nothing forced red to read the report")
+	}
+	if n := countType(t, runDir, "mint"); n != 0 {
+		t.Errorf("a refused mint still recorded %d event(s)", n)
+	}
+}
