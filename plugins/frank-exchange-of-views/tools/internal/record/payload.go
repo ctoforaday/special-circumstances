@@ -72,6 +72,21 @@ func (p *Payload) Str(k string) string {
 	return s
 }
 
+// Bool reads a value written by Set as bool.
+//
+// JSON round-trips a bool as a bool, but a payload read back from a shard arrives through
+// encoding/json's `any`, so this accepts only a real bool and returns false for anything
+// else — the falsy-value confusion that has produced three separate defects here is not
+// worth re-opening by coercing strings or numbers.
+func (p *Payload) Bool(k string) bool {
+	v, ok := p.Get(k)
+	if !ok {
+		return false
+	}
+	b, ok := v.(bool)
+	return ok && b
+}
+
 func (p *Payload) Has(k string) bool { _, ok := p.Get(k); return ok }
 
 func (p *Payload) Keys() []string { return append([]string(nil), p.keys...) }

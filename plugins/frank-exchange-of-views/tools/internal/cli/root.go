@@ -117,6 +117,17 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.32.0 ESTOPPEL (#267 stage 4, the last): red is bound by the fix it prescribed. `blue edit`
+//	       records applied_verbatim when its old/new are byte-identical to the answered gap's
+//	       fix_old/fix_new — the tool comparing bytes, never a seat claiming it. `merge mint`
+//	       then REFUSES a fresh gap whose --location is that text, and LOGS THE REFUSAL AS
+//	       FRICTION: a guard that silently blocks is invisible, and this makes "how often red
+//	       relitigates its own prescriptions" a per-run number. Red is not silenced — naming
+//	       the estopping gap in --supersedes lets the amendment through, which is what the guard
+//	       asks for. It binds ONLY verbatim text: a counter-edit is blue's authorship and red
+//	       audits it normally. `--view changes` now prints the two falsifying numbers, offered/
+//	       applied/declined and the estoppel-rejection count, and says so when blue declined
+//	       nothing. A stale binary neither records the fact nor enforces the guard.
 //	0.31.0 concrete fix proposals + derived fix_basis (#267 stage 3): `merge mint` takes an
 //	       OPTIONAL `--fix-old`/`--fix-new` pair for TEXTUAL defects. The tool validates it against
 //	       the live report — present, unique, no word split, anchors transit unchanged — so red
@@ -199,7 +210,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.31.0"
+const Version = "0.32.0"
 
 func init() { record.ToolVersion = Version }
 

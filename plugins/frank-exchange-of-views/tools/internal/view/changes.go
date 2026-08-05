@@ -72,6 +72,36 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 	} else {
 		out = append(out, "", fmt.Sprintf("_%d recorded edit(s)._", total), "")
 	}
+
+	// THE TWO NUMBERS THAT FALSIFY THE DESIGN, in opposite directions (#267 stage 4).
+	//
+	// DECLINE RATE — blue may apply red's concrete proposal, counter-edit, or dispute.
+	// Applying is instant and free; a counter-edit costs a round and invites re-audit. The
+	// cheapest path is always compliance, so a run where blue NEVER declines is manufacturing
+	// agreement rather than earning it — the same pathology this axis exists to fix, inverted.
+	//
+	// ESTOPPEL REJECTIONS — how often red tried to raise a fresh gap against text it
+	// prescribed itself. Zero could mean red is behaving, and it could mean the guard's
+	// 40-character overlap floor is not catching the shape; it is a signal to read, never a
+	// score to celebrate. Both are printed even at zero, because an absent number reads as
+	// "not measured" and that is exactly how a dead measurement survives.
+	offered, applied, declined := record.DeclineStats(b)
+	estoppel := 0
+	for _, e := range b.Events {
+		if e.Type == "friction" && strings.Contains(e.Payload.Str("text"), "estoppel —") {
+			estoppel++
+		}
+	}
+	out = append(out, "## Measurements", "",
+		fmt.Sprintf("- **Concrete proposals**: %d offered · %d applied verbatim · %d declined (blue counter-edited or disputed) · %d unanswered",
+			offered, applied, declined, offered-applied-declined),
+		fmt.Sprintf("- **Estoppel rejections**: %d — mints refused because their location was text red prescribed and blue applied verbatim", estoppel),
+		"")
+	if offered > 0 && declined == 0 {
+		out = append(out, "> Blue declined NONE of red's concrete proposals this run. Applying is the cheapest path,",
+			"> so a zero decline rate is what manufactured agreement looks like — read it as a question",
+			"> about the proposals, not as evidence that they were all right.", "")
+	}
 	return []byte(strings.Join(out, "\n")), nil
 }
 

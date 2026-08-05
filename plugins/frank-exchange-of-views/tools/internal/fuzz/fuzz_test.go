@@ -469,6 +469,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if !strings.Contains(string(cur), oldSpan) {
 				return // an anchor landed mid-span; skip rather than force a mis-quote
 			}
+			// VERBATIM APPLICATION (#267 stage 4): when a gap carries a concrete proposal,
+			// sometimes apply exactly it — the only state that sets applied_verbatim and so
+			// the only one that estops red. The rest of the time blue counter-edits, which is
+			// the decline path DeclineStats counts. Both must run.
+			if id, fo, fn := r.someProposal(); id != "" && r.coin(50) && strings.Contains(string(cur), fo) {
+				r.do("blue", "edit", seatID).
+					set("--old", fo).set("--new", fn).
+					set("--answers", id).
+					set("--reason", "fuzz: applying red's proposed text verbatim").
+					run()
+				return
+			}
 			c := r.do("blue", "edit", seatID).
 				set("--old", oldSpan).
 				set("--new", newSpan).
@@ -720,6 +732,9 @@ type outcome struct {
 	// mint verb gate is satisfied by any mint, so a proposal path that stopped validating
 	// would pass it while the axis quietly went all-prose.
 	verifiedBasis int
+	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
+	// could counter-edit every time and the estoppel path would never be reached at all.
+	verbatimApplied int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -925,6 +940,9 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
 			res.verifiedBasis++
 		}
+		if e.Type == "blue_edit" && e.Payload.Bool("applied_verbatim") {
+			res.verbatimApplied++
+		}
 	}
 	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
 		for _, e := range ents {
@@ -1127,6 +1145,7 @@ func TestFuzzDebate(t *testing.T) {
 	citeAnchors, cacheFiles := 0, 0 // dialectic-event coverage across all runs (proves the fuzz emits them)
 	editAnswers := 0                // #267: blue_edit events that carried the provenance key
 	verifiedBasis := 0              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
+	verbatimApplied := 0            // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -1147,6 +1166,7 @@ func TestFuzzDebate(t *testing.T) {
 			cacheFiles += o.cacheFiles
 			editAnswers += o.editAnswers
 			verifiedBasis += o.verifiedBasis
+			verbatimApplied += o.verbatimApplied
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -1157,8 +1177,8 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified",
-		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"])
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -1199,6 +1219,9 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if verifiedBasis == 0 {
 			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", completed)
+		}
+		if verbatimApplied == 0 {
+			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)
 		}
 	}
 	if completed < 40 {
@@ -1245,4 +1268,19 @@ func mintedGapIDs(runDir string) []string {
 		}
 	}
 	return out
+}
+
+// someProposal returns a gap carrying a concrete proposal, with its exact pair, so the fuzz
+// can drive the VERBATIM-application path rather than only the counter-edit one.
+func (r *runner) someProposal() (string, string, string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return "", "", ""
+	}
+	for _, e := range b.Events {
+		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
+			return e.Payload.Str("gap_id"), e.Payload.Str("fix_old"), e.Payload.Str("fix_new")
+		}
+	}
+	return "", "", ""
 }
