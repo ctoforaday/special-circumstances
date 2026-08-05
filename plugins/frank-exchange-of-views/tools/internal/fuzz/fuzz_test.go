@@ -1341,36 +1341,19 @@ func (r *runner) someProposal() (string, string, string) {
 	return "", "", ""
 }
 
-// ---- read-only coverage: the class the event gate is BLIND to ----
-
-// readOnlyCalls tallies every invocation of a verb that RECORDS NOTHING, keyed "<role> <verb>".
+// ---- read-only INVOCATION: the surfaces the event gate is blind to ----
 //
-// WHY A SECOND TALLY EXISTS. The coverage gate below counts EVENT TYPES, so it can only see a
-// verb that writes to the record. Every read-only surface — the four roles' `show`, blue's
-// claim-index, the merge's near-match screen, and the operator renders (graph, count-claims,
-// scorecard, dashboard) — was structurally invisible to it: a regression that made any of them
-// crash on a real run shape would have shipped behind a green fuzz. Measured 2026-08-04: of 44
-// seat verbs, the ones with zero fuzz coverage were ALL of this kind, plus 7 of 9 root commands.
-//
-// Guarded by a mutex because seats run concurrently within a run.
-var (
-	readOnlyMu    sync.Mutex
-	readOnlyCalls = map[string]int{}
-)
+// These verbs RECORD NOTHING, so the event-type gate cannot see them: of 44 seat verbs, every
+// one with zero fuzz coverage was of this kind, plus 7 of 9 root commands. What follows only
+// CALLS them — the counting is done by the execution tally (noteExec), which observes every
+// invocation the harness makes rather than keeping a second ledger of its own.
 
-func noteReadOnly(key string) {
-	readOnlyMu.Lock()
-	readOnlyCalls[key]++
-	readOnlyMu.Unlock()
-}
-
-// readOnly runs a record-nothing seat verb and TALLIES it. A non-zero exit is a finding: these
-// verbs are called mid-round by real prompts, so a crash costs a paid round.
+// readOnly invokes a record-nothing seat verb. r.exec tallies it; a non-zero exit shows up in
+// the report's refusal count, which is where the dead `lens avenue` drive and the misrouted
+// `frontier` registration were both found.
 func (r *runner) readOnly(role, verb, seatID string, extra ...string) {
 	args := append([]string{role, verb, "--seat-id", seatID}, extra...)
-	if _, err := r.exec(args...); err == nil {
-		noteReadOnly(role + " " + verb)
-	}
+	_, _ = r.exec(args...)
 }
 
 // readOnlySurfaces is the CENSUS, not a sample: every record-nothing surface a seat or the
@@ -1408,7 +1391,6 @@ func sweepReadOnly(bin, runDir string) string {
 	if out, err := tracked(bin, dashboardArgv(runDir)...); err != nil {
 		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
 	}
-	noteReadOnly("dashboard")
 	for _, argv := range readOnlySurfaces {
 		args := append(append([]string{}, argv...), "--run", runDir)
 		if len(argv) == 2 && argv[1] == "show" {
@@ -1417,7 +1399,6 @@ func sweepReadOnly(bin, runDir string) string {
 		if out, err := tracked(bin, args...); err != nil {
 			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
 		}
-		noteReadOnly(strings.Join(argv, " "))
 	}
 	return ""
 }
