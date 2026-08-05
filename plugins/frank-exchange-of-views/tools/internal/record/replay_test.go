@@ -607,13 +607,15 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"retire without --reason", "retire", NewPayload().Set("claim", "c"), "retire requires --reason"},
 		{"retire complete", "retire", NewPayload().Set("claim", "c").Set("reason", "r"), ""},
 
-		{"avenue with an unknown status", "avenue", NewPayload().Set("status", "shelved").Set("line", "l"), "avenue requires --status declined|abandoned|pursued"},
-		{"avenue with no status at all", "avenue", NewPayload().Set("line", "l"), "avenue requires --status"},
-		{"avenue without --line", "avenue", NewPayload().Set("status", "pursued"), "avenue requires --line"},
-		{"a declined avenue needs a reason", "avenue", NewPayload().Set("status", "declined").Set("line", "l"), "requires --reason"},
-		{"an abandoned avenue needs a reason", "avenue", NewPayload().Set("status", "abandoned").Set("line", "l"), "requires --reason"},
-		{"a PURSUED avenue does not need a reason", "avenue", NewPayload().Set("status", "pursued").Set("line", "l"), ""},
-		{"a declined avenue with a reason", "avenue", NewPayload().Set("status", "declined").Set("line", "l").Set("reason", "why"), ""},
+		{"avenue with an unknown status", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "shelved").Set("line", "l"), "avenue requires --status"},
+		{"avenue with no status at all", "avenue", NewPayload().Set("avenue_id", "A1").Set("line", "l"), "avenue requires --status"},
+		{"avenue with no id", "avenue", NewPayload().Set("status", "pursued").Set("line", "l"), "avenue requires an id"},
+		{"a deferred avenue needs a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "deferred").Set("line", "l"), "requires --reason"},
+		{"avenue without --line", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "pursued"), "avenue requires --line"},
+		{"a declined avenue needs a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "declined").Set("line", "l"), "requires --reason"},
+		{"an abandoned avenue needs a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "abandoned").Set("line", "l"), "requires --reason"},
+		{"a PURSUED avenue does not need a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "l"), ""},
+		{"a declined avenue with a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "declined").Set("line", "l").Set("reason", "why"), ""},
 
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the

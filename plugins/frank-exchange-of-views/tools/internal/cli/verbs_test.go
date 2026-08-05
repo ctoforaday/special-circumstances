@@ -155,7 +155,7 @@ func TestVerbPayloads(t *testing.T) {
 			typ: "avenue",
 			want: map[string]string{"line": "search the offline archive", "status": "abandoned",
 				"reason": "the archive is unreachable", "method": "full-text search"},
-			says: "avenue recorded (abandoned): search the offline archive",
+			says: "avenue A1 recorded (abandoned): search the offline archive",
 		},
 		{
 			name: "blue confidence records the calibration substrate",

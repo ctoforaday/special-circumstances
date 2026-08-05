@@ -117,6 +117,20 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.33.0 the avenue LIFECYCLE (#246): an avenue was a one-shot append — measured over 86
+//	       events in six runs, ZERO lines were recorded twice, ZERO statuses ever changed, and
+//	       83 of 86 landed in round 0. So "pursued" meant "I intend to", nothing could falsify
+//	       it, and a direction that died mid-run had no way to say so; the rejection rate that
+//	       produced measured only what blue could rule out BEFORE STARTING. Now: the tool
+//	       assigns an id (A1, A2 …), `--hypothesis` states what would be true if the line pays
+//	       off, and `blue avenue --id A1 --status <new> --reason` MOVES it — the move is the
+//	       evidence of choosing the old shape could not record. New `merge rule-avenue --id
+//	       --ruling endorsed|out-of-scope|too-thin --reason` is red's fate for a proposed
+//	       direction (red rejected NONE of 86 across six runs because it had no verb to); a
+//	       ruling is an argument blue may contest through `blue dispute`, never a command, and
+//	       red still never PROPOSES — that is a gap's required_fix. lines-of-inquiry renders
+//	       the path and the ruling, and surfaces avenues still owing a decision. A stale binary
+//	       lacks rule-avenue and the move form.
 //	0.32.0 ESTOPPEL (#267 stage 4, the last): red is bound by the fix it prescribed. `blue edit`
 //	       records applied_verbatim when its old/new are byte-identical to the answered gap's
 //	       fix_old/fix_new — the tool comparing bytes, never a seat claiming it. `merge mint`
@@ -210,7 +224,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.32.0"
+const Version = "0.33.0"
 
 func init() { record.ToolVersion = Version }
 

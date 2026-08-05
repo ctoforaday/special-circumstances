@@ -11,7 +11,7 @@ feov-record: merge: --seat-id is required (the engine assigns it; it is in your 
 $ merge not-a-verb --run {RUN} --seat-id red-merge-r1
 exit 2
 stderr:
-feov-record: verb "not-a-verb" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, near-match, position, closing, verdict, friction, petition, show)
+feov-record: verb "not-a-verb" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, near-match, avenue-rule, position, closing, verdict, friction, petition, show)
 
 ═══ EVENTS ═══
 
@@ -40,4 +40,7 @@ feov-record: verb "not-a-verb" is outside this seat's role (available: register,
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

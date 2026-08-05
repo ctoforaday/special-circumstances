@@ -15,7 +15,7 @@ feov-record: bench: record: opinion --id names gap R2-1, which no mint event cre
 
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl
-{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.32.0"},"round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
+{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.33.0"},"round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
 
 ═══ RENDERS ═══
 -- ledger
@@ -42,4 +42,7 @@ feov-record: bench: record: opinion --id names gap R2-1, which no mint event cre
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

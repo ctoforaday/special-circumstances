@@ -99,7 +99,10 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 		"dispose": NewPayload().Set("disposition", "declined").Set("reason", "r"),
 		"regrade": NewPayload().Set("basis", "b"),
 		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
-		"avenue":  NewPayload().Set("status", "pursued").Set("line", "l"),
+		// avenue_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate
+		// requires it and no flag sets it, so it is not in RequiredFields but must be present
+		// for a complete payload.
+		"avenue": NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "l"),
 		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
 			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("rationale", "r"),
 	} {

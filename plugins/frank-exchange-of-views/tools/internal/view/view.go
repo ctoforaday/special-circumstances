@@ -486,29 +486,67 @@ func changelogMD(b *record.Board) []byte {
 
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(b *record.Board) []byte {
+	// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot avenue entries by
+	// status. An avenue now has an id, a hypothesis, a status that MOVES with a stated
+	// reason, and red's ruling — so the projection renders the DECISION: what was proposed,
+	// what became of it, why, and what red said about it. That sequence is the evidence of
+	// choosing; a flat list by final status records only the outcome.
 	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
-	for _, status := range []string{"pursued", "abandoned", "declined"} {
-		var rows []string
-		for _, e := range b.Events {
-			if e.Type != "avenue" || e.Payload.Str("status") != status {
-				continue
-			}
-			method := ""
-			if m := e.Payload.Str("method"); m != "" {
-				method = fmt.Sprintf(" _(%s)_", m)
-			}
-			reason := e.Payload.Str("reason")
-			if reason != "" {
-				reason = " — " + reason
-			}
-			rows = append(rows, fmt.Sprintf("- **%s**%s%s (%s)", e.Payload.Str("line"), method, reason, e.SeatID))
-		}
+	avs := record.Avenues(b)
+	if len(avs) == 0 {
+		inquiry = append(inquiry, "_No avenues recorded. On a run past round 0 that is itself a finding: the exploration",
+			"either did not happen or was not written down, and a report with no roads-not-taken is",
+			"indistinguishable from one that never looked._", "")
+		return []byte(strings.Join(inquiry, "\n"))
+	}
+	byStatus := map[string][]*record.Avenue{}
+	for _, a := range avs {
+		byStatus[a.Status] = append(byStatus[a.Status], a)
+	}
+	for _, status := range record.AvenueStatuses {
+		rows := byStatus[status]
 		if len(rows) == 0 {
 			continue
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
-		inquiry = append(inquiry, rows...)
+		for _, a := range rows {
+			method := ""
+			if a.Method != "" {
+				method = fmt.Sprintf(" _(%s)_", a.Method)
+			}
+			// The one-line row keeps its shape — line, method, reason, seat — and the
+			// lifecycle adds to it rather than replacing it.
+			head := a.ID + " " + a.Line
+			reason := ""
+			if a.Reason != "" {
+				reason = " — " + a.Reason
+			}
+			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s%s (%s)", head, method, reason, a.SeatID))
+			if a.Hypothesis != "" {
+				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
+			}
+			// The history is what makes a move legible as a CHOICE rather than a state.
+			if len(a.History) > 1 {
+				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
+			}
+			if a.Ruling != "" {
+				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (r%d): %s", a.Ruling, a.RuledRound, a.RulingWhy))
+			}
+		}
 		inquiry = append(inquiry, "")
+	}
+	// The revisit duty, made visible: an avenue still open late in a run is one nobody has
+	// decided. The measured failure was not bad choosing, it was that nothing ever asked
+	// blue to choose again after round 0.
+	if stale := record.StaleAvenues(b); len(stale) > 0 {
+		ids := make([]string, len(stale))
+		for i, a := range stale {
+			ids[i] = a.ID
+		}
+		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
+			"_Still `proposed` or `pursued`: "+strings.Join(ids, ", ")+". Each owes a move or a",
+			"reaffirmation before the run closes — an avenue declared once and never revisited records",
+			"an intention, not a choice._", "")
 	}
 	return []byte(strings.Join(inquiry, "\n") + "\n")
 }

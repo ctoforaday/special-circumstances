@@ -156,6 +156,7 @@ Usage:
   feov-record merge [command]
 
 Available Commands:
+  avenue-rule     rule on a direction blue proposed: --id A1 --ruling endorsed|out-of-scope|too-thin --reason "<why>"
   close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
   closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
   dispose         every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
@@ -196,7 +197,7 @@ Usage:
   feov-record blue [command]
 
 Available Commands:
-  avenue       record a line of inquiry and its fate: --line "<the question or approach>" --status declined|abandoned|pursued --reason "<why not taken, or what killed it>" [--method "<the source class or technique>"]
+  avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
   cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<section + quoted sentence>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
@@ -260,7 +261,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.32.0
+feov-record version 0.33.0
 
 $ feov-record nonsuch help
 exit 2
