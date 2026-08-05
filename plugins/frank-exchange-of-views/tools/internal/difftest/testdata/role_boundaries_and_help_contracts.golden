@@ -1,17 +1,17 @@
 $ lens mint --run {RUN} --seat-id red-lens-r1-L1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, friction, show)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, reproduce, friction, show)
 
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, edit, cite, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "mint" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, edit, cite, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "close" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
@@ -38,6 +38,7 @@ Available Commands:
   friction    attributed friction (survives aborts as an event): --reason
   observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  reproduce   re-RUN a proof blue recorded and compare: --id <sha256 of the proof> — read-only, records nothing (a disagreement is a finding you write yourself)
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry
 
 Flags:
@@ -117,6 +118,7 @@ Available Commands:
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
   petition     petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
   position     the round's ### BLUE section (prose via --reason)
+  prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
   register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
   revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
