@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -102,6 +103,35 @@ func newMint() *cobra.Command {
 			seat.SetList(p, "supersedes", &supersedes)
 			seat.SetList(p, "found_by", &foundBy)
 
+			// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
+			//
+			// A gap whose location is text red PRESCRIBED and blue applied VERBATIM is an
+			// amendment to the gap that prescribed it, not a fresh gap. Measured: 3 of 3 of the
+			// 2026-08-04 smoke's round-2 gaps were about text blue added in round 1 at red's own
+			// instruction, and blue had no channel to say so.
+			//
+			// Red is not silenced — it argues the point on the ORIGINAL gap, where its own
+			// prescription sits on the record beside the complaint, or mints with --supersedes so
+			// the lineage is explicit. What it may not do is open a clean slate against its own
+			// words.
+			//
+			// THE REJECTION IS LOGGED AS FRICTION, not merely refused. A guard that silently
+			// blocks is invisible: this makes "how often does red relitigate its own
+			// prescriptions" a per-run number on the record, which is the measurement of the
+			// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
+			// rejection — the tool records the block, never the seat's memory of it.
+			if board, berr := record.BoardState(s.RunDir); berr == nil {
+				if prior, prescribed := record.EstoppelConflict(board, seat.Str(cmd, flags.Location)); prior != "" &&
+					!contains(supersedes.Value(), prior) {
+					msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
+						prior, prior, prior, prescribed)
+					if _, ferr := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", msg)); ferr != nil {
+						return nil, ferr
+					}
+					return nil, errors.New(msg)
+				}
+			}
+
 			if _, err := record.Append(s.RunDir, s.SeatID, "mint", p); err != nil {
 				return nil, err
 			}
@@ -148,4 +178,15 @@ func (r mintResult) Human() string {
 		return "minted " + r.GapID + " (idempotent retry — existing id returned)"
 	}
 	return "minted " + r.GapID
+}
+
+// contains reports membership, so an --supersedes that already names the estopping gap
+// lets the mint through: declaring the lineage IS the amendment the guard asks for.
+func contains(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
 }

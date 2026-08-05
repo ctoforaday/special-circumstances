@@ -84,6 +84,24 @@ func newEdit() *cobra.Command {
 			p.Set("old", oldStr)
 			p.Set("new", newStr)
 			p.Set("text", reason)
+			// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
+			//
+			// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
+			// complain about at this site BY CONSTRUCTION, not by good behaviour. The fact is
+			// computed here — never claimed by either seat — and `merge mint` reads it to refuse
+			// a fresh gap relitigating text red itself prescribed.
+			//
+			// Blue is not obliged to reach this state: a counter-edit simply does not set the
+			// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
+			if gapID := seat.Str(cmd, flags.Answers); gapID != "" {
+				verbatim, err := record.ProposalAppliedVerbatim(s.RunDir, gapID, oldStr, newStr)
+				if err != nil {
+					return nil, err
+				}
+				if verbatim {
+					p.Set("applied_verbatim", true)
+				}
+			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "blue_edit", p); err != nil {
 				return nil, err
 			}

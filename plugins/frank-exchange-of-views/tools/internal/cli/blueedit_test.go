@@ -384,3 +384,124 @@ func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 		t.Errorf("a refused mint still recorded %d event(s)", n)
 	}
 }
+
+// ---- estoppel: red is bound by the fix it prescribed (#267 stage 4) ----
+
+const prescribedText = "Five verification approaches agree, all sharing one definition of primality."
+
+// mintWithProposal mints a gap carrying a concrete proposal and returns its id.
+func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
+	t.Helper()
+	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", key, "--class", "overclaim", "--location", "§1", "--problem", "the defect",
+		"--fix", "drop the independence claim", "--check", "the section no longer claims it",
+		"--likelihood", "medium", "--impact", "medium",
+		"--fix-old", fixOld, "--fix-new", fixNew)
+	if err != nil {
+		t.Fatalf("mint with proposal: %v", err)
+	}
+	return gapID(out)
+}
+
+// seedProposalApplied mints a proposal and has blue apply it VERBATIM, which is the only
+// state that estops red.
+func seedProposalApplied(t *testing.T, runDir string) string {
+	t.Helper()
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	// A first gap so the class exists, then the one that carries the proposal.
+	mintGap(t, runDir, "G0", "overclaim")
+	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
+	registerBlue(t, runDir)
+	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E1", "--answers", gap,
+		"--old", "Five independent verification approaches agree", "--new", prescribedText,
+		"--reason", "applying red's proposed text verbatim"); err != nil {
+		t.Fatalf("blue applying red's proposal: %v", err)
+	}
+	return gap
+}
+
+// Applying red's exact text is recorded by the TOOL comparing bytes — never claimed.
+func TestApplyingRedsProposalVerbatimIsRecorded(t *testing.T) {
+	runDir := t.TempDir()
+	seedProposalApplied(t, runDir)
+	if !lastOfType(t, runDir, "blue_edit").Payload.Bool("applied_verbatim") {
+		t.Error("an edit identical to red's proposal was not recorded as verbatim, so nothing estops red")
+	}
+}
+
+// A counter-edit does NOT set the flag: blue's right to disagree stays real, and the text it
+// authored stays auditable.
+func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
+	runDir := t.TempDir()
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	mintGap(t, runDir, "G0", "overclaim")
+	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
+	registerBlue(t, runDir)
+	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E1", "--answers", gap,
+		"--old", "Five independent verification approaches agree", "--new", "Five approaches agree, on one shared definition",
+		"--reason", "red's wording overstates it; mine is tighter"); err != nil {
+		t.Fatalf("counter-edit: %v", err)
+	}
+	if lastOfType(t, runDir, "blue_edit").Payload.Bool("applied_verbatim") {
+		t.Error("a counter-edit was recorded as verbatim application — blue's own text would then estop red")
+	}
+}
+
+// THE GUARD. A fresh gap located in text red prescribed and blue applied verbatim is
+// refused, and the refusal is LOGGED AS FRICTION so the pathology is countable rather than
+// silently prevented.
+func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
+	runDir := t.TempDir()
+	prior := seedProposalApplied(t, runDir)
+
+	before := countType(t, runDir, "mint")
+	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+		"--key", "G2", "--class", "overclaim", "--location", prescribedText,
+		"--problem", "this sentence overclaims", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium")
+	if err == nil {
+		t.Fatal("red opened a fresh gap against text it prescribed itself")
+	}
+	for _, want := range []string{"estoppel", prior, "--supersedes"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name %q so red knows where to argue it: %v", want, err)
+		}
+	}
+	if n := countType(t, runDir, "mint"); n != before {
+		t.Errorf("a refused mint still landed on the board (%d -> %d)", before, n)
+	}
+	// A guard that silently blocks is invisible.
+	if countType(t, runDir, "friction") == 0 {
+		t.Error("the estoppel rejection logged no friction — the block is unmeasurable, which is how a dead guard survives")
+	}
+}
+
+// RED IS NOT SILENCED. Declaring the lineage IS the amendment the guard asks for, so a mint
+// naming the estopping gap in --supersedes goes through.
+func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
+	runDir := t.TempDir()
+	prior := seedProposalApplied(t, runDir)
+
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+		"--key", "G2", "--class", "overclaim", "--location", prescribedText,
+		"--problem", "my own fix turned out to contradict §3", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium",
+		"--supersedes", prior); err != nil {
+		t.Fatalf("red was blocked from AMENDING its own prescription, which the guard must allow: %v", err)
+	}
+}
+
+// Text blue authored is auditable normally — the guard is not a shield over the report.
+func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
+	runDir := t.TempDir()
+	seedProposalApplied(t, runDir)
+
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+		"--key", "G2", "--class", "overclaim", "--location", "§4 \"an entirely different claim about sieve costs\"",
+		"--problem", "unsupported", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium"); err != nil {
+		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
+	}
+}
