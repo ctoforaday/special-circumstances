@@ -117,6 +117,17 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.31.0 concrete fix proposals + derived fix_basis (#267 stage 3): `merge mint` takes an
+//	       OPTIONAL `--fix-old`/`--fix-new` pair for TEXTUAL defects. The tool validates it against
+//	       the live report — present, unique, no word split, anchors transit unchanged — so red
+//	       cannot state one without reading the text it prescribes against; that forced re-read is
+//	       the check whose absence produced 3 of 3 round-2 gaps in the 2026-08-04 smoke. A
+//	       replacement more than 120 characters longer than its span is REFUSED as authoring
+//	       (measured: every prescribed ADDITION in that smoke was +285 or more, textual repairs
+//	       +60 or less). `fix_basis` is DERIVED from the pair validating — there is no flag to
+//	       claim it. The checks moved to a new internal/bluedoc so `blue edit` and `merge mint`
+//	       ask one implementation, not two. A stale binary rejects --fix-old, failing the mint
+//	       red's prompt now instructs.
 //	0.30.0 the `changes` view (#268): the `blue_edit` diff stack has been recorded since 0.27.0
 //	       and NO projection rendered it — written by one seat, read by nobody, while `changelog`
 //	       rendered faithfully from a `revision` event no seat emits. `show --view changes` lists
@@ -188,7 +199,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.30.0"
+const Version = "0.31.0"
 
 func init() { record.ToolVersion = Version }
 

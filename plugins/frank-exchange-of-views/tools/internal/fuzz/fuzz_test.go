@@ -292,6 +292,21 @@ func (r *runner) mint(seatID string) string {
 	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
 		args = append(args, "--supersedes", open[r.rng.Intn(len(open))]) // lineage: this gap replaces an ancestor
 	}
+	// #267 stage 3: a CONCRETE proposed fix, which the tool validates against the live report
+	// and which DERIVES fix_basis: verified. It swaps the seeded edit-target sentence, exactly
+	// as blue's own edit drive does, so a legal pair exists whichever way the last edit left
+	// the file — and both branches (proposal present / prose only) run across the sweep.
+	if r.coin(40) {
+		if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil {
+			fixOld, fixNew := "rising over time", "climbing sharply"
+			if !strings.Contains(string(cur), fixOld) {
+				fixOld, fixNew = fixNew, fixOld
+			}
+			if strings.Contains(string(cur), fixOld) {
+				args = append(args, "--fix-old", fixOld, "--fix-new", fixNew)
+			}
+		}
+	}
 	out, err := r.exec(args...)
 	if err != nil {
 		return ""
@@ -701,6 +716,10 @@ type outcome struct {
 	// by ANY blue_edit, so an edit drive that never sent the flag would pass it silently —
 	// exactly the false green the citation counters exist to prevent for cite.
 	editAnswers int
+	// #267 stage 3: gaps whose fix_basis was EARNED by a validated concrete proposal. The
+	// mint verb gate is satisfied by any mint, so a proposal path that stopped validating
+	// would pass it while the axis quietly went all-prose.
+	verifiedBasis int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -903,6 +922,9 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		if e.Type == "blue_edit" && e.Payload.Str("answers") != "" {
 			res.editAnswers++
 		}
+		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
+			res.verifiedBasis++
+		}
 	}
 	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
 		for _, e := range ents {
@@ -1104,6 +1126,7 @@ func TestFuzzDebate(t *testing.T) {
 	dcov := map[string]int{}
 	citeAnchors, cacheFiles := 0, 0 // dialectic-event coverage across all runs (proves the fuzz emits them)
 	editAnswers := 0                // #267: blue_edit events that carried the provenance key
+	verifiedBasis := 0              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -1123,6 +1146,7 @@ func TestFuzzDebate(t *testing.T) {
 			citeAnchors += o.citeAnchors
 			cacheFiles += o.cacheFiles
 			editAnswers += o.editAnswers
+			verifiedBasis += o.verifiedBasis
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -1133,8 +1157,8 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers",
-		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"])
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"])
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -1172,6 +1196,9 @@ func TestFuzzDebate(t *testing.T) {
 		// measurement reads went silently missing.
 		if editAnswers == 0 {
 			t.Errorf("fuzz recorded ZERO blue_edit events carrying --answers across %d runs — the provenance key is unexercised (false green)", completed)
+		}
+		if verifiedBasis == 0 {
+			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", completed)
 		}
 	}
 	if completed < 40 {

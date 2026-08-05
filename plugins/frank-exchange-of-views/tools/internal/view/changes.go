@@ -99,6 +99,23 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 			// leaves the remedy to blue. Naming that is not the same as an empty field.
 			out = append(out, "_No required_fix was prescribed — red stated the defect and left the remedy to blue._", "")
 		}
+		// The CONCRETE proposal, when red made one. Shown as the diff blue could apply
+		// verbatim — and labelled with what applying it costs and does not cost, because the
+		// cheapest path is always compliance and that gradient should be visible, not felt.
+		if fo, fn := g.Mint.Str("fix_old"), g.Mint.Str("fix_new"); fo != "" || fn != "" {
+			out = append(out,
+				"**Red proposed exact text** (`fix_basis: "+g.Mint.Str("fix_basis")+"` — red stated this against the live document, so it applies cleanly):",
+				"",
+				"```diff",
+				"- "+oneLine(fo),
+				"+ "+oneLine(fn),
+				"```",
+				"",
+				"Blue is NOT obliged to apply it. Three paths stay open: apply it verbatim, counter-edit with",
+				"blue's own fix, or dispute. Applying is the cheapest, which is exactly why declining has to",
+				"stay a real option — a run in which blue never declines is manufacturing agreement, not earning it.",
+				"")
+		}
 		if check := g.Mint.Str("acceptance_check"); check != "" {
 			out = append(out, "**Acceptance check** (what red runs at re-audit): "+check, "")
 		}
