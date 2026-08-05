@@ -39,6 +39,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -418,6 +419,11 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.maybe(45, func() {
 			r.do("merge", "spot-check", seatID).bare("--none").set("--reason", "fuzz: nothing to sample").run()
 		})
+		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
+		// left no event and no gate saw it — while the merge prompt calls it every round.
+		r.maybe(40, func() {
+			r.readOnly("merge", "near-match", seatID, "--candidate", "fuzz candidate problem text for screening")
+		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
 		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
@@ -491,6 +497,11 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			c.run()
 		})
+		// READ-ONLY, PROMPT-CALLED, AND PREVIOUSLY UNFUZZED. claim-index records nothing, so the
+		// event-type coverage gate cannot see it — yet blue's response prompt tells blue to call
+		// it when propagating a correction to every site of a claim. A crash here costs a real
+		// round; no gate would have noticed.
+		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
 			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
@@ -915,6 +926,13 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			return res
 		}
 	}
+	// Oracle 1d: THE READ-ONLY CENSUS. Every record-nothing surface must survive whatever
+	// shape this run reached. These emit no events, so the verb-coverage gate below is blind
+	// to them by construction — this is the only thing that exercises them at all.
+	if msg := sweepReadOnly(bin, runDir); msg != "" {
+		res.err = msg
+		return res
+	}
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
@@ -1003,7 +1021,12 @@ var verbsWithEvents = []string{
 	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
 	"confidence", "cite", "finding", "observe", "avenue", "friction", "revision", "retire",
 	"manifest-row", "dispose", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
-	"blue_edit",
+	// Added 2026-08-04 by a census of every type record.Append can write: these three were
+	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
+	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
+	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
+	// write, `outcome` is the bench's.
+	"blue_edit", "anchor", "class-new", "outcome",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -1231,6 +1254,29 @@ func TestFuzzDebate(t *testing.T) {
 			}
 		}
 	}
+	// READ-ONLY COVERAGE GATE. The verb gate above counts EVENT TYPES and cannot see a verb
+	// that records nothing; this asserts every record-nothing surface actually ran. Both the
+	// census entries and the two prompt-called seat verbs are checked, because "we added the
+	// drive" and "the drive still fires" are different claims and only the second one matters.
+	if completed >= 40 {
+		var unreached []string
+		for _, argv := range readOnlySurfaces {
+			if k := strings.Join(argv, " "); readOnlyCalls[k] == 0 {
+				unreached = append(unreached, k)
+			}
+		}
+		for _, k := range []string{"blue claim-index", "merge near-match", "dashboard"} {
+			if readOnlyCalls[k] == 0 {
+				unreached = append(unreached, k)
+			}
+		}
+		sort.Strings(unreached)
+		if len(unreached) > 0 {
+			t.Errorf("%d read-only surface(s) never ran across %d runs — they record nothing, so NO other gate can see them (false green): %s",
+				len(unreached), completed, strings.Join(unreached, ", "))
+		}
+		t.Logf("read-only surfaces exercised: %d distinct, %d invocations", len(readOnlyCalls), sumCounts(readOnlyCalls))
+	}
 	if len(failures) > 0 {
 		show := failures
 		if len(show) > 8 {
@@ -1283,4 +1329,107 @@ func (r *runner) someProposal() (string, string, string) {
 		}
 	}
 	return "", "", ""
+}
+
+// ---- read-only coverage: the class the event gate is BLIND to ----
+
+// readOnlyCalls tallies every invocation of a verb that RECORDS NOTHING, keyed "<role> <verb>".
+//
+// WHY A SECOND TALLY EXISTS. The coverage gate below counts EVENT TYPES, so it can only see a
+// verb that writes to the record. Every read-only surface — the four roles' `show`, blue's
+// claim-index, the merge's near-match screen, and the operator renders (graph, count-claims,
+// scorecard, dashboard) — was structurally invisible to it: a regression that made any of them
+// crash on a real run shape would have shipped behind a green fuzz. Measured 2026-08-04: of 44
+// seat verbs, the ones with zero fuzz coverage were ALL of this kind, plus 7 of 9 root commands.
+//
+// Guarded by a mutex because seats run concurrently within a run.
+var (
+	readOnlyMu    sync.Mutex
+	readOnlyCalls = map[string]int{}
+)
+
+func noteReadOnly(key string) {
+	readOnlyMu.Lock()
+	readOnlyCalls[key]++
+	readOnlyMu.Unlock()
+}
+
+// readOnly runs a record-nothing seat verb and TALLIES it. A non-zero exit is a finding: these
+// verbs are called mid-round by real prompts, so a crash costs a paid round.
+func (r *runner) readOnly(role, verb, seatID string, extra ...string) {
+	args := append([]string{role, verb, "--seat-id", seatID}, extra...)
+	if _, err := r.exec(args...); err == nil {
+		noteReadOnly(role + " " + verb)
+	}
+}
+
+// readOnlySurfaces is the CENSUS, not a sample: every record-nothing surface a seat or the
+// operator can reach, with the argv that exercises it. Adding a read-only verb without adding
+// it here leaves it unfuzzed, and the gate below is what says so out loud.
+//
+// `setup` and `capture` are deliberately absent and that is stated rather than silently
+// omitted: setup CREATES a run (the fuzz builds its run dir directly, so driving setup would
+// mean fuzzing a different thing), and capture needs a transcript directory the harness has no
+// analogue for. Both carry their own package tests. `hook` reads a JSON payload on stdin rather
+// than argv and is covered by internal/cli's hook tests.
+var readOnlySurfaces = [][]string{
+	// Every role's `show` with NO --view, which resolves that role's DEFAULT view. Only the
+	// merge's was ever driven, so a regression in any other role's default was invisible.
+	{"lens", "show"}, {"merge", "show"}, {"blue", "show"}, {"bench", "show"},
+	// The operator renders, over whatever shape the run actually reached.
+	{"graph", "--format", "mermaid"},
+	{"graph", "--format", "dot"},
+	{"count-claims"},
+	{"scorecard", "--chair", "red"},
+}
+
+// dashboardArgv is separate because `dashboard` is POSITIONAL — `dashboard <runDir>
+// <transcript-dir>` — not `--run`. Discovered by this very census: the first version of it
+// passed --run and dashboard failed on all 60 runs with a usage error, which is the census
+// working (the surface had never been driven, so nothing here was known).
+func dashboardArgv(runDir string) []string { return []string{"dashboard", runDir, runDir} }
+
+// sweepReadOnly runs the census against a finished run and reports the first surface that
+// fails. Run AFTER the debate so the state is arbitrary rather than empty — an empty run
+// proves only that nothing crashed on nothing.
+func sweepReadOnly(bin, runDir string) string {
+	// The transcript dir is the run dir here: dashboard tolerates finding no agent-*.jsonl,
+	// and what is under test is that it RENDERS whatever board shape the run reached.
+	if out, err := exec.Command(bin, dashboardArgv(runDir)...).CombinedOutput(); err != nil {
+		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
+	}
+	noteReadOnly("dashboard")
+	for _, argv := range readOnlySurfaces {
+		args := append(append([]string{}, argv...), "--run", runDir)
+		if len(argv) == 2 && argv[1] == "show" {
+			args = append(args, "--seat-id", seatFor(argv[0]))
+		}
+		if out, err := exec.Command(bin, args...).CombinedOutput(); err != nil {
+			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
+		}
+		noteReadOnly(strings.Join(argv, " "))
+	}
+	return ""
+}
+
+// seatFor returns a seat id bound to the role, since `show` is role-scoped like any verb.
+func seatFor(role string) string {
+	switch role {
+	case "lens":
+		return "red-lens-r1-L1"
+	case "merge":
+		return "red-merge-r1"
+	case "blue":
+		return "blue-respond-r1"
+	default:
+		return "judge-r1"
+	}
+}
+
+func sumCounts(m map[string]int) int {
+	n := 0
+	for _, v := range m {
+		n += v
+	}
+	return n
 }
