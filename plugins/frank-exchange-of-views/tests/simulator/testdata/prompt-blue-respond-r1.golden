@@ -1,4 +1,4 @@
-prompt sha256: 482f5cd5369a5771559ba5d8bc7b130ecbf806fd55846379a9a6419b9d5faedb
+prompt sha256: 90c6b1406140fd56f4bf85e6cb08ee035ea88954779ff232fd477942067148f4
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -6,7 +6,8 @@ FIRST ACTION (read batching, W1.12): concatenate your working set with a single 
 REPORT.MD IS READ-ONLY TO YOU (the lockdown): you change research/2026-01-01_golden/blue/report.md ONLY through feov-record blue edit --old "<exact current span>" --new "<replacement>" --reason "<why>" [--answers <gap-id>] — it matches your old span across the invisible anchor layer and REJECTS an edit that CHANGES WHICH ANCHORS EXIST — a `<!--fx:...-->` finding marker or a `<!--cite:...-->` citation anchor may travel THROUGH your edit, but never be dropped, duplicated or invented by one.
 WHERE RED PROPOSED EXACT TEXT (a gap carrying fix_old/fix_new, fix_basis: verified), you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it.
 Applying is the cheapest — a counter-edit costs a round and invites re-audit, a dispute needs red's agreement — so say plainly in --reason which path you took and why.
-A round in which you never decline is not agreement, it is capitulation, and it is measured.
+A round in which you never decline is not agreement, it is capitulation, and it IS measured — the changes view prints offered/applied/declined every round, and a zero decline rate is read as a question about red's proposals, not as evidence they were all right.
+Applying red's exact text also ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
 WHEN THE EDIT ANSWERS A GAP, NAME IT WITH --answers <gap-id>: that is the join key between the fix red asked for and the change you actually made, and it is the ONLY place that link is recorded.
 Writing the gap id into --reason instead is REFUSED by the tool (prose is your argument, not a key); omit --answers only for an edit that answers no gap, such as your own clarity or punctuation repair.
 If your span contains an anchor, reproduce it EXACTLY in --new (copy the token verbatim, anywhere in the replacement); the tool compares the anchors in --old against --new and refuses any mismatch.

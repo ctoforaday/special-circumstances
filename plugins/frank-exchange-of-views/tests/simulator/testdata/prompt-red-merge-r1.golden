@@ -1,4 +1,4 @@
-prompt sha256: b2fced85b5d670dd44be2e8fdf2657654a3bab0c43530dde24b30dcfeedc2bb2
+prompt sha256: 307c149274ceb31c64cde7d8512b50a5ea0dccd396e9b3c3cf72df1474188a19
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -38,7 +38,12 @@ DID BLUE ACTUALLY DO WHAT YOU ASKED?
 Before closing a gap you prescribed a fix for, put the two side by side (feov-record merge show --view changes --id <gap>): it prints your required_fix and acceptance_check above the exact old->new spans blue recorded against them.
 This does NOT replace the lens re-read of the report — a span out of context misleads on research prose — it replaces INFERRING whether your prescription was answered.
 Two shapes worth naming: NONE recorded against an open gap (blue answered nothing, or answered without --answers), and a change that does not meet your own acceptance_check.
-AND CHECK YOURSELF: if the defect you are about to raise lives in text blue added at YOUR instruction, that is an amendment to the gap that prescribed it, not a fresh gap — 3 of 3 round-2 gaps in the 2026-08-04 smoke were text blue added in round 1 because red asked for it.
+ESTOPPEL IS ENFORCED NOW, NOT ADVISED: if the defect you are about to raise lives in text blue applied VERBATIM from your own --fix-new, the mint is REFUSED and the refusal is logged as friction.
+You are not silenced — argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint with --supersedes <that gap> so the lineage is explicit.
+What you may not do is open a clean slate against your own words.
+And when blue applied your exact text, your prescription HAS been satisfied at that site by construction: close the gap unless you can state what your own acceptance_check still fails.
+The guard only catches text blue took verbatim — text blue COUNTER-EDITED is blue's authorship and you audit it normally.
+This is an amendment to the gap that prescribed it, not a fresh gap — 3 of 3 round-2 gaps in the 2026-08-04 smoke were text blue added in round 1 because red asked for it.
 Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, evidence-rebutted, or risk-accepted.
 Append the round-1 "### RED" section to research/2026-01-01_golden/debate.md per the debate template.
 CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, also append a "### RED CLOSING (round 1)" entry to research/2026-01-01_golden/debate.md — max 120 words per item: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far.
