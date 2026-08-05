@@ -175,3 +175,53 @@ func ExistingProofByKey(runDir, seatID, key string) (string, error) {
 	}
 	return "", nil
 }
+
+// Proof is one recorded computation, drawn from a blue `prove` event — the composer input
+// for the assembled report's Proofs section and the handle red re-runs.
+type Proof struct {
+	Label  string // the p-<hex> anchor id
+	SHA    string
+	Basis  string
+	Script string
+	Exit   int
+	Cites  string // the METHOD citation this applies, when blue named one
+	Reason string
+	Drift  string
+}
+
+// RecordedProofs returns every proof on the record, in event order.
+//
+// The OUTPUT and the SCRIPT BODY are deliberately not here: they live on disk under
+// <run>/proofs/<sha256>/ and can be large. The assembler reads them from the artifact so the
+// report shows the exact bytes that ran, rather than a copy the record made of them.
+func RecordedProofs(runDir string) ([]Proof, error) {
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return nil, err
+	}
+	var out []Proof
+	for _, e := range m.Events {
+		if e.Type != "proof" {
+			continue
+		}
+		exit := 0
+		if v, ok := e.Payload.Get("exit"); ok {
+			if f, isNum := v.(float64); isNum {
+				exit = int(f)
+			} else if i, isInt := v.(int); isInt {
+				exit = i
+			}
+		}
+		out = append(out, Proof{
+			Label:  e.Payload.Str("proof_id"),
+			SHA:    e.Payload.Str("sha256"),
+			Basis:  e.Payload.Str("proof_basis"),
+			Script: e.Payload.Str("script"),
+			Exit:   exit,
+			Cites:  e.Payload.Str("cites"),
+			Reason: e.Payload.Str("text"),
+			Drift:  e.Payload.Str("drift"),
+		})
+	}
+	return out, nil
+}
