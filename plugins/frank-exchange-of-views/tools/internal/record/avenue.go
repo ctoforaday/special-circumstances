@@ -1,9 +1,6 @@
 package record
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // AVENUES HAVE A LIFECYCLE NOW, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
 //
@@ -25,7 +22,12 @@ import (
 // AvenueStatuses are the states an avenue may hold. `proposed` is the new one: a direction
 // blue has put forward and not yet resolved, which is the state the old shape could not
 // express at all (everything had to be declared already-pursued or already-dead).
-var AvenueStatuses = []string{"proposed", "pursued", "declined", "abandoned"}
+// `deferred` is the fate that had no name: a direction worth taking, and not by THIS run.
+// It is not `declined` (judged not worth it) and not `abandoned` (tried, died) — it is kept,
+// and it is the carrier for bootstrapping a later run. Deliberately a PROPOSAL for a human
+// to select rather than a seed: a run that queues its own successor is a loop with no human
+// in it.
+var AvenueStatuses = []string{"proposed", "pursued", "declined", "abandoned", "deferred"}
 
 // AvenueRulings are red's fates for a proposed direction. Red AUDITS and RULES; it never
 // proposes one — directing research is what a gap's required_fix already does, and a second
@@ -76,25 +78,13 @@ func Avenues(b *Board) []*Avenue {
 	for _, e := range b.Events {
 		id := e.Payload.Str("avenue_id")
 		if id == "" {
-			// LEGACY EVENTS STILL RENDER. Every avenue recorded before this change carries no
-			// id — 86 of them across six runs. Skipping them would make every existing run's
-			// exploration section read "No avenues recorded", which is the worst possible
-			// failure for a projection whose whole job is showing the roads not taken: it
-			// does not look broken, it looks like nobody explored. They key on their line
-			// text and render without an id, since they have no lifecycle to point at.
-			if e.Type != "avenue" {
-				continue
-			}
-			id = "line:" + e.Payload.Str("line")
+			continue
 		}
 		switch e.Type {
 		case "avenue":
 			a, ok := byID[id]
 			if !ok {
 				a = &Avenue{ID: id}
-				if strings.HasPrefix(id, "line:") {
-					a.ID = "" // legacy: no id was ever assigned, so none is shown
-				}
 				byID[id] = a
 				order = append(order, id)
 			}
@@ -152,11 +142,6 @@ func RequireAvenueRef(runDir, id string) error {
 func StaleAvenues(b *Board) []*Avenue {
 	var out []*Avenue
 	for _, a := range Avenues(b) {
-		// A LEGACY avenue has no id, so there is nothing to move: demanding a decision on a
-		// pre-lifecycle record would report a duty no seat can discharge.
-		if a.ID == "" {
-			continue
-		}
 		if a.Status == "proposed" || a.Status == "pursued" {
 			out = append(out, a)
 		}

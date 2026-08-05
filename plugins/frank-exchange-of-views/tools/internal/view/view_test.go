@@ -447,10 +447,10 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", record.NewPayload().Set("text", "blue says otherwise")),
 		ev(blue, "bbbbbbbb", 1, 1, "revision", blue+":revision", record.NewPayload().Set("text", "blue revised")),
 		ev(blue, "bbbbbbbb", 2, 1, "avenue", blue+":avenue:a1", record.NewPayload().
-			Set("label", "a1").Set("status", "abandoned").Set("line", "try the archive").
+			Set("avenue_id", "A1").Set("status", "abandoned").Set("line", "try the archive").
 			Set("method", "full-text search").Set("reason", "the archive is offline")),
 		ev(blue, "bbbbbbbb", 3, 1, "avenue", blue+":avenue:a2", record.NewPayload().
-			Set("label", "a2").Set("status", "pursued").Set("line", "read the source")),
+			Set("avenue_id", "A2").Set("status", "pursued").Set("line", "read the source")),
 	})
 	writeShard(t, runDir, judge, "cccccccc", []record.Event{
 		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", record.NewPayload().
@@ -483,7 +483,7 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 	if pursuedAt < 0 || abandonedAt < 0 || pursuedAt > abandonedAt {
 		t.Errorf("lines-of-inquiry sections are wrong or out of order:\n%s", inquiry)
 	}
-	if !strings.Contains(inquiry, "- **try the archive** _(full-text search)_ — the archive is offline (blue-lane-1)") {
+	if !strings.Contains(inquiry, "- **A1 try the archive** _(full-text search)_ — the archive is offline (blue-lane-1)") {
 		t.Errorf("an abandoned avenue row is wrong:\n%s", inquiry)
 	}
 	if strings.Contains(inquiry, "## declined") {

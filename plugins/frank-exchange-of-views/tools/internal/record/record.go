@@ -647,6 +647,13 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			return fmt.Errorf("record: avenue-rule requires --reason — an unreasoned ruling is the decoration blue cannot contest, and contesting it through `blue dispute` is the whole reason a ruling is not a command")
 		}
 	case "avenue":
+		// EVERY AVENUE HAS AN ID, exactly as every gap, finding and citation does. Records
+		// written before the lifecycle existed carry none and no longer replay — deliberate:
+		// a compatibility path for one subsystem is an asymmetry every reader then has to
+		// learn, and the corpus it would preserve is six exploratory runs, not production.
+		if p.Str("avenue_id") == "" {
+			return fmt.Errorf("record: avenue requires an id — the tool assigns one on a proposal and --id names it on a move; an avenue with no identity has no lifecycle and cannot be ruled on or revisited")
+		}
 		// A MOVE (--id) carries only the new status and its reason; the substance lives on
 		// the proposal it moves, so requiring --line here would make a move impossible.
 		if p.Str("supersedes_status") == "" && (!p.Has("line") || p.Str("line") == "") {
@@ -659,6 +666,9 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// reason rule fires first and a typo'd status is reported as a missing reason.
 		declared, _ := Enum("avenue", "status")
 		if st := p.Str("status"); declared.Allows(st) && st != "pursued" && st != "proposed" && (!p.Has("reason") || p.Str("reason") == "") {
+			if st == "deferred" {
+				return fmt.Errorf("record: a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
+			}
 			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
 		}
 	case "halt":

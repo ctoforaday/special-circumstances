@@ -81,8 +81,8 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"acceptance_check", "race the eviction under -race", "required_fix", "take the read lock in evict")
 	add("red-merge-r1", "position", "text", "gap R1-1 stands until the race is shown impossible")
 	add("blue-r1", "position", "text", "R1-1 is repaired by ordering the invalidation before the store")
-	add("blue-r1", "avenue", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
-	add("blue-r1", "avenue", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
+	add("blue-r1", "avenue", "avenue_id", "A1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
+	add("blue-r1", "avenue", "avenue_id", "A2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
 	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
 		"tension", "cost vs certainty", "review_flag", "false", "rationale", "a model-check is owed before this closes")
 	add("judge-terminal", "outcome", "verdict", "CEILING")

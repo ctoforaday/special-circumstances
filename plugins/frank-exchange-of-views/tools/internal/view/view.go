@@ -514,13 +514,9 @@ func inquiryMD(b *record.Board) []byte {
 			if a.Method != "" {
 				method = fmt.Sprintf(" _(%s)_", a.Method)
 			}
-			// THE ONE-LINE ROW IS AN EXISTING CONTRACT — line, method, reason, seat — and the
-			// lifecycle adds to it rather than replacing it. A legacy avenue has no id and
-			// renders exactly as it always did.
-			head := a.Line
-			if a.ID != "" {
-				head = a.ID + " " + a.Line
-			}
+			// The one-line row keeps its shape — line, method, reason, seat — and the
+			// lifecycle adds to it rather than replacing it.
+			head := a.ID + " " + a.Line
 			reason := ""
 			if a.Reason != "" {
 				reason = " — " + a.Reason
