@@ -18,10 +18,12 @@ import (
 // (`anchor`, `class-new`, `outcome`) were appendable by the tool and absent from the list,
 // and 18 of 44 seat verbs plus 7 of 9 root commands had no fuzz coverage at all. Every one
 // of the uncovered seat verbs was READ-ONLY — the event gate is blind to those by
-// construction, which is exactly why a second gate exists (readOnlySurfaces).
+// construction, which is why the command-path gate exists alongside this one.
 //
-// These two tests replace the hand census with a standing one. They walk the real source,
-// so adding a verb without adding its coverage fails here rather than shipping quiet.
+// This walks the real source, so adding a verb that writes a new event type without adding
+// it to the gate fails here rather than shipping quiet. The COMMAND-PATH half of the same
+// question is answered in trajectory_test.go, from the cobra tree and what the harness
+// execution tally — neither of them a hand-written list of what exists.
 
 // appendCall matches `record.Append(runDir, seatID, "type"` and the in-package `Append(...)`.
 var appendCall = regexp.MustCompile(`\bAppend\([^,)]+,\s*[^,)]+,\s*"([a-z_-]+)"`)
@@ -70,51 +72,6 @@ func TestEveryAppendableEventTypeIsInTheCoverageGate(t *testing.T) {
 	if len(ungated) > 0 {
 		t.Errorf("%d event type(s) the tool can write are NOT in verbsWithEvents, so the sweep reports coverage it does not have:\n  %s\nAdd them to the list (and drive them, if nothing does yet).",
 			len(ungated), strings.Join(ungated, "\n  "))
-	}
-}
-
-// TestEverySeatVerbIsEitherDrivenOrDeclaredReadOnly asserts the OTHER half: a verb that
-// records nothing cannot be caught by the event gate, so it must appear in the read-only
-// census instead. Between the two, a seat verb has nowhere to hide.
-//
-// The census is checked against the REAL command tree rather than a second hand-written
-// list, for the same reason the vocabulary gate walks cobra: a list that nothing derives
-// from the code is a comment.
-func TestEverySeatVerbIsEitherDrivenOrDeclaredReadOnly(t *testing.T) {
-	// Verbs whose absence from both gates is DELIBERATE, each with the reason. Anything not
-	// listed here and not covered is a real gap.
-	exempt := map[string]string{
-		"lens register":  "driven by r.register on every seat, before any verb runs",
-		"merge register": "driven by r.register on every seat, before any verb runs",
-		"blue register":  "driven by r.register on every seat, before any verb runs",
-		"bench register": "driven by r.register on every seat, before any verb runs",
-		"lens friction":  "the friction verb is driven role-generically (see the friction tally)",
-		"merge friction": "the friction verb is driven role-generically",
-		"blue friction":  "the friction verb is driven role-generically",
-		"bench friction": "the friction verb is driven role-generically",
-	}
-
-	// The record-nothing verbs the census must name.
-	readOnlyVerbs := map[string]bool{
-		"lens show": true, "merge show": true, "blue show": true, "bench show": true,
-		"blue claim-index": true, "merge near-match": true,
-	}
-
-	censused := map[string]bool{"blue claim-index": true, "merge near-match": true}
-	for _, argv := range readOnlySurfaces {
-		censused[strings.Join(argv, " ")] = true
-	}
-
-	var missing []string
-	for verb := range readOnlyVerbs {
-		if !censused[verb] && exempt[verb] == "" {
-			missing = append(missing, verb)
-		}
-	}
-	sort.Strings(missing)
-	if len(missing) > 0 {
-		t.Errorf("%d record-nothing seat verb(s) are in neither gate — nothing exercises them and nothing says so:\n  %s",
-			len(missing), strings.Join(missing, "\n  "))
 	}
 }
 

@@ -39,7 +39,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -243,6 +242,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
+	noteExec(args, err)
 	return string(out), err
 }
 
@@ -405,14 +405,27 @@ func (r *runner) extras(role, seatID string, open []string) {
 	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
 	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
 	avenue := func(role string) {
-		r.do(role, "avenue", seatID).set("--status", pick(r.rng, avenueStatus)).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method").run()
+		// A DECLINED OR ABANDONED avenue requires --reason (record.go: an unexplained
+		// non-pursuit is the decoration this verb exists to refuse). Without it two of the
+		// three statuses were rejected on every call, so only `pursued` ever reached the
+		// record while the verb gate read as covered. Found by the execution tally
+		// (blue avenue: 48 of 72 calls refused).
+		st := pick(r.rng, avenueStatus)
+		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method")
+		if st != "pursued" {
+			c = c.set("--reason", "fuzz: why this line was not pursued")
+		}
+		c.run()
 	}
 	switch role {
 	case "lens":
 		r.maybe(45, func() {
 			r.do("lens", "observe", seatID).set("--label", fmt.Sprintf("O%d", r.rng.Intn(1_000_000))).set("--kind", pick(r.rng, obsKind)).set("--reason", "fuzz observation").run()
 		})
-		r.maybe(45, func() { avenue("lens") })
+		// NO avenue DRIVE HERE: the lens role has no avenue verb (register/finding/observe/
+		// cite/friction/show). This called it 183 times per sweep, every one refused, while
+		// the verb gate stayed green on blue's avenue events — a dead drive that read as
+		// coverage. Found by the execution tally (lens avenue: 183 of 183 refused).
 	case "merge":
 		// W1.8 archive spot-check — the merge's duty. --none is always valid (an empty archive at
 		// round start); it exercises the verb and its --none/--reason branch.
@@ -673,12 +686,15 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	default: // frontier, blue lanes, red lenses — register, and lenses record onto the channel
 		if seatID != "" {
+			// THE DEFAULT IS lens, SO EVERY MAPPING MISS IS A SILENTLY UNREGISTERED SEAT.
+			// `frontier` is a BLUE seat (roles.go: blue owns blue-*, frontier) and was mapped
+			// to lens here, so its register was REFUSED once per run, in every run, and that
+			// seat's whole path went unexercised behind a green sweep. Found by the execution
+			// tally (lens register: exactly 60 refusals across 60 runs — one per run is a
+			// pattern, not noise).
 			role := "lens"
-			switch {
-			case strings.HasPrefix(seatID, "blue"):
+			if strings.HasPrefix(seatID, "blue") || strings.HasPrefix(seatID, "frontier") {
 				role = "blue"
-			case strings.HasPrefix(seatID, "frontier"):
-				role = "lens"
 			}
 			r.register(role, seatID)
 			// The non-prose lens channel is the RECORD now, not red/candidates files: a
@@ -877,7 +893,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	// Oracle 1: the record the run left must pass verify.
-	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
+	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
 		res.err = "verify FAILED:\n" + truncate(string(out))
 		return res
 	}
@@ -886,7 +902,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
 	for _, v := range []string{"findings", "friction"} {
-		out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput()
+		out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show --view " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -894,7 +910,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	{
-		out, err := exec.Command(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir).CombinedOutput()
+		out, err := tracked(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show --view debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -907,7 +923,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// which the render-shadow removal (#203) took away (view_test.go pins the bytes on fixed
 	// fixtures; only the fuzz drives them across arbitrary run shapes).
 	for _, v := range []string{"ledger", "archive", "debate", "changelog", "changes", "citation-ledger", "lines-of-inquiry"} {
-		if out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput(); err != nil {
+		if out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir); err != nil {
 			res.err = "show --view " + v + " (markdown projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -917,11 +933,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
-		if out, err := exec.Command(bin, "merge", "show", "--view", "changes", "--id", ids[0], "--run", runDir).CombinedOutput(); err != nil {
+		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", ids[0], "--run", runDir); err != nil {
 			res.err = "show --view changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := exec.Command(bin, "merge", "show", "--view", "changes", "--id", "R9-99", "--run", runDir).CombinedOutput(); err == nil {
+		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", "R9-99", "--run", runDir); err == nil {
 			res.err = "show --view changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
@@ -1068,7 +1084,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	if halts == 0 {
 		t.Fatal("no halt event on the record — the halt verb never ran")
 	}
-	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
+	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
 		t.Fatalf("verify FAILED on the halted run (a safety exit must still be a valid record):\n%s", truncate(string(out)))
 	}
 }
@@ -1254,28 +1270,22 @@ func TestFuzzDebate(t *testing.T) {
 			}
 		}
 	}
-	// READ-ONLY COVERAGE GATE. The verb gate above counts EVENT TYPES and cannot see a verb
-	// that records nothing; this asserts every record-nothing surface actually ran. Both the
-	// census entries and the two prompt-called seat verbs are checked, because "we added the
-	// drive" and "the drive still fires" are different claims and only the second one matters.
+	// FULL-SURFACE GATE, DERIVED FROM THE COMMAND TREE.
+	//
+	// The harness tallies EVERY invocation it makes (noteExec), so "what did the fuzz drive"
+	// is observed rather than declared. cli.CommandPaths() walks the real cobra tree for
+	// "what exists". Nothing hand-written states the surface, which is the point: the gap
+	// this closes was created by a hand list going stale — 18 of 44 seat verbs and 7 of 9
+	// root commands undriven, every undriven seat verb one that records nothing and so was
+	// invisible to the event gate above.
+	//
+	// The only hand-written list left is exemptSurfaces, and each entry states its reason.
 	if completed >= 40 {
-		var unreached []string
-		for _, argv := range readOnlySurfaces {
-			if k := strings.Join(argv, " "); readOnlyCalls[k] == 0 {
-				unreached = append(unreached, k)
-			}
+		if un := unreachedSurfaces(); len(un) > 0 {
+			t.Errorf("%d command path(s) exist in the tool and were NEVER invoked across %d runs (false green — add a drive, or an exemption with its reason):\n  %s",
+				len(un), completed, strings.Join(un, "\n  "))
 		}
-		for _, k := range []string{"blue claim-index", "merge near-match", "dashboard"} {
-			if readOnlyCalls[k] == 0 {
-				unreached = append(unreached, k)
-			}
-		}
-		sort.Strings(unreached)
-		if len(unreached) > 0 {
-			t.Errorf("%d read-only surface(s) never ran across %d runs — they record nothing, so NO other gate can see them (false green): %s",
-				len(unreached), completed, strings.Join(unreached, ", "))
-		}
-		t.Logf("read-only surfaces exercised: %d distinct, %d invocations", len(readOnlyCalls), sumCounts(readOnlyCalls))
+		t.Log(execReport())
 	}
 	if len(failures) > 0 {
 		show := failures
@@ -1395,7 +1405,7 @@ func dashboardArgv(runDir string) []string { return []string{"dashboard", runDir
 func sweepReadOnly(bin, runDir string) string {
 	// The transcript dir is the run dir here: dashboard tolerates finding no agent-*.jsonl,
 	// and what is under test is that it RENDERS whatever board shape the run reached.
-	if out, err := exec.Command(bin, dashboardArgv(runDir)...).CombinedOutput(); err != nil {
+	if out, err := tracked(bin, dashboardArgv(runDir)...); err != nil {
 		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
 	}
 	noteReadOnly("dashboard")
@@ -1404,7 +1414,7 @@ func sweepReadOnly(bin, runDir string) string {
 		if len(argv) == 2 && argv[1] == "show" {
 			args = append(args, "--seat-id", seatFor(argv[0]))
 		}
-		if out, err := exec.Command(bin, args...).CombinedOutput(); err != nil {
+		if out, err := tracked(bin, args...); err != nil {
 			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
 		}
 		noteReadOnly(strings.Join(argv, " "))
