@@ -1,4 +1,4 @@
-prompt sha256: b99f9619e3a227c4d53ca76136849ee9026e17bc41b968aab1680c9e0f9599b6
+prompt sha256: 1f2e0b9d5822ba08d03d05d0d6afec5131890d903d04834f82d11fa79b328d2e
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 CITATION LEDGER: read research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
@@ -13,7 +13,8 @@ A truncated read is NOT a read: state truncation in your pass, and never grade a
 CONSOLIDATED CITATION SEAT (W2i): from round 2 the citation seats are deliberately fewer, because the ledger means a claim verified HIGH does not un-verify — your round's work is the NEW and the STALE surface, not the whole corpus again.
 Your duty is three things, in order: (1) verify every claim in your slice that is NEW or whose section CHANGED this round (blue's CHANGELOG names them); (2) re-fetch everything in your slice the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of your slice's already-verified pairs — your discretion which, and reopen any that has drifted.
 COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep, and the consolidation is only sound while the gap is visible..
-Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); blue's change log research/2026-01-01_golden/blue/CHANGELOG.md is a navigation hint only.
+Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); for a navigation hint use the RECORD, not a hand-written file (feov-record lens show --view changes), which lists every recorded edit with the gap it answers.
+It is a HINT: it never replaces the full re-read above.
 Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).

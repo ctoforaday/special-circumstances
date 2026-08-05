@@ -117,6 +117,16 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.30.0 the `changes` view (#268): the `blue_edit` diff stack has been recorded since 0.27.0
+//	       and NO projection rendered it — written by one seat, read by nobody, while `changelog`
+//	       rendered faithfully from a `revision` event no seat emits. `show --view changes` lists
+//	       every recorded edit with the gap it answers; `--view changes --id <gap>` prints red's
+//	       required_fix and acceptance_check ABOVE the exact old->new spans blue recorded against
+//	       them — the comparison that replaces red inferring whether its prescription was answered.
+//	       --id is a hard error on any other view. Red's prompts now point at it: the lens's
+//	       navigation hint moves off the hand-written blue/CHANGELOG.md onto the derived view, and
+//	       the merge is told to compare before closing. A stale binary rejects `--view changes`,
+//	       failing the read both prompts now instruct.
 //	0.29.0 edit provenance (#267): `blue edit` takes `--answers <gap-id>` — the gap the edit
 //	       responds to, validated against the board like every other reference. It replaces a
 //	       CONVENTION: 19 of 26 edits in the 2026-08-04 smoke opened --reason with the gap id and
@@ -178,7 +188,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.29.0"
+const Version = "0.30.0"
 
 func init() { record.ToolVersion = Version }
 

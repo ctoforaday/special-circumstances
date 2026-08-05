@@ -129,7 +129,7 @@ Available Commands:
   friction    attributed friction (survives aborts as an event): --reason
   observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
-  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for lens
@@ -167,7 +167,7 @@ Available Commands:
   position        the round's ### RED section (prose via --reason)
   register        FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
@@ -210,7 +210,7 @@ Available Commands:
   register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
   revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
-  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for blue
@@ -245,7 +245,7 @@ Available Commands:
   outcome       record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]
   petition-rule rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --reason <opinion> (a halt is its own verb)
   register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
-  show          read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|citation-ledger|lines-of-inquiry
+  show          read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry
 
 Flags:
   -h, --help   help for bench
@@ -260,7 +260,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.29.0
+feov-record version 0.30.0
 
 $ feov-record nonsuch help
 exit 2
