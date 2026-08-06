@@ -1,4 +1,4 @@
-prompt sha256: 2c5cece0d8466ff696720c8261205ceb3b7937fb89d8b9108ea5122480e12c5b
+prompt sha256: 3c9461cfca500b9669ac7a872ff3dee12080896280e99a4064eff172ec10a8fc
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -33,7 +33,7 @@ A PROOF IS AUDITED BY RE-RUNNING IT, NOT BY READING IT (feov-record lens reprodu
 Where blue backed a sentence with a computation, you re-execute the cached script and compare: this is the ONE audit that does not end in you believing bytes someone else chose.
 A proof recorded observed rather than reproducible did not reproduce for blue either — treat it as a measurement of a moving system, and say so in your finding if the report reads it as a proof.
 A disagreement is YOUR finding, in your words; reproduce records nothing for you.
-RULE ON BLUE'S PROPOSED DIRECTIONS (feov-record merge rule-avenue --id <A1> --ruling endorsed|out-of-scope|too-thin --reason).
+RULE ON BLUE'S PROPOSED DIRECTIONS (feov-record merge avenue-rule --id <A1> --ruling endorsed|out-of-scope|too-thin --reason).
 Blue proposes lines of inquiry with a hypothesis; you say which are worth this run's time — endorsed, out-of-scope (a real question, but not THIS question), or too-thin (in scope, but the hypothesis does not carry its budget).
 Measured: blue rejected 18 of its own 86 avenues across six runs and red rejected NONE, because red had no verb to.
 A ruling is an ARGUMENT, not a command: it needs a reason, and blue may contest it through blue dispute.
