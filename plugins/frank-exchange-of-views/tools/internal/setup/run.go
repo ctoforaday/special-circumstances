@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -57,7 +56,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if topic == "" {
 		topic = "(topic not stated)"
 	}
-	head := gitHead(cfg.Cwd)
+	head := gitHead(cfg.Git)
 
 	// Gate: model tiers REQUIRED (#111), before the run dir exists.
 	if cfg.Model == "" || cfg.JudgmentModel == "" {
@@ -88,13 +87,29 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// Gate: record-binary preflight — bound to INTENT (--bin-dir), before any run state.
+	// Gate: record-binary preflight — UNCONDITIONAL, before any run state.
+	//
+	// It used to be armed by INTENT (`!pre.OK && cfg.BinDir != ""`), and `--bin-dir` was never
+	// passed on the documented launch — `grep -rn "bin-dir"` across the plugin returned
+	// nothing. So the guarantee `commands/research.md` states ("setup preflights the binary's
+	// version before the run exists, so a missing or skewed one fails there rather than
+	// mid-round") was false: the real path printed a WARNING and proceeded, and the 2026-08-05
+	// smoke's first setup did exactly that. A run would then take the legacy prompt set,
+	// record nothing through the tool, and every axis added since would be silently absent
+	// with every gate green. `--bin-dir` now says only WHERE the seats' binary is; whether the
+	// run records through the tool is the Workflow's `binDir`, which is a different decision
+	// at a different seam.
 	recordBin := "feov-record"
 	if cfg.BinDir != "" {
 		recordBin = filepath.Join(cfg.BinDir, "feov-record")
+	} else if self, err := os.Executable(); err == nil {
+		// The documented flow runs THIS binary and hands the seats the same one, so its own
+		// directory is the honest default — better than a bare PATH lookup, which refuses an
+		// operator who is demonstrably holding a working binary.
+		recordBin = filepath.Join(filepath.Dir(self), "feov-record")
 	}
-	pre := PreflightRecordBinary(cfg.ExpectVersion, recordBin, cfg.Exec)
-	if !pre.OK && cfg.BinDir != "" {
+	pre := PreflightRecordBinary(expectedRecordVersion(recordBin, cfg.ExpectVersion), recordBin, cfg.Exec)
+	if !pre.OK {
 		fmt.Fprintln(stderr, "run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:")
 		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
 		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
@@ -191,15 +206,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, `  scorecards arg: pass inputs/scorecards.json as the workflow's "scorecards" arg`)
 		fmt.Fprintf(stdout, "    %s\n", compactJSON(cards.Headlines))
 	}
-	if pre.OK {
-		v := pre.Version
-		if v == "" {
-			v = "(version unreported)"
-		}
-		fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
-	} else {
-		fmt.Fprintf(stdout, "  record binary: NOT AVAILABLE — %s (this run will not record through the tool; pass --bin-dir to require it)\n", pre.Reason)
+	// Reached only when the preflight PASSED — it refuses above now, so there is no
+	// "NOT AVAILABLE" line any more. That line used to be the whole failure mode: it told the
+	// operator the run would not record through the tool and then created the run anyway.
+	v := pre.Version
+	if v == "" {
+		v = "(version unreported)"
 	}
+	fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
 	return 0
 }
@@ -219,22 +233,13 @@ func ptrOrNil(s string) *string {
 	return &s
 }
 
-func okFailed(b bool) string {
-	if b {
-		return "ok"
-	}
-	return "FAILED"
-}
-
-// gitHead runs `git rev-parse --short HEAD` in cwd; "unknown" if it fails (non-git).
-func gitHead(cwd string) string {
-	c := exec.Command("git", "rev-parse", "--short", "HEAD")
-	c.Dir = cwd
-	out, err := c.Output()
-	if err != nil {
+// gitHead resolves HEAD through the INJECTED git seam; "unknown" if it fails (non-git).
+func gitHead(git GitFunc) string {
+	r := git([]string{"rev-parse", "--short", "HEAD"})
+	if r.Err != nil || r.Status != 0 {
 		return "unknown"
 	}
-	h := strings.TrimSpace(string(out))
+	h := strings.TrimSpace(r.Stdout)
 	if h == "" {
 		return "unknown"
 	}

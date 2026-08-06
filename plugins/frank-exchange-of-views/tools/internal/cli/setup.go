@@ -67,7 +67,7 @@ func newSetup() *cobra.Command {
 	f.StringArrayVar(&cites, flags.Cite, nil, "a cited path, optionally pinned: <path>[@<commit>] (repeatable)")
 	f.StringVar(&maxRounds, flags.MaxRounds, "", "the round ceiling (recorded in run-config.json for post-hoc readers)")
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
-	f.StringVar(&binDir, flags.BinDir, "", "the directory of the feov-record binary this run will record through; makes the preflight FATAL")
+	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")
 	f.StringVar(&memoryDir, flags.MemoryDir, "", "override the gap-pattern memory source (default: promoted corpus, then raw accrual)")
 	return c
 }
