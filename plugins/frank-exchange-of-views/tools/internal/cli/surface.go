@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 )
 
 // CommandPaths returns every invocable command path in the real tree — "verify",
@@ -19,6 +21,16 @@ import (
 //
 // The vocabulary gate walks this same tree for the same reason: a single source of truth
 // that nothing reads is a comment.
+// ViewNames returns the real projection vocabulary — the names `show --view` accepts.
+//
+// THE READ SURFACE IS A SURFACE TOO. CommandPaths covers what a seat can RUN; a projection
+// name is what a seat can READ, and it drifts the same way: the prompt-verb gate would not
+// have caught `--view telemetry` in a constitution, because that is a flag VALUE and not a
+// verb. A named view that does not exist fails the way every unmediated fact in this engine
+// fails — the seat is told to read something, the tool refuses, and the seat logs friction
+// and works around it, so the capability is simply absent for the run.
+func ViewNames() []string { return seat.ViewNames() }
+
 func CommandPaths() []string {
 	var out []string
 	var walk func(c *cobra.Command, prefix string)

@@ -120,7 +120,10 @@ var views = []struct {
 	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned", ""},
 }
 
-func viewNames() []string {
+// ViewNames is the projection vocabulary — the single source behind the help text, the
+// unknown-view error, and (exported for this reason) the gate that asserts every `--view`
+// an agent-facing surface NAMES actually exists. See cli.ViewNames.
+func ViewNames() []string {
 	out := make([]string, 0, len(views))
 	for _, v := range views {
 		out = append(out, v.name)
@@ -143,7 +146,7 @@ func viewNames() []string {
 func Show() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "show",
-		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view " + strings.Join(viewNames(), "|"),
+		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view " + strings.Join(ViewNames(), "|"),
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 	}
@@ -185,7 +188,7 @@ func Show() *cobra.Command {
 			case "board", "findings", "friction", "worklist":
 				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
 			case "":
-				return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
+				return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(ViewNames(), ", "))
 			default:
 				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction/worklist are JSON by name)", role, want)
 			}
@@ -242,7 +245,7 @@ func Show() *cobra.Command {
 			return nil
 		}
 		if want == "" {
-			return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
+			return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(ViewNames(), ", "))
 		}
 		known := false
 		for _, v := range views {
@@ -251,7 +254,7 @@ func Show() *cobra.Command {
 			}
 		}
 		if !known {
-			return fmt.Errorf("%s show: unknown view %q (one of: %s)", role, want, strings.Join(viewNames(), ", "))
+			return fmt.Errorf("%s show: unknown view %q (one of: %s)", role, want, strings.Join(ViewNames(), ", "))
 		}
 
 		// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
@@ -270,7 +273,7 @@ func Show() *cobra.Command {
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	c.Flags().String(flags.View, "", "which projection to read: "+strings.Join(viewNames(), " | ")+" (defaults to this role's own)")
+	c.Flags().String(flags.View, "", "which projection to read: "+strings.Join(ViewNames(), " | ")+" (defaults to this role's own)")
 	c.Flags().String(flags.ID, "", "scope the view to one gap — `--view changes --id <gap>` only")
 	return c
 }

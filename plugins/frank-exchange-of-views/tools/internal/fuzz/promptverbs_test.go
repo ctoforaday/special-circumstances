@@ -29,6 +29,18 @@ import (
 // command set rather than a list someone maintains alongside it.
 var promptVerb = regexp.MustCompile(`feov-record"?\s+(lens|merge|blue|bench)\s+([a-z][a-z-]+)`)
 
+// EVERY PROJECTION A PROMPT NAMES MUST EXIST — the read-surface twin of the rule above.
+//
+// The verb gate cannot see this: a projection is a flag VALUE, not a verb, so `show --view
+// telemetry` in a constitution passes `feov-record bench show` and says nothing about
+// whether `telemetry` is a real view. The failure is identical in kind — the seat is told
+// to read something, the tool answers "unknown view", and per the friction footer the seat
+// logs it and works around it. The capability is gone for the run and the sweep stays green.
+//
+// Caught in authoring: this file's own doctrine PR briefly documented `--view telemetry`,
+// which does not exist. See internal/cli.ViewNames.
+var promptView = regexp.MustCompile(`--view\s+([a-z][a-z-]+)`)
+
 // agentFacingFiles are the surfaces a seat reads: the orchestrator's prompts, the role
 // constitutions, and the skill that carries the protocol.
 func agentFacingFiles(t *testing.T) []string {
@@ -90,5 +102,41 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 	if len(msgs) > 0 {
 		t.Errorf("%d verb(s) named in an agent-facing file do NOT exist in the command tree — a seat told to run one loses that capability for the whole run and merely logs friction:\n  %s",
 			len(msgs), strings.Join(msgs, "\n  "))
+	}
+}
+
+func TestEveryViewNamedInAPromptExists(t *testing.T) {
+	real := map[string]bool{}
+	for _, v := range cli.ViewNames() {
+		real[v] = true
+	}
+	if len(real) == 0 {
+		t.Fatal("cli.ViewNames() is empty — the gate would pass every name forever")
+	}
+
+	seen := map[string]bool{}
+	var msgs []string
+	for _, path := range agentFacingFiles(t) {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range promptView.FindAllStringSubmatch(string(b), -1) {
+			view := m[1]
+			if real[view] {
+				continue
+			}
+			k := filepath.Base(path) + ": --view " + view
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			msgs = append(msgs, k)
+		}
+	}
+	sort.Strings(msgs)
+	if len(msgs) > 0 {
+		t.Errorf("%d projection name(s) in an agent-facing file are NOT real views (have: %s) — the tool refuses the read and the seat works around it, silently:\n  %s",
+			len(msgs), strings.Join(cli.ViewNames(), ", "), strings.Join(msgs, "\n  "))
 	}
 }
