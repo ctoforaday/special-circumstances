@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 )
 
@@ -69,8 +70,15 @@ func newHookPre() *cobra.Command {
 				}
 				return nil
 			}
-			if deny, reason := hookgate.PreDecision(in); deny {
-				emitPreDeny(cmd, reason)
+			// The run directory is resolved from the payload's `cwd` — the SEAT's working
+			// directory, which is wire-supplied and documented, never this hook process's
+			// os.Getwd(). Absent or unusable marker → empty → no rewrite, matching
+			// InferRunDir's "say nothing rather than guess".
+			switch outcome, payload := hookgate.PreOutcome(in, seat.InferRunDir(cwdOf(raw))); outcome {
+			case hookgate.OutcomeDeny:
+				emitPreDeny(cmd, payload)
+			case hookgate.OutcomeRewrite:
+				emitPreRewrite(cmd, in.ToolInput, payload)
 			}
 			return nil
 		},
@@ -97,6 +105,43 @@ func newHookPost() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// cwdOf pulls the seat's working directory out of the raw payload.
+//
+// It is read from the RAW bytes rather than added to hookgate.Input because Input is the
+// gate's contract and cwd is the CLI's business — the gate takes a resolved directory as a
+// parameter precisely so it never has to know how one is found.
+func cwdOf(raw []byte) string {
+	var p struct {
+		Cwd string `json:"cwd"`
+	}
+	_ = json.Unmarshal(raw, &p)
+	return p.Cwd
+}
+
+// emitPreRewrite replaces the tool's arguments with the same call plus the injected run
+// directory. It emits `permissionDecision: allow` with `updatedInput` — ONE document, the
+// same slot a deny would have used, which is why the ordering in PreOutcome is structural.
+//
+// The whole tool_input is preserved and only `command` is replaced: a Bash call may carry
+// other fields (description, timeout, run_in_background) and dropping them would silently
+// change how the seat's command runs.
+func emitPreRewrite(cmd *cobra.Command, toolInput json.RawMessage, command string) {
+	updated := map[string]any{}
+	if json.Unmarshal(toolInput, &updated) != nil {
+		return // unparseable: say nothing rather than send a shape the client cannot use
+	}
+	updated["command"] = command
+	out := map[string]any{
+		"hookSpecificOutput": map[string]any{
+			"hookEventName":            "PreToolUse",
+			"permissionDecision":       "allow",
+			"permissionDecisionReason": "feov-record: the run directory is injected by the engine, not typed by the seat (#281)",
+			"updatedInput":             updated,
+		},
+	}
+	_ = json.NewEncoder(cmd.OutOrStdout()).Encode(out)
 }
 
 // emitPreDeny writes the PreToolUse deny document (exit stays 0).
