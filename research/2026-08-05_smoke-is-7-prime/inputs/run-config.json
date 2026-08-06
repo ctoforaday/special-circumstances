@@ -1,0 +1,7 @@
+{
+  "topic": "is 7 a prime number",
+  "model": "haiku",
+  "judgmentModel": "haiku",
+  "maxRounds": "2",
+  "lanes": "1"
+}
