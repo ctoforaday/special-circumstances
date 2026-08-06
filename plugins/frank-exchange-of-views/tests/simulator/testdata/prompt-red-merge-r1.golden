@@ -1,4 +1,4 @@
-prompt sha256: 0021fc85218fff8caa1f111480545cb6a2ba8d2f2b2329ded7e219613b753bd9
+prompt sha256: 2c5cece0d8466ff696720c8261205ceb3b7937fb89d8b9108ea5122480e12c5b
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -29,6 +29,10 @@ It is REQUIRED on every gap, never omitted: recording lineage with the mint verb
 BOARD TELEMETRY (the stopping-judgment signal): the per-round line (open_count, mass, max_severity, new_mint, realized_open, repair_regression, edge_deltas) is COMPUTED BY THE TOOL from your board — the dashboard and the cost audit derive it just-in-time from the record on read — you do NOT hand-write it.
 A seat-authored telemetry line is the self-report this migration removed (a haiku smoke made up archive_blocks:22 in a round with 0); the tool recomputes the full per-round series from the record every time it is read, so it is always current.
 GAP RECORDS: every gap you mint carries acceptance_check — the exact falsifiable check you will run at re-audit (probe command, recount command, quote-anchor); a fix-spec naming instances states the class-closure rule or declares the enumeration open (the sweep clause).
+A PROOF IS AUDITED BY RE-RUNNING IT, NOT BY READING IT (feov-record lens reproduce --id <sha256>).
+Where blue backed a sentence with a computation, you re-execute the cached script and compare: this is the ONE audit that does not end in you believing bytes someone else chose.
+A proof recorded observed rather than reproducible did not reproduce for blue either — treat it as a measurement of a moving system, and say so in your finding if the report reads it as a proof.
+A disagreement is YOUR finding, in your words; reproduce records nothing for you.
 RULE ON BLUE'S PROPOSED DIRECTIONS (feov-record merge rule-avenue --id <A1> --ruling endorsed|out-of-scope|too-thin --reason).
 Blue proposes lines of inquiry with a hypothesis; you say which are worth this run's time — endorsed, out-of-scope (a real question, but not THIS question), or too-thin (in scope, but the hypothesis does not carry its budget).
 Measured: blue rejected 18 of its own 86 avenues across six runs and red rejected NONE, because red had no verb to.

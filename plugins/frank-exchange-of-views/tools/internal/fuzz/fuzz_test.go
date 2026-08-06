@@ -548,6 +548,25 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// event-type coverage gate cannot see it — yet blue's response prompt tells blue to call
 		// it when propagating a correction to every site of a claim. A crash here costs a real
 		// round; no gate would have noticed.
+		// #277: settle a claim by COMPUTING it. The script is written into the run dir and the
+		// tool runs it twice — so this drives the real interpreter, the cache, the anchor
+		// splice and the reproducible/observed grading, not a stub.
+		r.maybe(35, func() {
+			name := "fuzz-proof-" + seatID + ".js"
+			body := "console.log('fuzz proof for " + seatID + "');"
+			if r.coin(25) {
+				body = "console.log(Math.random());" // exercises the OBSERVED grade
+			}
+			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err != nil {
+				return
+			}
+			r.do("blue", "prove", seatID).
+				set("--location", "§ fuzz").
+				set("--script", name).
+				set("--reason", "fuzz: computing rather than arguing").
+				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2))).
+				run()
+		})
 		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
@@ -735,6 +754,16 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 			// citation lens records cite events, and every red lens records finding events
 			// (label TOOL-assigned). This is the ONLY harness that drives that path end to
 			// end through the real debate.js + binary, so it must actually exercise it.
+			// RED RE-RUNS a recorded proof (#277) — the one audit that does not end in believing
+			// bytes someone else chose.
+			if b, err := record.BoardState(r.runDir); err == nil && r.coin(35) {
+				for _, e := range b.Events {
+					if e.Type == "proof" && e.Payload.Str("sha256") != "" {
+						r.readOnly("lens", "reproduce", seatID, "--id", e.Payload.Str("sha256"))
+						break
+					}
+				}
+			}
 			if strings.HasPrefix(seatID, "red-lens") {
 				_, _ = r.exec("lens", "cite", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
 					"--reference", "https://fuzz.invalid/"+seatID, "--confidence", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
@@ -1076,7 +1105,7 @@ var verbsWithEvents = []string{
 	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
 	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
 	// write, `outcome` is the bench's.
-	"blue_edit", "anchor", "class-new", "outcome", "avenue-rule",
+	"blue_edit", "anchor", "class-new", "outcome", "avenue-rule", "proof",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.

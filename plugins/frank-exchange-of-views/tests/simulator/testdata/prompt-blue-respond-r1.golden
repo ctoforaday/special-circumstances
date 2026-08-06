@@ -1,9 +1,18 @@
-prompt sha256: 48a5869062c63f1cfa0f0c0e576ebe49baf09d2db3c04c9d7220c46ecc3665a0
+prompt sha256: 492c61141704e2b4618e5be2adfe816ee17abed2428c16fde54f2d1226294017
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
 FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `feov-record blue show --run research/2026-01-01_golden --view ledger > <your session scratchpad>/board-1.md && feov-record blue show --run research/2026-01-01_golden --view debate > <your session scratchpad>/debate-1.md && cat <your session scratchpad>/board-1.md <your session scratchpad>/debate-1.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden; the transcript is the RECORD rendered via --view debate, not a hand-written file) — then read that one file instead of three separate reads.
 REPORT.MD IS READ-ONLY TO YOU (the lockdown): you change research/2026-01-01_golden/blue/report.md ONLY through feov-record blue edit --old "<exact current span>" --new "<replacement>" --reason "<why>" [--answers <gap-id>] — it matches your old span across the invisible anchor layer and REJECTS an edit that CHANGES WHICH ANCHORS EXIST — a `<!--fx:...-->` finding marker or a `<!--cite:...-->` citation anchor may travel THROUGH your edit, but never be dropped, duplicated or invented by one.
+YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES.
+You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it.
+Write a script under the run directory and record it (feov-record blue prove --location --script [--cites]).
+The tool runs it TWICE, caches the script and its output, and splices an invisible proof anchor at that sentence.
+Identical output twice is recorded as reproducible; output that moves is recorded as observed — still evidence, of a system in motion, but a MEASUREMENT rather than a proof, and the tool says which you produced.
+THIS IS THE CITATION MODEL WITH THE LAST MILE WALKED, not a new kind of evidence: cite the METHOD with blue cite (trial division, Miller-Rabin, the formula, the standard) and then prove the INSTANCE by running it.
+Several methods on one claim is several anchors on one sentence, which is how a mathematician argues.
+A FAILING CHECK IS A RESULT: disproving your own claim is worth as much as confirming it, and the tool records a non-zero exit as evidence rather than an error.
+Measured, so you know why this clause exists: red once asked for the protocol to be tested on a false claim, blue answered in PROSE that the test had happened, and red correctly refused it for showing no evidence — a whole round for something three lines settle.
 YOUR LINES OF INQUIRY ARE A LIVING RECORD, NOT A ROUND-0 PLAN.
 Propose a direction with blue avenue --line "<the approach>" --hypothesis "<what would be TRUE if it pays off>" and the tool assigns it an id.
 You may propose one AT ANY POINT in the run, not only at the start — a direction that occurs to you in round 3 is exactly the one a future run needs.

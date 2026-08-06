@@ -162,6 +162,15 @@ func Assemble(runDir string) (string, error) {
 	}
 	out = collapseBlanks(weaveCitations(out, sources))
 
+	// Resolve the PROOF layer the same way (#277). Without this pass the anchor shipped RAW
+	// into the deliverable and the computation appeared nowhere in it — the evidence existed
+	// on the record, in the cache and to the auditor, and was invisible to the reader.
+	proofs, err := record.RecordedProofs(runDir)
+	if err != nil {
+		return "", fmt.Errorf("assemble: recorded proofs: %w", err)
+	}
+	out = collapseBlanks(weaveProofs(runDir, out, proofs))
+
 	path := filepath.Join(runDir, "report.md")
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.md: %w", err)

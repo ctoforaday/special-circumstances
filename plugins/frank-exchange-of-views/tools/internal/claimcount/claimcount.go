@@ -224,6 +224,16 @@ var findingMarkerRe = regexp.MustCompile(`<!--fx:(f-[0-9a-f]+)-->`)
 // citation-id extractor behind the bijection detector and the lockdown class-sweep.
 var citationMarkerRe = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
 
+// proofMarkerRe matches an invisible proof-anchor token "<!--proof:p-<hex>-->" (#277): the
+// sentence this one sits at is backed by a COMPUTATION whose script and output are cached
+// under <run>/proofs/<sha256>, and which the auditor re-RUNS rather than re-reads.
+//
+// It is a third class on the one immortal-anchor mechanism, not a third mechanism. Like a
+// finding marker and unlike a citation it does not itself bound a claim for the counter —
+// a proof BACKS a claim the prose already makes, and counting it as one would double-count
+// a sentence that also carries a cite.
+var proofMarkerRe = regexp.MustCompile(`<!--proof:(p-[0-9a-f]+)-->`)
+
 // FindingAnchorIDs returns the distinct finding-anchor ids PRESENT in the report, in
 // first-seen order. This is the immortal-marker detector's PRESENT set: an anchored
 // finding_id absent from it is a dropped marker (a hard violation). Pure id membership
@@ -236,6 +246,11 @@ func FindingAnchorIDs(md string) []string { return anchorIDs(findingMarkerRe, md
 // under the cite⟺anchor bijection it equals the set of cite-event labels, and any
 // divergence (a hand-typed footnote, a tampered anchor) is a real defect.
 func CitationAnchorIDs(md string) []string { return anchorIDs(citationMarkerRe, md) }
+
+// ProofAnchorIDs returns the distinct proof-anchor ids PRESENT in the report. A proof is
+// evidence a seat produced by running something, so dropping its anchor silently unbacks a
+// claim exactly as dropping a citation's would — it joins the protected union below.
+func ProofAnchorIDs(md string) []string { return anchorIDs(proofMarkerRe, md) }
 
 // anchorIDs returns the distinct capture-group-1 ids matched by re in md, first-seen
 // order — the shared extractor behind both anchor classes so their membership logic
@@ -259,7 +274,8 @@ func anchorIDs(re *regexp.Regexp, md string) []string {
 // citation, and keying the guard on this union means a future third anchor class is added
 // in ONE place, not patched per call site.
 func ProtectedAnchorIDs(md string) []string {
-	return append(FindingAnchorIDs(md), CitationAnchorIDs(md)...)
+	ids := append(FindingAnchorIDs(md), CitationAnchorIDs(md)...)
+	return append(ids, ProofAnchorIDs(md)...)
 }
 
 // missingFrom returns the ids in `expected` absent from `present` (in expected's order) —

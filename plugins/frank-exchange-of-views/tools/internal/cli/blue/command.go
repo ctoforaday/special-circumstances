@@ -20,6 +20,7 @@ func NewCommand() *cobra.Command {
 		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newEdit(),
 		newCite(),
+		newProve(),
 		newRevision(),
 		newRetire(),
 		newAvenue(),

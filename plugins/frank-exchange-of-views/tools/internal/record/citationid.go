@@ -145,3 +145,83 @@ func IsAuthoredCite(e Event) bool {
 func IsVerifiedCite(e Event) bool {
 	return e.Type == "cite" && e.Payload.Str("label") == ""
 }
+
+// NewProofID mints a proof anchor id. Same shape as a citation's, different class prefix:
+// one immortal-anchor mechanism carrying three classes now (fx: a finding, cite: a source,
+// proof: a computation).
+func NewProofID() string {
+	b := make([]byte, 4)
+	if _, err := rand.Read(b); err != nil {
+		panic("record: entropy unavailable: " + err.Error())
+	}
+	return "p-" + hex.EncodeToString(b)
+}
+
+// ExistingProofByKey gives `blue prove` crash-retry idempotency: a seat whose message died
+// after the event landed re-runs the same key and gets the recorded sha back rather than
+// executing the script a second time and splicing a second anchor.
+func ExistingProofByKey(runDir, seatID, key string) (string, error) {
+	if key == "" {
+		return "", nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range m.Events {
+		if e.Type == "proof" && e.SeatID == seatID && e.Payload.Str("proof_key") == key {
+			return e.Payload.Str("sha256"), nil
+		}
+	}
+	return "", nil
+}
+
+// Proof is one recorded computation, drawn from a blue `prove` event — the composer input
+// for the assembled report's Proofs section and the handle red re-runs.
+type Proof struct {
+	Label  string // the p-<hex> anchor id
+	SHA    string
+	Basis  string
+	Script string
+	Exit   int
+	Cites  string // the METHOD citation this applies, when blue named one
+	Reason string
+	Drift  string
+}
+
+// RecordedProofs returns every proof on the record, in event order.
+//
+// The OUTPUT and the SCRIPT BODY are deliberately not here: they live on disk under
+// <run>/proofs/<sha256>/ and can be large. The assembler reads them from the artifact so the
+// report shows the exact bytes that ran, rather than a copy the record made of them.
+func RecordedProofs(runDir string) ([]Proof, error) {
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return nil, err
+	}
+	var out []Proof
+	for _, e := range m.Events {
+		if e.Type != "proof" {
+			continue
+		}
+		exit := 0
+		if v, ok := e.Payload.Get("exit"); ok {
+			if f, isNum := v.(float64); isNum {
+				exit = int(f)
+			} else if i, isInt := v.(int); isInt {
+				exit = i
+			}
+		}
+		out = append(out, Proof{
+			Label:  e.Payload.Str("proof_id"),
+			SHA:    e.Payload.Str("sha256"),
+			Basis:  e.Payload.Str("proof_basis"),
+			Script: e.Payload.Str("script"),
+			Exit:   exit,
+			Cites:  e.Payload.Str("cites"),
+			Reason: e.Payload.Str("text"),
+			Drift:  e.Payload.Str("drift"),
+		})
+	}
+	return out, nil
+}
