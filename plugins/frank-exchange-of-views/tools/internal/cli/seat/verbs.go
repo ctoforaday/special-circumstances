@@ -118,6 +118,7 @@ var views = []struct {
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed", ""},
 	{"citation-ledger", "verified claims with source, confidence and access date", "lens"},
 	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned", ""},
+	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
 }
 
 // ViewNames is the projection vocabulary — the single source behind the help text, the
@@ -185,7 +186,7 @@ func Show() *cobra.Command {
 				}
 				cmd.OutOrStdout().Write(b)
 				return nil
-			case "board", "findings", "friction", "worklist":
+			case "board", "findings", "friction", "worklist", "telemetry":
 				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
 			case "":
 				return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(ViewNames(), ", "))
@@ -238,6 +239,17 @@ func Show() *cobra.Command {
 		// once-per-turn read that the full board JSON is not.
 		if want == "worklist" {
 			b, err := record.WorklistJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
+		}
+		// telemetry is JSONL by name — one line per round, the wire shape the stopping
+		// judgment reads. It is a SERIES, not a snapshot, and the series is the whole
+		// point: a single round's numbers cannot show a trend changing character.
+		if want == "telemetry" {
+			b, err := view.TelemetryJSONL(runDir)
 			if err != nil {
 				return err
 			}

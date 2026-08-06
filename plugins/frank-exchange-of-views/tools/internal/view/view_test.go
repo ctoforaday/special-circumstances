@@ -411,6 +411,92 @@ func TestTelemetryIsComputed(t *testing.T) {
 	}
 }
 
+// THE STOPPING SIGNAL (#284). Severity answers "how bad"; it can sit flat for rounds while
+// the KIND of defect being found moves — and that phase change is what tells the bench the
+// remaining work is cheaper to shake out in execution than in review. The distribution and
+// the repeat rate against the previous round are what make "the findings changed character"
+// readable without re-reading every gap's prose.
+func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
+	runDir := t.TempDir()
+	mint := func(seat, nonce, id, class string, i, round int) record.Event {
+		return ev(seat, nonce, i, round, "mint", seat+":mint:"+id, record.NewPayload().
+			Set("gap_id", id).Set("problem", "p").Set("class", class).
+			Set("severity", "low").Set("likelihood", "low").Set("impact", "low"))
+	}
+	r1, r2 := "red-merge-r1", "red-merge-r2"
+	writeShard(t, runDir, r1, "aaaaaaaa", []record.Event{
+		mint(r1, "aaaaaaaa", "R1-1", "evidence-claim-not-documented", 0, 1),
+		mint(r1, "aaaaaaaa", "R1-2", "evidence-claim-not-documented", 1, 1),
+		mint(r1, "aaaaaaaa", "R1-3", "scope-closure-missing", 2, 1),
+	})
+	// Round 2: one class REPEATS from round 1, one is fresh. Repeat rate = 1/2.
+	writeShard(t, runDir, r2, "bbbbbbbb", []record.Event{
+		mint(r2, "bbbbbbbb", "R2-1", "scope-closure-missing", 0, 2),
+		mint(r2, "bbbbbbbb", "R2-2", "co-resident-rules-disagree", 1, 2),
+	})
+
+	raw, err := TelemetryJSONL(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("%d telemetry lines, want 2:\n%s", len(lines), raw)
+	}
+
+	decode := func(s string) map[string]any {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(s), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m["new_mint"].(map[string]any)
+	}
+
+	one := decode(lines[0])
+	byClass := one["by_class"].(map[string]any)
+	if byClass["evidence-claim-not-documented"] != float64(2) || byClass["scope-closure-missing"] != float64(1) {
+		t.Errorf("round 1 by_class = %v, want the two classes counted 2 and 1", byClass)
+	}
+	// Round 1 has no predecessor, so a repeat rate would be a fabricated number.
+	if one["class_repeat_rate"] != nil {
+		t.Errorf("round 1 class_repeat_rate = %v, want null — there is no prior round to repeat", one["class_repeat_rate"])
+	}
+
+	two := decode(lines[1])
+	if got := two["class_repeat_rate"]; got != 0.5 {
+		t.Errorf("round 2 class_repeat_rate = %v, want 0.5 (1 of 2 mints repeats a round-1 class)", got)
+	}
+}
+
+// A mint with no class contributes to the COUNT but not to the distribution — a "" bucket
+// would read as a real class and quietly inflate the repeat rate against itself.
+func TestTelemetryClasslessMintDoesNotBecomeAClass(t *testing.T) {
+	runDir := t.TempDir()
+	seat := "red-merge-r1"
+	writeShard(t, runDir, seat, "aaaaaaaa", []record.Event{
+		ev(seat, "aaaaaaaa", 0, 1, "mint", seat+":mint:R1-1", record.NewPayload().
+			Set("gap_id", "R1-1").Set("problem", "p").
+			Set("severity", "low").Set("likelihood", "low").Set("impact", "low")),
+	})
+	raw, err := TelemetryJSONL(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nm := func() map[string]any {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimRight(string(raw), "\n")), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m["new_mint"].(map[string]any)
+	}()
+	if nm["count"] != float64(1) {
+		t.Errorf("count = %v, want 1", nm["count"])
+	}
+	if bc := nm["by_class"].(map[string]any); len(bc) != 0 {
+		t.Errorf("by_class = %v, want empty — an empty class must not become a bucket", bc)
+	}
+}
+
 func TestTelemetryUndefinedSeverityKey(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"

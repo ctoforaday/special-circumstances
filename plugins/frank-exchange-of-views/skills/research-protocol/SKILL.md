@@ -64,6 +64,10 @@ RECORD — no file; read through the tool:
   --view debate     the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
                     ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the bench
                     rules on the closings, the transcript, and the final artifact state only)
+  --view telemetry  JSONL, one line per round: open count, max severity, mass under the pinned
+                    mapping, new mints by severity AND BY CLASS with the class repeat rate,
+                    repair-regression ratio, edge deltas. The SIGNAL the stopping judgment
+                    reads — a series, never a snapshot
 
 trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
                     + agent-transcripts.tar.gz (gitignored)
@@ -75,11 +79,15 @@ is not an artifact**: measured in the 2026-08-05 run, `debate.md` finished at 36
 returns the plausible zero. Read them with `--view`.
 
 **Termination is judged, and the standing practice is stop-and-resume**: `maxRounds` is a cost
-ceiling, never the terminator of record. The operator reads the board telemetry (open count,
-max severity, new-mint profile, mass trend), stops a run past its value, and resumes with a
-reduced `maxRounds` for the honest UNVERIFIED assembly — cache replay makes the stop ~$0
-(measured). Automatic severity-floor termination was evaluated and REJECTED (run-4 report §1):
-it automates the one call that belongs to judgment. NEVER change models on the resume.
+ceiling, never the terminator of record. Red owns PASS/FAIL — *is it defensible*. **The bench
+owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
+against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
+reads `--view telemetry` and files a reasoned, cost-stated opinion; the operator acts on it,
+stopping a run past its value and resuming with a reduced `maxRounds` for the honest UNVERIFIED
+assembly — cache replay makes the stop ~$0 (measured). **Stopping is not passing**: the verdict
+stays UNVERIFIED with the open count stated. Automatic severity-floor termination was evaluated
+and REJECTED (run-4 report §1): it automates the one call that belongs to judgment. NEVER
+change models on the resume.
 
 All artifacts are git-tracked; nothing is summarized away. The payload is the file; the envelope is the handle — no large content travels through agent return values.
 

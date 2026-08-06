@@ -117,6 +117,19 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.35.0 the STOPPING SIGNAL (#284): "is this close enough" is the bench's job and had no
+//	       organ — red is not incentivised to stop finding things, blue is not incentivised to
+//	       stop being found out, and maxRounds is a cost ceiling the protocol already says is
+//	       never the terminator of record. New `--view telemetry` gives the bench the per-round
+//	       SERIES through the tool for the first time (it existed only in the dashboard and
+//	       cost.md), and the line now carries new_mint.by_class plus class_repeat_rate against
+//	       the previous round. Severity answers "how bad" and can sit flat for rounds while the
+//	       KIND of defect moves from "wrong about the world" to "this artifact disagrees with
+//	       itself" — the phase change measured across two audit loops (the #251 spec, five
+//	       FAILs; plans/feov-run-injection.md, six) where the findings never stopped, they
+//	       changed character. Class was already a required, registry-validated mint field, so
+//	       this is an aggregation and never a new assertion. A stale binary answers "unknown
+//	       view" to the read the bench's constitution now tells it to make.
 //	0.34.0 PROOF — the engine may compute an answer, not only cite one (#277). Every seat has
 //	       had Write/Edit/Bash since it shipped and across six runs NO SEAT EVER WROTE A
 //	       PROGRAM to settle a question: never tied, never invited. Measured cost — the smoke's
@@ -239,7 +252,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.34.0"
+const Version = "0.35.0"
 
 func init() { record.ToolVersion = Version }
 
