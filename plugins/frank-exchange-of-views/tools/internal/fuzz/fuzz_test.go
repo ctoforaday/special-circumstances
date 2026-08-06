@@ -47,6 +47,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -985,9 +986,18 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// coverage the `render` verb + the difftest RENDERS section used to give the projection renderer,
 	// which the render-shadow removal (#203) took away (view_test.go pins the bytes on fixed
 	// fixtures; only the fuzz drives them across arbitrary run shapes).
-	for _, v := range []string{"ledger", "archive", "debate", "changelog", "changes", "citation-ledger", "lines-of-inquiry"} {
+	//
+	// DRIVEN FROM cli.ViewNames(), not a list maintained here. A hand-kept roster of what
+	// exists is how the coverage gap this oracle closes was created in the first place: a
+	// view ships, nobody adds it to the list, and the sweep reports full coverage of a
+	// surface it never drove. The JSON-by-name views take their own dispatch branches above.
+	for _, v := range cli.ViewNames() {
+		switch v {
+		case "board", "findings", "friction", "worklist":
+			continue // JSON by name — driven by their own oracles, not the markdown path
+		}
 		if out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir); err != nil {
-			res.err = "show --view " + v + " (markdown projection) failed:\n" + truncate(string(out))
+			res.err = "show --view " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
 	}

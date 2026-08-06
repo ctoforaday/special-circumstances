@@ -16,43 +16,78 @@ Research that survives an adversary.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
 - For PDF-only sources, YOU MUST try the document-extraction MCP tools before grading down on a lossy fetch: `arxiv-latex` (exact LaTeX for arXiv figures/tables) and `pdf-reader` (page/table extraction with provenance) — discoverable via ToolSearch when the project's `.mcp.json` servers are approved. Two runs of friction ranked lossy PDF fetches the #1 capability gap; a claim capped at "unable to corroborate" without trying these is an incomplete audit.
 
+## The exchange is TOOL-MEDIATED
+
+Everything the two sides exchange — findings, closures, citations, proofs, revisions,
+avenues, disputes, friction, opinions — is an **event on the record**, written through a
+verb that can refuse it, and read back through a projection. This is the governing clause
+of the protocol, not a storage preference: a hand-written file is an exchange nothing
+validated, and a fact recovered from a filename or a prose substring is one only pretending
+to be mediated. Both fail the same way — **by returning a plausible zero**, which reads
+exactly like a clean board. See [[facts-are-fields]].
+
+`report.md` is the instructive non-exception: prose, because its audience is human. But
+every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
+a claim, `fx:` where red challenged, `proof:` where a computation settles it — and dropping
+one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
+
 ## The run directory (the blackboard)
+
+**The tool is the read path.** Where a line below says RECORD, that artifact has no
+authoritative file — read it with `show --view <name>` and never from disk.
 
 ```
 research/<date>_<slug>/
-├── report.md          # final deliverable — assembled LAST, by union
+├── records/           # THE EVENT LOG — the source of truth; one append-only shard per seat
+├── report.md          # final deliverable — assembled LAST, by union (authored)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
-│   ├── frontier.md    # the hypotheses
-│   ├── report.md      # blue's LIVING report — grows every round, never summarized away
-│   ├── CHANGELOG.md   # what blue changed each round (keeps debate.md argument-focused)
-│   └── candidates/    # best-of-N method-lens lane drafts, preserved
-├── red/
-│   ├── ledger.md      # SINGLE SOURCE OF TRUTH for status: open gaps (full grading) + compact
-│   │                  #   closure index (id | class | one-line summary | supersedes) — red-merge-born
-│   │                  #   round 1 (write-guard-verified names), NOT skeleton-born
-│   ├── archive.md     # immutable closed prose, append-only; read on demand (near-match, chain
-│   │                  #   rulings, spot-checks) — never resident in the default merge/judge read
-│   └── citation-ledger.md  # verified citations don't un-verify: claim | reference | confidence | round | access-date
-│                      #   (lens findings are RECORD EVENTS now — read via `show --view findings`, no candidate files)
-├── debate.md          # the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
-│                      #   ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the judge
-│                      #   rules on the closings, the transcript, and the final artifact state only)
-│                      #   friction lives on the RECORD (the friction verb; read via `show --view friction`),
-│                      #   not a file — the pre-tool friction.md was retired 2026-07-19
-├── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
-└── trajectories/      # journal.jsonl (tracked) + board-telemetry.jsonl (one JSON line per round:
-                       #   board profile, mass under the pinned mapping, accepted-dispute deltas —
-                       #   the SIGNAL the stopping judgment reads; convenience copy, never the
-                       #   evidence of record) + agent-transcripts.tar.gz (gitignored)
+│   ├── frontier.md    # the hypotheses (authored — the ONE surviving hand-written blue artifact;
+│   │                  #   the avenue verbs carry the same concept ON the record, so this is a
+│   │                  #   duplicate awaiting retirement — #285)
+│   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
+│   │                  #   Authored prose, but every EDIT after round 0 goes through `blue edit`
+│   ├── CHANGELOG.md   # authored, and duplicated by the `revision` event — retirement is #251
+│   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
+└── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
+
+RECORD — no file; read through the tool:
+  --view board      open gaps with full grading
+  --view ledger     status: open gaps + the compact closure index (id | class | summary | supersedes)
+  --view archive    immutable closed prose; read on demand (near-match, chain rulings, spot-checks),
+                    never resident in the default merge/judge read
+  --view findings   lens findings (candidate FILES were retired — findings are events)
+  --view citation-ledger   verified citations don't un-verify: claim | reference | confidence | round | date
+  --view friction   capability complaints (the pre-tool friction.md was retired 2026-07-19)
+  --view changes    the diff stack: what red prescribed, what blue applied, and the decline rate
+  --view lines-of-inquiry   the avenues, their hypotheses, and their fates
+  --view debate     the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
+                    ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the bench
+                    rules on the closings, the transcript, and the final artifact state only)
+  --view telemetry  JSONL, one line per round: open count, max severity, mass under the pinned
+                    mapping, new mints by severity AND BY CLASS with the class repeat rate,
+                    repair-regression ratio, edge deltas. The SIGNAL the stopping judgment
+                    reads — a series, never a snapshot
+
+trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
+                    + agent-transcripts.tar.gz (gitignored)
 ```
 
+`setup` lays down a few empty stubs so a human opening a fresh run sees the shape. **A stub
+is not an artifact**: measured in the 2026-08-05 run, `debate.md` finished at 36 bytes and
+`red/citation-ledger.md` at 46 while the record held 122 events. Reading either from disk
+returns the plausible zero. Read them with `--view`.
+
 **Termination is judged, and the standing practice is stop-and-resume**: `maxRounds` is a cost
-ceiling, never the terminator of record. The operator reads the board telemetry (open count,
-max severity, new-mint profile, mass trend), stops a run past its value, and resumes with a
-reduced `maxRounds` for the honest UNVERIFIED assembly — cache replay makes the stop ~$0
-(measured). Automatic severity-floor termination was evaluated and REJECTED (run-4 report §1):
-it automates the one call that belongs to judgment. NEVER change models on the resume.
+ceiling, never the terminator of record. Red owns PASS/FAIL — *is it defensible*. **The bench
+owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
+against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
+reads `--view telemetry` and files a reasoned, cost-stated opinion; the operator acts on it,
+stopping a run past its value and resuming with a reduced `maxRounds` for the honest UNVERIFIED
+assembly — cache replay makes the stop ~$0 (measured). **Stopping is not passing**: the verdict
+stays UNVERIFIED with the open count stated. Automatic severity-floor termination was evaluated
+and REJECTED (run-4 report §1): it automates the one call that belongs to judgment. NEVER
+change models on the resume.
 
 All artifacts are git-tracked; nothing is summarized away. The payload is the file; the envelope is the handle — no large content travels through agent return values.
 

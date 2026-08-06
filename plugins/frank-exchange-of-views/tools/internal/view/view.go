@@ -305,6 +305,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 	sort.Ints(rounds)
 
 	var telemetry []string
+	prevClasses := map[string]bool{} // the previous round's mint classes — the repeat-rate basis
 	for _, r := range rounds {
 		var openAtR, minted, closedAtR, lineage []*record.Gap
 		realizedOpen := 0
@@ -354,6 +355,45 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			}
 			bySev.Set(k, n+1)
 		}
+		// THE CLASS DISTRIBUTION — "did the findings change CHARACTER" made computable.
+		//
+		// The severity profile answers "how bad", and a run can hold severity flat for
+		// rounds while the KIND of thing being found moves from "this is wrong about the
+		// world" to "this document disagrees with itself". That phase change is the bench's
+		// stopping signal (#284): findings continuing is normal; findings turning into
+		// internal-consistency complaints means the rest is cheaper to shake out in
+		// execution than in review. Class is already a REQUIRED mint field validated
+		// against the registry, so this is an aggregation, never a new assertion.
+		byClass := record.NewPayload()
+		for _, g := range minted {
+			k := g.Mint.Str("class")
+			if k == "" {
+				continue
+			}
+			n := 0
+			if v, ok := byClass.Get(k); ok {
+				n, _ = v.(int)
+			}
+			byClass.Set(k, n+1)
+		}
+		// Repeat rate against the PREVIOUS round's classes: high means the run is
+		// circling the same kind of defect, which is signal 1 without reading the prose.
+		repeated := 0
+		for _, g := range minted {
+			if prevClasses[g.Mint.Str("class")] {
+				repeated++
+			}
+		}
+		var repeatRate any
+		if len(minted) > 0 && r > 1 {
+			repeatRate = round2(float64(repeated) / float64(len(minted)))
+		}
+		nextPrevClasses := map[string]bool{}
+		for _, g := range minted {
+			if c := g.Mint.Str("class"); c != "" {
+				nextPrevClasses[c] = true
+			}
+		}
 		maxSeverity := any(nil)
 		if len(openAtR) > 0 {
 			sevs := make([]any, len(openAtR))
@@ -376,7 +416,11 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			Set("mapping_version", record.MassMappingVersion).
 			Set("open_count", len(openAtR)).
 			Set("max_severity", maxSeverity).
-			Set("new_mint", record.NewPayload().Set("count", len(minted)).Set("by_severity", bySev)).
+			Set("new_mint", record.NewPayload().
+				Set("count", len(minted)).
+				Set("by_severity", bySev).
+				Set("by_class", byClass).
+				Set("class_repeat_rate", repeatRate)).
 			Set("mass", massSum(openAtR)).
 			Set("realized_open", realizedOpen).
 			Set("repair_regression", record.NewPayload().
@@ -391,6 +435,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			return nil, err
 		}
 		telemetry = append(telemetry, string(enc))
+		prevClasses = nextPrevClasses
 	}
 	return telemetry, nil
 }
