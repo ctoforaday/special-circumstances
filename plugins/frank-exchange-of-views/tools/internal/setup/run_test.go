@@ -1,0 +1,214 @@
+package setup
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+// THE GATE THAT NEVER FIRED.
+//
+// `Run` is the function that decides whether a version-skewed binary stops a run, and it had
+// NO test — only `PreflightRecordBinary`, the pure helper it calls, did. So the helper was
+// correct the whole time while the decision around it was armed on `--bin-dir`, a flag
+// `grep -rn "bin-dir"` found nowhere in the plugin. The unit was tested; the wiring was not,
+// which is the shape of every defect in this file's history.
+//
+// Measured consequence: the 2026-08-05 smoke's first `setup` printed
+// "record binary: NOT AVAILABLE … (this run will not record through the tool)" and CREATED
+// THE RUN ANYWAY. Had that gone unread, the debate would have taken the legacy prompt set,
+// recorded nothing, and every axis added since would have been silently absent with every
+// gate green — while `commands/research.md` promised the opposite in writing.
+
+// runCfg is a Config with the environment injected, so no test touches real git or a real
+// binary. Cwd/Home/ProjectDir point at t.TempDir() so mirrors and markers land in the sandbox.
+func runCfg(t *testing.T, version string, exec ExecFunc) (Config, string) {
+	t.Helper()
+	home := t.TempDir()
+	runDir := filepath.Join(home, "research", "2026-01-01_probe")
+	return Config{
+		RunDir:        runDir,
+		Topic:         "a probe",
+		Model:         "haiku",
+		JudgmentModel: "haiku",
+		Cwd:           home,
+		Home:          home,
+		ProjectDir:    home,
+		ExpectVersion: version,
+		Git:           func([]string) GitResult { return GitResult{Status: 0, Stdout: "abc1234\n"} },
+		Exec:          exec,
+		Now:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	}, runDir
+}
+
+func reports(version string) ExecFunc {
+	return func(string, []string) ExecResult {
+		return ExecResult{Status: 0, Stdout: "feov-record version " + version + "\n"}
+	}
+}
+
+// DEFECT 1: the preflight must refuse WITHOUT anyone opting in. No --bin-dir is passed here,
+// which is exactly the documented launch. Before the fix this returned 0 and built the run.
+func TestSkewedBinaryRefusesEvenWithoutBinDir(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.34.0"))
+	var out, errb bytes.Buffer
+
+	if code := Run(cfg, &out, &errb); code != 2 {
+		t.Errorf("exit %d, want 2 — a skewed binary must refuse on the DOCUMENTED launch, which passes no --bin-dir", code)
+	}
+	if !strings.Contains(errb.String(), "RECORD BINARY PREFLIGHT FAILED") {
+		t.Errorf("the refusal did not name itself:\n%s", errb.String())
+	}
+	// The run must not exist: refusing after building it is the same failure with extra steps.
+	if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+		t.Error("the run directory was created despite the refusal — the gate is supposed to fire BEFORE any run state")
+	}
+	if strings.Contains(out.String(), "NOT AVAILABLE") {
+		t.Error("the warn-and-proceed path is still reachable")
+	}
+}
+
+// DEFECT 2: the expectation must come from the manifest ON DISK, not from the constant
+// compiled into whichever binary happens to run `setup`.
+//
+// In the documented flow that binary IS the one the seats will call, so comparing its own
+// constant against its own --version passes by construction. That exact failure already
+// shipped once — both sides read 0.1.0 for the whole of 2026-07-19 while the event schema
+// changed underneath (see cli/versionsync_test.go). Arming a gate that compares a number to
+// itself would have closed the issue and fixed nothing.
+func TestTheExpectedVersionComesFromTheManifestNotTheRunningBinary(t *testing.T) {
+	root := t.TempDir()
+	binDir := filepath.Join(root, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The plugin this binary belongs to expects 9.9.9 — the cache was updated, the binary was not.
+	if err := os.WriteFile(filepath.Join(root, "requirements.json"),
+		[]byte(`{"recordToolVersion":"9.9.9"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compiled constant AND reported version agree at 0.35.0 — the tautology that used to pass.
+	cfg, _ := runCfg(t, "0.35.0", reports("0.35.0"))
+	cfg.BinDir = binDir
+	var out, errb bytes.Buffer
+
+	if code := Run(cfg, &out, &errb); code != 2 {
+		t.Errorf("exit %d, want 2 — the manifest beside the binary says 9.9.9 and the binary reports 0.35.0", code)
+	}
+	if !strings.Contains(errb.String(), "9.9.9") {
+		t.Errorf("the refusal did not name the manifest's expectation, so an operator cannot tell what to rebuild:\n%s", errb.String())
+	}
+}
+
+// A binary outside any plugin layout has no manifest to disagree with, so the compiled-in
+// constant remains the fallback — a dev build must not be refused for lacking a file.
+func TestNoManifestFallsBackToTheCompiledConstant(t *testing.T) {
+	binDir := filepath.Join(t.TempDir(), "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	cfg.BinDir = binDir
+	var out, errb bytes.Buffer
+
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d, want 0 — no manifest means nothing to disagree with:\n%s", code, errb.String())
+	}
+	if _, err := os.Stat(filepath.Join(runDir, "records")); err != nil {
+		t.Errorf("the run was not built on the passing path: %v", err)
+	}
+	if !strings.Contains(out.String(), "0.35.0") {
+		t.Errorf("the summary did not report the verified version:\n%s", out.String())
+	}
+}
+
+// THE OTHER THREE FAIL-FAST GATES.
+//
+// The preflight was not specially unlucky: `Run` has four gates and NONE of them had a
+// decision-level test, which is why one of them could sit disarmed through six runs. Each of
+// these guards a promise `commands/research.md` makes to an operator in writing, so each one
+// silently not firing is a documented guarantee that is simply untrue.
+
+func TestMissingModelTierRefuses(t *testing.T) {
+	for _, drop := range []string{"model", "judgment"} {
+		t.Run(drop, func(t *testing.T) {
+			cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+			if drop == "model" {
+				cfg.Model = ""
+			} else {
+				cfg.JudgmentModel = ""
+			}
+			var out, errb bytes.Buffer
+			if code := Run(cfg, &out, &errb); code != 2 {
+				t.Errorf("exit %d, want 2 — the engine never guesses a tier or inherits the session model", code)
+			}
+			if !strings.Contains(errb.String(), "MODEL TIERS REQUIRED") {
+				t.Errorf("the refusal did not name itself:\n%s", errb.String())
+			}
+			if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+				t.Error("the run directory was created despite a missing tier")
+			}
+		})
+	}
+}
+
+// A cite that does not exist at its pin refuses. Evidence that can still change underneath
+// the run is not evidence, so this must fail BEFORE the run exists.
+func TestPinMissRefuses(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	cfg.Cites = []string{"docs/gone.md@deadbeef"}
+	// rev-parse resolves (so pins are CHECKED, not skipped); cat-file -e fails (so the cite misses).
+	cfg.Git = func(args []string) GitResult {
+		if len(args) > 0 && args[0] == "cat-file" {
+			return GitResult{Status: 1}
+		}
+		return GitResult{Status: 0, Stdout: "abc1234\n"}
+	}
+	var out, errb bytes.Buffer
+
+	if code := Run(cfg, &out, &errb); code != 2 {
+		t.Errorf("exit %d, want 2 — a cite that does not exist at its pin is not evidence", code)
+	}
+	if !strings.Contains(errb.String(), "PIN VALIDATION FAILED") {
+		t.Errorf("the refusal did not name itself:\n%s", errb.String())
+	}
+	if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+		t.Error("the run directory was created despite an unresolvable cite")
+	}
+}
+
+// The run directory argument itself. A flag in its place means the operator forgot it, and
+// building a run called "--topic" is worse than refusing.
+func TestMissingRunDirRefuses(t *testing.T) {
+	for _, arg := range []string{"", "--topic"} {
+		cfg, _ := runCfg(t, "0.35.0", reports("0.35.0"))
+		cfg.RunDir = arg
+		var out, errb bytes.Buffer
+		if code := Run(cfg, &out, &errb); code != 1 {
+			t.Errorf("RunDir %q: exit %d, want 1", arg, code)
+		}
+		if !strings.Contains(errb.String(), "usage:") {
+			t.Errorf("RunDir %q: no usage line:\n%s", arg, errb.String())
+		}
+	}
+}
+
+// An unrunnable binary refuses too — previously this was the "NOT AVAILABLE" warning that
+// created the run regardless.
+func TestUnrunnableBinaryRefuses(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", func(string, []string) ExecResult {
+		return ExecResult{Status: 1, Err: os.ErrNotExist}
+	})
+	var out, errb bytes.Buffer
+
+	if code := Run(cfg, &out, &errb); code != 2 {
+		t.Errorf("exit %d, want 2", code)
+	}
+	if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+		t.Error("the run directory was created despite an unrunnable record binary")
+	}
+}

@@ -374,10 +374,16 @@ func BuildPatternIndex(memoryDirs []string) PatternIndex {
 
 // ---- pin validation ----
 
-// GitResult mirrors the fields the mjs reads off spawnSync: an exit Status and an Err.
+// GitResult mirrors the fields the mjs reads off spawnSync: an exit Status and an Err,
+// plus the Stdout `rev-parse` needs. Stdout exists so HEAD resolution goes through the SAME
+// injected seam as every other git call — it used to shell out directly, which meant the pin
+// gate could not be reached in a test at all: a temp cwd is not a repo, HEAD came back
+// "unknown", and ValidatePins skipped itself. A gate whose arming depends on ambient state
+// nobody can control is the same defect this file's preflight had.
 type GitResult struct {
 	Status int
 	Err    error
+	Stdout string
 }
 
 // GitFunc runs a git invocation; injectable for tests, defaults to the real git.
@@ -387,7 +393,7 @@ func realGit(cwd string) GitFunc {
 	return func(args []string) GitResult {
 		c := exec.Command("git", args...)
 		c.Dir = cwd
-		err := c.Run()
+		out, err := c.Output()
 		status := 0
 		if err != nil {
 			status = 1
@@ -395,7 +401,7 @@ func realGit(cwd string) GitFunc {
 				status = ee.ExitCode()
 			}
 		}
-		return GitResult{Status: status, Err: nil}
+		return GitResult{Status: status, Err: nil, Stdout: string(out)}
 	}
 }
 
@@ -478,6 +484,27 @@ func PurgeStaleMirrors(mirrorRoot string, now time.Time, maxAgeDays int) int {
 		}
 	}
 	return purged
+}
+
+// expectedRecordVersion resolves what the binary at recordBin OUGHT to report.
+//
+// THE SECOND HALF OF THE SAME DEFECT. Arming the preflight is not enough if the number it
+// compares against comes from the binary running `setup` — in the documented flow that is the
+// SAME binary the seats will use, so the check reduces to a number compared with itself and
+// passes by construction. That exact failure already shipped once: both sides read 0.1.0 for
+// the whole of 2026-07-19 while the event schema changed underneath (see versionsync_test).
+//
+// The authority is requirements.json sitting beside the binary's plugin root — `bin/` in an
+// installed cache, `tools/` in a dev tree, both one level up. That is the manifest shipped
+// with the PROMPTS this run will drive, which is the thing the binary has to agree with. The
+// compiled-in constant remains the fallback for a binary living outside a plugin layout,
+// where there is no manifest to disagree with.
+func expectedRecordVersion(recordBin, compiledIn string) string {
+	manifest := filepath.Join(filepath.Dir(filepath.Dir(recordBin)), "requirements.json")
+	if v := RecordToolVersion(manifest); v != "" {
+		return v
+	}
+	return compiledIn
 }
 
 // RecordToolVersion reads recordToolVersion from requirements.json (the version authority).
