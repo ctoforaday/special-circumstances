@@ -117,6 +117,14 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.37.0 the estoppel-rejection count is keyed on a FIELD, not on prose (#283). It read
+//	       `strings.Contains(frictionText, "estoppel <emdash>")`, which returns ZERO both when the
+//	       guard never fires and when anyone rewords the refusal — and zero is printed to an
+//	       operator as "red behaved". It also COUNTED UP on a seat quoting the refusal in its
+//	       own complaint, so the measurement could be wrong in both directions at once. The
+//	       refusal now carries kind=estoppel and estopped_by=<gap> on the friction event, and
+//	       the count reads the field. A stale binary writes friction without the field, so its
+//	       rejections read 0 — the honest answer for events that never recorded the fact.
 //	0.36.0 the run directory is INJECTED, not typed (#281). The first live run logged 55
 //	       tool-call errors in 534 executions and TEN were one flag; `InferRunDir` was added
 //	       for that and never fires, because the prompt hands the seat an absolute --run at
@@ -266,7 +274,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.36.0"
+const Version = "0.37.0"
 
 func init() { record.ToolVersion = Version }
 

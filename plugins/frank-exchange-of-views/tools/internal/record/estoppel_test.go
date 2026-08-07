@@ -119,3 +119,52 @@ func TestDisputeCountsAsADecline(t *testing.T) {
 		t.Errorf("applied=%d declined=%d, want 0/1 — a dispute is blue declining", applied, declined)
 	}
 }
+
+// THE COUNT IS KEYED ON A FIELD, NOT ON PROSE (#283, and the defect was mine).
+//
+// It read `strings.Contains(text, "estoppel —")`. That returns ZERO both when the guard
+// never fires and when someone rewords the refusal — and zero is printed to an operator as
+// "red behaved". The miss and the healthy answer were the same bytes.
+//
+// This test is the one the old implementation cannot pass: the message is deliberately
+// rewritten, including dropping the em-dash the substring keyed on.
+func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
+	fr := func(text string) Event {
+		return Event{Type: "friction", SeatID: "red-merge-r2", Round: 2, Payload: NewPayload().
+			Set("text", text).
+			Set(FrictionKindKey, FrictionKindEstoppel).
+			Set("estopped_by", "R1-3")}
+	}
+	b := board(t, nil, []Event{
+		fr("merge mint: estoppel — this gap's location is text YOU prescribed"),
+		fr("Refused: you are raising a fresh gap against your own prescription."), // reworded
+	})
+	if got := EstoppelRejections(b); got != 2 {
+		t.Errorf("EstoppelRejections = %d, want 2 — rewording the message must not move a number read as evidence about red", got)
+	}
+}
+
+// A seat's ORDINARY friction is not an estoppel rejection, even when it talks about one.
+// Under the substring rule, a seat quoting the refusal in its own complaint inflated the
+// count — the same confusion between a mention and the thing itself that the hook's
+// position matcher exists to avoid.
+func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
+	b := board(t, nil, []Event{
+		{Type: "friction", SeatID: "blue-respond-r2", Round: 2, Payload: NewPayload().
+			Set("text", "merge mint: estoppel — I hit this and could not proceed")},
+	})
+	if got := EstoppelRejections(b); got != 0 {
+		t.Errorf("EstoppelRejections = %d, want 0 — a seat QUOTING the refusal did not cause one", got)
+	}
+}
+
+// Zero is a real answer and must be reachable, so the printed "0" means "the guard did not
+// fire" rather than "the detector is broken".
+func TestNoRejectionsCountsZero(t *testing.T) {
+	b := board(t, nil, []Event{
+		{Type: "friction", SeatID: "red-merge-r1", Round: 1, Payload: NewPayload().Set("text", "the fetch cache refused an unreachable url")},
+	})
+	if got := EstoppelRejections(b); got != 0 {
+		t.Errorf("EstoppelRejections = %d, want 0", got)
+	}
+}

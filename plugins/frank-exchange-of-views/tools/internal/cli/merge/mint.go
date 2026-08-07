@@ -125,7 +125,14 @@ func newMint() *cobra.Command {
 					!contains(supersedes.Value(), prior) {
 					msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
 						prior, prior, prior, prescribed)
-					if _, ferr := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", msg)); ferr != nil {
+					// The KIND is a field, not something a reader infers from the wording. The
+					// prose above is aimed at a seat and must stay editable; the count an
+					// operator reads must not move when it is edited (#283).
+					fr := record.NewPayload().
+						Set("text", msg).
+						Set(record.FrictionKindKey, record.FrictionKindEstoppel).
+						Set("estopped_by", prior)
+					if _, ferr := record.Append(s.RunDir, s.SeatID, "friction", fr); ferr != nil {
 						return nil, ferr
 					}
 					return nil, errors.New(msg)
