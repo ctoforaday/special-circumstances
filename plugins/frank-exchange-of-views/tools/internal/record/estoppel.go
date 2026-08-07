@@ -168,3 +168,25 @@ func EstoppelRejections(b *Board) int {
 	}
 	return n
 }
+
+// ProofAnswers reports whether any recorded proof names this gap in its --answers.
+//
+// It is the join a `computation` acceptance check closes on. The link is a FIELD checked
+// against the board at write time, never a gap id mentioned in prose — the convention
+// blue_edit's --answers replaced after it measured 73% reliable, which is reliable enough to
+// look like a key and not reliable enough to be one.
+func ProofAnswers(runDir, gapID string) bool {
+	if gapID == "" {
+		return false
+	}
+	b, err := BoardState(runDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range b.Events {
+		if e.Type == "proof" && e.Payload.Str("answers") == gapID {
+			return true
+		}
+	}
+	return false
+}

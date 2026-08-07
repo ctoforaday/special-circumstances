@@ -117,6 +117,18 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.38.0 RED CAN ASK FOR A COMPUTATION (#277). `merge mint --check-kind document |
+//	       computation | source` is REQUIRED — what would SETTLE the acceptance check. The
+//	       measured cause of zero proofs across six runs was never blue's reluctance: in the
+//	       2026-08-05 smoke all TEN of red's checks were document probes (R1-1 was literally
+//	       "execute the assembly step"), so red could only ask whether the report SAYS
+//	       something, and a full round went on R1-2/R2-2 refusing an asserted test that three
+//	       lines of trial division settle. An OPTIONAL field would have been answered the way
+//	       avenue --hypothesis was before it was required, which is not at all. A `computation`
+//	       gap now CANNOT be closed until a proof answers it: `blue prove --answers <gap>` is
+//	       the join, checked against the board at write time like every other reference. A
+//	       stale binary rejects --check-kind outright, and its mints are refused for the
+//	       missing required field.
 //	0.37.0 the estoppel-rejection count is keyed on a FIELD, not on prose (#283). It read
 //	       `strings.Contains(frictionText, "estoppel <emdash>")`, which returns ZERO both when the
 //	       guard never fires and when anyone rewords the refusal — and zero is printed to an
@@ -274,7 +286,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.37.0"
+const Version = "0.38.0"
 
 func init() { record.ToolVersion = Version }
 

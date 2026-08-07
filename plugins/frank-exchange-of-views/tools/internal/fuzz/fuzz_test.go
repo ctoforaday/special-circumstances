@@ -82,6 +82,11 @@ type runner struct {
 	rng         *rand.Rand
 	registered  map[string]bool
 	classMade   bool
+	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
+	// until a proof answers it, so closeGap satisfies it first — otherwise the fuzzer
+	// accumulates unclosable gaps and every open-gap-scaled drive grows with them (measured:
+	// a uniform draw took the 60-run sweep from 47s to a 900s timeout).
+	computationGaps map[string]bool
 	// #62 Stage 2: disputes blue RAISED (event emitted + envelope ref), awaiting red's answer
 	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
 	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
@@ -274,7 +279,13 @@ func (r *runner) emitConfidence(seatID string) {
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
 // introduces the class; the rest reuse it.
 func (r *runner) mint(seatID string) string {
-	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check", "acc", "--likelihood", r.g(), "--impact", r.g()}
+	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
+	// computation branch — a gap that CANNOT be closed without a proof answering it — driven by
+	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
+	// not exist, behind a green sweep). Both the refusal and the satisfied path run across a
+	// sweep, because the prove drive below answers a computation gap when one is open.
+	kind := checkKinds[r.rng.Intn(len(checkKinds))]
+	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind, "--check", "acc", "--likelihood", r.g(), "--impact", r.g()}
 	if !r.classMade {
 		r.classMade = true
 		args = append(args, "--class-new", "fuzzcls", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
@@ -321,6 +332,12 @@ func (r *runner) mint(seatID string) string {
 	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil {
 		return ""
 	}
+	if kind == "computation" && env.Result.GapID != "" {
+		if r.computationGaps == nil {
+			r.computationGaps = map[string]bool{}
+		}
+		r.computationGaps[env.Result.GapID] = true
+	}
 	return env.Result.GapID
 }
 
@@ -363,6 +380,20 @@ func (r *runner) openGaps() []string {
 }
 
 func (r *runner) closeGap(seatID, id string, allowReg bool) {
+	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, deterministically.
+	//
+	// The guard refuses a closure with no proof answering the gap, so leaving it to chance
+	// meant unclosable gaps piling up run after run — and every drive that iterates the open
+	// set grew with them. Answering it here drives the SATISFIED path on every computation
+	// gap, which is the branch a probabilistic prove would mostly skip, and the refusal is
+	// still covered by the integration tests that assert it.
+	if r.computationGaps[id] {
+		name := "fuzz-answer-" + id + ".js"
+		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
+			_, _ = r.exec("blue", "prove", "--seat-id", "blue-respond-r1", "--location", "§ fuzz",
+				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
+		}
+	}
 	// A regression close carries lineage forward: it mints a successor and closes WITH it
 	// (record.go requires --successor for closed_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
@@ -377,6 +408,10 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed", "--reason", "fuzz close",
 		"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec")
 }
+
+// checkKinds draws uniformly: closeGap satisfies a computation gap before closing it, so the
+// kind no longer decides whether a run accumulates dead gaps.
+var checkKinds = []string{"document", "computation", "source"}
 
 var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined"}
 var obsKind = []string{"note", "checked-held"}
@@ -561,12 +596,17 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err != nil {
 				return
 			}
-			r.do("blue", "prove", seatID).
+			pv := r.do("blue", "prove", seatID).
 				set("--location", "§ fuzz").
 				set("--script", name).
 				set("--reason", "fuzz: computing rather than arguing").
-				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2))).
-				run()
+				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2)))
+			// ANSWER a real gap most of the time: a computation check closes only on a proof
+			// that names it, so without this the guard would only ever be seen refusing.
+			if len(open) > 0 && r.coin(70) {
+				pv = pv.set("--answers", pick(r.rng, open))
+			}
+			pv.run()
 		})
 		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })

@@ -78,7 +78,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// the run's terminal verdict is recorded.
 	add("red-merge-r1", "mint", "gap_id", "R1-1", "problem", "eviction races the reader", "location", "cache.go:88",
 		"class", "correctness", "likelihood", "medium", "impact", "high",
-		"acceptance_check", "race the eviction under -race", "required_fix", "take the read lock in evict")
+		"acceptance_check", "race the eviction under -race", "check_kind", "document", "required_fix", "take the read lock in evict")
 	add("red-merge-r1", "position", "text", "gap R1-1 stands until the race is shown impossible")
 	add("blue-r1", "position", "text", "R1-1 is repaired by ordering the invalidation before the store")
 	add("blue-r1", "avenue", "avenue_id", "A1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")

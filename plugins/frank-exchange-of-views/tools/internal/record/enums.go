@@ -105,6 +105,10 @@ var EnumFields = map[string][]EnumField{
 		Why:      "the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero",
 		Optional: true,
 	}},
+	"mint": {{
+		Key: "check_kind", Flag: flags.CheckKind, Values: []string{"document", "computation", "source"},
+		Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
+	}},
 	"observe": {{
 		Key: "kind", Flag: flags.Kind, Values: []string{"note", "checked-held"},
 		Why:      "the two kinds are what an observation can BE — a note the merge may decline, or a check that was run and held. A third word exports into the findings projection as a flavour nothing downstream knows how to read",

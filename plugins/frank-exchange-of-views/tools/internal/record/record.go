@@ -383,6 +383,17 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if !p.Has("class") || p.Str("class") == "" {
 			return fmt.Errorf("record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)")
 		}
+		// REQUIRED, not optional, and that is the whole remedy (#277).
+		//
+		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
+		// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
+		// were document probes. An optional field would be answered the same way the
+		// avenue --hypothesis was before it was required, which is to say not at all. Making
+		// red state what would settle each check is the behaviour change; `document` stays a
+		// legitimate answer, but it now has to be chosen.
+		if !p.Has("check_kind") || p.Str("check_kind") == "" {
+			return fmt.Errorf("record: mint requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote one")
+		}
 		// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
 		// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
 		// A LEGITIMATE VALUE cannot be optional.
@@ -425,6 +436,14 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			if !ids[anc] {
 				return fmt.Errorf("record: mint supersedes %s, which no mint event has created — dangling lineage refused", anc)
 			}
+		}
+	case "proof":
+		// The same key rule as blue_edit's --answers: a proof may name the gap it settles,
+		// and a dangling reference is refused HERE rather than accepted and dropped at
+		// replay. It is optional — a proof can back a claim nobody challenged — but a
+		// `computation` gap can be closed ONLY by one that names it (see merge close).
+		if err := requireGap(runDir, p.Str("answers"), "blue prove", "--answers"); err != nil {
+			return err
 		}
 	case "blue_edit":
 		// PROVENANCE IS A KEY, NOT A CONVENTION.

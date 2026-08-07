@@ -138,7 +138,7 @@ func TestLensWorkReachesTheBoardAndEveryObservationGetsAFate(t *testing.T) {
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
 		"--location", "§3 \"the parser accepts an empty body\"",
 		"--problem", "the defect", "--fix", "the fix",
-		"--check", "feed the parser an empty body and assert it is refused",
+		"--check-kind", "document", "--check", "feed the parser an empty body and assert it is refused",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
 		"--found-by", "L1-F1")
 	if err != nil {

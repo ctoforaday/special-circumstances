@@ -38,7 +38,7 @@ func runWithGap(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").
+		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("class", "x").
+	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	if _, err := Append(runDir, "red-merge-r1", "mint", mint); err != nil {
 		t.Fatal(err)
@@ -173,7 +173,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").
+		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 // rather than multiplied, so their absence is visible and they stay optional.
 func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 	base := func() *Payload {
-		return NewPayload().Set("acceptance_check", "c").Set("class", "scope-creep").
+		return NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "scope-creep").
 			Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 	for _, missing := range []string{"likelihood", "impact"} {

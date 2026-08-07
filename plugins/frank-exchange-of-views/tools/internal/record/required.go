@@ -31,7 +31,7 @@ package record
 // that prose: a ruling, a closure, a removal or a dispute with no stated reasoning is
 // indistinguishable from a default, and the tool refuses it rather than let it through.
 var RequiredFields = map[string][]string{
-	"mint": {"acceptance_check", "class", "likelihood", "impact", "problem"},
+	"mint": {"acceptance_check", "check_kind", "class", "likelihood", "impact", "problem"},
 	// finding's label is TOOL-assigned now (not seat-provided), so it is not listed
 	// here — same as mint's gap_id, which validate requires but no flag sets. validate
 	// still enforces the finding-label INVARIANT; the table lists only seat-set fields.

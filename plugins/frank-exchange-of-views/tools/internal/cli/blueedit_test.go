@@ -318,7 +318,7 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class-new", "overclaim", "--definition", "d", "--neighbor", "n",
 		"--distinguisher", "x", "--location", "§1", "--problem", "the defect",
-		"--fix", "drop the independence claim", "--check", "the section no longer claims independence",
+		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
 		"--fix-old", "Five independent verification", "--fix-new", "Five verification"); err != nil {
 		t.Fatalf("a legal concrete proposal was refused: %v", err)
@@ -338,7 +338,7 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, "# H\n\nSome text.\n")
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "G1", "--class", "x", "--check", "c", "--problem", "p",
+		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
 	if err == nil {
 		t.Fatal("--fix-basis was accepted — the basis must be derived, never asserted")
@@ -354,7 +354,7 @@ func TestHalfAProposalIsRefused(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "G1", "--class", "x", "--check", "c", "--problem", "p",
+		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium",
 		"--fix-old", "Five independent verification")
 	if err == nil {
@@ -374,7 +374,7 @@ func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "G1", "--class", "x", "--check", "c", "--problem", "p",
+		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium",
 		"--fix-old", "a sentence the report never contained", "--fix-new", "anything")
 	if err == nil {
@@ -394,7 +394,7 @@ func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", key, "--class", "overclaim", "--location", "§1", "--problem", "the defect",
-		"--fix", "drop the independence claim", "--check", "the section no longer claims it",
+		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--likelihood", "medium", "--impact", "medium",
 		"--fix-old", fixOld, "--fix-new", fixNew)
 	if err != nil {
@@ -459,7 +459,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	before := countType(t, runDir, "mint")
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		"--key", "G2", "--class", "overclaim", "--location", prescribedText,
-		"--problem", "this sentence overclaims", "--check", "c",
+		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium")
 	if err == nil {
 		t.Fatal("red opened a fresh gap against text it prescribed itself")
@@ -486,7 +486,7 @@ func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
 
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		"--key", "G2", "--class", "overclaim", "--location", prescribedText,
-		"--problem", "my own fix turned out to contradict §3", "--check", "c",
+		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium",
 		"--supersedes", prior); err != nil {
 		t.Fatalf("red was blocked from AMENDING its own prescription, which the guard must allow: %v", err)
@@ -500,7 +500,7 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		"--key", "G2", "--class", "overclaim", "--location", "§4 \"an entirely different claim about sieve costs\"",
-		"--problem", "unsupported", "--check", "c",
+		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
 	}

@@ -44,7 +44,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	// location/reason would), plus a terminal outcome so assembly composes fully.
 	p := record.NewPayload().Set("gap_id", "R1-1").
 		Set("problem", "the sentence flagged here <!--fx:f-leak12--> is wrong").
-		Set("location", "§1").Set("required_fix", "fix it").Set("acceptance_check", "recheck").
+		Set("location", "§1").Set("required_fix", "fix it").Set("acceptance_check", "recheck").Set("check_kind", "document").
 		Set("class", "correctness").Set("severity", "high").Set("likelihood", "high").Set("impact", "high")
 	if _, err := record.Append(runDir, "red-merge-r1", "mint", p); err != nil {
 		t.Fatal(err)

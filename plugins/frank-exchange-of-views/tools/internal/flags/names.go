@@ -159,6 +159,9 @@ const (
 	Problem = "problem"
 	Fix     = "fix"
 	Check   = "check"
+	// CheckKind says what would SETTLE the acceptance check — read a document, run a
+	// computation, or verify a source. It is what lets red demand evidence prose cannot fake.
+	CheckKind = "check-kind"
 	// Existence is the leaf-check axis: was the defect VERIFIED present or SUSPECTED?
 	// Orthogonal to the grades (which score the consequence). The board reads it; this
 	// is the flag that writes it.
@@ -238,7 +241,7 @@ func All() []string {
 		As, Notes, Status, Into, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
-		Problem, Fix, Check, Existence, FixOld, FixNew, Hypothesis, Ruling, Script, Cites,
+		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Ruling, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,

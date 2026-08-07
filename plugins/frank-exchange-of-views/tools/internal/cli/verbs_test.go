@@ -22,7 +22,7 @@ func seedReferents(t *testing.T, runDir string) {
 	t.Helper()
 	for i := 0; i < 2; i++ {
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check", "c",
+			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
 			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
@@ -41,7 +41,7 @@ func seedReferents(t *testing.T, runDir string) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "seed-archived", "--class", "x", "--check", "c",
+		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p",
+		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
