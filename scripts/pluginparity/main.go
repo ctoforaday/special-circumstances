@@ -13,7 +13,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -73,6 +75,10 @@ func main() {
 	fail := func(format string, a ...any) {
 		fmt.Fprintf(os.Stderr, format+"\n", a...)
 		failed = true
+	}
+
+	for _, problem := range committedBinaries(root) {
+		fail("%s", problem)
 	}
 
 	// Each source, with the pattern that finds it. A pattern that stops matching is
@@ -276,5 +282,67 @@ func alwaysOnProblems(root string) []string {
 		}
 	}
 
+	return problems
+}
+
+// executableMagic are the leading bytes of the formats a build on any platform this suite
+// runs on produces. Matching on CONTENT rather than on a name or a path is the point: the
+// accident this catches was a file called `feov-record` with no extension sitting in a
+// directory full of legitimate source, and a name-based rule would have to be extended for
+// every new command — which is the hand-maintained list that let it happen.
+var executableMagic = [][]byte{
+	{'M', 'Z'},               // PE (Windows .exe)
+	{0x7f, 'E', 'L', 'F'},    // ELF (Linux)
+	{0xcf, 0xfa, 0xed, 0xfe}, // Mach-O 64-bit little-endian (macOS)
+	{0xca, 0xfe, 0xba, 0xbe}, // Mach-O universal
+}
+
+// committedBinaries reports every TRACKED file under plugins/ whose bytes are an executable.
+//
+// WHY CONTENT AND NOT .gitignore ALONE. .gitignore already said these are "never committed"
+// and had done for a long time; it covered bin/ and tools/dist/ and not the path `go build`
+// actually writes to. A policy with a hole is how a 6 MB feov-record reporting 0.17.0 stayed
+// tracked through nineteen version bumps, read by nothing and rebuilt by no one. .gitignore
+// stops the known names; this stops the class.
+//
+// Binaries reach an installing project through GitHub Releases (SHA256-verified) or a local
+// `go build` via doctor --fix. Neither route goes through git, so a tracked executable is
+// always an accident.
+func committedBinaries(root string) []string {
+	out, err := gitx.Run(root, "ls-files", "plugins")
+	if err != nil {
+		return []string{fmt.Sprintf("cannot list tracked plugin files, so the committed-binary check did not run: %v", err)}
+	}
+	var problems []string
+	seen := 0
+	for _, rel := range strings.Split(out, "\n") {
+		rel = strings.TrimSpace(rel)
+		if rel == "" {
+			continue
+		}
+		seen++
+		f, err := os.Open(filepath.Join(root, rel))
+		if err != nil {
+			continue // deleted-but-staged, or a symlink; not this check's business
+		}
+		head := make([]byte, 4)
+		n, _ := io.ReadFull(f, head)
+		f.Close()
+		if n < 2 {
+			continue
+		}
+		for _, magic := range executableMagic {
+			if n >= len(magic) && bytes.Equal(head[:len(magic)], magic) {
+				problems = append(problems, fmt.Sprintf(
+					"%s is a COMMITTED EXECUTABLE. Binaries reach a consumer through GitHub Releases or a local build (doctor --fix), never through git — a tracked one goes stale in silence: the last was 19 versions behind, read by nothing, and rebuilt by no one. Delete it, and add its path to .gitignore so the next build does not re-add it.", rel))
+				break
+			}
+		}
+	}
+	// A check that reads nothing must SAY so rather than report success — the same failure
+	// mode the plugin-list guards above are written against.
+	if seen == 0 {
+		return []string{"the committed-binary check listed zero tracked files under plugins/, so it has been passing without reading anything."}
+	}
 	return problems
 }

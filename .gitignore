@@ -32,6 +32,17 @@ Thumbs.db
 plugins/*/bin/*
 !plugins/*/bin/.gitkeep
 plugins/*/tools/dist/
+# ...and where `go build` ACTUALLY drops one. The rules above cover the INSTALL location
+# (bin/) and the release staging dir; neither covers the BUILD location. `go build
+# ./cmd/feov-record` run from tools/ with no -o writes the executable to tools/<cmdname>,
+# and that is how a 6 MB feov-record reporting 0.17.0 sat tracked in this repo for nineteen
+# version bumps, read by nothing. The policy above already said "never committed" — it just
+# had no mechanism at the one path where the accident happens. scripts/pluginparity now
+# fails on ANY tracked executable under plugins/, which catches this regardless of name.
+plugins/*/tools/feov-record
+plugins/*/tools/sc-*
+plugins/*/tools/gray-area
+plugins/*/tools/gray-area-capture
 **/trajectories/agent-transcripts.tar.gz
 
 # Agent memory is the harness's RAW ACCRUAL path (machine-local, resolved through
