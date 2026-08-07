@@ -1,0 +1,29 @@
+prompt sha256: bbdbed0a8f518d391b7d4aecb302152b917f18dc268218b924f95673bf8dcfa6
+
+Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
+Debate outcome: VERIFIED after 2 round(s).
+THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs.
+After registering, exactly two tool calls in order: (1) record the terminal verdict as a fact — "/opt/feov/bin/feov-record" bench outcome --run research/2026-01-01_golden --seat-id <your SEAT_ID> --as VERIFIED; (2) "/opt/feov/bin/feov-record" bench assemble --run research/2026-01-01_golden.
+The assembler composes research/2026-01-01_golden/report.md FROM THE EVENT LOG (the verdict stamp from the outcome event you just wrote, the graded risk matrix, the expansions and alternatives-considered from the avenue record, red's findings in full, and the entire debate transcript — positions, closings, grade disputes, the bench's opinions and petition rulings, the terminal halt/certification) and LIFTS blue's audited sections VERBATIM from blue/report.md (the title, the TL;DR, the Catechism, the technical foundations, the analysis, the open questions).
+A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report.
+There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself.
+Verify research/2026-01-01_golden/report.md exists and read its top — the verdict stamp is the outcome event's, the sections are blue's and the record's.
+AUTHORITATIVE OPEN COUNT: after assembling, run "/opt/feov/bin/feov-record" bench show --run research/2026-01-01_golden --view board and report its counts.open as open_gaps in your envelope — this is the run's true outstanding-gap number (the board after every closure and ruling), and it is the ONLY correct source for it.
+Collated friction so far (report any of your own as well): [].
+FRICTION (assemble): report any friction in the envelope's friction field AND through the tool's friction verb — the verb is the durable record that survives a later phase abort.
+Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
+SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
+Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
+KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  /opt/feov/bin/feov-record scorecard --run research/2026-01-01_golden --chair bench  and read how this chair is doing on the question in front of you so far.
+It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
+Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
+SEAT_ID: assemble.
+THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritative, not "under test"): every board act happens through "/opt/feov/bin/feov-record" bench, and the tool's board — read it back with `bench show --view board` (structured JSON) — is the ONLY source of truth for status.
+FIRST ACTION: "/opt/feov/bin/feov-record" bench register --run research/2026-01-01_golden --seat-id assemble — then the matching verb for each act.
+YOUR CONTRACT IS `feov-record bench --help` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you.
+Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
+If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
+Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
+It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
+Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.

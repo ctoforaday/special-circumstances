@@ -67,7 +67,23 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // the bench sits), blue responds, round 2 PASSes, assembly runs. claim_count is
 // chosen to give round 1 the full four citation slices and round 2 a small
 // delta, which is what exercises W2i's consolidated seat.
-async function fullRun() {
+// THE VARIANT THAT SHIPS WAS NEVER RECORDED (#302).
+//
+// Every prompt in debate.js is built with `${binDir ? <record-mode> : <legacy>}` ternaries,
+// and this suite never set binDir — so for its whole life it captured only the LEGACY branch,
+// the prompt set used when resuming a pre-record run. Every real run passes binDir. The
+// prompts seats actually read had never been diff-reviewed.
+//
+// Measured when it was found: a change re-pointing the lanes off blue/frontier.md moved NO
+// golden at all, and the lane golden went on recording the retired instruction. This is also
+// why the goldens missed #280 — the merge prompt naming a verb that does not exist — because
+// that text lives in the record-mode branch these files did not render.
+//
+// Both variants are captured now. The legacy set stays because that path is still live code;
+// when it is retired, this collapses back to one.
+const BIN_DIR = '/opt/feov/bin'
+
+async function fullRun(args = ARGS) {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
     // A grade dispute is what puts a judge on the record in this shape: judge-rN
@@ -82,7 +98,7 @@ async function fullRun() {
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
     judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'the figure is still unrecomputed' }] })],
   }))
-  await world.run(script, ARGS)
+  await world.run(script, args)
   return world
 }
 
@@ -105,8 +121,8 @@ const SEATS = [
   ['assemble', (l) => l.startsWith('assemble')],
 ]
 
-test('seat prompt goldens: every seat class carries exactly its recorded contract', async () => {
-  const world = await fullRun()
+// captureSeats records one golden per seat class for a given world, under a suffix.
+async function captureSeats(world, suffix) {
   const missing = []
   for (const [name, match] of SEATS) {
     const call = world.calls.find((c) => match(c.opts.label))
@@ -115,9 +131,38 @@ test('seat prompt goldens: every seat class carries exactly its recorded contrac
       continue
     }
     assertLossless(name, call.prompt)
-    assertGolden(import.meta.url, `prompt-${name}`, goldenBody(call.prompt))
+    assertGolden(import.meta.url, `prompt-${name}${suffix}`, goldenBody(call.prompt))
   }
-  assert.deepEqual(missing, [], 'a seat class vanished from dispatch — the golden set no longer covers the engine')
+  assert.deepEqual(missing, [], `a seat class vanished from dispatch${suffix} — the golden set no longer covers the engine`)
+}
+
+test('seat prompt goldens: every seat class carries exactly its recorded contract', async () => {
+  await captureSeats(await fullRun(), '')
+})
+
+// THE VARIANT EVERY REAL RUN USES. With binDir set, each prompt takes its record-mode branch:
+// the seat is told its role, handed the verb set, and pointed at `show --view …` instead of a
+// markdown path. That is the product surface, and until now none of it was recorded.
+test('seat prompt goldens (record mode): the prompts every real run actually uses', async () => {
+  await captureSeats(await fullRun({ ...ARGS, binDir: BIN_DIR }), '.bindir')
+})
+
+// The two variants must genuinely DIFFER. If a future refactor collapsed the ternaries — or if
+// binDir stopped reaching the prompt builder — both sets would record the same bytes and this
+// suite would look twice as thorough while covering exactly as much as before.
+test('the record-mode prompts are not the legacy prompts', async () => {
+  const legacy = await fullRun()
+  const record = await fullRun({ ...ARGS, binDir: BIN_DIR })
+  let differing = 0
+  for (const [name, match] of SEATS) {
+    const l = legacy.calls.find((c) => match(c.opts.label))
+    const r = record.calls.find((c) => match(c.opts.label))
+    if (l && r && l.prompt !== r.prompt) differing++
+  }
+  assert.ok(differing >= SEATS.length - 1,
+    `only ${differing} of ${SEATS.length} seat prompts differ between legacy and record mode — binDir is not reaching the prompt builder, so the .bindir goldens are recording the legacy text under a new name`)
+  const anyBin = record.calls.some((c) => c.prompt.includes(BIN_DIR))
+  assert.ok(anyBin, 'no record-mode prompt names the binary directory — binDir was dropped somewhere between the args and the prompt')
 })
 
 test('seat roster: the dispatched seat set itself is pinned', async () => {
