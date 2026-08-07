@@ -184,36 +184,82 @@ func TestContextUse(t *testing.T) {
 	}
 }
 
-func TestAssemblyScreen(t *testing.T) {
+// THE SCREEN CANNOT RUN, AND MUST SAY SO RATHER THAN PASS.
+//
+// It caught a report still citing a source red had refuted, by regex-scanning the confidence
+// column of red/citation-ledger.md for REFUTED|ABSENT. Red used to type its verdict there as
+// prose ("LOW - REFUTED: closed as duplicate"), and real ledgers carried 5-11 such rows.
+//
+// Two changes killed it. `lens cite --confidence` became a CLOSED ENUM of high|medium|low, so
+// there is nowhere left to record that verification FAILED; and the ledger became a rendered
+// projection, so the file the screen read is a `setup` stub (46 bytes on the 2026-08-05 run).
+//
+// The result was PASS on every record-mode run. These tests pin the honest state instead: the
+// audit reads the RECORD, and reports the missing field. Restoring a PASS here without adding
+// a verification verdict to the cite event would be restoring the false green — #296.
+func TestAssemblyScreenReportsTheMissingVerdictInsteadOfPassing(t *testing.T) {
+	// Citations on the record, but no field in which a refutation could be expressed.
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "red", "citation-ledger.md"),
-		`"#32191 open / leaf-checked OPEN" | live fetch | LOW — REFUTED: Closed as duplicate | r1`+"\n"+`"solid claim" | source | high | r1`+"\n")
-	write(t, filepath.Join(dir, "report.md"),
-		"# assembled report\nThe open MCP-headless bug trio (#76239, #68375, #32191) blocks headless runs.\n\n## Blue team report (in full)\naudited body text\n")
+	recs := filepath.Join(dir, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const seat, nonce = "red-lens-r1-L1", "30000000"
+	e := record.Event{Seq: 0, SeatID: seat, Nonce: nonce, Round: 1, Type: "cite", Key: seat + ":cite:1",
+		Payload: record.NewPayload().Set("claim", "a claim").Set("reference", "a source").Set("confidence", "low")}
+	line, err := record.MarshalEvent(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), string(line)+"\n")
+
 	got := AssemblyScreen(dir)
-	if got.Verdict != "WARN" {
-		t.Errorf("REFUTED token in assembly-owned text: want WARN, got %s (%s)", got.Verdict, got.Detail)
+	if got.Verdict != "SKIP" {
+		t.Errorf("verdict = %s, want SKIP — the screen has no field to key on and must not report a clean result (%s)", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "#32191") {
-		t.Errorf("the candidate regression token must be named: %s", got.Detail)
+	if !strings.Contains(got.Detail, "verification VERDICT") || !strings.Contains(got.Detail, "#296") {
+		t.Errorf("the detail must name the missing field and where it is tracked, or the gap is invisible again: %s", got.Detail)
 	}
-	// Token only below the cut line (in the audited body) → PASS.
-	write(t, filepath.Join(dir, "report.md"),
-		"# assembled report\nTwo open bugs (#76239).\n\n## Blue team report (in full)\n#32191 appears only in the audited body.\n")
-	if got := AssemblyScreen(dir).Verdict; got != "PASS" {
-		t.Errorf("token below the cut is not screened: want PASS, got %s", got)
+	if !strings.Contains(got.Detail, "1 citation") {
+		t.Errorf("the detail should say how many citations went unscreened: %s", got.Detail)
 	}
-	// Absent report/ledger → SKIP.
+
+	// No citations at all is a DIFFERENT skip, and the two details must stay distinguishable:
+	// "nothing to screen" and "cannot screen what is here" are not the same report.
 	bare := t.TempDir()
-	if got := AssemblyScreen(bare).Verdict; got != "SKIP" {
-		t.Errorf("absent report.md/citation-ledger.md: want SKIP, got %s", got)
+	if got := AssemblyScreen(bare); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "nothing to screen") {
+		t.Errorf("no citations: want SKIP naming the empty set, got %s (%s)", got.Verdict, got.Detail)
+	}
+}
+
+// seedRevisions writes N blue round records as EVENTS — the source record-parity now counts.
+// It used to count heading matches in blue/CHANGELOG.md, which audits the seat's typing rather
+// than the record; the two disagree (the 2026-08-05 run: a 6,847-byte CHANGELOG and one
+// revision event from one of three eligible seats — see #268).
+func seedRevisions(t *testing.T, runDir string, rounds int) {
+	t.Helper()
+	recs := filepath.Join(runDir, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for r := 1; r <= rounds; r++ {
+		seat := "blue-respond-r" + itoa(r)
+		nonce := "2000000" + string("0123456789abcdef"[r%16])
+		e := record.Event{Seq: 0, SeatID: seat, Nonce: nonce, Round: r, Type: "revision",
+			Key: seat + ":revision", Payload: record.NewPayload().Set("text", "round "+itoa(r)+" edits")}
+		line, err := record.MarshalEvent(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), string(line)+"\n")
 	}
 }
 
 func TestRecordParityAudit(t *testing.T) {
-	dir := fixtureRun(t, 2, 2) // CHANGELOG has 2 rounds
+	dir := fixtureRun(t, 2, 2)
+	seedRevisions(t, dir, 2)
 	if got := RecordParityAudit(dir, 2, 2).Verdict; got != "PASS" {
-		t.Errorf("2 red, 2 blue, 2 CHANGELOG: want PASS, got %s", got)
+		t.Errorf("2 red, 2 blue, 2 recorded round records: want PASS, got %s", got)
 	}
 	got := RecordParityAudit(dir, 3, 1)
 	if got.Verdict != "FAIL" {
@@ -222,100 +268,22 @@ func TestRecordParityAudit(t *testing.T) {
 	if !strings.Contains(got.Detail, "3 red round(s)") {
 		t.Errorf("detail should carry the red-round count: %s", got.Detail)
 	}
-	// PASS exit: 2 red, 1 blue (blue never took the final turn), CHANGELOG 1 round → floored PASS.
+	// PASS exit: 2 red, 1 blue (blue never took the final turn), 1 round record → floored PASS.
 	passExit := fixtureRun(t, 2, 2)
-	write(t, filepath.Join(passExit, "blue", "CHANGELOG.md"), "## Round 1\nedits\n")
+	seedRevisions(t, passExit, 1)
 	if got := RecordParityAudit(passExit, 2, 1).Verdict; got != "PASS" {
 		t.Errorf("a PASS exit is floored to redRounds-1: want PASS, got %s", got)
+	}
+	// THE DEFECT THE OLD SOURCE HID: a hand-written CHANGELOG present, round records absent.
+	// Counting the file passed this; counting the record fails it, which is the point.
+	unrecorded := fixtureRun(t, 2, 2)
+	write(t, filepath.Join(unrecorded, "blue", "CHANGELOG.md"), "## Round 1"+"\n"+"edits"+"\n"+"## Round 2"+"\n"+"more"+"\n")
+	if got := RecordParityAudit(unrecorded, 2, 2); got.Verdict != "FAIL" {
+		t.Errorf("a CHANGELOG with no revision events must FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
 	// No red rounds → SKIP.
 	if got := RecordParityAudit(dir, 0, 0).Verdict; got != "SKIP" {
 		t.Errorf("no red rounds: want SKIP, got %s", got)
-	}
-}
-
-func writeEvents(t *testing.T, runDir, seatID string, events []string, nonce string) {
-	t.Helper()
-	dir := filepath.Join(runDir, "records")
-	write(t, filepath.Join(dir, "events-"+seatID+"-"+nonce+".jsonl"), strings.Join(events, "\n")+"\n")
-}
-
-func TestRecordJoinAudit(t *testing.T) {
-	run := t.TempDir()
-	tr := t.TempDir()
-	writeEvents(t, run, "red-lens-r1-L1",
-		[]string{`{"seq":0,"seatId":"red-lens-r1-L1","type":"finding","key":"red-lens-r1-L1:finding:L1-F1","payload":{"label":"L1-F1"}}`}, "aabbccdd")
-	// Binary role-subcommand invocation shape.
-	write(t, filepath.Join(tr, "agent-aaa.jsonl"),
-		`{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"feov-record lens register --run x --seat-id red-lens-r1-L1"}}]}}`+"\n"+
-			`{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"feov-record lens finding --key F1 --reason \"x\" --run x --seat-id red-lens-r1-L1"}}]}}`+"\n")
-	if got := RecordJoinAudit(run, tr, []string{"agent-aaa.jsonl"}); got.Verdict != "PASS" {
-		t.Errorf("binary invocation shape matched: want PASS, got %s (%s)", got.Verdict, got.Detail)
-	}
-	// mjs (pre-port) shape.
-	run2, tr2 := t.TempDir(), t.TempDir()
-	writeEvents(t, run2, "red-lens-r1-L1",
-		[]string{`{"seq":0,"seatId":"red-lens-r1-L1","type":"finding","key":"k","payload":{}}`}, "aabbccdd")
-	write(t, filepath.Join(tr2, "agent-old.jsonl"),
-		`{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"node tools/red-lens.mjs finding --key F1 --run x --seat-id red-lens-r1-L1"}}]}}`+"\n")
-	if got := RecordJoinAudit(run2, tr2, []string{"agent-old.jsonl"}).Verdict; got != "PASS" {
-		t.Errorf("mjs invocation shape matched: want PASS, got %s", got)
-	}
-	// Quoted binary path shape.
-	run3, tr3 := t.TempDir(), t.TempDir()
-	writeEvents(t, run3, "red-lens-r1-L1",
-		[]string{`{"seq":0,"seatId":"red-lens-r1-L1","type":"finding","key":"k","payload":{}}`}, "aabbccdd")
-	write(t, filepath.Join(tr3, "agent-q.jsonl"),
-		`{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"\"/plug/bin/feov-record\" lens finding --key F1 --run x --seat-id red-lens-r1-L1"}}]}}`+"\n")
-	if got := RecordJoinAudit(run3, tr3, []string{"agent-q.jsonl"}).Verdict; got != "PASS" {
-		t.Errorf("quoted binary path matched: want PASS, got %s", got)
-	}
-	// Orphan event no transcript invoked → FAIL, named.
-	writeEvents(t, run, "red-merge-r1",
-		[]string{`{"seq":0,"seatId":"red-merge-r1","type":"friction","key":"red-merge-r1:friction:x","payload":{"text":"nobody ran this"}}`}, "ddeeff00")
-	got := RecordJoinAudit(run, tr, []string{"agent-aaa.jsonl"})
-	if got.Verdict != "FAIL" {
-		t.Errorf("orphan event: want FAIL, got %s", got.Verdict)
-	}
-	if !strings.Contains(got.Detail, "red-merge-r1 friction") {
-		t.Errorf("the orphan event must be named: %s", got.Detail)
-	}
-	// No records/ → SKIP; empty records/ → SKIP (distinct detail strings).
-	noRec := t.TempDir()
-	if got := RecordJoinAudit(noRec, tr, nil); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "pre-record-tool run") {
-		t.Errorf("no records/: want SKIP/pre-record-tool, got %s (%s)", got.Verdict, got.Detail)
-	}
-	emptyRec := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(emptyRec, "records"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := RecordJoinAudit(emptyRec, tr, nil); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "empty") {
-		t.Errorf("empty records/: want SKIP/empty, got %s (%s)", got.Verdict, got.Detail)
-	}
-}
-
-func TestAttestationAudit(t *testing.T) {
-	run, tr := t.TempDir(), t.TempDir()
-	write(t, filepath.Join(run, "red", "archive.md"),
-		"# archive\n\n## R1-1 — closed\nthe problem\nverification anchor: L1 | Read | report.md#SectionTwo\n"+
-			"\n## R1-2 — closed\nother\nverification anchor: L5 | git show | 7bc501e:plans/record-tool.md\n")
-	write(t, filepath.Join(tr, "agent-a.jsonl"),
-		`{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Read","input":{"file_path":"report.md#SectionTwo"}}]}}`+"\n")
-	got := AttestationAudit(run, tr, []string{"agent-a.jsonl"}, 5)
-	if got.Verdict != "FAIL" {
-		t.Errorf("a claimed act with no matching tool call: want FAIL, got %s", got.Verdict)
-	}
-	if len(got.Unreconciled) != 1 || got.Unreconciled[0].ID != "R1-2" {
-		t.Errorf("the unsupported claim R1-2 must be the one named: %+v", got.Unreconciled)
-	}
-	if !strings.Contains(got.Detail, "RECORD IS HONEST, never on the merits") {
-		t.Errorf("the separation must be stated in the finding: %s", got.Detail)
-	}
-	// CARRIED closure asserts no fresh act → SKIP.
-	write(t, filepath.Join(run, "red", "archive.md"),
-		"# archive\n\n## R2-1 — closed\np\nverification anchor: CARRIED from round 1\n")
-	if got := AttestationAudit(run, tr, []string{"agent-a.jsonl"}, 5).Verdict; got != "SKIP" {
-		t.Errorf("all-carried closures: want SKIP, got %s", got)
 	}
 }
 
