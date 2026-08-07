@@ -118,28 +118,50 @@ func TestTelemetryAudit(t *testing.T) {
 	}
 }
 
+// closedClaims builds n closed gaps for the shard fixture.
+func closedClaims(n int) []Claim {
+	var out []Claim
+	for i := 1; i <= n; i++ {
+		out = append(out, Claim{ID: "R1-" + itoa(i), Seat: "L1", Tool: "Read", Target: "x"})
+	}
+	return out
+}
+
+// THE COUNTS COME FROM THE BOARD. ShardAudit read red/ledger.md and red/archive.md — files
+// `setup` stopped creating when they became projections — so it returned SKIP "no
+// ledger/archive (pre-sharding run)" on every record-mode run. That was the FOURTH dead audit
+// in this sweep, and the first pass of the sweep missed it.
+//
+// The self-report it grades is real and worth keeping: a haiku merge once claimed
+// archive_blocks:22 in a round whose true archived count was 0. It just has to be graded
+// against the record rather than against a file nobody writes.
 func TestShardAudit(t *testing.T) {
-	ok := fixtureRun(t, 2, 2)
+	ok := t.TempDir()
+	seedClosures(t, ok, closedClaims(2), false)
+	write(t, filepath.Join(ok, "trajectories", "journal.jsonl"),
+		`{"type":"result","result":{"ledger_closure_lines":2,"archive_blocks":2,"friction":[]}}`+"\n")
 	results, _ := ReadJournal(filepath.Join(ok, "trajectories"))
 	if got := ShardAudit(ok, results); got.Verdict != "PASS" {
-		t.Errorf("consistent shard self-report: want PASS, got %s (%s)", got.Verdict, got.Detail)
+		t.Errorf("a self-report matching the board: want PASS, got %s (%s)", got.Verdict, got.Detail)
 	}
-	// Envelope claims 2/2 but files hold 3 index lines → divergence FAILs.
-	lying := fixtureRun(t, 3, 2)
+
+	// The seat claims 2/2 while the board holds 3 closures → divergence FAILs.
+	lying := t.TempDir()
+	seedClosures(t, lying, closedClaims(3), false)
 	write(t, filepath.Join(lying, "trajectories", "journal.jsonl"),
 		`{"type":"result","result":{"ledger_closure_lines":2,"archive_blocks":2,"friction":[]}}`+"\n")
 	lr, _ := ReadJournal(filepath.Join(lying, "trajectories"))
 	got := ShardAudit(lying, lr)
 	if got.Verdict != "FAIL" {
-		t.Errorf("divergent self-report: want FAIL, got %s", got.Verdict)
+		t.Errorf("a self-report divergent from the board: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "measured (heuristic)") {
-		t.Errorf("detail should be labeled heuristic: %s", got.Detail)
+	if !strings.Contains(got.Detail, "3 closed gap(s)") {
+		t.Errorf("the detail must state what the record actually holds: %s", got.Detail)
 	}
-	// Pre-sharding run (no ledger/archive) → SKIP.
-	bare := t.TempDir()
-	if got := ShardAudit(bare, nil).Verdict; got != "SKIP" {
-		t.Errorf("no ledger/archive: want SKIP, got %s", got)
+
+	// No gaps on the record → SKIP, not a vacuous PASS.
+	if got := ShardAudit(t.TempDir(), nil).Verdict; got != "SKIP" {
+		t.Errorf("empty record: want SKIP, got %s", got)
 	}
 }
 

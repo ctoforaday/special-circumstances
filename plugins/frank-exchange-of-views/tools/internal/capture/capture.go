@@ -173,30 +173,36 @@ func TelemetryAudit(runDir string, redRounds int) Audit {
 
 // ---- AUDIT 2: shard self-report vs files ----
 
-var (
-	reIDLine       = regexp.MustCompile(`R\d+-\d+\s*\|`)
-	reArchiveBlock = regexp.MustCompile(`(?m)^#{1,4}\s+.*R\d+-\d+`)
-)
-
+// ShardAudit compares the merge's SELF-REPORTED counts against the board.
+//
+// It read red/ledger.md and red/archive.md — both files `setup` stopped creating when they
+// became projections — and returned SKIP "no ledger/archive (pre-sharding run)" on every
+// record-mode run. That is the FOURTH audit this slice found reading a file that no longer
+// exists, and I missed it in the first pass of this same sweep: the sibling-sweep note on the
+// previous commit claimed no markdown reads remained under capture/, and this was still here.
+//
+// The self-report it grades is real and worth keeping — a haiku merge once reported
+// archive_blocks:22 in a round where the true archived count was 0 — so the counts now come
+// from the board, which is the thing the self-report is supposed to agree with.
 func ShardAudit(runDir string, results []map[string]any) Audit {
-	ledgerP := filepath.Join(runDir, "red", "ledger.md")
-	archiveP := filepath.Join(runDir, "red", "archive.md")
-	ledgerB, ledgerErr := os.ReadFile(ledgerP)
-	archiveB, archiveErr := os.ReadFile(archiveP)
-	if ledgerErr != nil && archiveErr != nil {
-		return Audit{Check: "shards", Verdict: "SKIP", Detail: "no ledger/archive (pre-sharding run)"}
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		return Audit{Check: "shards", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	ledgerCount := 0
-	if ledgerErr == nil {
-		for _, l := range strings.Split(string(ledgerB), "\n") {
-			if reIDLine.MatchString(l) {
-				ledgerCount++
-			}
+	closed := 0
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g == nil {
+			continue
+		}
+		// The closure INDEX carried one line per closed gap; the ARCHIVE one block per closure.
+		// Both are the closed set, which is what the merge was reporting on.
+		if !g.Open {
+			closed++
 		}
 	}
-	archiveCount := 0
-	if archiveErr == nil {
-		archiveCount = len(reArchiveBlock.FindAllString(string(archiveB), -1))
+	if len(board.GapOrder) == 0 {
+		return Audit{Check: "shards", Verdict: "SKIP", Detail: "no gaps on the record"}
 	}
 	var lastRed map[string]any
 	for i := len(results) - 1; i >= 0; i-- {
@@ -215,13 +221,13 @@ func ShardAudit(runDir string, results []map[string]any) Audit {
 		self = fmt.Sprintf("self-reported %s/%s", numOrUndefined(lastRed, "ledger_closure_lines"), numOrUndefined(lastRed, "archive_blocks"))
 		lcl, okL := numOf(lastRed["ledger_closure_lines"])
 		ab, okA := numOf(lastRed["archive_blocks"])
-		consistent = okL && okA && int(lcl) == ledgerCount && int(ab) == archiveCount
+		consistent = okL && okA && int(lcl) == closed && int(ab) == closed
 	}
 	v := "FAIL"
 	if consistent {
 		v = "PASS"
 	}
-	return Audit{Check: "shards", Verdict: v, Detail: fmt.Sprintf("measured (heuristic) closure-index lines=%d, archive records=%d; %s", ledgerCount, archiveCount, self)}
+	return Audit{Check: "shards", Verdict: v, Detail: fmt.Sprintf("the record holds %d closed gap(s); %s", closed, self)}
 }
 
 // ---- AUDIT 3: friction parity ----
