@@ -86,12 +86,7 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 	// score to celebrate. Both are printed even at zero, because an absent number reads as
 	// "not measured" and that is exactly how a dead measurement survives.
 	offered, applied, declined := record.DeclineStats(b)
-	estoppel := 0
-	for _, e := range b.Events {
-		if e.Type == "friction" && strings.Contains(e.Payload.Str("text"), "estoppel —") {
-			estoppel++
-		}
-	}
+	estoppel := record.EstoppelRejections(b)
 	out = append(out, "## Measurements", "",
 		fmt.Sprintf("- **Concrete proposals**: %d offered · %d applied verbatim · %d declined (blue counter-edited or disputed) · %d unanswered",
 			offered, applied, declined, offered-applied-declined),

@@ -138,3 +138,33 @@ func ProposalAppliedVerbatim(runDir, gapID, old, new string) (bool, error) {
 	}
 	return g.Mint.Str("fix_old") == old && g.Mint.Str("fix_new") == new, nil
 }
+
+// FrictionKindEstoppel marks a friction event as an estoppel REFUSAL rather than a seat's
+// own complaint. It is the single symbol the writer and the counter share.
+//
+// THE DEFECT IT REPLACES (#283, and it was mine). The count was derived by matching the
+// prose substring "estoppel —" in the friction text. That reads ZERO both when the guard
+// never fires and when someone rewords the message — and zero was printed as "red behaved".
+// A measurement whose miss is indistinguishable from its healthy answer is not a
+// measurement; see [[facts-are-fields]]. The fact is now a FIELD, written by the tool at the
+// moment it refuses.
+const FrictionKindEstoppel = "estoppel"
+
+// FrictionKindKey is the payload key carrying the kind.
+const FrictionKindKey = "kind"
+
+// EstoppelRejections counts the mints refused because their location was text red itself
+// prescribed and blue applied verbatim.
+//
+// It counts the FIELD, never the message. Rewriting the refusal's wording — which is prose
+// aimed at a seat and should stay editable — must not move a number an operator reads as
+// evidence about red's behaviour.
+func EstoppelRejections(b *Board) int {
+	n := 0
+	for _, e := range b.Events {
+		if e.Type == "friction" && e.Payload.Str(FrictionKindKey) == FrictionKindEstoppel {
+			n++
+		}
+	}
+	return n
+}
