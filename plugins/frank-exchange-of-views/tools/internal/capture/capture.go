@@ -357,88 +357,75 @@ func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 
 // ---- AUDIT 5: assembly regression screen ----
 
-var (
-	reBlueTeam = regexp.MustCompile(`(?m)^## Blue team report`)
-	reRefAbs   = regexp.MustCompile(`(?i)REFUTED|ABSENT`)
-	reIssueTok = regexp.MustCompile(`#\d{4,6}`)
-	reArxivTok = regexp.MustCompile(`(?i)arXiv:\d{4}\.\d{4,5}`)
-)
-
+// AssemblyScreen SHOULD catch a report that still carries a citation red refuted. It cannot
+// today, and it now SAYS SO instead of reporting PASS.
+//
+// THE SIGNAL WAS DESTROYED, not merely relocated. Until the citation ledger moved onto the
+// record, red typed its verdict into the confidence column as prose — "LOW — REFUTED: closed
+// as duplicate", "LOW (absent from abs and html)" — and this screen regex-scanned that column
+// for REFUTED|ABSENT. Real ledgers carried 5-11 such rows (2026-07-12 through 2026-07-20).
+// Then `lens cite --confidence` became a CLOSED ENUM of high|medium|low, so there is no longer
+// any field in which red can record that verification FAILED, and red/citation-ledger.md
+// became a `setup` stub nothing writes (46 bytes on the 2026-08-05 run).
+//
+// So the screen has been reading an empty file and reporting
+// "PASS — 0 REFUTED-row token(s) screened; no hits" on every record-mode run.
+//
+// Porting the regex onto the rendered projection would reproduce the same nothing. What the
+// concept needs is a FIELD — a verification verdict on the cite event, distinct from
+// confidence, which grades how much a SUPPORTING source is trusted rather than recording that
+// a source does not support the claim at all. That is a schema decision with #247 in play, so
+// it is tracked (#296) rather than invented here. Until then this reports the gap.
 func AssemblyScreen(runDir string) Audit {
-	reportB, reportErr := os.ReadFile(filepath.Join(runDir, "report.md"))
-	ledgerB, ledgerErr := os.ReadFile(filepath.Join(runDir, "red", "citation-ledger.md"))
-	if reportErr != nil || ledgerErr != nil {
-		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "report.md or citation-ledger.md absent"}
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	report := string(reportB)
-	assembly := report
-	if loc := reBlueTeam.FindStringIndex(report); loc != nil && loc[0] > 0 {
-		assembly = report[:loc[0]]
-	}
-	var order []string
-	seen := map[string]bool{}
-	add := func(t string) {
-		if !seen[t] {
-			seen[t] = true
-			order = append(order, t)
+	cites := 0
+	for _, e := range board.Events {
+		if e.Type == "cite" {
+			cites++
 		}
 	}
-	for _, row := range strings.Split(string(ledgerB), "\n") {
-		if !reRefAbs.MatchString(row) {
-			continue
-		}
-		for _, t := range reIssueTok.FindAllString(row, -1) {
-			add(t)
-		}
-		for _, t := range reArxivTok.FindAllString(row, -1) {
-			add(t)
-		}
+	if cites == 0 {
+		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
-	var hits []string
-	for _, t := range order {
-		if strings.Contains(assembly, t) {
-			hits = append(hits, t)
-		}
-	}
-	if len(hits) > 0 {
-		return Audit{Check: "assembly-screen", Verdict: "WARN",
-			Detail: fmt.Sprintf("%d REFUTED-row token(s) appear in assembly-owned text — verify each carries the CORRECTED form, not the round-0 one: %s", len(hits), strings.Join(hits, ", "))}
-	}
-	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d REFUTED-row token(s) screened against assembly-owned text; no hits", len(order))}
+	return Audit{Check: "assembly-screen", Verdict: "SKIP",
+		Detail: fmt.Sprintf("%d citation(s) on the record, and NONE can be screened: a cite carries confidence (high|medium|low) but no verification VERDICT, so \"red checked this source and it does not support the claim\" is unrecordable. This check reported PASS on an empty stub before saying so. Tracked: #296", cites)}
 }
 
 // ---- AUDIT 6: record parity ----
 
-var (
-	reCLRound    = regexp.MustCompile(`(?im)^#+.*Round \d+`)
-	reRoundDigit = regexp.MustCompile(`(?i)Round (\d+)`)
-)
-
-// RecordParityAudit checks each red round has a blue sitting and a CHANGELOG round entry, floor
+// RecordParityAudit checks each red round has a blue sitting and a blue ROUND RECORD, floor
 // redRounds-1. redRounds/blueBlocks come from the debate view, read in-process.
+//
+// THE ROUND RECORD IS COUNTED FROM `revision` EVENTS, not from headings in blue/CHANGELOG.md.
+// The file is authored by hand while the event is emitted by the tool, so counting the file
+// audited the seat's typing rather than the record — and the two disagree: the 2026-08-05 run
+// carried a 6,847-byte CHANGELOG and exactly ONE revision event, from one of three eligible
+// blue seats. The old regex pair (`^#+.*Round \d+` then `Round (\d+)`) read the plausible
+// number and passed; the record shows the round records were never filed. See #268.
 func RecordParityAudit(runDir string, redRounds, blueBlocks int) Audit {
 	if redRounds == 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no red rounds on record"}
 	}
-	clRounds := 0
-	if b, err := os.ReadFile(filepath.Join(runDir, "blue", "CHANGELOG.md")); err == nil {
-		set := map[string]bool{}
-		for _, h := range reCLRound.FindAllString(string(b), -1) {
-			if m := reRoundDigit.FindStringSubmatch(h); m != nil {
-				set[m[1]] = true
+	rounds := map[int]bool{}
+	if board, err := record.BoardState(runDir); err == nil {
+		for _, e := range board.Events {
+			if e.Type == "revision" {
+				rounds[e.Round] = true
 			}
 		}
-		clRounds = len(set)
 	}
+	clRounds := len(rounds)
 	ok := blueBlocks >= redRounds-1 && clRounds >= redRounds-1
 	v := "FAIL"
 	if ok {
 		v = "PASS"
 	}
 	return Audit{Check: "record-parity", Verdict: v,
-		Detail: fmt.Sprintf("%d red round(s) vs %d blue sitting(s) and %d CHANGELOG round entr%s (floor: redRounds-1 — a PASS exit has no final blue response)",
-			redRounds, blueBlocks, clRounds, plural(clRounds, "y", "ies"))}
+		Detail: fmt.Sprintf("%d red round(s) vs %d blue sitting(s) and %d recorded round record(s) (floor: redRounds-1 — a PASS exit has no final blue response)",
+			redRounds, blueBlocks, clRounds)}
 }
 
 // ---- AUDIT 7: record-join ----
@@ -582,45 +569,36 @@ type Claim struct {
 	ID, Seat, Tool, Target, Why string
 }
 
-var (
-	reArchiveSplit = regexp.MustCompile(`(?m)^## `)
-	reClosureID    = regexp.MustCompile(`^(R\d+-\d+)`)
-	reAnchor       = regexp.MustCompile(`verification anchor:\s*(.+)`)
-	reCarried      = regexp.MustCompile(`(?i)CARRIED from round`)
-)
-
 // AttestationAudit spot-checks anchored closures against actual tool-call inputs.
+//
+// IT READS THE RECORD, not red/archive.md. The file was the source until the archive became a
+// rendered projection, and `setup` stopped creating it — so this audit had been reading "" and
+// returning SKIP: "no archive records to reconcile" on every record-mode run. It reconciled
+// nothing, in silence, for as long as the record tier has existed.
+//
+// The old path was also the class in miniature: a close event carries anchor_seat, anchor_tool
+// and anchor_target as FIELDS; archiveMD concatenates them into a pipe-delimited line; and this
+// function split that line back apart on "|" and re-derived the gap id with `^(R\d+-\d+)`.
+// Fields to string to regex to fields, with a markdown file in the middle purely as a courier.
 func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleFloor int) Audit {
-	archive := ""
-	if b, err := os.ReadFile(filepath.Join(runDir, "red", "archive.md")); err == nil {
-		archive = string(b)
-	}
-	blocks := splitAfter(archive, reArchiveSplit)
-	if len(blocks) == 0 {
-		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "no archive records to reconcile"}
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
 	var claims []Claim
-	for _, b := range blocks {
-		id := "?"
-		if m := reClosureID.FindStringSubmatch(b); m != nil {
-			id = m[1]
-		}
-		anchor := reAnchor.FindStringSubmatch(b)
-		if anchor == nil {
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g == nil || g.Closure == nil {
 			continue
 		}
-		if reCarried.MatchString(anchor[1]) {
+		// A CARRIED closure attests nothing — it is last round's verification restated, and
+		// holding a seat to a tool call it never made this round is a false finding.
+		if g.Closure.Str("carried_from") != "" {
 			continue
 		}
-		fields := strings.Split(anchor[1], "|")
-		if len(fields) < 3 {
-			continue
-		}
-		seat := strings.TrimSpace(fields[0])
-		tool := strings.TrimSpace(fields[1])
-		target := strings.TrimSpace(fields[2])
+		seat, tool, target := g.Closure.Str("anchor_seat"), g.Closure.Str("anchor_tool"), g.Closure.Str("anchor_target")
 		if seat != "" && tool != "" && target != "" {
-			claims = append(claims, Claim{ID: id, Seat: seat, Tool: tool, Target: target})
+			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target})
 		}
 	}
 	if len(claims) == 0 {
