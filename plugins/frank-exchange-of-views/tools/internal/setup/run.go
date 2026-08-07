@@ -117,14 +117,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	skel := BuildSkeleton(cfg.RunDir, topic)
-	mirrorsPurged := PurgeStaleMirrors(filepath.Join(cfg.Home, ".cache", "feov", "run-mirror"), cfg.Now, 30)
-	if mirrorsPurged > 0 {
-		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", mirrorsPurged)
-	}
-	pinned := BuildPinned(cfg.RunDir, head, cfg.Cites)
-
-	// Memory dirs: --memory-dir wins; else [promoted, raw], promoted first.
 	memHome := func(d string) string {
 		return filepath.Join(d, ".claude", "agent-memory", "frank-exchange-of-views-red-auditor")
 	}
@@ -139,12 +131,55 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 			break
 		}
 	}
+	// --memory-dir ADDS a source; it does NOT replace the promoted corpus.
+	//
+	// MEASURED, and it cost a whole run's memory. It used to replace, and
+	// `commands/research.md` documents passing it as the remedy when gap-patterns reports "no
+	// memory dir" — so an operator following the documented advice silently discarded the
+	// curated corpus (57 files, 55 classified) in favour of the raw accrual (60 files, 1
+	// classified). The 2026-08-05 run's inputs/gap-patterns-by-class.json: 0 classes, 0
+	// entries. Red opened that run with nothing, and the setup summary said so in one line
+	// nobody read.
+	//
+	// Promoted stays FIRST: BuildPatternIndex dedupes by filename, so the reviewed copy of a
+	// pattern wins over the raw one it was promoted from.
 	memDirs := []string{promoted, raw}
 	if cfg.MemoryDir != "" {
-		memDirs = []string{cfg.MemoryDir}
+		memDirs = append(memDirs, cfg.MemoryDir)
 	}
-	mirror := MirrorGapPatterns(memDirs, cfg.RunDir)
 	patternIndex := BuildPatternIndex(memDirs)
+	// A corpus that is MOSTLY unclassified is a composition failure, not sloppy authoring.
+	//
+	// The count was already printed — "(59 UNCLASSIFIED, not delivered)" — and it is one line
+	// in a long summary, so it read as a nag rather than as "red is starting this run blind".
+	// Delivery is class-indexed: an unclassified pattern reaches no seat at all. A handful is
+	// normal accrual; a majority means the sources are wrong, which is exactly what the old
+	// replacing --memory-dir produced.
+	if delivered := len(patternIndex.ByClass); len(patternIndex.Unclassified) > 0 && len(patternIndex.Unclassified) > delivered {
+		fmt.Fprintln(stderr, "run-setup: GAP-PATTERN CORPUS MOSTLY UNCLASSIFIED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %d unclassified pattern(s) against %d delivered class(es).\n", len(patternIndex.Unclassified), delivered)
+		fmt.Fprintln(stderr, "  Delivery is class-indexed, so an unclassified pattern reaches no seat: red would open this run")
+		fmt.Fprintln(stderr, "  substantially blind while its memory directory looks full. Sources read, in order:")
+		for _, d := range memDirs {
+			if d != "" {
+				fmt.Fprintf(stderr, "    - %s\n", d)
+			}
+		}
+		fmt.Fprintln(stderr, "  remedy: check the promoted corpus is among them (feov-memory/red-gap-patterns), or classify")
+		fmt.Fprintln(stderr, "  the accrued files by adding `classes: [<slug>, ...]` to their frontmatter.")
+		return 2
+	}
+
+	skel := BuildSkeleton(cfg.RunDir, topic)
+	mirrorsPurged := PurgeStaleMirrors(filepath.Join(cfg.Home, ".cache", "feov", "run-mirror"), cfg.Now, 30)
+	if mirrorsPurged > 0 {
+		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", mirrorsPurged)
+	}
+	pinned := BuildPinned(cfg.RunDir, head, cfg.Cites)
+
+	// The index was built and GATED above, before any run state existed; this only mirrors the
+	// files into the run and writes the class join the engine hands to a repairing seat.
+	mirror := MirrorGapPatterns(memDirs, cfg.RunDir)
 	if b, err := marshalJSON(patternIndex.ByClass); err == nil {
 		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "gap-patterns-by-class.json"), b, 0o644)
 	}

@@ -212,3 +212,77 @@ func TestUnrunnableBinaryRefuses(t *testing.T) {
 		t.Error("the run directory was created despite an unrunnable record binary")
 	}
 }
+
+// A MOSTLY-UNCLASSIFIED CORPUS REFUSES THE RUN.
+//
+// Delivery is class-indexed, so an unclassified pattern reaches no seat. The count was already
+// printed — "(59 UNCLASSIFIED, not delivered)" — and it read as a nag in a long summary rather
+// than as "red is starting blind". The 2026-08-05 run shipped with 0 classes delivered.
+func TestMostlyUnclassifiedCorpusRefuses(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	mem := filepath.Join(t.TempDir(), "patterns")
+	if err := os.MkdirAll(mem, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// One classified, three not — the shape a raw accrual has.
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(mem, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("good.md", "---\nclasses: [figure-recount-fails]\ndescription: a hook\n---\n# t\n")
+	for _, n := range []string{"a.md", "b.md", "c.md"} {
+		write(n, "# untitled pattern\nprose with no frontmatter\n")
+	}
+	cfg.MemoryDir = mem
+
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 2 {
+		t.Fatalf("exit %d, want 2 — a corpus that mostly cannot be delivered must stop the run", code)
+	}
+	if !strings.Contains(errb.String(), "MOSTLY UNCLASSIFIED") {
+		t.Errorf("the refusal did not name itself:\n%s", errb.String())
+	}
+	// The sources must be listed: the measured cause was the WRONG SOURCES, not bad authoring.
+	if !strings.Contains(errb.String(), mem) {
+		t.Errorf("the refusal must list the directories it read, so a composition bug is visible:\n%s", errb.String())
+	}
+	if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+		t.Error("the run was created despite the refusal")
+	}
+}
+
+// --memory-dir ADDS a source. It used to REPLACE, and research.md documents passing it as the
+// remedy when gap-patterns reports "no memory dir" — so following the documented advice
+// discarded the curated corpus (57 files, 55 classified) for the raw accrual (60, 1).
+func TestMemoryDirAddsRatherThanReplaces(t *testing.T) {
+	cfg, _ := runCfg(t, "0.35.0", reports("0.35.0"))
+	promoted := filepath.Join(cfg.Cwd, "feov-memory", "red-gap-patterns")
+	if err := os.MkdirAll(promoted, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"p1.md", "p2.md", "p3.md"} {
+		if err := os.WriteFile(filepath.Join(promoted, n),
+			[]byte("---\nclasses: [figure-recount-fails]\ndescription: h\n---\n# t\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// An extra source with one unclassified file: alone it would be mostly-unclassified and
+	// refuse; combined with the promoted corpus it is a minority and the run proceeds.
+	extra := filepath.Join(t.TempDir(), "extra")
+	if err := os.MkdirAll(extra, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extra, "raw.md"), []byte("# unclassified\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg.MemoryDir = extra
+
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d, want 0 — --memory-dir must ADD to the promoted corpus, not replace it:\n%s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "gap-patterns") {
+		t.Errorf("the summary did not report the corpus:\n%s", out.String())
+	}
+}

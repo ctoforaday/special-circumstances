@@ -21,9 +21,17 @@ exactly like an empty memory. The absent case and the healthy case are the same 
   record a writer can refuse** — validated at the write, where a wrong value is an error
   the author sees. YOU MUST NOT compose it into a name, a path, a heading, or prose and
   plan to recover it later; recovery is a hope about string shape, and the hope fails
-  silently. Measured: red's accumulated gap memory is 60 markdown files whose class is
-  parsed by five regexes over frontmatter — **1 of 60 carries the field**, so the auditor
-  begins each run substantially memoryless while its memory directory looks full.
+  silently. Measured: an audit that reconciled a seat's closure claims against its real tool
+  calls read those claims out of a markdown line — fields the record already held, joined
+  into prose and split apart again — and when the file stopped being written it reported
+  "nothing to reconcile" on every run for months.
+- BEFORE blaming the format, YOU MUST find what actually produced the number. A prose key
+  is a real defect and is still, often, not the reason the run went wrong. Measured, and I
+  had this backwards: red's gap-pattern memory delivered NOTHING to a run — 0 classes, 0
+  entries — and the cause was not the frontmatter, because the curated corpus is **55 of 57
+  classified**. A flag meant to ADD a memory source REPLACED the list instead, and the
+  documentation told operators to pass it. The regex was the visible smell; the composition
+  was the bug. Fixing the smell would have left the run just as blind.
 - BEFORE reading a fact back, YOU MUST ask what a **no-match** returns. If the miss is
   indistinguishable from the honest zero, the read is not a read — it is a coin flip
   reported as a measurement. Where the shape cannot be made refusable, YOU MUST make the
