@@ -91,6 +91,11 @@ type runner struct {
 	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
 	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
 	raised []map[string]any
+	// disputedThisRound is what blueRespondTo raised for the CURRENT round's envelope.
+	disputedThisRound []map[string]any
+	// presented records the gaps a responder was actually shown: a gap minted in the terminal
+	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
+	presented map[string]bool
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
@@ -285,7 +290,18 @@ func (r *runner) mint(seatID string) string {
 	// not exist, behind a green sweep). Both the refusal and the satisfied path run across a
 	// sweep, because the prove drive below answers a computation gap when one is open.
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
-	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind, "--check", "acc", "--likelihood", r.g(), "--impact", r.g()}
+	// THE SCENARIO IS DRAWN HERE, ONCE, and travels in required_fix.
+	//
+	// The fake used to decide everything downstream by coin flip, and nothing read
+	// acceptance_check or required_fix — `grep -c` returned 0 — so the one question that
+	// matters, DID THE RESPONSE SATISFY WHAT WAS ASKED, was never posed, because nothing knew
+	// what had been asked. A directive fixes that without modelling a seat's judgement: red
+	// draws the outcome at mint and every later seat READS IT BACK FROM THE BOARD. We model
+	// COMMAND CHAINS, not minds — the seat boundary is only where the JS happens to cut. And
+	// because the outcome is chosen rather than emergent, it is ASSERTABLE.
+	directive := directives[r.rng.Intn(len(directives))]
+	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
+		"--check", "acc", "--fix", directive, "--likelihood", r.g(), "--impact", r.g()}
 	if !r.classMade {
 		r.classMade = true
 		args = append(args, "--class-new", "fuzzcls", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
@@ -411,6 +427,17 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 
 // checkKinds draws uniformly: closeGap satisfies a computation gap before closing it, so the
 // kind no longer decides whether a run accumulates dead gaps.
+// directives are the scenario vocabulary a mint draws from. The string IS the expected
+// behaviour of every seat downstream, and the oracle asserts the record shows it happened.
+const (
+	dirApply   = "FUZZ-APPLY: blue applies the proposed pair verbatim"
+	dirCounter = "FUZZ-COUNTER: blue edits, but not the proposed text"
+	dirDispute = "FUZZ-DISPUTE: blue contests a grade instead of repairing"
+	dirIgnore  = "FUZZ-IGNORE: blue does nothing to this gap"
+)
+
+var directives = []string{dirApply, dirCounter, dirDispute, dirIgnore}
+
 var checkKinds = []string{"document", "computation", "source"}
 
 var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined"}
@@ -558,27 +585,22 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if !strings.Contains(string(cur), oldSpan) {
 				return // an anchor landed mid-span; skip rather than force a mis-quote
 			}
-			// VERBATIM APPLICATION (#267 stage 4): when a gap carries a concrete proposal,
-			// sometimes apply exactly it — the only state that sets applied_verbatim and so
-			// the only one that estops red. The rest of the time blue counter-edits, which is
-			// the decline path DeclineStats counts. Both must run.
-			if id, fo, fn := r.someProposal(); id != "" && r.coin(50) && strings.Contains(string(cur), fo) {
-				r.do("blue", "edit", seatID).
-					set("--old", fo).set("--new", fn).
-					set("--answers", id).
-					set("--reason", "fuzz: applying red's proposed text verbatim").
-					run()
-				return
-			}
-			c := r.do("blue", "edit", seatID).
+			// THIS DRIVE NO LONGER CLAIMS TO ANSWER A GAP.
+			//
+			// It used to pick a random open gap for --answers, and the scenario oracle caught it
+			// on its first run: 5 of 60 seeds attached provenance to a gap whose directive said
+			// blue does nothing. Two writers disagreed about who had repaired what — which is
+			// exactly the defect --answers exists to make impossible, reproduced inside the fake.
+			//
+			// Answering a gap is blueRespondTo's job, one decision per gap, from the directive.
+			// What remains is an UNATTRIBUTED edit: blue sharpening its own prose, which is real
+			// and must stay legal (--answers' own help says to omit it when no gap is answered).
+			r.do("blue", "edit", seatID).
 				set("--old", oldSpan).
 				set("--new", newSpan).
-				set("--reason", "fuzz edit: sharper phrasing").
-				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2)))
-			if len(open) > 0 {
-				c = c.set("--answers", pick(r.rng, open))
-			}
-			c.run()
+				set("--reason", "fuzz edit: sharper phrasing, answering no gap").
+				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2))).
+				run()
 		})
 		// READ-ONLY, PROMPT-CALLED, AND PREVIOUSLY UNFUZZED. claim-index records nothing, so the
 		// event-type coverage gate cannot see it — yet blue's response prompt tells blue to call
@@ -730,7 +752,19 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 		open := r.openGaps()
 		r.dialectic("blue", seatID, open) // blue's position, closings, confidence
 		r.extras("blue", seatID, open)
-		disputes := r.raiseDisputes(seatID, open) // emit dispute events + envelope routing refs
+		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
+		// minted with; blue reads it back off the board and does what it says. This replaces a
+		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
+		// looked at what red had actually asked for.
+		r.disputedThisRound = nil
+		if r.presented == nil {
+			r.presented = map[string]bool{}
+		}
+		for _, id := range open {
+			r.presented[id] = true
+		}
+		r.blueRespondTo(seatID, open)
+		disputes := r.disputedThisRound
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
 		// receipt. One row per open gap it is repairing this round.
 		var manifest []any
@@ -1062,6 +1096,58 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.err = msg
 		return res
 	}
+	// SCENARIO ORACLE: the record must SHOW the decision the scenario specified.
+	//
+	// This is what the directives buy. Every other oracle here asks "did anything break" —
+	// verify passes, the views parse, prose renders. None can tell a chain that CARRIED a
+	// decision from one that dropped it, because until now no decision was written down before
+	// it was taken. Each gap is now minted with the outcome it should reach, so the terminal
+	// record is checkable rather than merely well-formed.
+	//
+	// IGNORE is the sharpest: if --answers stopped recording provenance, an ignored gap and a
+	// repaired one would look identical — and that join is what #267's whole measurement axis
+	// is built on.
+	if board, err := record.BoardState(runDir); err == nil {
+		answered, disputed := map[string]bool{}, map[string]bool{}
+		for _, e := range board.Events {
+			switch e.Type {
+			case "blue_edit":
+				if id := e.Payload.Str("answers"); id != "" {
+					answered[id] = true
+				}
+			case "dispute":
+				if id := e.Payload.Str("gap_id"); id != "" {
+					disputed[id] = true
+				}
+			}
+		}
+		for _, id := range board.GapOrder {
+			g := board.Gaps[id]
+			// Only gaps a responder was SHOWN can be judged: one minted in the terminal round
+			// never reaches blue, so its scenario was never dispatched.
+			if g == nil || g.Mint == nil || !r.presented[id] {
+				continue
+			}
+			switch g.Mint.Str("required_fix") {
+			case dirIgnore:
+				if answered[id] {
+					res.err = "scenario IGNORE: " + id + " was answered by a blue_edit, but the scenario said blue does nothing — either a writer ignored the directive or --answers is attaching provenance nobody claimed"
+					return res
+				}
+			case dirDispute:
+				if !disputed[id] {
+					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
+					return res
+				}
+			case dirApply:
+				if !answered[id] {
+					res.err = "scenario APPLY: " + id + " has no blue_edit answering it — a repair the scenario specified left no provenance"
+					return res
+				}
+			}
+		}
+	}
+
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
@@ -1441,6 +1527,86 @@ func mintedGapIDs(runDir string) []string {
 
 // someProposal returns a gap carrying a concrete proposal, with its exact pair, so the fuzz
 // can drive the VERBATIM-application path rather than only the counter-edit one.
+
+// scenarioOf reads a gap's directive BACK FROM THE BOARD, not from Go memory. The round trip
+// is part of what is tested: if required_fix stopped surviving a mint, every seat would
+// silently revert to coin-flip behaviour and the oracle would catch it.
+func (r *runner) scenarioOf(gapID string) string {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return ""
+	}
+	g := b.Gaps[gapID]
+	if g == nil || g.Mint == nil {
+		return ""
+	}
+	return g.Mint.Str("required_fix")
+}
+
+// blueRespondTo carries out the scenario each open gap was minted with — one decision per gap,
+// taken from the gap rather than from a coin, which is what makes the terminal state assertable.
+func (r *runner) blueRespondTo(seatID string, open []string) {
+	for _, id := range open {
+		switch r.scenarioOf(id) {
+		case dirApply:
+			// The only branch that sets applied_verbatim, and so the only one that estops red.
+			if gid, fo, fn := r.proposalFor(id); gid != "" {
+				if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil && strings.Contains(string(cur), fo) {
+					r.do("blue", "edit", seatID).set("--old", fo).set("--new", fn).
+						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run()
+					continue
+				}
+			}
+			// No concrete pair to apply — degrade to a counter-edit rather than fake one.
+			fallthrough
+		case dirCounter:
+			r.counterEdit(seatID, id)
+		case dirDispute:
+			dim := pick(r.rng, disputeDims)
+			proposed := r.g()
+			if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id,
+				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id); err == nil {
+				ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed}
+				r.raised = append(r.raised, ref)
+				r.disputedThisRound = append(r.disputedThisRound, ref)
+			}
+		case dirIgnore:
+			// Deliberately nothing. The oracle asserts NO edit answers this gap, which is what
+			// proves --answers records provenance rather than decorating it.
+		}
+	}
+}
+
+// counterEdit makes a real edit that is NOT red's proposed text.
+func (r *runner) counterEdit(seatID, gapID string) {
+	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	if err != nil {
+		return
+	}
+	oldSpan, newSpan := "rising over time", "climbing sharply"
+	if !strings.Contains(string(cur), oldSpan) {
+		oldSpan, newSpan = newSpan, oldSpan
+	}
+	if !strings.Contains(string(cur), oldSpan) {
+		return
+	}
+	r.do("blue", "edit", seatID).set("--old", oldSpan).set("--new", newSpan).
+		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").run()
+}
+
+// proposalFor returns the concrete pair for ONE gap, when it carries one.
+func (r *runner) proposalFor(gapID string) (string, string, string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return "", "", ""
+	}
+	g := b.Gaps[gapID]
+	if g == nil || g.Mint == nil || g.Mint.Str("fix_basis") != "verified" {
+		return "", "", ""
+	}
+	return gapID, g.Mint.Str("fix_old"), g.Mint.Str("fix_new")
+}
+
 func (r *runner) someProposal() (string, string, string) {
 	b, err := record.BoardState(r.runDir)
 	if err != nil {
