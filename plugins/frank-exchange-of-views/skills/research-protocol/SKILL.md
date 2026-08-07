@@ -9,7 +9,7 @@ Research that survives an adversary.
 
 ## Protocol
 
-- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record them; searches then test hypotheses instead of wandering.
+- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as an AVENUE (`blue avenue --line "<the approach>" --hypothesis "<what would be true if it pays off>"`); searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
 - During writing, YOU MUST add every citation with the TOOL — `blue cite --location "<the exact sentence>" --url <u> --title <t>` — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged as friction.
@@ -42,9 +42,10 @@ research/<date>_<slug>/
 ├── report.md          # final deliverable — assembled LAST, by union (authored)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
-│   ├── frontier.md    # the hypotheses (authored — the ONE surviving hand-written blue artifact;
-│   │                  #   the avenue verbs carry the same concept ON the record, so this is a
-│   │                  #   duplicate awaiting retirement — #285)
+│                      # (frontier.md is GONE — the opening hypotheses are AVENUES on the record;
+│                      #  read them with `show --view lines-of-inquiry`. A hypothesis in a file is
+│                      #  one red cannot rule too-thin or out-of-scope, and the round-0 ones shape
+│                      #  the whole run)
 │   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
 │   │                  #   Authored prose, but every EDIT after round 0 goes through `blue edit`
 │   ├── CHANGELOG.md   # authored, and duplicated by the `revision` event — retirement is #251
