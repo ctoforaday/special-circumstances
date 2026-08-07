@@ -35,10 +35,10 @@ feov-record: merge: record: dispose --observation names N2, which no observe or 
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L5-NONCE001.jsonl
-{"key":"red-lens-r1-L5:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.36.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":0,"type":"register"}
+{"key":"red-lens-r1-L5:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.37.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":0,"type":"register"}
 {"key":"red-lens-r1-L5:observe:N1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","kind":"note","label":"N1","text":"below bar but real"},"round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":1,"type":"observe"}
 -- events-red-merge-r1-NONCE002.jsonl
-{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.36.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
+{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.37.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
 {"key":"red-merge-r1:dispose:N1","nonce":"NONCE002","payload":{"disposition":"declined","observation":"N1","reason":"covered by R1-1"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"dispose"}
 
 ═══ RENDERS ═══
