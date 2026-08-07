@@ -31,7 +31,6 @@ var dirs = []string{"blue/candidates", "red", "trajectories", "inputs", "records
 var stubs = [][2]string{
 	{"debate.md", "debate.md"},
 	{"report.md", "report.md"},
-	{"blue/frontier.md", "blue frontier"},
 	{"blue/report.md", "blue report"},
 	{"blue/CHANGELOG.md", "blue CHANGELOG"},
 	{"red/citation-ledger.md", "red citation-ledger"},

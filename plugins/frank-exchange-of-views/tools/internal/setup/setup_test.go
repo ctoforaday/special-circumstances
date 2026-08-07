@@ -35,8 +35,11 @@ func has(s, sub string) bool { return strings.Contains(s, sub) }
 func TestBuildSkeletonCreatesStubsNotRedMergeBorn(t *testing.T) {
 	dir := t.TempDir()
 	res := BuildSkeleton(dir, "test topic")
-	if len(res.Created) != 6 {
-		t.Fatalf("created = %d, want 6: %v", len(res.Created), res.Created)
+	// FIVE stubs, not six: blue/frontier.md is gone (#297). The frontier hypotheses are
+	// AVENUES on the record now — they carry an id, a fate, and an argument red can rule on,
+	// which a markdown file never could.
+	if len(res.Created) != 5 {
+		t.Fatalf("created = %d, want 5: %v", len(res.Created), res.Created)
 	}
 	if !has(read(t, filepath.Join(dir, "blue", "report.md")), "test topic") {
 		t.Error("stub header missing the topic")
@@ -62,8 +65,8 @@ func TestBuildSkeletonIdempotent(t *testing.T) {
 	if !found {
 		t.Errorf("blue/report.md not reported skipped: %v", res.Skipped)
 	}
-	if len(res.Created) != 5 {
-		t.Errorf("created = %d, want 5", len(res.Created))
+	if len(res.Created) != 4 {
+		t.Errorf("created = %d, want 4", len(res.Created))
 	}
 	if read(t, filepath.Join(dir, "blue", "report.md")) != "PRE-STAGED CONTENT\n" {
 		t.Error("a pre-staged file was overwritten")
