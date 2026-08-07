@@ -30,6 +30,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // FrictionFooter closes the loop the help opens. A seat that needs something the
@@ -51,10 +52,14 @@ type Context struct {
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
 // directory when the flag is absent.
+// It stays error-free by design: the resolution that CAN fail (an injected run directory
+// disagreeing with a typed --run) is surfaced by Begin, which already has an error to return.
+// Threading one through Of would have changed every caller for a case only Begin acts on.
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	if runDir == "" {
-		runDir = InferRunDir("")
+	resolved, err := seatenv.Resolve(runDir, func() string { return InferRunDir("") })
+	if err == nil {
+		runDir = resolved
 	}
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	return Context{RunDir: runDir, SeatID: seatID, Role: roleOf(cmd)}
@@ -192,6 +197,13 @@ func markRequired(c *cobra.Command, verb string) {
 // called at the TOP of the one RunE — NOT a PreRunE hook — so there is no lifecycle chaining
 // to reason about. It requires the run dir and seat id and holds the seat to its role.
 func Begin(cmd *cobra.Command) (Context, error) {
+	// The disagreement refusal fires FIRST — before "--run is required" and before the seat-id
+	// checks — because a seat pointed at the wrong run must not get a message about anything
+	// else. Of() swallows the error to stay signature-compatible; this is where it is honoured.
+	flagRun, _ := cmd.Flags().GetString(flags.Run)
+	if _, err := seatenv.Resolve(flagRun, nil); err != nil {
+		return Of(cmd), err
+	}
 	s := Of(cmd)
 	if s.RunDir == "" {
 		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")

@@ -46,7 +46,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory (the engine passes it; it is in your prompt)
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -87,7 +87,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory (the engine passes it; it is in your prompt)
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -129,7 +129,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory (the engine passes it; it is in your prompt)
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -164,7 +164,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory (the engine passes it; it is in your prompt)
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.

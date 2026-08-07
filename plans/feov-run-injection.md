@@ -343,7 +343,44 @@ dir is keyed on that type (`setup/run.go:114`, `commands/research.md:25`); 20
 
 ---
 
-## Status: HANDED TO DEVELOPMENT (not PASSED)
+## Status: §1 and §2 SHIPPED 2026-08-06; §3 CUT
+
+Implemented as the stable core only, per gb: **the injection, `export …;` over an inline
+prefix, the quoting boundary, and refusal-on-disagreement** — the part unchallenged since
+rev 3. **§3 (miss-observability) is CUT**, not deferred: it turned `seat.Of` into a record
+writer on every read-only verb, it was the round-5 fix that introduced a round-6 defect, and
+the idea was mine rather than the measurement's. R10 ships **unmitigated** and is stated as
+such rather than quietly regraded.
+
+How the six known-open items below resolved:
+
+1. `PreRewrite`/`PreOutcome` — settled as **`PreOutcome`** at every site; there is no second name.
+2. `seat.Of` as a record writer — **gone with §3.**
+3. The `Append` idempotency claim — **gone with §3.**
+4. R9 graded against the pre-change state — **overtaken:** #282 landed the unconditional
+   preflight, so R9's premise ("today the preflight WARNS") is no longer true and the risk is
+   the post-change one.
+5. `--bin-dir` vs the legacy resume — **resolved by #282**, which split the two concerns:
+   `--bin-dir` says WHERE, the Workflow's `binDir` says WHETHER.
+6. The fuzz target — **built with stated invariants**, not crash-only: the value round-trips
+   through an independent single-quote DECODER, the seat's command survives verbatim, the
+   rewrite is idempotent, and a refused value is never emitted. 3.7M executions, zero
+   failures.
+
+Found during implementation, and not in any revision of this plan:
+
+- **A heredoc is a blind spot.** A newline is a command separator, but inside a heredoc body
+  it introduces DATA. The matcher rewrote a heredoc documenting a verb — which would have
+  injected an export into a document a seat was writing. A command containing `<<` is now not
+  rewritten at all. Caught by a test, not by review.
+- **The DENY arm has the same mention-vs-invocation confusion the rewrite arm avoids.** Its
+  write patterns match anywhere in a Bash command, so a heredoc *containing* `cp … blue/report.md`
+  is refused as though it were a write. Measured by hitting it while writing these tests.
+- **The tracked `tools/feov-record` binary reports 0.17.0** against a 0.36.0 manifest, and
+  nothing in the repo references it. With #282's preflight it would now be refused rather than
+  used. It is a stray build artifact, not a carrier — removal is a call for gb, not a rebuild.
+
+## Original hand-over note (superseded above)
 
 Six revisions, six FAILs at the plan-auditor gate. Handed over rather than taken to a
 seventh round, on the judgement that the remaining findings are cheaper to shake out in

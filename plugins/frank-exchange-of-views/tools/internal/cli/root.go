@@ -117,6 +117,20 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.36.0 the run directory is INJECTED, not typed (#281). The first live run logged 55
+//	       tool-call errors in 534 executions and TEN were one flag; `InferRunDir` was added
+//	       for that and never fires, because the prompt hands the seat an absolute --run at
+//	       every call site and an explicit flag always wins. Worse than absence is a WRONG
+//	       value: the 2026-08-05 smoke's blue-respond-r1 typed `special circumstances` for
+//	       `special-circumstances`, believed the tool's "no such gap" answer, filed friction
+//	       against an innocent rule and abandoned five manifest receipts. Now the PreToolUse
+//	       hook rewrites a Bash command invoking feov-record in COMMAND POSITION (never a
+//	       mention — a grep, a commit message or a heredoc is left alone, and a command
+//	       containing a heredoc is not rewritten at all), prefixing `export FEOV_RUN=...;`,
+//	       and a seat verb resolves FEOV_RUN -> --run -> inference. A --run DISAGREEING with
+//	       the injected value is REFUSED naming both, which is the whole point: the typo now
+//	       fails loudly at the one place that can see both values. Deny still wins
+//	       structurally. A stale binary ignores FEOV_RUN and silently obeys the typo.
 //	0.35.0 the STOPPING SIGNAL (#284): "is this close enough" is the bench's job and had no
 //	       organ — red is not incentivised to stop finding things, blue is not incentivised to
 //	       stop being found out, and maxRounds is a cost ceiling the protocol already says is
@@ -252,7 +266,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.35.0"
+const Version = "0.36.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -272,7 +286,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// The two flags EVERY verb needs, declared once and inherited. Persistent
 	// flags are the mechanism the first cut of this CLI re-implemented by
 	// re-declaring --run and --seat-id on all sixteen verbs.
-	root.PersistentFlags().String(flags.Run, "", "the run directory (the engine passes it; it is in your prompt)")
+	root.PersistentFlags().String(flags.Run, "", "the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed")
 	root.PersistentFlags().String(flags.SeatID, "", "your seat id, assigned by the engine and bound to this role's namespace")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the

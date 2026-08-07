@@ -94,6 +94,103 @@ func PreDecision(in Input) (bool, string) {
 	return true, denyReason
 }
 
+// Outcome is what the PreToolUse hook should do with a tool call.
+type Outcome int
+
+const (
+	// OutcomeNone: no opinion. The call proceeds untouched.
+	OutcomeNone Outcome = iota
+	// OutcomeDeny: refuse the call; the string is the reason shown to the seat.
+	OutcomeDeny
+	// OutcomeRewrite: let the call proceed with a REPLACED command; the string is that command.
+	OutcomeRewrite
+)
+
+// feovToken matches `feov-record` in COMMAND POSITION — at the start of the command, or
+// immediately after a separator (`&&`, `||`, `;`, `|`, or a newline), optionally quoted and
+// optionally path-prefixed.
+//
+// POSITION, NOT SUBSTRING, and the difference is the whole safety argument. A mention is not
+// an invocation: `grep -rn "feov-record" plugins/`, a heredoc documenting a verb, a `--reason`
+// quoting a command that failed — all contain the token, and a `strings.Contains` rule would
+// have prefixed an `export` onto documentation writes and friction messages. The two are
+// indistinguishable to any matcher that does not look at where the token sits.
+var feovToken = regexp.MustCompile(`(?:^|&&|\|\||;|\||\n)\s*['"]?[^\s'";|&]*\bfeov-record\b`)
+
+// PreOutcome is the SINGLE entry point for the PreToolUse decision, and the ordering is
+// structural rather than a convention someone has to remember.
+//
+// DENY WINS, and it cannot be got around: the deny arm is consulted first and the function
+// physically cannot return OutcomeRewrite once it fires. A previous revision left the rewrite
+// an exported free function with the ordering living in prose plus one call site — and the
+// consequence of getting that wrong is not a cosmetic bug, it is the blue-report lockdown
+// silently opening, because the hook protocol permits only ONE hookSpecificOutput document
+// and a rewrite emitted in place of a deny is a deny that never happened. A command tripping
+// both arms (`cp draft.md …/blue/report.md && "…/feov-record" blue edit …`) is denied.
+//
+// runDir is a PARAMETER, never a field on Input. Input is unmarshalled straight from the hook
+// payload, so every field on it is wire-supplied; a CLI-computed member would leave a reader
+// unable to tell a derived value from something the client sent. PostDropped takes its
+// injected readers for the same reason.
+//
+// PreDecision stays exported for its existing callers and cannot emit a rewrite.
+func PreOutcome(in Input, runDir string) (Outcome, string) {
+	if deny, reason := PreDecision(in); deny {
+		return OutcomeDeny, reason
+	}
+	if runDir == "" || in.ToolName != "Bash" {
+		return OutcomeNone, ""
+	}
+	var ti toolInput
+	if json.Unmarshal(in.ToolInput, &ti) != nil || ti.Command == "" {
+		return OutcomeNone, ""
+	}
+	rewritten, ok := injectRunDir(ti.Command, runDir)
+	if !ok {
+		return OutcomeNone, ""
+	}
+	return OutcomeRewrite, rewritten
+}
+
+// injectRunDir prefixes `export FEOV_RUN='<runDir>'; ` to a command that invokes feov-record.
+//
+// `export …;` and NOT the inline `VAR=x cmd` form. Measured: blue's real command was
+// `cd C:/… && "…/feov-record" blue manifest-row …`, where an inline prefix binds to `cd` and
+// never crosses the `&&`. An export is a statement; it applies to everything after it.
+//
+// QUOTING IS A SECURITY BOUNDARY, not formatting. The value is single-quoted with `'` escaped
+// as `'\”`, and a value carrying a control character is REFUSED — returned unmodified —
+// because a newline inside the emitted prefix would end the export statement and turn the
+// remainder into a command. The run directory comes from a file on disk, and a file on disk is
+// not a trusted input just because we wrote it once.
+func injectRunDir(command, runDir string) (string, bool) {
+	// HEREDOCS ARE A BLIND SPOT, so the whole command is left alone when one is present.
+	//
+	// A newline counts as a command separator — multi-line scripts are ordinary — but inside a
+	// heredoc body a newline introduces DATA, not a command, and telling the two apart needs a
+	// shell parser rather than a matcher. Caught by the test that writes a heredoc documenting
+	// a verb: it was rewritten, which would have injected an export into the middle of a
+	// document a seat was writing. Bailing costs only the injection (the seat still has
+	// --run); guessing corrupts the seat's output.
+	if strings.Contains(command, "<<") {
+		return "", false
+	}
+	if !feovToken.MatchString(command) {
+		return "", false
+	}
+	// Idempotent: a command already carrying the export is returned untouched, so a double
+	// hook invocation (or a seat that copied a rewritten command) cannot stack prefixes.
+	if strings.Contains(command, "export FEOV_RUN=") {
+		return "", false
+	}
+	for _, r := range runDir {
+		if r < 0x20 || r == 0x7f {
+			return "", false
+		}
+	}
+	return "export FEOV_RUN='" + strings.ReplaceAll(runDir, `'`, `'\''`) + "'; " + command, true
+}
+
 // reportPathFrom extracts a blue/report.md path token referenced by the tool call (a
 // file_path or anywhere in a Bash command), or "" if none. The PostToolUse backstop only
 // has something to check when the call actually touched a report.md path.
