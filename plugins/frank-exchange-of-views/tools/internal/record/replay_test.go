@@ -394,7 +394,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
 		if _, err := Append(runDir, seatID, "mint", NewPayload().
-			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+			Set("gap_id", got).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -421,7 +421,7 @@ func TestExistingMintByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, seatID, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -572,7 +572,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 		t.Run(field+"/accepts every canonical grade", func(t *testing.T) {
 			for _, g := range flags.GradeNames() {
-				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
+				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 				if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err != nil {
 					t.Errorf("%s=%s refused: %v", field, g, err)
 				}
@@ -594,8 +594,8 @@ func TestValidateVerbContracts(t *testing.T) {
 	}{
 		{"mint without --check", "mint", NewPayload().Set("class", "x"), "mint requires --check"},
 		{"mint with an empty --check", "mint", NewPayload().Set("class", "x").Set("acceptance_check", ""), "mint requires --check"},
-		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c"), "mint requires --class"},
-		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p"), ""},
+		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c").Set("check_kind", "document"), "mint requires --class"},
+		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p"), ""},
 
 		{"close without --id", "close", NewPayload(), "close requires --id"},
 		{"dispose without --as", "dispose", NewPayload(), "dispose requires --as"},
@@ -662,7 +662,7 @@ func opinionRunDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").
+		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -740,7 +740,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
 	})
 	base := func() *Payload {
-		return NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
+		return NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 
 	if err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
@@ -825,7 +825,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	}
 	registry := `{"classes":[{"slug":"scope-creep"},{"slug":"unfalsifiable"},{"slug":"stale-source"}]}`
 	mint := func(p *Payload) *Payload {
-		return p.Set("acceptance_check", "c").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
+		return p.Set("acceptance_check", "c").Set("check_kind", "document").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {

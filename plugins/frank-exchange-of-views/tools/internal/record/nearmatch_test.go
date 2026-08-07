@@ -21,7 +21,7 @@ func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 	for _, s := range specs {
 		evs = append(evs, ev(seat, nonce, seq, 1, "mint", seat+":mint:"+s.id, NewPayload().
 			Set("gap_id", s.id).Set("problem", s.problem).Set("location", s.location).
-			Set("class", "correctness").Set("acceptance_check", "check").
+			Set("class", "correctness").Set("acceptance_check", "check").Set("check_kind", "document").
 			Set("severity", "high").Set("likelihood", "high").Set("impact", "high")))
 		seq++
 	}

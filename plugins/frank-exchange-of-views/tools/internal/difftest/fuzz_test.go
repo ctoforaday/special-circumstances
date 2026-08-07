@@ -160,7 +160,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 				args = []string{"register", "--run", "{RUN}", "--seat-id", s}
 			case 1, 2:
 				args = []string{"mint", "--run", "{RUN}", "--seat-id", s,
-					"--class", pick(rng, fuzzClasses), "--check", "acceptance check",
+					"--class", pick(rng, fuzzClasses), "--check-kind", "document", "--check", "acceptance check",
 					"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 					"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
 				if rng.Intn(3) == 0 {

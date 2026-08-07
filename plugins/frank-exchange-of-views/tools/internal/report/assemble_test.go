@@ -305,7 +305,7 @@ func TestConfidenceStaysOutOfTheRiskMatrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := record.Append(runDir, "red-merge-r1", "mint", record.NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "high").Set("impact", "high").
+		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "high").Set("impact", "high").
 		Set("problem", "the actual risk row")); err != nil {
 		t.Fatal(err)
 	}

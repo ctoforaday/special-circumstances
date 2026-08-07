@@ -53,7 +53,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			"--anchor-target", "x", "--successor", "R9-9"}},
 		{"mint --found-by", "no lens recorded", []string{"merge", "mint", "--seat-id", "red-merge-r1",
 			"--key", "k2", "--class", "reference-integrity", "--location", "l", "--problem", "p",
-			"--fix", "f", "--check", "c", "--severity", "medium", "--likelihood", "medium",
+			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
 			"--impact", "medium", "--cx", "low", "--found-by", "L9-F9"}},
 		{"spot-check --ids", "no mint event created", []string{"merge", "spot-check", "--seat-id", "red-merge-r1",
 			"--ids", "R9-9"}},
@@ -157,7 +157,7 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 	ancestor := mintGap(t, runDir, "the-ancestor", "state-checks")
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "the-successor", "--class", "state-checks", "--location", "l",
-		"--problem", "p", "--fix", "f", "--check", "c",
+		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
 		"--supersedes", ancestor); err != nil {
 		t.Errorf("superseding an OPEN gap must be accepted — it is what 9 of 9 real mints did: %v", err)
@@ -206,7 +206,7 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	// THE LEGAL 7: mint a successor while the ancestor is still open.
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "the-successor", "--class", "lineage-completion", "--location", "l",
-		"--problem", "p", "--fix", "f", "--check", "c",
+		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
 		"--supersedes", ancestor)
 	if err != nil {

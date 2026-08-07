@@ -90,6 +90,7 @@ func newProve() *cobra.Command {
 				p.Set("drift", res.Drift)
 			}
 			seat.Set(cmd, p, "proof_key", flags.Key)
+			seat.Set(cmd, p, "answers", flags.Answers)
 			seat.Set(cmd, p, "cites", flags.Cites)
 			if err := seat.SetReason(cmd, p, "text"); err != nil {
 				return nil, err
@@ -104,6 +105,7 @@ func newProve() *cobra.Command {
 	c.Flags().String(flags.Script, "", "REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")
 	c.Flags().String(flags.Cites, "", "the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().String(flags.Key, "", "a stable local handle (P1, P2 …) making a retried prove idempotent")
+	c.Flags().String(flags.Answers, "", "the gap id this computation settles (R1-4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer")
 	return c
 }
 

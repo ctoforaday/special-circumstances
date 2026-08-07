@@ -3,37 +3,37 @@ exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class invented-class --check x --problem p
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class invented-class --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --check x --problem p
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor not-a-real-neighbor --distinguisher was the act repeated? --check x --problem p
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor not-a-real-neighbor --distinguisher was the act repeated? --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor citation-drift --distinguisher was the act repeated? --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor citation-drift --distinguisher was the act repeated? --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
 exit 0
 stdout:
 minted R1-1
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check same class again --severity low --likelihood low --impact low --problem extension accepted
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check same class again --severity low --likelihood low --impact low --problem extension accepted
 exit 0
 stdout:
 minted R1-2
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.37.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"compare anchors","class":"attestation-inflation","class_new":true,"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"medium","neighbor":"citation-drift","problem":"inflation","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.38.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"compare anchors","check_kind":"document","class":"attestation-inflation","class_new":true,"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"medium","neighbor":"citation-drift","problem":"inflation","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:class-new:#1","nonce":"NONCE001","payload":{"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","neighbor":"citation-drift","slug":"attestation-inflation"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"class-new"}
-{"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"same class again","class":"attestation-inflation","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"low","problem":"extension accepted","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"mint"}
+{"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"same class again","check_kind":"document","class":"attestation-inflation","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"low","problem":"extension accepted","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"mint"}
 
 ═══ RENDERS ═══
 -- ledger

@@ -50,7 +50,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 		"--key", key, "--class-new", class,
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
 		"--location", "§1 \"a quoted sentence\"", "--problem", "the defect", "--fix", "the fix",
-		"--check", "the acceptance check red runs at re-audit",
+		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low")
 	if err != nil {
 		t.Fatalf("mint %s: %v", key, err)

@@ -69,7 +69,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board.
 	capture(command(bin, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class", "scope-creep", "--check", "x", "--severity", "low", "--likelihood", "low",
+		"--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap"))
 	// And one real finding, so "dispose without disposition" refuses the MISSING
 	// DISPOSITION rather than an unknown observation. It did the latter for as long as
@@ -85,12 +85,12 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		argv []string
 	}{
 		{"mint without acceptance check", []string{"merge", "mint", "--class", "scope-creep", "--problem", "p"}},
-		{"mint without class", []string{"merge", "mint", "--check", "x", "--problem", "p"}},
-		{"mint with unknown class", []string{"merge", "mint", "--class", "invented", "--check", "x", "--problem", "p"}},
-		{"class-new missing definition", []string{"merge", "mint", "--class-new", "novel", "--check", "x", "--problem", "p"}},
-		{"class-new unknown neighbor", []string{"merge", "mint", "--class-new", "novel", "--definition", "d", "--neighbor", "nope", "--distinguisher", "q", "--check", "x", "--problem", "p"}},
-		{"mint with bad grade", []string{"merge", "mint", "--class", "scope-creep", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
-		{"mint with dangling supersedes", []string{"merge", "mint", "--class", "scope-creep", "--check", "x", "--supersedes", "R7-7", "--problem", "p"}},
+		{"mint without class", []string{"merge", "mint", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with unknown class", []string{"merge", "mint", "--class", "invented", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"class-new missing definition", []string{"merge", "mint", "--class-new", "novel", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"class-new unknown neighbor", []string{"merge", "mint", "--class-new", "novel", "--definition", "d", "--neighbor", "nope", "--distinguisher", "q", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with bad grade", []string{"merge", "mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
+		{"mint with dangling supersedes", []string{"merge", "mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--supersedes", "R7-7", "--problem", "p"}},
 		{"close unknown gap", []string{"merge", "close", "--id", "R7-7", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t"}},
 		{"close without id", []string{"merge", "close", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t"}},
 		{"close without anchor", []string{"merge", "close", "--id", "R1-1"}},
@@ -116,7 +116,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"citation confidence outside the set", []string{"lens", "cite", "--claim", "c", "--reference", "r", "--confidence", "banana"}},
 		{"blue confidence outside the set", []string{"blue", "confidence", "--claim", "c", "--confidence", "banana"}},
 		{"petition class outside the set", []string{"blue", "petition", "--petition-class", "banana", "--relief", "x", "--reason", "r"}},
-		{"invalid seat id", []string{"merge", "mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check", "x", "--problem", "p"}},
+		{"invalid seat id", []string{"merge", "mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--problem", "p"}},
 		{"verb outside the lens role", []string{"lens", "mint", "--class", "scope-creep"}},
 		{"verb outside the blue role", []string{"blue", "close", "--id", "R1-1"}},
 		{"verb outside the bench role", []string{"bench", "mint", "--class", "scope-creep"}},

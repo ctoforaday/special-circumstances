@@ -174,7 +174,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	runDir := t.TempDir()
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
+		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err == nil {
 		t.Fatal("a LENS seat minted a board gap through the merge role")
 	}
@@ -368,7 +368,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	ev := lastOfType(t, runDir, "mint")
@@ -393,7 +393,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 	runDir := t.TempDir()
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--severity", "catastrophic")
+		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--severity", "catastrophic")
 	if err == nil {
 		t.Fatal("an invalid grade was accepted")
 	}
@@ -419,7 +419,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	mint := func(extra ...string) string {
 		t.Helper()
 		args := append([]string{"merge", "mint", "--run", runDir, "--seat-id", seatID,
-			"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, extra...)
+			"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, extra...)
 		out, err := run(t, args...)
 		if err != nil {
 			t.Fatal(err)
@@ -450,7 +450,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
+		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -469,7 +469,7 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	mintArgs := []string{"merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "scope-creep", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}
+		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}
 
 	out, err := run(t, append([]string{"--json"}, mintArgs...)...)
 	if err != nil {
@@ -513,7 +513,7 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	// A coded domain fault carries its SPECIFIC code, so a consumer branches on the KIND of
 	// failure, not the message. A seat-id from another role is a role_violation.
 	rv, _ := run(t, "--json", "merge", "mint", "--run", runDir, "--seat-id", "blue-synthesize",
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
+		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	var viol map[string]any
 	if e := json.Unmarshal([]byte(strings.TrimSpace(rv)), &viol); e != nil {
 		t.Fatalf("role-violation --json is not valid JSON (%v): %s", e, rv)
@@ -531,7 +531,7 @@ func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "ignored", "--class-new", "brand-new",
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "q",
-		"--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
+		"--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +561,7 @@ func TestMintExistenceLandsOnBoardAndRejectsBadValue(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "correctness", "--check", "c", "--likelihood", "medium", "--impact", "medium",
+		"--class", "correctness", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
 		"--problem", "p", "--existence", "verified"); err != nil {
 		t.Fatal(err)
 	}
@@ -569,12 +569,12 @@ func TestMintExistenceLandsOnBoardAndRejectsBadValue(t *testing.T) {
 		t.Errorf("existence = %q, want verified (the write path must land it on the board)", got)
 	}
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "correctness", "--check", "c", "--likelihood", "low", "--impact", "low",
+		"--class", "correctness", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low",
 		"--problem", "p2", "--existence", "suspected"); err != nil {
 		t.Fatalf("suspected must be accepted: %v", err)
 	}
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "correctness", "--check", "c", "--likelihood", "low", "--impact", "low",
+		"--class", "correctness", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low",
 		"--problem", "p3", "--existence", "probable"); err == nil {
 		t.Error("--existence probable must be rejected (enum is verified|suspected)")
 	}
@@ -656,7 +656,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("--problem beats the prose channel on mint", func(t *testing.T) {
 		runDir := t.TempDir()
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--reason", "from the prose channel"); err != nil {
+			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the flag" {
@@ -667,7 +667,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("the prose channel fills problem when --problem is absent", func(t *testing.T) {
 		runDir := t.TempDir()
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel"); err != nil {
+			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the prose channel" {
@@ -682,7 +682,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -731,13 +731,13 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	// The successor must EXIST: a successor is a reference like any other and is checked
 	// at write time now, so the fixture mints the gap it will name.
 	succOut, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--key", "successor-gap", "--class", "x", "--check", "c",
+		"--key", "successor-gap", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
@@ -762,7 +762,7 @@ func TestCloseFile(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	f := filepath.Join(t.TempDir(), "closure.md")
@@ -794,7 +794,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		{"regrade without --reason", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "regrade requires --reason"},
 		{"dispose without --as", []string{"merge", "dispose", "--observation", "L1-F1"}, "dispose requires --as"},
 		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "mint requires --check"},
-		{"mint without --class", []string{"merge", "mint", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
+		{"mint without --class", []string{"merge", "mint", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -805,7 +805,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 			// fires first and this test asserts on the wrong refusal — it is about the
 			// missing REASON, not a missing referent.
 			if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-				"--key", "k", "--class", "x", "--check", "c",
+				"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
 				"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
@@ -884,7 +884,7 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 	// a real gap this test would assert on the dangling-reference refusal instead of the
 	// missing-field one it is about.
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "k", "--class", "x", "--check", "c",
+		"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -987,7 +987,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 	// checked at write time.
 	for i := 0; i < 2; i++ {
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-			"--key", fmt.Sprintf("k%d", i), "--class", "x", "--check", "c",
+			"--key", fmt.Sprintf("k%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
 			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
@@ -1041,7 +1041,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 	mint2 := func(runDir string) {
 		for i := 0; i < 2; i++ {
 			if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-				"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+				"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -1091,7 +1091,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 		t.Run("as="+as, func(t *testing.T) {
 			runDir := t.TempDir()
 			if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-				"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+				"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
 			args := []string{"merge", "verdict", "--run", runDir, "--seat-id", seatID}
@@ -1119,7 +1119,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	// A PASS is refused over an open gap, so close it first (the guard is exercised in its
@@ -1343,7 +1343,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	}
 	minted, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class-new", "some-class", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "sec 1", "--problem", "p", "--fix", "f", "--check", "c", "--likelihood", "medium", "--impact", "medium",
+		"--location", "sec 1", "--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low")
 	if err != nil {
 		t.Fatalf("mint: %v", err)
