@@ -8,30 +8,30 @@ exit 2
 stderr:
 feov-record: merge: record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --check run it --problem no class given
+$ merge mint --run {RUN} --seat-id red-merge-r1 --check-kind document --check run it --problem no class given
 exit 2
 stderr:
 feov-record: merge: record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check run it --severity catastrophic --problem bad grade
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --severity catastrophic --problem bad grade
 exit 2
 stderr:
 feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low-medium | medium | medium-high | high | certain | realized | trivial
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check run it --supersedes R9-9 --problem dangling lineage
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --supersedes R9-9 --problem dangling lineage
 exit 2
 stderr:
 feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check grep the sites --severity high --likelihood high --impact medium --cx low --problem a real one
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check grep the sites --severity high --likelihood high --impact medium --cx low --problem a real one
 exit 0
 stdout:
 minted R1-1
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.37.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"grep the sites","class":"scope-creep","class_new":false,"complexity_cost":"low","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"high","problem":"a real one","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.38.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"grep the sites","check_kind":"document","class":"scope-creep","class_new":false,"complexity_cost":"low","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"high","problem":"a real one","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 
 ═══ RENDERS ═══
 -- ledger
