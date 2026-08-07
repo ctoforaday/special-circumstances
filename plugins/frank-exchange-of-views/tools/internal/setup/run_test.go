@@ -286,3 +286,79 @@ func TestMemoryDirAddsRatherThanReplaces(t *testing.T) {
 		t.Errorf("the summary did not report the corpus:\n%s", out.String())
 	}
 }
+
+// THE REGISTRY IS STAGED, so `--class` means something (#299).
+//
+// Nothing wrote records/class-registry.json until this. loadRegistry always returned nil,
+// validateClass always took its advisory branch, and --class accepted any string on every run
+// there has ever been. The cost was not tidiness: gap-pattern delivery is CLASS-INDEXED, red
+// invented a fresh vocabulary each run, and both record-era runs had ZERO overlap between the
+// classes minted and the classes the memory corpus is indexed by.
+func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	mem := filepath.Join(cfg.Cwd, "feov-memory")
+	if err := os.MkdirAll(mem, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mem, "class-registry.json"),
+		[]byte(`{"classes":[{"slug":"false-universal"},{"slug":"self-attestation"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	staged := filepath.Join(runDir, "records", "class-registry.json")
+	if _, err := os.Stat(staged); err != nil {
+		t.Fatalf("the registry was not staged where loadRegistry reads it: %v", err)
+	}
+	if !strings.Contains(out.String(), "2 class(es) staged") {
+		t.Errorf("the summary must report the registry, since it decides whether --class validates:\n%s", out.String())
+	}
+}
+
+// An ABSENT registry is reported LOUDLY rather than degrading in silence. The advisory branch
+// is the pattern this suite keeps finding: a gate that reports nothing and passes everything
+// when its input is missing.
+func TestAbsentRegistryIsAnnounced(t *testing.T) {
+	cfg, _ := runCfg(t, "0.35.0", reports("0.35.0"))
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "NOT STAGED") || !strings.Contains(out.String(), "ANY string") {
+		t.Errorf("an absent registry must say that --class stops being validated:\n%s", out.String())
+	}
+}
+
+// THE JOIN'S HEALTH IS STATED. A corpus indexed by classes the registry does not contain
+// reaches no seat however well it is composed — which is exactly what both record-era runs
+// did, at zero overlap, while every summary line looked healthy.
+func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
+	cfg, _ := runCfg(t, "0.35.0", reports("0.35.0"))
+	mem := filepath.Join(cfg.Cwd, "feov-memory")
+	patterns := filepath.Join(mem, "red-gap-patterns")
+	if err := os.MkdirAll(patterns, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mem, "class-registry.json"),
+		[]byte(`{"classes":[{"slug":"false-universal"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, class := range map[string]string{"ok.md": "false-universal", "orphan.md": "invented-last-run"} {
+		if err := os.WriteFile(filepath.Join(patterns, name),
+			[]byte("---\nclasses: ["+class+"]\ndescription: h\n---\n# t\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "1 of 2 indexed class(es) exist in the registry") {
+		t.Errorf("the join ratio must be reported:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "invented-last-run") {
+		t.Errorf("an unjoinable class must be NAMED, or the corpus looks healthy while reaching nobody:\n%s", out.String())
+	}
+}
