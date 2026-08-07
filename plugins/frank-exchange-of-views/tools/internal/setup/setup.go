@@ -650,3 +650,66 @@ func scorecardFiles(dir string) []string {
 	sort.Strings(out)
 	return out
 }
+
+// StageClassRegistry copies the gap class registry into the run, where record.loadRegistry
+// reads it.
+//
+// IT DID NOT EXIST UNTIL 2026-08-07 (#299). `loadRegistry` reads
+// <runDir>/records/class-registry.json; nothing ever wrote that file; so it always returned
+// nil, `validateClass` always took its advisory branch, and `--class` accepted ANY STRING on
+// every run there has ever been.
+//
+// The cost was not a tidy-taxonomy complaint. Delivery of red's accumulated gap patterns is
+// CLASS-INDEXED — the design that replaced whole-corpus staging after run 5 measured that
+// worthless — and with nothing constraining the key, red invented a fresh vocabulary each
+// run. Measured across both record-era runs: 10 and 14 minted classes, and ZERO overlap with
+// the 37 classes the memory corpus is indexed by. The corpus was built, the index was
+// written, and the join has never once delivered a pattern.
+//
+// Staging the file is what makes the key shared. A class not in it is UNDECLARED rather than
+// forbidden: `--class-new` introduces one with its definition, neighbour and distinguisher,
+// which is how the taxonomy is supposed to grow.
+func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
+	src := filepath.Join(repoMemoryDir, "class-registry.json")
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return MirrorResult{Written: false, Reason: "no class-registry.json — `--class` will accept ANY string this run (#299)"}
+	}
+	var reg struct {
+		Classes []struct {
+			Slug string `json:"slug"`
+		} `json:"classes"`
+	}
+	if json.Unmarshal(b, &reg) != nil || len(reg.Classes) == 0 {
+		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — `--class` will accept ANY string this run (#299)"}
+	}
+	dst := filepath.Join(runDir, "records", "class-registry.json")
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return MirrorResult{Written: false, Reason: "cannot create records/: " + err.Error()}
+	}
+	if err := os.WriteFile(dst, b, 0o644); err != nil {
+		return MirrorResult{Written: false, Reason: "cannot stage the registry: " + err.Error()}
+	}
+	return MirrorResult{Written: true, Files: len(reg.Classes), Sources: 1}
+}
+
+// RegistrySlugs reads the staged registry's slugs, for the memory-join report.
+func RegistrySlugs(repoMemoryDir string) map[string]bool {
+	out := map[string]bool{}
+	b, err := os.ReadFile(filepath.Join(repoMemoryDir, "class-registry.json"))
+	if err != nil {
+		return out
+	}
+	var reg struct {
+		Classes []struct {
+			Slug string `json:"slug"`
+		} `json:"classes"`
+	}
+	if json.Unmarshal(b, &reg) != nil {
+		return out
+	}
+	for _, c := range reg.Classes {
+		out[c.Slug] = true
+	}
+	return out
+}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -177,6 +178,10 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	pinned := BuildPinned(cfg.RunDir, head, cfg.Cites)
 
+	// The registry is staged BEFORE any seat can mint, because it is what makes `--class` mean
+	// anything at all (#299).
+	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), cfg.RunDir)
+
 	// The index was built and GATED above, before any run state existed; this only mirrors the
 	// files into the run and writes the class join the engine hands to a repairing seat.
 	mirror := MirrorGapPatterns(memDirs, cfg.RunDir)
@@ -211,8 +216,34 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintf(stdout, "  pin validation: %d cite(s) verified at their pins\n", pv.Checked)
 	}
+	// The registry decides whether `--class` means anything this run, so it is reported before
+	// the corpus that joins on it.
+	if registry.Written {
+		fmt.Fprintf(stdout, "  class registry: %d class(es) staged — `--class` is validated; `--class-new` extends it\n", registry.Files)
+	} else {
+		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
+	}
 	if mirror.Written {
 		fmt.Fprintf(stdout, "  gap-patterns: %d pattern(s) mirrored from %d source(s) (promoted corpus first)\n", mirror.Files, mirror.Sources)
+		// THE JOIN'S HEALTH, stated rather than assumed. Patterns are delivered by matching the
+		// class of the gap in front of a seat, so a corpus indexed by classes the registry does
+		// not contain reaches nobody however well it is composed — which is what both
+		// record-era runs did, at zero overlap.
+		if slugs := RegistrySlugs(filepath.Join(cfg.Cwd, "feov-memory")); len(slugs) > 0 {
+			joinable, orphaned := 0, []string{}
+			for class := range patternIndex.ByClass {
+				if slugs[class] {
+					joinable++
+				} else {
+					orphaned = append(orphaned, class)
+				}
+			}
+			sort.Strings(orphaned)
+			fmt.Fprintf(stdout, "    class join: %d of %d indexed class(es) exist in the registry\n", joinable, len(patternIndex.ByClass))
+			if len(orphaned) > 0 {
+				fmt.Fprintf(stdout, "    NOT joinable (indexed by a class no gap can carry): %s\n", strings.Join(firstN(orphaned, 8), ", "))
+			}
+		}
 	} else {
 		fmt.Fprintf(stdout, "  gap-patterns: %s\n", mirror.Reason)
 	}
