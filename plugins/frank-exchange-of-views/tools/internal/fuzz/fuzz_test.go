@@ -1463,6 +1463,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	if m := proseRenders(board, runDir); m != "" {
 		res.err = m
 	}
+	if res.err == "" {
+		if m := basisRenders(board, runDir); m != "" {
+			res.err = m
+		}
+	}
 	res.dialectic = tallyDialectic(board)
 	// #256: count the citation axis's two real artifacts (see outcome). A cite that fetched and
 	// anchored leaves BOTH; a cite event alone leaves neither.
@@ -1654,6 +1659,67 @@ var reportExemptions = map[string]string{
 	"verdict":      "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 	"spot-check":   "the bench's archive sample — read by NOTHING today, including the report (#317). Exempt so the gate reports the honest state rather than a green it has not earned",
 	"manifest-row": "blue's correctness-manifest receipt — read by nothing, and called by no prompt (#318). Exempt for the same reason",
+}
+
+// basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
+// phrase the report must contain when that value is on the record.
+//
+// Every one of these exists because a seat asked to self-report reports the flattering value —
+// so each is computed by the tool at the write. Each then gated something (estoppel, the outcome
+// cross-check, the claim-loss detector) and reached the reader as NOTHING, which collapsed the
+// distinction at the only point where a human could act on it: a verdict the record itself
+// decided printed the same word as one the bench merely asserted.
+//
+// prose keys cannot cover this — a basis is a field on an event whose OTHER prose renders fine,
+// so the prose gate is green while the qualifier is gone.
+var basisFields = []struct{ evType, key, value, want string }{
+	{"outcome", "verdict_basis", "derived", "derived from the record"},
+	{"outcome", "verdict_basis", "asserted", "asserted by the bench"},
+	{"mint", "fix_basis", "verified", "with the text in front of it"},
+	{"mint", "fix_basis", "proposed", "nothing checked this demand"},
+	{"retire", "removal_basis", "verified", "the record shows it leaving"},
+	{"retire", "removal_basis", "asserted", "nothing on the record shows it was ever present"},
+	// proof_basis was already rendered before this gate existed (weaveProofs prints it with an
+	// explanation of reproducible vs observed). It is here so the coverage is stated rather
+	// than assumed — the one that was fine is the easiest to break unnoticed.
+	{"proof", "proof_basis", "reproducible", "reproducible"},
+	{"proof", "proof_basis", "observed", "observed"},
+}
+
+func basisRenders(board *record.Board, runDir string) string {
+	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+	if err != nil {
+		return "no report.md: " + err.Error()
+	}
+	rpt := string(report)
+	var missing []string
+	for _, bf := range basisFields {
+		present := false
+		for _, e := range board.Events {
+			// A CLOSED gap's mint is still on the record but its fix_basis is no longer shown —
+			// the demand was met, and the report's closure index is a one-line index by design.
+			// Only OPEN gaps are checked, which is where the qualifier changes what a reader does.
+			if e.Type == bf.evType && e.Payload.Str(bf.key) == bf.value {
+				if bf.evType == "mint" && !gapIsOpen(board, e.Payload.Str("gap_id")) {
+					continue
+				}
+				present = true
+				break
+			}
+		}
+		if present && !strings.Contains(rpt, bf.want) {
+			missing = append(missing, fmt.Sprintf("%s.%s=%s is on the record and the report never says so (looked for %q)", bf.evType, bf.key, bf.value, bf.want))
+		}
+	}
+	if len(missing) > 0 {
+		return "derived-basis absent from report — the qualifier the field exists to preserve:\n" + strings.Join(missing, "\n")
+	}
+	return ""
+}
+
+func gapIsOpen(board *record.Board, id string) bool {
+	g := board.Gaps[id]
+	return g != nil && g.Open
 }
 
 func proseRenders(board *record.Board, runDir string) string {
