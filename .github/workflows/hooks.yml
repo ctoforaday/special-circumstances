@@ -392,6 +392,17 @@ jobs:
         # nothing here ran `claude plugin validate`.
         run: go run ./frontmatter
         working-directory: scripts
+      - name: Every recorded decision names the issue that tracks it
+        # A decision with no issue is not resolved — it is recorded, which is a different
+        # thing. The seat-command trigger map held four decisions under a heading reading
+        # "Resolved decisions", TWO of which had never been executed, plus a set of
+        # collapses in the same state. Nothing reported it: a decision never carried out
+        # is byte-identical to one that was, because the only artifact either produces is
+        # a paragraph saying it was decided. An independent trace rediscovered two of them
+        # from scratch. This is facts-are-fields applied to our own process — the decision
+        # now carries a field a writer can be refused on.
+        run: go run ./decisions
+        working-directory: scripts
       - name: Every marketplace plugin is installed by both bootstrap paths
         # The plugin list is written down THREE times — the marketplace manifest,
         # the bootstrap script, and the pasteable snippet in docs/setup-script.md.
