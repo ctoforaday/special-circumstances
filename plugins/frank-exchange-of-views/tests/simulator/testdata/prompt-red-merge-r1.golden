@@ -1,4 +1,4 @@
-prompt sha256: 7785f8b67b7359d37c7cef7029194e604c4b7bda598656ac736eacb42b240d11
+prompt sha256: db6a54b9e795b26a0e75cc3ba77709e75c95453ac73f3141ebbe4bcf69a0e48d
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -13,6 +13,9 @@ Separate genuine incidents; fold duplicates and near-duplicates together; mint S
 A merge that mints a gap for every finding has not merged — it has transcribed, and it floods the docket with noise.
 There is no bulk mint and there is no markdown to dump into: the discipline is the point.
 Each gap you mint carries, in that one call, its class, location (section heading + quoted sentence), problem, required_fix, the acceptance_check red will RUN at re-audit, --check-kind (REQUIRED: document | computation | source — WHAT WOULD SETTLE that check), existence (pass `--existence verified|suspected` — leaf-checked vs inferred; it lands on the board, see `mint --help`), and severity/likelihood/impact/complexity.
+YOUR TERMINAL ACT EACH ROUND: record your verdict — "null/feov-record" merge verdict --run research/2026-01-01_golden --seat-id <your SEAT_ID> --as PASS|FAIL.
+It is not ceremony.
+It CHECKPOINTS the whole event log to a recovery mirror outside the run directory (which is untracked-by-design until capture, and a stray git operation has deleted a live blackboard mid-round before), and it is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.
 CLOSURE AMENDMENT (rulebook audit item 7): when a defect is found BETWEEN two repairs that each closed clean in an earlier round, close the new gap with class amends_prior and name both amended ids in supersedes — run 4's R1-12/R1-17 composition defect had no way to say this, so last round's closures had to be reclassified inside this round's closures array and the ledger hand-annotated, which makes a late-discovered composition defect indistinguishable from a this-round closure event.
 Every gap's location = section heading + quoted sentence; keep graded likelihood/impact/complexity + severity on every open gap.
 NEAR-MATCH RULE: your working set is the `worklist` view (`feov-record merge show --view worklist` — OPEN gaps lean, plus a prose-free closed index; the shrinking read you act on each turn, not the whole board).
