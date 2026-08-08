@@ -728,11 +728,17 @@ func (r *runner) extras(role, seatID string, open []string) {
 					on(50, "--superseded-by", "fuzz replacement claim").run()
 			}
 		})
-		if len(open) > 0 {
-			r.maybe(40, func() {
-				r.do("blue", "manifest-row", seatID).set("--id", pick(r.rng, open)).set("--row", "fuzz manifest row").
-					on(50, "--reason", "fuzz: the receipt's argument").run()
-			})
+		// THE CORRECTNESS MANIFEST: one row per repaired gap, on the record (#318).
+		//
+		// It used to fire at 40% for ONE random gap, which modelled a seat that mostly skipped
+		// its own self-audit — and nothing noticed, because the row had no reader and the
+		// coverage metric was counting the ENVELOPE array instead. The verb is now what the
+		// prompt asks for and what the scorecard counts, so the fake discharges it the way a
+		// compliant blue would: every gap it is repairing this round.
+		for _, id := range open {
+			r.do("blue", "manifest-row", seatID).set("--id", id).
+				set("--row", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").
+				on(50, "--reason", "fuzz: the receipt's argument").run()
 		}
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
@@ -886,10 +892,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.blueRespondTo(seatID, open)
 		disputes := r.disputedThisRound
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
-		// receipt. One row per open gap it is repairing this round.
+		// receipt. #318: the envelope is a ROUTING REF now, gap ids only; the rows themselves are
+		// on the record, written by the manifest-row calls above against this same `open` set.
 		var manifest []any
 		for _, id := range open {
-			manifest = append(manifest, map[string]any{"gap_id": id, "row": "fuzz: checked"})
+			manifest = append(manifest, id)
 		}
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
 
@@ -1648,6 +1655,10 @@ var dialecticProseKey = map[string]string{
 	"confidence": "label",
 	// Run-level voices.
 	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
+	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
+	// checking it showed — the receipt reached no reader for a year, because the coverage metric
+	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).
+	"manifest-row": "row",
 	// Red re-reading its own closure archive. `notes` is what the sample FOUND — the whole
 	// point of sampling — and it reached no reader at all until the floor was enforced (#317).
 	"spot-check": "notes",
@@ -1657,16 +1668,15 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
-	"register":     "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
-	"anchor":       "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
-	"blue_edit":    "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
-	"class-new":    "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
-	"cite":         "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
-	"proof":        "resolved rather than rendered — weaveProofs splices the computation at its anchor",
-	"close":        "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
-	"outcome":      "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":      "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
-	"manifest-row": "blue's correctness-manifest receipt — read by nothing, and called by no prompt (#318). Exempt for the same reason",
+	"register":  "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
+	"anchor":    "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
+	"blue_edit": "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
+	"class-new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
+	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
+	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
+	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
+	"outcome":   "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":   "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a

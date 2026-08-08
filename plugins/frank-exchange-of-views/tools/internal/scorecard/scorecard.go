@@ -282,22 +282,41 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Note: "no telemetry rounds with closures"})
 	}
 
-	// manifest_coverage
+	// manifest_coverage — COUNTED FROM THE RECORD (#318).
+	//
+	// It used to count the ENVELOPE's manifest array, which is why `blue manifest-row` was never
+	// called once in the tool's lifetime: the record-tool plan moved the manifest onto the record
+	// and listed the envelope plumbing as DELETED, the verb shipped, the deletion did not, and
+	// the metric kept scoring the old channel. Blue was required to fill the envelope, graded on
+	// the envelope, and told about the verb by nothing.
+	//
+	// A metric that reads the transient channel cannot see a receipt on the durable one, which
+	// is the whole reason the migration existed.
 	manifested, repaired := 0, 0
-	for _, r := range results {
-		if m, ok := r["manifest"].([]any); ok {
-			manifested += len(m)
+	manifestedGaps := map[string]bool{}
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "manifest-row" {
+				manifested++
+				if id := e.Payload.Str("gap_id"); id != "" {
+					manifestedGaps[id] = true
+				}
+			}
 		}
+	}
+	for _, r := range results {
 		if rg, ok := r["repaired_gaps"].([]any); ok {
 			repaired += len(rg)
 		}
 	}
-	if repaired > 0 {
+	switch {
+	case repaired > 0:
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: float64(manifested) / float64(repaired)})
-	} else {
+			Value: float64(len(manifestedGaps)) / float64(repaired),
+			Joint: "manifest-row EVENTS over repaired gaps; distinct gaps, so two rows on one gap is not coverage of two"})
+	default:
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: manifested, Note: "manifest rows counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio"})
+			Value: manifested, Note: "manifest-row events counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio"})
 	}
 
 	// round_parity_failures
