@@ -722,7 +722,64 @@ func redFindings(board *record.Board) string {
 	if sc := archiveSpotChecks(board); sc != "" {
 		fmt.Fprintf(&b, "\n\n%s", sc)
 	}
+	if cm := correctnessManifest(board); cm != "" {
+		fmt.Fprintf(&b, "\n\n%s", cm)
+	}
 	return b.String()
+}
+
+// correctnessManifest renders blue's self-audit receipts — one row per repaired gap, saying what
+// blue checked and what checking it showed.
+//
+// "An unmanifested repair is unchecked by blue's OWN standard, which is a stronger thing to be
+// able to say than 'we think it was checked'." That is the verb's own justification, and until
+// now nobody could say it: the manifest was scored from a transient envelope and the receipt on
+// the record reached no reader. A repair claimed as done and a repair audited by the party that
+// made it are different things, and only this section shows which one a closure was.
+//
+// A repaired gap with NO row is named rather than omitted. An absent receipt is the finding.
+func correctnessManifest(board *record.Board) string {
+	type row struct {
+		gapID, text, seat string
+		round             int
+	}
+	var rows []row
+	manifested := map[string]bool{}
+	for _, e := range board.Events {
+		if e.Type != "manifest-row" {
+			continue
+		}
+		text := strings.TrimSpace(e.Payload.Str("row"))
+		if text == "" {
+			continue
+		}
+		id := e.Payload.Str("gap_id")
+		manifested[id] = true
+		rows = append(rows, row{id, text, e.SeatID, e.Round})
+	}
+	// Every gap blue actually repaired: one the record shows CLOSED. A closure with no manifest
+	// row is a repair nobody audited, including its author.
+	var unmanifested []string
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g != nil && g.HasClosed && !manifested[id] {
+			unmanifested = append(unmanifested, id)
+		}
+	}
+	if len(rows) == 0 && len(unmanifested) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", len(rows))
+	b.WriteString("Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than \"we think it was checked\".\n\n")
+	for _, r := range rows {
+		fmt.Fprintf(&b, "- **%s** (%s, r%d): %s\n", r.gapID, r.seat, r.round, r.text)
+	}
+	if len(unmanifested) > 0 {
+		fmt.Fprintf(&b, "\n**%d closed gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
+			len(unmanifested), strings.Join(unmanifested, ", "))
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // archiveSpotChecks renders red's re-verification of its own closure archive — which closures it

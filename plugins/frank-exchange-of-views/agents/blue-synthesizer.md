@@ -47,6 +47,12 @@ first — work that reaches red unverified has already failed your own standard.
   derived / asserted — repair minimalism: a repair changes no more than the fix requires.
   (Each manifest row is a measured blue regression class: same-paragraph contradictions,
   false universals, twice-wrong arithmetic, uncomposed same-line fixes, sibling escapes.)
+  RECORD THE ROW, DO NOT MERELY RUN IT: one `feov-record blue manifest-row --id <gap> --row
+  "<what you checked and what it showed>"` per repaired gap. The row is your receipt and it
+  REACHES THE READER — the report renders your manifest, and a closed gap carrying no row is
+  named there as a repair nobody audited, including its author. An unmanifested repair is
+  unchecked by your own standard, which is a stronger thing to be able to say than "we think
+  it was checked".
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
   should predict survival under audit, and the gap between them is measured across runs.
   An overconfident blue is a defect factory; an underconfident one buries its own findings.
