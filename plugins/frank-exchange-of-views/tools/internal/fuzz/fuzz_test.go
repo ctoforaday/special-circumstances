@@ -100,6 +100,9 @@ type runner struct {
 	// whose terminal fate red is answerable for. Blue repairing in the final round leaves a
 	// satisfied gap legitimately open, because red never sits again.
 	evaluated map[string]bool
+	// reproduced records the PROVE gaps whose proof a lens re-ran and confirmed. Red closes on
+	// THIS, not on its own assertion that a computation happened.
+	reproduced map[string]bool
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
@@ -297,7 +300,6 @@ func (r *runner) mint(seatID string) string {
 	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
 	// not exist, behind a green sweep). Both the refusal and the satisfied path run across a
 	// sweep, because the prove drive below answers a computation gap when one is open.
-	kind := checkKinds[r.rng.Intn(len(checkKinds))]
 	// THE SCENARIO IS DRAWN HERE, ONCE, and travels in required_fix.
 	//
 	// The fake used to decide everything downstream by coin flip, and nothing read
@@ -308,6 +310,12 @@ func (r *runner) mint(seatID string) string {
 	// COMMAND CHAINS, not minds — the seat boundary is only where the JS happens to cut. And
 	// because the outcome is chosen rather than emergent, it is ASSERTABLE.
 	directive := directives[r.rng.Intn(len(directives))]
+	kind := checkKinds[r.rng.Intn(len(checkKinds))]
+	if directive == dirProve || directive == dirProveDrifts {
+		// The demand and the answer must agree: a gap settled by computing is minted as a
+		// COMPUTATION check, so the tool's own close guard is in force alongside the scenario.
+		kind = "computation"
+	}
 	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
 		"--check", "acc", "--fix", directive, "--likelihood", r.g(), "--impact", r.g()}
 	if !r.classMade {
@@ -443,13 +451,27 @@ const (
 	dirDisputeWon  = "FUZZ-DISPUTE-WON: blue contests the grade and red accepts the regrade"
 	dirDisputeLost = "FUZZ-DISPUTE-LOST: blue contests the grade and red rejects it"
 	dirIgnore      = "FUZZ-IGNORE: blue does nothing; the gap stays open"
+	// dirProve is the COMPUTATION CHAIN, end to end. It is the only axis where the tool
+	// re-executes evidence rather than re-reading it, and it was the least represented: `blue
+	// prove` fired from a 35% probe, `lens reproduce` picked ANY proof on the record at 35%
+	// with no connection to the gap being audited, and red closed the gap BEFORE any of that.
+	// The order was inverted — reproduction decorated a decision already taken, when it is the
+	// thing that should EARN it. Nothing would have noticed if reproduce returned garbage.
+	dirProve = "FUZZ-PROVE: blue settles it by computing; red re-runs the proof and closes only if it holds"
+	// dirProveDrifts is the case that makes the re-run MEAN something. A deterministic script
+	// always reproduces, so with only dirProve the scenario check and the tool's own
+	// computation guard are indistinguishable — probing by deleting the check caught NOTHING.
+	// A drifting script (an unseeded random, a live sample) is graded `observed` rather than
+	// `reproducible`, and red must NOT close on it: that is the whole difference between a
+	// proof and a measurement, and it is the branch a fake with only tidy scripts never shows.
+	dirProveDrifts = "FUZZ-PROVE-DRIFTS: blue computes, but the output moves between runs; red cannot close on it"
 )
 
 // WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
 // board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING —
 // which is right, and would leave VERIFIED uncovered if the draw were uniform. Four of seven
 // draws are satisfiable, which keeps both terminal states in the sweep.
-var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore}
+var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore, dirProve, dirProve, dirProveDrifts}
 
 // satisfied reports whether a directive means the gap is repaired and red should close it.
 func satisfied(directive string) bool { return directive == dirApply || directive == dirCounter }
@@ -657,7 +679,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
-			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
+			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a
+			// string that was never in the report — 45 times a sweep. A phantom retire is not
+			// merely uninformative: the scorecard computes unrecorded_claim_loss as the drop in
+			// claim_count MINUS the retire events, so retiring something that was never there
+			// cancels real loss and blinds the detector built to catch silent deletion.
+			//
+			// A real retirement names text a recorded edit took out, which is what makes the
+			// removal something the record can SHOW rather than something a seat says.
+			if claim := r.recentlyEditedOut(); claim != "" {
+				r.do("blue", "retire", seatID).set("--claim", claim).set("--reason", "fuzz: the claim went with the edit").
+					on(50, "--superseded-by", "fuzz replacement claim").run()
+			}
 		})
 		if len(open) > 0 {
 			r.maybe(40, func() {
@@ -744,6 +777,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			switch {
 			case satisfied(d):
 				r.closeGap(seatID, id, r.coin(25)) // the regression-close variant is still sampled
+			case d == dirProve && r.reproduced[id]:
+				// THE REPRODUCTION EARNS THE CLOSE. Red does not take blue's word that a
+				// computation happened, and does not take its own: a lens re-ran the recorded
+				// script and got the same bytes. Without that, the gap stays open — which is
+				// also what the tool's own computation guard would enforce.
+				r.closeGap(seatID, id, false)
 			case d == dirDisputeWon:
 				// Red accepted the regrade in answerDisputes; the substance is settled, so the
 				// gap closes on the corrected grade.
@@ -884,14 +923,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// end through the real debate.js + binary, so it must actually exercise it.
 			// RED RE-RUNS a recorded proof (#277) — the one audit that does not end in believing
 			// bytes someone else chose.
-			if b, err := record.BoardState(r.runDir); err == nil && r.coin(35) {
-				for _, e := range b.Events {
-					if e.Type == "proof" && e.Payload.Str("sha256") != "" {
-						r.readOnly("lens", "reproduce", seatID, "--id", e.Payload.Str("sha256"))
-						break
-					}
-				}
-			}
+			// RED RE-RUNS THE PROOF FOR THE GAP IT IS AUDITING, and the result is what red
+			// closes on. It used to pick ANY proof on the record at 35% with no connection to
+			// the gap, AFTER red had already closed it — reproduction decorating a decision
+			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
+			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
 				_, _ = r.exec("lens", "cite", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
 					"--reference", "https://fuzz.invalid/"+seatID, "--confidence", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
@@ -1169,8 +1205,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// repaired one would look identical — and that join is what #267's whole measurement axis
 	// is built on.
 	if board, err := record.BoardState(runDir); err == nil {
-		answered, disputed := map[string]bool{}, map[string]bool{}
+		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		for _, e := range board.Events {
+			if e.Type == "proof" && e.Payload.Str("answers") != "" {
+				proved[e.Payload.Str("answers")] = true
+			}
 			switch e.Type {
 			case "blue_edit":
 				if id := e.Payload.Str("answers"); id != "" {
@@ -1200,6 +1239,17 @@ func runOne(wrapped, bin string, seed int64) outcome {
 					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
 					return res
 				}
+			case dirProve, dirProveDrifts:
+				// The chain must be VISIBLE ON THE RECORD, not merely to have happened: a proof
+				// answering this gap, and the gap closed only behind a reproduction that held.
+				if !proved[id] {
+					res.err = "scenario PROVE: " + id + " has no proof answering it — the computation the scenario specified left no artifact red could re-run"
+					return res
+				}
+				if r.evaluated[id] && !g.Open && !r.reproduced[id] {
+					res.err = "scenario PROVE: " + id + " was CLOSED without its proof reproducing — red accepted a computation on somebody's word, which is the one thing re-running exists to prevent"
+					return res
+				}
 			case dirApply:
 				if !answered[id] {
 					res.err = "scenario APPLY: " + id + " has no blue_edit answering it — a repair the scenario specified left no provenance"
@@ -1213,6 +1263,20 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			// final round leaves the gap legitimately open, because red never sits again.
 			if satisfied(g.Mint.Str("required_fix")) && r.evaluated[id] && g.Open {
 				res.err = "scenario " + g.Mint.Str("required_fix") + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
+				return res
+			}
+		}
+	}
+
+	// EVERY RETIREMENT IS EVIDENCED. The fake retires only text a recorded edit removed, so an
+	// `asserted` retire means either the fake regressed to phantom retirements or the
+	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
+	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
+	if board, err := record.BoardState(runDir); err == nil {
+		for _, e := range board.Events {
+			if e.Type == "retire" && e.Payload.Str("removal_basis") != record.RemovalVerified {
+				res.err = "a retire recorded removal_basis=" + e.Payload.Str("removal_basis") +
+					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
 				return res
 			}
 		}
@@ -1677,6 +1741,72 @@ func mintedGapIDs(runDir string) []string {
 // scenarioOf reads a gap's directive BACK FROM THE BOARD, not from Go memory. The round trip
 // is part of what is tested: if required_fix stopped surviving a mint, every seat would
 // silently revert to coin-flip behaviour and the oracle would catch it.
+
+// reproveOpenProofs re-runs the proof answering each open PROVE gap and records whether it
+// held. This is the lens's audit — the one that does not end in believing bytes somebody else
+// chose — and merge closes on its result rather than on its own say-so.
+
+// recentlyEditedOut returns text a recorded edit removed and which is absent from the report
+// now — a claim whose retirement the record can evidence.
+func (r *runner) recentlyEditedOut() string {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return ""
+	}
+	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	if err != nil {
+		return ""
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		e := b.Events[i]
+		if e.Type != "blue_edit" {
+			continue
+		}
+		old := e.Payload.Str("old")
+		if old != "" && !strings.Contains(string(cur), old) {
+			return old
+		}
+	}
+	return ""
+}
+
+func (r *runner) reproveOpenProofs(seatID string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return
+	}
+	if r.reproduced == nil {
+		r.reproduced = map[string]bool{}
+	}
+	proofFor := map[string]string{} // gap -> sha
+	for _, e := range b.Events {
+		if e.Type == "proof" && e.Payload.Str("answers") != "" && e.Payload.Str("sha256") != "" {
+			proofFor[e.Payload.Str("answers")] = e.Payload.Str("sha256")
+		}
+	}
+	for _, id := range r.openGaps() {
+		if d := r.scenarioOf(id); d != dirProve && d != dirProveDrifts {
+			continue
+		}
+		sha := proofFor[id]
+		if sha == "" {
+			continue // blue has not answered it yet; red has nothing to re-run
+		}
+		out, err := r.exec("--json", "lens", "reproduce", "--seat-id", seatID, "--id", sha)
+		if err != nil {
+			continue
+		}
+		var env struct {
+			Result struct {
+				Matches bool `json:"matches"`
+			} `json:"result"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Matches {
+			r.reproduced[id] = true
+		}
+	}
+}
+
 func (r *runner) scenarioOf(gapID string) string {
 	b, err := record.BoardState(r.runDir)
 	if err != nil {
@@ -1715,6 +1845,24 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed}
 				r.raised = append(r.raised, ref)
 				r.disputedThisRound = append(r.disputedThisRound, ref)
+			}
+		case dirProve, dirProveDrifts:
+			// SETTLE IT BY COMPUTING. The script is written into the run dir and the tool runs
+			// it TWICE, so this drives the real interpreter, the cache, the anchor splice and
+			// the reproducible/observed grading — and --answers ties the execution to the gap
+			// it settles, which is what makes red's re-run targetable rather than arbitrary.
+			name := "fuzz-answer-" + id + ".js"
+			body := "console.log('settles " + id + "');"
+			if r.scenarioOf(id) == dirProveDrifts {
+				body = "console.log(Math.random());" // graded `observed`, and it will not re-run the same
+			}
+			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err == nil {
+				r.do("blue", "prove", seatID).
+					set("--location", "§ fuzz").
+					set("--script", name).
+					set("--answers", id).
+					set("--reason", "fuzz: computing rather than arguing").
+					run()
 			}
 		case dirIgnore:
 			// Deliberately nothing. The oracle asserts NO edit answers this gap, which is what

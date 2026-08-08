@@ -117,6 +117,18 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.40.0 a RETIREMENT is evidenced, not asserted. blue retire recorded whatever it was told:
+//	       nothing confirmed the claim had ever been in the report, and nothing confirmed it
+//	       had left — so "substance leaves only through the retire verb", the rule its own doc
+//	       calls "strictly stronger than the prose rule it replaces", rested on the seat's word.
+//	       A phantom retire is WORSE than uninformative: the scorecard computes
+//	       unrecorded_claim_loss as the drop in claim_count MINUS the retire events, so retiring
+//	       a claim that was never there subtracts from the accounted side and CANCELS REAL
+//	       LOSS, blinding the one detector built to catch silent deletion. The verb now REFUSES
+//	       a claim still present (retiring EXPLAINS a removal, it does not perform one — edit it
+//	       out first) and records removal_basis: verified | asserted, where verified means the
+//	       claim appears in the old span of a recorded edit so the record can SHOW it leaving.
+//	       A stale binary records unevidenced retirements.
 //	0.39.0 the terminal VERDICT is DERIVED, not claimed (#308). It was the last big
 //	       derived-not-asserted violation and it sat on the most consequential value the
 //	       engine emits: debate.js computed it from red's ENVELOPE JSON field, stated it in the
@@ -301,7 +313,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.39.0"
+const Version = "0.40.0"
 
 func init() { record.ToolVersion = Version }
 

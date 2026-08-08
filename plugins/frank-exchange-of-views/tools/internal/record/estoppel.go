@@ -190,3 +190,40 @@ func ProofAnswers(runDir, gapID string) bool {
 	}
 	return false
 }
+
+// RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
+// same footing as fix_basis, proof_basis and verdict_basis.
+//
+// A retire used to record whatever it was told: nothing confirmed the claim had ever been in
+// the report, and nothing confirmed it had left. That mattered beyond tidiness — the
+// scorecard's additive-integrity detector computes unrecorded_claim_loss as the drop in
+// claim_count MINUS the retire events, so a retirement of a claim that was never there
+// subtracts from the accounted side and cancels real loss, blinding the one detector built to
+// catch silent deletion.
+const (
+	// RemovalVerified: the claim is absent from the report now AND appears in the old span of
+	// a recorded edit, so the record can SHOW it leaving.
+	RemovalVerified = "verified"
+	// RemovalAsserted: absent now, but nothing on the record shows it was ever present. The
+	// round-0 author writes the report directly rather than through edits, so a claim it never
+	// wrote — or wrote and rewrote in the same sitting — lands here honestly.
+	RemovalAsserted = "asserted"
+)
+
+// ClaimAppearsInAnEdit reports whether a claim's text appears in the OLD span of any recorded
+// blue_edit — the record's evidence that the text was in the report and was taken out.
+func ClaimAppearsInAnEdit(runDir, claim string) bool {
+	if claim == "" {
+		return false
+	}
+	b, err := BoardState(runDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range b.Events {
+		if e.Type == "blue_edit" && strings.Contains(e.Payload.Str("old"), claim) {
+			return true
+		}
+	}
+	return false
+}
