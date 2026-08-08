@@ -679,7 +679,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
-			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
+			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a
+			// string that was never in the report — 45 times a sweep. A phantom retire is not
+			// merely uninformative: the scorecard computes unrecorded_claim_loss as the drop in
+			// claim_count MINUS the retire events, so retiring something that was never there
+			// cancels real loss and blinds the detector built to catch silent deletion.
+			//
+			// A real retirement names text a recorded edit took out, which is what makes the
+			// removal something the record can SHOW rather than something a seat says.
+			if claim := r.recentlyEditedOut(); claim != "" {
+				r.do("blue", "retire", seatID).set("--claim", claim).set("--reason", "fuzz: the claim went with the edit").
+					on(50, "--superseded-by", "fuzz replacement claim").run()
+			}
 		})
 		if len(open) > 0 {
 			r.maybe(40, func() {
@@ -1257,6 +1268,20 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 
+	// EVERY RETIREMENT IS EVIDENCED. The fake retires only text a recorded edit removed, so an
+	// `asserted` retire means either the fake regressed to phantom retirements or the
+	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
+	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
+	if board, err := record.BoardState(runDir); err == nil {
+		for _, e := range board.Events {
+			if e.Type == "retire" && e.Payload.Str("removal_basis") != record.RemovalVerified {
+				res.err = "a retire recorded removal_basis=" + e.Payload.Str("removal_basis") +
+					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
+				return res
+			}
+		}
+	}
+
 	// EVERY VERDICT IS DERIVABLE TODAY, and this is the tripwire on that fact.
 	//
 	// The tool refuses an --as that contradicts the record (#308), so a recorded verdict is
@@ -1720,6 +1745,31 @@ func mintedGapIDs(runDir string) []string {
 // reproveOpenProofs re-runs the proof answering each open PROVE gap and records whether it
 // held. This is the lens's audit — the one that does not end in believing bytes somebody else
 // chose — and merge closes on its result rather than on its own say-so.
+
+// recentlyEditedOut returns text a recorded edit removed and which is absent from the report
+// now — a claim whose retirement the record can evidence.
+func (r *runner) recentlyEditedOut() string {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return ""
+	}
+	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	if err != nil {
+		return ""
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		e := b.Events[i]
+		if e.Type != "blue_edit" {
+			continue
+		}
+		old := e.Payload.Str("old")
+		if old != "" && !strings.Contains(string(cur), old) {
+			return old
+		}
+	}
+	return ""
+}
+
 func (r *runner) reproveOpenProofs(seatID string) {
 	b, err := record.BoardState(r.runDir)
 	if err != nil {
