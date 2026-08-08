@@ -719,7 +719,43 @@ func redFindings(board *record.Board) string {
 	if ob := observations(board.Events); ob != "" {
 		fmt.Fprintf(&b, "\n\n%s", ob)
 	}
+	if sc := archiveSpotChecks(board); sc != "" {
+		fmt.Fprintf(&b, "\n\n%s", sc)
+	}
 	return b.String()
+}
+
+// archiveSpotChecks renders red's re-verification of its own closure archive — which closures it
+// re-read each round, what that found, and any round that owed a sample and did not take one.
+//
+// The closure index is the report's claim that a gap was dealt with, and it is only as good as
+// the last time anyone looked. Red looked, recorded which closures it re-read, and the reader was
+// never told — the receipt sat on the record with no consumer at all. The DEBT is rendered beside
+// the discharges rather than left to the exit code, because a reader deciding how much to trust
+// the closure index needs to know which rounds checked it and which did not.
+func archiveSpotChecks(board *record.Board) string {
+	checks, debt, falseEmpty := record.SpotCheckAudit(board)
+	if len(checks) == 0 && len(debt) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "### Archive spot-checks (%d)\n\n", len(checks))
+	b.WriteString("Red re-reading its own closure record. A closure index is only as good as the last time anyone looked; these are the rounds that looked.\n\n")
+	for _, sc := range checks {
+		b.WriteString("- " + sc.Describe() + "\n")
+	}
+	for _, sc := range falseEmpty {
+		fmt.Fprintf(&b, "- **r%d claimed there was nothing to sample, and the board shows %d archived closure(s) at that round's start.** The claim does not survive the record.\n", sc.Round, sc.Archived)
+	}
+	if len(debt) > 0 {
+		fmt.Fprintf(&b, "\n**%d round(s) entered with a non-empty archive and sampled none of it", len(debt))
+		var rs []string
+		for _, r := range debt {
+			rs = append(rs, fmt.Sprintf("r%d", r))
+		}
+		fmt.Fprintf(&b, " (%s).** Those closures went un-re-examined; weigh the closure index accordingly.\n", strings.Join(rs, ", "))
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // fixProposal renders how a gap's required_fix was arrived at, and — where red stated one — the

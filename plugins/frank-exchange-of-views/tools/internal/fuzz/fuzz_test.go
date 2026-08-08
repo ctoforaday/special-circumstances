@@ -576,18 +576,24 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the verb gate stayed green on blue's avenue events — a dead drive that read as
 		// coverage. Found by the execution tally (lens avenue: 183 of 183 refused).
 	case "merge":
-		// W1.8 archive spot-check — the merge's duty. --none is always valid (an empty archive at
-		// round start); it exercises the verb and its --none/--reason branch.
-		r.maybe(45, func() {
-			// --none and --ids are the two shapes; only --none was ever driven, so the branch
-			// that names WHICH closures were sampled never ran.
-			if closed := r.closedGapIDs(); len(closed) > 0 && r.coin(50) {
-				r.do("merge", "spot-check", seatID).set("--ids", closed[0]).
-					set("--notes", "fuzz: re-read the closure record").run()
-				return
-			}
-			r.do("merge", "spot-check", seatID).bare("--none").set("--reason", "fuzz: nothing to sample").run()
-		})
+		// W1.8 archive spot-check — the merge's duty, and now ENFORCED from the board
+		// (verify.archiveSpotCheckFloor).
+		//
+		// THE OLD DRIVER MODELLED A NON-COMPLIANT SEAT AND NOTHING NOTICED. It fired at 45%, so
+		// most rounds skipped the duty outright, and its comment claimed "--none is always valid
+		// (an empty archive at round start)" — which is false whenever the archive is not empty,
+		// and is EXACTLY the self-attestation the duty exists to prevent. Both passed because
+		// the event had no reader.
+		//
+		// It now models a seat that discharges the duty honestly: sample when there is something
+		// to sample, and claim emptiness only when the board agrees.
+		if closed := r.closedGapIDs(); len(closed) > 0 {
+			r.do("merge", "spot-check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
+				set("--notes", "fuzz: re-read the closure record; the anchor still resolves").run()
+		} else {
+			r.do("merge", "spot-check", seatID).bare("--none").
+				set("--reason", "fuzz: the archive was empty at round start").run()
+		}
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
 		// rejected 18 of its own 86 avenues and red rejected none, because it could not.
 		// RED RULES EVERY UNRULED AVENUE, and the ruling follows the line it was proposed as.
@@ -1642,6 +1648,9 @@ var dialecticProseKey = map[string]string{
 	"confidence": "label",
 	// Run-level voices.
 	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
+	// Red re-reading its own closure archive. `notes` is what the sample FOUND — the whole
+	// point of sampling — and it reached no reader at all until the floor was enforced (#317).
+	"spot-check": "notes",
 }
 
 // reportExemptions are event types whose prose is deliberately NOT expected in the report, each
@@ -1657,7 +1666,6 @@ var reportExemptions = map[string]string{
 	"close":        "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
 	"outcome":      "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
 	"verdict":      "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
-	"spot-check":   "the bench's archive sample — read by NOTHING today, including the report (#317). Exempt so the gate reports the honest state rather than a green it has not earned",
 	"manifest-row": "blue's correctness-manifest receipt — read by nothing, and called by no prompt (#318). Exempt for the same reason",
 }
 

@@ -46,7 +46,7 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
 | the open docket (read-back) | transcribe the board into the envelope | `RED_ENVELOPE.gaps[]` re-types every open gap's prose every round; already on the board via `mint` | COLLAPSE → envelope carries `{id, severity, likelihood, impact, supersedes}` only; the tool re-derives prose at capture/assembly (the #1 token lever) |
 | `dispose` | give a lens observation a fate | bound to `observe` (being retired) | COLLAPSE → retire with observe |
 | `regrade` | change a gap's grade in place | debate.js prose "apply the new grade in the ledger" never names the verb — seat may re-mint or edit instead | COLLAPSE → `regrade` is canonical; debate.js must name it |
-| `spot-check` | the round archive spot-check duty | envelope `archive_spot_checks[]` | DECIDE — verb (on the record) or envelope array? |
+| `spot-check` | the round archive spot-check duty | the `spot-check` event, and only that — the envelope array is deleted | RESOLVED (#317, shipped): the verb is the single channel, and its W1.8 floor is COMPUTED from the board at verify time rather than reported by the seat |
 | `dispute-respond` | answer a blue grade dispute | — | CLEAN (already a routing ref) |
 | `verdict` | the terminal PASS/FAIL act | — | CLEAN |
 | `existence` (field) | verified\|suspected — checked-at-leaf vs inferred | required by the envelope, read by the board, but **no `mint --existence` flag** — never on the record | DECIDE → add the write-path (then it dedups) or drop the board plumbing |
