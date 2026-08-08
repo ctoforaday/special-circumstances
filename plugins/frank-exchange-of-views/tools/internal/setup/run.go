@@ -73,6 +73,25 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	// Gate: the ROUND CEILING is required, for the reason the model tiers are (#308).
+	//
+	// It was optional, and debate.js defaults it to 12 in JS — so a run launched without it had
+	// a ceiling nobody recorded, and CEILING became underivable from the record: the verdict
+	// fell back to the seat's word. Found by the fuzz tripwire, which flagged 24 of 60 runs as
+	// carrying an ASSERTED verdict purely because no ceiling was on file.
+	//
+	// The operator resolves this value anyway to hand the Workflow, and /research already says
+	// to pass setup the SAME config. The engine does not guess a tier; it should not guess a
+	// bound either.
+	if cfg.MaxRounds == "" {
+		fmt.Fprintln(stderr, "run-setup: --max-rounds REQUIRED — refusing to create the run:")
+		fmt.Fprintln(stderr, "  the round ceiling is the bound the terminal CEILING verdict is derived against, and a")
+		fmt.Fprintln(stderr, "  run that does not record it leaves its own outcome underivable — the verdict falls back")
+		fmt.Fprintln(stderr, "  to whatever a seat says it was. Pass the same value you will hand the workflow, e.g.")
+		fmt.Fprintln(stderr, "  --max-rounds 12   (a smoke run passes --max-rounds 2)")
+		return 2
+	}
+
 	// Gate: pins validated before anything is built.
 	pv := ValidatePins(cfg.Cites, head, cfg.Git)
 	if len(pv.Missing) > 0 {

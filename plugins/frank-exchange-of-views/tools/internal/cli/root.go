@@ -117,6 +117,21 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.39.0 the terminal VERDICT is DERIVED, not claimed (#308). It was the last big
+//	       derived-not-asserted violation and it sat on the most consequential value the
+//	       engine emits: debate.js computed it from red's ENVELOPE JSON field, stated it in the
+//	       assembler's prompt, and the seat typed it back through `bench outcome --as`. Two
+//	       independent channels carried the same fact — the envelope red returns and the
+//	       `merge verdict` event on the record — and NOTHING reconciled them. The tool now
+//	       computes the verdict from the record (a halt outranks a pass; a PASS event is
+//	       VERIFIED; rounds against the recorded ceiling are CEILING) and REFUSES an --as that
+//	       disagrees, naming both. The event carries verdict_basis: derived | asserted, on the
+//	       same footing as fix_basis and proof_basis. Exactly one case stays asserted — a judged
+//	       deadlock, whose determination lives only in the bench envelope and leaves no trace
+//	       (#289) — and debate.js cannot currently produce one, so every verdict today is
+//	       derived. --max-rounds is now REQUIRED at setup for the same reason the model tiers
+//	       are: the ceiling is the bound CEILING is derived against, and a run that does not
+//	       record it cannot decide its own outcome. A stale binary records an unchecked verdict.
 //	0.38.0 RED CAN ASK FOR A COMPUTATION (#277). `merge mint --check-kind document |
 //	       computation | source` is REQUIRED — what would SETTLE the acceptance check. The
 //	       measured cause of zero proofs across six runs was never blue's reluctance: in the
@@ -286,7 +301,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.38.0"
+const Version = "0.39.0"
 
 func init() { record.ToolVersion = Version }
 

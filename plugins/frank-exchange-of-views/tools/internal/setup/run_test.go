@@ -34,6 +34,7 @@ func runCfg(t *testing.T, version string, exec ExecFunc) (Config, string) {
 		Topic:         "a probe",
 		Model:         "haiku",
 		JudgmentModel: "haiku",
+		MaxRounds:     "3", // required (#308): the bound CEILING is derived against
 		Cwd:           home,
 		Home:          home,
 		ProjectDir:    home,
