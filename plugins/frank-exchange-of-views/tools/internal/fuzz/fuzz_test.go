@@ -1004,6 +1004,14 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 			settledErr = fmt.Sprintf("panic: %v", p)
 		}
 	}()
+	// The fuzz builds its run directly rather than through `setup`, so it must lay down the
+	// same inputs/run-config.json setup writes — the ceiling recorded there is what the CEILING
+	// verdict is DERIVED against (#308). Without it, every ceiling run recorded an ASSERTED
+	// verdict, which is exactly what the tripwire flagged: 24 of 60, purely for a missing file.
+	_ = os.MkdirAll(filepath.Join(r.runDir, "inputs"), 0o755)
+	_ = os.WriteFile(filepath.Join(r.runDir, "inputs", "run-config.json"),
+		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","maxRounds":"3","lanes":"1"}`), 0o644)
+
 	loop := eventloop.NewEventLoop()
 	loop.Run(func(vm *goja.Runtime) {
 		vm.Set("args", map[string]any{
@@ -1205,6 +1213,34 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			// final round leaves the gap legitimately open, because red never sits again.
 			if satisfied(g.Mint.Str("required_fix")) && r.evaluated[id] && g.Open {
 				res.err = "scenario " + g.Mint.Str("required_fix") + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
+				return res
+			}
+		}
+	}
+
+	// EVERY VERDICT IS DERIVABLE TODAY, and this is the tripwire on that fact.
+	//
+	// The tool refuses an --as that contradicts the record (#308), so a recorded verdict is
+	// either DERIVED or came from the one case the record cannot decide: a judged deadlock.
+	// debate.js cannot currently produce one — `deadlock` is hardcoded false whenever red
+	// raised anything new (#289) — so an `asserted` basis anywhere in a fuzz run means the
+	// derivation stopped working, not that a deadlock happened.
+	//
+	// When #289 gives the bench a real stopping call, this WILL fail, loudly and correctly, and
+	// the right response is to update it rather than to widen it: an asserted verdict is
+	// exactly the thing that should be rare enough to notice.
+	if board, err := record.BoardState(runDir); err == nil {
+		for _, e := range board.Events {
+			if e.Type != "outcome" {
+				continue
+			}
+			switch e.Payload.Str("verdict_basis") {
+			case record.VerdictDerived:
+			case "":
+				res.err = "the outcome event carries no verdict_basis — the field that says whether the verdict was computed or claimed has gone missing"
+				return res
+			default:
+				res.err = "the run recorded an ASSERTED verdict (" + e.Payload.Str("verdict") + "), which today can only mean the derivation failed: debate.js cannot produce a judged deadlock while it is hardcoded false (#289)"
 				return res
 			}
 		}
