@@ -117,6 +117,16 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.41.0 an avenue ruling has a RECORDED consequence (#246 remainder). Red's ruling and the
+//	       avenue's fate were both on the record and joined NOWHERE, so blue pursuing a line
+//	       red called out-of-scope looked exactly like pursuing one red endorsed. The design
+//	       says a ruling is an ARGUMENT blue may contest "the way we would any other dispute" —
+//	       and there is no such channel: blue dispute --id A1 is refused outright, because
+//	       disputes are gap-shaped and take grade dimensions. So a ruling could only be
+//	       silently obeyed or silently ignored. The MOVE is the contest, and it now records
+//	       contests_ruling when blue pursues a line red ruled out-of-scope or too-thin, so the
+//	       disagreement is a fact rather than something a reader reconstructs from two lists.
+//	       A stale binary records the pursuit and loses the argument.
 //	0.40.0 a RETIREMENT is evidenced, not asserted. blue retire recorded whatever it was told:
 //	       nothing confirmed the claim had ever been in the report, and nothing confirmed it
 //	       had left — so "substance leaves only through the retire verb", the rule its own doc
@@ -313,7 +323,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.40.0"
+const Version = "0.41.0"
 
 func init() { record.ToolVersion = Version }
 

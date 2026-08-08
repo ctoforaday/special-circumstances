@@ -516,28 +516,25 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// #246: an avenue now has an id and a LIFECYCLE. Propose, then sometimes move it — the
 	// move is the path the old one-shot append could not record at all (measured: 0 of 86
 	// events across six runs ever changed status).
-	moveAvenue := func(seatID string) {
-		b, err := record.BoardState(r.runDir)
-		if err != nil {
-			return
-		}
-		open := record.StaleAvenues(b)
-		if len(open) == 0 {
-			return
-		}
-		a := open[r.rng.Intn(len(open))]
-		st := pick(r.rng, []string{"pursued", "declined", "abandoned"})
-		r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", st).
-			set("--reason", "fuzz: what changed for "+a.ID).run()
-	}
 	avenue := func(role string) {
 		// A DECLINED OR ABANDONED avenue requires --reason (record.go: an unexplained
 		// non-pursuit is the decoration this verb exists to refuse). Without it two of the
 		// three statuses were rejected on every call, so only `pursued` ever reached the
 		// record while the verb gate read as covered. Found by the execution tally
 		// (blue avenue: 48 of 72 calls refused).
-		st := pick(r.rng, avenueStatus)
-		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", "fuzz avenue "+seatID).
+		// A FATE-CARRYING LINE IS BORN `proposed`, so the ruling cycle can run on it: red rules
+		// it, blue answers. Creating one directly as `pursued` or `declined` skips the cycle
+		// entirely — which the oracle caught, reporting endorsed avenues that "ended declined"
+		// when they had simply never been through a ruling at all.
+		//
+		// An UNDIRECTED line keeps the random status: proposing something already declined is a
+		// real shape (blue weighed it and did not start), and it carries no fate for red to
+		// rule from, so the ruling cycle and the oracle both skip it by construction.
+		line, st := pick(r.rng, avenueFates)+" ("+seatID+")", "proposed"
+		if r.coin(30) {
+			line, st = "fuzz undirected avenue "+seatID, pick(r.rng, avenueStatus)
+		}
+		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", line).
 			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").
 			on(50, "--method", "fuzz-method")
 		if st != "pursued" && st != "proposed" {
@@ -562,18 +559,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 		})
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
 		// rejected 18 of its own 86 avenues and red rejected none, because it could not.
-		r.maybe(45, func() {
-			b, err := record.BoardState(r.runDir)
-			if err != nil {
-				return
-			}
-			if open := record.StaleAvenues(b); len(open) > 0 {
-				a := open[r.rng.Intn(len(open))]
-				r.do("merge", "avenue-rule", seatID).set("--id", a.ID).
-					set("--ruling", pick(r.rng, []string{"endorsed", "out-of-scope", "too-thin"})).
-					set("--reason", "fuzz ruling on "+a.ID).run()
-			}
-		})
+		// RED RULES EVERY UNRULED AVENUE, and the ruling follows the line it was proposed as.
+		//
+		// It used to rule ONE random avenue at 45% with a random ruling, so a ruling had no
+		// relation to what was proposed and no consequence for what happened next: an
+		// out-of-scope line could be pursued and an endorsed one abandoned, and the record kept
+		// both halves while joining them nowhere. The avenue's own --line now carries its
+		// intended fate, exactly as a gap's --fix carries its scenario.
+		r.ruleOpenAvenues(seatID)
 		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
 		// left no event and no gate saw it — while the merge prompt calls it every round.
 		r.maybe(40, func() {
@@ -581,7 +574,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
-		r.maybe(45, func() { moveAvenue(seatID) })
+		// NO RANDOM AVENUE MOVE HERE. answerAvenueRulings owns moves now: it answers red's
+		// ruling, comply or contest, one decision per avenue. A second writer sliding statuses
+		// at random fought it — the oracle caught it immediately, 24 of 60, reporting endorsed
+		// avenues that ended declined and contests the record never recorded because the move
+		// landed before the ruling did. Two writers disagreeing about a fate is the same defect
+		// the edit drive had, one axis over.
 		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
 		// the source through the run cache and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor
 		// at the quoted sentence. --location must appear VERBATIM in blue/report.md, so it quotes the
@@ -834,6 +832,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// minted with; blue reads it back off the board and does what it says. This replaces a
 		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
 		// looked at what red had actually asked for.
+		r.answerAvenueRulings(seatID)
 		r.disputedThisRound = nil
 		if r.presented == nil {
 			r.presented = map[string]bool{}
@@ -1264,6 +1263,49 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			if satisfied(g.Mint.Str("required_fix")) && r.evaluated[id] && g.Open {
 				res.err = "scenario " + g.Mint.Str("required_fix") + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
 				return res
+			}
+		}
+	}
+
+	// A RULING HAS A CONSEQUENCE, AND A CONTEST IS VISIBLE AS ONE.
+	//
+	// Red's ruling and the avenue's fate were both on the record and joined NOWHERE, so blue
+	// pursuing a line red called out-of-scope looked exactly like pursuing one red endorsed.
+	// The design says a ruling is an ARGUMENT blue may contest — but `blue dispute --id A1` is
+	// refused outright (disputes are gap-shaped and take grade dimensions), so the only channel
+	// is the move itself, and until now it said nothing about what it was answering.
+	if board, err := record.BoardState(runDir); err == nil {
+		contests := map[string]string{}
+		for _, e := range board.Events {
+			if e.Type == "avenue" && e.Payload.Str("contests_ruling") != "" {
+				contests[e.Payload.Str("avenue_id")] = e.Payload.Str("contests_ruling")
+			}
+		}
+		for _, a := range record.Avenues(board) {
+			ruling := record.AvenueRuling(runDir, a.ID)
+			if ruling == "" || a.Status == "proposed" {
+				continue // never ruled, or blue has not answered yet
+			}
+			switch {
+			case strings.HasPrefix(a.Line, avContest):
+				if a.Status != "pursued" {
+					res.err = "avenue " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
+					return res
+				}
+				if contests[a.ID] == "" {
+					res.err = "avenue " + a.ID + " was pursued AGAINST a " + ruling + " ruling and the record does not say so — the disagreement is invisible, which is the state this join exists to end"
+					return res
+				}
+			case ruling == "endorsed":
+				if a.Status != "pursued" {
+					res.err = "avenue " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
+					return res
+				}
+			default:
+				if a.Status == "pursued" && contests[a.ID] == "" {
+					res.err = "avenue " + a.ID + " was ruled " + ruling + " and pursued anyway with nothing recording the contest"
+					return res
+				}
 			}
 		}
 	}
@@ -1768,6 +1810,78 @@ func (r *runner) recentlyEditedOut() string {
 		}
 	}
 	return ""
+}
+
+// avenueFates are the scenarios an avenue is proposed under. The line itself carries it, the
+// way a gap's required_fix does — red rules from it, and blue's next move answers the ruling.
+const (
+	avEndorse = "FUZZ-AVENUE-ENDORSE: a line worth the run's time"
+	avScope   = "FUZZ-AVENUE-OUT-OF-SCOPE: a real question, but not this run's"
+	avThin    = "FUZZ-AVENUE-TOO-THIN: in scope, but the hypothesis does not carry its budget"
+	// avContest is the case gb's design named and the tool could not express: red rules the
+	// line out, and blue PURSUES IT ANYWAY with an argument. A ruling is an argument, never a
+	// command — `blue dispute --id A1` is refused outright, because disputes are gap-shaped —
+	// so the move itself is the contest, and it is now recorded as one.
+	avContest = "FUZZ-AVENUE-CONTESTED: red rules it out and blue pursues it anyway, with reasons"
+)
+
+var avenueFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
+
+// rulingFor maps a proposed line to the ruling red should give it.
+func rulingFor(line string) string {
+	switch {
+	case strings.HasPrefix(line, avEndorse):
+		return "endorsed"
+	case strings.HasPrefix(line, avScope):
+		return "out-of-scope"
+	case strings.HasPrefix(line, avThin):
+		return "too-thin"
+	case strings.HasPrefix(line, avContest):
+		return "out-of-scope"
+	}
+	return ""
+}
+
+// ruleOpenAvenues has red rule every avenue that has no ruling yet, from the line it carries.
+func (r *runner) ruleOpenAvenues(seatID string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return
+	}
+	for _, a := range record.Avenues(b) {
+		if rulingFor(a.Line) == "" || record.AvenueRuling(r.runDir, a.ID) != "" {
+			continue
+		}
+		r.do("merge", "avenue-rule", seatID).set("--id", a.ID).
+			set("--ruling", rulingFor(a.Line)).
+			set("--reason", "fuzz: ruling as the line was proposed").run()
+	}
+}
+
+// answerAvenueRulings is blue's move after red has ruled: comply, or CONTEST by pursuing
+// anyway with an argument. Which one is decided by the line, not by a coin.
+func (r *runner) answerAvenueRulings(seatID string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return
+	}
+	for _, a := range record.Avenues(b) {
+		ruling := record.AvenueRuling(r.runDir, a.ID)
+		if ruling == "" || a.Status != "proposed" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(a.Line, avContest):
+			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", "pursued").
+				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
+		case ruling == "endorsed":
+			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", "pursued").
+				set("--reason", "fuzz: endorsed, taking it up").run()
+		default:
+			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", "declined").
+				set("--reason", "fuzz: accepting the ruling").run()
+		}
+	}
 }
 
 func (r *runner) reproveOpenProofs(seatID string) {

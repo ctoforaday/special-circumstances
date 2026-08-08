@@ -10,11 +10,11 @@ finding recorded: L1-F2 — the run-unique label a gap's found_by names (id FIND
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L1-NONCE001.jsonl
-{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.40.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
+{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.41.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
 {"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"medium","label":"L1-F1","likelihood":"medium","location":"## S2","severity":"medium","text":"round one"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":1,"type":"finding"}
 {"key":"red-lens-r1-L1:anchor:FINDING001","nonce":"NONCE001","payload":{"id":"FINDING001","location":"## S2"},"round":1,"seatId":"red-lens-r1-L1","seq":2,"ts":2,"type":"anchor"}
 -- events-red-lens-r2-L1-NONCE002.jsonl
-{"key":"red-lens-r2-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.40.0"},"round":2,"seatId":"red-lens-r2-L1","seq":0,"ts":3,"type":"register"}
+{"key":"red-lens-r2-L1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.41.0"},"round":2,"seatId":"red-lens-r2-L1","seq":0,"ts":3,"type":"register"}
 {"key":"red-lens-r2-L1:finding:L1-F2","nonce":"NONCE002","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"medium","label":"L1-F2","likelihood":"medium","location":"## S2","severity":"medium","text":"round two"},"round":2,"seatId":"red-lens-r2-L1","seq":1,"ts":4,"type":"finding"}
 {"key":"red-lens-r2-L1:anchor:FINDING001","nonce":"NONCE002","payload":{"id":"FINDING001","location":"## S2"},"round":2,"seatId":"red-lens-r2-L1","seq":2,"ts":5,"type":"anchor"}
 
