@@ -67,6 +67,26 @@ func newAvenue() *cobra.Command {
 					return nil, fmt.Errorf("blue avenue: moving %s requires --reason — what you learned that changed its fate. The choosing is the evidence; a status that moves silently records none of it", id)
 				}
 				p.Set("avenue_id", id).Set("supersedes_status", "1")
+
+				// PURSUING AGAINST A RULING IS A CONTEST, AND IS RECORDED AS ONE.
+				//
+				// Red's ruling is an ARGUMENT, never a command — blue may pursue a line red
+				// called out-of-scope or too-thin, and should be able to. The design says blue
+				// contests it "the way we would any other dispute", and there was no such
+				// channel: `blue dispute --id A1` is refused outright, because disputes are
+				// gap-shaped and take grade dimensions. So a ruling could only be silently
+				// obeyed or silently ignored, and the record held both the ruling and the fate
+				// while joining them nowhere.
+				//
+				// The move itself is the contest. It already requires a --reason, so the
+				// argument exists; what was missing is that nothing said what it was answering.
+				// Now the disagreement is a FIELD, and "how often does blue pursue a line red
+				// ruled out" is a number rather than a reading exercise.
+				if seat.Str(cmd, flags.Status) == "pursued" {
+					if ruling := record.AvenueRuling(s.RunDir, id); ruling == "out-of-scope" || ruling == "too-thin" {
+						p.Set("contests_ruling", ruling)
+					}
+				}
 			} else {
 				if line == "" {
 					return nil, fmt.Errorf("blue avenue requires --line (the approach you are proposing) or --id (an avenue you are moving)")

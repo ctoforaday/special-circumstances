@@ -148,3 +148,23 @@ func StaleAvenues(b *Board) []*Avenue {
 	}
 	return out
 }
+
+// AvenueRuling returns red's most recent ruling on an avenue, or "" if it never ruled.
+//
+// The ruling and the avenue's fate were both on the record and joined NOWHERE, so blue
+// pursuing a line red called out-of-scope looked exactly like blue pursuing one red endorsed.
+// Red's ruling is an argument rather than a command — blue may pursue anyway — but the
+// disagreement should be a fact, not something a reader reconstructs from two lists.
+func AvenueRuling(runDir, avenueID string) string {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return ""
+	}
+	ruling := ""
+	for _, e := range b.Events {
+		if e.Type == "avenue-rule" && e.Payload.Str("avenue_id") == avenueID {
+			ruling = e.Payload.Str("ruling")
+		}
+	}
+	return ruling
+}
