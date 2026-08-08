@@ -216,6 +216,76 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	}
 }
 
+// THE BASIS FIELDS EXIST BECAUSE A SEAT ASKED TO SELF-REPORT REPORTS THE FLATTERING VALUE.
+// Each was derived rather than claimed, gated a write, and then reached the reader as nothing —
+// so a verdict the record itself decided read as the same word as one the bench simply asserted.
+func TestVerdictBasisReachesTheReader(t *testing.T) {
+	derived := record.NewPayload().Set("verdict", "VERIFIED").Set("verdict_basis", record.VerdictDerived)
+	if s := verdictStamp(derived); !strings.Contains(s, "derived from the record") {
+		t.Errorf("a DERIVED verdict must say so — it is the difference between a mechanical result and a claim: %q", s)
+	}
+	asserted := record.NewPayload().Set("verdict", "VERIFIED").Set("verdict_basis", record.VerdictAsserted)
+	s := verdictStamp(asserted)
+	if !strings.Contains(s, "asserted by the bench") {
+		t.Errorf("an ASSERTED verdict must say so, or it reads as a derived one: %q", s)
+	}
+	if strings.Contains(s, "derived from the record") {
+		t.Errorf("an asserted verdict must not claim derivation: %q", s)
+	}
+	// A run recorded before the field existed carries no basis; it says nothing rather than
+	// guessing, because guessing here would invent the very distinction the field preserves.
+	if s := verdictStamp(record.NewPayload().Set("verdict", "VERIFIED")); strings.Contains(s, "basis") {
+		t.Errorf("no recorded basis must produce no basis claim: %q", s)
+	}
+	// EVERY VERDICT BRANCH CARRIES IT. The first cut appended the note only to the default arm,
+	// so CEILING and HALTED returned early and dropped it — and a ceiling termination IS derived
+	// (rounds against the configured ceiling), and is the most common way a run ends.
+	for _, verdict := range []string{"CEILING", "HALTED", "VERIFIED", "UNVERIFIED"} {
+		p := record.NewPayload().Set("verdict", verdict).Set("verdict_basis", record.VerdictDerived)
+		if s := verdictStamp(p); !strings.Contains(s, "derived from the record") {
+			t.Errorf("%s dropped its basis — every terminal verdict says how it was reached: %q", verdict, s)
+		}
+	}
+}
+
+// fix_basis reads `verified` only when red supplied an exact span AND replacement that the tool
+// validated against the LIVE report — a forced re-read. A demand checked against the document
+// read identically to one written from memory of what the document probably said.
+func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
+	verified := record.NewPayload().Set("fix_basis", "verified").
+		Set("fix_old", "the parser is linear").Set("fix_new", "the parser is linear except on backtracking")
+	s := fixProposal(verified)
+	for _, want := range []string{"**verified**", "with the text in front of it", "the parser is linear except on backtracking"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("a verified fix must show its checked replacement; missing %q:\n%s", want, s)
+		}
+	}
+	if p := fixProposal(record.NewPayload().Set("fix_basis", "proposed")); !strings.Contains(p, "**proposed**") || !strings.Contains(p, "nothing checked this demand") {
+		t.Errorf("a prose-only demand must say nothing checked it against the report: %q", p)
+	}
+	if p := fixProposal(record.NewPayload()); p != "" {
+		t.Errorf("no recorded basis must produce no claim: %q", p)
+	}
+	if p := fixProposal(nil); p != "" {
+		t.Errorf("a nil mint must not panic or invent a basis: %q", p)
+	}
+}
+
+// A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
+// only the basis distinguishes one from an honest round-0 rewrite.
+func TestRemovalBasisReachesTheReader(t *testing.T) {
+	v := withdrawnClaims([]record.Event{{Type: "retire", SeatID: "blue-r2", Payload: record.NewPayload().
+		Set("claim", "c").Set("reason", "r").Set("removal_basis", record.RemovalVerified)}})
+	if !strings.Contains(v, "**verified**") || !strings.Contains(v, "the record shows it leaving") {
+		t.Errorf("a verified removal must say the record can show it:\n%s", v)
+	}
+	a := withdrawnClaims([]record.Event{{Type: "retire", SeatID: "blue-r0", Payload: record.NewPayload().
+		Set("claim", "c").Set("reason", "r").Set("removal_basis", record.RemovalAsserted)}})
+	if !strings.Contains(a, "**asserted**") || !strings.Contains(a, "nothing on the record shows it was ever present") {
+		t.Errorf("an asserted removal must say the record cannot show it:\n%s", a)
+	}
+}
+
 // AN UNANSWERED PETITION MUST BE LOUD. A petition is a seat's channel for an ethical, safety,
 // integrity or constitutional objection, and the engine routes it to a bench sitting BEFORE the
 // debate continues. A filing with no ruling means that sitting did not happen — and reporting

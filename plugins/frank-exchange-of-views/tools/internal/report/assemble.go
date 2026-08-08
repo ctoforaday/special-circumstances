@@ -325,11 +325,16 @@ func verdictStamp(o *record.Payload) string {
 	if o == nil {
 		return "**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_"
 	}
+	// EVERY branch carries the basis. The first cut appended it only to the default arm, so
+	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
+	// exactly that, because a ceiling termination IS derived (rounds against the configured
+	// ceiling) and is the most common way a run ends.
+	basis := basisNote(o.Str("verdict_basis"))
 	switch o.Str("verdict") {
 	case "CEILING":
-		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run." + basis
 	case "HALTED":
-		return "**Verdict:** HALTED — the bench ended this run. The halt opinion is on the record below (Bench disposition) and is relayed to the human verbatim, never smoothed."
+		return "**Verdict:** HALTED — the bench ended this run. The halt opinion is on the record below (Bench disposition) and is relayed to the human verbatim, never smoothed." + basis
 	default:
 		by := ""
 		switch {
@@ -338,7 +343,26 @@ func verdictStamp(o *record.Payload) string {
 		case payloadBool(o, "exhausted"):
 			by = " by safety ceiling"
 		}
-		return fmt.Sprintf("**Verdict:** %s%s", o.Str("verdict"), by)
+		return fmt.Sprintf("**Verdict:** %s%s%s", o.Str("verdict"), by, basis)
+	}
+}
+
+// basisNote spells out how a verdict came to be — DERIVED from the record, or ASSERTED by the
+// bench and cross-checked against nothing.
+//
+// The field exists because a seat asked to self-report reports the flattering value, and the
+// verdict is the single most consequential such report in the run. It gated the write (`bench
+// outcome --as` is refused when it contradicts the record) and then reached the reader as the
+// bare word "VERIFIED" — which is exactly the same word an unbacked assertion produces. The
+// distinction the field was built to preserve survived every stage except the one that mattered.
+func basisNote(basis string) string {
+	switch basis {
+	case record.VerdictDerived:
+		return " — **derived from the record**, not claimed: the events themselves decide this verdict, and `bench outcome` refuses an `--as` that contradicts them."
+	case record.VerdictAsserted:
+		return " — **asserted by the bench.** The record could not derive this verdict, so it rests on the bench's judgement rather than on the events; read it as an opinion with authority, not as a mechanical result."
+	default:
+		return ""
 	}
 }
 
@@ -519,6 +543,18 @@ func withdrawnClaims(evs []record.Event) string {
 		if s := e.Payload.Str("superseded_by"); s != "" {
 			row += "\n  - superseded by: " + s
 		}
+		// A PHANTOM RETIREMENT IS WORSE THAN USELESS, and only the basis distinguishes one.
+		// The scorecard's additive-integrity detector computes unrecorded_claim_loss as the
+		// drop in claim_count MINUS the retire events, so a retirement of a claim that was
+		// never in the report subtracts from the accounted side and CANCELS real loss —
+		// blinding the one detector built to catch silent deletion. The field records whether
+		// the record can actually show the claim leaving; the reader could not see which.
+		switch e.Payload.Str("removal_basis") {
+		case record.RemovalVerified:
+			row += "\n  - basis: **verified** — the claim appears in the old span of a recorded edit, so the record shows it leaving."
+		case record.RemovalAsserted:
+			row += "\n  - basis: **asserted** — the claim is absent now, but nothing on the record shows it was ever present. Honest for a round-0 claim written and rewritten in one sitting; indistinguishable, here, from a retirement of something that never existed."
+		}
 		rows = append(rows, row)
 	}
 	if len(rows) == 0 {
@@ -636,12 +672,13 @@ func redFindings(board *record.Board) string {
 			if fb := g.Mint.StrList("found_by"); len(fb) > 0 {
 				foundBy = "\nsurfaced by: " + strings.Join(fb, ", ")
 			}
-			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s%s",
+			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s%s\nacceptance_check: %s%s",
 				g.ID, g.Mint.Str("problem"),
 				g.Mint.Str("location"),
 				grade(g.Severity), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), grade(g.Mint.Str("class")),
 				regraded,
 				g.Mint.Str("required_fix"),
+				fixProposal(g.Mint),
 				g.Mint.Str("acceptance_check"),
 				foundBy))
 		} else {
@@ -683,6 +720,35 @@ func redFindings(board *record.Board) string {
 		fmt.Fprintf(&b, "\n\n%s", ob)
 	}
 	return b.String()
+}
+
+// fixProposal renders how a gap's required_fix was arrived at, and — where red stated one — the
+// concrete span-and-replacement that goes with it.
+//
+// `fix_basis` is DERIVED at the mint, never claimed: it reads `verified` only when red supplied
+// both --fix-old and --fix-new and the tool validated that span against the live report. That
+// validation is a forced re-read, and it exists because all three of one smoke's round-2 gaps
+// were contradictions between blue's new text and text red had never re-read before prescribing.
+//
+// The field gated the estoppel machinery and reached the reader as nothing at all, so a demand
+// red had checked against the document read identically to one written from memory of what the
+// document probably said. That is the whole difference the axis was built to record.
+func fixProposal(mint *record.Payload) string {
+	if mint == nil {
+		return ""
+	}
+	switch mint.Str("fix_basis") {
+	case "verified":
+		s := "\nfix_basis: **verified** — red stated an exact replacement and the tool checked the span against the live report, so this demand was written with the text in front of it."
+		if old, nw := mint.Str("fix_old"), mint.Str("fix_new"); old != "" && nw != "" {
+			s += fmt.Sprintf("\n  - replace: %q\n  - with: %q", old, nw)
+		}
+		return s
+	case "proposed":
+		return "\nfix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text."
+	default:
+		return ""
+	}
 }
 
 // regradeHistory renders EVERY grade movement on a gap with the reason given for it, or "" if
