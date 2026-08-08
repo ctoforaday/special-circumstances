@@ -216,7 +216,11 @@ func requireClosedGaps(runDir string, ids []string, verb, flag string) error {
 // channel rather than evidence that nobody disagreed. When it does fire, a response with no
 // dispute behind it would record one half of an exchange and make the accounting — disputes
 // raised against disputes answered — silently wrong in the flattering direction.
-func requirePriorDispute(runDir, gapID string) error {
+// The pair, not just the gap: blue disputes a SINGLE grade and may contest more than one on
+// the same gap, so an answer matching only the gap resolves to neither when it does. The
+// orchestrator always matched on (gap_id, dimension) — off the envelope, which evaporates —
+// while the durable record kept the lossier half.
+func requirePriorDispute(runDir, gapID, dimension string) error {
 	if gapID == "" {
 		return nil
 	}
@@ -225,9 +229,15 @@ func requirePriorDispute(runDir, gapID string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.Type == "dispute" && e.Payload.Str("gap_id") == gapID {
+		if e.Type != "dispute" || e.Payload.Str("gap_id") != gapID {
+			continue
+		}
+		if dimension == "" || e.Payload.Str("dimension") == dimension {
 			return nil
 		}
+	}
+	if dimension != "" {
+		return fmt.Errorf("record: dispute-respond names %s.%s, on which no dispute was filed — answering an argument nobody made records half an exchange and inflates the answered-disputes count against a denominator of zero", gapID, dimension)
 	}
 	return fmt.Errorf("record: dispute-respond --id names gap %s, on which no dispute was filed — answering an argument nobody made records half an exchange and inflates the answered-disputes count against a denominator of zero", gapID)
 }

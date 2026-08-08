@@ -131,7 +131,7 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 		t.Fatalf("blue dispute: %v", err)
 	}
 	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "accepted",
+		"--id", id, "--dimension", "severity", "--as", "accepted",
 		"--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("red dispute-respond: %v", err)
 	}

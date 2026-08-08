@@ -97,7 +97,7 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		t.Fatalf("blue dispute: %v", err)
 	}
 	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
+		"--id", id, "--dimension", "severity", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("red dispute-respond: %v", err)
 	}
 	if _, err := run(t, "merge", "regrade", "--run", runDir, "--seat-id", "red-merge-r1",
