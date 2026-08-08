@@ -317,12 +317,24 @@ func (r *runner) mint(seatID string) string {
 		kind = "computation"
 	}
 	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
-		"--check", "acc", "--fix", directive, "--likelihood", r.g(), "--impact", r.g()}
+		"--check", "acc", "--fix", directive, "--likelihood", r.g(), "--impact", r.g(),
+		// --location is the anchor ESTOPPEL keys on and the sweep never passed it; --existence
+		// is grading v2's verified/suspected split; --key is mint's crash-retry idempotency
+		// handle; --reason is the prose channel. Four fields on the most consequential verb in
+		// the tool, none of them ever exercised by a run.
+		"--location", "§ fuzz — " + directive[:12],
+		"--existence", pick(r.rng, []string{"verified", "suspected"}),
+		"--reason", "fuzz: the argument for raising this"}
 	if !r.classMade {
 		r.classMade = true
 		args = append(args, "--class-new", "fuzzcls", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
 	} else {
 		args = append(args, "--class", "fuzzcls")
+	}
+	if r.coin(40) {
+		// --key is mint's crash-retry idempotency handle: a retried mint under the same key
+		// returns the first id rather than minting twice. Never driven.
+		args = append(args, "--key", fmt.Sprintf("K%d", r.rng.Intn(3)))
 	}
 	// optional grade/lineage flags — exercised so mint's full flag surface runs, not the minimum.
 	if r.coin(50) {
@@ -437,6 +449,15 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 			}
 		}
 	}
+	// A CARRIED closure restates last round's verification rather than asserting a fresh act,
+	// and takes --carried-from instead of an anchor. Never driven, though the attestation audit
+	// treats it as a distinct case and skips it deliberately.
+	if r.coin(20) {
+		if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed",
+			"--reason", "fuzz: carried from the prior round", "--carried-from", "1"); err == nil {
+			return
+		}
+	}
 	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed", "--reason", "fuzz close",
 		"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec")
 }
@@ -486,7 +507,9 @@ var outcomeRe = regexp.MustCompile(`Debate outcome: ([A-Z]+)`)
 
 var checkKinds = []string{"document", "computation", "source"}
 
-var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined"}
+// `deferred` was added as a fate in #246 and never driven — a value the tool accepts, the
+// registry declares, and no run has ever recorded.
+var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined", "deferred"}
 var obsKind = []string{"note", "checked-held"}
 var disposeAs = []string{"declined", "banked"}
 
@@ -555,6 +578,13 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// W1.8 archive spot-check — the merge's duty. --none is always valid (an empty archive at
 		// round start); it exercises the verb and its --none/--reason branch.
 		r.maybe(45, func() {
+			// --none and --ids are the two shapes; only --none was ever driven, so the branch
+			// that names WHICH closures were sampled never ran.
+			if closed := r.closedGapIDs(); len(closed) > 0 && r.coin(50) {
+				r.do("merge", "spot-check", seatID).set("--ids", closed[0]).
+					set("--notes", "fuzz: re-read the closure record").run()
+				return
+			}
 			r.do("merge", "spot-check", seatID).bare("--none").set("--reason", "fuzz: nothing to sample").run()
 		})
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
@@ -570,7 +600,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
 		// left no event and no gate saw it — while the merge prompt calls it every round.
 		r.maybe(40, func() {
-			r.readOnly("merge", "near-match", seatID, "--candidate", "fuzz candidate problem text for screening")
+			r.readOnly("merge", "near-match", seatID, "--candidate", "fuzz candidate problem text for screening", "--location", "§ fuzz")
 		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
@@ -597,6 +627,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 				set("--title", "fuzz source "+seatID).
 				on(50, "--claim", "fuzz cited claim "+seatID).
 				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
+				on(50, "--reason", "fuzz: why this source backs the claim").
 				run()
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
@@ -692,7 +723,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 		})
 		if len(open) > 0 {
 			r.maybe(40, func() {
-				r.do("blue", "manifest-row", seatID).set("--id", pick(r.rng, open)).set("--row", "fuzz manifest row").run()
+				r.do("blue", "manifest-row", seatID).set("--id", pick(r.rng, open)).set("--row", "fuzz manifest row").
+					on(50, "--reason", "fuzz: the receipt's argument").run()
 			})
 		}
 	case "bench":
@@ -821,6 +853,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if len(gaps) == 0 {
 			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
+		// The merge's terminal act on a FAIL too: the checkpoint is what protects the event log
+		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
+		// `FAIL` half of a two-value enum had never been recorded by anything.
+		_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "FAIL")
 		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
@@ -1161,6 +1197,20 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// exists is how the coverage gap this oracle closes was created in the first place: a
 	// view ships, nobody adds it to the list, and the sweep reports full coverage of a
 	// surface it never drove. The JSON-by-name views take their own dispatch branches above.
+	// EVERY ROLE'S show, not merge's alone. Each role has a different DEFAULT view and its own
+	// role gate, so driving only `merge show --view` left the other three reachable but never
+	// reached — and --id (the scoped form) never passed at all.
+	for _, role := range []string{"blue", "lens", "bench"} {
+		if out, err := tracked(bin, role, "show", "--view", "debate", "--run", runDir); err != nil {
+			res.err = role + " show --view debate failed:\n" + truncate(string(out))
+			return res
+		}
+	}
+	if ids := mintedGapIDs(runDir); len(ids) > 0 {
+		for _, role := range []string{"blue", "lens", "bench"} {
+			_, _ = tracked(bin, role, "show", "--view", "changes", "--id", ids[0], "--run", runDir)
+		}
+	}
 	for _, v := range cli.ViewNames() {
 		switch v {
 		case "board", "findings", "friction", "worklist":
@@ -1736,6 +1786,17 @@ func TestFuzzDebate(t *testing.T) {
 			t.Errorf("%d command path(s) exist in the tool and were NEVER invoked across %d runs (false green — add a drive, or an exemption with its reason):\n  %s",
 				len(un), completed, strings.Join(un, "\n  "))
 		}
+		// DRIVING A VERB IS NOT DRIVING ITS SURFACE. The gate above asks whether every verb
+		// ran; these ask whether the flags those verbs take were ever passed, and whether
+		// every value of every closed set was ever recorded. An unpassed flag is code no run
+		// has executed, and an unreached enum member is a word nothing has written — both
+		// sitting behind a sweep that reports full coverage.
+		if un := unreachedFlags(); len(un) > 0 {
+			t.Errorf("%d flag(s) on verbs the sweep DOES drive were never passed:\n  %s", len(un), strings.Join(un, "\n  "))
+		}
+		if un := unreachedEnumValues(); len(un) > 0 {
+			t.Errorf("%d enum value(s) were never driven:\n  %s", len(un), strings.Join(un, "\n  "))
+		}
 		t.Log(execReport())
 	}
 	if len(failures) > 0 {
@@ -1975,6 +2036,9 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					set("--location", "§ fuzz").
 					set("--script", name).
 					set("--answers", id).
+					// The METHOD is cited and the instance computed — that pairing is the whole
+					// claim of the proof axis, and --cites was never passed.
+					on(50, "--cites", "c-fuzz").
 					set("--reason", "fuzz: computing rather than arguing").
 					run()
 			}

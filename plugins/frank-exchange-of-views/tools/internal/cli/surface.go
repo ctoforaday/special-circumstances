@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 )
@@ -30,6 +31,35 @@ import (
 // fails — the seat is told to read something, the tool refuses, and the seat logs friction
 // and works around it, so the capability is simply absent for the run.
 func ViewNames() []string { return seat.ViewNames() }
+
+// CommandFlags returns every invocable command path with the flag names it declares.
+//
+// The companion to CommandPaths, and for the same reason: a hand-kept list of what a verb
+// accepts is how a flag comes to be never exercised behind a green sweep. CommandPaths asks
+// "did the verb run"; this asks "was its surface reached". A verb driven on every sweep can
+// have half its flags never passed, and an unpassed flag is code no run has executed.
+func CommandFlags() map[string][]string {
+	out := map[string][]string{}
+	var walk func(c *cobra.Command, prefix string)
+	walk = func(c *cobra.Command, prefix string) {
+		for _, sub := range c.Commands() {
+			name := sub.Name()
+			if name == "help" || name == "completion" {
+				continue
+			}
+			path := strings.TrimSpace(prefix + " " + name)
+			if sub.HasSubCommands() {
+				walk(sub, path)
+				continue
+			}
+			var fs []string
+			sub.Flags().VisitAll(func(f *pflag.Flag) { fs = append(fs, f.Name) })
+			out[path] = fs
+		}
+	}
+	walk(newRoot(), "")
+	return out
+}
 
 func CommandPaths() []string {
 	var out []string
