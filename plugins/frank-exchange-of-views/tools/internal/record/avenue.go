@@ -69,6 +69,11 @@ type Avenue struct {
 	Ruling     string   // red's fate, if ruled
 	RulingWhy  string
 	RuledRound int
+	// Contests is the ruling blue moved AGAINST, recorded by `blue avenue` at the moment of
+	// the move. Read from the field rather than re-derived from (status, ruling): the write
+	// path already decided what counts as contesting, and a second derivation downstream is a
+	// second definition that can disagree with it.
+	Contests string
 }
 
 // Avenues replays the avenue events into current state, in proposal order.
@@ -100,6 +105,7 @@ func Avenues(b *Board) []*Avenue {
 				a.Method = v
 			}
 			a.Status, a.Reason, a.Round, a.SeatID = e.Payload.Str("status"), e.Payload.Str("reason"), e.Round, e.SeatID
+			a.Contests = e.Payload.Str("contests_ruling")
 			a.History = append(a.History, fmt.Sprintf("r%d %s", e.Round, a.Status))
 		case "avenue-rule":
 			a, ok := byID[id]

@@ -39,6 +39,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1605,12 +1606,54 @@ func tallyDialectic(board *record.Board) map[string]int {
 	return m
 }
 
+// THIS MAP WAS AN ALLOWLIST, AND THAT IS WHY IT STOPPED WORKING.
+//
+// It held six event types. A type absent from it was not checked, and absence was silent — so
+// every event type added after it was written defaulted to "the report need not render this",
+// with nothing anywhere saying so. A 2026-08-08 trace of all 30 types found four whole exchanges
+// reaching the record and never the reader (petition filings, avenue rulings, retirements,
+// observations) plus two verbs read by nothing at all, under a green sweep.
+//
+// It is now EXHAUSTIVE over the types a run actually produces: every event type seen on the
+// record must appear here or in reportExemptions with a stated reason, and an unclassified type
+// FAILS. A new verb cannot be added without deciding, in writing, what its reader gets.
 var dialecticProseKey = map[string]string{
-	"closing": "text", "opinion": "rationale", "dispute": "evidence",
-	"dispute-respond": "rationale", "petition-rule": "opinion",
+	// The debate proper.
+	"position": "text", "closing": "text", "opinion": "rationale",
+	"dispute": "evidence", "dispute-respond": "rationale",
+	// Petitions: the ASK and the ANSWER. `petition-rule` alone was the half-dialog — the
+	// reader got the bench's ruling with no question attached.
+	"petition": "basis", "petition-rule": "opinion",
+	// The board.
+	"mint": "problem", "finding": "text", "regrade": "basis",
+	// Directions: the line, red's ruling on it, and blue's reason for its fate.
+	"avenue": "line", "avenue-rule": "reason",
+	// The lens's below-the-bar work and the fate the merge gave it.
+	"observe": "text", "dispose": "reason",
+	// Substance leaving the report, on the record, with its reason.
+	"retire": "claim",
 	// confidence's "prose" is its claim label — it must render in the report's confidence
 	// self-assessment section, or blue's calibration silently vanishes (the dead-letter it was).
 	"confidence": "label",
+	// Run-level voices.
+	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
+}
+
+// reportExemptions are event types whose prose is deliberately NOT expected in the report, each
+// with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
+// from an oversight, which is precisely how this gate decayed.
+var reportExemptions = map[string]string{
+	"register":     "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
+	"anchor":       "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
+	"blue_edit":    "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
+	"class-new":    "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
+	"cite":         "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
+	"proof":        "resolved rather than rendered — weaveProofs splices the computation at its anchor",
+	"close":        "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
+	"outcome":      "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":      "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	"spot-check":   "the bench's archive sample — read by NOTHING today, including the report (#317). Exempt so the gate reports the honest state rather than a green it has not earned",
+	"manifest-row": "blue's correctness-manifest receipt — read by nothing, and called by no prompt (#318). Exempt for the same reason",
 }
 
 func proseRenders(board *record.Board, runDir string) string {
@@ -1619,10 +1662,18 @@ func proseRenders(board *record.Board, runDir string) string {
 		return "no report.md: " + err.Error()
 	}
 	rpt := string(report)
-	var missing []string
+	var missing, unclassified []string
+	seen := map[string]bool{}
 	for _, e := range board.Events {
 		key, ok := dialecticProseKey[e.Type]
 		if !ok {
+			// An event type in neither table is a DECISION NOBODY MADE. Registering it here
+			// costs one line; leaving it unclassified is how four exchanges reached the record
+			// and never the reader.
+			if reportExemptions[e.Type] == "" && !seen[e.Type] {
+				seen[e.Type] = true
+				unclassified = append(unclassified, e.Type)
+			}
 			continue
 		}
 		prose := strings.TrimSpace(e.Payload.Str(key))
@@ -1633,6 +1684,11 @@ func proseRenders(board *record.Board, runDir string) string {
 		if len(missing) >= 5 {
 			break
 		}
+	}
+	if len(unclassified) > 0 {
+		sort.Strings(unclassified)
+		return "event type(s) on the record with NO entry in dialecticProseKey and NO stated exemption: " + strings.Join(unclassified, ", ") +
+			"\nDecide what the reader gets from each — render it (add the prose key) or say why not (add the exemption). Silence here is how the report loses a whole exchange."
 	}
 	if len(missing) > 0 {
 		return "prose-not-rendered (A1-A3 class):\n" + strings.Join(missing, "\n")
