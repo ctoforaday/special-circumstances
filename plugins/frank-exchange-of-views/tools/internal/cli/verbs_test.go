@@ -115,9 +115,9 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "merge dispute-respond records red's answer",
 			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--id", "R1-1", "--as", "rejected", "--reason", "the evidence does not reach it"},
+			args: []string{"--id", "R1-1", "--dimension", "severity", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  "dispute-respond",
-			want: map[string]string{"gap_id": "R1-1", "response": "rejected",
+			want: map[string]string{"gap_id": "R1-1", "dimension": "severity", "response": "rejected",
 				"rationale": "the evidence does not reach it"},
 			says: "dispute on R1-1: rejected",
 		},

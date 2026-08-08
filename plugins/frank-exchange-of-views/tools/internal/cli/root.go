@@ -117,6 +117,16 @@ import (
 //	       capture-research-run.mjs; the final .mjs port, debate.js now the only engine script.
 //	       /research's capture step now runs `feov-record capture <run> <transcript>` (no --bin —
 //	       the command IS the tool), so a stale binary lacks the command that step depends on.
+//	0.42.0 a REPLY NAMES WHAT IT ANSWERS. merge dispute-respond recorded gap_id and the
+//	       response and NOT the dimension — while blue disputes a single grade and may contest
+//	       more than one on the same gap. Demonstrated live: severity and impact both disputed,
+//	       one "rejected" naming neither. The ORCHESTRATOR always had it (debate.js matches on
+//	       (gap_id, dimension) and reads the grade at that dimension) — off the ENVELOPE, which
+//	       evaporates with the session, while the durable record kept the lossier half. The
+//	       ephemeral channel was more precise than the permanent one. --dimension is now
+//	       REQUIRED, and requirePriorDispute matches the PAIR rather than the gap, so answering
+//	       a grade nobody contested is refused by the same rule that already refused answering
+//	       a gap nobody disputed. A stale binary records unaddressed answers.
 //	0.41.0 an avenue ruling has a RECORDED consequence (#246 remainder). Red's ruling and the
 //	       avenue's fate were both on the record and joined NOWHERE, so blue pursuing a line
 //	       red called out-of-scope looked exactly like pursuing one red endorsed. The design
@@ -323,7 +333,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.41.0"
+const Version = "0.42.0"
 
 func init() { record.ToolVersion = Version }
 

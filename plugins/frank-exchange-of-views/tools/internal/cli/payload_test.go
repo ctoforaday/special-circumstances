@@ -60,7 +60,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	}{
 		{"merge dispose", "reason", []string{"merge", "dispose", "--seat-id", "red-merge-r1", "--observation", "L1-O1", "--as", "declined"}},
 		{"merge regrade", "basis", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
-		{"merge dispute-respond", "rationale", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1", "--id", id, "--as", "accepted"}},
+		{"merge dispute-respond", "rationale", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1", "--id", id, "--dimension", "severity", "--as", "accepted"}},
 		{"blue dispute", "evidence", []string{"blue", "dispute", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
 		{"merge petition", "basis", []string{"merge", "petition", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
 	} {

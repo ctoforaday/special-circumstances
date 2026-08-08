@@ -204,7 +204,7 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 		if r.scenarioOf(id) == dirDisputeWon {
 			resp = "accepted"
 		}
-		if _, err := r.exec("merge", "dispute-respond", "--seat-id", seatID, "--id", id, "--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
+		if _, err := r.exec("merge", "dispute-respond", "--seat-id", seatID, "--id", id, "--dimension", dim, "--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
 			continue
 		}
 		refs = append(refs, map[string]any{"gap_id": id, "dimension": dim, "response": resp})

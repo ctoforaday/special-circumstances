@@ -569,7 +569,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			}
 		}
 		if typ == "dispute-respond" {
-			if err := requirePriorDispute(runDir, p.Str("gap_id")); err != nil {
+			if err := requirePriorDispute(runDir, p.Str("gap_id"), p.Str("dimension")); err != nil {
 				return err
 			}
 			if p.Str("rationale") == "" {
