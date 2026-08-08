@@ -96,6 +96,10 @@ type runner struct {
 	// presented records the gaps a responder was actually shown: a gap minted in the terminal
 	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
 	presented map[string]bool
+	// evaluated records the gaps red actually SAT ON after blue had responded — the only ones
+	// whose terminal fate red is answerable for. Blue repairing in the final round leaves a
+	// satisfied gap legitimately open, because red never sits again.
+	evaluated map[string]bool
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
@@ -189,9 +193,13 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 	for _, d := range r.raised {
 		id, _ := d["gap_id"].(string)
 		dim, _ := d["dimension"].(string)
-		resp := "accepted"
-		if r.coin(50) {
-			resp = "rejected"
+		// THE ANSWER FOLLOWS THE SCENARIO, not a coin. The gap was minted WON or LOST, and
+		// both branches must run: an accepted regrade moves the board's mass (the
+		// accepted-delta path), a rejected one is held a round and then dockets. Coining it
+		// meant red's answer bore no relation to the dispute it was answering.
+		resp := "rejected"
+		if r.scenarioOf(id) == dirDisputeWon {
+			resp = "accepted"
 		}
 		if _, err := r.exec("merge", "dispute-respond", "--seat-id", seatID, "--id", id, "--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
 			continue
@@ -430,13 +438,29 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 // directives are the scenario vocabulary a mint draws from. The string IS the expected
 // behaviour of every seat downstream, and the oracle asserts the record shows it happened.
 const (
-	dirApply   = "FUZZ-APPLY: blue applies the proposed pair verbatim"
-	dirCounter = "FUZZ-COUNTER: blue edits, but not the proposed text"
-	dirDispute = "FUZZ-DISPUTE: blue contests a grade instead of repairing"
-	dirIgnore  = "FUZZ-IGNORE: blue does nothing to this gap"
+	dirApply       = "FUZZ-APPLY: blue applies the proposed pair verbatim; red closes it"
+	dirCounter     = "FUZZ-COUNTER: blue edits, but not the proposed text; red closes it"
+	dirDisputeWon  = "FUZZ-DISPUTE-WON: blue contests the grade and red accepts the regrade"
+	dirDisputeLost = "FUZZ-DISPUTE-LOST: blue contests the grade and red rejects it"
+	dirIgnore      = "FUZZ-IGNORE: blue does nothing; the gap stays open"
 )
 
-var directives = []string{dirApply, dirCounter, dirDispute, dirIgnore}
+// WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
+// board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING —
+// which is right, and would leave VERIFIED uncovered if the draw were uniform. Four of seven
+// draws are satisfiable, which keeps both terminal states in the sweep.
+var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore}
+
+// satisfied reports whether a directive means the gap is repaired and red should close it.
+func satisfied(directive string) bool { return directive == dirApply || directive == dirCounter }
+
+// contested reports whether the directive routes through a grade dispute rather than a repair.
+func contested(directive string) bool {
+	return directive == dirDisputeWon || directive == dirDisputeLost
+}
+
+// outcomeRe reads the verdict debate.js states in the assembler's prompt.
+var outcomeRe = regexp.MustCompile(`Debate outcome: ([A-Z]+)`)
 
 var checkKinds = []string{"document", "computation", "source"}
 
@@ -689,7 +713,7 @@ func arr(v ...any) []any { return append([]any{}, v...) }
 // envelopeFor performs the seat's tool acts and returns the envelope debate.js expects. The
 // randomisation here is what drives debate.js's control flow: red's verdict and gap count
 // decide whether the loop continues, deadlocks, or terminates.
-func (r *runner) envelopeFor(seatID string) map[string]any {
+func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	switch {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
@@ -699,50 +723,65 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	case strings.HasPrefix(seatID, "red-merge"):
 		r.register("merge", seatID)
-		// Answer blue's pending disputes FIRST (debate.js processes dispute_responses before the
-		// PASS/FAIL branch) — emits the events + returns the routing refs, whatever the verdict.
+		// RED NOW EVALUATES THE REPAIR AGAINST WHAT IT ASKED FOR.
+		//
+		// It used to coin PASS at 40%, mint 1-3 fresh gaps unconditionally, and close every
+		// open gap on a PASS regardless of what blue had done — so the verdict bore no relation
+		// to whether anything was actually repaired. Each gap now carries the scenario it was
+		// minted with, and red reads it back off the board: a repaired gap CLOSES, a contested
+		// or ignored one STAYS OPEN. The round's verdict falls out of what is left.
 		responses := r.answerDisputes(seatID)
 		r.extras("merge", seatID, r.openGaps())
-		// PASS ~40%: run the round's dialectic, dispose any loose observations, then close every
-		// open gap so the #67 gate (and verify) holds.
-		if r.coin(40) {
-			open := r.openGaps()
-			r.dialectic("merge", seatID, open)
-			r.disposeObservations(seatID)
-			// Close every open gap so the #67 gate (and verify) holds. The FIRST pass may
-			// regression-close (minting successors) and dispose may have minted-as new gaps; re-read
-			// and plain-close until the board is empty. Bounded: only the first pass regression-closes.
-			for first := true; ; first = false {
-				rem := r.openGaps()
-				if len(rem) == 0 {
-					break
-				}
-				for _, id := range rem {
-					r.closeGap(seatID, id, first)
-				}
+
+		if r.evaluated == nil {
+			r.evaluated = map[string]bool{}
+		}
+		for _, id := range r.openGaps() {
+			d := r.scenarioOf(id)
+			if r.presented[id] {
+				r.evaluated[id] = true
 			}
-			// The merge's TERMINAL act on a PASS: checkpoints records/ (the event log) to the
-			// recovery mirror. A PASS ends the debate, so this round is terminal.
+			switch {
+			case satisfied(d):
+				r.closeGap(seatID, id, r.coin(25)) // the regression-close variant is still sampled
+			case d == dirDisputeWon:
+				// Red accepted the regrade in answerDisputes; the substance is settled, so the
+				// gap closes on the corrected grade.
+				r.closeGap(seatID, id, false)
+			}
+			// dirDisputeLost and dirIgnore: deliberately left open. The first goes to the
+			// bench's docket, the second is blue owing work it did not do.
+		}
+		r.disposeObservations(seatID)
+
+		// MINT BEFORE JUDGING WHETHER ANYTHING REMAINS. Round 1 has an empty board until red
+		// puts something on it — evaluating PASS first made every run pass in one round with
+		// nothing ever raised, which the coverage gate caught immediately.
+		// 0 is legal at round 1: red auditing and raising NOTHING is a real shape, and it is the
+		// only way a run reaches PASS in a single round.
+		fresh := r.rng.Intn(4)
+		if !strings.HasSuffix(seatID, "-r1") {
+			fresh = r.rng.Intn(2) // later rounds may raise nothing
+		}
+		for range fresh {
+			r.mint(seatID)
+		}
+
+		open := r.openGaps()
+		if len(open) == 0 {
+			r.dialectic("merge", seatID, nil)
+			// The merge's TERMINAL act on a PASS: checkpoints the event log to the recovery mirror.
 			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
 			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
-		// FAIL: mint 1-3 fresh gaps (a FAIL with empty gaps is a degenerate merge debate.js
-		// rejects on purpose). Report the FULL open set as the docket.
-		for range r.rng.Intn(3) + 1 {
-			r.mint(seatID)
-		}
-		open := r.openGaps()
-		if len(open) > 0 {
-			r.dialectic("merge", seatID, open)
-		}
+
+		// Something is unrepaired, so the round FAILs.
+		r.dialectic("merge", seatID, open)
 		var gaps []any
-		for _, id := range r.openGaps() {
+		for _, id := range open {
 			gaps = append(gaps, map[string]any{"id": id, "supersedes": arr()})
 		}
 		if len(gaps) == 0 {
-			// The mints did not take (a tool refusal we could not satisfy) — degrade to PASS
-			// rather than fabricate a docket. A FAIL with an empty gaps array is exactly the
-			// degenerate merge debate.js rejects, and we must not hand it one.
 			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
@@ -780,10 +819,14 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 	case strings.HasPrefix(seatID, "judge"): // adjudication + terminal
 		r.register("bench", seatID)
 		r.extras("bench", seatID, nil)
+		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
+		// its scenario left it open, and the scenario says why: a LOST dispute is a contest
+		// red refused and the bench settles it; an IGNORE is blue owing work, which is what
+		// `carried` means — "the material needs another round", stated as a decision.
 		var res []any
 		for _, id := range r.openGaps() {
 			disp := "carried"
-			if r.rng.Intn(2) == 0 {
+			if r.scenarioOf(id) == dirDisputeLost {
 				disp = "closed"
 				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", "closed",
 					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
@@ -794,7 +837,17 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	case strings.HasPrefix(seatID, "assemble"):
 		r.register("bench", seatID)
-		verd := []string{"VERIFIED", "CEILING", "UNVERIFIED"}[r.rng.Intn(3)]
+		// THE VERDICT IS READ, NOT INVENTED. debate.js computes the terminal outcome and TELLS
+		// the assembler ("Debate outcome: <verdict> after N round(s)") — exactly as a real seat
+		// is told. The fake used to ignore that and draw from a hat, so `bench outcome --as`
+		// could record a verdict contradicting the engine's own computation, and no oracle had
+		// ever checked that a board with open gaps yields UNVERIFIED or a closed one VERIFIED.
+		// The single most consequential value the engine emits was uncorrelated with everything
+		// upstream of it.
+		verd := "UNVERIFIED"
+		if m := outcomeRe.FindStringSubmatch(prompt); m != nil {
+			verd = m[1]
+		}
 		if r.forceHalt {
 			verd = "HALTED" // a halted run's terminal outcome is HALTED (debate.js computes this)
 		}
@@ -934,7 +987,7 @@ func (r *runner) installAgent(vm *goja.Runtime) {
 			}
 			r.models = append(r.models, mdl)
 		}
-		env := r.envelopeFor(seatID)
+		env := r.envelopeFor(seatID, prompt)
 		p, resolve, _ := vm.NewPromise()
 		resolve(vm.ToValue(env))
 		return vm.ToValue(p)
@@ -1134,7 +1187,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 					res.err = "scenario IGNORE: " + id + " was answered by a blue_edit, but the scenario said blue does nothing — either a writer ignored the directive or --answers is attaching provenance nobody claimed"
 					return res
 				}
-			case dirDispute:
+			case dirDisputeWon, dirDisputeLost:
 				if !disputed[id] {
 					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
 					return res
@@ -1144,6 +1197,63 @@ func runOne(wrapped, bin string, seed int64) outcome {
 					res.err = "scenario APPLY: " + id + " has no blue_edit answering it — a repair the scenario specified left no provenance"
 					return res
 				}
+			}
+			// THE TERMINAL FATE, which is the assertion the first pass was missing. Found by
+			// probe: making red never close a repaired gap produced ZERO oracle failures — the
+			// run simply ended CEILING with work sitting done-but-open, and nothing said so.
+			// Scoped to gaps red actually sat on after blue answered: a repair landed in the
+			// final round leaves the gap legitimately open, because red never sits again.
+			if satisfied(g.Mint.Str("required_fix")) && r.evaluated[id] && g.Open {
+				res.err = "scenario " + g.Mint.Str("required_fix") + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
+				return res
+			}
+		}
+	}
+
+	// VERDICT ORACLE: the recorded outcome must agree with the board it describes.
+	//
+	// The terminal verdict is the single most consequential value the engine emits, and until
+	// now the fake DREW IT FROM A HAT — so `bench outcome --as` could record VERIFIED over a
+	// board with open gaps and nothing anywhere would notice. The assembler is now told the
+	// verdict the way a real seat is (debate.js states it in the prompt), which makes the
+	// agreement between outcome and board checkable for the first time.
+	if board, err := record.BoardState(runDir); err == nil {
+		openCount := 0
+		for _, id := range board.GapOrder {
+			if g := board.Gaps[id]; g != nil && g.Open {
+				openCount++
+			}
+		}
+		recorded := ""
+		for _, e := range board.Events {
+			if e.Type == "outcome" {
+				recorded = e.Payload.Str("verdict")
+			}
+		}
+		if recorded == "VERIFIED" && openCount > 0 {
+			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED with %d gap(s) still open — a pass over unfinished work", openCount)
+			return res
+		}
+		// THE CONVERSE NEEDS A CARVE-OUT, and finding out why is the point of running it.
+		//
+		// It fired 2 of 60 on "CEILING with every gap closed", which looked like a verdict
+		// contradicting its board — and is not. The BENCH closes gaps at the terminal sitting,
+		// AFTER the ceiling has already been determined: the verdict describes the debate's
+		// exit, not the post-adjudication board. That is why Gap.ClosedByBench exists.
+		//
+		// So the check is only sound over gaps RED closed. A non-passing verdict whose board
+		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
+		// the contradiction worth catching.
+		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.GapOrder) > 0 {
+			benchClosed := 0
+			for _, id := range board.GapOrder {
+				if g := board.Gaps[id]; g != nil && g.ClosedByBench {
+					benchClosed++
+				}
+			}
+			if benchClosed == 0 {
+				res.err = "verdict oracle: the run recorded " + recorded + " with every gap closed BY RED — an unfinished verdict over work red itself finished"
+				return res
 			}
 		}
 	}
@@ -1561,7 +1671,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			fallthrough
 		case dirCounter:
 			r.counterEdit(seatID, id)
-		case dirDispute:
+		case dirDisputeWon, dirDisputeLost:
 			dim := pick(r.rng, disputeDims)
 			proposed := r.g()
 			if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id,
