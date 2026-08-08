@@ -42,11 +42,40 @@ func noteExec(args []string, err error) {
 	if err != nil {
 		execFail[k]++
 	}
+	// FLAGS AND THEIR VALUES, per command path. The tally saw argv all along and threw the
+	// flags away, so "the surface is driven" meant the VERB ran — a verb can be exercised on
+	// every sweep with half its flags never passed and every enum value but one unreached.
+	for i, a := range args {
+		if !strings.HasPrefix(a, "--") {
+			continue
+		}
+		name := strings.TrimPrefix(strings.SplitN(a, "=", 2)[0], "--")
+		if execFlags[k] == nil {
+			execFlags[k] = map[string]bool{}
+		}
+		execFlags[k][name] = true
+		// The VALUE, when the next token is one rather than another flag. Enum coverage is
+		// what this buys: a closed set whose values are never all driven is a set whose
+		// unreached members nothing has ever run.
+		if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+			if execValues[name] == nil {
+				execValues[name] = map[string]bool{}
+			}
+			execValues[name][args[i+1]] = true
+		}
+	}
 }
 
 // commandPathOf resolves an argv to the command path it invoked: "merge mint", "verify".
 // Flags end the path, so `graph --format dot` is "graph" and `blue show --view x` is
 // "blue show".
+// execFlags: command path -> the flag names ever passed to it.
+// execValues: flag name -> the values ever passed for it.
+var (
+	execFlags  = map[string]map[string]bool{}
+	execValues = map[string]map[string]bool{}
+)
+
 func commandPathOf(args []string) string {
 	var parts []string
 	for _, a := range args {
