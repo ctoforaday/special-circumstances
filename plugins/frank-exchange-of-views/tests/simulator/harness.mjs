@@ -77,7 +77,7 @@ export const gap = (id, over = {}) => ({
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
 export const judgeEnv = (over = {}) => ({ deadlock: false, resolutions: [], friction: [], ...over })
-export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied', opinion: 'considered and denied with reasons' }], friction: [], ...over })
+export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], friction: [], ...over })
 
 // Role-routing responder: dispatches on the label prefix the script assigns each seat.
 // red / judge / blueSynth / blueRespond are queues consumed in call order (last entry
