@@ -1,4 +1,4 @@
-prompt sha256: fed9653c5f4bcc99f757c94bcca877949bb7ef49a747f2a1efc5390e0f373322
+prompt sha256: 28eb3e22c299c8e3a5e8cec21b0b80ff9f289e69d2b56d63a9a80b60986c4a5c
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD — "/opt/feov/bin/feov-record" merge show --run research/2026-01-01_golden --view findings — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -63,7 +63,7 @@ What you may not do is open a clean slate against your own words.
 And when blue applied your exact text, your prescription HAS been satisfied at that site by construction: close the gap unless you can state what your own acceptance_check still fails.
 The guard only catches text blue took verbatim — text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 This is an amendment to the gap that prescribed it, not a fresh gap — 3 of 3 round-2 gaps in the 2026-08-04 smoke were text blue added in round 1 because red asked for it.
-Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, evidence-rebutted, or risk-accepted.
+Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, rebuttal_sustained, or risk_accepted.
 CITATIONS_CHECKED IS THE RECORD'S, NOT YOURS: set the envelope's citations_checked to counts.citations from the board (`"/opt/feov/bin/feov-record" merge show --run research/2026-01-01_golden --view board`) — the tool counts the cite events the lenses recorded; never hand-count or estimate it.
 Record your round-1 narrative on the RECORD as a position event — "/opt/feov/bin/feov-record" merge position --reason "<your RED narrative>" (--reason-file <path> for long prose); it renders as the round's "### RED" section from the record, so do NOT hand-write debate.md.
 CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, record a closing event — "/opt/feov/bin/feov-record" merge closing --id <gap> --reason "<your case, ~120 words>"; it renders as "### RED CLOSING" from the record and the judge reads it there: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far.

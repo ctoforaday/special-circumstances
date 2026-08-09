@@ -1,4 +1,4 @@
-prompt sha256: ea039c33cc50426ef589343d0387b5ac45058be48a584fe8d0f45dd24da373df
+prompt sha256: e43b734035c71332154c3a193c5a0aace665950a64d6c3b926e0f02b297c3449
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -63,7 +63,7 @@ What you may not do is open a clean slate against your own words.
 And when blue applied your exact text, your prescription HAS been satisfied at that site by construction: close the gap unless you can state what your own acceptance_check still fails.
 The guard only catches text blue took verbatim — text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 This is an amendment to the gap that prescribed it, not a fresh gap — 3 of 3 round-2 gaps in the 2026-08-04 smoke were text blue added in round 1 because red asked for it.
-Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, evidence-rebutted, or risk-accepted.
+Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, rebuttal_sustained, or risk_accepted.
 Append the round-1 "### RED" section to research/2026-01-01_golden/debate.md per the debate template.
 CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, also append a "### RED CLOSING (round 1)" entry to research/2026-01-01_golden/debate.md — max 120 words per item: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far.
 The judge rules AFTER blue responds this round, on the closings, the transcript, and the final artifact state only — your closing is your case; overstatement the record does not support counts against you.
