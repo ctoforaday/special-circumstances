@@ -60,8 +60,18 @@ type problem string
 // check validates one file's frontmatter and returns findings plus whether a block was
 // scanned at all.
 func check(file, text string) (problems []problem, scanned bool) {
+	// CRLF FIRST, AND THIS WAS A REAL MISS (#323). The prefix test was `---\n`, so a file
+	// written with CRLF line endings starts `---\r\n`, fails the test, and is reported as
+	// HAVING NO FRONTMATTER — silently skipped, not flagged. Claude Code's loader reads it
+	// fine; only this guard could not.
+	//
+	// Measured 2026-08-08: an edit that rewrote two agent constitutions with CRLF dropped the
+	// count from 36 to 34 and the gate EXITED 0. Two constitutions stopped being checked and
+	// the run reported success. On Windows the trigger is ordinary — any editor or script that
+	// writes CRLF removes a file from this gate without a word.
+	text = strings.ReplaceAll(text, "\r\n", "\n")
 	if !strings.HasPrefix(text, "---\n") {
-		return nil, false // no frontmatter is fine; a partial one is not
+		return nil, false // no frontmatter is fine HERE; mustCarryFrontmatter decides where it is not
 	}
 	end := strings.Index(text[3:], "\n---")
 	if end < 0 {
@@ -95,6 +105,20 @@ func check(file, text string) (problems []problem, scanned bool) {
 		}
 	}
 	return problems, true
+}
+
+// mustCarryFrontmatter says which files are BROKEN rather than merely plain when they have no
+// frontmatter block: a plugin's agents and commands, whose whole contract is declared there.
+//
+// Everything else this guard scans — READMEs, skill prose, docs, the root documents — is
+// ordinary markdown, and a missing block means nothing. Naming the mandatory set is what turns
+// "the count went down" into a failure with a filename on it.
+func mustCarryFrontmatter(file string) bool {
+	slash := filepath.ToSlash(file)
+	if !strings.HasPrefix(slash, "plugins/") {
+		return false
+	}
+	return strings.Contains(slash, "/agents/") || strings.Contains(slash, "/commands/")
 }
 
 // markdownFiles lists the tracked .md files this guard owns: everything under plugins/, plus
@@ -143,6 +167,16 @@ func main() {
 		problems = append(problems, p...)
 		if did {
 			scanned++
+			continue
+		}
+		// THE MISS IS LOUD WHERE A BLOCK IS MANDATORY. A file that stops being recognized is
+		// not invalid — it is ABSENT, and absence was indistinguishable from a clean board:
+		// the count moved and nothing failed. An agent or command with no frontmatter loads
+		// with empty metadata and behaves like one whose declarations do not work, which is
+		// the exact failure this guard exists to prevent.
+		if mustCarryFrontmatter(f) {
+			problems = append(problems, problem(fmt.Sprintf(
+				"%s: no frontmatter block at all. An agent/command without one loads with EMPTY metadata — no name, no tools, no skills — and runs anyway. If this file is not an agent or command, it is in the wrong directory.", f)))
 		}
 	}
 
