@@ -337,10 +337,16 @@ import (
 //	       still ACCEPTS both verbs and writes events this replay drops, which is why the
 //	       contract version moves: setup must refuse it.
 //
+//	0.44.0 `lens cite` becomes `lens verify` with its OWN event type, and its grade flag is
+//	       `--trust` (#341). Blue authoring a citation and red verifying one shared the `cite`
+//	       type, told apart by IsVerifiedCite — `e.Payload.Str("label") == ""` — so a blue cite
+//	       written without a label counted as red's audit volume. A stale binary still accepts
+//	       `lens cite` and writes the ambiguous event, so setup must refuse it.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.43.0"
+const Version = "0.44.0"
 
 func init() { record.ToolVersion = Version }
 

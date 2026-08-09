@@ -609,15 +609,22 @@ func inquiryMD(b *record.Board) []byte {
 	return []byte(strings.Join(inquiry, "\n") + "\n")
 }
 
-// citationLedgerMD — verified claims with source/confidence. Trailing newline (render.go parity).
+// citationLedgerMD — the claims RED CHECKED, with source and trust. Trailing newline
+// (render.go parity).
+//
+// It reads `verify` events, not `cite`. Before the split (#341) both acts shared the `cite`
+// type, so this ledger rendered BLUE'S AUTHORED CITATIONS alongside red's verifications — and
+// blue's carry location/url/title rather than claim/reference/confidence, so each one rendered
+// as a row of undefined fields. The ledger red reads to decide what it need not re-fetch was
+// padded with blank rows for citations it had never checked.
 func citationLedgerMD(b *record.Board) []byte {
 	cites := []string{"# red citation-ledger — RENDERED PROJECTION"}
 	for _, e := range b.Events {
-		if e.Type != "cite" {
+		if e.Type != "verify" {
 			continue
 		}
 		cites = append(cites, fmt.Sprintf("%s | %s | %s | r%d | %s",
-			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "confidence"), e.Round, undefStr(e.Payload, "access_date")))
+			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "trust"), e.Round, undefStr(e.Payload, "access_date")))
 	}
 	return []byte(strings.Join(cites, "\n") + "\n")
 }

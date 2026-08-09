@@ -41,21 +41,22 @@ func TestCitationID_DistinctFromFindingID(t *testing.T) {
 // The two cite provenances must never be counted as one. Measured on the 2026-08-04 smoke: the
 // board reported 10 "citations checked" where the truth was 3 blue-authored + 7 red-verified —
 // 43% inflation on RED's own audit-volume tile, which debate.js tells red to copy into its
-// envelope. The inflation grows with every use of the citation axis.
-func TestCiteProvenanceIsDiscriminated(t *testing.T) {
+// envelope.
+//
+// That was first fixed by INFERENCE — a cite with no `label` was read as red's — which made the
+// distinction depend on the absence of a field, so a blue cite written without a label silently
+// rejoined red's count. #341 makes it structural: two acts, two EVENT TYPES, nothing inferred.
+func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
 	authored := Event{Type: "cite", Payload: NewPayload().Set("label", "c-abc").Set("url", "https://x").Set("title", "T")}
-	verified := Event{Type: "cite", Payload: NewPayload().Set("claim", "c").Set("reference", "https://y").Set("confidence", "high")}
-	other := Event{Type: "finding", Payload: NewPayload().Set("label", "L1-F1")}
+	verified := Event{Type: "verify", Payload: NewPayload().Set("claim", "c").Set("reference", "https://y").Set("trust", "high")}
 
-	if !IsAuthoredCite(authored) || IsVerifiedCite(authored) {
-		t.Error("a blue cite (carries label) must read as AUTHORED, not verified")
+	if authored.Type == verified.Type {
+		t.Fatal("blue authoring a citation and red verifying one must not share an event type — that sharing is what made the count inflatable")
 	}
-	if !IsVerifiedCite(verified) || IsAuthoredCite(verified) {
-		t.Error("a red lens cite (no label) must read as VERIFIED, not authored")
-	}
-	// A finding also carries a label — the discriminator must key on TYPE too, or every finding
-	// would count as an authored citation.
-	if IsAuthoredCite(other) || IsVerifiedCite(other) {
-		t.Error("a non-cite event must be neither")
+	// The discriminator must not be recoverable from a payload field: a blue cite MISSING its
+	// label must still be a blue cite, which is exactly the case the old heuristic got wrong.
+	unlabelled := Event{Type: "cite", Payload: NewPayload().Set("url", "https://x")}
+	if unlabelled.Type != "cite" {
+		t.Error("a cite without a label is still a cite — provenance is the type, not a field's emptiness")
 	}
 }

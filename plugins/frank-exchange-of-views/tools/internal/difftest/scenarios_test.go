@@ -177,8 +177,8 @@ func scenarios() []scenario {
 				base("blue", "dispute", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
 				base("blue", "confidence", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--claim", "C7", "--confidence", "medium"),
-				base("lens", "cite", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--claim", "throughput doubled",
-					"--reference", "https://example.invalid/paper", "--confidence", "high", "--access-date", "2026-07-18"),
+				base("lens", "verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--claim", "throughput doubled",
+					"--reference", "https://example.invalid/paper", "--trust", "high", "--access-date", "2026-07-18"),
 				base("bench", "register", "--run", "{RUN}", "--seat-id", "judge-r1"),
 				base("bench", "opinion", "--run", "{RUN}", "--seat-id", "judge-r1", "--id", "R1-1", "--as", "carried",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
@@ -247,8 +247,8 @@ func scenarios() []scenario {
 			name: "full_round_integration", // oracle: the integration test
 			cmds: []cmd{
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
-				base("lens", "cite", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--claim", "claim one",
-					"--reference", "https://example.invalid/a", "--confidence", "high", "--access-date", "2026-07-18"),
+				base("lens", "verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--claim", "claim one",
+					"--reference", "https://example.invalid/a", "--trust", "high", "--access-date", "2026-07-18"),
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--location", "## S2", "--reason", "citation does not support"),
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5"),

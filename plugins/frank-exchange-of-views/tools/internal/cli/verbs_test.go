@@ -71,25 +71,25 @@ func TestVerbPayloads(t *testing.T) {
 		says string
 	}{
 		{
-			name: "lens cite records the access date under its payload name",
+			name: "lens verify records the access date under its payload name",
 			role: "lens", seatID: "red-lens-r1-L1",
 			args: []string{"--claim", "the claim", "--reference", "https://example.test/a",
-				"--confidence", "high", "--access-date", "2026-07-18"},
-			typ: "cite",
+				"--trust", "high", "--access-date", "2026-07-18"},
+			typ: "verify",
 			// The flag is --access-date; the payload key is access_date, and the
 			// citation render reads the payload key.
 			want: map[string]string{"claim": "the claim", "reference": "https://example.test/a",
-				"confidence": "high", "access_date": "2026-07-18"},
-			says: "citation recorded: https://example.test/a",
+				"trust": "high", "access_date": "2026-07-18"},
+			says: "source verified: https://example.test/a",
 		},
 		{
-			name: "lens cite without an access date leaves the key absent",
+			name: "lens verify without an access date leaves the key absent",
 			role: "lens", seatID: "red-lens-r1-L1",
-			args:   []string{"--claim", "c", "--reference", "https://example.test/b", "--confidence", "low"},
-			typ:    "cite",
+			args:   []string{"--claim", "c", "--reference", "https://example.test/b", "--trust", "low"},
+			typ:    "verify",
 			want:   map[string]string{"reference": "https://example.test/b"},
 			absent: []string{"access_date"},
-			says:   "citation recorded",
+			says:   "source verified",
 		},
 		{
 			name: "merge dispute-respond records red's answer",

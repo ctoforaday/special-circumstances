@@ -114,9 +114,9 @@ var EnumFields = map[string][]EnumField{
 			Optional: true,
 		},
 	},
-	"cite": {{
-		Key: "confidence", Flag: flags.Confidence, Values: []string{"high", "medium", "low"},
-		Why:      "the grade is the whole content of a citation's claim about its source; an unreadable one makes the citation's confidence incomparable with every other row in the table it lands in",
+	"verify": {{
+		Key: "trust", Flag: flags.Trust, Values: []string{"high", "medium", "low"},
+		Why:      "the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)",
 		Optional: true,
 	}},
 	"confidence": {{
