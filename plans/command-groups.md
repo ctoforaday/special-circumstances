@@ -115,21 +115,76 @@ meaning under the same name elsewhere. `friction` (record a complaint) and `show
 
 ### Top-level commands
 
-`register` · `friction` · `finding` — no group, because none would teach anything.
+`friction` · `finding` · `verify` — no group, because none would teach anything. `verify` runs
+the whole-record invariants; it is not an operation on any one entity.
+
+**`register` is UNDER REVIEW, not placed.** It exists so a seat announces itself before
+writing, and `registerBeforeAppend` is a verify invariant that depends on it. Under detection
+the tool can register on first write from the injected identity — an explicit call a seat must
+remember to make is a leftover from self-asserted identity. Decide it in stage 6 rather than
+porting it unexamined.
 
 ### Groups
 
 | group | verbs | seats |
 |---|---|---|
 | **show** | `board` `findings` `worklist` `friction` `ledger` `archive` `debate` `changelog` `changes` `citation-ledger` `lines-of-inquiry` `telemetry` `claims` | scoped per seat (the view table already carries `defaultFor`) |
-| **gap** | `mint` `regrade` `near-match` | merge |
-| **closure** | `close` `adjudicate` `spot-check` | merge; `adjudicate` bench |
+| **gap** | `mint` `regrade` `close` `adjudicate` `near-match` `spot-check` | merge; `adjudicate` bench |
 | **evidence** | `cite` `verify` `prove` `reproduce` | blue authors, lens audits |
-| **document** | `edit` `retire` `confidence` `manifest` | blue |
+| **document** | `edit` `retire` `confidence` `manifest` `count` | blue |
 | **docket** | `grade submit\|rule\|escalate` · `petition submit\|rule` · `direction submit\|rule\|escalate` | see below |
 | **direction** | `propose` `move` | blue |
 | **argument** | `position` `closing` | merge blue |
 | **run** | `verdict` `outcome` `halt` `certify` `assemble` | merge claims, bench settles |
+
+### The operator namespace is NOT out of scope — six of its commands are seat verbs
+
+The first audit walked the 45 ROLE verbs and ignored `feov-record`'s top-level commands as
+"operator". That was wrong: prompts and constitutions tell seats to run six of them, so under
+a scoped surface they would vanish from the seats that need them.
+
+| command | named to a seat in | home |
+|---|---|---|
+| `fetch` | prompt + constitution | **`evidence fetch`** — it returns the exact bytes blue cited, so red audits the same artifact rather than a page that may have drifted |
+| `scorecard` | 4 prompt sites | **`show scorecard`** — the seat's in-run self-read |
+| `graph` | 2 constitutions | **`show graph`** |
+| `count-claims` | 2 prompt sites | **`document count`** — a measure of the document blue authored |
+| `verify` | 3 constitutions | **top-level** — whole-record invariants, not one entity's |
+| `capture` | 1 constitution | stays operator; the constitution DESCRIBES it, it is run by the human after the debate |
+
+`setup`, `dashboard`, `hook` and `completion` stay operator: no prompt names them, and they
+are run by the human or the engine.
+
+### `revision` — the one verb the tree drops, and it must be deliberate
+
+`revision` (blue's per-round changelog entry) has NO home above. That is intentional — #251
+retires it, because the revision summarizes edits the record already carries with old/new
+spans, making it a VIEW of `document` rather than a member of it.
+
+**But the plan must not drop a live verb by omission.** Either #251 lands first, or `revision`
+gets a home. It is named here so the restructure cannot delete it silently — which is exactly
+the failure mode this whole exercise exists to prevent.
+
+### `defaultFor` must retire with `--view`
+
+The view table carries `defaultFor` (which role gets a view when none is named), and
+`merge show` defaults to `worklist` today. Once views are verbs scoped by the permission
+table, `defaultFor` is a SECOND answer to "which seat sees this" — the two-sources hazard
+this plan warns about in §IV, introduced by this plan.
+
+It retires into the permission table. `feov-record show` with no verb lists the seat's
+projections rather than silently rendering one; a default that fires when a seat forgot to
+say what it wanted is a guess wearing a convenience.
+
+### Sequencing: stages 1–5 land under the CURRENT tree
+
+The stage descriptions name new paths (`evidence cite`, `gap adjudicate`) because that is the
+destination. **They are not the paths stages 1–5 build.** The `evidence` and `gap` groups do
+not exist until stage 6; until then the work lands as `blue cite` / `lens verify` / `bench
+opinion` under the role tree, and stage 6 relocates them.
+
+Stated because the plan contradicted itself on this: an implementer reading stage 1 alone
+would build the wrong path and find nothing to mount it on.
 
 ### When a group has a group
 
@@ -205,22 +260,50 @@ verbs once instead of four times). `show` then ADDS 13 paths that already existe
 values. Total ~39 invocable paths. Making twelve hidden things visible is the point; claiming
 compression that came from hiding them would be the same defect one level up.
 
-### `board` was a mishmash — split into `gap` and `closure`
+### `board` was a mishmash — the NAME was the defect
 
-The first draft put mint/close/regrade/adjudicate/near-match/spot-check in one `board` group.
-That mingled gap MUTATION with closure-record READING. Split:
+Draft 1 put mint/close/regrade/adjudicate/near-match/spot-check in one `board` group. Draft 2
+split it into `gap` (mutations) and `closure` (the closure record). **Both were wrong, and the
+second was wrong in an instructive way.**
 
-- **`gap`** — red managing the live board: mint one, move its grades, screen a candidate
-  against what already exists.
-- **`closure`** — the closure record as an entity: `close` creates one on verified repair,
-  `adjudicate` creates one by judgement, `spot-check` re-verifies existing ones. This also
-  resolves the two-closure-authorities overlap by construction: both creators sit in one group
-  and share one vocabulary, which is what stops the two enums drifting apart again (#342).
+`closure close` stutters — the same failure that disqualified `evidence proof prove`. A closure
+has real machinery (closure_class, anchors, successor, carried_from, its own report index, its
+own audit), which is what made it look like an entity. It is not one:
+
+- **it has no identity** — you reach it through `--id R1-2`, the GAP's id. An entity
+  addressable only through another entity's key is a component of it.
+- **it is not what the seat is doing.** Red is not creating a closure record, it is CLOSING A
+  GAP. Splitting them spread one object's lifecycle across two groups.
+
+The actual defect in `board` was the NAME. "Board" is the collection, so `board close` sounded
+like closing the board. `gap close`, `gap spot-check`, `gap near-match` read correctly because
+the name is the thing being acted on.
+
+**Six moods, one entity — and that is fine.** Create, modify, end, end-by-judgement, search,
+re-check. A group is not required to hold verbs of one mood; that is what verbs are for.
+
+### Considered and DECLINED: an `audit` group
+
+`audit source` (was `lens cite`) + `audit proof` (was `lens reproduce`) + `audit closure` (was
+`spot-check`), on the grounds that all three are "a seat re-checks something already recorded".
+
+**Declined: it groups by VERB MOOD, not by entity.** The object of `audit source` is a source;
+the object of `audit closure` is a closure. Nothing binds them but the mood — the same error as
+`meta` (grouped by "cross-cutting"), and a violation of this plan's own thesis.
+
+`reproduce` is the audit OF A PROOF, so it belongs beside `prove`: author and audit are two
+operations on one entity, exactly as `mint` and `close` are on a gap. Nobody would hoist `close`
+out of `gap` because closing is a different mood from minting.
+
+It is also the `evidence source add|audit` subgroup declined above, inverted. What survives is
+only the OBSERVATION that the author/audit pairing should be visible — and that belongs in verb
+naming and help text, not in the tree.
 
 ### Names chosen to avoid prose collisions
 
-`opinion` lived in two groups at once — it is an argument AND a closure — so it becomes
-`closure adjudicate`, where the state change is. `docket rule` and `closure adjudicate` no longer both read as "rule"; `finding file` and `docket submit` no longer both read as "file".
+`opinion` lived in two groups at once — it is an argument AND a gap state change — so it becomes
+`gap adjudicate`, where the state change is. `docket rule` and `gap adjudicate` no longer both
+read as "rule"; `finding file` and `docket submit` no longer both read as "file".
 
 ### What `docket` buys beyond tidiness
 
@@ -232,7 +315,7 @@ subject beats three verb pairs that can drift.
 
 ### What is NOT collapsed, and why
 
-- **`closure close` (merge) and `closure adjudicate` (bench)** both end a gap's life and stay
+- **`gap close` (merge) and `gap adjudicate` (bench)** both end a gap's life and stay
   two verbs: red closes on verified repair (anchor required), the bench closes on judgement
   (principle required). Different evidence bars are a real distinction. Their VOCABULARIES
   merge — `risk_accepted` is a closure class living in a disposition enum today, and that
