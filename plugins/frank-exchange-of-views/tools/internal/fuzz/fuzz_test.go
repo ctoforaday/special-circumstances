@@ -244,22 +244,30 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		class, _ := p["class"].(string)
 		opinion := "fuzz ruling opinion for " + who
 		ruling := "granted"
-		if r.forceHalt {
-			ruling = "halt"
-			_, _ = r.exec("bench", "halt", "--seat-id", seatID, "--reason", "fuzz judicial halt — safety boundary")
-		} else {
-			if r.coin(50) {
-				ruling = "denied"
-			}
-			_, _ = r.exec("bench", "petition-rule", "--seat-id", seatID, "--petitioner", who, "--petition-class", class, "--as", ruling, "--reason", opinion)
+		if r.coin(50) {
+			ruling = "denied"
 		}
+		// THE PETITION IS ALWAYS RULED ON ITS MERITS. A halt is a separate decision about the
+		// RUN, on its own channel (#329) — both can be true, and the petition does not stop
+		// being answered because the bench also ended the run.
+		_, _ = r.exec("bench", "petition-rule", "--seat-id", seatID, "--petitioner", who, "--petition-class", class, "--as", ruling, "--reason", opinion)
 		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "opinion": opinion})
 	}
 	r.petitioned = nil
 	if rulings == nil {
 		rulings = arr()
 	}
-	return map[string]any{"rulings": rulings, "friction": arr()}
+	env := map[string]any{"rulings": rulings, "friction": arr()}
+	if r.forceHalt {
+		// `bench halt` writes the record; the envelope's halt object is only what stops the
+		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
+		// that told a real judge to record a halt through petition-rule, where the enum refuses
+		// it. The fuzz stayed green over a production path that could not work.
+		haltOpinion := "fuzz judicial halt — safety boundary"
+		_, _ = r.exec("bench", "halt", "--seat-id", seatID, "--reason", haltOpinion)
+		env["halt"] = map[string]any{"opinion": haltOpinion}
+	}
+	return env
 }
 
 func (r *runner) exec(args ...string) (string, error) {

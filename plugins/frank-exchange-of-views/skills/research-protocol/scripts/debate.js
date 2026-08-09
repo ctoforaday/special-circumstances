@@ -281,12 +281,33 @@ const PETITION_RULING = {
         properties: {
           petitioner: { type: 'string' },
           class: { type: 'string' },
-          // halt = the safety boundary: the run ends HALTED, the opinion is
-          // relayed verbatim by capture, never smoothed.
-          ruling: { type: 'string', enum: ['granted', 'denied', 'halt'] },
+          // granted|denied ONLY, matching the record's petition-rule enum exactly.
+          //
+          // `halt` USED TO BE A THIRD VALUE HERE AND IT COULD NOT BE RECORDED (#329). The
+          // record's enum is granted|denied — deliberately, because a halt is the bench's own
+          // first-class terminal act, not a petition disposition — so a judge following this
+          // schema ran `petition-rule --as halt` and the tool REFUSED it. The engine halted
+          // off the envelope while the record carried no halt event at all: the report never
+          // said the bench halted, and the halt opinion, which must be relayed to the human
+          // VERBATIM and never smoothed, was on no record anywhere.
+          //
+          // The collision was the cause, not the symptom. Two vocabularies for one act is what
+          // the seat-command trigger map exists to remove, and while `halt` sat in this enum the
+          // mistake was the natural thing to write. It is now unwriteable.
+          ruling: { type: 'string', enum: ['granted', 'denied'] },
           opinion: { type: 'string' },
         },
       },
+    },
+    // THE SAFETY BOUNDARY, ON ITS OWN CHANNEL. A halt is not a ruling on a petition — it is the
+    // bench ending the run, and it is recorded through `bench halt`, which is where the opinion
+    // lives. This field is the ENGINE SIGNAL ONLY: its presence stops the debate. The opinion is
+    // repeated here so the returned envelope is self-describing to the operator, and capture
+    // relays the RECORDED one verbatim.
+    halt: {
+      type: 'object',
+      required: ['opinion'],
+      properties: { opinion: { type: 'string' } },
     },
   },
 }
@@ -552,15 +573,17 @@ async function hearPetitions(env, who) {
   if (!petitions.length) return false
   log(`petition(s) filed by ${who} (${petitions.map((x) => x.class).join(', ')}) — bench sitting before the debate continues`)
   const sitting = await agent(
-    `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted (state the relief as it will bind the coming seats) | denied (with opinion) | halt (ONLY where continuing would compromise safety, consent gates, corpus integrity, or participant integrity — a halt ends the run and your opinion is relayed to the human verbatim). Every ruling is a written OPINION: the principle applied, the values in tension, and why a human should or should not look. Read the transcript for context (${binDir ? `"${binDir}/feov-record" bench show --run ${runDir} --view debate` : `${runDir}/debate.md`}); ${binDir ? 'each ruling is recorded via the petition-rule verb — that IS the record' : `append your rulings under "### LEAD (petitions)" in ${runDir}/debate.md`}.${lawClause}${inspectionClause}${frictionClause('judge-petition')}${speedClause}${recordClause('judge-petition', 'bench')} Return the petition-ruling envelope.`,
+    `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted (state the relief as it will bind the coming seats) | denied (with opinion). Every ruling is a written OPINION: the principle applied, the values in tension, and why a human should or should not look. Read the transcript for context (${binDir ? `"${binDir}/feov-record" bench show --run ${runDir} --view debate` : `${runDir}/debate.md`}); ${binDir ? 'each ruling is recorded via the petition-rule verb — that IS the record' : `append your rulings under "### LEAD (petitions)" in ${runDir}/debate.md`}. A HALT IS NOT A RULING ON A PETITION, AND IT IS NOT RECORDED WITH petition-rule — it is you ending the run, it is your own first-class terminal act, and it has its own verb: where continuing would compromise safety, consent gates, corpus integrity, or participant integrity, ${binDir ? `run "${binDir}/feov-record" bench halt --run ${runDir} --seat-id <your SEAT_ID> --reason "<your opinion, in full>"` : `record the halt under "### LEAD (halt)" in ${runDir}/debate.md`} AND return the envelope's \`halt\` object carrying that same opinion, which is what stops the engine. Rule the petition itself granted or denied as the merits require — halting is a separate decision about the RUN, and both can be true. Your halt opinion is relayed to the human VERBATIM and is never summarized or smoothed, so write it to be read by them.${lawClause}${inspectionClause}${frictionClause('judge-petition')}${speedClause}${recordClause('judge-petition', 'bench')} Return the petition-ruling envelope.`,
     { ...judgment, label: `judge-petition · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
   if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
   takeFriction('judge-petition', sitting)
   for (const r of sitting.rulings) {
     petitionLog.push({ petitioner: who, class: r.class, ruling: r.ruling, opinion: r.opinion })
-    if (r.ruling === 'halt') { halted = true; haltOpinion = r.opinion }
     if (r.ruling === 'granted') reliefInEffect.push({ petitioner: who, opinion: r.opinion })
   }
+  // A halt arrives on its OWN channel, not as a ruling value (#329) — the bench records it
+  // through `bench halt`, and this only tells the engine to stop.
+  if (sitting.halt && sitting.halt.opinion) { halted = true; haltOpinion = sitting.halt.opinion }
   if (halted) log(`JUDICIAL HALT — ${haltOpinion ? haltOpinion.slice(0, 200) : ''}`)
   return halted
 }

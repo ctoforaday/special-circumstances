@@ -878,12 +878,42 @@ test('W2c: a petition dispatches a bench sitting BEFORE the next seat; denied ->
 test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbatim to assembly and the envelope', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'the topic requires publishing an exploit chain', relief: 'halt the run' }] })],
-    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'halt', opinion: 'continuing would compromise safety; the human must decide' }] })],
+    // #329: a halt is NOT a ruling value. The petition is ruled on its merits, and the halt
+    // arrives on its own channel — because it is recorded through `bench halt`, whose opinion
+    // reaches the human verbatim. While `halt` sat in the ruling enum, the judge recorded it with
+    // `petition-rule`, the record REFUSED the write, and the engine halted off the envelope with
+    // no halt event anywhere: the report never said the bench halted.
+    petition: [petitionRulingEnv({
+      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', opinion: 'the objection is sound' }],
+      halt: { opinion: 'continuing would compromise safety; the human must decide' },
+    })],
   }))
   const result = await world.run(script, { ...ARGS, maxRounds: 5 })
   assert.equal(result.verdict, 'HALTED')
   assert.equal(result.halted, true)
   assert.ok(result.halt_opinion.includes('the human must decide'))
+  // THE SEAT MUST BE TOLD WHICH VERB RECORDS IT. The engine stopping is not the same as the halt
+  // being on the record, and that gap is exactly what #329 was.
+  const sitting = world.calls.find((c) => c.opts.label.startsWith('judge-petition'))
+  assert.ok(!/rule granted[^.]*\| halt/.test(sitting.prompt), 'the prompt must not offer halt as a petition ruling')
+})
+
+// #329 IN RECORD MODE, which is what every real run uses: the sitting must name the verb that
+// actually records a halt. The engine stopping is not the same as the halt being on the record —
+// the prompt used to say "each ruling is recorded via the petition-rule verb" while the record's
+// enum refused `halt`, so the run ended with no halt event and the report never said so.
+test('W2c: the petition sitting names `bench halt` as the halt channel, not petition-rule (#329)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'b', relief: 'halt the run' }] })],
+    petition: [petitionRulingEnv({
+      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', opinion: 'sound' }],
+      halt: { opinion: 'the human must decide' },
+    })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 5, binDir: '/bin' })
+  const sitting = world.calls.find((c) => c.opts.label.startsWith('judge-petition'))
+  assert.ok(sitting.prompt.includes('bench halt'), 'the sitting prompt names the halt verb')
+  assert.ok(sitting.prompt.includes('VERBATIM'), 'and says the opinion reaches the human verbatim')
   assert.ok(!world.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'the round never continued past the halt')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('--as HALTED') && assemble.prompt.includes('terminal halt'), 'the halt is recorded via bench outcome (verdict HALTED) and the tool composes the terminal halt from the record')
