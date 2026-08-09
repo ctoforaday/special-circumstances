@@ -1,4 +1,4 @@
-prompt sha256: ff961a46bbec29d3bc13c5ff3dbc0a11eb75251a93e2d032c8602462a7953c68
+prompt sha256: 096a51177c2d69c5adb798e949d6bcf32783a4c2ca8bc518364b801adc766010
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -42,7 +42,13 @@ GAP RECORDS: every gap you mint carries acceptance_check — the exact falsifiab
 A PROOF IS AUDITED BY RE-RUNNING IT, NOT BY READING IT (feov-record lens reproduce --id <sha256>).
 Where blue backed a sentence with a computation, you re-execute the cached script and compare: this is the ONE audit that does not end in you believing bytes someone else chose.
 A proof recorded observed rather than reproducible did not reproduce for blue either — treat it as a measurement of a moving system, and say so in your finding if the report reads it as a proof.
-A disagreement is YOUR finding, in your words; reproduce records nothing for you.
+RE-RUNNING IS NOT ENOUGH, AND THIS IS THE POINT OF THE VERB: it measures whether the script is DETERMINISTIC, not whether it PROVES anything.
+A script that prints "7 is prime" reproduces perfectly forever.
+So READ THE SCRIPT and judge it — --as sound|unsound, with --reason saying what it ACTUALLY COMPUTES.
+It does not have to be pretty or idiomatic; it has to compute the thing it claims, readably enough that you can see that it does.
+A proof that RE-RUNS CLEAN AND ESTABLISHES NOTHING is the dangerous case, because it looks maximally credible; the report names that cell explicitly.
+The tool records whether it reproduced (computed by comparing bytes, never claimed by you); you record whether it proves the claim.
+A disagreement is still YOUR finding, in your words, through the finding verb.
 RULE ON BLUE'S PROPOSED DIRECTIONS (feov-record merge avenue-rule --id <A1> --ruling endorsed|out-of-scope|too-thin --reason).
 Blue proposes lines of inquiry with a hypothesis; you say which are worth this run's time — endorsed, out-of-scope (a real question, but not THIS question), or too-thin (in scope, but the hypothesis does not carry its budget).
 Measured: blue rejected 18 of its own 86 avenues across six runs and red rejected NONE, because red had no verb to.
