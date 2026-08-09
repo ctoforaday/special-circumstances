@@ -65,7 +65,7 @@ func newClose() *cobra.Command {
 		})
 
 	c.Flags().String(flags.ID, "", "the gap id")
-	c.Flags().String(flags.As, "", "closed | closed_with_regression | ... — the closure class")
+	c.Flags().String(flags.As, "", record.MustEnum("close", "closure_class").Usage("HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word"))
 	c.Flags().String(flags.AnchorSeat, "", "WHO verified the closure (the seat)")
 	c.Flags().String(flags.AnchorTool, "", "WITH WHAT it was verified (the tool or command)")
 	c.Flags().String(flags.AnchorTarget, "", "AGAINST WHAT — the exact file, ref or URL read")

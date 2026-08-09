@@ -697,6 +697,8 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		p.Set(f, "x")
 	}
 	p.Set("rationale", "the ruling's reasoning")
+	// disposition is a CLOSED set since #342 — a placeholder is no longer a legal value.
+	p.Set("disposition", "closed")
 	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
@@ -708,6 +710,11 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		q.Set(f, "")
 	}
 	q.Set("rationale", "the ruling's reasoning")
+	// DISPOSITION IS THE EXCEPTION TO THE EXCEPTION (#342). The Has-not-empty rule exists for
+	// fields like --review-flag, where "false" is a legitimate ruling. It never applied to the
+	// disposition: an EMPTY disposition rules nothing, and it was only ever accepted because
+	// the set was open. Now the set is closed, so it must be one of the words.
+	q.Set("disposition", DispositionCarried)
 	if err := validate(complete, "judge-r1", "opinion", q); err != nil {
 		t.Errorf("opinion fields present-but-empty were refused: %v", err)
 	}

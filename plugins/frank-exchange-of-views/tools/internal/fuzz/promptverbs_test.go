@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // EVERY VERB A PROMPT NAMES MUST EXIST.
@@ -222,5 +224,95 @@ func TestEveryViewNamedInAPromptExists(t *testing.T) {
 	if len(msgs) > 0 {
 		t.Errorf("%d projection name(s) in an agent-facing file are NOT real views (have: %s) — the tool refuses the read and the seat works around it, silently:\n  %s",
 			len(msgs), strings.Join(cli.ViewNames(), ", "), strings.Join(msgs, "\n  "))
+	}
+}
+
+// EVERY VALUE A PROMPT TELLS A SEAT TO PASS MUST BE ONE THE TOOL ACCEPTS.
+//
+// The third prompt-side gate. The first asks whether a named VERB exists; the second whether a
+// named VIEW exists; this asks whether a named VALUE does. Same failure in all three: the tool
+// refuses, and per the friction footer the seat logs it and works around it, so the capability
+// is lost for the run behind a green sweep.
+//
+// SCOPE, STATED SO THE GAP IS NOT MISTAKEN FOR COVERAGE. This reads FLAG-VALUE PAIRS — the text
+// a seat is told to TYPE — and not prose. `evidence-rebutted` and `risk-accepted` lived in
+// sentences before #342 ("closed, evidence-rebutted, or risk-accepted"), and no gate here would
+// have caught them, because catching bare prose means flagging English: "every risk-accepted
+// residual" is a legitimate adjective, and a gate that fires on it trains its reader to ignore
+// it. That trade is deliberate — a prompt's prose shapes how a seat THINKS, while the text after
+// a flag is what it TYPES, and only the second can be refused by the tool.
+//
+// `--as` is overloaded across verbs with different sets, so a value passes if it is legal for
+// ANY enum bound to that flag. That is weaker than per-verb checking and still catches the real
+// defect: a word in NO enum at all, which is what `petition-rule --as halt` was (#329).
+func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
+	// Values by flag, unioned across every event type that uses the flag.
+	byFlag := map[string]map[string]bool{}
+	for _, fields := range record.EnumFields {
+		for _, e := range fields {
+			if byFlag[e.Flag] == nil {
+				byFlag[e.Flag] = map[string]bool{}
+			}
+			for _, v := range e.Values {
+				byFlag[e.Flag][v] = true
+			}
+		}
+	}
+	if len(byFlag) == 0 {
+		t.Fatal("no enums found — the gate would pass every value forever")
+	}
+	// Grades are validated by flags.GradeValue rather than the enum table, so their flags are
+	// checked against that vocabulary instead of being skipped.
+	for _, f := range []string{flags.Severity, flags.Likelihood, flags.Impact, flags.Complexity, flags.Proposed} {
+		byFlag[f] = map[string]bool{}
+		for _, g := range flags.GradeNames() {
+			byFlag[f][g] = true
+		}
+	}
+
+	// A flag REFERENCED as a noun is backticked (`--check-kind` says WHAT KIND …); a flag being
+	// INVOKED is not (--check-kind computation). Requiring the space means the backticked form
+	// never matches, which is what keeps this gate off English prose — and the convention is
+	// worth holding for its own sake, since the two readings are genuinely different.
+	pair := regexp.MustCompile(`--([a-z][a-z-]*) ([A-Za-z][A-Za-z_|-]*)`)
+	comment := regexp.MustCompile(`(?m)^\s*//.*$`)
+
+	var bad []string
+	for _, path := range agentFacingFiles(t) {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Code comments describe HISTORY — several name values that were removed precisely
+		// because they were wrong (`petition-rule --as halt`). A seat never reads them.
+		text := comment.ReplaceAllString(string(b), "")
+		for _, m := range pair.FindAllStringSubmatch(text, -1) {
+			flag, raw := m[1], m[2]
+			allowed, known := byFlag[flag]
+			if !known {
+				continue // a flag with no closed set takes free text
+			}
+			for _, v := range strings.Split(raw, "|") {
+				if v == "" || allowed[v] {
+					continue
+				}
+				bad = append(bad, filepath.Base(path)+": --"+flag+" "+v)
+			}
+		}
+	}
+	sort.Strings(bad)
+	seen := map[string]bool{}
+	var msgs []string
+	for _, s := range bad {
+		if !seen[s] {
+			seen[s] = true
+			msgs = append(msgs, s)
+		}
+	}
+	if len(msgs) > 0 {
+		t.Errorf("%d value(s) a prompt tells a seat to pass are refused by the tool:\n  %s\n\n"+
+			"The seat runs the command, the tool refuses, and per the friction footer it logs and works\n"+
+			"around it — so the capability is lost for the run while every sweep stays green.",
+			len(msgs), strings.Join(msgs, "\n  "))
 	}
 }

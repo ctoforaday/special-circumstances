@@ -467,7 +467,22 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 			return
 		}
 	}
-	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed", "--reason", "fuzz close",
+	// THE WHOLE CLOSURE VOCABULARY, not just `closed`. #342 closed the set, so the
+	// enum-coverage sweep now demands every value be reached — and three of them
+	// (rebuttal_sustained, risk_accepted, routed_to_infrastructure) had never been driven by
+	// anything, on either closing verb, in the tool's life.
+	//
+	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
+	// closed clean earlier, so it needs a prior closure to amend.
+	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(20) {
+		if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
+			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
+			"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec"); err == nil {
+			return
+		}
+	}
+	as := pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure"})
+	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
 		"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec")
 }
 
@@ -878,9 +893,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		var res []any
 		for _, id := range r.openGaps() {
 			disp := "carried"
+			// A CARRIED GAP IS STILL A RULING, and the bench records it. The fake used to put
+			// `carried` in the envelope and write NO opinion event, so the bench's most common
+			// act — deferring a gap with a stated direction — had never been driven once. The
+			// enum-coverage gate found it the moment #342 closed the disposition set.
+			if r.scenarioOf(id) != dirDisputeLost {
+				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", "carried",
+					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false",
+					"--reason", "fuzz: carried with a stated direction for "+id)
+			}
 			if r.scenarioOf(id) == dirDisputeLost {
-				disp = "closed"
-				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", "closed",
+				// EVERY CLOSING DISPOSITION, not just `closed` (#342). The bench shares red's
+				// closure vocabulary now, and the sweep must reach all of it — bench opinion
+				// had driven exactly one closing word.
+				disp = pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure", "amends_prior"})
+				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", disp,
 					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "rationale": "fuzz"})

@@ -239,7 +239,7 @@ func requireSupersededAreClosed(runDir string) error {
 }
 
 // requirePassClosesAllGaps refuses a PASS while ANY gap is still open. The protocol is "PASS
-// only when every remaining gap is closed, evidence-rebutted, or risk-accepted", and all of
+// only when every remaining gap is closed, rebuttal_sustained, or risk_accepted", and all of
 // those resolutions go through `close` (which sets the gap not-open) — so an open gap at PASS
 // is an unadjudicated one. requireSupersededAreClosed catches only the lineage subset; the
 // 2026-07-20 run recorded PASS with 9 PLAIN open gaps (one HIGH) that no lineage check saw,

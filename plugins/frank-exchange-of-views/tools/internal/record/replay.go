@@ -237,12 +237,11 @@ type Gap struct {
 // accepted as it stands, blue's rebuttal was sustained, or the work moved to the lead's
 // infrastructure debt. Each leaves the board with nothing further to adjudicate.
 func benchClosesGap(disposition string) bool {
-	switch disposition {
-	case "closed", "risk_accepted", "rebuttal_sustained", "routed_to_infrastructure":
-		return true
-	default:
-		return false
-	}
+	// ONE VOCABULARY (#342). Every ClosureClass ends a gap; `carried` is the sole
+	// disposition that does not, because it defers the question to a later round.
+	// Enumerating the closing words here was a THIRD list of the same concept, beside
+	// `close`'s classes and the envelope's — and the three disagreed.
+	return disposition != "" && disposition != DispositionCarried
 }
 
 // missingGap describes a mutation that referenced a gap the replay has never seen.

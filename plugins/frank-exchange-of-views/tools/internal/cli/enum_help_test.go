@@ -41,10 +41,21 @@ var setInHelp = regexp.MustCompile(`[\w-]+ *\| *[\w-]+`)
 // openSets are sets that are genuinely NOT closed. Their help must SAY so (end in "..."),
 // or it promises a closed set the write path does not enforce — which is the original
 // defect restated, and the reason this is not one undifferentiated allowlist.
-var openSets = map[string]string{
-	"opinion --as": "the bench's resolution set is open by decision: closing it would mean a legitimate ruling failing hard mid-round. validate guards it narrowly instead, for the one word that is another verb's act",
-	"close --as":   "closure_class is open, and its candidate values are not yet consistent across the suite — the PASS refusal names `rebuttal_sustained`, the red-auditor prompt names `evidence-rebutted`. Closing it before that is resolved would refuse honest closures; validate guards the one class that gates an invariant",
-}
+// EMPTY SINCE #342, and deliberately kept rather than deleted. Both entries lived here:
+//
+//	"opinion --as": the bench's resolution set is open by decision …
+//	"close --as":   closure_class is open, and its candidate values are not yet consistent
+//	                across the suite — the PASS refusal names `rebuttal_sustained`, the
+//	                red-auditor prompt names `evidence-rebutted` …
+//
+// The second was not a decision, it was a DEBT with its blocker written down: the words
+// disagreed, so closing the set would have refused honest closures. #342 reconciled the
+// vocabulary — four spellings of three outcomes across the record, the envelope and the
+// prose — and both sets closed the same day.
+//
+// The map stays because "no set is genuinely open" is a claim worth being able to make, and a
+// deleted map cannot be found empty.
+var openSets = map[string]string{}
 
 // enforcedElsewhere are CLOSED sets whose enforcement lives somewhere other than
 // record.EnumFields, named so that "somewhere else" is a claim a reader can check rather

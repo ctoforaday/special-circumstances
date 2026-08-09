@@ -195,13 +195,47 @@ func TestSameWordCatchesTyposAndNothingWider(t *testing.T) {
 	}
 }
 
-// The open sets stay open. `opinion` and `close` are deliberately NOT in the table
-// (enums.go says why), and a later change that quietly closes them would break legitimate
-// rulings mid-round — the failure this test exists to make loud.
-func TestTheDeliberatelyOpenSetsAreStillOpen(t *testing.T) {
-	for _, typ := range []string{"opinion", "close"} {
-		if _, closed := EnumFields[typ]; closed {
-			t.Errorf("%s has been given a closed set — its help ends in \"...\" by decision, and closing it means a legitimate act failing hard mid-round. If that decision changed, change the comment in enums.go too", typ)
+// THE TWO CLOSURE SETS ARE CLOSED NOW (#342), and this test is the inverse of the one it
+// replaces. That test asserted `opinion` and `close` must have NO closed set, on the reasoning
+// that "closing it means a legitimate act failing hard mid-round" — sound while the candidate
+// words were inconsistent, which enums.go recorded as the blocker.
+//
+// The inconsistency was the thing to fix, and it was worse than the note said: FOUR
+// vocabularies for one concept. Now there is one, so an unrecognized class is a typo rather
+// than a legitimate act the tool has not heard of.
+func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
+	closeSet := EnumFields["close"]
+	opinionSet := EnumFields["opinion"]
+	if len(closeSet) != 1 || len(opinionSet) != 1 {
+		t.Fatal("both closing verbs must declare exactly one closed set")
+	}
+	closes := map[string]bool{}
+	for _, v := range closeSet[0].Values {
+		closes[v] = true
+	}
+	// Every class red may close with must also be a disposition the bench may rule, or the
+	// two verbs mean different things by the same outcome — which is what #342 removed.
+	for _, v := range opinionSet[0].Values {
+		if v == DispositionCarried {
+			continue
 		}
+		if !closes[v] {
+			t.Errorf("the bench may rule %q but red cannot close with it — one outcome, two vocabularies again", v)
+		}
+	}
+	for _, v := range closeSet[0].Values {
+		found := false
+		for _, d := range opinionSet[0].Values {
+			if d == v {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("red may close with %q but the bench cannot rule it — one outcome, two vocabularies again", v)
+		}
+	}
+	// `carried` is the ONE word that defers instead of closing, and only the bench has it.
+	if closes[DispositionCarried] {
+		t.Error("`carried` is not a closure — red must not be able to close a gap with it")
 	}
 }
