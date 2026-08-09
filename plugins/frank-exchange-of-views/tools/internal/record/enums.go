@@ -35,14 +35,51 @@ import (
 //
 // NOT EVERY SET IS HERE, and that is deliberate:
 //
-//   - `bench opinion`'s disposition is an OPEN set by decision (its help ends in "...")
-//     — closing it would mean a legitimate ruling failing hard mid-round. It is guarded
-//     narrowly instead, in validate, for the one word that is another verb's act.
-//   - `merge close`'s closure_class is likewise open, and its candidate values are not
-//     yet consistent across the suite (the PASS refusal names `rebuttal_sustained`, the
-//     red-auditor prompt names `evidence-rebutted`). Closing it before that is resolved
-//     would refuse honest closures. It gets the same narrow guard, on the one class that
-//     gates an invariant.
+// BOTH CLOSURE SETS ARE NOW CLOSED (#342). This comment used to explain why they were not:
+// "`merge close`'s closure_class is likewise open, and its candidate values are not yet
+// consistent across the suite (the PASS refusal names `rebuttal_sustained`, the red-auditor
+// prompt names `evidence-rebutted`). Closing it before that is resolved would refuse honest
+// closures."
+//
+// That inconsistency is what #342 resolved, and it was worse than the note recorded — FOUR
+// vocabularies for one concept: the record's close classes, the bench's dispositions, the
+// envelope's `class` enum (which declared `rebuttal_accepted` and `risk_argued`, words no
+// other surface used), and the prose in prompts (`evidence-rebutted`, `risk-accepted`). One
+// concept, four spellings, and no mechanism could see them disagree because every set was
+// open.
+// DispositionCarried is the ONE bench disposition that does not end a gap: it defers the
+// question to a later round with a stated research direction. Every other disposition is a
+// ClosureClass.
+const DispositionCarried = "carried"
+
+// ClosureClasses is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
+//
+// `merge close` (red closes on verified repair) and `bench opinion` (the bench closes on
+// judgement) are different acts with different evidence bars, and they stay different verbs.
+// What they must not have is different WORDS for the same outcome: before this, a reader had
+// to know which verb produced a closure before it could interpret the word, and four surfaces
+// spelled the same three outcomes six ways.
+var ClosureClasses = []string{
+	// the repair was verified at the leaf
+	"closed",
+	// repaired, but something regressed — requires --successor, the one class that gates an
+	// invariant and therefore the one the near-miss guard in validate protects by spelling
+	"closed_with_regression",
+	// a defect found BETWEEN two repairs that each closed clean earlier — requires --supersedes
+	"amends_prior",
+	// blue rebutted with evidence and the rebuttal was accepted. Spelled `rebuttal_accepted`
+	// in the envelope and `evidence-rebutted` in prose before this
+	"rebuttal_sustained",
+	// the fix's complexity exceeds its likelihood x impact and the risk is taken knowingly.
+	// Spelled `risk_argued` in the envelope and `risk-accepted` in prose before this
+	"risk_accepted",
+	// a valid finding whose fix is owned outside this debate
+	"routed_to_infrastructure",
+}
+
+// benchDispositions is ClosureClasses plus the one word that does not close.
+var benchDispositions = append(append([]string{}, ClosureClasses...), DispositionCarried)
+
 type EnumField struct {
 	Key    string   // the payload key the value lands in
 	Flag   string   // the flag a seat types — NOT derived: payload keys are not globally
@@ -100,6 +137,19 @@ var EnumFields = map[string][]EnumField{
 		Key: "dimension", Flag: flags.Dimension, Values: []string{"severity", "likelihood", "impact", "complexity_cost"},
 		Why:      "the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero",
 		Optional: true,
+	}},
+	"close": {{
+		Key: "closure_class", Flag: flags.As, Values: ClosureClasses,
+		// Optional per this file's own rule: closing a SET is not the same decision as making
+		// the flag REQUIRED, and conflating them here would make several flags mandatory as a
+		// side effect. required.go owns requiredness.
+		Optional: true,
+		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on closed_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
+	}},
+	"opinion": {{
+		Key: "disposition", Flag: flags.As, Values: benchDispositions,
+		Optional: true,
+		Why:      "the bench's disposition both RULES and ends the gap; `carried` is the one value that defers instead of closing, and the replay keys the gap's whole fate on that distinction. A near-miss spelling silently carried a gap the bench meant to close, or closed one it meant to carry",
 	}},
 	"mint": {
 		{

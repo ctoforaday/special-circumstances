@@ -343,10 +343,16 @@ import (
 //	       written without a label counted as red's audit volume. A stale binary still accepts
 //	       `lens cite` and writes the ambiguous event, so setup must refuse it.
 //
+//	0.45.0 ONE CLOSURE VOCABULARY (#342). `merge close --as` and `bench opinion --as` now share
+//	       record.ClosureClasses; the bench's set is that plus `carried`, the one disposition
+//	       that defers instead of closing. Both enums are CLOSED — they were open because the
+//	       words disagreed across four surfaces, which #342 reconciled. A stale binary accepts
+//	       `rebuttal_accepted` and `risk_argued`, words no reader now understands.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.44.0"
+const Version = "0.45.0"
 
 func init() { record.ToolVersion = Version }
 
