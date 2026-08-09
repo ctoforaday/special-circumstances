@@ -314,7 +314,7 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 	}
 }
 
-func TestMarkdownSurfacesAnomaliesAndUndisposedObservations(t *testing.T) {
+func TestMarkdownSurfacesAnomaliesAndUncreditedFindings(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []record.Event{
@@ -338,14 +338,14 @@ func TestMarkdownSurfacesAnomaliesAndUndisposedObservations(t *testing.T) {
 	if !strings.Contains(ledger, "multi-nonce seat "+lens) {
 		t.Errorf("the anomaly does not name the seat:\n%s", ledger)
 	}
-	if !strings.Contains(ledger, "## undisposed lens observations") {
+	if !strings.Contains(ledger, "## lens findings credited by no gap") {
 		t.Errorf("the undisposed footer is missing:\n%s", ledger)
 	}
 	for _, line := range strings.Split(ledger, "\n") {
 		if strings.HasPrefix(line, "- "+lens+" F") {
 			prose := line[strings.Index(line, ": ")+2:]
 			if len(utf16.Encode([]rune(prose))) > 120 {
-				t.Errorf("undisposed prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
+				t.Errorf("uncredited-finding prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
 			}
 		}
 	}

@@ -112,7 +112,7 @@ func dedupe(in []string) []string {
 // verb's help must actually say REQUIRED.
 func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	verbRole := map[string]string{
-		"mint": "merge", "close": "merge", "dispose": "merge", "regrade": "merge",
+		"mint": "merge", "close": "merge", "regrade": "merge",
 		"dispute-respond": "merge", "closing": "merge",
 		"retire": "blue", "avenue": "blue", "dispute": "blue",
 		"opinion": "bench", "halt": "bench", "certify": "bench",

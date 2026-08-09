@@ -563,97 +563,6 @@ func withdrawnClaims(evs []record.Event) string {
 	return "## Claims withdrawn\n\n_Substance leaves this report only through the `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
-// observations renders the lens observations and the fate the merge gave each one.
-//
-// An observation is red's below-the-bar work — a thing worth noticing that did not earn a gap,
-// or a check that was run and held. Every one gets a fate through `dispose`. Both halves were on
-// the record and neither reached the reader: the report rendered unminted FINDINGS and dropped
-// observations entirely, so a check red ran and confirmed looked identical to a check nobody ran.
-// An observation with NO disposal is rendered as undisposed rather than omitted — the miss is
-// the interesting case and must not fold into the empty set.
-func observations(evs []record.Event) string {
-	fates := disposalsByTarget(evs)
-	type obs struct {
-		label, kind, text, seat string
-		round                   int
-		keys                    []string
-	}
-	var order []*obs
-	for _, e := range evs {
-		if e.Type != "observe" {
-			continue
-		}
-		o := &obs{
-			label: e.Payload.Str("label"), kind: e.Payload.Str("kind"),
-			text: e.Payload.Str("text"), seat: e.SeatID, round: e.Round,
-		}
-		// A disposal may name its target by the TOOL-ASSIGNED id or by the seat's label, so
-		// both are looked up. The id is unique by construction; a label is seat-supplied and
-		// has collided before (16 apparent double-disposals in one run were label collisions).
-		o.keys = []string{e.Payload.Str("finding_id"), o.label}
-		order = append(order, o)
-	}
-	var rows []string
-	for _, o := range order {
-		head := o.label
-		if head == "" {
-			head = o.keys[0]
-		}
-		kind := ""
-		if o.kind != "" {
-			kind = fmt.Sprintf(" _(%s)_", o.kind)
-		}
-		fate := "  - **undisposed** — the merge never gave this observation a fate"
-		if f := fateOf(fates, o.keys...); f != "" {
-			fate = "  - " + f
-		}
-		rows = append(rows, fmt.Sprintf("- **%s**%s (%s, r%d): %s\n%s", head, kind, o.seat, o.round, o.text, fate))
-	}
-	if len(rows) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("### Observations and their fates (%d)\n\nRed's below-the-bar work — noticed, or checked and held — and what the merge did with each. Not a gate on the verdict.\n\n%s",
-		len(rows), strings.Join(rows, "\n\n"))
-}
-
-// disposalsByTarget indexes every `dispose` event by the thing it disposed.
-//
-// A disposal can name an OBSERVATION or a FINDING — the verb accepts either, by tool-assigned id
-// or by label. Both paths carry the merge's reason for the fate, and neither reached the reader:
-// a finding's disposal was dropped because the report rendered findings without fates, and an
-// observation's was dropped because observations were not rendered at all.
-func disposalsByTarget(evs []record.Event) map[string]string {
-	out := map[string]string{}
-	for _, e := range evs {
-		if e.Type != "dispose" {
-			continue
-		}
-		s := e.Payload.Str("disposition")
-		if into := e.Payload.Str("into"); into != "" {
-			s += " → " + into
-		}
-		if why := e.Payload.Str("reason"); why != "" {
-			s += " — " + why
-		}
-		out[e.Payload.Str("observation")] = s
-	}
-	return out
-}
-
-// fateOf returns the disposal recorded against any of a target's keys (its tool-assigned id or
-// its label), or "" if the merge never disposed it.
-func fateOf(fates map[string]string, keys ...string) string {
-	for _, k := range keys {
-		if k == "" {
-			continue
-		}
-		if f, ok := fates[k]; ok {
-			return f
-		}
-	}
-	return ""
-}
-
 // redFindings composes the full findings from the board's gaps: every open gap with its
 // grades and required fix, then the closure index. This is the ledger's content, drawn from
 // the replayed board rather than read back from the projection file.
@@ -716,9 +625,6 @@ func redFindings(board *record.Board) string {
 	// here, subordinate to the gaps, so red's voice is not silently lost (#77).
 	if un := unmintedFindings(board); un != "" {
 		fmt.Fprintf(&b, "\n\n%s", un)
-	}
-	if ob := observations(board.Events); ob != "" {
-		fmt.Fprintf(&b, "\n\n%s", ob)
 	}
 	if sc := archiveSpotChecks(board); sc != "" {
 		fmt.Fprintf(&b, "\n\n%s", sc)
@@ -913,7 +819,6 @@ func unmintedFindings(board *record.Board) string {
 			minted[lbl] = true
 		}
 	}
-	fates := disposalsByTarget(board.Events)
 	var rows []string
 	for _, e := range board.Events {
 		if e.Type != "finding" {
@@ -931,19 +836,16 @@ func unmintedFindings(board *record.Board) string {
 		if loc != "" {
 			loc = " — " + loc
 		}
-		// A finding is normally addressed by COALESCENCE — its label named in some gap's
-		// found_by. But `dispose` accepts a finding id too, and when the merge takes that path
-		// the fate it gave and the reason it gave carried nowhere: an unminted finding the
-		// merge explicitly declined rendered identically to one it never looked at.
-		fate := ""
-		if f := fateOf(fates, e.Payload.Str("finding_id"), lbl); f != "" {
-			fate = "\nthe merge's fate: " + f
-		}
-		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s\n%s%s",
+		// A finding is addressed by COALESCENCE and nothing else now (#327): its label named in
+		// some gap's found_by. The `dispose` path that could give it an explicit fate is retired,
+		// so a finding reaching this section means exactly one thing — the merge weighed it and
+		// did not mint it — and the section says so rather than distinguishing two ways of not
+		// being minted.
+		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s\n%s",
 			head, loc,
 			grade(e.Payload.Str("severity")), grade(e.Payload.Str("likelihood")), grade(e.Payload.Str("impact")),
 			e.SeatID,
-			e.Payload.Str("text"), fate))
+			e.Payload.Str("text")))
 	}
 	if len(rows) == 0 {
 		return ""

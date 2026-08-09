@@ -125,18 +125,6 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "observations_and_disposal", // oracle: undisposed observations surface; disposal clears
-			cmds: []cmd{
-				base("lens", "observe", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--kind", "note", "--label", "N1", "--reason", "below bar but real"),
-				base("lens", "observe", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--reason", "unlabelled, ordinal-keyed"),
-				base("lens", "observe", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--reason", "second unlabelled"),
-				base("merge", "register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
-				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "N1", "--as", "declined", "--reason", "covered by R1-1"),
-				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "N-missing", "--as", "banked"),
-				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "N2"),
-			},
-		},
-		{
 			name: "regrade_history_is_recoverable", // oracle: E0.5b unauditability case
 			cmds: []cmd{
 				base("merge", "register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
@@ -266,10 +254,7 @@ func scenarios() []scenario {
 				base("lens", "register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5"),
 				base("lens", "finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--location", "## S4", "--reason", "a leap of faith"),
-				base("lens", "observe", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--kind", "checked-held", "--label", "L5-N1", "--reason", "checked, held"),
 				base("merge", "register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
-				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "L1-F1", "--as", "minted-as", "--into", "R1-1"),
-				base("merge", "dispose", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--observation", "L5-N1", "--as", "banked"),
 				base("merge", "mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--cx", "medium",
 					"--location", "## S2", "--found-by", "L1-F1,L5-F1", "--problem", "the cited source does not say this"),

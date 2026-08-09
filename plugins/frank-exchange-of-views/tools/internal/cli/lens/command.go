@@ -20,7 +20,6 @@ func NewCommand() *cobra.Command {
 		"red lens seats — findings, observations, citations. Cannot mint or close.",
 		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newFinding(),
-		newObserve(),
 		newCite(),
 		newReproduce(),
 		seat.Friction("attributed friction (survives aborts as an event): --reason"),

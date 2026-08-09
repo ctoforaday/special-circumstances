@@ -330,10 +330,17 @@ import (
 //	       gets an unknown-verb refusal, and debate.js no longer issues those calls, so a stale
 //	       binary still exposes a verb the engine has stopped driving.
 //
+//	0.43.0 `lens observe` and `merge dispose` are REMOVED, with their events (#327). A finding's
+//	       fate is COALESCENCE and nothing else — its label credited in a gap's found_by — so the
+//	       Observation replay no longer carries a Disposition and `undisposed_observations`
+//	       becomes `uncredited_findings`, a number that can still be non-zero. A stale binary
+//	       still ACCEPTS both verbs and writes events this replay drops, which is why the
+//	       contract version moves: setup must refuse it.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.42.0"
+const Version = "0.43.0"
 
 func init() { record.ToolVersion = Version }
 

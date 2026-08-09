@@ -130,41 +130,6 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	}
 }
 
-// An observation with no fate is the merge seat's outstanding work, and `disposed` states
-// it rather than making the consumer test a null. Falsy-vs-absent confusion has produced
-// three separate defects in this codebase already.
-func TestBoardJSONStatesWhetherAnObservationHasAFate(t *testing.T) {
-	runDir := seatRun(t)
-	for _, l := range []string{"L1-O1", "L1-O2"} {
-		if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-			"--label", l, "--kind", "note", "--reason", "a thing worth noticing"); err != nil {
-			t.Fatalf("observe %s: %v", l, err)
-		}
-	}
-	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "L1-O1", "--as", "declined",
-		"--reason", "checked at the leaf; correct as written"); err != nil {
-		t.Fatalf("dispose: %v", err)
-	}
-
-	b := board(t, runDir, "merge", "red-merge-r1")
-	if b.Counts.UndisposedObserv != 1 {
-		t.Errorf("undisposed_observations = %d, want 1 — this count IS the merge seat's outstanding duty", b.Counts.UndisposedObserv)
-	}
-	for _, o := range b.Observations {
-		switch o.Label {
-		case "L1-O1":
-			if !o.Disposed || o.Fate == nil {
-				t.Errorf("L1-O1 was disposed but the board reports disposed=%v fate=%v", o.Disposed, o.Fate)
-			}
-		case "L1-O2":
-			if o.Disposed {
-				t.Error("L1-O2 has no disposal and must not report one")
-			}
-		}
-	}
-}
-
 // The findings view is the merge's structured read of the lens findings, replacing the
 // red/candidates/*.md files — label (tool-assigned), role from the seat id, grades, text.
 func TestFindingsViewProjectsLensFindings(t *testing.T) {

@@ -193,8 +193,6 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					args = append(args, "--reason", "movement reason")
 				}
 			case 5:
-				args = []string{"dispose", "--run", "{RUN}", "--seat-id", s,
-					"--observation", pick(rng, []string{"L1-F1", "L5-F1", "N-missing"})}
 				if rng.Intn(3) > 0 {
 					args = append(args, "--as", pick(rng, []string{"minted-as", "folded-into", "declined", "banked"}))
 				}
@@ -214,7 +212,6 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 					"--impact", pick(rng, fuzzGrades), "--reason", "a finding"}
 			case 3:
-				args = []string{"observe", "--run", "{RUN}", "--seat-id", s, "--reason", "an observation"}
 				if rng.Intn(2) == 0 {
 					args = append(args, "--label", fmt.Sprintf("N%d", rng.Intn(3)))
 				}

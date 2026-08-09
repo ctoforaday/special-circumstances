@@ -209,24 +209,35 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	}
 }
 
-// TestUndisposedObservationsCountsOnlyRealObserves: a finding (empty Kind) is addressed by
-// found_by, never disposed, so it must NOT count as an undisposed observation. Only a real
-// `observe` (kind note|checked-held) without a fate does. The old counter lumped both, so every
-// finding read as an undisposed observation — a permanent false detector hit.
-func TestUndisposedObservationsCountsOnlyRealObserves(t *testing.T) {
+// UNCREDITED FINDINGS, not undisposed observations (#327).
+//
+// The old metric counted `observe` events with no `dispose` fate. Both verbs are retired, so it
+// would now be PERMANENTLY ZERO — a dead detector and a clean board printing the same number,
+// which is the exact shape this codebase keeps finding. A finding is addressed by coalescence,
+// so the honest question is whether it was ever credited in a gap's found_by.
+func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	runDir := t.TempDir()
 	s := "red-lens-r1-L1"
+	m := "red-merge-r1"
 	writeShard(t, runDir, s, "aaaaaaaa", []Event{
-		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("text", "a finding")),
-		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("text", "another finding")),
-		ev(s, "aaaaaaaa", 2, 1, "observe", s+":observe:L1-O1", NewPayload().Set("label", "L1-O1").Set("kind", "note").Set("text", "a real observation")),
+		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("text", "credited")),
+		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("text", "never credited")),
 	})
-	b, err := BoardJSONBytes(runDir)
+	writeShard(t, runDir, m, "bbbbbbbb", []Event{
+		ev(m, "bbbbbbbb", 0, 1, "mint", m+":mint:k", NewPayload().Set("gap_id", "R1-1").Set("found_by", []string{"L1-F1"})),
+	})
+	b, err := BoardState(runDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Two findings + one undisposed observe → exactly 1, not 3.
-	if got := string(b); !strings.Contains(got, `"undisposed_observations": 1`) {
-		t.Errorf("undisposed_observations should be 1 (the observe only; the two findings are coalesced, not disposed):\n%s", got)
+	bj := BoardJSONOf(b)
+	if bj.Counts.UncreditedFindings != 1 {
+		t.Errorf("exactly one finding is credited by no gap; got %d uncredited", bj.Counts.UncreditedFindings)
+	}
+	for _, o := range bj.Observations {
+		want := o.Label == "L1-F1"
+		if o.Credited != want {
+			t.Errorf("%s: credited=%v, want %v", o.Label, o.Credited, want)
+		}
 	}
 }

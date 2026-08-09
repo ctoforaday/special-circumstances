@@ -200,23 +200,36 @@ func ledgerMD(b *record.Board) []byte {
 		}
 		anomalyFooter = "\n## render anomalies (never silently normalized)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
-	var undisposed []*record.Observation
+	// UNCREDITED, not undisposed (#327). `observe` and `dispose` are retired: a finding is
+	// addressed by being named in some gap's found_by, and that is the only way. This footer
+	// is the merge's live worklist of lens work it has neither minted nor credited — the same
+	// question the old "undisposed" footer asked, against the channel that still exists.
+	credited := map[string]bool{}
+	for _, g := range b.Gaps {
+		if g == nil || g.Mint == nil {
+			continue
+		}
+		for _, lbl := range g.Mint.StrList("found_by") {
+			credited[lbl] = true
+		}
+	}
+	var uncredited []*record.Observation
 	for _, o := range b.Observations {
-		if o.Disposition == nil {
-			undisposed = append(undisposed, o)
+		if lbl := o.Payload.Str("label"); lbl == "" || !credited[lbl] {
+			uncredited = append(uncredited, o)
 		}
 	}
 	notesFooter := ""
-	if len(undisposed) > 0 {
-		lines := make([]string, len(undisposed))
-		for i, o := range undisposed {
+	if len(uncredited) > 0 {
+		lines := make([]string, len(uncredited))
+		for i, o := range uncredited {
 			name := o.Payload.Str("label")
 			if name == "" {
 				name = o.Key
 			}
 			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Payload.Str("text"), 120))
 		}
-		notesFooter = "\n## undisposed lens observations (every observation demands a merge disposition)\n\n" + strings.Join(lines, "\n") + "\n"
+		notesFooter = "\n## lens findings credited by no gap (each is work the merge has not yet weighed)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
 
 	ledgerParts := []string{

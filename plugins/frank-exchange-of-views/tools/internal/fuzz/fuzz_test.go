@@ -7,8 +7,8 @@ package fuzz
 // finding (in debate.js, the tool, or verify), reproducible from its seed.
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
-// not a happy path: lens (cite/finding/observe/avenue/friction), merge (position/closing/
-// mint/close incl. closed_with_regression/dispose across its full --as domain/regrade any axis/
+// not a happy path: lens (cite/finding/avenue/friction), merge (position/closing/
+// mint/close incl. closed_with_regression/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (position/closing/confidence/dispute
 // across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
 // (opinion/outcome incl. --exhausted/--deadlocked/certify/assemble/petition-rule). The
@@ -520,11 +520,6 @@ var checkKinds = []string{"document", "computation", "source"}
 // registry declares, and no run has ever recorded.
 var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined", "deferred"}
 var obsKind = []string{"note", "checked-held"}
-var disposeAs = []string{"declined", "banked"}
-
-// disposeInto are the dispositions that FOLD an observation into a gap — they take --into <open
-// gap>. Kept separate from disposeAs so the fuzz only picks them when an open gap exists.
-var disposeInto = []string{"minted-as", "folded-into"}
 
 // disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
 var disputeDims = []string{"severity", "likelihood", "impact", "complexity_cost"}
@@ -576,10 +571,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 	}
 	switch role {
 	case "lens":
-		r.maybe(45, func() {
-			r.do("lens", "observe", seatID).set("--label", fmt.Sprintf("O%d", r.rng.Intn(1_000_000))).set("--kind", pick(r.rng, obsKind)).set("--reason", "fuzz observation").run()
-		})
-		// NO avenue DRIVE HERE: the lens role has no avenue verb (register/finding/observe/
+		// NO avenue DRIVE HERE: the lens role has no avenue verb (register/finding/
 		// cite/friction/show). This called it 183 times per sweep, every one refused, while
 		// the verb gate stayed green on blue's avenue events — a dead drive that read as
 		// coverage. Found by the execution tally (lens avenue: 183 of 183 refused).
@@ -756,41 +748,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 	}
 }
 
-// disposeObservations gives every observation a FATE — the merge's duty — so a run that
-// randomly grew observations still ends clean and exercises observe -> dispose end to end.
-func (r *runner) disposeObservations(seatID string) {
-	out, err := r.exec("merge", "show", "--view", "board")
-	if err != nil {
-		return
-	}
-	var b struct {
-		Observations []struct {
-			Label    string `json:"label"`
-			Disposed bool   `json:"disposed"`
-		} `json:"observations"`
-		Open []struct {
-			ID string `json:"id"`
-		} `json:"open"`
-	}
-	if json.Unmarshal([]byte(out), &b) != nil {
-		return
-	}
-	for _, o := range b.Observations {
-		if o.Disposed || o.Label == "" {
-			continue
-		}
-		// The FOLD dispositions (minted-as|folded-into) require a target gap via --into; pick one
-		// when an open gap exists, else fall back to the free dispositions (declined|banked). This
-		// exercises the full --as domain plus the --into flag.
-		if len(b.Open) > 0 && r.coin(50) {
-			into := b.Open[r.rng.Intn(len(b.Open))].ID
-			_, _ = r.exec("merge", "dispose", "--seat-id", seatID, "--observation", o.Label, "--as", pick(r.rng, disposeInto), "--into", into, "--reason", "fuzz dispose")
-		} else {
-			_, _ = r.exec("merge", "dispose", "--seat-id", seatID, "--observation", o.Label, "--as", pick(r.rng, disposeAs), "--reason", "fuzz dispose")
-		}
-	}
-}
-
 // arr / obj are goja-friendly envelope builders.
 func arr(v ...any) []any { return append([]any{}, v...) }
 
@@ -842,7 +799,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// dirDisputeLost and dirIgnore: deliberately left open. The first goes to the
 			// bench's docket, the second is blue owing work it did not do.
 		}
-		r.disposeObservations(seatID)
 
 		// MINT BEFORE JUDGING WHETHER ANYTHING REMAINS. Round 1 has an empty board until red
 		// puts something on it — evaluating PASS first made every run pass in one round with
@@ -1563,8 +1519,8 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
-	"confidence", "cite", "finding", "observe", "avenue", "friction", "revision", "retire",
-	"manifest-row", "dispose", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
+	"confidence", "cite", "finding", "avenue", "friction", "revision", "retire",
+	"manifest-row", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
 	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
 	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
@@ -1655,7 +1611,6 @@ var dialecticProseKey = map[string]string{
 	// Directions: the line, red's ruling on it, and blue's reason for its fate.
 	"avenue": "line", "avenue-rule": "reason",
 	// The lens's below-the-bar work and the fate the merge gave it.
-	"observe": "text", "dispose": "reason",
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
 	// confidence's "prose" is its claim label — it must render in the report's confidence

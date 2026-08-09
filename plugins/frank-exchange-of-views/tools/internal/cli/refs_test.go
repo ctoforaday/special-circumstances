@@ -23,10 +23,6 @@ import (
 func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 	runDir := seatRun(t)
 	real := mintGap(t, runDir, "the-real-gap", "reference-integrity")
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "a real observation"); err != nil {
-		t.Fatal(err)
-	}
 
 	for _, c := range []struct {
 		name, wants string
@@ -44,10 +40,6 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			"--id", "R9-9", "--reason", "t"}},
 		{"manifest-row --id", "no mint event created", []string{"blue", "manifest-row", "--seat-id", "blue-respond-r1",
 			"--id", "R9-9", "--row", "r"}},
-		{"dispose --observation", "no observe or finding event", []string{"merge", "dispose", "--seat-id", "red-merge-r1",
-			"--observation", "NOPE", "--as", "declined", "--reason", "r"}},
-		{"dispose --into", "no mint event created", []string{"merge", "dispose", "--seat-id", "red-merge-r1",
-			"--observation", "L1-O1", "--as", "folded-into", "--into", "R9-9"}},
 		{"close --successor", "no mint event created", []string{"merge", "close", "--seat-id", "red-merge-r1",
 			"--id", real, "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "t",
 			"--anchor-target", "x", "--successor", "R9-9"}},
@@ -79,16 +71,10 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	runDir := seatRun(t)
 	first := mintGap(t, runDir, "first", "reference-integrity")
 	second := mintGap(t, runDir, "second", "reference-integrity")
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "o"); err != nil {
-		t.Fatal(err)
-	}
 
 	for _, c := range [][]string{
 		{"bench", "opinion", "--seat-id", "judge-r1", "--id", first, "--as", "carried",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--reason", "the ruling"},
-		{"merge", "dispose", "--seat-id", "red-merge-r1", "--observation", "L1-O1",
-			"--as", "folded-into", "--into", second},
 		{"merge", "close", "--seat-id", "red-merge-r1", "--id", first, "--as", "closed",
 			"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--successor", second, "--reason", "verified"},
 	} {
@@ -161,29 +147,6 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
 		"--supersedes", ancestor); err != nil {
 		t.Errorf("superseding an OPEN gap must be accepted — it is what 9 of 9 real mints did: %v", err)
-	}
-}
-
-// ONE FINDING, ONE FATE — checkable only now that identity is assigned.
-func TestAFindingCannotBeGivenASecondFate(t *testing.T) {
-	runDir := seatRun(t)
-	out, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "worth noticing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	id := findingID.FindString(out)
-	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", id, "--as", "declined", "--reason", "checked at the leaf"); err != nil {
-		t.Fatal(err)
-	}
-	_, err = run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", id, "--as", "banked", "--reason", "changed my mind")
-	if err == nil {
-		t.Fatal("a finding was given a second fate; the first is already in the counts and the projection silently shows whichever replayed last")
-	}
-	if !strings.Contains(err.Error(), "friction") {
-		t.Errorf("the refusal must point at the channel for a missing capability, since there is no verb for revising a disposal: %v", err)
 	}
 }
 

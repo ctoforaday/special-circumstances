@@ -277,13 +277,18 @@ func GradeStr(v any) string {
 	return s
 }
 
-// Observation is a lens finding or note plus the merge's disposition of it.
+// Observation is a lens FINDING as replayed. The name is historical: it once covered both
+// findings and `observe` notes, and carried the merge's `dispose` fate for each.
+//
+// Both retired (#327). A finding's fate is now COALESCENCE and only coalescence — it is
+// addressed by being credited in some gap's found_by — so there is no Disposition to carry and
+// no second kind to distinguish. A finding credited nowhere is the report's "Lens findings not
+// raised to a gap", which is where that work reaches the reader.
 type Observation struct {
-	SeatID      string
-	Key         string
-	Kind        string
-	Payload     *Payload
-	Disposition *Payload
+	SeatID  string
+	Key     string
+	Kind    string
+	Payload *Payload
 }
 
 // Board is the replayed board: gaps in mint order, observations in event order.
@@ -394,54 +399,10 @@ func BoardState(runDir string) (*Board, error) {
 			g.ClosedRound = e.Round
 			g.HasClosed = true
 			g.ClosedByBench = true
-		case "finding", "observe":
+		case "finding":
 			b.Observations = append(b.Observations, &Observation{
 				SeatID: e.SeatID, Key: e.Key, Kind: e.Type, Payload: e.Payload,
 			})
-		case "dispose":
-			// BY ID FIRST, then by label within the SAME ROUND, then by label anywhere.
-			//
-			// "first match wins on the label" was the old rule, and it silently attached
-			// a disposal to whichever round's finding happened to replay first: 15
-			// labels in the 2026-07-18 run were used by more than one lens seat, so 39
-			// of 60 disposals were resolved by accident of ordering. The wrong finding
-			// got the fate and the right one stayed in the undisposed set forever.
-			target := e.Payload.Str("observation")
-			round := RoundOf(e.SeatID)
-			var byLabelSameRound, byLabelAny *Observation
-			var matched bool
-			for _, o := range b.Observations {
-				if o.Payload.Str("finding_id") == target && target != "" {
-					o.Disposition = e.Payload
-					matched = true
-					break
-				}
-				name := o.Payload.Str("label")
-				if name == "" {
-					name = o.Key
-				}
-				if name != target {
-					continue
-				}
-				if byLabelAny == nil {
-					byLabelAny = o
-				}
-				if byLabelSameRound == nil && RoundOf(o.SeatID) == round {
-					byLabelSameRound = o
-				}
-			}
-			if !matched {
-				switch {
-				case byLabelSameRound != nil:
-					byLabelSameRound.Disposition = e.Payload
-				case byLabelAny != nil:
-					byLabelAny.Disposition = e.Payload
-				default:
-					b.Anomalies = append(b.Anomalies, fmt.Sprintf(
-						"dispose by %s referenced %s, which matches no finding or observation — the disposal was DROPPED and the intended one stays undisposed",
-						e.SeatID, target))
-				}
-			}
 		}
 	}
 	return b, nil

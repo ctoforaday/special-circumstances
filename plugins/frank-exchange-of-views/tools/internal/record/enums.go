@@ -76,10 +76,6 @@ var EnumFields = map[string][]EnumField{
 		Key: "ruling", Flag: flags.Ruling, Values: AvenueRulings,
 		Why: "blue reads the ruling to decide whether to pursue, contest or drop a direction; an unrecognized fate reads as no ruling at all, so red's refusal of a line silently becomes permission",
 	}},
-	"dispose": {{
-		Key: "disposition", Flag: flags.As, Values: []string{"minted-as", "folded-into", "declined", "banked"},
-		Why: "a fate outside the four is a fifth meaning nobody defined, and one finding gets one fate — an unreadable one cannot be audited as either given or withheld",
-	}},
 	"dispute-respond": {{
 		Key: "response", Flag: flags.As, Values: []string{"accepted", "rejected"},
 		Why: "the orchestrator holds a dispute for a round only on an exact `rejected`; anything else falls through to the accepting branch, so a misspelt REJECTION silently applies blue's proposed grade",
@@ -118,11 +114,6 @@ var EnumFields = map[string][]EnumField{
 			Optional: true,
 		},
 	},
-	"observe": {{
-		Key: "kind", Flag: flags.Kind, Values: []string{"note", "checked-held"},
-		Why:      "the two kinds are what an observation can BE — a note the merge may decline, or a check that was run and held. A third word exports into the findings projection as a flavour nothing downstream knows how to read",
-		Optional: true,
-	}},
 	"cite": {{
 		Key: "confidence", Flag: flags.Confidence, Values: []string{"high", "medium", "low"},
 		Why:      "the grade is the whole content of a citation's claim about its source; an unreadable one makes the citation's confidence incomparable with every other row in the table it lands in",

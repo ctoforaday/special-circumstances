@@ -35,10 +35,8 @@ var RequiredFields = map[string][]string{
 	// finding's label is TOOL-assigned now (not seat-provided), so it is not listed
 	// here — same as mint's gap_id, which validate requires but no flag sets. validate
 	// still enforces the finding-label INVARIANT; the table lists only seat-set fields.
-	"observe":         {"label"},
 	"close":           {"gap_id", "prose"},
 	"closing":         {"text"},
-	"dispose":         {"disposition"},
 	"regrade":         {"basis"},
 	"dispute":         {"evidence"},
 	"dispute-respond": {"rationale"},

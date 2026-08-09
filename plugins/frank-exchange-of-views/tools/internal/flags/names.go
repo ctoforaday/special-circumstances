@@ -55,7 +55,6 @@ const (
 	// Identity and reference.
 	ID        = "id"
 	IDs       = "ids"
-	Label     = "label"
 	Claim     = "claim"
 	Key       = "key"
 	Location  = "location"
@@ -126,7 +125,6 @@ const (
 	As     = "as"
 	Notes  = "notes"
 	Status = "status"
-	Into   = "into"
 	None   = "none"
 
 	// Grading.
@@ -153,7 +151,6 @@ const (
 	Definition    = "definition"
 	Neighbor      = "neighbor"
 	Distinguisher = "distinguisher"
-	Kind          = "kind"
 
 	// Gap substance.
 	Problem = "problem"
@@ -195,10 +192,9 @@ const (
 
 	// Blue's process record. (claim_count was --claim-count here until #70 moved the
 	// count to the deterministic `count-claims` root command; no flag types it now.)
-	Line        = "line"
-	Method      = "method"
-	AccessDate  = "access-date"
-	Observation = "observation"
+	Line       = "line"
+	Method     = "method"
+	AccessDate = "access-date"
 
 	// The operator `setup` command (ported from setup-research-run.mjs): it builds a
 	// research run's blackboard. These are operator flags, not seat-verb payload keys.
@@ -237,16 +233,16 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Label, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New, Answers,
-		As, Notes, Status, Into, None,
+		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New, Answers,
+		As, Notes, Status, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
-		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
+		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
 		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Ruling, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
 		Principle, Tension, ReviewFlag, Petitioner, Relief,
 		Deadlocked, Exhausted,
-		Line, Method, AccessDate, Observation,
+		Line, Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir,
 		Chair,
 		Watch, Now, Serve,

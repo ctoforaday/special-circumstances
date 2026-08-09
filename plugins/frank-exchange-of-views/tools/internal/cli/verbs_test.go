@@ -14,7 +14,7 @@ import (
 
 // seedReferents creates the entities these cases NAME: two gaps and an observation.
 //
-// Every cross-reference is checked at write time now, so a case that disposes O1 or rules
+// Every cross-reference is checked at write time now, so a case that rules
 // on R1-1 must have an O1 and an R1-1 to point at. Before the checks landed these were
 // invented ids that resolved to nothing, which is exactly the state the checks exist to
 // refuse — the fixtures were demonstrating the bug.
@@ -26,10 +26,6 @@ func seedReferents(t *testing.T, runDir string) {
 			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "SEED-O1", "--kind", "note", "--reason", "a seeded observation"); err != nil {
-		t.Fatal(err)
 	}
 	// STATE, not just referents. A dispute-respond needs a dispute to answer, and a
 	// spot-check samples the ARCHIVE, so R1-3 is minted and closed to put something in
@@ -50,6 +46,14 @@ func seedReferents(t *testing.T, runDir string) {
 		"--anchor-target", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
+	// THE LENS SEAT MUST HAVE SAT. `petition-rule --petitioner` refuses a seat that recorded
+	// nothing in the run, and the lens's presence used to come from a seeded `observe` — retired
+	// with #327. `friction` is the lens verb with no referents of its own, so it seeds presence
+	// without seeding state any case then has to work around.
+	if _, err := run(t, "lens", "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "seeded so the lens seat has sat"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestVerbPayloads(t *testing.T) {
@@ -66,22 +70,6 @@ func TestVerbPayloads(t *testing.T) {
 		// stdout must contain this.
 		says string
 	}{
-		{
-			name: "lens observe defaults its kind to note",
-			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--label", "O1", "--reason", "a below-bar note"},
-			typ:  "observe",
-			want: map[string]string{"kind": "note", "label": "O1", "text": "a below-bar note"},
-			says: "observation recorded",
-		},
-		{
-			name: "lens observe takes an explicit kind",
-			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--kind", "checked-held", "--label", "O2", "--reason", "checked and held"},
-			typ:  "observe",
-			want: map[string]string{"kind": "checked-held", "label": "O2"},
-			says: "awaiting merge disposition",
-		},
 		{
 			name: "lens cite records the access date under its payload name",
 			role: "lens", seatID: "red-lens-r1-L1",
@@ -102,15 +90,6 @@ func TestVerbPayloads(t *testing.T) {
 			want:   map[string]string{"reference": "https://example.test/b"},
 			absent: []string{"access_date"},
 			says:   "citation recorded",
-		},
-		{
-			name: "merge dispose gives an observation its fate",
-			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--observation", "SEED-O1", "--as", "folded-into", "--into", "R1-2", "--reason", "same root cause"},
-			typ:  "dispose",
-			want: map[string]string{"observation": "SEED-O1", "disposition": "folded-into",
-				"into": "R1-2", "reason": "same root cause"},
-			says: "disposed SEED-O1: folded-into",
 		},
 		{
 			name: "merge dispute-respond records red's answer",
@@ -340,7 +319,6 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 		{"bench", "halt", "judge-terminal", "opinion", nil},
 		{"bench", "certify", "assemble", "statement", nil},
 		{"blue", "revision", "blue-lane-1", "text", nil},
-		{"lens", "observe", "red-lens-r1-L1", "text", []string{"--label", "PROSE-O1"}},
 		{"merge", "closing", "red-merge-r1", "text", []string{"--id", "R1-1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", []string{"--id", "R1-1"}},
 	}
