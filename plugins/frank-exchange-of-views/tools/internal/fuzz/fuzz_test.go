@@ -1701,6 +1701,8 @@ var reportExemptions = map[string]string{
 var basisFields = []struct{ evType, key, value, want string }{
 	{"outcome", "verdict_basis", "derived", "derived from the record"},
 	{"outcome", "verdict_basis", "asserted", "asserted by the bench"},
+	{"mint", "existence", "verified", "red checked this defect at the leaf"},
+	{"mint", "existence", "suspected", "the grades below are conditional on the defect being real"},
 	{"mint", "fix_basis", "verified", "with the text in front of it"},
 	{"mint", "fix_basis", "proposed", "nothing checked this demand"},
 	{"retire", "removal_basis", "verified", "the record shows it leaving"},

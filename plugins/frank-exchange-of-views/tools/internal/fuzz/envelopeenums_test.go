@@ -50,6 +50,7 @@ var envelopeEnumBinding = map[string]struct{ typ, key string }{
 	"PETITIONS.class":          {"petition", "class"},
 	"PETITION_RULING.ruling":   {"petition-rule", "ruling"},
 	"RED_ENVELOPE.response":    {"dispute-respond", "response"},
+	"RED_ENVELOPE.existence":   {"mint", "existence"},
 	"RED_ENVELOPE.confidence":  {"cite", "confidence"},
 	"DISPUTE_DIMENSION.<self>": {"dispute", "dimension"},
 }
@@ -57,7 +58,6 @@ var envelopeEnumBinding = map[string]struct{ typ, key string }{
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These
 // are ENGINE vocabularies — values the script routes on that never become a payload field.
 var envelopeEnumExempt = map[string]string{
-	"RED_ENVELOPE.existence":    "validated at the FLAG layer (flags.ExistenceValue) rather than in record.EnumFields, so there is no record enum to bind to — which also means the record-level enum sweep has never checked it. Registering it with the record is part of #331, where the render is missing too",
 	"RED_ENVELOPE.verdict":      "red's PASS|FAIL to the engine — the `verdict` event carries the same two values, but this field is the script's loop condition and is not written as a payload",
 	"RED_ENVELOPE.class":        "the CLOSURE class red reports per closed gap; the record validates it at `close`, and the envelope copy is a routing ref the script counts",
 	"JUDGE_ENVELOPE.resolution": "the bench's per-item disposition to the ENGINE, which routes the docket; the recorded form is the `opinion` event's disposition, checked at its own write path",
