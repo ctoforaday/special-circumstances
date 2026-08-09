@@ -1,4 +1,4 @@
-prompt sha256: 53b9b4d6c1630014de22432f4f136dd1683049fa51176aa9275e4c649e11a711
+prompt sha256: 1512293af420e1ad3dae106a36ccf16e9bfad70a568b2c81adeaf79358ce143c
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -35,7 +35,9 @@ PRE-FLIGHT: re-check your planned repairs against red's gap patterns (in the wor
 Open gaps (adjudicated ones excluded): [{"id":"R1-1","location":"loc","problem":"p","required_fix":"f","acceptance_check":"grep the corrected figure at the anchor","existence":"verified","severity":"medium","likelihood":"medium","impact":"medium","complexity_cost":"low"}].
 GRADING SEMANTICS (mapping v2, and NOT inferable from the JSON above — the map is self-describing as structure and silent on meaning): the likelihood field grades the CONSEQUENCE ONLY, and a gap's existence field (verified|suspected) is the separate axis saying whether the defect was checked at the leaf.
 A verified typo whose harm is trivial is existence: verified with a LOW likelihood; reading likelihood as confidence-that-it-exists is the v1 semantics this mapping replaced.
-Corroboration flags: [].
+CORROBORATION IS ON THE RECORD, NOT IN THIS PROMPT (#326): read what red actually verified, and at what confidence, from the citation ledger — "/opt/feov/bin/feov-record" blue show --run research/2026-01-01_golden --view citation-ledger.
+The tool renders it from red's cite events, so it is the source rather than a hand-copied snapshot of one round, and it stays current as red keeps auditing.
+A claim red graded LOW is where your evidence is thinnest and is worth strengthening before red returns to it.
 BEFORE drafting, read the transcript from the RECORD — "/opt/feov/bin/feov-record" blue show --run research/2026-01-01_golden --view debate — the gap JSON above is a lossy summary of it, and it lists any accepted grade-dispute deltas pending their contest window; read red's latest "### RED" narrative there and the latest "### LEAD" resolutions if any: any gap the judge CARRIED comes with a stated research direction you owe.
 Address every open gap ADDITIVELY in research/2026-01-01_golden/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; compact and reorganize prose as clarity demands, edit by edit through `blue edit` (a span containing an anchor is fine — carry the anchor token across verbatim in --new; quote enough context that your --old matches exactly ONE place, or the tool refuses it as ambiguous rather than editing the wrong site) — but a CLAIM leaves only through the retire verb (--claim --reason [--superseded-by]), never by quietly not being there any more; capture compares the claim_count fall against the retire events and an unaccounted drop is a detector hit.
 Propagate every correction to ALL sites that state the corrected claim, not only the flagged sentence (incomplete propagation was run 3's dominant blue failure class — 5 regressions in 5 rounds).
