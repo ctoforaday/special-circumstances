@@ -1,7 +1,7 @@
 $ lens mint --run {RUN} --seat-id red-lens-r1-L1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, finding, cite, reproduce, friction, show)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, verify, reproduce, friction, show)
 
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
@@ -33,12 +33,12 @@ Usage:
   {TOOL} [command]
 
 Available Commands:
-  cite        citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
   finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<section + quoted sentence>"
   friction    attributed friction (survives aborts as an event): --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   reproduce   re-RUN a proof blue recorded and compare: --id <sha256 of the proof> — read-only, records nothing (a disagreement is a finding you write yourself)
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+  verify      record that you CHECKED a claim against its source (the cross-round re-fetch gate): --claim "..." --reference "..." --trust high|medium|low --access-date YYYY-MM-DD
 
 Flags:
   -h, --help   help for lens

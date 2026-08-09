@@ -135,16 +135,14 @@ func ExistingCiteByKey(runDir, seatID, key string) (string, error) {
 // red CHECKED, or one it merely proposes?) is the same shape and belongs beside this — a
 // discriminator on the record, read at the counting site, never a rendering-time guess.
 
-// IsAuthoredCite reports whether a `cite` event is BLUE authoring a citation (it carries a
-// tool-assigned label) rather than RED recording a verification.
-func IsAuthoredCite(e Event) bool {
-	return e.Type == "cite" && e.Payload.Str("label") != ""
-}
-
-// IsVerifiedCite reports whether a `cite` event is RED recording a verified source.
-func IsVerifiedCite(e Event) bool {
-	return e.Type == "cite" && e.Payload.Str("label") == ""
-}
+// A `cite` event is BLUE authoring a citation; a `verify` event is RED recording a checked
+// source. Two event types, because the distinction used to be INFERRED (#341):
+//
+//	func IsVerifiedCite(e Event) bool { return e.Type == "cite" && e.Payload.Str("label") == "" }
+//
+// The absence of a field decided which act an event was, so a blue cite written without a label
+// counted as red's audit volume — a number red reads as how much work it did — with no error
+// and no signal. Both helpers are deleted; readers switch on the type.
 
 // NewProofID mints a proof anchor id. Same shape as a citation's, different class prefix:
 // one immortal-anchor mechanism carrying three classes now (fx: a finding, cite: a source,

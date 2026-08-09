@@ -942,8 +942,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
 			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
-				_, _ = r.exec("lens", "cite", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
-					"--reference", "https://fuzz.invalid/"+seatID, "--confidence", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
+				_, _ = r.exec("lens", "verify", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
+					"--reference", "https://fuzz.invalid/"+seatID, "--trust", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
@@ -1519,7 +1519,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
-	"confidence", "cite", "finding", "avenue", "friction", "revision", "retire",
+	"confidence", "cite", "verify", "finding", "avenue", "friction", "revision", "retire",
 	"manifest-row", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
 	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
@@ -1635,6 +1635,7 @@ var reportExemptions = map[string]string{
 	"anchor":    "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
 	"blue_edit": "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
 	"class-new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
+	"verify":    "red recording that it CHECKED a claim against its source. It reaches the reader through the citation-ledger view rather than the report: the report carries BLUE's citations (woven into the bibliography), and red verifying them is audit provenance rather than a claim the reader acts on. The trust grade IS surfaced — as the board's citations count, which #341 stopped inflating with blue's authored cites",
 	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
 	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
 	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",

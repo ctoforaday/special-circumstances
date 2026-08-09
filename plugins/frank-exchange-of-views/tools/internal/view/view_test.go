@@ -544,10 +544,10 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 			Set("tension", "economy").Set("review_flag", "none").Set("rationale", "because")),
 	})
 	writeShard(t, runDir, lens, "dddddddd", []record.Event{
-		ev(lens, "dddddddd", 0, 1, "cite", lens+":cite:https://x", record.NewPayload().
+		ev(lens, "dddddddd", 0, 1, "verify", lens+":verify:https://x", record.NewPayload().
 			Set("claim", "the claim").Set("reference", "https://x").
-			Set("confidence", "high").Set("access_date", "2026-07-18")),
-		ev(lens, "dddddddd", 1, 1, "cite", lens+":cite:https://y", record.NewPayload().Set("reference", "https://y")),
+			Set("trust", "high").Set("access_date", "2026-07-18")),
+		ev(lens, "dddddddd", 1, 1, "verify", lens+":verify:https://y", record.NewPayload().Set("reference", "https://y")),
 	})
 
 	debate := md(t, runDir, "debate")

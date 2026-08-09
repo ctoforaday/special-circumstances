@@ -206,11 +206,14 @@ func BoardJSONOf(b *Board) BoardJSON {
 	}
 
 	for _, e := range b.Events {
-		// Citations counts what RED VERIFIED (see IsVerifiedCite). Blue's authored cites are
-		// counted separately: a number red reads as its audit volume must not grow when blue writes.
-		if IsVerifiedCite(e) {
+		// Citations counts what RED VERIFIED. Blue's authored cites are counted separately: a
+		// number red reads as its audit volume must not grow when blue writes. The two are
+		// different EVENT TYPES now (#341), so neither count can absorb the other's events by
+		// a field happening to be empty.
+		switch e.Type {
+		case "verify":
 			out.Counts.Citations++
-		} else if IsAuthoredCite(e) {
+		case "cite":
 			out.Counts.CitationsAuthored++
 		}
 	}

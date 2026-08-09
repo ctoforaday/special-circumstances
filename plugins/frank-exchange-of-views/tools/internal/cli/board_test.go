@@ -181,8 +181,8 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 		{"the API still returns 200 (re-verified next round)", "https://example.com/a"}, // same ref → idempotent
 	}
 	for _, c := range cites {
-		if _, err := run(t, "lens", "cite", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-			"--claim", c.claim, "--reference", c.ref, "--confidence", "high",
+		if _, err := run(t, "lens", "verify", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+			"--claim", c.claim, "--reference", c.ref, "--trust", "high",
 			"--access-date", "2026-07-24"); err != nil {
 			t.Fatalf("cite %q: %v", c.claim, err)
 		}

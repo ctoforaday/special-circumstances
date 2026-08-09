@@ -138,6 +138,7 @@ const (
 	// called it --grade and `lens cite` called it --confidence, for the same self-graded
 	// high|medium|low. --grade is also the wrong word for it, because a GRADE elsewhere
 	// in this vocabulary is severity/likelihood/impact, which a seat does not self-assign.
+	Trust      = "trust"
 	Confidence = "confidence"
 
 	// Gap classification. A gap's --class is a slug from a GROWING REGISTRY; a petition's
@@ -235,7 +236,7 @@ func All() []string {
 		Reason, ReasonFile,
 		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New, Answers,
 		As, Notes, Status, None,
-		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
+		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence, Trust,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
 		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Ruling, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
