@@ -68,7 +68,7 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
 | `register` / `opinion` / `outcome` | their acts | — | CLEAN |
 | `petition-rule` | rule granted\|denied\|**halt** on a petition | the ruling's `rationale`/`opinion` is re-typed in the envelope (= the opinion event) | COLLAPSE (prose) — **NOT EXECUTED** (#330): the ruling's `opinion` is still re-typed in the envelope. See the halt fork below |
 | **`halt`** | end the run on a safety boundary | `petition-rule --as halt` (debate.js-driven) vs the standalone `halt` verb (tool-designed, orphaned); **the enum rejects `halt`, so the driven path fails to record** | **NOT EXECUTED** (#329) — decided (route through `bench halt`) and never done. debate.js still emits `ruling: 'halt'`, the record enum still refuses it, so a halt-on-petition FAILS TO RECORD. The safety boundary is the one path that must not have this defect |
-| `certify` | a run-end certification | read by assembly but driven by no prompt | **NOT EXECUTED** (#328) — decided (fold into `outcome`) and never done; and the decision may have been wrong, since `certify` has a driver, a reader, and a distinct meaning |
+| `certify` | the bench asking a human to re-examine something at run end | — (the fold-into-`outcome` decision is REVERSED, #328: a certification and a verdict are different speech acts) | CLEAN — unique trigger, a driver, and two readers in the report |
 
 ## Decisions taken (the `DECIDE` rows)
 
@@ -101,10 +101,18 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
    event is canonical; the envelope carries a routing ref, not the data.
    **EXECUTED — #315 (petition filing), #317 (spot-check, with its W1.8 floor now computed from the
    board), #318 (manifest-row).**
-4. **certify → fold into `outcome`.** A certification is part of the terminal verdict.
-   **NOT EXECUTED — #328,** and the decision may have been wrong: `certify` has a driver, a reader,
-   and a meaning (*the bench asking a human to re-examine something*) that is not the same speech
-   act as recording a verdict. Execute it or reverse it; the current state is neither.
+4. ~~**certify → fold into `outcome`.**~~ **REVERSED (#328, 2026-08-09) — `certify` stays its own
+   verb.** The original decision read a certification as part of the terminal verdict. It is not:
+   a certification is *the bench asking a human to re-examine something*, and a verdict is *the
+   run's terminal state*. Folding them would put an ask-a-human into a state field, and the two
+   can hold independently — a VERIFIED run can still carry a certification, and a certification
+   is not a verdict of any kind. `certify` has a driver, and it has TWO readers (the report
+   promotes it into "Read this first" as the bench's terminal ask, and renders it again under
+   Bench disposition), so nothing was orphaned; only the recorded decision was wrong.
+
+   Kept here rather than deleted: a reversed decision is evidence about how these calls get made.
+   This one was taken on a tidy-looking symmetry — "a certification is part of the verdict" — and
+   the code disagreed for a year without anyone noticing, because nothing reconciled the two.
 
 ## Status of the collapses
 
