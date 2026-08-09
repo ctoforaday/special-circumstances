@@ -66,9 +66,9 @@ months apart, because nothing tied them to one mechanism. #312 (petition-rule jo
 2. One adjudication mechanism with an ID, joined once and rendered once.
 3. Every verb reachable by a seat is listed in ONE table that both gates the write and
    generates that seat's `--help`. One source, not two.
-4. Verb count falls from 45 to ~30 with no capability lost — and any capability that IS
-   lost is named in the trigger map, not discovered later (the `checked-held` precedent,
-   #327).
+4. The non-`show` surface falls from 45 to 26 with no capability lost; `show`'s twelve
+   projections stop being flag values and become verbs. Any capability that IS lost is named
+   in the trigger map, not discovered later (the `checked-held` precedent, #327).
 5. Every existing gate still passes: fuzz 60/60, node 94/94, and the four verb-lifecycle
    gates (exists / driven / named to a seat / reaches a reader).
 
@@ -97,49 +97,70 @@ also multiplies the version surface `setup` preflights against `recordToolVersio
 
 `--run` remains a persistent flag as a CROSS-CHECK: passed and disagreeing, it refuses.
 
-| group | verb | seats | writes |
-|---|---|---|---|
-| **board** | `mint` | merge | mint |
-| | `close` | merge | close |
-| | `adjudicate` | bench | opinion |
-| | `regrade` | merge | regrade |
-| | `spot-check` | merge | spot-check |
-| | `near-match` | merge | — (read) |
-| **finding** | `file` | lens | finding |
-| **evidence** | `cite` | blue | cite |
-| | `verify` | lens | cite-verified |
-| | `prove` | blue | proof |
-| | `reproduce` | lens | proof-verified |
-| | `index` | blue | — (read) |
-| **document** | `edit` | blue | blue_edit + anchor |
-| | `retire` | blue | retire |
-| | `confidence` | blue | confidence |
-| | `manifest` | blue | manifest-row |
-| **docket** | `submit` | lens merge blue bench | docket |
-| | `rule` | merge bench | docket-rule |
-| | `escalate` | blue | docket-escalate |
-| **direction** | `propose` | blue | avenue |
-| | `move` | blue | avenue |
-| **argument** | `position` | merge blue | position |
-| | `closing` | merge blue | closing |
-| **run** | `verdict` | merge | verdict |
-| | `outcome` | bench | outcome |
-| | `halt` | bench | halt |
-| | `certify` | bench | certify |
-| | `assemble` | bench | — |
-| **meta** | `register` | all | register |
-| | `friction` | all | friction |
-| | `show` | all | — (read) |
+### The grouping rule
 
-30 verbs. The compression is almost entirely the twelve cross-cutting duplicates
-(`register`/`friction`/`show` × 4) collapsing to three, plus the three propose→rule pairs
-collapsing to one group.
+A group earns its place when it has **two or more verbs** AND its name **disambiguates or
+teaches**. Everything else is a top-level command. The first draft failed this on `meta`,
+which grouped `register`/`friction`/`show` on the sole basis of being cross-cutting — that
+teaches nothing and was taxonomy for its own sake.
+
+A verb MAY appear in more than one group. The rule is not "once only": it must make sense
+within its group, be restricted to that group's operations, and not carry a wildly different
+meaning under the same name elsewhere. `friction` (record a complaint) and `show friction`
+(read them) are the same concept in write and read voice — legitimate. `cite` meaning
+"author a citation" in one place and "verify a source" in another was not.
+
+**Where a flag discerns a TYPE today, that flag is a subgroup candidate tomorrow.** `show
+--view ledger` is the clearest case in the tool and becomes `show ledger`.
+
+### Top-level commands
+
+`register` · `friction` · `finding` — no group, because none would teach anything.
+
+### Groups
+
+| group | verbs | seats |
+|---|---|---|
+| **show** | `board` `findings` `worklist` `friction` `ledger` `archive` `debate` `changelog` `changes` `citation-ledger` `lines-of-inquiry` `telemetry` `claims` | scoped per seat (the view table already carries `defaultFor`) |
+| **gap** | `mint` `regrade` `near-match` | merge |
+| **closure** | `close` `adjudicate` `spot-check` | merge; `adjudicate` bench |
+| **evidence** | `cite` `verify` `prove` `reproduce` | blue authors, lens audits |
+| **document** | `edit` `retire` `confidence` `manifest` | blue |
+| **docket** | `submit` `rule` `escalate` | all submit; merge/bench rule |
+| **direction** | `propose` `move` | blue |
+| **argument** | `position` `closing` | merge blue |
+| **run** | `verdict` `outcome` `halt` `certify` `assemble` | merge claims, bench settles |
+
+### `show` is a group, not a flag
+
+`--view <name>` is a flag discerning a type — the exact smell this exercise exists to remove,
+and the largest one in the tool. Twelve projections are hiding behind it, invisible to `--help`
+until you already know the vocabulary, and scoped to nobody. As verbs they are first-class,
+per-seat scoped, and individually documented. `claim-index` moves here as `show claims`: it is
+a projection, not an evidence act.
+
+**Honest accounting: this does not shrink the count, and the earlier draft's "30 verbs replace
+45" was wrong.** The non-`show` surface compresses from 45 to 26 (counting the cross-cutting
+verbs once instead of four times). `show` then ADDS 13 paths that already existed as flag
+values. Total ~39 invocable paths. Making twelve hidden things visible is the point; claiming
+compression that came from hiding them would be the same defect one level up.
+
+### `board` was a mishmash — split into `gap` and `closure`
+
+The first draft put mint/close/regrade/adjudicate/near-match/spot-check in one `board` group.
+That mingled gap MUTATION with closure-record READING. Split:
+
+- **`gap`** — red managing the live board: mint one, move its grades, screen a candidate
+  against what already exists.
+- **`closure`** — the closure record as an entity: `close` creates one on verified repair,
+  `adjudicate` creates one by judgement, `spot-check` re-verifies existing ones. This also
+  resolves the two-closure-authorities overlap by construction: both creators sit in one group
+  and share one vocabulary, which is what stops the two enums drifting apart again (#342).
 
 ### Names chosen to avoid prose collisions
 
-`opinion` lived in two groups at once — it is an argument AND a board mutation — so it
-becomes `board adjudicate`, where the mutation is. `docket rule` and `board adjudicate` no
-longer both read as "rule"; `finding file` and `docket submit` no longer both read as "file".
+`opinion` lived in two groups at once — it is an argument AND a closure — so it becomes
+`closure adjudicate`, where the state change is. `docket rule` and `closure adjudicate` no longer both read as "rule"; `finding file` and `docket submit` no longer both read as "file".
 
 ### What `docket` buys beyond tidiness
 
@@ -151,7 +172,7 @@ subject beats three verb pairs that can drift.
 
 ### What is NOT collapsed, and why
 
-- **`board close` (merge) and `board adjudicate` (bench)** both end a gap's life and stay
+- **`closure close` (merge) and `closure adjudicate` (bench)** both end a gap's life and stay
   two verbs: red closes on verified repair (anchor required), the bench closes on judgement
   (principle required). Different evidence bars are a real distinction. Their VOCABULARIES
   merge — `risk_accepted` is a closure class living in a disposition enum today, and that
@@ -221,7 +242,7 @@ told to run a retired verb loses that capability for the run while merely loggin
 
 | risk | L × I × cx | mitigation |
 |---|---|---|
-| **The boundary goes from legible to invisible.** A seat knows its role today because it types it. Detected, an out-of-role verb returns "unknown verb" — indistinguishable from the capability not existing. Measured: a seat handed a nonexistent verb "logs friction and works around it. The capability is simply lost for the run." | **high** × **high** × low | Filtered help NAMES what exists but is not yours, and who owns it (`mint — the merge seat's`). That turns a dead end into a routing instruction. One table generates both the permission gate and the help, and a gate asserts they agree in both directions. |
+| **The boundary goes from legible to invisible.** A seat knows its role today because it types it. Detected, an out-of-role verb returns "unknown verb" — indistinguishable from the capability not existing. Measured: a seat handed a nonexistent verb "logs friction and works around it. The capability is simply lost for the run." | **high** × **high** × low | Help STATES THE IDENTITY ("You are `red-lens-r1-L1`") and lists only that seat's verbs. The REFUSAL names the owner — `mint is the merge seat's` — which is one line at the moment of the mistake rather than noise in every invocation. One table generates both the permission gate and the help, and a gate asserts they agree in both directions. |
 | **Attribution stops being visible.** A wrong `--seat-id` today appears in the record as the wrong string; detected, it is a derived fact that can fail silently. | med × **high** × low | Keep `--seat-id` as a CROSS-CHECK: inject the detected seat, and refuse when a passed one disagrees. Exactly `seatenv`'s contract for `--run`, for exactly that reason. |
 | **Detection yields the ROLE, not the SEAT.** `red-lens-r1-L1` and `-L5` both detecting as "lens" collides finding labels (`L{role}-F{N}`) and `found_by` credit. | med × **high** × med | Detection resolves the full seat id or refuses, and stage 5 makes role/round/index FIELDS so nothing downstream re-derives them. The id stays the shard key: a lens index recovered from a seat name turned out to be the CONCURRENCY namespace, and collapsing it made 39 of 60 disposals ambiguous — this moves what is READ, never what identifies. |
 | A stale binary accepts retired verbs and writes events the new replay drops | high × med × low | `cli.Version` + `recordToolVersion` bump per stage that removes a verb; `setup` already refuses a mismatched binary (the #327 precedent). |
