@@ -105,10 +105,19 @@ var EnumFields = map[string][]EnumField{
 		Why:      "the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero",
 		Optional: true,
 	}},
-	"mint": {{
-		Key: "check_kind", Flag: flags.CheckKind, Values: []string{"document", "computation", "source"},
-		Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
-	}},
+	"mint": {
+		{
+			Key: "check_kind", Flag: flags.CheckKind, Values: []string{"document", "computation", "source"},
+			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
+		},
+		{
+			Key: "existence", Flag: flags.Existence, Values: []string{"verified", "suspected"},
+			Why: "grading v2 SPLIT existence from consequence because v1's `certain` textual nits outweighed high-likelihood design flaws — likelihood now grades the consequence only, and this axis carries whether the defect was checked at the leaf at all. It was validated at the FLAG layer and nowhere else, so the record accepted whatever a non-flag write path put here and the record-level enum sweep never saw the field existed. A gap whose existence is unreadable is one whose grades cannot be interpreted: `medium likelihood` means something different for a defect confirmed at the leaf and one merely inferred",
+			// Optional: records written before the write-path shipped carry no existence, and a
+			// gap minted without it is a real (if incomplete) gap rather than a corrupt one.
+			Optional: true,
+		},
+	},
 	"observe": {{
 		Key: "kind", Flag: flags.Kind, Values: []string{"note", "checked-held"},
 		Why:      "the two kinds are what an observation can BE — a note the merge may decline, or a check that was run and held. A third word exports into the findings projection as a flavour nothing downstream knows how to read",
