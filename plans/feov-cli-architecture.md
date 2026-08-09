@@ -18,6 +18,18 @@ What survives is small and honest: verbs own their RunE; a thin `Emit`/`Of` read
 and format; the role commands are tree nodes wiring their verb sets; a `feov.Error` type
 carries the code. No generic "seat" parameterized by role, no god-factory.
 
+> **AMENDED 2026-08-09 by `plans/command-groups.md`.** Cut 1's argument — that a `role
+> string` threaded through every constructor is a command being told its own position —
+> stands and is kept. What changes is WHERE the position is read: the tree becomes ENTITY
+> groups (`board mint`, `evidence cite`), and role is read once from the inherited
+> `--seat-id`, a fact about the run rather than about the CLI's shape. No constructor takes
+> a role either way.
+>
+> The genuine reversal, stated so it is not discovered later: after that change an
+> out-of-role verb is **no longer structurally impossible**. `lens dispute` cannot be typed
+> today; it becomes a permission lookup. See §IV of the successor plan — the mitigation
+> (one table that both gates the write and generates per-seat help) is load-bearing.
+
 ## Cut 1 — role is structure, not data
 
 `feov-record merge mint`: `merge` is a node; `mint`'s parent IS the role. Every place that
