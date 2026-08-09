@@ -78,10 +78,24 @@ Go 1.x, cobra, module `.../frank-exchange-of-views/tools`. No new dependencies.
 
 ### The tree
 
-`feov-record <group> <verb>`. The seat is DETECTED and the surface is scoped to it, so a
-seat sees only its own verbs — plus, in help, a named line for each verb it may not run and
-the seat that owns it, so "not mine" never reads as "does not exist". `--seat-id` and
-`--run` remain persistent root flags as CROSS-CHECKS: passed and disagreeing, they refuse.
+`feov-record <group> <verb>`. The seat is DETECTED and the surface is scoped to it.
+
+**Help states the identity and lists only that seat's verbs** — "You are `red-lens-r1-L1`.
+Your verbs:" — and says nothing about other seats. The earlier draft had help cross-reference
+what a seat may NOT run; that is polymorphic help, it is hard to phrase without inviting the
+reader to try the thing it just named, and it puts noise in every invocation to solve a
+problem that occurs once.
+
+**The REFUSAL names the owner instead.** `mint is the merge seat's; you are red-lens-r1-L1`.
+That is one line at the exact moment of the mistake, which is where "not mine" would
+otherwise read as "does not exist".
+
+**Rejected: a binary per seat.** It restores the structural boundary, but the prompt must
+then name `feov-lens` — putting the seat back on the command line, which is the thing being
+removed — or the hook routes between four binaries, which is more magic rather than less. It
+also multiplies the version surface `setup` preflights against `recordToolVersion`.
+
+`--run` remains a persistent flag as a CROSS-CHECK: passed and disagreeing, it refuses.
 
 | group | verb | seats | writes |
 |---|---|---|---|
@@ -168,7 +182,27 @@ proof's sha, whether it reproduced for red, and red's note. Rendered beside the 
 `petition` and `grade` become subjects. `avenue-rule`, `petition-rule` and `dispute-respond`
 retire into it. One renderer replaces three. Closes #312.
 
-**Stage 5 (#345, blocked on #290) — `[MODIFY]` the tree, on detected identity.** Groups become the parent nodes; the
+**Stage 5 (#348) — `[MODIFY]` identity arrives as FIELDS; retire the seat-id regexes.**
+Detection is deterministic (agent id and name, inherited, unforgeable), so the harness
+injects the STRUCTURED facts rather than a string to parse: seat id, role, round, and lens
+index. Every event carries them as fields written at append.
+
+That DELETES existing string-derived identity rather than adding to it:
+
+- `record.RoundOf(seatID)` computes **every event's `Round`** at the append path — the single
+  most load-bearing recovered-from-a-string fact in the system, and the one that produced the
+  phantom-archive bug fixed in #327 (`judge-terminal` carries no round, so it yielded 0, so a
+  terminal bench closure looked like a closure before round 1).
+- role-by-prefix (`strings.HasPrefix(e.SeatID, "red-merge")`) decides, among other things,
+  whether a position renders as RED or BLUE in the transcript. Six non-test sites.
+
+**Caveat, and it is a real one.** The seat id stays the SHARD KEY and the concurrency
+namespace. Only the DERIVED facts become fields. A lens index recovered from a seat name once
+turned out to be what made a lock-free counter safe under parallel dispatch, and collapsing
+it made 39 of 60 disposals ambiguous — so this stage moves what is READ, never what
+identifies.
+
+**Stage 6 (#345, blocked on #290) — `[MODIFY]` the tree, on detected identity.** Groups become the parent nodes; the
 four role nodes retire. The seat is DETECTED (hook-injected, `seatenv` shape) and a passed
 `--seat-id` that disagrees is refused. A `record.SeatPermissions` table maps seat → allowed
 `group verb`, gates the write, AND generates that seat's help — including a line for each
@@ -176,7 +210,7 @@ verb it may NOT run naming the seat that owns it, so the boundary stays legible.
 depends on #290 and must not start before it: detection is the load-bearing half, and
 identity-scoped surfaces on top of self-asserted identity would be the worst of both.
 
-**Stage 6 (#346) — `[MODIFY]` documentation.** The final stage, and it is not optional cleanup:
+**Stage 7 (#346) — `[MODIFY]` documentation.** The final stage, and it is not optional cleanup:
 `debate.js` prompts, all four constitutions, `docs/seat-command-triggers.md`,
 `docs/record-flow.md`, `references/report_template.md`, and this plan's own status. Every
 prior stage leaves the agent-facing surfaces naming verbs that no longer exist, and a seat
@@ -189,7 +223,7 @@ told to run a retired verb loses that capability for the run while merely loggin
 |---|---|---|
 | **The boundary goes from legible to invisible.** A seat knows its role today because it types it. Detected, an out-of-role verb returns "unknown verb" — indistinguishable from the capability not existing. Measured: a seat handed a nonexistent verb "logs friction and works around it. The capability is simply lost for the run." | **high** × **high** × low | Filtered help NAMES what exists but is not yours, and who owns it (`mint — the merge seat's`). That turns a dead end into a routing instruction. One table generates both the permission gate and the help, and a gate asserts they agree in both directions. |
 | **Attribution stops being visible.** A wrong `--seat-id` today appears in the record as the wrong string; detected, it is a derived fact that can fail silently. | med × **high** × low | Keep `--seat-id` as a CROSS-CHECK: inject the detected seat, and refuse when a passed one disagrees. Exactly `seatenv`'s contract for `--run`, for exactly that reason. |
-| **Detection yields the ROLE, not the SEAT.** `red-lens-r1-L1` and `-L5` both detecting as "lens" collides finding labels (`L{role}-F{N}`) and `found_by` credit. | med × **high** × med | Detection resolves the full seat id or refuses. Precedent for the cost: a lens index recovered from a seat name turned out to be the CONCURRENCY namespace, and collapsing it made 39 of 60 disposals ambiguous. |
+| **Detection yields the ROLE, not the SEAT.** `red-lens-r1-L1` and `-L5` both detecting as "lens" collides finding labels (`L{role}-F{N}`) and `found_by` credit. | med × **high** × med | Detection resolves the full seat id or refuses, and stage 5 makes role/round/index FIELDS so nothing downstream re-derives them. The id stays the shard key: a lens index recovered from a seat name turned out to be the CONCURRENCY namespace, and collapsing it made 39 of 60 disposals ambiguous — this moves what is READ, never what identifies. |
 | A stale binary accepts retired verbs and writes events the new replay drops | high × med × low | `cli.Version` + `recordToolVersion` bump per stage that removes a verb; `setup` already refuses a mismatched binary (the #327 precedent). |
 | Stages 1–4 leave prompts naming dead verbs mid-stack | high × med × low | The `TestEveryVerbNamedInAPromptExists` gate fails on a prompt naming a verb that does not exist, and its inverse fails on a verb no prompt names. Both run per stage; stage 6 is the sweep, not the first check. |
 | The docket collapse loses subject-specific validation | med × med × med | Enum table keyed on `(subject, verdict)`, validated at the write, covered by the envelope-enum gate (#329) which already binds envelope vocabularies to record enums. |
