@@ -127,7 +127,6 @@ Available Commands:
   cite        citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
   finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<section + quoted sentence>"
   friction    attributed friction (survives aborts as an event): --reason
-  observe     a below-bar observation with a FATE (the merge must dispose it): --kind note|checked-held [--label ...] --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   reproduce   re-RUN a proof blue recorded and compare: --id <sha256 of the proof> — read-only, records nothing (a disagreement is a finding you write yourself)
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
@@ -160,7 +159,6 @@ Available Commands:
   avenue-rule     rule on a direction blue proposed: --id A1 --ruling endorsed|out-of-scope|too-thin --reason "<why>"
   close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
   closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  dispose         every lens observation gets a fate: --observation <label-or-key> --as minted-as|folded-into|declined|banked [--into R2-4] [--reason "..."]
   dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --reason "..."
   friction        attributed friction: --reason
   mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
@@ -263,7 +261,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.42.0
+feov-record version 0.43.0
 
 $ feov-record nonsuch help
 exit 2

@@ -42,10 +42,6 @@ feov-record: merge: record: close requires the attestation anchor (--anchor-seat
 exit 2
 feov-record: merge: record: closed_with_regression requires --successor (lineage never drops)
 
-── dispose without disposition
-exit 2
-feov-record: merge: record: dispose requires --as minted-as|folded-into|declined|banked (got "") — nothing was passed, and a fate outside the four is a fifth meaning nobody defined, and one finding gets one fate — an unreadable one cannot be audited as either given or withheld
-
 ── regrade without basis
 exit 2
 feov-record: merge: record: regrade requires --reason (grade movement is recorded with its reason)
@@ -66,10 +62,6 @@ feov-record: merge: record: verdict requires --as PASS|FAIL (got "banana") — a
 exit 2
 feov-record: bench: record: outcome requires --as VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
 
-── dispose outside the set
-exit 2
-feov-record: merge: record: dispose requires --as minted-as|folded-into|declined|banked (got "banana") — a fate outside the four is a fifth meaning nobody defined, and one finding gets one fate — an unreadable one cannot be audited as either given or withheld
-
 ── petition ruling outside the set
 exit 2
 feov-record: bench: record: petition-rule requires --as granted|denied (got "halt") — relief binds the coming seats only on an exact `granted`, so a near-miss grants nothing while reading as a grant on the record — and a halt is the bench's own verb, which this set closing is what actually makes true
@@ -81,10 +73,6 @@ feov-record: merge: record: "closed-with-regression" is not a closure class — 
 ── dispute dimension outside the set
 exit 2
 feov-record: blue: record: dispute requires --dimension severity|likelihood|impact|complexity_cost (got "banana") — the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero
-
-── observation kind outside the set
-exit 2
-feov-record: lens: record: observe requires --kind note|checked-held (got "banana") — the two kinds are what an observation can BE — a note the merge may decline, or a check that was run and held. A third word exports into the findings projection as a flavour nothing downstream knows how to read
 
 ── citation confidence outside the set
 exit 2
@@ -104,7 +92,7 @@ feov-record: merge: seat "not a seat id" does not belong to any role namespace (
 
 ── verb outside the lens role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, finding, observe, cite, reproduce, friction, show)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, cite, reproduce, friction, show)
 
 ── verb outside the blue role
 exit 2
@@ -116,7 +104,7 @@ feov-record: verb "mint" is outside this seat's role (available: register, opini
 
 ── unknown verb
 exit 2
-feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, near-match, avenue-rule, position, closing, verdict, friction, petition, show)
+feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, regrade, dispute-respond, spot-check, near-match, avenue-rule, position, closing, verdict, friction, petition, show)
 
 ── unknown role
 exit 2
