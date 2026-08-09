@@ -126,10 +126,66 @@ meaning under the same name elsewhere. `friction` (record a complaint) and `show
 | **closure** | `close` `adjudicate` `spot-check` | merge; `adjudicate` bench |
 | **evidence** | `cite` `verify` `prove` `reproduce` | blue authors, lens audits |
 | **document** | `edit` `retire` `confidence` `manifest` | blue |
-| **docket** | `submit` `rule` `escalate` | all submit; merge/bench rule |
+| **docket** | `grade submit\|rule\|escalate` · `petition submit\|rule` · `direction submit\|rule\|escalate` | see below |
 | **direction** | `propose` `move` | blue |
 | **argument** | `position` `closing` | merge blue |
 | **run** | `verdict` `outcome` `halt` `certify` `assemble` | merge claims, bench settles |
+
+### When a group has a group
+
+**A subgroup earns its place when the child verbs' CONTRACT differs by subject** — different
+required flags, different validation, different permitted seats — such that a flag cannot
+express it without the tool accepting a nonsense combination.
+
+That is the sharp form, because cobra has no "required only when `--on=grade`".
+`MarkFlagsRequiredTogether` and `MarkFlagsMutuallyExclusive` do not express conditional
+requirement, so a flag-discerned subject with divergent required flags MUST be hand-validated
+in `RunE` — and a hand-validated flag combination is precisely the prose-standing-in-for-a-
+schema shape this suite exists to remove. A subgroup makes it structural.
+
+**Counter-pressure, and it is real: depth costs tokens on every call.** This system prices
+that explicitly — the speed clause tells every seat a message costs ~20s regardless of
+content. One subgroup is worth it where it deletes hand-validation; a second tier applied for
+tidiness is a tax on every invocation.
+
+#### `docket` IS subgrouped by subject
+
+| subject | extra required | ruler | escalation |
+|---|---|---|---|
+| grade | `--dimension` `--proposed` | merge | re-dispute → bench |
+| petition | `--class` `--relief` | bench | none — heard before the debate continues |
+| direction | — | merge | pursue anyway |
+
+Different required flags, **different rulers**, different escalation. Under `docket submit --on
+<subject>` all of that is runtime `if` statements, and `--on petition --dimension severity`
+would parse cleanly before being rejected by hand. As `docket grade submit`, each subgroup
+declares its own flags and cobra refuses the nonsense at parse.
+
+**This costs the collapse nothing.** The shared mechanism is the EVENT AND THE ID, not the
+path: all three still write one `docket` event into one id space, joined once and rendered
+once. The path names the subject; the record stays unified. `petition` has no `escalate` —
+a petition is heard before the debate continues, so there is nothing to escalate to.
+
+#### Considered and DECLINED: subgrouping `evidence`
+
+`evidence source add|audit` + `evidence proof add|audit` would make the pattern visible —
+each evidence kind has an author and an auditor — where today `cite`/`verify` and
+`prove`/`reproduce` are four names whose two audit verbs share nothing but their job.
+
+Declined: the flags do not diverge in a way cobra cannot express, the verbs are already
+distinct, and `evidence proof prove` stutters. The symmetry lives in the help text, not the
+path. Recorded so it is not re-litigated.
+
+#### An open fork: `show` as a group vs `<group> show`
+
+The mirror of the decision below is entity-scoped projections — `gap show ledger`,
+`evidence show citation-ledger` — which is arguably MORE consistent with "the tree is
+entities", and makes per-seat scoping fall out of group scoping for free.
+
+Preferred as written (one `show` group) because several views span entities: `telemetry` is
+run-level, and `debate` spans argument, docket and closure. Entity-scoping forces an
+arbitrary home for those. **This is a genuine fork, not an obvious call**, and it is recorded
+as one rather than settled by omission.
 
 ### `show` is a group, not a flag
 
@@ -199,9 +255,17 @@ disposition enum. Replay, report and scorecard read one set.
 **Stage 3 (#343) — `[MODIFY]` `reproduce` records its verdict.** A `proof-verified` event: the
 proof's sha, whether it reproduced for red, and red's note. Rendered beside the proof.
 
-**Stage 4 (#344) — `[NEW]` the `docket` group.** `submit`/`rule`/`escalate` with an id; `avenue`,
-`petition` and `grade` become subjects. `avenue-rule`, `petition-rule` and `dispute-respond`
-retire into it. One renderer replaces three. Closes #312.
+**Stage 4 (#344) — `[NEW]` the `docket` group, subgrouped by subject.** `docket grade
+submit|rule|escalate`, `docket petition submit|rule`, `docket direction submit|rule|escalate`.
+`avenue-rule`, `petition-rule` and `dispute-respond` retire into it. Every exchange gets an
+ID — closing #312 — and one renderer replaces three, so "the ask and its answer ship
+together" becomes a property of the mechanism rather than three independent obligations.
+`escalate` gives blue-pursues-anyway, re-dispute and appeal one shape, where `contests_ruling`
+is a bespoke field today.
+
+The subgroup is what makes the divergent contracts structural rather than hand-validated (see
+§II). The direction LIFECYCLE stays separate (`direction propose` / `direction move`); only
+the ruling on it moves here.
 
 **Stage 5 (#348) — `[MODIFY]` identity arrives as FIELDS; retire the seat-id regexes.**
 Detection is deterministic (agent id and name, inherited, unforgeable), so the harness
