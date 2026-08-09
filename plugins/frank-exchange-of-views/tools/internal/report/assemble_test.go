@@ -345,32 +345,6 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 	}
 }
 
-// THE LENS'S BELOW-THE-BAR WORK AND ITS FATE. A check red ran and confirmed looked identical to
-// a check nobody ran, because observations and their disposals reached no reader at all.
-func TestObservationsAndTheirFatesReachTheReader(t *testing.T) {
-	evs := []record.Event{
-		{Round: 1, Type: "observe", SeatID: "red-lens-r1-L1", Payload: record.NewPayload().
-			Set("finding_id", "f-a1").Set("label", "L1-O1").Set("kind", "checked-held").Set("text", "the retry bound is honoured under load")},
-		{Round: 1, Type: "dispose", SeatID: "red-merge-r1", Payload: record.NewPayload().
-			Set("observation", "L1-O1").Set("disposition", "declined").Set("reason", "checked at the leaf and correct as written")},
-		{Round: 1, Type: "observe", SeatID: "red-lens-r1-L2", Payload: record.NewPayload().
-			Set("finding_id", "f-b2").Set("label", "L2-O1").Set("kind", "note").Set("text", "the config loader reads the env twice")},
-	}
-	o := observations(evs)
-	for _, want := range []string{"L1-O1", "checked-held", "the retry bound is honoured under load", "declined", "checked at the leaf and correct as written"} {
-		if !strings.Contains(o, want) {
-			t.Errorf("observations missing %q:\n%s", want, o)
-		}
-	}
-	// The UNDISPOSED case is the interesting one and must not fold into the empty set.
-	if !strings.Contains(o, "L2-O1") || !strings.Contains(o, "undisposed") {
-		t.Errorf("an observation the merge never gave a fate must say so, not vanish:\n%s", o)
-	}
-	if observations(nil) != "" {
-		t.Error("a run with no observations omits the section rather than showing it empty")
-	}
-}
-
 func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 	blue := strings.Join([]string{
 		"# A topic — research report",

@@ -16,7 +16,7 @@ flowchart TB
   subgraph record["THE RECORD (event log — the only inter-agent channel)"]
     FE["finding events<br/>(TOOL-assigned label L{role}-F{N})"]
     CE["cite events"]
-    ME["mint / close / dispose events"]
+    ME["mint / close / regrade events"]
   end
   subgraph views["projections (show --view … — rendered just-in-time from the record)"]
     FV["findings (live JSON)"]

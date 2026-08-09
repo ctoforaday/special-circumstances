@@ -59,10 +59,23 @@ func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	}
 	// The archive at the START of round R: every gap closed in a round strictly before R.
 	// Replayed state, not a reported count.
+	// A CLOSURE WITH NO ROUND IS NOT AN EARLY CLOSURE. ClosedRound is derived from the closing
+	// seat's ID, and the terminal seats carry no round in their name — `judge-terminal` yields 0.
+	// Round 0 is synthesis, when no gap exists to close, so 0 here means UNKNOWN, not FIRST.
+	//
+	// Reading it as "before everything" put a phantom closure in the archive at the start of
+	// round 1 and demanded samples for rounds that could not have taken them — the bench's
+	// terminal opinion happens after the last round ends. Measured at 1 seed in 60 by the sweep,
+	// which is the only reason it was seen at all: a live run would have failed verify with a
+	// message naming rounds whose seats had done nothing wrong.
+	//
+	// This is the string-derived-fact hazard in miniature (facts-are-fields): the round is
+	// recovered from a seat-id by shape, and the miss returns a plausible number rather than an
+	// error.
 	archivedBefore := func(round int) int {
 		n := 0
 		for _, g := range b.Gaps {
-			if g != nil && g.HasClosed && g.ClosedRound < round {
+			if g != nil && g.HasClosed && g.ClosedRound > 0 && g.ClosedRound < round {
 				n++
 			}
 		}
@@ -75,7 +88,15 @@ func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	mergeSat := map[int]bool{}
 	discharged := map[int]bool{}
 	for _, e := range b.Events {
-		if strings.HasPrefix(e.SeatID, "red-merge") {
+		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a
+		// round where the merge registered and then the run ended — a ceiling hit, a PASS, a
+		// halt between the two — owed a sample it never had the chance to take. The floor is
+		// about work the merge DID, so the announcement does not count as work.
+		//
+		// Found by the sweep at 1 seed in 60 once an unrelated change shifted the RNG stream:
+		// rare, real, and exactly the kind of gate that would have fired on a live run months
+		// later with nobody able to say why.
+		if strings.HasPrefix(e.SeatID, "red-merge") && e.Type != "register" {
 			mergeSat[e.Round] = true
 		}
 		if e.Type != "spot-check" {

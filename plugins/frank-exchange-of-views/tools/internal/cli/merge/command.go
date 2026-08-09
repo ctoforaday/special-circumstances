@@ -19,7 +19,6 @@ func NewCommand() *cobra.Command {
 		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>"),
 		newMint(),
 		newClose(),
-		newDispose(),
 		newRegrade(),
 		newDisputeRespond(),
 		newSpotCheck(),

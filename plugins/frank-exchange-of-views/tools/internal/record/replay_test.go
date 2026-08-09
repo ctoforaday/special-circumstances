@@ -498,53 +498,37 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	}
 }
 
-// dispose targets the FIRST matching observation, by label when it has one and
-// by event key otherwise.
-func TestBoardStateDispositionMatching(t *testing.T) {
+// FINDINGS REPLAY; DISPOSALS NO LONGER EXIST. `observe` and `dispose` are retired (#327), and
+// with them the label-matching that resolved a disposal to its target — a mechanism that once
+// attached 39 of 60 disposals by accident of ordering because 15 labels were reused across lens
+// seats. A finding is now addressed by COALESCENCE alone: its label named in a gap's found_by.
+//
+// What must still hold is that every finding lands on the board with its identity intact, since
+// the credit join is keyed on exactly that.
+func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
-	merge := "red-merge-r1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []Event{
 		ev(lens, "aaaaaaaa", 0, 1, "finding", lens+":finding:F1", NewPayload().Set("label", "F1").Set("text", "first")),
-		ev(lens, "aaaaaaaa", 1, 1, "observe", lens+":observe:#1", NewPayload().Set("text", "unlabelled")),
-		ev(lens, "aaaaaaaa", 2, 1, "finding", lens+":finding:F1-dup", NewPayload().Set("label", "F1").Set("text", "same label again")),
-	})
-	writeShard(t, runDir, merge, "bbbbbbbb", []Event{
-		ev(merge, "bbbbbbbb", 0, 1, "dispose", merge+":dispose:F1", NewPayload().Set("observation", "F1").Set("disposition", "minted-as")),
-		ev(merge, "bbbbbbbb", 1, 1, "dispose", merge+":dispose:key", NewPayload().Set("observation", lens+":observe:#1").Set("disposition", "declined")),
-		ev(merge, "bbbbbbbb", 2, 1, "dispose", merge+":dispose:none", NewPayload().Set("observation", "NOPE").Set("disposition", "declined")),
+		ev(lens, "aaaaaaaa", 1, 1, "finding", lens+":finding:F2", NewPayload().Set("label", "F2").Set("text", "second")),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.Observations) != 3 {
-		t.Fatalf("%d observations, want 3", len(b.Observations))
+	if len(b.Observations) != 2 {
+		t.Fatalf("both findings must replay onto the board, got %d", len(b.Observations))
 	}
-	byText := map[string]*Observation{}
-	for _, o := range b.Observations {
-		byText[o.Payload.Str("text")] = o
-	}
-	if o := byText["first"]; o.Disposition == nil || o.Disposition.Str("disposition") != "minted-as" {
-		t.Errorf("the FIRST match on a label was not disposed: %+v", o.Disposition)
-	}
-	// find() semantics: the second observation sharing the label stays undisposed.
-	if o := byText["same label again"]; o.Disposition != nil {
-		t.Error("dispose reached a SECOND observation with the same label; find() takes the first only")
-	}
-	// An unlabelled observation is addressable by its event key.
-	if o := byText["unlabelled"]; o.Disposition == nil || o.Disposition.Str("disposition") != "declined" {
-		t.Errorf("an unlabelled observation could not be disposed by key: %+v", o.Disposition)
-	}
-	// A dispose naming nothing must not attach itself to an arbitrary observation.
-	disposed := 0
-	for _, o := range b.Observations {
-		if o.Disposition != nil {
-			disposed++
+	for _, want := range []string{"F1", "F2"} {
+		found := false
+		for _, o := range b.Observations {
+			if o.Payload.Str("label") == want {
+				found = true
+			}
 		}
-	}
-	if disposed != 2 {
-		t.Errorf("%d observations disposed, want 2 — a non-matching dispose landed somewhere", disposed)
+		if !found {
+			t.Errorf("finding %s lost its label in replay — found_by credit is keyed on it", want)
+		}
 	}
 }
 
@@ -598,8 +582,6 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p"), ""},
 
 		{"close without --id", "close", NewPayload(), "close requires --id"},
-		{"dispose without --as", "dispose", NewPayload(), "dispose requires --as"},
-		{"dispose complete", "dispose", NewPayload().Set("disposition", "declined"), ""},
 		{"regrade without --basis", "regrade", NewPayload(), "regrade requires --reason"},
 		{"regrade complete", "regrade", NewPayload().Set("basis", "b"), ""},
 

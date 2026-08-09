@@ -115,54 +115,6 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	}
 }
 
-// A lens finds, the merge mints citing it, the merge disposes the leftover observation.
-// This is the whole red pipeline, and every step names an artifact a DIFFERENT seat made.
-func TestLensWorkReachesTheBoardAndEveryObservationGetsAFate(t *testing.T) {
-	runDir := seatRun(t)
-
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--key", "F1", "--location", "§3 \"the parser accepts an empty body\"",
-		"--reason", "an empty body is accepted where the grammar requires one element",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
-		t.Fatalf("lens finding: %v", err)
-	}
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note",
-		"--reason", "the neighbouring function has the same shape but validates first"); err != nil {
-		t.Fatalf("lens observe: %v", err)
-	}
-
-	// The mint cites the lens's finding by ITS label — a cross-seat reference.
-	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "from-l1", "--class-new", "lens-to-board",
-		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "§3 \"the parser accepts an empty body\"",
-		"--problem", "the defect", "--fix", "the fix",
-		"--check-kind", "document", "--check", "feed the parser an empty body and assert it is refused",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
-		"--found-by", "L1-F1")
-	if err != nil {
-		t.Fatalf("mint --found-by: %v", err)
-	}
-	if id := gapID(out); id == "" {
-		t.Fatalf("mint returned no id: %q", out)
-	}
-
-	mint := lastOfType(t, runDir, "mint")
-	if got := mint.Payload.StrList("found_by"); len(got) != 1 || got[0] != "L1-F1" {
-		t.Errorf("the minted gap records found_by %v, want [L1-F1] — without it the lens's finding and the board gap are two unrelated records and no one can tell which lens earned the gap", got)
-	}
-
-	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "L1-O1", "--as", "declined",
-		"--reason", "checked at the leaf; the neighbour validates first, so there is no defect"); err != nil {
-		t.Fatalf("dispose: %v", err)
-	}
-	if got := lastOfType(t, runDir, "dispose").Payload.Str("observation"); got != "L1-O1" {
-		t.Errorf("the disposal names observation %q, want L1-O1 — an observation with no fate is the lens's work quietly dropped", got)
-	}
-}
-
 // A petition crosses roles in both directions: a MERGE files it, the BENCH rules on it,
 // and the relief is meant to bind the seats that come after. Both halves must be in the
 // one record, or "heard before the debate continues" is unenforceable.

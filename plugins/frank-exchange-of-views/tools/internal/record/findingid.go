@@ -57,7 +57,7 @@ func FindingByID(runDir, id string) (*Event, error) {
 	}
 	for i := range m.Events {
 		e := m.Events[i]
-		if (e.Type == "finding" || e.Type == "observe") && e.Payload.Str("finding_id") == id {
+		if e.Type == "finding" && e.Payload.Str("finding_id") == id {
 			return &m.Events[i], nil
 		}
 	}

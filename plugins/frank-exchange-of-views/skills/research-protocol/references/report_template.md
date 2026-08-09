@@ -45,8 +45,10 @@
 ## Blue team report (in full)           <!-- [BLUE] blue/report.md embedded verbatim — union, not summary -->
 
 ## Red team findings (in full)          <!-- [RECORD] open gaps with grades + the closure index, from the board; then the
-                                              lens findings never raised to a gap, and the observations with the fate the
-                                              merge gave each one (an undisposed observation says so) -->
+                                              lens findings credited by no gap's found_by — red's leaf audit the merge
+                                              weighed and did not mint. A finding is addressed by COALESCENCE and nothing
+                                              else since #327 retired observe/dispose. Then red's archive spot-checks and
+                                              blue's correctness manifest. -->
 
 ## The debate                           <!-- [RECORD] ONE transcript: per round the parties' positions, closings and grade
                                               disputes, the PETITIONS — both the filing (class, basis, relief sought) and

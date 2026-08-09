@@ -52,7 +52,6 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"mint":            {"acceptance_check": "c", "class": "scope-creep"},
 		"close":           {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x", "prose": "p"},
 		"closing":         {"gap_id": "R1-1", "text": "t"},
-		"dispose":         {"disposition": "declined", "reason": "r"},
 		"regrade":         {"basis": "b"},
 		"dispute":         {"gap_id": "R1-1", "evidence": "e"},
 		"dispute-respond": {"gap_id": "R1-1", "rationale": "r"},
@@ -96,7 +95,6 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 // case while telling us nothing.
 func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 	for typ, p := range map[string]*Payload{
-		"dispose": NewPayload().Set("disposition", "declined").Set("reason", "r"),
 		"regrade": NewPayload().Set("basis", "b"),
 		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
 		// avenue_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate

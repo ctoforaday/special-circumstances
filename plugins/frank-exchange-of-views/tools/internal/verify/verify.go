@@ -116,7 +116,7 @@ func gapsDisposed(b *record.Board) Check {
 func foundByResolves(b *record.Board) Check {
 	labels := map[string]bool{}
 	for _, e := range b.Events {
-		if e.Type == "finding" || e.Type == "observe" {
+		if e.Type == "finding" {
 			if l := e.Payload.Str("label"); l != "" {
 				labels[l] = true
 			}

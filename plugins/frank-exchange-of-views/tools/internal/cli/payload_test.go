@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -42,10 +43,6 @@ func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "long-form", "payload-channel")
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "o"); err != nil {
-		t.Fatal(err)
-	}
 	// The STATE each verb needs, not just the referent. dispute-respond answers a
 	// dispute, so one is filed on a DIFFERENT gap the case answers.
 	undisputed := mintGap(t, runDir, "undisputed", "payload-channel")
@@ -58,7 +55,6 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		name, key string
 		args      []string
 	}{
-		{"merge dispose", "reason", []string{"merge", "dispose", "--seat-id", "red-merge-r1", "--observation", "L1-O1", "--as", "declined"}},
 		{"merge regrade", "basis", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
 		{"merge dispute-respond", "rationale", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1", "--id", id, "--dimension", "severity", "--as", "accepted"}},
 		{"blue dispute", "evidence", []string{"blue", "dispute", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
@@ -83,13 +79,14 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 // verb would have dropped, not discover it in a projection three rounds later.
 func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "o"); err != nil {
-		t.Fatal(err)
+	// Driven through `merge position` since #327 retired `dispose`, which this used to use.
+	// The rule is the seat.Prose contract's, not any one verb's — any prose verb proves it.
+	both := filepath.Join(t.TempDir(), "prose.md")
+	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
+		t.Fatal(werr)
 	}
-	_, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "L1-O1", "--as", "declined",
-		"--reason", "inline", "--reason-file", writeTemp(t, "from a file"))
+	_, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--reason", "inline", "--reason-file", both)
 	if err == nil {
 		t.Fatal("passing --reason AND --reason-file was accepted; one of them was silently dropped")
 	}

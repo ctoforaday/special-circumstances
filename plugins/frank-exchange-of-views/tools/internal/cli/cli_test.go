@@ -267,7 +267,7 @@ func TestBoardVerbsExistOnlyInTheMergeRole(t *testing.T) {
 		}
 		verbs[roleCmd.Name()] = set
 	}
-	for _, board := range []string{"mint", "close", "dispose", "regrade"} {
+	for _, board := range []string{"mint", "close", "regrade"} {
 		if !verbs["merge"][board] {
 			t.Errorf("the merge role is missing the board verb %q", board)
 		}
@@ -278,7 +278,7 @@ func TestBoardVerbsExistOnlyInTheMergeRole(t *testing.T) {
 		}
 	}
 	// Blue has NO board verbs at all, by topology rather than obedience.
-	for _, v := range []string{"mint", "close", "dispose", "regrade", "verdict", "spot-check"} {
+	for _, v := range []string{"mint", "close", "regrade", "verdict", "spot-check"} {
 		if verbs["blue"][v] {
 			t.Errorf("blue has %q; blue is additive-only and must not be able to subtract", v)
 		}
@@ -792,7 +792,6 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		wantErr string
 	}{
 		{"regrade without --reason", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "regrade requires --reason"},
-		{"dispose without --as", []string{"merge", "dispose", "--observation", "L1-F1"}, "dispose requires --as"},
 		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "mint requires --check"},
 		{"mint without --class", []string{"merge", "mint", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
 	}

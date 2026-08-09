@@ -71,7 +71,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	capture(command(bin, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap"))
-	// And one real finding, so "dispose without disposition" refuses the MISSING
+	// And one real finding, so a case that references it refuses on the MISSING
 	// DISPOSITION rather than an unknown observation. It did the latter for as long as
 	// this case has existed: the case was named for a refusal it never reached, and the
 	// golden recorded the wrong message without anything noticing.
@@ -95,7 +95,6 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"close without id", []string{"merge", "close", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t"}},
 		{"close without anchor", []string{"merge", "close", "--id", "R1-1"}},
 		{"regression close without successor", []string{"merge", "close", "--id", "R1-1", "--as", "closed_with_regression", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t"}},
-		{"dispose without disposition", []string{"merge", "dispose", "--observation", "L1-F1"}},
 		{"regrade without basis", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}},
 		{"opinion missing fields", []string{"bench", "opinion", "--id", "R1-1", "--as", "carried"}},
 		// The closed sets. Each names what would have worked AND what the near-miss
@@ -104,7 +103,6 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"verdict in the wrong case", []string{"merge", "verdict", "--as", "pass"}},
 		{"verdict outside the set", []string{"merge", "verdict", "--as", "banana"}},
 		{"outcome in the wrong case", []string{"bench", "outcome", "--as", "ceiling"}},
-		{"dispose outside the set", []string{"merge", "dispose", "--observation", "L1-F1", "--into", "R1-1", "--as", "banana"}},
 		{"petition ruling outside the set", []string{"bench", "petition-rule", "--petitioner", "red-merge-r1", "--petition-class", "scope", "--as", "halt", "--reason", "r"}},
 		{"closure class near-miss", []string{"merge", "close", "--id", "R1-1", "--as", "closed-with-regression", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t", "--reason", "r"}},
 		// The class sweep found five more set-shaped flags past --as. Each is here for
@@ -112,7 +110,6 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
 		{"dispute dimension outside the set", []string{"blue", "dispute", "--id", "R1-1", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
-		{"observation kind outside the set", []string{"lens", "observe", "--kind", "banana", "--label", "O1", "--reason", "r"}},
 		{"citation confidence outside the set", []string{"lens", "cite", "--claim", "c", "--reference", "r", "--confidence", "banana"}},
 		{"blue confidence outside the set", []string{"blue", "confidence", "--claim", "c", "--confidence", "banana"}},
 		{"petition class outside the set", []string{"blue", "petition", "--petition-class", "banana", "--relief", "x", "--reason", "r"}},

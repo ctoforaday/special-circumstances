@@ -32,7 +32,7 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
 | `register` | first action at the seat | — | CLEAN |
 | `finding` | a defect in the report, anchored to a location | — | CLEAN — the canonical lens surface |
 | `cite` | a claim verified at its source | envelope `corroboration[]` re-types claim/reference/confidence | COLLAPSE → cite events; envelope drops `corroboration[]` (blue reads `--view citation-ledger`) — **NOT EXECUTED** (#326): the envelope still declares it and three constitutions still name it |
-| `observe` | a below-bar note (weaker than a finding) | `finding` — the above/below-bar line is a judgment the lens makes on *every* thing it notices | COLLAPSE → retire; findings superseded it — **RE-OPENED** (#327): #320 gave observations a reader, which was the actual cause of the disuse this rested on |
+| ~~`observe`~~ | RETIRED (#327) — a below-bar note | — | EXECUTED: the above/below-bar line is one judgement the lens makes on everything it notices, and `finding` plus a grade expresses it |
 | `avenue` | a line of inquiry pursued/abandoned/declined | — | CLEAN |
 | `friction` | a missing capability | — | CLEAN |
 | `petition` | an ethical/safety/integrity/constitutional objection | envelope `petitions[]` is the origination channel; the `petition` event is written but consumers read `petition-rule` + envelope, never the event | RESOLVED (#315, shipped): the `petition` event is the filing, and the report renders it beside its ruling |
@@ -44,7 +44,7 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
 |---|---|---|---|
 | `register` / `mint` / `close` | the core board acts | — | CLEAN |
 | the open docket (read-back) | transcribe the board into the envelope | `RED_ENVELOPE.gaps[]` re-types every open gap's prose every round; already on the board via `mint` | COLLAPSE → envelope carries `{id, severity, likelihood, impact, supersedes}` only; the tool re-derives prose at capture/assembly (the #1 token lever) |
-| `dispose` | give a lens observation a fate | bound to `observe` (being retired) | COLLAPSE → retire with observe — **RE-OPENED** with it (#327) |
+| ~~`dispose`~~ | RETIRED (#327) — gave a lens observation a fate | — | EXECUTED with `observe`. A finding is addressed by COALESCENCE: credited in a gap's found_by, and nothing else |
 | `regrade` | change a gap's grade in place | debate.js prose "apply the new grade in the ledger" never names the verb — seat may re-mint or edit instead | COLLAPSE → `regrade` is canonical; debate.js must name it — **NOT EXECUTED** (#325): zero mentions in debate.js or the constitutions; the report reads it and the fuzz is its only caller |
 | `spot-check` | the round archive spot-check duty | the `spot-check` event, and only that — the envelope array is deleted | RESOLVED (#317, shipped): the verb is the single channel, and its W1.8 floor is COMPUTED from the board at verify time rather than reported by the seat |
 | `dispute-respond` | answer a blue grade dispute | — | CLEAN (already a routing ref) |
@@ -119,7 +119,7 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
 | collapse | state |
 |---|---|
 | **Envelope round-trip** — the dominant token lever: the envelope carries refs, the tool re-derives from the record | PARTIAL. Done for grade disputes, manifest (#318) and the docket. `corroboration[]` (#326) and the petition ruling's opinion prose (#330) still round-trip. |
-| **observe/dispose → retire** | RE-OPENED (#327). The collapse rested on disuse; #320 found the cause was that the work reached no reader, and gave it one. |
+| **observe/dispose → retire** | EXECUTED (#327, 2026-08-09). Re-opened after #320 gave observations a reader, then decided to retire regardless: the two verbs and their events are gone, and "undisposed" became "credited by no gap". **The cost is stated, not hidden — `checked-held` (a check red RAN and confirmed) has no successor vocabulary**, so the run can no longer record a confirmed negative outside the spot-check and proof paths. |
 | **revision / CHANGELOG.md** — the event is canonical; drop the file | NOT EXECUTED (#251). The last item of the record-tool plan's deletion list; the other four are done. |
 | **regrade → canonical; debate.js must name it** | NOT EXECUTED (#325). Zero mentions in debate.js or the constitutions. |
 | **tldr / open_questions → drop from the envelope** | DONE. Now `CLEAN` in the table. |

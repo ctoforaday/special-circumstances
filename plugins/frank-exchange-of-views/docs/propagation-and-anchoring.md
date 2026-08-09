@@ -157,7 +157,7 @@ Do not cache until the derivation is proven expensive. That is the render-shadow
 ## Status
 
 - **Built:** none of the anchoring model yet. Prerequisites landed — board de-dup (#225), retire
-  detector (#226), undisposed metric (#227).
+  detector (#226), undisposed metric (#227 — retired with observe/dispose in #327; the honest successor is uncredited_findings).
 - **Specced (the (c) work):** the worklist view, `merge near-match`, the claim-index (recompute-on-
   read, footnote-marker enumeration reconciled with `claimcount.Count`), `mint --existence`. The (c)
   spec's Phase 3 is **slice (1a)** — the confirmation loop with the retained report-wide stale-string

@@ -181,26 +181,6 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	}
 }
 
-// A lens observation must be disposable BY THE MERGE — a different seat, a different
-// role, referring to the first seat's label. This is the cross-seat reference the whole
-// found_by/dispose chain depends on.
-func TestMergeCanDisposeALensObservationByItsLabel(t *testing.T) {
-	runDir := seatRun(t)
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--reason", "a thing worth noticing but not yet a gap"); err != nil {
-		t.Fatalf("lens observe: %v", err)
-	}
-	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "L1-O1", "--as", "declined",
-		"--reason", "checked at the leaf and the behaviour is correct as written"); err != nil {
-		t.Fatalf("merge dispose of a lens observation: %v", err)
-	}
-	ev := lastOfType(t, runDir, "dispose")
-	if !payloadKeys(ev)["observation"] {
-		t.Error("the disposal must name the observation it disposes, or the lens's work has no fate")
-	}
-}
-
 // Every seat's events land in ONE record that any seat can read back. If a seat's writes
 // were invisible to the others, every cross-seat duty in the protocol would be unverifiable.
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {

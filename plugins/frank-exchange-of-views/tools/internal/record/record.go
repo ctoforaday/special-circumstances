@@ -291,7 +291,7 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 	// IDENTITY IS ASSIGNED HERE, not chosen by the seat. A finding gets an unguessable
 	// id the moment it is recorded, so the only way to refer to it later is to have read
 	// it back — see findingid.go for what a guessable one cost.
-	if typ == "finding" || typ == "observe" {
+	if typ == "finding" {
 		if !p.Has("finding_id") {
 			p.Set("finding_id", NewFindingID())
 		}
@@ -579,7 +579,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if typ == "closing" && p.Str("text") == "" {
 			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
 		}
-	case "finding", "observe":
+	case "finding":
 		// A finding/observation with no label CANNOT BE ADDRESSED, and every one must get
 		// a fate. Measured on the 2026-07-18 run: 8 finding/observe events carried no label
 		// at all, so the merge could not name them even to decline them — they sat in the
@@ -587,34 +587,8 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// `observe` takes --label from the seat; a `finding` label is TOOL-assigned
 		// (L{role}-F{N}), so this refusal is an internal guard for it, not a seat message.
 		if !p.Has("label") || p.Str("label") == "" {
-			if typ == "observe" {
-				return fmt.Errorf("record: observe requires --label — findings are addressed BY LABEL, so an unlabelled one can never be given a fate and stays open forever")
-			}
-			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be addressed and stays open forever")
+			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be credited in a gap's found_by and its work is lost")
 		}
-	case "dispose":
-		// BY ID FIRST. A tool-assigned id is unambiguous by construction; the label
-		// path stays for prompts that have not been rewritten yet, and it refuses
-		// ambiguity rather than guessing.
-		if id := p.Str("observation"); strings.HasPrefix(id, "f-") {
-			if _, err := FindingByID(runDir, id); err != nil {
-				return err
-			}
-		} else if err := requireObservation(runDir, id, seatID, "dispose", "--observation"); err != nil {
-			return err
-		}
-		// ONE FINDING, ONE FATE — checkable only now that identity is assigned. The 16
-		// apparent double-disposals in the run were label collisions, not repeats.
-		if err := requireUndisposed(runDir, p.Str("observation")); err != nil {
-			return err
-		}
-		if err := requireGap(runDir, p.Str("into"), "dispose", "--into"); err != nil {
-			return err
-		}
-		// The disposition itself is checked by the enum table at the top of validate:
-		// this used to be a presence-only check under a message that NAMED the four
-		// values, which meant the message was the only place the set existed and
-		// `dispose --as banana` passed the check that appeared to state it.
 	case "regrade":
 		if err := requireGap(runDir, p.Str("gap_id"), "regrade", "--id"); err != nil {
 			return err

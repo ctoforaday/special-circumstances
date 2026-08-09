@@ -51,59 +51,6 @@ func requireGaps(runDir string, ids []string, verb, flag string) error {
 	return nil
 }
 
-// requireObservation resolves a disposal's target, ROUND-SCOPED, and refuses ambiguity.
-//
-// The historical problem (2026-07-18 run): 15 labels were used by more than one lens seat
-// (L5-F1 existed in rounds 1, 2 and 3), so 39 of 60 disposals named something that matched
-// several findings; 13 named a label no event ever created; and 8 finding events carried no
-// label at all. That is fixed at the SOURCE now: finding labels are tool-assigned, run-unique
-// per role (findinglabel.go), so a label names exactly one finding run-wide — cross-round
-// collision is impossible, not merely disambiguated.
-//
-// Round scoping therefore is no longer the disambiguator; it is simply the natural scope of
-// a disposal — a merge coalesces THIS round's lens findings, so red-merge-r3 disposing L5-F3
-// resolves it among round 3's findings. It stays as belt-and-suspenders: with unique labels
-// it can only agree with a global lookup, and it keeps the refusal-on-ambiguity path honest.
-//
-// Where it still cannot tell, it REFUSES AND NAMES THE CANDIDATES rather than picking. A
-// silent wrong pick writes the wrong finding's fate into the record and leaves the right
-// one looking undisposed forever — invisible, and exactly the class of defect the whole
-// tool exists to remove.
-func requireObservation(runDir, label, seatID, verb, flag string) error {
-	if label == "" {
-		return nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return err
-	}
-	round := RoundOf(seatID)
-	var sameRound, anyRound []string
-	for _, e := range m.Events {
-		if e.Type != "observe" && e.Type != "finding" {
-			continue
-		}
-		if e.Payload.Str("label") != label {
-			continue
-		}
-		anyRound = append(anyRound, e.SeatID)
-		if RoundOf(e.SeatID) == round {
-			sameRound = append(sameRound, e.SeatID)
-		}
-	}
-	switch {
-	case len(sameRound) == 1:
-		return nil
-	case len(sameRound) > 1:
-		return fmt.Errorf("record: %s %s names %s, which %d seats recorded THIS ROUND (%v) — the label does not identify one finding, so the disposal would write the wrong one's fate and leave the right one looking undisposed", verb, flag, label, len(sameRound), sameRound)
-	case len(anyRound) == 1:
-		return nil
-	case len(anyRound) > 1:
-		return fmt.Errorf("record: %s %s names %s, recorded by %v in other rounds and by nobody this round — name the finding from your own round, or the disposal is guesswork", verb, flag, label, anyRound)
-	}
-	return fmt.Errorf("record: %s %s names %s, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing", verb, flag, label)
-}
-
 // requireFindings refuses found_by attribution to a finding that does not exist.
 //
 // found_by is the credit chain from a lens's work to the board gap it earned, and it is
@@ -119,7 +66,7 @@ func requireFindings(runDir string, labels []string, verb, flag string) error {
 	}
 	have := map[string]bool{}
 	for _, e := range m.Events {
-		if e.Type == "finding" || e.Type == "observe" {
+		if e.Type == "finding" {
 			if l := e.Payload.Str("label"); l != "" {
 				have[l] = true
 			}
@@ -240,36 +187,6 @@ func requirePriorDispute(runDir, gapID, dimension string) error {
 		return fmt.Errorf("record: dispute-respond names %s.%s, on which no dispute was filed — answering an argument nobody made records half an exchange and inflates the answered-disputes count against a denominator of zero", gapID, dimension)
 	}
 	return fmt.Errorf("record: dispute-respond --id names gap %s, on which no dispute was filed — answering an argument nobody made records half an exchange and inflates the answered-disputes count against a denominator of zero", gapID)
-}
-
-// requireUndisposed refuses giving one finding a SECOND fate.
-//
-// This was unmeasurable before ids existed: the run showed 16 observations "disposed more
-// than once", but every one was a label collision — three rounds of lens 5 each recording
-// an L5-F1, and three disposals landing on whichever replayed first. That collision can no
-// longer happen (finding labels are tool-assigned run-unique per role), and identity is
-// assigned by the tool, so a second disposal of the same finding is unambiguous, and it is
-// wrong: the first fate is already on the record and in the counts, and a second silently
-// overwrites which one the projection shows.
-//
-// A seat that has changed its mind about a fate is describing a REGRADE of a judgement, and
-// there is no verb for that yet — which is a finding about the tooling, and the friction
-// verb is how it gets one.
-func requireUndisposed(runDir, target string) error {
-	if target == "" {
-		return nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return err
-	}
-	for _, e := range m.Events {
-		if e.Type == "dispose" && e.Payload.Str("observation") == target {
-			return fmt.Errorf("record: dispose --observation names %s, which %s already gave the fate %q — a finding has one fate, and a second silently replaces which one the projection shows. If the first was wrong, record it with the friction verb: there is no verb for revising a disposal, and that absence is itself the finding",
-				target, e.SeatID, e.Payload.Str("disposition"))
-		}
-	}
-	return nil
 }
 
 // requireSupersededAreClosed is a COMPLETION duty, checked at the seat's terminal act.

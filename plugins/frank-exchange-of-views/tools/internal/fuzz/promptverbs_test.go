@@ -142,7 +142,6 @@ func TestEveryRecordingVerbIsNamedInAPrompt(t *testing.T) {
 		"blue register":  "as above",
 		"bench register": "as above",
 		"bench assemble": "the assembler's whole task IS this verb; the seat is dispatched to run it, not told about it in a prompt clause",
-		"lens observe":   "UNDER REVIEW, not overlooked (#327). The trigger map resolved observe/dispose as a collapse — retire them, findings superseded them — on the grounds of disuse; #320 then found the disuse's cause was that observations reached NO READER, and gave them one. Wiring a verb whose existence is an open question would prejudge it, so this exemption stands only until #327 is decided either way",
 	}
 
 	var corpus strings.Builder

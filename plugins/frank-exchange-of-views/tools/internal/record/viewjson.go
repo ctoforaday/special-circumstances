@@ -37,12 +37,19 @@ type BoardJSON struct {
 }
 
 type CountsJSON struct {
-	Open              int `json:"open"`
-	Closed            int `json:"closed"`
-	ClosedByBench     int `json:"closed_by_bench"`
-	UndisposedObserv  int `json:"undisposed_observations"`
-	Anomalies         int `json:"anomalies"`
-	TotalObservations int `json:"total_observations"`
+	Open          int `json:"open"`
+	Closed        int `json:"closed"`
+	ClosedByBench int `json:"closed_by_bench"`
+	// UncreditedFindings counts lens findings whose label is named in NO gap's found_by.
+	//
+	// It replaces undisposed_observations (#327). That metric counted `observe` events with no
+	// `dispose` fate, and both verbs are retired — so it would now be PERMANENTLY ZERO, which is
+	// the plausible-zero this codebase keeps finding: a clean board and a dead detector print the
+	// same number. A finding's fate is coalescence, so the honest question is whether the finding
+	// was ever credited, and that is what this counts.
+	UncreditedFindings int `json:"uncredited_findings"`
+	Anomalies          int `json:"anomalies"`
+	TotalObservations  int `json:"total_observations"`
 	// Citations is the count of cite events on the record — the canonical source
 	// for the envelope's citations_checked, which red reads from its native board
 	// view instead of self-reporting (a number fabricated on haiku). Cite events are
@@ -99,20 +106,21 @@ type GapJSON struct {
 }
 
 type ObservationJSON struct {
-	// ID is the tool-assigned, unguessable identity — what a disposal names. It leads
-	// the struct because it is the field the merge seat acts on; the label below is
-	// description, and two lenses may both use "F1" without either being wrong.
-	ID     string         `json:"id"`
-	SeatID string         `json:"seat_id"`
-	Key    string         `json:"key"`
-	Kind   string         `json:"kind,omitempty"`
-	Label  string         `json:"label,omitempty"`
-	Text   string         `json:"text,omitempty"`
-	Fate   map[string]any `json:"fate,omitempty"`
-	// Disposed is explicit rather than inferred from Fate being null: "has no fate yet" is
-	// the single most actionable fact about an observation for the merge seat, and making
-	// the consumer test for null is how it gets missed.
-	Disposed bool `json:"disposed"`
+	// ID is the tool-assigned, unguessable identity. It leads the struct because it is the
+	// field the merge seat acts on; the label below is description, and two lenses may both
+	// use "F1" without either being wrong.
+	ID     string `json:"id"`
+	SeatID string `json:"seat_id"`
+	Key    string `json:"key"`
+	Kind   string `json:"kind,omitempty"`
+	Label  string `json:"label,omitempty"`
+	Text   string `json:"text,omitempty"`
+
+	// Credited says the finding's label is named in some gap's found_by — the ONLY way a
+	// finding is addressed now that `dispose` is retired (#327). It is explicit rather than
+	// left for the consumer to re-derive by scanning every gap, because that re-derivation is
+	// a second definition free to disagree with this one.
+	Credited bool `json:"credited"`
 }
 
 // BoardJSONOf projects the replayed board into the seat-facing shape.
@@ -169,26 +177,27 @@ func BoardJSONOf(b *Board) BoardJSON {
 		}
 	}
 
-	for _, o := range b.Observations {
-		oj := ObservationJSON{
-			SeatID: o.SeatID, Key: o.Key, Kind: o.Kind,
-			Disposed: o.Disposition != nil,
+	// CREDITED, not disposed (#327). A finding is addressed by being named in some gap's
+	// found_by; the dispose verb that used to give it an explicit fate is retired.
+	credited := map[string]bool{}
+	for _, g := range b.Gaps {
+		if g == nil || g.Mint == nil {
+			continue
 		}
+		for _, lbl := range g.Mint.StrList("found_by") {
+			credited[lbl] = true
+		}
+	}
+	for _, o := range b.Observations {
+		oj := ObservationJSON{SeatID: o.SeatID, Key: o.Key, Kind: o.Kind}
 		if o.Payload != nil {
 			oj.ID = o.Payload.Str("finding_id")
 			oj.Label = o.Payload.Str("label")
 			oj.Text = o.Payload.Str("text")
 		}
-		if o.Disposition != nil {
-			oj.Fate = payloadMap(o.Disposition)
-		} else if o.Kind == "observe" {
-			// Only an OBSERVE without a fate is "undisposed". A FINDING (Kind "finding" here — Kind
-			// is the event TYPE) is addressed by being named in a gap's found_by — coalescence,
-			// never the dispose verb — so a finding without a fate is NOT an undisposed
-			// observation. Counting both lumped every finding in: a run with 37 findings and zero
-			// observes reported "37 undisposed observations", a permanent false detector hit. The
-			// metric now measures what its name says.
-			out.Counts.UndisposedObserv++
+		oj.Credited = oj.Label != "" && credited[oj.Label]
+		if !oj.Credited {
+			out.Counts.UncreditedFindings++
 		}
 		out.Observations = append(out.Observations, oj)
 	}
