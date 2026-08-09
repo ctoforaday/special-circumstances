@@ -51,7 +51,6 @@ var envelopeEnumBinding = map[string]struct{ typ, key string }{
 	"PETITION_RULING.ruling":   {"petition-rule", "ruling"},
 	"RED_ENVELOPE.response":    {"dispute-respond", "response"},
 	"RED_ENVELOPE.existence":   {"mint", "existence"},
-	"RED_ENVELOPE.confidence":  {"cite", "confidence"},
 	"DISPUTE_DIMENSION.<self>": {"dispute", "dimension"},
 }
 
