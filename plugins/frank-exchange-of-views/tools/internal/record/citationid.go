@@ -185,6 +185,26 @@ type Proof struct {
 	Cites  string // the METHOD citation this applies, when blue named one
 	Reason string
 	Drift  string
+
+	// Verified is red's independent re-run (#343): whether the proof reproduced for the
+	// auditor, and what red made of it. Nil when nobody re-ran it — and that absence is
+	// itself information the reader needs, so the report says so rather than omitting it.
+	Verified *ProofVerification
+}
+
+// ProofVerification is one `reproduce` event: red re-ran the script and compared bytes.
+// `Reproduced` is COMPUTED by the tool, not claimed by the seat — which is the whole reason
+// re-running beats re-reading.
+type ProofVerification struct {
+	SeatID     string
+	Round      int
+	Reproduced bool
+	// Sound is red's JUDGEMENT, made by reading the script: does it establish the claim it is
+	// anchored to? Reproducing measures determinism only.
+	Sound    bool
+	Note     string
+	Recorded string // only on a mismatch
+	Observed string
 }
 
 // RecordedProofs returns every proof on the record, in event order.
@@ -196,6 +216,25 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 	m, err := MergedEvents(runDir)
 	if err != nil {
 		return nil, err
+	}
+	// Red's re-runs, keyed by the proof they checked, so the join happens once here rather
+	// than in every reader.
+	verified := map[string]*ProofVerification{}
+	for _, e := range m.Events {
+		if e.Type != "reproduce" {
+			continue
+		}
+		rep := false
+		if v, ok := e.Payload.Get("reproduced"); ok {
+			if b, isBool := v.(bool); isBool {
+				rep = b
+			}
+		}
+		verified[e.Payload.Str("proof_sha")] = &ProofVerification{
+			SeatID: e.SeatID, Round: e.Round, Reproduced: rep,
+			Sound: e.Payload.Str("soundness") == "sound", Note: e.Payload.Str("note"),
+			Recorded: e.Payload.Str("recorded_output"), Observed: e.Payload.Str("observed_output"),
+		}
 	}
 	var out []Proof
 	for _, e := range m.Events {
@@ -219,6 +258,8 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 			Cites:  e.Payload.Str("cites"),
 			Reason: e.Payload.Str("text"),
 			Drift:  e.Payload.Str("drift"),
+			// nil when nobody re-ran it, which the report states rather than omits.
+			Verified: verified[e.Payload.Str("sha256")],
 		})
 	}
 	return out, nil

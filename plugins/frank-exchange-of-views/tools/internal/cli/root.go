@@ -349,10 +349,16 @@ import (
 //	       words disagreed across four surfaces, which #342 reconciled. A stale binary accepts
 //	       `rebuttal_accepted` and `risk_argued`, words no reader now understands.
 //
+//	0.46.0 `lens reproduce` RECORDS its audit (#343), on two axes: `reproduced` is computed by
+//	       re-running and comparing bytes, and `--as sound|unsound` is red's judgement from
+//	       READING the script. Both required — re-running measures determinism, and a script
+//	       that prints "7 is prime" reproduces forever. A stale binary treats reproduce as a
+//	       read and records nothing.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.45.0"
+const Version = "0.46.0"
 
 func init() { record.ToolVersion = Version }
 

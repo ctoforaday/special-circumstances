@@ -92,9 +92,16 @@ func TestRedReproducesAProof(t *testing.T) {
 	}
 	sha := lastOfType(t, runDir, "proof").Payload.Str("sha256")
 
-	out, err := run(t, "lens", "reproduce", "--run", runDir, "--seat-id", "red-lens-r1-L1", "--id", sha)
+	// --as and --reason are REQUIRED (#343): re-running measures DETERMINISM, and a script that
+	// prints "7 is prime" reproduces forever. The soundness verdict is red's, from reading it.
+	out, err := run(t, "lens", "reproduce", "--run", runDir, "--seat-id", "red-lens-r1-L1", "--id", sha,
+		"--as", "sound", "--reason", "trial division to sqrt(n); it computes primality rather than asserting it")
 	if err != nil {
 		t.Fatalf("reproduce: %v", err)
+	}
+	// The verdict is on the RECORD now, not only in red's head.
+	if ev := lastOfType(t, runDir, "reproduce"); ev.Payload.Str("soundness") != "sound" {
+		t.Errorf("the soundness judgement must be recorded, got %q", ev.Payload.Str("soundness"))
 	}
 	if !strings.Contains(out, "REPRODUCES") {
 		t.Errorf("red re-ran the proof and did not confirm it: %q", out)

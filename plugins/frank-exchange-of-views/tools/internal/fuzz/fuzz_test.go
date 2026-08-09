@@ -1546,7 +1546,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
-	"confidence", "cite", "verify", "finding", "avenue", "friction", "revision", "retire",
+	"confidence", "cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
 	"manifest-row", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
 	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
@@ -1662,12 +1662,15 @@ var reportExemptions = map[string]string{
 	"anchor":    "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
 	"blue_edit": "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
 	"class-new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
-	"verify":    "red recording that it CHECKED a claim against its source. It reaches the reader through the citation-ledger view rather than the report: the report carries BLUE's citations (woven into the bibliography), and red verifying them is audit provenance rather than a claim the reader acts on. The trust grade IS surfaced — as the board's citations count, which #341 stopped inflating with blue's authored cites",
-	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
-	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
-	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
-	"outcome":   "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":   "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
+	// by the tool and rendered beside the proof either way (#343).
+	"reproduce": "note",
+	"verify":         "red recording that it CHECKED a claim against its source. It reaches the reader through the citation-ledger view rather than the report: the report carries BLUE's citations (woven into the bibliography), and red verifying them is audit provenance rather than a claim the reader acts on. The trust grade IS surfaced — as the board's citations count, which #341 stopped inflating with blue's authored cites",
+	"cite":           "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
+	"proof":          "resolved rather than rendered — weaveProofs splices the computation at its anchor",
+	"close":          "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
+	"outcome":        "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
@@ -2100,7 +2103,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 		if sha == "" {
 			continue // blue has not answered it yet; red has nothing to re-run
 		}
-		out, err := r.exec("--json", "lens", "reproduce", "--seat-id", seatID, "--id", sha)
+		out, err := r.exec("--json", "lens", "reproduce", "--seat-id", seatID, "--id", sha, "--as", pick(r.rng, []string{"sound", "unsound"}), "--reason", "fuzz: read the script and re-ran it")
 		if err != nil {
 			continue
 		}
