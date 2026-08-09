@@ -176,16 +176,20 @@ Declined: the flags do not diverge in a way cobra cannot express, the verbs are 
 distinct, and `evidence proof prove` stutters. The symmetry lives in the help text, not the
 path. Recorded so it is not re-litigated.
 
-#### An open fork: `show` as a group vs `<group> show`
+#### Considered and DECLINED: entity-scoped projections (`<group> show`)
 
-The mirror of the decision below is entity-scoped projections — `gap show ledger`,
-`evidence show citation-ledger` — which is arguably MORE consistent with "the tree is
-entities", and makes per-seat scoping fall out of group scoping for free.
+The mirror of the decision below is `gap show ledger`, `evidence show citation-ledger` — each
+entity carrying its own projections. It is arguably more consistent with "the tree is
+entities", and per-seat scoping would fall out of group scoping for free.
 
-Preferred as written (one `show` group) because several views span entities: `telemetry` is
-run-level, and `debate` spans argument, docket and closure. Entity-scoping forces an
-arbitrary home for those. **This is a genuine fork, not an obvious call**, and it is recorded
-as one rather than settled by omission.
+**Declined, 2026-08-09.** Several views span entities and would need an arbitrary home:
+`telemetry` is run-level, and `debate` spans argument, docket and closure. Forcing those into
+one entity is a worse lie than keeping projections in one place — and a reader looking for a
+projection then has to guess which entity someone filed it under, where today the answer is
+always `show`.
+
+Recorded as declined rather than left open: an unresolved fork in a plan is the shape #319
+put a gate on.
 
 ### `show` is a group, not a flag
 
