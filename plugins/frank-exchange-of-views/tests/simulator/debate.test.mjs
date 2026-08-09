@@ -884,7 +884,7 @@ test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbat
     // `petition-rule`, the record REFUSED the write, and the engine halted off the envelope with
     // no halt event anywhere: the report never said the bench halted.
     petition: [petitionRulingEnv({
-      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', opinion: 'the objection is sound' }],
+      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', relief: 'the objection is sound' }],
       halt: { opinion: 'continuing would compromise safety; the human must decide' },
     })],
   }))
@@ -906,7 +906,7 @@ test('W2c: the petition sitting names `bench halt` as the halt channel, not peti
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'b', relief: 'halt the run' }] })],
     petition: [petitionRulingEnv({
-      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', opinion: 'sound' }],
+      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', relief: 'sound' }],
       halt: { opinion: 'the human must decide' },
     })],
   }))
@@ -925,7 +925,7 @@ test('W2c: no petitions -> no sitting (zero cost); granted relief binds subseque
   assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge-petition')), 'no petition, no sitting')
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ petitions: [{ class: 'constitutional', basis: 'b', relief: 'narrow the demanded scope' }] })],
-    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'blue-synthesize', class: 'constitutional', ruling: 'granted', opinion: 'scope narrowed to the shipped artifacts' }] })],
+    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'blue-synthesize', class: 'constitutional', ruling: 'granted', relief: 'scope narrowed to the shipped artifacts' }] })],
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   const result = await world.run(script, ARGS)

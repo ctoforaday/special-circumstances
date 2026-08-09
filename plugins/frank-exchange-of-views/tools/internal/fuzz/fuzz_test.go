@@ -251,7 +251,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		// RUN, on its own channel (#329) — both can be true, and the petition does not stop
 		// being answered because the bench also ended the run.
 		_, _ = r.exec("bench", "petition-rule", "--seat-id", seatID, "--petitioner", who, "--petition-class", class, "--as", ruling, "--reason", opinion)
-		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "opinion": opinion})
+		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "relief": opinion})
 	}
 	r.petitioned = nil
 	if rulings == nil {
