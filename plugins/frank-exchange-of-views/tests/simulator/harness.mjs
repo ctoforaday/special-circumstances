@@ -67,7 +67,7 @@ export const blueEnv = (over = {}) => ({
   open_questions: [], friction: [], ...over,
 })
 export const redEnv = (over = {}) => ({
-  verdict: 'FAIL', gaps: [], corroboration: [], citations_checked: 10, notes: '', friction: [],
+  verdict: 'FAIL', gaps: [], citations_checked: 10, notes: '', friction: [],
   // Sharding observables (run-4 §4.5 conds 5+7): a healthy merge samples the archive from
   // round 2 and reports self-consistent shard counts.
   archive_spot_checks: ['R1-1'], ledger_closure_lines: 0, archive_blocks: 0, ...over,

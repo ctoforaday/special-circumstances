@@ -862,7 +862,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.dialectic("merge", seatID, nil)
 			// The merge's TERMINAL act on a PASS: checkpoints the event log to the recovery mirror.
 			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 
 		// Something is unrepaired, so the round FAILs.
@@ -872,13 +872,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			gaps = append(gaps, map[string]any{"id": id, "supersedes": arr()})
 		}
 		if len(gaps) == 0 {
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 		// The merge's terminal act on a FAIL too: the checkpoint is what protects the event log
 		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
 		// `FAIL` half of a two-value enum had never been recorded by anything.
 		_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "FAIL")
-		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
