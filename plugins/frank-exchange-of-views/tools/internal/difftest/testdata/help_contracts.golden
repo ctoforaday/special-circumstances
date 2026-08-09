@@ -124,12 +124,12 @@ Usage:
   feov-record lens [command]
 
 Available Commands:
-  cite        citation-ledger row (the cross-round re-fetch gate): --claim "..." --reference "..." --confidence high|medium|low --access-date YYYY-MM-DD
   finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<section + quoted sentence>"
   friction    attributed friction (survives aborts as an event): --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   reproduce   re-RUN a proof blue recorded and compare: --id <sha256 of the proof> — read-only, records nothing (a disagreement is a finding you write yourself)
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+  verify      record that you CHECKED a claim against its source (the cross-round re-fetch gate): --claim "..." --reference "..." --trust high|medium|low --access-date YYYY-MM-DD
 
 Flags:
   -h, --help   help for lens
@@ -261,7 +261,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.43.0
+feov-record version 0.44.0
 
 $ feov-record nonsuch help
 exit 2

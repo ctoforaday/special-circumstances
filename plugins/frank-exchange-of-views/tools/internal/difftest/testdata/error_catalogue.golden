@@ -74,9 +74,9 @@ feov-record: merge: record: "closed-with-regression" is not a closure class — 
 exit 2
 feov-record: blue: record: dispute requires --dimension severity|likelihood|impact|complexity_cost (got "banana") — the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero
 
-── citation confidence outside the set
+── verification trust outside the set
 exit 2
-feov-record: lens: record: cite requires --confidence high|medium|low (got "banana") — the grade is the whole content of a citation's claim about its source; an unreadable one makes the citation's confidence incomparable with every other row in the table it lands in
+feov-record: lens: record: verify requires --trust high|medium|low (got "banana") — the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)
 
 ── blue confidence outside the set
 exit 2
@@ -92,7 +92,7 @@ feov-record: merge: seat "not a seat id" does not belong to any role namespace (
 
 ── verb outside the lens role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, finding, cite, reproduce, friction, show)
+feov-record: verb "mint" is outside this seat's role (available: register, finding, verify, reproduce, friction, show)
 
 ── verb outside the blue role
 exit 2
