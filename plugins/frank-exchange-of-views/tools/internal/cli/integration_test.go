@@ -125,29 +125,29 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "disputed-grade", "grade-dispute-visibility")
 
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("blue dispute: %v", err)
+		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--dimension", "severity", "--as", "accepted",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "M1", "--as", "accepted",
 		"--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("red dispute-respond: %v", err)
+		t.Fatalf("motion grade rule: %v", err)
 	}
 
 	evs := events(t, runDir)
-	var sawDispute, sawResponse bool
+	var sawFiling, sawRuling bool
 	for _, e := range evs {
 		switch e.Type {
-		case "dispute":
-			sawDispute = true
-		case "dispute-respond":
-			sawResponse = true
+		case "motion":
+			sawFiling = true
+		case "motion-rule":
+			sawRuling = true
 		}
 	}
-	if !sawDispute || !sawResponse {
-		t.Fatalf("the exchange must survive in one shared record: dispute=%v response=%v", sawDispute, sawResponse)
+	if !sawFiling || !sawRuling {
+		t.Fatalf("the exchange must survive in one shared record: filing=%v ruling=%v", sawFiling, sawRuling)
 	}
 }
 

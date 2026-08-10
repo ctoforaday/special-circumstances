@@ -41,6 +41,38 @@ var MotionVerdicts = map[string][]string{
 	"direction": {"endorsed", "out-of-scope", "too-thin"},
 }
 
+// MotionFields are the ENUMERATED payload fields a subject's filing carries, beyond the verdict.
+//
+// They live here for the reason MotionVerdicts does: the set is keyed on (subject, key) and
+// EnumFields cannot express that — it is keyed by event TYPE, and one `motion` event carries a
+// grade `dimension` or a petition `class` depending on what it is about.
+//
+// THIS TABLE EXISTS BECAUSE DELETING THE OLD VERBS EXPOSED THAT THE NEW ONES HAD LOST THEIR
+// CONTRACT. `blue dispute --dimension` was enum-validated and `--proposed` was a pflag.Value that
+// refused a non-grade at parse; `motion grade file` registered both as plain strings and accepted
+// anything. The additive stage added the verb and nobody diffed its flag contract against the one
+// it replaces — which is the half-state that reads as done, one layer below where that rule is
+// usually applied.
+var MotionFields = map[string]map[string][]string{
+	"grade":    {"dimension": {"severity", "likelihood", "impact", "complexity_cost"}},
+	"petition": {"class": {"ethical", "safety", "integrity", "constitutional"}},
+}
+
+// MotionFieldEnum builds the enum entry for one of those fields, so the CLI's help and the write
+// check are generated from one table rather than stated twice. It returns ok=false for a
+// (subject, key) with no set, which is how a caller distinguishes "free text" from "empty set".
+func MotionFieldEnum(subject, key string, flag string) (EnumField, bool) {
+	values, ok := MotionFields[subject][key]
+	if !ok {
+		return EnumField{}, false
+	}
+	why := map[string]string{
+		"dimension": "the ruling is matched to the filing on (gap, dimension) and the gap's grade is then read AT that dimension: an axis outside the four matches no ruling and reads no grade, so the motion is filed against nothing",
+		"class":     "the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine",
+	}[key]
+	return EnumField{Key: key, Flag: flag, Values: values, Why: why}, true
+}
+
 // MintMotionID assigns the next run-unique motion id (M1, M2 …).
 //
 // Run-unique rather than round-scoped, for the reason an avenue's is: a motion OUTLIVES the round

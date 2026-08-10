@@ -91,14 +91,14 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "grade-moves", "dispute-to-regrade")
 
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("blue dispute: %v", err)
+		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--dimension", "severity", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("red dispute-respond: %v", err)
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
+		t.Fatalf("motion grade rule: %v", err)
 	}
 	if _, err := run(t, "merge", "regrade", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--severity", "low",
@@ -121,28 +121,35 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	runDir := seatRun(t)
 
-	if _, err := run(t, "merge", "petition", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--petition-class", "safety",
 		"--reason", "continuing would require asserting a consent gate exists where it does not",
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
-		t.Fatalf("merge petition: %v", err)
+		t.Fatalf("motion petition file: %v", err)
 	}
-	if _, err := run(t, "bench", "petition-rule", "--run", runDir, "--seat-id", "judge-r1",
-		"--petitioner", "red-merge-r1", "--petition-class", "safety", "--as", "granted",
+	if _, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge-r1",
+		"--id", "M1", "--as", "granted",
 		"--reason", "the relief binds the coming seats"); err != nil {
-		t.Fatalf("bench petition-rule: %v", err)
+		t.Fatalf("motion petition rule: %v", err)
 	}
 
-	pet := lastOfType(t, runDir, "petition")
+	pet := lastOfType(t, runDir, "motion")
 	if pet.Payload.Str("class") != "safety" || !payloadKeys(pet)["relief"] {
 		t.Errorf("the petition lost its class or relief (payload %v) — relief that is not recorded cannot bind anybody", pet.Payload.Keys())
 	}
-	rule := lastOfType(t, runDir, "petition-rule")
+	rule := lastOfType(t, runDir, "motion-rule")
 	if got := rule.Payload.Str("ruling"); got != "granted" {
 		t.Errorf("the ruling recorded %q, want granted", got)
 	}
-	if got := rule.Payload.Str("petitioner"); got != "red-merge-r1" {
-		t.Errorf("the ruling names petitioner %q, want the merge seat that filed it — an unattributed ruling cannot be matched to its petition", got)
+	// THE ATTRIBUTION IS THE ID NOW, and that is the substance of #312. The old check read
+	// `petitioner` off the ruling — a field the ruler restated, which is why two petitions from
+	// one seat in one round could not be told apart. The ruling names the MOTION, and the motion
+	// names its filer, so the join is a fact rather than a restatement.
+	if got := rule.Payload.Str("motion_id"); got != "M1" {
+		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
+	}
+	if got := pet.SeatID; got != "red-merge-r1" {
+		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
 	}
 }
 

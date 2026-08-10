@@ -580,28 +580,15 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if !p.Has("carried_from") && (!p.Has("prose") || p.Str("prose") == "") {
 			return fmt.Errorf("record: close requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
 		}
-	case "dispute", "dispute-respond", "closing", "manifest-row":
-		// All name a gap and none checked it. Grouped because the reference is the same
+	case "closing", "manifest-row":
+		// Both name a gap and neither checked it. Grouped because the reference is the same
 		// reference: the verb differs, the dangling failure does not.
+		//
+		// `dispute` and `dispute-respond` were in this arm until #344. Their checks did not
+		// disappear with them — they moved to the motion verbs, which is where the gap
+		// reference, the open-gap requirement and the prose requirement now live.
 		if err := requireGap(runDir, p.Str("gap_id"), typ, "--id"); err != nil {
 			return err
-		}
-		if typ == "dispute" {
-			if err := requireOpenGap(runDir, p.Str("gap_id"), "dispute", "--id",
-				"a grade dispute asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
-				return err
-			}
-			if p.Str("evidence") == "" {
-				return fmt.Errorf("record: dispute requires --reason (the grounds you contest the grade FROM, citing the exact section — a dispute the other side cannot answer is not on the record)")
-			}
-		}
-		if typ == "dispute-respond" {
-			if err := requirePriorDispute(runDir, p.Str("gap_id"), p.Str("dimension")); err != nil {
-				return err
-			}
-			if p.Str("rationale") == "" {
-				return fmt.Errorf("record: dispute-respond requires --reason (why blue's proposed grade is accepted or refused — the answering half of the argument)")
-			}
 		}
 		if typ == "closing" && p.Str("text") == "" {
 			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
@@ -630,6 +617,35 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 	case "motion":
 		if !p.Has("subject") || p.Str("basis") == "" {
 			return fmt.Errorf("record: a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
+		}
+		// The subject's enumerated fields, checked at the WRITE as well as at parse. The CLI's
+		// flag types refuse most of these first; this is the backstop for anything reaching
+		// Append by another path, and the one place the (subject, key) keying can live — see
+		// MotionFields.
+		subject := p.Str("subject")
+		if _, known := MotionVerdicts[subject]; !known {
+			return fmt.Errorf("record: %q is not a motion subject — one of %s", subject, strings.Join(MotionSubjects, " | "))
+		}
+		for key, allowed := range MotionFields[subject] {
+			v := p.Str(key)
+			if v != "" && !slices.Contains(allowed, v) {
+				return fmt.Errorf("record: %q is not a %s for a %s motion — one of %s", v, key, subject, strings.Join(allowed, " | "))
+			}
+		}
+		// A GRADE MOTION IS ABOUT A GAP, and both of these checks belonged to `blue dispute`
+		// before it was retired. Neither came across with the verb: the additive stage built the
+		// filing around the motion id and nobody diffed the reference discipline against the
+		// verb being replaced. A motion against a gap that does not exist is dropped at replay;
+		// one against a gap already disposed of asks for a different disposition than the one
+		// that has been made.
+		if subject == "grade" {
+			if err := requireGap(runDir, p.Str("gap_id"), "motion grade file", "--id"); err != nil {
+				return err
+			}
+			if err := requireOpenGap(runDir, p.Str("gap_id"), "motion grade file", "--id",
+				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
+				return err
+			}
 		}
 	case "motion-rule", "motion-appeal":
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
@@ -681,15 +697,6 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireClosedGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
 			return err
 		}
-	case "avenue-rule":
-		// Red rules on a direction blue PROPOSED — so the reference is checked like every
-		// other (refs.go), and an unknown fate is refused rather than rendering as blank.
-		if err := RequireAvenueRef(runDir, p.Str("avenue_id")); err != nil {
-			return err
-		}
-		if p.Str("reason") == "" {
-			return fmt.Errorf("record: avenue-rule requires --reason — an unreasoned ruling is the decoration blue cannot contest, and contesting it through `blue dispute` is the whole reason a ruling is not a command")
-		}
 	case "avenue":
 		// EVERY AVENUE HAS AN ID, exactly as every gap, finding and citation does. Records
 		// written before the lifecycle existed carry none and no longer replay — deliberate:
@@ -724,10 +731,6 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 	case "certify":
 		if p.Str("statement") == "" {
 			return fmt.Errorf("record: certify requires --reason (what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity)")
-		}
-	case "petition-rule":
-		if err := requireSeat(runDir, p.Str("petitioner"), "petition-rule", "--petitioner"); err != nil {
-			return err
 		}
 	case "opinion":
 		if err := requireGap(runDir, p.Str("gap_id"), "opinion", "--id"); err != nil {

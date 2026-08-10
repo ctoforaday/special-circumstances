@@ -30,10 +30,10 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 	}{
 		{"opinion --id", "no mint event created", []string{"bench", "opinion", "--seat-id", "judge-r1",
 			"--id", "R9-9", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "no"}},
-		{"dispute --id", "no mint event created", []string{"blue", "dispute", "--seat-id", "blue-respond-r1",
+		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1",
 			"--id", "R9-9", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
-		{"dispute-respond --id", "no mint event created", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1",
-			"--id", "R9-9", "--dimension", "severity", "--as", "accepted", "--reason", "b"}},
+		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1",
+			"--id", "M9", "--as", "accepted", "--reason", "b"}},
 		{"regrade --id", "no mint event created", []string{"merge", "regrade", "--seat-id", "red-merge-r1",
 			"--id", "R9-9", "--severity", "low", "--reason", "b"}},
 		{"closing --id", "no mint event created", []string{"merge", "closing", "--seat-id", "red-merge-r1",
@@ -49,12 +49,15 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			"--impact", "medium", "--cx", "low", "--found-by", "L9-F9"}},
 		{"spot-check --ids", "no mint event created", []string{"merge", "spot-check", "--seat-id", "red-merge-r1",
 			"--ids", "R9-9"}},
-		{"petition-rule --petitioner", "has recorded nothing in this run", []string{"bench", "petition-rule",
-			"--seat-id", "judge-r1", "--petitioner", "ghost-seat", "--petition-class", "safety",
-			"--as", "granted", "--reason", "o"}},
+		// The petitioner is no longer a field the ruler RESTATES, so there is no seat reference
+		// left to dangle — the ruling names the motion and the motion carries its own filer.
+		// What can still dangle is the motion id, which is what this now checks.
+		{"motion petition rule --id", "which no filing created", []string{"motion", "petition", "rule",
+			"--seat-id", "judge-r1", "--id", "M9", "--as", "granted", "--reason", "o"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			args := append([]string{c.args[0], c.args[1], "--run", runDir}, c.args[2:]...)
+			args := append(cmdPath(c.args), "--run", runDir)
+			args = append(args, c.args[len(cmdPath(c.args)):]...)
 			_, err := run(t, args...)
 			if err == nil {
 				t.Fatalf("%s accepted a reference to something that does not exist — it would be dropped at replay, and the seat would never know", c.name)
@@ -111,11 +114,11 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 			"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x"}},
 		{"regrade a closed gap", "changes a number nobody reads", []string{"merge", "regrade",
 			"--seat-id", "red-merge-r1", "--id", closed, "--severity", "low", "--reason", "b"}},
-		{"dispute a closed gap", "disposition has already been made", []string{"blue", "dispute",
+		{"file a grade motion on a closed gap", "disposition has already been made", []string{"motion", "grade", "file",
 			"--seat-id", "blue-respond-r1", "--id", closed, "--dimension", "severity",
 			"--proposed", "low", "--reason", "b"}},
-		{"answer a dispute nobody filed", "no dispute was filed", []string{"merge", "dispute-respond",
-			"--seat-id", "red-merge-r1", "--id", open, "--dimension", "severity", "--as", "accepted", "--reason", "b"}},
+		{"rule a motion nobody filed", "which no filing created", []string{"motion", "grade", "rule",
+			"--seat-id", "red-merge-r1", "--id", "M9", "--as", "accepted", "--reason", "b"}},
 		{"spot-check an OPEN gap", "still OPEN", []string{"merge", "spot-check",
 			"--seat-id", "red-merge-r1", "--ids", open}},
 		{"carry residue into a closed gap", "already finished", []string{"merge", "close",
@@ -124,7 +127,8 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 			"--successor", closed}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			args := append([]string{c.args[0], c.args[1], "--run", runDir}, c.args[2:]...)
+			args := append(cmdPath(c.args), "--run", runDir)
+			args = append(args, c.args[len(cmdPath(c.args)):]...)
 			_, err := run(t, args...)
 			if err == nil {
 				t.Fatalf("%s was accepted", c.name)
@@ -205,4 +209,15 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	if _, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS"); err != nil {
 		t.Errorf("with the ancestor and successor both closed the verdict must go through: %v", err)
 	}
+}
+
+// cmdPath is the leading run of non-flag words in an argv — the command path, however deep.
+// Taking args[0] and args[1] assumed a two-level tree and silently mangled `motion grade file`
+// into `motion grade --run … file`.
+func cmdPath(args []string) []string {
+	n := 0
+	for n < len(args) && !strings.HasPrefix(args[n], "-") {
+		n++
+	}
+	return append([]string{}, args[:n]...)
 }

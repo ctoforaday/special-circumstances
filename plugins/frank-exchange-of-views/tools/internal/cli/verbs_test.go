@@ -31,9 +31,17 @@ func seedReferents(t *testing.T, runDir string) {
 	// spot-check samples the ARCHIVE, so R1-3 is minted and closed to put something in
 	// it. Verbs are refused on the wrong state now, so the fixture has to build the
 	// world each verb actually operates in.
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
+	// the filing has to exist before the ruling can be tested at all — which is the join the
+	// collapse exists to make, and the reason these are seeded rather than assumed.
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
-		"--reason", "the seeded dispute this fixture answers"); err != nil {
+		"--reason", "the seeded grade motion this fixture answers"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+		"--petition-class", "safety", "--relief", "the relief sought",
+		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
@@ -58,8 +66,14 @@ func seedReferents(t *testing.T, runDir string) {
 
 func TestVerbPayloads(t *testing.T) {
 	cases := []struct {
-		name   string
-		role   string
+		name string
+		role string
+		// path is the command path when it is not <role> <second word of name>. The default
+		// recovers the verb from the TEST NAME, which is a fact composed into a string and
+		// split apart again — it works only for a two-level tree, and `motion grade file` is
+		// three. Rather than re-derive a deeper path from a longer name, the cases that need
+		// one say so.
+		path   []string
 		seatID string
 		args   []string
 		typ    string
@@ -92,22 +106,22 @@ func TestVerbPayloads(t *testing.T) {
 			says:   "source verified",
 		},
 		{
-			name: "merge dispute-respond records red's answer",
-			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--id", "R1-1", "--dimension", "severity", "--as", "rejected", "--reason", "the evidence does not reach it"},
-			typ:  "dispute-respond",
-			want: map[string]string{"gap_id": "R1-1", "dimension": "severity", "response": "rejected",
-				"rationale": "the evidence does not reach it"},
-			says: "dispute on R1-1: rejected",
+			name: "motion grade rule records the merge's answer",
+			path: []string{"motion", "grade", "rule"}, seatID: "red-merge-r1",
+			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
+			typ:  "motion-rule",
+			want: map[string]string{"motion_id": "M1", "subject": "grade", "ruling": "rejected",
+				"opinion": "the evidence does not reach it"},
+			says: "motion M1 ruled rejected",
 		},
 		{
-			name: "blue dispute contests a grade through the accounted channel",
-			role: "blue", seatID: "blue-lane-1",
+			name: "motion grade file contests a grade through the accounted channel",
+			path: []string{"motion", "grade", "file"}, seatID: "blue-lane-1",
 			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
-			typ:  "dispute",
+			typ:  "motion",
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
-				"proposed": "low", "evidence": "§4 says otherwise"},
-			says: "dispute filed on R1-1.severity",
+				"proposed": "low", "basis": "§4 says otherwise", "subject": "grade"},
+			says: "filed (grade)",
 		},
 		{
 			name: "blue manifest-row records the receipt",
@@ -146,14 +160,13 @@ func TestVerbPayloads(t *testing.T) {
 			says: "confidence recorded for C1",
 		},
 		{
-			name: "bench petition-rule records the ruling and its opinion",
-			role: "bench", seatID: "judge-petition",
-			args: []string{"--petitioner", "red-lens-r1-L1", "--petition-class", "safety",
-				"--as", "granted", "--reason", "the written opinion"},
-			typ: "petition-rule",
-			want: map[string]string{"petitioner": "red-lens-r1-L1", "class": "safety",
+			name: "motion petition rule records the ruling and its opinion",
+			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition",
+			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
+			typ:  "motion-rule",
+			want: map[string]string{"motion_id": "M2", "subject": "petition",
 				"ruling": "granted", "opinion": "the written opinion"},
-			says: "petition granted (red-lens-r1-L1)",
+			says: "motion M2 ruled granted",
 		},
 		{
 			name: "bench halt is the safety boundary",
@@ -177,8 +190,12 @@ func TestVerbPayloads(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			seedReferents(t, runDir)
-			verb := strings.SplitN(tc.name, " ", 3)[1]
-			args := append([]string{tc.role, verb, "--run", runDir, "--seat-id", tc.seatID}, tc.args...)
+			path := tc.path
+			if path == nil {
+				path = []string{tc.role, strings.SplitN(tc.name, " ", 3)[1]}
+			}
+			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
+			args = append(args, tc.args...)
 			out, err := run(t, args...)
 			if err != nil {
 				t.Fatalf("%v: %v", args, err)

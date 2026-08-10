@@ -47,11 +47,17 @@ var constEnum = regexp.MustCompile(`^const ([A-Z_]+) = \{[^}]*enum:\s*\[([^\]]*)
 // and the closure class in another, and a name-only key silently bound the first to the second —
 // this gate's own first draft did exactly that, which is the same collision it exists to catch.
 var envelopeEnumBinding = map[string]struct{ typ, key string }{
-	"PETITIONS.class":          {"petition", "class"},
-	"PETITION_RULING.ruling":   {"petition-rule", "ruling"},
-	"RED_ENVELOPE.response":    {"dispute-respond", "response"},
+	// After #344 the adjudication vocabularies are keyed on (SUBJECT, key) rather than by event
+	// type, so these bind to a motion SUBJECT. The `typ` field carries `motion:<subject>` for
+	// those, which recordEnumValues resolves against record.MotionVerdicts / record.MotionFields.
+	// The envelope still speaks in per-exchange schemas — PETITIONS, PETITION_RULING,
+	// DISPUTE_DIMENSION — because the ENGINE routes them separately; what collapsed is the
+	// RECORD's vocabulary, and this gate is precisely the check that the two still agree.
+	"PETITIONS.class":          {"motion:petition", "class"},
+	"PETITION_RULING.ruling":   {"motion:petition", "ruling"},
+	"RED_ENVELOPE.response":    {"motion:grade", "ruling"},
 	"RED_ENVELOPE.existence":   {"mint", "existence"},
-	"DISPUTE_DIMENSION.<self>": {"dispute", "dimension"},
+	"DISPUTE_DIMENSION.<self>": {"motion:grade", "dimension"},
 }
 
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These
@@ -135,6 +141,23 @@ func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
 
 func recordEnumValues(t *testing.T, typ, key string) []string {
 	t.Helper()
+	// `motion:<subject>` resolves against the (subject, key) tables, which EnumFields cannot
+	// express — one `motion-rule` carries granted|denied for a petition and accepted|rejected
+	// for a grade.
+	if subject, ok := strings.CutPrefix(typ, "motion:"); ok {
+		var values []string
+		if key == "ruling" {
+			values = record.MotionVerdicts[subject]
+		} else {
+			values = record.MotionFields[subject][key]
+		}
+		if len(values) == 0 {
+			t.Fatalf("no motion enum %s.%s — the binding table names a subject field the record does not have", subject, key)
+		}
+		out := append([]string(nil), values...)
+		sort.Strings(out)
+		return out
+	}
 	for _, e := range record.EnumFields[typ] {
 		if e.Key == key {
 			out := append([]string(nil), e.Values...)

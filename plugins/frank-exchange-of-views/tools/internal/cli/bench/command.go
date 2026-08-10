@@ -15,10 +15,9 @@ const role = "bench"
 
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
-		"the bench — opinions, petition rulings, halt, certification. Never originates.",
+		"the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.",
 		seat.Register("FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newOpinion(),
-		newPetitionRule(),
 		newHalt(),
 		newCertify(),
 		newOutcome(),

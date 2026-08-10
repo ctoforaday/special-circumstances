@@ -35,14 +35,7 @@ func newFile(subject string, required []string) *cobra.Command {
 			}
 			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("basis", basis)
 			for _, f := range required {
-				// The payload key is the flag word for these, except --id, whose key names WHAT
-				// it identifies — a motion's own id is `motion_id`, so a gap reference must not
-				// also be `id` or the two collide in one payload.
-				key := f
-				if f == flags.ID {
-					key = "gap_id"
-				}
-				p.Set(key, seat.Str(cmd, f))
+				p.Set(payloadKey(f), seat.Str(cmd, f))
 			}
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				p.Set("relief", r)
@@ -55,9 +48,48 @@ func newFile(subject string, required []string) *cobra.Command {
 	}
 	seat.Prose(c)
 	for _, f := range required {
-		c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
+		// THE FLAG'S TYPE IS THE FIRST REFUSAL, and the first draft threw it away. `--proposed`
+		// takes a GRADE and is a pflag.Value that refuses a non-grade at parse — before any RunE
+		// runs, with the help and the refusal generated from one list. `--dimension` and
+		// `--petition-class` take enumerated sets. Registering all three as bare strings, as this
+		// loop originally did, accepted anything and deferred the error to a reader that would
+		// never look.
+		switch {
+		case f == flags.Proposed:
+			p := new(flags.GradeValue)
+			c.Flags().Var(p, f, flags.GradeUsage("REQUIRED — the grade you say it should be"))
+		default:
+			if e, ok := record.MotionFieldEnum(subject, payloadKey(f), f); ok {
+				c.Flags().String(f, "", e.Usage("REQUIRED for a "+subject+" motion"))
+				continue
+			}
+			c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
+		}
 	}
 	return c
+}
+
+// payloadKey maps a flag word to the payload key it writes.
+//
+// THE TWO DIFFER AND THE FIRST DRAFT ASSUMED THEY DID NOT, which is the composition failure
+// facts-are-fields is about, committed inside the change meant to remove one. `--petition-class`
+// wrote its value under the key `petition-class`, while record.validate and record.Motions both
+// read `class` — so the enum check silently matched nothing and the report's petition head
+// rendered empty. Both sides read this function now, and a key with no entry is the flag word,
+// which is true for every flag that has not needed a mapping.
+//
+//   - `--id` names WHAT it identifies: a motion's own id is `motion_id`, so a gap reference
+//     cannot also be `id` without the two colliding in one payload.
+//   - `--petition-class` is the flag word because `--class` is taken elsewhere in the tree; the
+//     RECORD calls it `class`, and the record is what every consumer reads.
+func payloadKey(flag string) string {
+	switch flag {
+	case flags.ID:
+		return "gap_id"
+	case flags.PetitionClass:
+		return "class"
+	}
+	return flag
 }
 
 // rule: the ruler answers, on the motion's id.

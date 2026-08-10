@@ -16,7 +16,7 @@ const role = "blue"
 
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
-		"blue seats — revisions, manifest rows, disputes. No board verbs at all.",
+		"blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.",
 		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newEdit(),
 		newCite(),
@@ -25,14 +25,10 @@ func NewCommand() *cobra.Command {
 		newRetire(),
 		newAvenue(),
 		newManifestRow(),
-		newDispute(),
 		newConfidence(),
 		newClaimIndex(),
 		seat.Position("the round's ### BLUE section (prose via --reason)"),
 		seat.Closing("a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
 		seat.Friction("attributed friction (survives aborts as an event): --reason"),
-		seat.Petition(
-			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."`,
-			""),
 	)
 }

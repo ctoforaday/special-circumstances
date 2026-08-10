@@ -43,30 +43,41 @@ func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "long-form", "payload-channel")
-	// The STATE each verb needs, not just the referent. dispute-respond answers a
-	// dispute, so one is filed on a DIFFERENT gap the case answers.
+	// The STATE each verb needs, not just the referent. A ruling answers a motion, so M1 is
+	// filed for the rule case to answer; the file case contests a DIFFERENT gap.
 	undisputed := mintGap(t, runDir, "undisputed", "payload-channel")
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low", "--reason", "b"); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, c := range []struct {
 		name, key string
-		args      []string
+		// typ is the event type to look for. It used to be args[1] — the verb word, read back
+		// out of the argv the case had just composed. That works only while every command path
+		// is <role> <verb> AND the verb word equals the event type; `motion grade file` breaks
+		// both halves at once, and the failure was "no grade event in the log".
+		typ  string
+		args []string
 	}{
-		{"merge regrade", "basis", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
-		{"merge dispute-respond", "rationale", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1", "--id", id, "--dimension", "severity", "--as", "accepted"}},
-		{"blue dispute", "evidence", []string{"blue", "dispute", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"merge petition", "basis", []string{"merge", "petition", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
+		{"merge regrade", "basis", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
+		{"motion grade rule", "opinion", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
+		{"motion grade file", "basis", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"motion petition file", "basis", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			args := append([]string{c.args[0], c.args[1], "--run", runDir}, c.args[2:]...)
+			// The path is however many leading non-flag words the case supplies.
+			split := 0
+			for split < len(c.args) && !strings.HasPrefix(c.args[split], "-") {
+				split++
+			}
+			args := append(append([]string{}, c.args[:split]...), "--run", runDir)
+			args = append(args, c.args[split:]...)
 			args = append(args, "--reason-file", "-")
 			if out, err := runStdin(t, hostile, args...); err != nil {
 				t.Fatalf("%s via stdin: %v (%s)", c.name, err, out)
 			}
-			ev := lastOfType(t, runDir, c.args[1])
+			ev := lastOfType(t, runDir, c.typ)
 			if got := ev.Payload.Str(c.key); got != hostile {
 				t.Errorf("%s did not fill %s from the payload channel.\n got: %q\nwant: %q", c.name, c.key, got, hostile)
 			}

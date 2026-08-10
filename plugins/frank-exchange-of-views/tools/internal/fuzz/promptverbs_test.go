@@ -258,6 +258,36 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 			}
 		}
 	}
+	// THE MOTION TABLES ARE A SECOND SOURCE AND MUST BE UNIONED IN.
+	//
+	// record.EnumFields keys by event TYPE, and the motion sets are keyed on (SUBJECT, key) —
+	// one `motion-rule` carries granted|denied for a petition and accepted|rejected for a grade —
+	// so they cannot live there and this gate could not see them. Reading only EnumFields, it
+	// reported eight values the prompts correctly tell seats to pass as REFUSED BY THE TOOL:
+	// every motion verdict, plus the grade dimensions. A gate that fires on correct prompts is
+	// worse than one that stays quiet, because the next reader learns to route around it.
+	for _, values := range record.MotionVerdicts {
+		if byFlag[flags.As] == nil {
+			byFlag[flags.As] = map[string]bool{}
+		}
+		for _, v := range values {
+			byFlag[flags.As][v] = true
+		}
+	}
+	for _, fields := range record.MotionFields {
+		for key, values := range fields {
+			flag := key
+			if key == "class" {
+				flag = flags.PetitionClass
+			}
+			if byFlag[flag] == nil {
+				byFlag[flag] = map[string]bool{}
+			}
+			for _, v := range values {
+				byFlag[flag][v] = true
+			}
+		}
+	}
 	if len(byFlag) == 0 {
 		t.Fatal("no enums found — the gate would pass every value forever")
 	}

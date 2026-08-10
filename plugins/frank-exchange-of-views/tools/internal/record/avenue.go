@@ -83,7 +83,16 @@ func Avenues(b *Board) []*Avenue {
 	for _, e := range b.Events {
 		id := e.Payload.Str("avenue_id")
 		if id == "" {
-			continue
+			// A direction motion carries the avenue's id under `motion_id`, because to the
+			// motion machinery it IS the motion's id — the proposal is the filing, so there is
+			// no second identity to mint. Keying only on `avenue_id` dropped every ruling made
+			// through the new verb before it reached the switch below.
+			if e.Type == "motion-rule" && e.Payload.Str("subject") == "direction" {
+				id = e.Payload.Str("motion_id")
+			}
+			if id == "" {
+				continue
+			}
 		}
 		switch e.Type {
 		case "avenue":
@@ -108,11 +117,30 @@ func Avenues(b *Board) []*Avenue {
 			a.Contests = e.Payload.Str("contests_ruling")
 			a.History = append(a.History, fmt.Sprintf("r%d %s", e.Round, a.Status))
 		case "avenue-rule":
+			// The PRE-#344 spelling. Permanent: a stored record written under it must still
+			// render its rulings (record/compat.go).
 			a, ok := byID[id]
 			if !ok {
 				continue
 			}
 			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("reason"), e.Round
+		case "motion-rule":
+			// THE CURRENT SPELLING, and reading it here is not optional.
+			//
+			// A direction motion joins on the avenue's own id, so `motion direction rule` writes
+			// a motion-rule whose motion_id IS an A-number. Until this arm existed, a ruling
+			// made through the new verb never reached `--view lines-of-inquiry` — the projection
+			// blue reads to decide whether to pursue, comply or drop. The line simply stayed
+			// "Awaiting a decision", which is what an unruled line looks like, so red's ruling
+			// was indistinguishable from red not having sat.
+			if e.Payload.Str("subject") != "direction" {
+				continue
+			}
+			a, ok := byID[id]
+			if !ok {
+				continue
+			}
+			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("opinion"), e.Round
 		}
 	}
 	out := make([]*Avenue, 0, len(order))
@@ -166,10 +194,19 @@ func AvenueRuling(runDir, avenueID string) string {
 	if err != nil {
 		return ""
 	}
+	// BOTH SPELLINGS, most recent wins. The events are ordered by timestamp across shards, so
+	// "last one seen" is the latest ruling regardless of which vocabulary wrote it.
 	ruling := ""
 	for _, e := range b.Events {
-		if e.Type == "avenue-rule" && e.Payload.Str("avenue_id") == avenueID {
-			ruling = e.Payload.Str("ruling")
+		switch e.Type {
+		case "avenue-rule":
+			if e.Payload.Str("avenue_id") == avenueID {
+				ruling = e.Payload.Str("ruling")
+			}
+		case "motion-rule":
+			if e.Payload.Str("subject") == "direction" && e.Payload.Str("motion_id") == avenueID {
+				ruling = e.Payload.Str("ruling")
+			}
 		}
 	}
 	return ruling

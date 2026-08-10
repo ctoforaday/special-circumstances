@@ -373,10 +373,23 @@ import (
 //	       PERMANENT, not a migration window — a record is permanent, and this plugin cannot see
 //	       an installing project's records to know when the old shapes are gone.
 //
+//	0.49.0 THE OLD ADJUDICATION VERBS ARE GONE (#344), the destructive half. `blue dispute`,
+//	       `merge dispute-respond`, `<seat> petition`, `bench petition-rule`, `merge avenue-rule`
+//	       and the `contests_ruling` field no longer exist: file and rule through
+//	       `motion <subject> file|rule|appeal`. A binary at this version CANNOT WRITE the five
+//	       retired event types, and it still READS them — the dual-read is permanent.
+//
+//	       Deleting them exposed that the new verbs had shipped with a WEAKER contract than the
+//	       ones they replace, which nothing could see while both were live: `motion grade file`
+//	       took any `--dimension` and any `--proposed` where `blue dispute` refused both, and it
+//	       had lost the gap-exists and gap-still-open checks entirely. All four are restored, and
+//	       `motion direction rule`'s ruling now reaches `--view lines-of-inquiry` — until this
+//	       version a direction ruled through the new verb read as a line nobody had ruled on.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.48.0"
+const Version = "0.49.0"
 
 func init() { record.ToolVersion = Version }
 

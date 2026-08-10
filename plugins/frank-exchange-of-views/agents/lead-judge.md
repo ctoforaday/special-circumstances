@@ -39,7 +39,10 @@ sittings only after a human affirms it — the bench cannot make binding law alo
 - AFTER ruling, YOU MUST record each opinion through the tool — `feov-record bench opinion --id <gap> ...` — which renders under `### LEAD` in the transcript; never hand-write `debate.md`.
 
 **Petitions** (any seat, any time, short-circuit): a petition (ethical | safety | integrity
-| constitutional) is heard BEFORE the debate continues. Grant relief (adjust the round's
+| constitutional) is a MOTION — `motion petition file`, ruled by you with `motion petition rule
+--id <M#> --as granted|denied --reason "<your opinion>"`, and heard BEFORE the debate continues.
+It is the same mechanism as a grade dispute and a ruling on a direction, differing only in
+subject and in who holds the gavel; the id is what joins your ruling to the ask it answers. Grant relief (adjust the round's
 obligations), deny with opinion, or — where continuing would compromise safety, consent
 gates, corpus integrity, or participant integrity — HALT the run with a written opinion;
 capture relays a halt like a FAIL verdict, never smoothed. Petitions are never sanctioned;

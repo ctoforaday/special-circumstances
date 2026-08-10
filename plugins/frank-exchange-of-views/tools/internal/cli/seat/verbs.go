@@ -13,14 +13,14 @@ import (
 
 // The verbs every role shares, defined once.
 //
-// register, friction, petition, position and closing are the SAME contract
+// register, friction, position and closing are the SAME contract
 // wherever they appear — a friction entry from a lens and one from the bench are
 // the same event with the same payload. Restating them per role would be four
 // copies to drift apart, and the drift would be silent because each copy would
 // still pass its own tests.
 //
 // Each role still supplies its OWN help text, because the contract is shared
-// while the guidance is not: a lens is told petitions do not pause its duties,
+// while the guidance is not: a lens is told what its friction entries are for,
 // the bench is told the same verb from the other side.
 
 func Register(help string) *cobra.Command {
@@ -44,30 +44,6 @@ func Friction(help string) *cobra.Command {
 		}
 		return Msg{Message: "friction recorded"}, nil
 	}))
-}
-
-// Petition takes a suffix because the lens is told one more thing than the
-// others: that the bench hears it before the debate continues.
-func Petition(help, suffix string) *cobra.Command {
-	c := New("petition", help, func(s Context, cmd *cobra.Command) (Result, error) {
-		p := SetSame(cmd, record.NewPayload(), flags.Relief)
-		// Flag word --reason (the one prose word), payload key stays basis.
-		reason, err := Reason(cmd)
-		if err != nil {
-			return nil, err
-		}
-		if reason != "" {
-			p.Set("basis", reason)
-		}
-		Set(cmd, p, "class", flags.PetitionClass)
-		if _, err := record.Append(s.RunDir, s.SeatID, "petition", p); err != nil {
-			return nil, err
-		}
-		return petitionResult{Class: Str(cmd, flags.PetitionClass), Suffix: suffix}, nil
-	})
-	c.Flags().String(flags.PetitionClass, "", record.MustEnum("petition", "class").Usage("what you are asking the bench to sit on"))
-	c.Flags().String(flags.Relief, "", "the relief sought, stated as it would bind the coming seats")
-	return Prose(c)
 }
 
 func Position(help string) *cobra.Command {
@@ -344,8 +320,8 @@ func join(names []string) string {
 	return strings.Join(names, ", ")
 }
 
-// registerResult, petitionResult and closingResult are the shared-verb results: these
-// three verbs are built by seat for every role, so their result types live beside them.
+// registerResult and closingResult are the shared-verb results: these verbs are built by
+// seat for every role, so their result types live beside them.
 type registerResult struct {
 	SeatID string `json:"seat_id"`
 	Nonce  string `json:"nonce"`
@@ -354,13 +330,6 @@ type registerResult struct {
 func (r registerResult) Human() string {
 	return "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
 }
-
-type petitionResult struct {
-	Class  string `json:"class"`
-	Suffix string `json:"suffix,omitempty"`
-}
-
-func (r petitionResult) Human() string { return "petition filed (" + r.Class + ")" + r.Suffix }
 
 type closingResult struct {
 	ID string `json:"id"`

@@ -102,7 +102,6 @@ const (
 	// Red's fate for a proposed direction. A separate word from --as (an observation's
 	// disposal) and --status (an avenue's own lifecycle state) because it is a different
 	// party ruling on a different question: is this worth the run's time at all.
-	Ruling = "ruling"
 	// A CONCRETE proposed fix (#267 stage 3): the exact span red says is wrong and the exact
 	// text it should become. Distinct words from --old/--new, which are the edit blue APPLIES;
 	// these are what red PROPOSES, and one word per act keeps a seat from typing red's
@@ -183,7 +182,6 @@ const (
 	Principle  = "principle"
 	Tension    = "tension"
 	ReviewFlag = "review-flag"
-	Petitioner = "petitioner"
 	Relief     = "relief"
 
 	// The run's terminal determination (bench outcome). The verdict rides on --as; these
@@ -238,10 +236,10 @@ func All() []string {
 		As, Notes, Status, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence, Trust,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Ruling, Script, Cites,
+		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool,
-		Principle, Tension, ReviewFlag, Petitioner, Relief,
+		Principle, Tension, ReviewFlag, Relief,
 		Deadlocked, Exhausted,
 		Line, Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir,

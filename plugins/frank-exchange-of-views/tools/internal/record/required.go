@@ -35,16 +35,14 @@ var RequiredFields = map[string][]string{
 	// finding's label is TOOL-assigned now (not seat-provided), so it is not listed
 	// here — same as mint's gap_id, which validate requires but no flag sets. validate
 	// still enforces the finding-label INVARIANT; the table lists only seat-set fields.
-	"close":           {"gap_id", "prose"},
-	"closing":         {"text"},
-	"regrade":         {"basis"},
-	"dispute":         {"evidence"},
-	"dispute-respond": {"rationale"},
-	"retire":          {"claim", "reason"},
-	"avenue":          {"status", "line"},
-	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
-	"halt":            {"opinion"},
-	"certify":         {"statement"},
+	"close":   {"gap_id", "prose"},
+	"closing": {"text"},
+	"regrade": {"basis"},
+	"retire":  {"claim", "reason"},
+	"avenue":  {"status", "line"},
+	"opinion": {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
+	"halt":    {"opinion"},
+	"certify": {"statement"},
 }
 
 // THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its
