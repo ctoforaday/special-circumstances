@@ -48,6 +48,10 @@ type Context struct {
 	RunDir string
 	SeatID string
 	Role   string
+	// Round is the seat's round as a FACT — injected by the dispatcher, not recovered from the
+	// seat id (#348). -1 means unknown, which is NOT round 0: round 0 is synthesis, and
+	// conflating the two is what produced the phantom-archive bug in #327.
+	Round int
 }
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
@@ -61,8 +65,14 @@ func Of(cmd *cobra.Command) Context {
 	if err == nil {
 		runDir = resolved
 	}
+	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
+	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
-	return Context{RunDir: runDir, SeatID: seatID, Role: roleOf(cmd)}
+	round := -1
+	if id, rerr := seatenv.ResolveSeat(seatID, record.RoundOf); rerr == nil {
+		seatID, round = id.ID, id.Round
+	}
+	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd)}
 }
 
 // roleOf reads the role from the command's POSITION in the tree: a verb's parent is its

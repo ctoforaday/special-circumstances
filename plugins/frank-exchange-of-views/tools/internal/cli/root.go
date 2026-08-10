@@ -355,10 +355,17 @@ import (
 //	       that prints "7 is prime" reproduces forever. A stale binary treats reproduce as a
 //	       read and records nothing.
 //
+//	0.47.0 IDENTITY ARRIVES AS FIELDS (#348). Every event now carries `role`, stamped at the
+//	       write; readers stop recovering it with strings.HasPrefix over the seat id. The ROUND
+//	       is read from an injected FEOV_ROUND before the seat-id regex, and a --seat-id that
+//	       disagrees with the injected FEOV_SEAT is REFUSED (the seatenv contract, extended from
+//	       --run to identity). A stale binary writes events with no `role` field; PartyOf falls
+//	       back for those, so old records still read.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.46.0"
+const Version = "0.47.0"
 
 func init() { record.ToolVersion = Version }
 
