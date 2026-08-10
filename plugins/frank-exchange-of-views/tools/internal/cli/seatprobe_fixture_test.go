@@ -1,9 +1,14 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
 // A BOARD FOR PROBING WHETHER A SEAT USES THE TOOL AT ALL.
@@ -48,21 +53,42 @@ import (
 func TestWriteSeatProbeFixture(t *testing.T) {
 	dest := os.Getenv("FEOV_SEAT_PROBE_DIR")
 	if dest == "" {
-		t.Skip("set FEOV_SEAT_PROBE_DIR to write the seat-probe fixture")
+		t.Skip("set FEOV_SEAT_PROBE_DIR to write a seat-probe board")
+	}
+	name := os.Getenv("FEOV_SEAT_PROBE_BOARD")
+	if name == "" {
+		name = "arithmetic"
+	}
+	board, ok := seatprobe.Boards()[name]
+	if !ok {
+		var have []string
+		for n := range seatprobe.Boards() {
+			have = append(have, n)
+		}
+		sort.Strings(have)
+		t.Fatalf("no board %q — one of %s", name, strings.Join(have, ", "))
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	buildBoard(t, dest, board)
+	t.Logf("board %q written to %s for seat %s: %d gap(s), %d avenue(s), %d expectation(s)",
+		board.Name, dest, board.Seat, len(board.Gaps), len(board.Avenues), len(board.Expect))
+}
 
-	runDir := dest
+// buildBoard materialises a board THROUGH THE REAL WRITE PATHS.
+//
+// Writing the events directly would let this record a state no seat could ever have reached — a
+// gap with no acceptance check, a closure with no anchor — and a probe run against an impossible
+// board teaches nothing about the possible one.
+func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
+	t.Helper()
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(probeReport), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
 	for _, s := range []struct{ role, id string }{
 		{"lens", "red-lens-r1-L1"},
-		{"lens", "red-lens-r1-L5"},
 		{"merge", "red-merge-r1"},
 		{"blue", "blue-respond-r1"},
 		{"bench", "judge-r1"},
@@ -72,109 +98,59 @@ func TestWriteSeatProbeFixture(t *testing.T) {
 		}
 	}
 
-	// THE BOARD IS BUILT SO THAT EACH GAP BAITS A DIFFERENT VERB, and one baits none — the
-	// control. What a seat does with each is the measurement.
-	//
-	// Every gap here is minted with grades a reasonable seat might contest, because a board
-	// nobody could argue with measures nothing about the arguing channel.
-	gaps := []struct {
-		key, class, location, problem, fix, check, kind string
-		sev, lik, imp, cx                               string
-		baits                                           string
-	}{
-		{
-			key: "figure", class: "figure-recount-fails",
-			location: `## Findings — "The corpus holds 340 records across 12 sources."`,
-			problem:  "The stated total does not match the per-source figures, which sum to 331.",
-			fix:      "Recompute the total from the per-source table and correct whichever is wrong.",
-			check:    "The stated total equals the sum of the per-source rows.", kind: "computation",
-			sev: "high", lik: "certain", imp: "high", cx: "low",
-			baits: "blue prove — a computation check CANNOT be closed by prose, so the seat must run something",
-		},
-		{
-			key: "universal", class: "false-universal",
-			location: `## Method — "No reader outside the plugin directory touches the event log."`,
-			problem:  "Stated as a universal over a tree nobody enumerated in the report.",
-			fix:      "Bound the claim to what was actually swept, or show the sweep.",
-			check:    "The claim names the scope it was verified over.", kind: "document",
-			sev: "high", lik: "high", imp: "high", cx: "medium",
-			baits: "motion grade file — `certain` likelihood on a claim the report itself hedges is contestable",
-		},
-		{
-			key: "attestation", class: "self-attestation",
-			location: `## Method — "Each figure was independently checked."`,
-			problem:  "The checking is asserted and nothing records that it happened.",
-			fix:      "Record what was checked and how, or drop the claim.",
-			check:    "The report names the artifact each check ran against.", kind: "document",
-			sev: "medium", lik: "medium", imp: "medium", cx: "low",
-			baits: "blue edit + --answers — the ordinary repair path, and the control for the others",
-		},
-		{
-			key: "scope", class: "verification-scope-blindspot",
-			location: `## Limits — "The remaining cases are out of scope."`,
-			problem:  "The out-of-scope set is named and never enumerated, so its size is unknown.",
-			fix:      "Enumerate the excluded cases or state why the count cannot be had.",
-			check:    "The excluded set has a stated size or a stated reason it cannot be counted.", kind: "document",
-			sev: "low", lik: "low", imp: "medium", cx: "high",
-			baits: "risk_accepted closure, or an avenue — the fix costs more than the defect",
-		},
-	}
-	for _, g := range gaps {
-		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--key", g.key, "--class", g.class,
-			"--location", g.location, "--problem", g.problem, "--fix", g.fix,
-			"--check", g.check, "--check-kind", g.kind,
-			"--severity", g.sev, "--likelihood", g.lik, "--impact", g.imp, "--cx", g.cx,
-			"--existence", "verified",
-			"--reason", g.problem+" (baits: "+g.baits+")"); err != nil {
-			t.Fatalf("mint %s: %v", g.key, err)
+	for i, g := range b.Gaps {
+		existence := g.Existence
+		if existence == "" {
+			existence = "verified"
+		}
+		args := []string{"merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--key", g.Key, "--class", g.Class,
+			"--location", g.Location, "--problem", g.Problem, "--fix", g.Fix,
+			"--check", g.Check, "--check-kind", g.CheckKind,
+			"--severity", g.Severity, "--likelihood", g.Likelihood,
+			"--impact", g.Impact, "--cx", g.Complexity,
+			"--existence", existence,
+			"--reason", g.Problem + " (baits " + g.Baits + ": " + g.Why + ")"}
+		if _, err := run(t, args...); err != nil {
+			t.Fatalf("mint %s: %v", g.Key, err)
+		}
+		if !g.Closed {
+			continue
+		}
+		// A CLOSED gap so the archive is not empty. spot-check against an empty archive has
+		// nothing to sample, so a board that wants the duty exercised has to give it something.
+		id := fmt.Sprintf("R1-%d", i+1)
+		if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--id", id, "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "git show",
+			"--anchor-target", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
+			t.Fatalf("close %s: %v", id, err)
 		}
 	}
 
-	// A ruled direction and an unruled one: the first invites an appeal or a move, the second
-	// invites the merge to rule. Both are verbs that measured ZERO real use before they had a
-	// projection to render into.
-	for _, a := range []struct{ line, hyp string }{
-		{"re-derive the per-source counts from the raw corpus", "the 331 figure is the correct one"},
-		{"survey how comparable projects state their scope limits", "there is a standard form we are ignoring"},
-	} {
+	for i, a := range b.Avenues {
 		if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--line", a.line, "--hypothesis", a.hyp); err != nil {
-			t.Fatalf("avenue: %v", err)
+			"--line", a.Line, "--hypothesis", a.Hypothesis); err != nil {
+			t.Fatalf("avenue %d: %v", i, err)
+		}
+		if a.Ruled == "" {
+			continue
+		}
+		id := fmt.Sprintf("A%d", i+1)
+		if _, err := run(t, "motion", "direction", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--id", id, "--as", a.Ruled,
+			"--reason", "ruled "+a.Ruled+" on the line as it was proposed"); err != nil {
+			t.Fatalf("rule %s: %v", id, err)
 		}
 	}
-	if _, err := run(t, "motion", "direction", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "A2", "--as", "too-thin",
-		"--reason", "a survey of how others phrase it does not settle whether OUR claim is bounded"); err != nil {
-		t.Fatalf("direction rule: %v", err)
+
+	for i, claim := range b.Claims {
+		if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
+			"--key", fmt.Sprintf("C%d", i+1), "--location", claim,
+			"--title", "the pinned source", "--url", "https://example.invalid/pinned",
+			"--reason", "the source this claim rests on"); err != nil {
+			// A cite that cannot reach its url is logged as friction by design; the board still
+			// stands without the anchor, so this is reported rather than fatal.
+			t.Logf("cite %d not recorded (%v) — the board is usable without it", i+1, err)
+		}
 	}
-
-	t.Logf("seat-probe fixture written to %s: 4 gaps, 2 avenues (A2 ruled too-thin), 5 seats registered", runDir)
 }
-
-// probeReport is the artifact under audit. It carries the exact sentences the gaps' --location
-// fields quote, because a finding is refused unless its quote is present — and a fixture whose
-// gaps point at absent text is the defect a real seat caught us shipping once already.
-const probeReport = `# Does the event log have readers outside its own tree? — research report
-
-## TL;DR
-
-The corpus was swept and no reader outside the plugin directory touches the event log. The
-figures below are drawn from that sweep.
-
-## Findings
-
-The corpus holds 340 records across 12 sources. Broken down by source: 41, 38, 12, 55, 9, 22,
-17, 31, 28, 14, 36, 28.
-
-Each source was read at its pinned revision.
-
-## Method
-
-No reader outside the plugin directory touches the event log. Each figure was independently
-checked.
-
-## Limits
-
-The remaining cases are out of scope.
-`

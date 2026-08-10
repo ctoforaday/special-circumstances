@@ -15,8 +15,15 @@ func TestSeatChoiceReport(t *testing.T) {
 	if runDir == "" {
 		t.Skip("set FEOV_PROBE_RUN to a probe run directory")
 	}
-	board := ArithmeticBoard()
-	out, err := Report(runDir, []string{"blue-respond-r1", "red-merge-r1", "red-lens-r1-L1", "judge-r1"}, board.Expect)
+	name := os.Getenv("FEOV_PROBE_BOARD")
+	if name == "" {
+		name = "arithmetic"
+	}
+	board, ok := Boards()[name]
+	if !ok {
+		t.Fatalf("no board %q — set FEOV_PROBE_BOARD to one of the declared boards", name)
+	}
+	out, err := Report(surface(), runDir, []string{board.Seat}, board.Expect)
 	if err != nil {
 		t.Fatal(err)
 	}
