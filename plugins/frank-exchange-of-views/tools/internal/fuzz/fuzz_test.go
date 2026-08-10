@@ -1665,12 +1665,12 @@ var reportExemptions = map[string]string{
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "note",
-	"verify":         "red recording that it CHECKED a claim against its source. It reaches the reader through the citation-ledger view rather than the report: the report carries BLUE's citations (woven into the bibliography), and red verifying them is audit provenance rather than a claim the reader acts on. The trust grade IS surfaced — as the board's citations count, which #341 stopped inflating with blue's authored cites",
-	"cite":           "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
-	"proof":          "resolved rather than rendered — weaveProofs splices the computation at its anchor",
-	"close":          "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
-	"outcome":        "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	"verify":    "red recording that it CHECKED a claim against its source. It reaches the reader through the citation-ledger view rather than the report: the report carries BLUE's citations (woven into the bibliography), and red verifying them is audit provenance rather than a claim the reader acts on. The trust grade IS surfaced — as the board's citations count, which #341 stopped inflating with blue's authored cites",
+	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
+	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
+	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
+	"outcome":   "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":   "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
