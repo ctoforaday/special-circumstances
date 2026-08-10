@@ -75,7 +75,38 @@ feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VER
 
 ── petition ruling outside the set
 exit 2
-feov-record: verb "petition-rule" is outside this seat's role (available: register, opinion, halt, certify, outcome, assemble, friction, show)
+feov-record: verb "petition-rule" is outside the bench seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+  certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
+  friction    attributed friction (the bench seats had no event path before — the abort-surviving copy): --reason
+  halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
+  opinion     a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+  outcome     record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]
+  register    FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+
+Flags:
+  -h, --help   help for bench
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ── closure class near-miss
 exit 2
@@ -90,7 +121,44 @@ feov-record: invalid argument "closed-with-regression" for "--as" flag: --as mus
 
 ── dispute dimension outside the set
 exit 2
-feov-record: verb "dispute" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
+feov-record: verb "dispute" is outside the blue seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
+  edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
+  friction     attributed friction (survives aborts as an event): --reason
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  position     the round's ### BLUE section (prose via --reason)
+  prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
+  register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
+  revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+
+Flags:
+  -h, --help   help for blue
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ── verification trust outside the set
 exit 2
@@ -110,7 +178,44 @@ feov-record: invalid argument "banana" for "--confidence" flag: --confidence mus
 
 ── petition class outside the set
 exit 2
-feov-record: verb "petition" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
+feov-record: verb "petition" is outside the blue seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
+  edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
+  friction     attributed friction (survives aborts as an event): --reason
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  position     the round's ### BLUE section (prose via --reason)
+  prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
+  register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
+  revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+
+Flags:
+  -h, --help   help for blue
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ── invalid seat id
 exit 2
@@ -118,21 +223,188 @@ feov-record: merge: seat "not a seat id" does not belong to any role namespace (
 
 ── verb outside the lens role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, finding, verify, reproduce, friction, show)
+feov-record: verb "mint" is outside the lens seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+red lens seats — findings, observations, citations. Cannot mint or close.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>"
+  friction    attributed friction (survives aborts as an event): --reason
+  register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  reproduce   re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+  verify      record that you CHECKED a claim against its source (the cross-round re-fetch gate): --claim "..." --reference "..." --trust high|medium|low --access-date YYYY-MM-DD
+
+Flags:
+  -h, --help   help for lens
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ── verb outside the blue role
 exit 2
-feov-record: verb "close" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
+feov-record: verb "close" is outside the blue seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
+  edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
+  friction     attributed friction (survives aborts as an event): --reason
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  position     the round's ### BLUE section (prose via --reason)
+  prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
+  register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
+  revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+
+Flags:
+  -h, --help   help for blue
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ── verb outside the bench role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, opinion, halt, certify, outcome, assemble, friction, show)
+feov-record: verb "mint" is outside the bench seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+  certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
+  friction    attributed friction (the bench seats had no event path before — the abort-surviving copy): --reason
+  halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
+  opinion     a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+  outcome     record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]
+  register    FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+
+Flags:
+  -h, --help   help for bench
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ── unknown verb
 exit 2
-feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, regrade, spot-check, near-match, position, closing, verdict, friction, show)
+feov-record: verb "frobnicate" is outside the merge seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+the red merge seat — the board's only writer.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  close       close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
+  closing     a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  friction    attributed friction: --reason
+  mint        mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  near-match  screen a candidate against the board before minting: --candidate "<problem text>" [--location "<section>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
+  position    the round's ### RED section (prose via --reason)
+  register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
+  regrade     same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+  spot-check  the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
+  verdict     the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+
+Flags:
+  -h, --help   help for merge
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ── unknown role
 exit 2
-feov-record: unknown command "nonsuch" for "feov-record"
+feov-record: feov-record: no command named "nonsuch" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  bench        the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
+  blue         blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
+  completion   Generate the autocompletion script for the specified shell
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
+  help         Help about any command
+  hook         PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)
+  lens         red lens seats — findings, observations, citations. Cannot mint or close.
+  merge        the red merge seat — the board's only writer.
+  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  scorecard    print a chair's scorecard for this run (operator; the seat's in-run self-read)
+  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
+  verify       cross-check a run's record against its invariants, and tally it (read-only)
+
+Flags:
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+  -v, --version          version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
 

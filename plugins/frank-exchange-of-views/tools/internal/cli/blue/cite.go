@@ -33,7 +33,7 @@ import (
 // dangling citation — never a wedge, never a phantom event.
 func newCite() *cobra.Command {
 	c := seat.Prose(seat.New("cite",
-		`cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<section + quoted sentence>" --url <u> --title <t> [--claim "..."] [--key <your C1>]`,
+		`cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			location := seat.Str(cmd, flags.Location)
 			if strings.TrimSpace(location) == "" {
