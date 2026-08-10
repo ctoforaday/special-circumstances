@@ -412,7 +412,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// The two flags EVERY verb needs, declared once and inherited. Persistent
 	// flags are the mechanism the first cut of this CLI re-implemented by
 	// re-declaring --run and --seat-id on all sixteen verbs.
-	root.PersistentFlags().String(flags.Run, "", "the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed")
+	root.PersistentFlags().String(flags.Run, "", "the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
 	root.PersistentFlags().String(flags.SeatID, "", "your seat id, assigned by the engine and bound to this role's namespace")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
@@ -450,10 +450,10 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	root.Args = cobra.ArbitraryArgs
 	root.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return seat.RefuseAndTeach(cmd, "feov-record: you named no command, so nothing ran. The commands below are the whole surface.")
+			return seat.RefuseAndTeach(cmd, "you named no command, so nothing ran. The commands below are the whole surface.")
 		}
 		return seat.RefuseAndTeach(cmd, fmt.Sprintf(
-			"feov-record: no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", args[0]))
+			"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", args[0]))
 	}
 
 	enumhelp.Install(root)

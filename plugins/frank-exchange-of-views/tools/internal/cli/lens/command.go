@@ -17,7 +17,7 @@ const role = "lens"
 // NewCommand assembles the role. Each verb builds itself in its own file.
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
-		"red lens seats — findings, observations, citations. Cannot mint or close.",
+		"red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.",
 		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
 		newFinding(),
 		newVerify(),
