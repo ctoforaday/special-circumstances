@@ -1,4 +1,4 @@
-prompt sha256: 3a53f9991b9eb6a2ed6d480c56ab02968e13ab8bb343620b0b60134baef9b591
+prompt sha256: c55d8a72bb1a6f372965bae2776fbbb2e69e999d03408fa7cd7499e0c1aab53a
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -20,7 +20,7 @@ EVERY ROUND, revisit what is still open: any avenue sitting at proposed or pursu
 DEFERRED is the fate for a direction worth taking but NOT BY THIS RUN — not declined (judged not worth it), not abandoned (tried, died), but kept: its reason says what a later run should pick it up FOR, and it reaches the report's carried-forward questions as a PROPOSAL a human selects, never as an automatic seed for the next run.
 The hypothesis is what makes that honest — an avenue abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not.
 Measured over six runs: 83 of 86 avenues were declared in round 0 and NOT ONE was ever revisited, so the record showed a plan and never showed you choosing.
-Red rules on your proposals and you may contest a ruling through blue dispute like any other.
+Red rules on your proposals and you may press a ruling through "motion direction appeal --id <A1> --reason ..." — file the appeal whether or not you go on to pursue the line, because the appeal is where your argument is recorded and the status move is only what you decided to do about it.
 WHERE RED PROPOSED EXACT TEXT (a gap carrying fix_old/fix_new, fix_basis: verified), you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it.
 Applying is the cheapest — a counter-edit costs a round and invites re-audit, a dispute needs red's agreement — so say plainly in --reason which path you took and why.
 A round in which you never decline is not agreement, it is capitulation, and it IS measured — the changes view prints offered/applied/declined every round, and a zero decline rate is read as a question about red's proposals, not as evidence they were all right.

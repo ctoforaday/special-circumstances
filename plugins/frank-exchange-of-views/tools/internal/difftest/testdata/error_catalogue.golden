@@ -64,7 +64,7 @@ feov-record: bench: record: outcome requires --as VERIFIED|CEILING|HALTED|UNVERI
 
 ── petition ruling outside the set
 exit 2
-feov-record: bench: record: petition-rule requires --as granted|denied (got "halt") — relief binds the coming seats only on an exact `granted`, so a near-miss grants nothing while reading as a grant on the record — and a halt is the bench's own verb, which this set closing is what actually makes true
+feov-record: verb "petition-rule" is outside this seat's role (available: register, opinion, halt, certify, outcome, assemble, friction, show)
 
 ── closure class near-miss
 exit 2
@@ -72,7 +72,7 @@ feov-record: merge: record: "closed-with-regression" is not a closure class — 
 
 ── dispute dimension outside the set
 exit 2
-feov-record: blue: record: dispute requires --dimension severity|likelihood|impact|complexity_cost (got "banana") — the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero
+feov-record: verb "dispute" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
 
 ── verification trust outside the set
 exit 2
@@ -84,7 +84,7 @@ feov-record: blue: record: confidence requires --confidence high|medium|low (got
 
 ── petition class outside the set
 exit 2
-feov-record: blue: record: petition requires --petition-class ethical|safety|integrity|constitutional (got "banana") — the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine
+feov-record: verb "petition" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
 
 ── invalid seat id
 exit 2
@@ -96,15 +96,15 @@ feov-record: verb "mint" is outside this seat's role (available: register, findi
 
 ── verb outside the blue role
 exit 2
-feov-record: verb "close" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "close" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
 
 ── verb outside the bench role
 exit 2
-feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, outcome, assemble, friction, show)
+feov-record: verb "mint" is outside this seat's role (available: register, opinion, halt, certify, outcome, assemble, friction, show)
 
 ── unknown verb
 exit 2
-feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, regrade, dispute-respond, spot-check, near-match, avenue-rule, position, closing, verdict, friction, petition, show)
+feov-record: verb "frobnicate" is outside this seat's role (available: register, mint, close, regrade, spot-check, near-match, position, closing, verdict, friction, show)
 
 ── unknown role
 exit 2

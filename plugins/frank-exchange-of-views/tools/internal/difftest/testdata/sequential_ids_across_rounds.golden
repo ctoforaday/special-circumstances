@@ -31,15 +31,15 @@ feov-record: merge: record: spot-check --ids names gap R1-1, which is still OPEN
 $ merge dispute-respond --run {RUN} --seat-id red-merge-r2 --id R1-1 --as rejected --reason the consequence stands
 exit 2
 stderr:
-feov-record: merge: dispute-respond: --dimension is required — blue disputes a single grade, and an answer that names only the gap cannot be matched to the grade it refuses when more than one is contested
+feov-record: verb "dispute-respond" is outside this seat's role (available: register, mint, close, regrade, spot-check, near-match, position, closing, verdict, friction, show)
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.48.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.49.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"a","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"low","likelihood":"low","problem":"r1 first","severity":"low","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"a","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"low","problem":"r1 second","severity":"low","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 -- events-red-merge-r2-NONCE002.jsonl
-{"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.48.0"},"role":"merge","round":2,"seatId":"red-merge-r2","seq":0,"ts":3,"type":"register"}
+{"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.49.0"},"role":"merge","round":2,"seatId":"red-merge-r2","seq":0,"ts":3,"type":"register"}
 {"key":"red-merge-r2:mint:R2-1","nonce":"NONCE002","payload":{"acceptance_check":"x","check_kind":"document","class":"a","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R2-1","impact":"low","likelihood":"low","problem":"r2 first","severity":"low","supersedes":[]},"role":"merge","round":2,"seatId":"red-merge-r2","seq":1,"ts":4,"type":"mint"}
 
 ═══ RENDERS ═══
