@@ -74,3 +74,68 @@ func TestAPreCollapseRecordStillReplays(t *testing.T) {
 		}
 	}
 }
+
+// THE DUAL-READ, ON THE FIXTURE IT EXISTS FOR.
+//
+// This is the assertion the whole pre-motion artifact was produced to make. It reads the
+// pre-collapse record through the SAME entry point every consumer uses, and requires all three
+// exchanges to come back as motions with their asks, their rulings and the appeal intact.
+//
+// Before the collapse it exercises the legacy path only. After it, it is the thing that fails
+// when a consumer starts calling Motions directly instead of AllMotions — which renders nothing
+// for an old record and looks exactly like a run that had no disputes.
+func TestTheDualReadRecoversEveryLegacyExchange(t *testing.T) {
+	b, err := BoardState(preMotionFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ms := AllMotions(b)
+	if len(ms) == 0 {
+		t.Fatal("the dual-read returned NO motions for a record carrying five retiring events — the plausible zero this guards against")
+	}
+	bySubject := map[string]*Motion{}
+	for _, m := range ms {
+		bySubject[m.Subject] = m
+	}
+
+	grade := bySubject["grade"]
+	if grade == nil {
+		t.Fatal("the grade dispute did not survive the dual-read")
+	}
+	if !grade.Ruled() || grade.Ruling != "rejected" {
+		t.Errorf("the grade dispute lost its ANSWER (ruling=%q) — an ask rendered without its answer is the half-dialogue #315 fixed", grade.Ruling)
+	}
+	if grade.Fields["dimension"] != "severity" {
+		t.Errorf("the grade dispute lost its dimension (%q); the join is (gap, dimension) and a dispute matched on the gap alone attaches to the wrong grade", grade.Fields["dimension"])
+	}
+
+	pet := bySubject["petition"]
+	if pet == nil {
+		t.Fatal("the petition did not survive the dual-read")
+	}
+	if !pet.Ruled() || pet.Ruling != "granted" {
+		t.Errorf("the petition lost its ruling (%q)", pet.Ruling)
+	}
+	if pet.Relief == "" {
+		t.Error("the petition lost its RELIEF — the operative half, which is what binds the coming seats")
+	}
+
+	dir := bySubject["direction"]
+	if dir == nil {
+		t.Fatal("the direction ruling did not survive the dual-read")
+	}
+	if dir.Ruling != "out-of-scope" {
+		t.Errorf("the direction lost its ruling (%q)", dir.Ruling)
+	}
+	if !dir.Appealed {
+		t.Error("the APPEAL was lost — blue pursued against an out-of-scope ruling, and that disagreement is the substance; `contests_ruling` is the one legacy field with no counterpart before this")
+	}
+
+	// Every legacy motion carries a synthesised id, marked as such: the old exchanges had no
+	// identity, so it cannot be recovered — only assigned — and a reader must be able to tell.
+	for _, m := range ms {
+		if m.Fields["legacy"] != "true" {
+			t.Errorf("motion %s from a pre-collapse record is not marked legacy; a synthesised id must never read as one the record carried", m.ID)
+		}
+	}
+}
