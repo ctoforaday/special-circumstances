@@ -94,6 +94,13 @@ type runner struct {
 	raised []map[string]any
 	// disputedThisRound is what blueRespondTo raised for the CURRENT round's envelope.
 	disputedThisRound []map[string]any
+	// pendingMotions are filed motions awaiting a ruling — the merge seat drains them, so an ask
+	// does not sit unanswered every sweep and the "NOT RULED" branch stays the exception it is.
+	pendingMotions []string
+	// ruledMotions are motions that HAVE a ruling and can therefore be appealed. Kept apart from
+	// pendingMotions because the two states admit different verbs: an appeal against no ruling is
+	// refused, and a list that mixed them would drive the verb without exercising it.
+	ruledMotions []string
 	// presented records the gaps a responder was actually shown: a gap minted in the terminal
 	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
 	presented map[string]bool
@@ -226,10 +233,28 @@ func (r *runner) maybePetition(role, seatID string) []any {
 	}
 	class := pick(r.rng, petitionClasses)
 	basis := "fuzz petition basis from " + seatID
-	if _, err := r.exec(role, "petition", "--seat-id", seatID, "--petition-class", class, "--reason", basis, "--relief", "fuzz relief"); err != nil {
+	entry := map[string]any{"who": seatID, "class": class}
+	// BOTH VOCABULARIES, AND THE ENTRY REMEMBERS WHICH. `<seat> petition` joins on
+	// (petitioner, class) — the #312 defect — and `motion petition file` joins on a minted id.
+	// Ruling a motion-filed petition through the legacy verb would write a `petition-rule` naming
+	// a petitioner the record has no filing for: accepted at the write and orphaned at replay,
+	// which is exactly the join failure the collapse exists to remove, reproduced by the harness
+	// meant to prove it gone.
+	if r.coin(50) {
+		out, err := r.exec("--json", "motion", "petition", "file", "--seat-id", seatID,
+			"--petition-class", class, "--relief", "fuzz relief", "--reason", basis)
+		if err != nil {
+			return arr()
+		}
+		id := motionIDOf(out)
+		if id == "" {
+			return arr()
+		}
+		entry["motion"] = id
+	} else if _, err := r.exec(role, "petition", "--seat-id", seatID, "--petition-class", class, "--reason", basis, "--relief", "fuzz relief"); err != nil {
 		return arr()
 	}
-	r.petitioned = append(r.petitioned, map[string]any{"who": seatID, "class": class})
+	r.petitioned = append(r.petitioned, entry)
 	return arr(map[string]any{"class": class, "basis": basis, "relief": "fuzz relief"})
 }
 
@@ -250,7 +275,12 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		// THE PETITION IS ALWAYS RULED ON ITS MERITS. A halt is a separate decision about the
 		// RUN, on its own channel (#329) — both can be true, and the petition does not stop
 		// being answered because the bench also ended the run.
-		_, _ = r.exec("bench", "petition-rule", "--seat-id", seatID, "--petitioner", who, "--petition-class", class, "--as", ruling, "--reason", opinion)
+		if id, _ := p["motion"].(string); id != "" {
+			_, _ = r.exec("motion", "petition", "rule", "--seat-id", seatID, "--id", id,
+				"--as", ruling, "--reason", opinion)
+		} else {
+			_, _ = r.exec("bench", "petition-rule", "--seat-id", seatID, "--petitioner", who, "--petition-class", class, "--as", ruling, "--reason", opinion)
+		}
 		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "relief": opinion})
 	}
 	r.petitioned = nil
@@ -591,6 +621,22 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the verb gate stayed green on blue's avenue events — a dead drive that read as
 		// coverage. Found by the execution tally (lens avenue: 183 of 183 refused).
 	case "merge":
+		// RULE THE FILED MOTIONS (#344). A motion is filed by any seat and ruled by ONE, and the
+		// asymmetry is the mechanism — so the merge drains what blue filed rather than each seat
+		// answering itself.
+		for _, id := range r.pendingMotions {
+			if _, err := r.exec("motion", "grade", "rule", "--seat-id", seatID, "--id", id,
+				"--as", pick(r.rng, []string{"accepted", "rejected"}),
+				"--reason", "fuzz: ruling on the contested grade"); err == nil {
+				// AN APPEAL IS ONLY POSSIBLE ONCE A RULING EXISTS, so the ruled ids go to blue
+				// rather than blue appealing what it just filed. The first driver appealed in the
+				// same breath as the filing and every one of the 14 was REFUSED — the verb showed
+				// as driven in the tally and exercised nothing, which is precisely the false green
+				// the refusal count was added to expose.
+				r.ruledMotions = append(r.ruledMotions, id)
+			}
+		}
+		r.pendingMotions = nil
 		// W1.8 archive spot-check — the merge's duty, and now ENFORCED from the board
 		// (verify.archiveSpotCheckFloor).
 		//
@@ -626,6 +672,35 @@ func (r *runner) extras(role, seatID string, open []string) {
 		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
+		// THE MOTION GROUP (#344), driven alongside the verbs it will replace — both vocabularies
+		// are live during the additive stage, and the sweep must reach the new one or it ships
+		// behind a green board. Blue files a grade motion; the merge rules it; blue appeals.
+		r.maybe(40, func() {
+			open := r.openGaps()
+			if len(open) == 0 {
+				return
+			}
+			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID,
+				"--id", open[r.rng.Intn(len(open))], "--dimension", pick(r.rng, []string{"severity", "likelihood", "impact", "complexity_cost"}),
+				"--proposed", "low", "--reason", "fuzz: the consequence is bounded upstream")
+			if err != nil {
+				return
+			}
+			id := motionIDOf(out)
+			if id == "" {
+				return
+			}
+			r.pendingMotions = append(r.pendingMotions, id)
+		})
+		// APPEAL WHAT HAS ALREADY BEEN RULED — a round later than the filing, which is when an
+		// appeal is possible at all.
+		for _, id := range r.ruledMotions {
+			if r.coin(40) {
+				_, _ = r.exec("motion", "grade", "appeal", "--seat-id", seatID, "--id", id,
+					"--reason", "fuzz: pressing it to the bench")
+			}
+		}
+		r.ruledMotions = nil
 		// NO RANDOM AVENUE MOVE HERE. answerAvenueRulings owns moves now: it answers red's
 		// ruling, comply or contest, one decision per avenue. A second writer sliding statuses
 		// at random fought it — the oracle caught it immediately, 24 of 60, reporting endorsed
@@ -1548,6 +1623,8 @@ var verbsWithEvents = []string{
 	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
 	"confidence", "cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
 	"manifest-row", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
+	// The motion collapse (#344): filed by any seat, ruled by one, appealed by the filer.
+	"motion", "motion-rule", "motion-appeal",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
 	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
 	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
@@ -1649,6 +1726,11 @@ var dialecticProseKey = map[string]string{
 	// checking it showed — the receipt reached no reader for a year, because the coverage metric
 	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).
 	"manifest-row": "row",
+	// The motion group. `basis` is the ASK, `opinion` the answer, `reason` the appeal — all three
+	// render in the report's one Motions section, joined on the motion id (#344).
+	"motion":        "basis",
+	"motion-rule":   "opinion",
+	"motion-appeal": "reason",
 	// Red re-reading its own closure archive. `notes` is what the sample FOUND — the whole
 	// point of sampling — and it reached no reader at all until the floor was enforced (#317).
 	"spot-check": "notes",
@@ -1774,6 +1856,19 @@ func proseRenders(board *record.Board, runDir string) string {
 		return "prose-not-rendered (A1-A3 class):\n" + strings.Join(missing, "\n")
 	}
 	return ""
+}
+
+// motionIDOf pulls the tool-assigned motion id out of a filing's JSON envelope.
+func motionIDOf(out string) string {
+	var env struct {
+		Result struct {
+			MotionID string `json:"motion_id"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		return ""
+	}
+	return env.Result.MotionID
 }
 
 func binDir(bin string) string { return filepath.ToSlash(filepath.Dir(bin)) }
@@ -2046,13 +2141,40 @@ func (r *runner) ruleOpenAvenues(seatID string) {
 		return
 	}
 	for _, a := range record.Avenues(b) {
-		if rulingFor(a.Line) == "" || record.AvenueRuling(r.runDir, a.ID) != "" {
+		if rulingFor(a.Line) == "" || directionRuling(b, r.runDir, a.ID) != "" {
 			continue
 		}
-		r.do("merge", "avenue-rule", seatID).set("--id", a.ID).
-			set("--ruling", rulingFor(a.Line)).
-			set("--reason", "fuzz: ruling as the line was proposed").run()
+		// BOTH VOCABULARIES, SPLIT BY COIN. `merge avenue-rule` and `motion direction rule` are
+		// live together for the whole additive stage, and a sweep that drove only one would ship
+		// the other behind a green board — which is how the retired half of a collapse reaches a
+		// consumer untested.
+		if r.coin(50) {
+			r.do("merge", "avenue-rule", seatID).set("--id", a.ID).
+				set("--ruling", rulingFor(a.Line)).
+				set("--reason", "fuzz: ruling as the line was proposed").run()
+			continue
+		}
+		_, _ = r.exec("motion", "direction", "rule", "--seat-id", seatID, "--id", a.ID,
+			"--as", rulingFor(a.Line), "--reason", "fuzz: ruling as the line was proposed")
 	}
+}
+
+// directionRuling reports an avenue's ruling under EITHER vocabulary.
+//
+// Asking only record.AvenueRuling would have seen the legacy events alone, so every
+// motion-ruled avenue would read as unruled and be ruled again each round — the drive would
+// have looked correct and measured nothing, because a second ruling on a settled line is not a
+// path the run takes.
+func directionRuling(b *record.Board, runDir, avenueID string) string {
+	if v := record.AvenueRuling(runDir, avenueID); v != "" {
+		return v
+	}
+	for _, m := range record.AllMotions(b) {
+		if m.Subject == "direction" && m.Fields["avenue_id"] == avenueID && m.Ruled() {
+			return m.Ruling
+		}
+	}
+	return ""
 }
 
 // answerAvenueRulings is blue's move after red has ruled: comply, or CONTEST by pursuing
@@ -2063,12 +2185,24 @@ func (r *runner) answerAvenueRulings(seatID string) {
 		return
 	}
 	for _, a := range record.Avenues(b) {
-		ruling := record.AvenueRuling(r.runDir, a.ID)
+		ruling := directionRuling(b, r.runDir, a.ID)
 		if ruling == "" || a.Status != "proposed" {
 			continue
 		}
 		switch {
 		case strings.HasPrefix(a.Line, avContest):
+			// THE CONTEST, IN BOTH VOCABULARIES. `contests_ruling` is a field the move sets as a
+			// side effect; `motion direction appeal` is the act named as itself. Both are live
+			// during the additive stage, so the move still happens either way — what the appeal
+			// adds is that the disagreement has its own event instead of riding on a status
+			// change, which is the whole reason the collapse treats an appeal as one act across
+			// all three subjects.
+			// UNCONDITIONAL, not a coin. Behind a 50% gate this reached 2 invocations across 60
+			// runs — contests are already rare — and a drive that thin flakes to ZERO, which the
+			// unreached-path gate reports as a missing drive in CI and nowhere else. The legacy
+			// `contests_ruling` field is still exercised by the move below either way.
+			_, _ = r.exec("motion", "direction", "appeal", "--seat-id", seatID, "--id", a.ID,
+				"--reason", "fuzz: the scope call is wrong, this bears on the core claim")
 			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", "pursued").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
 		case ruling == "endorsed":

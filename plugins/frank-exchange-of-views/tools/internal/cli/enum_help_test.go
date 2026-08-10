@@ -61,6 +61,14 @@ var openSets = map[string]string{}
 // record.EnumFields, named so that "somewhere else" is a claim a reader can check rather
 // than an assumption. These need no "..." — their help is telling the truth.
 var enforcedElsewhere = map[string]string{
+	// The motion verdicts are keyed on (SUBJECT, ruling), which record.EnumFields cannot express:
+	// it keys by event TYPE, and one `motion-rule` carries granted|denied for a petition and
+	// accepted|rejected for a grade. record.validate checks it, and the help here is generated
+	// from record.MotionVerdictEnum — the SAME table, so the two cannot drift, which is the
+	// property EnumFields exists to give and the reason this is "enforced elsewhere" rather than
+	// an exemption.
+	"rule --as": "record.validate, keyed on (SUBJECT, ruling); help generated from record.MotionVerdictEnum — the same table, so the two cannot drift",
+
 	// The ONE set already solved the other way, and correctly: flags.GradeValue is a
 	// pflag.Value, so a bad grade is refused BEFORE the payload is built, and both the
 	// help and the refusal are generated from flags.GradeNames(). A second enforcement in

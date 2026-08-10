@@ -77,30 +77,52 @@ var (
 )
 
 func commandPathOf(args []string) string {
-	var parts []string
+	// THE LONGEST ARGV PREFIX THAT IS A REAL COMMAND PATH, asked of the cobra tree.
+	//
+	// This used to take at most TWO tokens and require the first to be a role — a two-level tree
+	// hard-coded into the tally. The command-groups work makes the tree deeper (`motion grade
+	// file` is three), and under the old rule that collapsed to `motion`, matched no real path,
+	// and reported all seven motion verbs as NEVER INVOKED while the record showed 35 motion
+	// events. A tally that cannot see a path it was given reports a false absence, which is the
+	// same plausible-zero shape the gate exists to catch — one level up, in the gate itself.
+	//
+	// Asking the tree removes the assumption entirely: any depth works, and a path the tree does
+	// not have is not a path.
+	var toks []string
 	for _, a := range args {
-		// SKIP leading flags rather than stopping at them: `--json merge mint …` is a real
-		// mint, and stopping made it invisible to the tally — which then reported the most
-		// heavily driven verb in the suite as never invoked.
 		if strings.HasPrefix(a, "-") {
-			if len(parts) == 0 {
-				continue
+			if len(toks) == 0 {
+				continue // `--json merge mint …` is a real mint; skip leading globals
 			}
 			break
 		}
-		parts = append(parts, a)
-		if len(parts) == 2 {
-			break
+		toks = append(toks, a)
+	}
+	known := knownPaths()
+	for n := len(toks); n > 0; n-- {
+		if p := strings.Join(toks[:n], " "); known[p] {
+			return p
 		}
 	}
-	if len(parts) == 0 {
-		return ""
+	if len(toks) > 0 {
+		return toks[0] // an unknown root command still counts as invoked, and as itself
 	}
-	// A one-word argv is a root command; two words are only a path if the first is a role.
-	if len(parts) == 2 && !isRole(parts[0]) {
-		parts = parts[:1]
-	}
-	return strings.Join(parts, " ")
+	return ""
+}
+
+var (
+	knownOnce  sync.Once
+	knownCache map[string]bool
+)
+
+func knownPaths() map[string]bool {
+	knownOnce.Do(func() {
+		knownCache = map[string]bool{}
+		for _, p := range cli.CommandPaths() {
+			knownCache[p] = true
+		}
+	})
+	return knownCache
 }
 
 func isRole(s string) bool {
