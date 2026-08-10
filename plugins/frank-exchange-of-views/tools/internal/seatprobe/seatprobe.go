@@ -39,9 +39,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -52,54 +50,61 @@ import (
 // motion, and exactly one role RULES each subject. Listing `motion petition rule` under blue would
 // report a verb blue cannot use as one it declined — the same conflation the doc above forbids,
 // arriving through the one group that is not scoped by role.
-// roleVerbs is DERIVED FROM THE COBRA TREE, never hand-maintained.
+// Surface is the verb set the tool actually offers, derived from the cobra tree.
 //
-// The first draft listed the verbs by hand and it was already wrong within an hour: the motion
-// group was missing entirely, so "blue used 4 of 14" had a denominator that omitted four verbs
-// blue can reach. A choice report whose denominator is a hand-written list measures the list.
+// IT IS AN ARGUMENT RATHER THAN AN IMPORT, and the reason is not style. This package is read BY
+// the cli package's tests (which build the boards) and reads FROM the cli package's tree, which is
+// an import cycle the moment it is a direct dependency. Passing the paths in makes the direction
+// one-way and keeps the property that matters: the surface is derived, never a list maintained
+// here. A gate holding its own copy of the surface measures the copy — the defect that let a
+// hand-written role list report "4 of 14" when the true figure was 4 of 18.
 //
 // THE MOTION VERBS ARE SCOPED BY GAVEL, not by group membership: every seat may FILE any motion
 // and exactly one role RULES each subject, so `motion petition rule` belongs to the bench alone.
-// That is a fact about the tool, not about the tree shape, and it is the one thing here the tree
-// cannot say — so it is stated once, next to the derivation that makes everything else automatic.
+// That is a fact about the tool rather than about the tree shape, and it is the one thing here the
+// tree cannot say — so it is stated once, next to the derivation that makes everything else
+// automatic.
 var motionRuler = map[string]string{"grade": "merge", "petition": "bench", "direction": "merge"}
 
-var roleVerbsOnce sync.Once
-var roleVerbsCache map[string][]string
+type Surface struct{ byRole map[string][]string }
 
-// RoleVerbs is what each role may reach for.
-func RoleVerbs(role string) []string {
-	roleVerbsOnce.Do(func() {
-		roleVerbsCache = map[string][]string{}
-		for _, p := range cli.CommandPaths() {
-			parts := strings.Fields(p)
-			switch {
-			case len(parts) == 2 && isRole(parts[0]):
-				roleVerbsCache[parts[0]] = append(roleVerbsCache[parts[0]], parts[1])
-			case len(parts) == 3 && parts[0] == "motion":
-				subject, verb := parts[1], parts[2]
-				if verb == "rule" {
-					r := motionRuler[subject]
-					roleVerbsCache[r] = append(roleVerbsCache[r], p)
-					continue
-				}
-				// file and appeal are open to every seat.
-				for _, r := range []string{"lens", "merge", "blue", "bench"} {
-					roleVerbsCache[r] = append(roleVerbsCache[r], p)
-				}
+// NewSurface builds the per-role verb sets from cli.CommandPaths().
+func NewSurface(paths []string) Surface {
+	byRole := map[string][]string{}
+	for _, p := range paths {
+		parts := strings.Fields(p)
+		switch {
+		case len(parts) == 2 && isRole(parts[0]):
+			byRole[parts[0]] = append(byRole[parts[0]], parts[1])
+		case len(parts) == 3 && parts[0] == "motion":
+			subject, verb := parts[1], parts[2]
+			if verb == "rule" {
+				r := motionRuler[subject]
+				byRole[r] = append(byRole[r], p)
+				continue
+			}
+			for _, r := range Roles {
+				byRole[r] = append(byRole[r], p)
 			}
 		}
-		for r := range roleVerbsCache {
-			sort.Strings(roleVerbsCache[r])
-		}
-	})
-	return roleVerbsCache[role]
+	}
+	for r := range byRole {
+		sort.Strings(byRole[r])
+	}
+	return Surface{byRole: byRole}
 }
 
+// Verbs is what a role may reach for.
+func (s Surface) Verbs(role string) []string { return s.byRole[role] }
+
+// Roles is the party set, in dispatch order.
+var Roles = []string{"lens", "merge", "blue", "bench"}
+
 func isRole(s string) bool {
-	switch s {
-	case "lens", "merge", "blue", "bench":
-		return true
+	for _, r := range Roles {
+		if s == r {
+			return true
+		}
 	}
 	return false
 }
@@ -132,7 +137,7 @@ type Choices struct {
 }
 
 // Read replays a run and reports one seat's choices.
-func Read(runDir, seatID string) (*Choices, error) {
+func Read(sf Surface, runDir, seatID string) (*Choices, error) {
 	b, err := record.BoardState(runDir)
 	if err != nil {
 		return nil, err
@@ -170,14 +175,14 @@ func Read(runDir, seatID string) (*Choices, error) {
 		// A seat that recorded nothing has no events to carry a role, and guessing one would
 		// invent a verb list to compare against. Fall back to the id ONLY here, where the
 		// alternative is reporting nothing at all.
-		for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		for _, role := range Roles {
 			if record.CheckSeatRole(role, seatID) == nil {
 				c.Role = role
 				break
 			}
 		}
 	}
-	for _, v := range RoleVerbs(c.Role) {
+	for _, v := range sf.Verbs(c.Role) {
 		if c.Used[v] == 0 {
 			c.Unused = append(c.Unused, v)
 		}
@@ -210,10 +215,10 @@ type Verdict struct {
 // Check reports which expectations a run met. It never returns an error for an unmet one: this
 // package produces a REPORT, not a gate. Agent behaviour is not deterministic, and a flaky gate
 // is one the next person turns off.
-func Check(runDir string, expect []Expectation) ([]Verdict, error) {
+func Check(sf Surface, runDir string, expect []Expectation) ([]Verdict, error) {
 	out := make([]Verdict, 0, len(expect))
 	for _, e := range expect {
-		c, err := Read(runDir, e.Seat)
+		c, err := Read(sf, runDir, e.Seat)
 		if err != nil {
 			return nil, err
 		}
@@ -246,15 +251,15 @@ func substituteFor(c *Choices, want string) string {
 
 // Report renders the whole picture for an operator: what each seat chose, what it left, and which
 // expectations went unmet.
-func Report(runDir string, seats []string, expect []Expectation) (string, error) {
+func Report(sf Surface, runDir string, seats []string, expect []Expectation) (string, error) {
 	var b strings.Builder
 	b.WriteString("# Seat choice report\n\nWhich verbs each seat REACHED FOR, of those its role offers.\n\n")
 	for _, s := range seats {
-		c, err := Read(runDir, s)
+		c, err := Read(sf, runDir, s)
 		if err != nil {
 			return "", err
 		}
-		total := len(RoleVerbs(c.Role))
+		total := len(sf.Verbs(c.Role))
 		fmt.Fprintf(&b, "## %s (%s) — used %d of %d\n\n", s, c.Role, total-len(c.Unused), total)
 		var used []string
 		for v, n := range c.Used {
@@ -274,7 +279,7 @@ func Report(runDir string, seats []string, expect []Expectation) (string, error)
 		b.WriteString("\n")
 	}
 
-	verdicts, err := Check(runDir, expect)
+	verdicts, err := Check(sf, runDir, expect)
 	if err != nil {
 		return "", err
 	}
