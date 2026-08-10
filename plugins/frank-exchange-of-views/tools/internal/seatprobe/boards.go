@@ -7,9 +7,12 @@ package seatprobe
 // than about its luck. One gap on each board is deliberately ordinary — the control — because a
 // board where every item screams for a special verb measures eagerness, not judgement.
 //
-// THE HYPOTHESIS THESE BOARDS TEST: a question whose answer is a NUMBER, a SIMULATION or a
-// FORECAST should drive a seat to write and run code, not to write a sentence claiming the
-// arithmetic was done. That is the difference between evidence and self-attestation, and it is
+// THE HYPOTHESIS THESE BOARDS TEST: a question whose answer would be PRODUCED rather than
+// asserted should drive a seat to write and run code, not to write a sentence claiming the work
+// was done. Arithmetic, a simulation and a forecast are the cases these boards happen to use;
+// the class is wider than the three and deliberately not enumerated, because a board built to a
+// closed list measures whether a seat matches the list rather than whether it recognises the
+// kind. That is the difference between evidence and self-attestation, and it is
 // the one a weak seat gets wrong by default — measured, on the first probe: haiku answered a
 // `self-attestation` gap by writing a new self-attestation, in prose, with the arithmetic typed
 // out rather than executed.

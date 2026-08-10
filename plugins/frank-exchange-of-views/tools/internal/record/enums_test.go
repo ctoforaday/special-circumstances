@@ -13,7 +13,7 @@ func base(typ, except string) *Payload {
 	p := NewPayload()
 	for _, e := range EnumFields[typ] {
 		if e.Key != except && !e.Optional {
-			p.Set(e.Key, e.Values[0])
+			p.Set(e.Key, e.Values[0].Name)
 		}
 	}
 	return p
@@ -38,7 +38,7 @@ func TestEveryClosedSetRefusesWhatIsNotInIt(t *testing.T) {
 				if len(e.Values) == 0 {
 					t.Fatalf("%s declares an empty set — it would refuse everything", typ)
 				}
-				for _, v := range e.Values {
+				for _, v := range Names(e.Values) {
 					if !e.Allows(v) {
 						t.Errorf("declared value %q is not allowed by its own set", v)
 					}
@@ -61,7 +61,7 @@ func TestEveryClosedSetRefusesWhatIsNotInIt(t *testing.T) {
 						}
 					}
 				}
-				for _, junk := range []string{"banana", "", " ", e.Values[0] + "x"} {
+				for _, junk := range []string{"banana", "", " ", Names(e.Values)[0] + "x"} {
 					if err := refuses(junk); err == nil {
 						t.Errorf("checkEnum accepted %q", junk)
 					}
@@ -114,7 +114,7 @@ func TestTheRefusalNamesTheSetAndTheConsequence(t *testing.T) {
 				t.Fatalf("%s.%s accepted junk", typ, e.Key)
 			}
 			msg := err.Error()
-			for _, v := range e.Values {
+			for _, v := range Names(e.Values) {
 				if !strings.Contains(msg, v) {
 					t.Errorf("%s.%s: the refusal does not offer %q: %s", typ, e.Key, v, msg)
 				}
@@ -192,7 +192,7 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	}
 	// The four grade axes, likewise: they were declared on `dispute` and read by
 	// `dispute-respond`'s join. One table now.
-	if got := strings.Join(MotionFields["grade"]["dimension"], "|"); got != "severity|likelihood|impact|complexity_cost" {
+	if got := strings.Join(Names(MotionFields["grade"]["dimension"]), "|"); got != "severity|likelihood|impact|complexity_cost" {
 		t.Errorf("the grade dimensions moved or changed: %q — the ruling is matched to the filing on (gap, dimension), so a change here silently unpairs asks from answers", got)
 	}
 }
@@ -229,12 +229,12 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 		t.Fatal("both closing verbs must declare exactly one closed set")
 	}
 	closes := map[string]bool{}
-	for _, v := range closeSet[0].Values {
+	for _, v := range Names(closeSet[0].Values) {
 		closes[v] = true
 	}
 	// Every class red may close with must also be a disposition the bench may rule, or the
 	// two verbs mean different things by the same outcome — which is what #342 removed.
-	for _, v := range opinionSet[0].Values {
+	for _, v := range Names(opinionSet[0].Values) {
 		if v == DispositionCarried {
 			continue
 		}

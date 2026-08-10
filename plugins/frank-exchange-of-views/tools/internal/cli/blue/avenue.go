@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -118,8 +119,7 @@ func newAvenue() *cobra.Command {
 	c.Flags().String(flags.ID, "", "an avenue you already proposed (A1, A2 …) whose fate you are MOVING; omit to propose a new one")
 	c.Flags().String(flags.Line, "", "the question or approach you are proposing — what you are going to try")
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
-	c.Flags().String(flags.Status, "", record.MustEnum("avenue", "status").Usage(
-		"proposed (put forward, undecided — the default) | pursued (being followed) | declined (considered, not taken) | abandoned (pursued, then died)"))
+	enumhelp.Flag(c, flags.Status, record.MustEnum("avenue", "status"), ("proposed (put forward, undecided — the default) | pursued (being followed) | declined (considered, not taken) | abandoned (pursued, then died)"))
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }

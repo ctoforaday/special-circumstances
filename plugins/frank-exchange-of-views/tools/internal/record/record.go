@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -628,8 +627,8 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		}
 		for key, allowed := range MotionFields[subject] {
 			v := p.Str(key)
-			if v != "" && !slices.Contains(allowed, v) {
-				return fmt.Errorf("record: %q is not a %s for a %s motion — one of %s", v, key, subject, strings.Join(allowed, " | "))
+			if v != "" && !Allows(allowed, v) {
+				return fmt.Errorf("record: %q is not a %s for a %s motion — one of %s", v, key, subject, strings.Join(Names(allowed), " | "))
 			}
 		}
 		// A GRADE MOTION IS ABOUT A GAP, and both of these checks belonged to `blue dispute`
@@ -662,9 +661,9 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			if !known {
 				return fmt.Errorf("record: %q is not a motion subject — one of %s", subject, strings.Join(MotionSubjects, " | "))
 			}
-			if !slices.Contains(allowed, ruling) {
+			if !Allows(allowed, ruling) {
 				return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
-					ruling, subject, strings.Join(allowed, " | "))
+					ruling, subject, strings.Join(Names(allowed), " | "))
 			}
 		}
 	case "retire":

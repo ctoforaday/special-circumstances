@@ -27,12 +27,28 @@ import "fmt"
 // and it is the carrier for bootstrapping a later run. Deliberately a PROPOSAL for a human
 // to select rather than a seed: a run that queues its own successor is a loop with no human
 // in it.
-var AvenueStatuses = []string{"proposed", "pursued", "declined", "abandoned", "deferred"}
+var AvenueStatuses = []EnumValue{
+	Ev("proposed", "put forward and not yet resolved — the default, and the state that owes a move"),
+	Ev("pursued", "you are following it, or you followed it; say what you learned in --reason"),
+	Ev("declined", "considered and judged not worth this run's time"),
+	Ev("abandoned", "you TRIED it and it died — the most valuable fate, because it stops a later run re-walking it"),
+	Ev("deferred", "worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed"),
+}
+
+// AvenueStatusNames is the bare vocabulary, for readers that only need the words.
+func AvenueStatusNames() []string { return Names(AvenueStatuses) }
 
 // AvenueRulings are red's fates for a proposed direction. Red AUDITS and RULES; it never
 // proposes one — directing research is what a gap's required_fix already does, and a second
 // spelling for it is the aliasing this vocabulary exists to prevent.
-var AvenueRulings = []string{"endorsed", "out-of-scope", "too-thin"}
+var AvenueRulings = []EnumValue{
+	Ev("endorsed", "worth this run's time — blue should take it up"),
+	Ev("out-of-scope", "a real question, but not THIS question"),
+	Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
+}
+
+// AvenueRulingNames is the bare vocabulary.
+func AvenueRulingNames() []string { return Names(AvenueRulings) }
 
 // MintAvenueID assigns the next run-unique avenue id (A1, A2 …).
 //

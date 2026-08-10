@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
@@ -80,7 +81,7 @@ func newReproduce() *cobra.Command {
 			return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil
 		}))
 	c.Flags().String(flags.ID, "", "REQUIRED — the sha256 of the recorded proof to re-run")
-	c.Flags().String(flags.As, "", record.MustEnum("reproduce", "soundness").Usage("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
 	return c
 }
 

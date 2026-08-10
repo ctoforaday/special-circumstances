@@ -3,6 +3,7 @@ package bench
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -36,7 +37,7 @@ func newOpinion() *cobra.Command {
 		}))
 
 	c.Flags().String(flags.ID, "", "the gap being ruled on")
-	c.Flags().String(flags.As, "", record.MustEnum("opinion", "disposition").Usage("REQUIRED — your ruling AND the gap's fate. Every value ends the gap except `carried`, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("opinion", "disposition"), ("REQUIRED — your ruling AND the gap's fate. Every value ends the gap except `carried`, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342"))
 	c.Flags().String(flags.Principle, "", "the principle applied — a ruling is an OPINION, not a disposition")
 	c.Flags().String(flags.Tension, "", "the values in tension (e.g. correctness vs economy)")
 	c.Flags().String(flags.ReviewFlag, "", "why a human should, or should not, look at this")

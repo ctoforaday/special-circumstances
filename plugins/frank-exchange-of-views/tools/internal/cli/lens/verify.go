@@ -3,6 +3,7 @@ package lens
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -38,7 +39,7 @@ func newVerify() *cobra.Command {
 
 	c.Flags().String(flags.Claim, "", "the claim being verified, quoted from the report")
 	c.Flags().String(flags.Reference, "", "the source the claim rests on")
-	c.Flags().String(flags.Trust, "", record.MustEnum("verify", "trust").Usage("how far the source SUPPORTS the claim. Named --trust, not --confidence: blue's `confidence` is its self-grade on a claim, and one word for two questions is how the two came to share an event type"))
+	enumhelp.Flag(c, flags.Trust, record.MustEnum("verify", "trust"), ("how far the source SUPPORTS the claim. Named --trust, not --confidence: blue's `confidence` is its self-grade on a claim, and one word for two questions is how the two came to share an event type"))
 	c.Flags().String(flags.AccessDate, "", "YYYY-MM-DD you actually fetched it; drives the staleness re-fetch trigger")
 	return c
 }

@@ -59,32 +59,32 @@ const DispositionCarried = "carried"
 // What they must not have is different WORDS for the same outcome: before this, a reader had
 // to know which verb produced a closure before it could interpret the word, and four surfaces
 // spelled the same three outcomes six ways.
-var ClosureClasses = []string{
-	// the repair was verified at the leaf
-	"closed",
-	// repaired, but something regressed — requires --successor, the one class that gates an
-	// invariant and therefore the one the near-miss guard in validate protects by spelling
-	"closed_with_regression",
-	// a defect found BETWEEN two repairs that each closed clean earlier — requires --supersedes
-	"amends_prior",
-	// blue rebutted with evidence and the rebuttal was accepted. Spelled `rebuttal_accepted`
-	// in the envelope and `evidence-rebutted` in prose before this
-	"rebuttal_sustained",
-	// the fix's complexity exceeds its likelihood x impact and the risk is taken knowingly.
-	// Spelled `risk_argued` in the envelope and `risk-accepted` in prose before this
-	"risk_accepted",
-	// a valid finding whose fix is owned outside this debate
-	"routed_to_infrastructure",
+var ClosureClasses = []EnumValue{
+	Ev("closed", "the repair was verified at the leaf and nothing regressed"),
+	Ev("closed_with_regression", "repaired, but something else broke — REQUIRES --successor naming the gap that carries the regression forward"),
+	Ev("amends_prior", "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit"),
+	Ev("rebuttal_sustained", "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"),
+	Ev("risk_accepted", "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"),
+	Ev("routed_to_infrastructure", "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped"),
 }
 
+// ClosureClassNames is the bare vocabulary, for the readers that only need the words.
+func ClosureClassNames() []string { return Names(ClosureClasses) }
+
 // benchDispositions is ClosureClasses plus the one word that does not close.
-var benchDispositions = append(append([]string{}, ClosureClasses...), DispositionCarried)
+var benchDispositions = append(append([]EnumValue{}, ClosureClasses...),
+	Ev(DispositionCarried, "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes"))
 
 type EnumField struct {
-	Key    string   // the payload key the value lands in
-	Flag   string   // the flag a seat types — NOT derived: payload keys are not globally
-	Values []string // unique, and flags.ForPayloadKey says so itself
-	Why    string   // what a near-miss did before this was enforced; the seat reads it
+	Key  string // the payload key the value lands in
+	Flag string // the flag a seat types — NOT derived: payload keys are not globally
+	// unique, and flags.ForPayloadKey says so itself.
+	//
+	// Values carry their MEANINGS, not only their spellings: a set rendered as six words and
+	// one shared sentence leaves a seat to guess which situation warrants which, and the
+	// guessing is measurable (see enumvalue.go).
+	Values []EnumValue
+	Why    string // what a near-miss did before this was enforced; the seat reads it
 
 	// Optional means the field may be ABSENT. A present value is still policed; only
 	// "not passed at all" is allowed through. Requiredness is a separate rule with a
@@ -98,11 +98,19 @@ type EnumField struct {
 // verb alone is what made the first pass look complete when it covered one flag per verb.
 var EnumFields = map[string][]EnumField{
 	"verdict": {{
-		Key: "verdict", Flag: flags.As, Values: []string{"PASS", "FAIL"},
+		Key: "verdict", Flag: flags.As, Values: []EnumValue{
+			Ev("PASS", "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"),
+			Ev("FAIL", "at least one gap is still open, or you are not satisfied it was answered"),
+		},
 		Why: "a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass",
 	}},
 	"outcome": {{
-		Key: "verdict", Flag: flags.As, Values: []string{"VERIFIED", "CEILING", "HALTED", "UNVERIFIED"},
+		Key: "verdict", Flag: flags.As, Values: []EnumValue{
+			Ev("VERIFIED", "red passed the board and the bench agrees the question was answered"),
+			Ev("CEILING", "the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so"),
+			Ev("HALTED", "the bench ended the run on a safety, ethics, consent or integrity boundary"),
+			Ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
+		},
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
 	}},
 	"avenue": {{
@@ -130,11 +138,18 @@ var EnumFields = map[string][]EnumField{
 	}},
 	"mint": {
 		{
-			Key: "check_kind", Flag: flags.CheckKind, Values: []string{"document", "computation", "source"},
+			Key: "check_kind", Flag: flags.CheckKind, Values: []EnumValue{
+				Ev("document", "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"),
+				Ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"),
+				Ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
+			},
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
 		},
 		{
-			Key: "existence", Flag: flags.Existence, Values: []string{"verified", "suspected"},
+			Key: "existence", Flag: flags.Existence, Values: []EnumValue{
+				Ev("verified", "you CHECKED the defect at the leaf and it is there. An act of looking, never confidence in your own critique"),
+				Ev("suspected", "you inferred it and have not checked at the leaf. Honest, and it is what the axis is for"),
+			},
 			Why: "grading v2 SPLIT existence from consequence because v1's `certain` textual nits outweighed high-likelihood design flaws — likelihood now grades the consequence only, and this axis carries whether the defect was checked at the leaf at all. It was validated at the FLAG layer and nowhere else, so the record accepted whatever a non-flag write path put here and the record-level enum sweep never saw the field existed. A gap whose existence is unreadable is one whose grades cannot be interpreted: `medium likelihood` means something different for a defect confirmed at the leaf and one merely inferred",
 			// Optional: records written before the write-path shipped carry no existence, and a
 			// gap minted without it is a real (if incomplete) gap rather than a corrupt one.
@@ -142,16 +157,27 @@ var EnumFields = map[string][]EnumField{
 		},
 	},
 	"reproduce": {{
-		Key: "soundness", Flag: flags.As, Values: []string{"sound", "unsound"},
+		Key: "soundness", Flag: flags.As, Values: []EnumValue{
+			Ev("sound", "you READ the script and it computes what it claims to compute"),
+			Ev("unsound", "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"),
+		},
 		Why: "REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the script actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a proof that looks maximally credible and establishes nothing",
 	}},
 	"verify": {{
-		Key: "trust", Flag: flags.Trust, Values: []string{"high", "medium", "low"},
+		Key: "trust", Flag: flags.Trust, Values: []EnumValue{
+			Ev("high", "the source says what the claim says, at the leaf, and you checked it there"),
+			Ev("medium", "the source supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
+			Ev("low", "the source is weak for this claim: it gestures at it, or is itself uncorroborated"),
+		},
 		Why:      "the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)",
 		Optional: true,
 	}},
 	"confidence": {{
-		Key: "grade", Flag: flags.Confidence, Values: []string{"high", "medium", "low"},
+		Key: "grade", Flag: flags.Confidence, Values: []EnumValue{
+			Ev("high", "you would defend this claim at the leaf under audit"),
+			Ev("medium", "you believe it and can see where it might not hold"),
+			Ev("low", "you are stating it because the report needs it stated, and you expect red to find something"),
+		},
 		Why:      "the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable",
 		Optional: true,
 	}},
@@ -160,18 +186,18 @@ var EnumFields = map[string][]EnumField{
 // Usage renders the flag's help from the set itself, so the contract a seat reads is the
 // contract the write path enforces.
 func (e EnumField) Usage(what string) string {
-	return strings.Join(e.Values, " | ") + " — " + what
+	return strings.Join(Names(e.Values), " | ") + " — " + what
 }
 
 // Spelling is the set as a verb summary writes it: PASS|FAIL, no spaces.
-func (e EnumField) Spelling() string { return strings.Join(e.Values, "|") }
+func (e EnumField) Spelling() string { return strings.Join(Names(e.Values), "|") }
 
 // Allows reports whether v is in the set. Exact and case-sensitive by construction: the
 // gates downstream compare literally, so anything looser here would re-open the hole one
 // layer down.
 func (e EnumField) Allows(v string) bool {
 	for _, want := range e.Values {
-		if v == want {
+		if v == want.Name {
 			return true
 		}
 	}
@@ -227,15 +253,15 @@ func checkEnum(typ string, p *Payload) error {
 		// the mistype WOULD have done, not just that a set exists.
 		detail := ""
 		for _, want := range e.Values {
-			if strings.EqualFold(got, want) {
-				detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want))
+			if strings.EqualFold(got, want.Name) {
+				detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want.Name))
 			}
 		}
 		if got == "" {
 			detail = "nothing was passed, and "
 		}
 		return fmt.Errorf("record: %s requires --%s %s (got %s) — %s%s",
-			typ, e.Flag, strings.Join(e.Values, "|"), jsonish(got), detail, e.Why)
+			typ, e.Flag, strings.Join(Names(e.Values), "|"), jsonish(got), detail, e.Why)
 	}
 	return nil
 }

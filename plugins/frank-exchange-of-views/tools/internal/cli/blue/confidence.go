@@ -3,6 +3,7 @@ package blue
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -35,7 +36,7 @@ func newConfidence() *cobra.Command {
 	// is the claim, so it is --claim. (finding no longer takes --label — the tool assigns
 	// its L{role}-F{N} — so observe is the only other verb the word appears on.)
 	c.Flags().String(flags.Claim, "", "the claim this confidence attaches to")
-	c.Flags().String(flags.Confidence, "", "high | medium | low — your confidence in the claim")
+	enumhelp.Flag(c, flags.Confidence, record.MustEnum("confidence", "grade"), "your confidence in the claim")
 	return c
 }
 

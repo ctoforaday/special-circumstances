@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -61,7 +62,7 @@ func newOutcome() *cobra.Command {
 			return outcomeResult{Verdict: verdict, Deadlocked: deadlocked, Exhausted: exhausted}, nil
 		})
 
-	c.Flags().String(flags.As, "", record.MustEnum("outcome", "verdict").Usage("the run's terminal verdict"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
 	c.Flags().Bool(flags.Deadlocked, false, "the run ended by judged deadlock")
 	c.Flags().Bool(flags.Exhausted, false, "the run ended by safety/round ceiling")
 	return c
