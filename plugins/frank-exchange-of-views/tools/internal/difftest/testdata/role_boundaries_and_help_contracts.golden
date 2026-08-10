@@ -36,7 +36,7 @@ Available Commands:
   finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<section + quoted sentence>"
   friction    attributed friction (survives aborts as an event): --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
-  reproduce   re-RUN a proof blue recorded and compare: --id <sha256 of the proof> — read-only, records nothing (a disagreement is a finding you write yourself)
+  reproduce   re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
   verify      record that you CHECKED a claim against its source (the cross-round re-fetch gate): --claim "..." --reference "..." --trust high|medium|low --access-date YYYY-MM-DD
 

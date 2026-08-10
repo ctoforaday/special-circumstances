@@ -75,6 +75,34 @@ func weaveProofs(runDir, md string, proofs []record.Proof) string {
 		b.WriteString("\n")
 		fmt.Fprintf(&b, "- **script**: `%s` (sha256 `%s`)\n", p.Script, shortSHA(p.SHA))
 		fmt.Fprintf(&b, "- **exit**: %d\n", p.Exit)
+		// RED'S INDEPENDENT RE-RUN (#343). The strongest audit the engine has is worth the
+		// reader knowing about, and its absence is worth knowing about too: a proof nobody
+		// re-ran and a proof that reproduced used to render identically.
+		if v := p.Verified; v != nil {
+			// TWO AXES. Reproducing measures determinism; soundness is red's judgement from
+			// reading the script. The dangerous cell is reproduces-but-unsound: it re-runs
+			// clean and establishes nothing, which is what a proof looks like at its most
+			// credible and least useful.
+			switch {
+			case v.Reproduced && v.Sound:
+				fmt.Fprintf(&b, "- **audited by %s at r%d**: it REPRODUCES, and red read the script and accepts that it establishes the claim", v.SeatID, v.Round)
+			case v.Reproduced && !v.Sound:
+				fmt.Fprintf(&b, "- **audited by %s at r%d — REPRODUCES BUT DOES NOT PROVE THE CLAIM.** The script re-runs to the same output, and red read it and found it does not establish what it is anchored to. Re-running measures determinism, not validity", v.SeatID, v.Round)
+			case !v.Reproduced && v.Sound:
+				fmt.Fprintf(&b, "- **audited by %s at r%d**: the method is sound but it DID NOT REPRODUCE — the script no longer produces the recorded output", v.SeatID, v.Round)
+			default:
+				fmt.Fprintf(&b, "- **audited by %s at r%d — it neither reproduces NOR establishes the claim**", v.SeatID, v.Round)
+			}
+			if v.Note != "" {
+				fmt.Fprintf(&b, " — %s", v.Note)
+			}
+			b.WriteString("\n")
+			if !v.Reproduced && (v.Recorded != "" || v.Observed != "") {
+				fmt.Fprintf(&b, "  - recorded: `%s`\n  - on re-run: `%s`\n", oneLine(v.Recorded), oneLine(v.Observed))
+			}
+		} else {
+			b.WriteString("- **not independently audited** — nobody re-ran this script or read it; the computation stands on blue's execution alone\n")
+		}
 		if p.Cites != "" {
 			// The METHOD is cited and the INSTANCE is computed: naming the citation here is
 			// what makes the pair legible as one argument rather than two artifacts.
@@ -88,6 +116,11 @@ func weaveProofs(runDir, md string, proofs []record.Proof) string {
 		b.WriteString("```\n" + strings.TrimRight(output, "\n") + "\n```\n\n")
 	}
 	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+// oneLine keeps a captured output on a single markdown line.
+func oneLine(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // readArtifact returns the script and output as they were recorded, or an explicit note in

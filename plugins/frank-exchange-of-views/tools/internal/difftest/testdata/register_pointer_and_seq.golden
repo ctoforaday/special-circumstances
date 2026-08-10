@@ -25,15 +25,15 @@ finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FIND
 
 ═══ EVENTS ═══
 -- events-blue-respond-r2-NONCE002.jsonl
-{"key":"blue-respond-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.45.0"},"round":2,"seatId":"blue-respond-r2","seq":0,"ts":1,"type":"register"}
+{"key":"blue-respond-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.46.0"},"round":2,"seatId":"blue-respond-r2","seq":0,"ts":1,"type":"register"}
 {"key":"blue-respond-r2:revision","nonce":"NONCE002","payload":{"text":"first pass"},"round":2,"seatId":"blue-respond-r2","seq":1,"ts":2,"type":"revision"}
 {"key":"blue-respond-r2:friction:#1","nonce":"NONCE002","payload":{"text":"no PDF extraction"},"round":2,"seatId":"blue-respond-r2","seq":2,"ts":3,"type":"friction"}
 -- events-red-lens-r1-L5-NONCE003.jsonl
-{"key":"red-lens-r1-L5:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.45.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":4,"type":"register"}
+{"key":"red-lens-r1-L5:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.46.0"},"round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":4,"type":"register"}
 {"key":"red-lens-r1-L5:finding:L5-F1","nonce":"NONCE003","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"medium","label":"L5-F1","likelihood":"high","location":"## S2","severity":"medium","text":"unfounded leap"},"round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":5,"type":"finding"}
 {"key":"red-lens-r1-L5:anchor:FINDING001","nonce":"NONCE003","payload":{"id":"FINDING001","location":"## S2"},"round":1,"seatId":"red-lens-r1-L5","seq":2,"ts":6,"type":"anchor"}
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.45.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.46.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 
 ═══ RENDERS ═══
 -- ledger
