@@ -179,3 +179,80 @@ func seatRolePrefix(role, seatID string) bool {
 // must not import cli (cli's own tests import THIS one to build the boards), and a test file may
 // because it is compiled into the test binary rather than the package.
 func surface() Surface { return NewSurface(cli.CommandPaths()) }
+
+// A BOARD CARRIES THE STATE ITS EXPECTATIONS NEED.
+//
+// MEASURED, AND IT IS WHY THIS EXISTS. The first probe run reported nineteen unmet expectations,
+// and THREE of them were unmeetable by construction: `adjudicate` expected `motion grade rule`
+// with no motion on the board, `lens-audit` expected `reproduce` with no proof recorded, and
+// `sitting` expected `motion petition rule` with no petition filed. The seats were blamed in the
+// report for verbs they had no way to reach.
+//
+// The coverage gate above passed all three, because it checks an expectation's VERB against the
+// role's verb list and never asks whether the board's STATE makes that verb reachable. That is the
+// same shape as a fixture that declares a cited claim and silently builds without it — a situation
+// asserted rather than created — and it is worse here, because the failure surfaces as a finding
+// about the SEAT.
+//
+// The rule: a verb that answers something can only be demanded on a board that carries the thing.
+func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
+	// needs maps a verb to what the board must already carry for it to be possible at all.
+	needs := map[string]struct {
+		what string
+		has  func(Board) bool
+	}{
+		"motion grade rule":     {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
+		"motion petition rule":  {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
+		"motion direction rule": {"a proposed avenue", func(b Board) bool { return len(b.Avenues) > 0 }},
+		"motion grade appeal":   {"a RULED grade motion", func(b Board) bool { return hasMotion(b, "grade", true) }},
+		"motion direction appeal": {"a RULED avenue", func(b Board) bool {
+			for _, a := range b.Avenues {
+				if a.Ruled != "" {
+					return true
+				}
+			}
+			return false
+		}},
+		"reproduce":   {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
+		"regrade":     {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"close":       {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"closing":     {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
+		"claim-index": {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
+		"verify":      {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
+		"retire":      {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
+		"avenue":      {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
+	}
+
+	for name, b := range Boards() {
+		for _, e := range b.Expect {
+			n, tracked := needs[e.Verb]
+			if !tracked {
+				continue // verbs with no precondition: edit, cite, prove, friction, mint, position …
+			}
+			if !n.has(b) {
+				t.Errorf("board %q expects %q and does not carry %s.\n\n"+
+					"The expectation cannot be met, so the report will record it as a MISS BY THE SEAT — which is a finding about the fixture wearing a finding about the constitution. Build the state, or drop the expectation.",
+					name, e.Verb, n.what)
+			}
+		}
+	}
+}
+
+func anyClosed(b Board) bool {
+	for _, g := range b.Gaps {
+		if g.Closed {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMotion(b Board, subject string, ruled bool) bool {
+	for _, m := range b.Motions {
+		if m.Subject == subject && (!ruled || m.Ruled != "") {
+			return true
+		}
+	}
+	return false
+}

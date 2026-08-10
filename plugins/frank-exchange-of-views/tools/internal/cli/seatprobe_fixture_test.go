@@ -143,14 +143,70 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		}
 	}
 
+	// MOTIONS THE BOARD ALREADY CARRIES: an ask a seat must answer, or an answered one it may
+	// press. A board that expects a ruling and files no motion made the expectation unreachable,
+	// and the probe reported it as a miss BY THE SEAT — four times, before the reachability gate
+	// existed.
+	for i, m := range b.Motions {
+		args := []string{"motion", m.Subject, "file", "--run", runDir, "--seat-id", m.Filer,
+			"--reason", m.Basis}
+		switch m.Subject {
+		case "grade":
+			args = append(args, "--id", m.GapID, "--dimension", m.Dimension, "--proposed", m.Proposed)
+		case "petition":
+			args = append(args, "--petition-class", m.Class, "--relief", m.Relief)
+		}
+		if _, err := run(t, args...); err != nil {
+			t.Fatalf("motion %d (%s): %v", i+1, m.Subject, err)
+		}
+		if m.Ruled == "" {
+			continue
+		}
+		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r1"}[m.Subject]
+		if _, err := run(t, "motion", m.Subject, "rule", "--run", runDir, "--seat-id", ruler,
+			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
+			"--reason", "ruled "+m.Ruled+" on the filing as it stands"); err != nil {
+			t.Fatalf("rule motion %d: %v", i+1, err)
+		}
+	}
+
+	// PROOFS, so a lens has something to RE-RUN rather than only something to read. The tool
+	// executes the script twice and records whether it reproduced, which is the whole point of
+	// the verb the board is about to demand.
+	for i, pr := range b.Proofs {
+		script := filepath.Join(runDir, fmt.Sprintf("probe-proof-%d.py", i+1))
+		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		args := []string{"blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+			"--location", pr.Location, "--script", script,
+			"--reason", "the computation behind this sentence"}
+		if pr.Answers != "" {
+			args = append(args, "--answers", pr.Answers)
+		}
+		if _, err := run(t, args...); err != nil {
+			t.Fatalf("prove %d: %v", i+1, err)
+		}
+	}
+
 	for i, claim := range b.Claims {
+		// A CITE THAT DOES NOT LAND MAKES A HOLLOW BOARD, so this is fatal.
+		//
+		// The first draft logged it and carried on, and the `sources` and `lens-audit` boards
+		// built with ZERO cited claims — which is precisely the state their expectations are
+		// about. `lens verify` has nothing to verify and `blue claim-index` has nothing to
+		// index, so both would have reported UNMET against a seat that had no way to meet them,
+		// and the report would have read as a finding about the seat rather than about the
+		// fixture. A builder that degrades quietly produces exactly the plausible zero the rest
+		// of this suite exists to remove.
+		//
+		// The url is a real, reachable one because `cite` FETCHES and caches: an unreachable
+		// source is refused and logged as friction, which is correct behaviour and useless here.
 		if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--key", fmt.Sprintf("C%d", i+1), "--location", claim,
-			"--title", "the pinned source", "--url", "https://example.invalid/pinned",
+			"--title", "the pinned source", "--url", "https://example.com/",
 			"--reason", "the source this claim rests on"); err != nil {
-			// A cite that cannot reach its url is logged as friction by design; the board still
-			// stands without the anchor, so this is reported rather than fatal.
-			t.Logf("cite %d not recorded (%v) — the board is usable without it", i+1, err)
+			t.Fatalf("cite %d (%q) did not land: %v\n\nThe board declares this claim and its expectations are about acting on it. Building without it would produce a board whose demands cannot be met, and a report that blames the seat for the fixture.", i+1, claim, err)
 		}
 	}
 }

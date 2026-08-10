@@ -46,6 +46,29 @@ type Avenue struct {
 	Ruled string
 }
 
+// Motion is an adjudication already on the board — an ask a seat must answer, or an answered one
+// it may press.
+//
+// A BOARD THAT EXPECTS A RULING MUST CARRY THE FILING. The probe reported four expectations as
+// seat misses when the board had made them unreachable; TestEveryExpectationIsReachableOnItsBoard
+// is the gate, and this is the state it demands.
+type Motion struct {
+	Subject string // grade | petition
+	// Filer is who files it. A grade motion is blue's; a petition may come from any seat.
+	Filer string
+	// GapID, Dimension and Proposed carry a grade motion; Class and Relief carry a petition.
+	GapID, Dimension, Proposed, Class, Relief string
+	Basis                                     string
+	// Ruled, when set, is the verdict the ruler has already given — which is what makes an
+	// APPEAL the seat's next move rather than a fresh filing.
+	Ruled string
+}
+
+// Proof is a recorded computation, so a lens has something to re-run.
+type Proof struct {
+	Location, Script, Answers string
+}
+
 // Board is one coherent sitting a seat is dropped into.
 type Board struct {
 	Name string
@@ -58,6 +81,9 @@ type Board struct {
 	// Claims are cited claims already on the record, so a seat has something to re-cite, retire,
 	// or index rather than having to author one first.
 	Claims []string
+	// Motions and Proofs are the adjudications and computations the board already carries.
+	Motions []Motion
+	Proofs  []Proof
 	// Expect is what a correctly-taught seat does here.
 	Expect []Expectation
 }
@@ -265,6 +291,12 @@ Reversibility under load was not tested.
 					"not pursuing it anyway and not silently accepting it.",
 			},
 		},
+		Motions: []Motion{{
+			Subject: "grade", Filer: "blue-respond-r1", GapID: "R1-2",
+			Dimension: "likelihood", Proposed: "low",
+			Basis: "the untested case is disclosed in the report's own Limits section, so the consequence is bounded by a reader who has been told",
+			Ruled: "rejected",
+		}},
 		Avenues: []Avenue{
 			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed"},
 			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too-thin"},
@@ -408,6 +440,11 @@ Figures were read from the deployed configuration at the pinned revision.
 		Avenues: []Avenue{
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
+		Motions: []Motion{{
+			Subject: "grade", Filer: "blue-respond-r1", GapID: "R1-1",
+			Dimension: "severity", Proposed: "medium",
+			Basis: "the defect is presentational: both figures are correct and only their framing conflates them, so `certain` severity prices a rewrite as though it were a data error",
+		}},
 		Expect: []Expectation{
 			{Seat: "red-merge-r1", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
 			{Seat: "red-merge-r1", Verb: "regrade", Because: "Accepting a grade motion does not move the grade — saying so is not doing it. The regrade verb is the only channel; re-minting forks the gap's identity and editing prose changes a number nobody reads."},
@@ -437,6 +474,10 @@ The improvement is 40% against the prior release.
 The methodology follows the standard published by the working group.
 `,
 		Claims: []string{"The improvement is 40% against the prior release."},
+		Proofs: []Proof{{
+			Location: "The improvement is 40% against the prior release.",
+			Script:   "print('improvement: 40%')",
+		}},
 		Expect: []Expectation{
 			{Seat: "red-lens-r1-L1", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
 			{Seat: "red-lens-r1-L1", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the trust grade is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty."},
@@ -476,13 +517,17 @@ No material downside was identified.
 					"direction is a real disposition and was driven exactly once before a gate noticed.",
 			},
 		},
+		Motions: []Motion{{
+			Subject: "petition", Filer: "blue-respond-r1", Class: "integrity",
+			Relief: "strike the requirement to assert a search that was never run, or name the search",
+			Basis:  "the gap's required_fix asks the report to state what was searched, and no search was run; writing one would be asserting what I believe false",
+		}},
 		Expect: []Expectation{
 			{Seat: "judge-r1", Verb: "opinion", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing. A gap that reaches the bench and gets no opinion is a docket item nobody disposed of."},
 			{Seat: "judge-r1", Verb: "motion petition rule", Because: "A petition is heard BEFORE the debate continues, so an unruled one stops the run rather than waiting. The bench holds this gavel alone."},
 			{Seat: "judge-r1", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge-r1", Verb: "outcome", Because: "The run's terminal determination, distinct from red's verdict. CEILING in particular carries the caveat that this is NOT a judged failure to verify, and the stamp loses that if the word is wrong."},
 			{Seat: "judge-r1", Verb: "friction", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: `opinion` requires an id and a fate-changing disposition (#361). A real bench found this and recorded it here; a bench that instead buries the holding in a ruling's prose has put it on the channel least likely to be read."},
-			{Seat: "judge-r1", Verb: "assemble", Because: "The report is composed by UNION-COPY from the record. A bench that writes its own summary has authored what it was meant to assemble."},
 		},
 	}
 }
@@ -620,6 +665,7 @@ var NoSituation = map[string]string{
 // STATED RATHER THAN SILENTLY EXCLUDED. A coverage gate whose exemptions are invisible reports
 // full coverage of whatever it happened to check, which is the shape this suite keeps finding.
 var AlwaysTaken = map[string]string{
+	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately (the first haiku seat read five projections before acting)",
 }

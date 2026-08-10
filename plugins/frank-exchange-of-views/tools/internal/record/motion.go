@@ -68,7 +68,7 @@ var MotionFields = map[string]map[string][]EnumValue{
 		Ev("severity", "how bad the defect is in itself"),
 		Ev("likelihood", "how likely the CONSEQUENCE is — never how likely the defect is to exist; that is the `existence` axis"),
 		Ev("impact", "how bad the consequence is if it lands"),
-		Ev("complexity_cost", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
+		Ev("complexity_cost", "what fixing it costs — the axis to contest when the fix is worth more than the defect. THE FLAG IS `--cx`, not `--complexity_cost`: the other three dimensions ARE their flag names and this one is not, which is a trap a seat walks into by learning the pattern from the other three (measured)"),
 	}},
 	"petition": {"class": {
 		Ev("ethical", "proceeding would require acting against the interests of someone the run affects"),
