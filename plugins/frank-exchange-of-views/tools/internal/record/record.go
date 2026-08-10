@@ -65,9 +65,30 @@ func shardPath(runDir, seatID, nonce string) string {
 
 var roundRe = regexp.MustCompile(`-r(\d+)`)
 
-// RoundOf extracts the round from a seat id ("red-lens-r3-L5" -> 3); seats
-// outside a round (frontier, blue-synthesize) are round 0.
+// RoundOf returns the round an event belongs to.
+//
+// THE INJECTED ROUND WINS, AND THE REGEX IS THE FALLBACK (#348). The dispatcher knows the round
+// as a fact — it is inherited from the agent that was dispatched — so it is read from the
+// environment first. The pattern match over the seat id remains only for callers nothing
+// injected for: the tests, and any pre-#348 binary path.
+//
+// WHY THE FALLBACK IS DANGEROUS AND STAYS ANYWAY. `judge-terminal` carries no round, so the
+// regex returns 0 — and a bench closure at run END then looks like a closure BEFORE ROUND 1.
+// That put a phantom entry in the archive and made the W1.8 spot-check floor demand samples from
+// rounds whose seats had done nothing wrong (found at 1 seed in 60, by luck, in #327). The regex
+// cannot distinguish "round 0" from "no round in this name", which is the whole defect; the
+// injected value can, because it is a fact rather than a shape.
+//
+// Deleting the fallback outright would make every un-injected caller round 0 silently, which is
+// the same failure with fewer witnesses. It goes when the hook injects on every path (#290).
 func RoundOf(seatID string) int {
+	if raw := strings.TrimSpace(os.Getenv("FEOV_ROUND")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
+			return n
+		}
+		// A malformed injected round is a DISPATCH bug. Falling through to the regex would
+		// answer a question nobody asked correctly; the caller sees the guess for what it is.
+	}
 	m := roundRe.FindStringSubmatch(seatID)
 	if m == nil {
 		return 0
@@ -108,10 +129,15 @@ type Event struct {
 	// Wall clock from many short-lived processes is not monotonic and can go backwards,
 	// so it is never sufficient ALONE — (TS, SeatID, Seq) is the full ordering key, and
 	// the tail of it is deterministic when clocks tie or skew.
-	TS      string   `json:"ts"`
-	SeatID  string   `json:"seatId"`
-	Nonce   string   `json:"nonce"`
-	Round   int      `json:"round"`
+	TS     string `json:"ts"`
+	SeatID string `json:"seatId"`
+	Nonce  string `json:"nonce"`
+	Round  int    `json:"round"`
+	// Role is the seat's ROLE as a field (#348). Readers used to recover it with
+	// strings.HasPrefix(e.SeatID, "red-merge") — including the branch deciding whether a
+	// position renders as RED or BLUE — so a seat id that failed to match its expected prefix
+	// rendered as the wrong party, silently. Stamped once at the write; never re-derived.
+	Role    string   `json:"role,omitempty"`
 	Type    string   `json:"type"`
 	Key     string   `json:"key"`
 	Payload *Payload `json:"payload"`
@@ -147,7 +173,7 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 	// says so in its own record instead of producing events whose difference
 	// nobody can explain afterwards.
 	ev := Event{
-		Seq: 0, TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
+		Seq: 0, TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
 		Type: "register", Key: seatID + ":register:" + nonce,
 		Payload: NewPayload().Set("tool_version", ToolVersion),
 	}
@@ -300,7 +326,7 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 		return Event{}, err
 	}
 	ev := Event{
-		Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
+		Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
 		Type: typ, Key: deriveKey(seatID, typ, p, events), Payload: p,
 	}
 	if err := appendLine(shard, ev); err != nil {

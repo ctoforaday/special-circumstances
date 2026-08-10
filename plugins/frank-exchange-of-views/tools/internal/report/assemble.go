@@ -874,13 +874,13 @@ func debate(evs []record.Event) string {
 		var round []string
 		for _, e := range re {
 			switch {
-			case e.Type == "position" && strings.HasPrefix(e.SeatID, "red-merge"):
+			case e.Type == "position" && record.PartyOf(e) == "merge":
 				round = append(round, "### RED\n"+e.Payload.Str("text"))
-			case e.Type == "closing" && strings.HasPrefix(e.SeatID, "red-merge"):
+			case e.Type == "closing" && record.PartyOf(e) == "merge":
 				round = append(round, fmt.Sprintf("### RED CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
-			case e.Type == "position" && strings.HasPrefix(e.SeatID, "blue"):
+			case e.Type == "position" && record.PartyOf(e) == "blue":
 				round = append(round, "### BLUE\n"+e.Payload.Str("text"))
-			case e.Type == "closing" && strings.HasPrefix(e.SeatID, "blue"):
+			case e.Type == "closing" && record.PartyOf(e) == "blue":
 				round = append(round, fmt.Sprintf("### BLUE CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
 			}
 		}

@@ -96,7 +96,7 @@ func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		// Found by the sweep at 1 seed in 60 once an unrelated change shifted the RNG stream:
 		// rare, real, and exactly the kind of gate that would have fired on a live run months
 		// later with nobody able to say why.
-		if strings.HasPrefix(e.SeatID, "red-merge") && e.Type != "register" {
+		if PartyOf(e) == "merge" && e.Type != "register" {
 			mergeSat[e.Round] = true
 		}
 		if e.Type != "spot-check" {
