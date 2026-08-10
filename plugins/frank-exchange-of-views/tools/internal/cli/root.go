@@ -363,10 +363,20 @@ import (
 //	       --run to identity). A stale binary writes events with no `role` field; PartyOf falls
 //	       back for those, so old records still read.
 //
+//	0.48.0 ONE ADJUDICATION MECHANISM (#344), ADDITIVE HALF. `motion <subject> file|rule|appeal`
+//	       arrives beside the three exchanges it will replace: a grade dispute, a petition, and a
+//	       ruling on a proposed direction were three verb pairs with three vocabularies and no
+//	       shared identity. A motion has an id, and the ask and its answer join on it. `direction`
+//	       has no `file` verb — the proposal is the filing (`blue avenue`), so it joins on the
+//	       avenue's own id. BOTH VOCABULARIES ARE LIVE at this version: nothing is deleted, the
+//	       prompts still call the old verbs, and record.AllMotions reads either. The dual-read is
+//	       PERMANENT, not a migration window — a record is permanent, and this plugin cannot see
+//	       an installing project's records to know when the old shapes are gone.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.47.0"
+const Version = "0.48.0"
 
 func init() { record.ToolVersion = Version }
 
