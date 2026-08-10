@@ -120,8 +120,10 @@ func TestRedRulesOnAProposedAvenue(t *testing.T) {
 		"--line", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "avenue-rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "A1", "--ruling", "out-of-scope",
+	// A direction motion joins on the AVENUE's own id: it has no `file` verb because the
+	// proposal IS the filing, which is why A1 works here and no M-number is minted.
+	if _, err := run(t, "motion", "direction", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "A1", "--as", "out-of-scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}

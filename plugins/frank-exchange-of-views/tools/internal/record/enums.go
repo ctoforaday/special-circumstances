@@ -109,35 +109,12 @@ var EnumFields = map[string][]EnumField{
 		Key: "status", Flag: flags.Status, Values: AvenueStatuses,
 		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	"avenue-rule": {{
-		Key: "ruling", Flag: flags.Ruling, Values: AvenueRulings,
-		Why: "blue reads the ruling to decide whether to pursue, contest or drop a direction; an unrecognized fate reads as no ruling at all, so red's refusal of a line silently becomes permission",
-	}},
-	"dispute-respond": {{
-		Key: "response", Flag: flags.As, Values: []string{"accepted", "rejected"},
-		Why: "the orchestrator holds a dispute for a round only on an exact `rejected`; anything else falls through to the accepting branch, so a misspelt REJECTION silently applies blue's proposed grade",
-	}},
-	"petition-rule": {
-		{
-			Key: "ruling", Flag: flags.As, Values: []string{"granted", "denied"},
-			Why: "relief binds the coming seats only on an exact `granted`, so a near-miss grants nothing while reading as a grant on the record — and a halt is the bench's own verb, which this set closing is what actually makes true",
-		},
-		{
-			Key: "class", Flag: flags.PetitionClass, Values: []string{"ethical", "safety", "integrity", "constitutional"},
-			Why:      "the four classes are what the bench is convened to hear; a fifth is a petition nobody defined a standard for, ruled on under whichever standard the seat happened to imagine",
-			Optional: true,
-		},
-	},
-	"petition": {{
-		Key: "class", Flag: flags.PetitionClass, Values: []string{"ethical", "safety", "integrity", "constitutional"},
-		Why:      "the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine",
-		Optional: true,
-	}},
-	"dispute": {{
-		Key: "dimension", Flag: flags.Dimension, Values: []string{"severity", "likelihood", "impact", "complexity_cost"},
-		Why:      "the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero",
-		Optional: true,
-	}},
+	// dispute, dispute-respond, petition, petition-rule and avenue-rule ARE ABSENT AND THAT IS
+	// DELIBERATE (#344). EnumFields is checked at the WRITE, and nothing writes those types any
+	// more — the verbs are gone. Their READ paths are permanent (record/compat.go), but a reader
+	// does not re-validate: a record written in 2026 under a set that has since changed is still
+	// the record. The motion sets that replaced them are keyed on (subject, key), which this map
+	// cannot express, and live in record/motion.go.
 	"close": {{
 		Key: "closure_class", Flag: flags.As, Values: ClosureClasses,
 		// Optional per this file's own rule: closing a SET is not the same decision as making

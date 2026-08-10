@@ -1,4 +1,4 @@
-prompt sha256: 0142b3b513b9a8a5332d83d226dedd492e534888ddced1c943a678c4d4c3e115
+prompt sha256: 7dabdff13801bd98ab8de3ad89426bc02e2491af502261ee964b47c263880911
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN AVENUE with "/opt/feov/bin/feov-record" blue avenue --run research/2026-01-01_golden --seat-id <your SEAT_ID> --line "<the approach or question you would follow>" --hypothesis "<what would be true if it pays off>" --status proposed.
@@ -19,5 +19,5 @@ YOUR CONTRACT IS `feov-record blue --help` and each verb's own --help: what is l
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
-It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
+It is REQUIRED on every claim and ruling act (mint, close, motion file, motion rule, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
 Return one line per hypothesis.

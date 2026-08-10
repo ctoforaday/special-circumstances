@@ -1,4 +1,4 @@
-prompt sha256: 3f6ba3a7eaa4ce5cd068e973cc9e4d5e00c4a20c736e3b4e78cbf29f320dbdc9
+prompt sha256: 9813bd81810cf858ef544d825bd03ae774bb9996f1373ec21b2bf9e6a86e4bc9
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -46,5 +46,5 @@ YOUR CONTRACT IS `feov-record blue --help` and each verb's own --help: what is l
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
-It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
+It is REQUIRED on every claim and ruling act (mint, close, motion file, motion rule, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
 Return the blue envelope.

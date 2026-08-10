@@ -6,17 +6,17 @@ feov-record: verb "mint" is outside this seat's role (available: register, findi
 $ blue mint --run {RUN} --seat-id blue-respond-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "mint" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
 
 $ blue close --run {RUN} --seat-id blue-respond-r1 --id R1-1
 exit 2
 stderr:
-feov-record: verb "close" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, dispute, confidence, claim-index, position, closing, friction, petition, show)
+feov-record: verb "close" is outside this seat's role (available: register, edit, cite, prove, revision, retire, avenue, manifest-row, confidence, claim-index, position, closing, friction, show)
 
 $ bench mint --run {RUN} --seat-id judge-r1 --class x
 exit 2
 stderr:
-feov-record: verb "mint" is outside this seat's role (available: register, opinion, petition-rule, halt, certify, outcome, assemble, friction, show)
+feov-record: verb "mint" is outside this seat's role (available: register, opinion, halt, certify, outcome, assemble, friction, show)
 
 $ lens help
 exit 0
@@ -65,20 +65,17 @@ Usage:
   {TOOL} [command]
 
 Available Commands:
-  avenue-rule     rule on a direction blue proposed: --id A1 --ruling endorsed|out-of-scope|too-thin --reason "<why>"
-  close           close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  dispute-respond red's answer to a blue grade dispute: --id <gap> --as accepted|rejected --reason "..."
-  friction        attributed friction: --reason
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
-  near-match      screen a candidate against the board before minting: --candidate "<problem text>" [--location "<section>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  petition        petition the bench: --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  close       close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
+  closing     a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  friction    attributed friction: --reason
+  mint        mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  near-match  screen a candidate against the board before minting: --candidate "<problem text>" [--location "<section>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
+  position    the round's ### RED section (prose via --reason)
+  register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
+  regrade     same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+  spot-check  the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
+  verdict     the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
   -h, --help   help for merge
@@ -93,7 +90,7 @@ Use "{TOOL} [command] --help" for more information about a command.
 $ blue help
 exit 0
 stdout:
-blue seats — revisions, manifest rows, disputes. No board verbs at all.
+blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -110,11 +107,9 @@ Available Commands:
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
-  dispute      contest a grade through the accounted channel: --id <gap> --dimension severity|likelihood|impact|complexity_cost --proposed <grade> --reason "..."
   edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
   friction     attributed friction (survives aborts as an event): --reason
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  petition     petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."
   position     the round's ### BLUE section (prose via --reason)
   prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
   register     FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
@@ -135,7 +130,7 @@ Use "{TOOL} [command] --help" for more information about a command.
 $ bench help
 exit 0
 stdout:
-the bench — opinions, petition rulings, halt, certification. Never originates.
+the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -147,15 +142,14 @@ Usage:
   {TOOL} [command]
 
 Available Commands:
-  assemble      assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
-  certify       the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
-  friction      attributed friction (the bench seats had no event path before — the abort-surviving copy): --reason
-  halt          the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
-  opinion       a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
-  outcome       record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]
-  petition-rule rule on a petition: --petitioner <seatId> --petition-class <class> --as granted|denied --reason <opinion> (a halt is its own verb)
-  register      FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
-  show          read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+  assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
+  certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
+  friction    attributed friction (the bench seats had no event path before — the abort-surviving copy): --reason
+  halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
+  opinion     a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+  outcome     record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED [--deadlocked] [--exhausted]
+  register    FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
 
 Flags:
   -h, --help   help for bench

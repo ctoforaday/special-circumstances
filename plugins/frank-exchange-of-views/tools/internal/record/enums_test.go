@@ -168,13 +168,32 @@ func TestMustEnumPanicsRatherThanRenderingAnEmptySet(t *testing.T) {
 	_ = MustEnum("verdict", "no-such-key")
 }
 
-// Two verbs carry the SAME set (petition and petition-rule both take a petition class), so
-// they must not drift apart. They are separate entries because the consequence differs —
-// filing under an undefined class vs ruling under one — but the values are one vocabulary.
-func TestVerbsSharingASetAgreeOnIt(t *testing.T) {
-	filed, ruled := MustEnum("petition", "class"), MustEnum("petition-rule", "class")
-	if strings.Join(filed.Values, "|") != strings.Join(ruled.Values, "|") {
-		t.Errorf("petition and petition-rule disagree on the petition classes: %v vs %v — a class a seat can file but the bench cannot rule on is a petition that can never be answered", filed.Values, ruled.Values)
+// THE DUPLICATION THIS TEST GUARDED IS GONE, AND THAT IS WHAT IT NOW ASSERTS.
+//
+// It used to compare `petition.class` against `petition-rule.class` — two declared sets for one
+// vocabulary, kept in step by a test because nothing structural kept them in step. A class a seat
+// could file but the bench could not rule on was a petition that could never be answered.
+//
+// After #344 there is ONE table. The filing and the ruling read `MotionFields["petition"]["class"]`
+// and `MotionVerdicts["petition"]`, each declared once, so the drift is not detected — it is
+// unrepresentable. The test survives inverted: it fails if a second declaration of either
+// vocabulary ever reappears in EnumFields, which is how the duplication would come back.
+func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
+	for _, typ := range []string{"petition", "petition-rule", "dispute", "dispute-respond", "avenue-rule"} {
+		if _, ok := EnumFields[typ]; ok {
+			t.Errorf("EnumFields still declares sets for %q — that event type is retired (#344) and its vocabulary lives in record/motion.go. A second declaration is how the drift this test used to police comes back", typ)
+		}
+	}
+	if len(MotionFields["petition"]["class"]) == 0 {
+		t.Error("MotionFields lost the petition classes — the one source the filing and the ruling both read")
+	}
+	if len(MotionVerdicts["petition"]) == 0 {
+		t.Error("MotionVerdicts lost the petition rulings")
+	}
+	// The four grade axes, likewise: they were declared on `dispute` and read by
+	// `dispute-respond`'s join. One table now.
+	if got := strings.Join(MotionFields["grade"]["dimension"], "|"); got != "severity|likelihood|impact|complexity_cost" {
+		t.Errorf("the grade dimensions moved or changed: %q — the ruling is matched to the filing on (gap, dimension), so a change here silently unpairs asks from answers", got)
 	}
 }
 

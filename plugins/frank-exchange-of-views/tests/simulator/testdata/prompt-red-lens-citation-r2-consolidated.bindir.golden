@@ -1,4 +1,4 @@
-prompt sha256: 83b18de789fc0e9e0f70d146b9897409d97d742991838cab9ab5f95db64f7777
+prompt sha256: f7806c2f4c0cdcb74e9c7fef75aa39d7245af5bbc5e1a238c4ff92082846c014
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 CITATION LEDGER: read the citation ledger first via "/opt/feov/bin/feov-record" lens show --run research/2026-01-01_golden --view citation-ledger (the tool renders it from cite events on the record); a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
@@ -37,5 +37,5 @@ YOUR CONTRACT IS `feov-record lens --help` and each verb's own --help: what is l
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
-It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
+It is REQUIRED on every claim and ruling act (mint, close, motion file, motion rule, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
 Return a 3-line synopsis.

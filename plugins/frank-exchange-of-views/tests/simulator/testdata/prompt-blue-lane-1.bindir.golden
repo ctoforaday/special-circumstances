@@ -1,4 +1,4 @@
-prompt sha256: 498d230fcd20abcc5d74b4d2fe985eefa643d652f030783850cd60b13c8ac91b
+prompt sha256: 0b01b099c7445e112a99dcb7b711ca9ddfb1fce0d9481206294c3295e03b9c17
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — "/opt/feov/bin/feov-record" blue show --run research/2026-01-01_golden --view lines-of-inquiry — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
@@ -23,5 +23,5 @@ YOUR CONTRACT IS `feov-record blue --help` and each verb's own --help: what is l
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
-It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
+It is REQUIRED on every claim and ruling act (mint, close, motion file, motion rule, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
 Return a 3-line synopsis.

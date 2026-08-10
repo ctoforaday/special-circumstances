@@ -1,4 +1,4 @@
-prompt sha256: f42b3f303ad5ed756f2ca8fec0e4e65c2bdc59b19bb2f805118faf2ade7762b1
+prompt sha256: e2a892c4be0a13b27f7b57b26f7cea3c3705a2df1f5277495052a41930597641
 
 Red audit, round 2, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance) STEELMAN DUTY: read the exploration space via `"/opt/feov/bin/feov-record" blue show --run research/2026-01-01_golden --view lines-of-inquiry` (the tool renders it fresh from the avenue events on the record).
 Blue's DECLINED and ABANDONED avenues are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -29,5 +29,5 @@ YOUR CONTRACT IS `feov-record lens --help` and each verb's own --help: what is l
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
-It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
+It is REQUIRED on every claim and ruling act (mint, close, motion file, motion rule, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
 Return a 3-line synopsis.

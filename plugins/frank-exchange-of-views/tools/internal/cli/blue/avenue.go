@@ -68,25 +68,24 @@ func newAvenue() *cobra.Command {
 				}
 				p.Set("avenue_id", id).Set("supersedes_status", "1")
 
-				// PURSUING AGAINST A RULING IS A CONTEST, AND IS RECORDED AS ONE.
+				// THE CONTEST MOVED OUT OF HERE, TO `motion direction appeal` (#344), AND A REAL
+				// RUN IS WHY.
 				//
-				// Red's ruling is an ARGUMENT, never a command — blue may pursue a line red
-				// called out-of-scope or too-thin, and should be able to. The design says blue
-				// contests it "the way we would any other dispute", and there was no such
-				// channel: `blue dispute --id A1` is refused outright, because disputes are
-				// gap-shaped and take grade dimensions. So a ruling could only be silently
-				// obeyed or silently ignored, and the record held both the ruling and the fate
-				// while joining them nowhere.
+				// `contests_ruling` was set here as a side effect of moving a line to `pursued`
+				// against an adverse ruling. That coupling is the defect: it can only record
+				// disagreement that WINS. In research/2026-08-10_pre-motion-real-record the merge
+				// ruled a line too-thin, blue argued against that reasoning at the leaf, and then
+				// declined the line anyway — the ordinary outcome of an argument — and the field
+				// recorded nothing. `contests_ruling` appears zero times in the whole record.
 				//
-				// The move itself is the contest. It already requires a --reason, so the
-				// argument exists; what was missing is that nothing said what it was answering.
-				// Now the disagreement is a FIELD, and "how often does blue pursue a line red
-				// ruled out" is a number rather than a reading exercise.
-				if seat.Str(cmd, flags.Status) == "pursued" {
-					if ruling := record.AvenueRuling(s.RunDir, id); ruling == "out-of-scope" || ruling == "too-thin" {
-						p.Set("contests_ruling", ruling)
-					}
-				}
+				// So the number it existed to produce ("how often does blue pursue a line red
+				// ruled out") measured DEFIANCE, not disagreement, and every seat that argued and
+				// yielded fell out of the count silently.
+				//
+				// An appeal is its own event with its own reason, filed against the ruling,
+				// independent of what the line's status does next. The READ side of this field
+				// stays forever — record/avenue.go and compat.go still recover it from
+				// pre-collapse records, where it is the only legacy spelling of an appeal.
 			} else {
 				if line == "" {
 					return nil, fmt.Errorf("blue avenue requires --line (the approach you are proposing) or --id (an avenue you are moving)")

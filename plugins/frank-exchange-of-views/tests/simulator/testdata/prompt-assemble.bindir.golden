@@ -1,4 +1,4 @@
-prompt sha256: bbdbed0a8f518d391b7d4aecb302152b917f18dc268218b924f95673bf8dcfa6
+prompt sha256: 4f786b8b9308279f09c398e3f232f99e37b5fdd86766a5c475712d7d9b00e617
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -25,5 +25,5 @@ YOUR CONTRACT IS `feov-record bench --help` and each verb's own --help: what is 
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
-It is REQUIRED on every claim and ruling act (mint, close, dispute, dispute-respond, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
+It is REQUIRED on every claim and ruling act (mint, close, motion file, motion rule, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
 Return your envelope: a 5-line synopsis, open_gaps from the board, and your own friction if any.

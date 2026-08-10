@@ -954,27 +954,16 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 		})
 	}
 
-	// petition records the same event across the seats that can file it. Only merge
-	// and blue carry the verb (cases[1:3]); lens surfaces findings, it does not petition.
-	for _, tc := range cases[1:3] {
-		t.Run("petition/"+tc.role, func(t *testing.T) {
-			runDir := t.TempDir()
-			out, err := run(t, tc.role, "petition", "--run", runDir, "--seat-id", tc.seatID,
-				"--petition-class", "safety", "--reason", "what happened", "--relief", "the relief sought")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !strings.Contains(out, "petition filed (safety)") {
-				t.Errorf("petition said %q", out)
-			}
-			ev := lastOfType(t, runDir, "petition")
-			for k, want := range map[string]string{"class": "safety", "basis": "what happened", "relief": "the relief sought"} {
-				if got := ev.Payload.Str(k); got != want {
-					t.Errorf("%s = %q, want %q", k, got, want)
-				}
-			}
-		})
-	}
+	// THE PETITION SUB-TEST IS GONE, AND ITS PROPERTY MOVED (#344).
+	//
+	// It asserted that `<seat> petition` recorded the same event from merge and from blue — the
+	// shared-verb property this whole test exists for. That verb is retired: a petition is now
+	// `motion petition file`, which is NOT a per-role verb at all. It is one command any seat may
+	// run, taking the acting role from the seat's identity rather than from tree position, so
+	// "the same event from every role" is not a property that can drift — there is one code path.
+	//
+	// motion_test.go covers what remains checkable: that the filing mints an id, and that the
+	// ruler is the seat holding the gavel for the subject.
 }
 
 // closing is keyed on the gap it argues, so two closings in one seat do not

@@ -76,7 +76,21 @@ var enforcedElsewhere = map[string]string{
 	"mint --severity":    gradeParseTime,
 	"finding --severity": gradeParseTime,
 	"regrade --severity": gradeParseTime,
-	"dispute --proposed": gradeParseTime,
+	"file --proposed":    gradeParseTime,
+
+	// The two filing sets, keyed on (SUBJECT, key) exactly as the verdicts are: one `motion` event
+	// carries a grade `dimension` or a petition `class` depending on what it is about, and
+	// record.EnumFields keys by event TYPE. record.validate checks them and the help here is
+	// generated from record.MotionFieldEnum — the SAME table, so the two cannot drift.
+	//
+	// These arrived LATE, and the reason is worth keeping: the additive stage registered all three
+	// of this verb's flags as bare strings, so `motion grade file` accepted any dimension and any
+	// grade while the `blue dispute` it replaces refused both. Nothing noticed until the old verb
+	// was deleted and this gate had a flag to compare against — the new verb had been shipped with
+	// a weaker contract than the one it retires, which is complete-the-concept one layer below
+	// where that rule usually gets applied.
+	"file --dimension":      "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
+	"file --petition-class": "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
 
 	"show --view":       "generated from viewNames(), the same single-source pattern record.EnumFields provides — a projection name is a tool concept, not an event field, so it has no payload key to police",
 	"scorecard --chair": "a read-only operator command that writes no event: the set is checked inline against the same map it renders from, so there is no write path for a bad value to reach",

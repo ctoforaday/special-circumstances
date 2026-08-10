@@ -20,14 +20,11 @@ func NewCommand() *cobra.Command {
 		newMint(),
 		newClose(),
 		newRegrade(),
-		newDisputeRespond(),
 		newSpotCheck(),
 		newNearMatch(),
-		newAvenueRule(),
 		seat.Position("the round's ### RED section (prose via --reason)"),
 		seat.Closing("a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
 		newVerdict(),
 		seat.Friction("attributed friction: --reason"),
-		seat.Petition(`petition the bench: --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."`, ""),
 	)
 }
