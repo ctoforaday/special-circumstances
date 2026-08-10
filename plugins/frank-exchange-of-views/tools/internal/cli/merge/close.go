@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -65,7 +66,7 @@ func newClose() *cobra.Command {
 		})
 
 	c.Flags().String(flags.ID, "", "the gap id")
-	c.Flags().String(flags.As, "", record.MustEnum("close", "closure_class").Usage("HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word"))
 	c.Flags().String(flags.AnchorSeat, "", "WHO verified the closure (the seat)")
 	c.Flags().String(flags.AnchorTool, "", "WITH WHAT it was verified (the tool or command)")
 	c.Flags().String(flags.AnchorTarget, "", "AGAINST WHAT — the exact file, ref or URL read")

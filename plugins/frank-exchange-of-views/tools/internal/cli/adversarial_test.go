@@ -174,10 +174,12 @@ func adversarialCases() []adversarialCase {
 			name:    "a dimension outside the four is refused",
 			setup:   []seatStep{mint},
 			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--dimension", "vibes", "--proposed", "low", "--reason", "contesting an axis that does not exist"},
-			refused: "is not a dimension for a grade motion",
+			refused: "--dimension must be one of severity|likelihood|impact|complexity_cost",
 			guards: "The ruling is matched to the filing on (gap, dimension), so an axis outside the " +
 				"four is a motion filed against nothing. `blue dispute` enum-checked it; the " +
-				"replacement took any string until the old verb was deleted and the two compared.",
+				"replacement took any string until the old verb was deleted and the two compared. " +
+				"The refusal now happens at PARSE rather than at the write — strictly earlier, and " +
+				"it arrives with the menu, so a seat is told what the four axes are FOR.",
 		},
 		{
 			name:    "a non-grade --proposed is refused at parse",
@@ -190,9 +192,10 @@ func adversarialCases() []adversarialCase {
 		{
 			name:    "a petition class outside the four is refused",
 			act:     seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1", "--petition-class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
-			refused: "is not a class for a petition motion",
+			refused: "--petition-class must be one of ethical|safety|integrity|constitutional",
 			guards: "The bench is convened PER CLASS; a fifth is a petition heard under whichever " +
-				"standard the ruling seat happened to imagine.",
+				"standard the ruling seat happened to imagine. Refused at PARSE now, with the " +
+				"four classes and what each is for — the seat learns the vocabulary from the refusal.",
 		},
 		{
 			name:    "the gavel holds even with the right subject",

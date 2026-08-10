@@ -52,15 +52,26 @@ feov-record: bench: record: opinion requires --principle (opinions, not disposit
 
 ── verdict in the wrong case
 exit 2
-feov-record: merge: record: verdict requires --as PASS|FAIL (got "pass") — "pass" differs from "PASS" only in case, and a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+feov-record: invalid argument "pass" for "--as" flag: --as must be one of PASS|FAIL (got "pass") — "pass" differs from "PASS" only in case, and a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+
+    PASS  every gap on the board is resolved — this is CHECKED against the open board, not taken on your word
+    FAIL  at least one gap is still open, or you are not satisfied it was answered
 
 ── verdict outside the set
 exit 2
-feov-record: merge: record: verdict requires --as PASS|FAIL (got "banana") — a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+feov-record: invalid argument "banana" for "--as" flag: --as must be one of PASS|FAIL (got "banana") — a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+
+    PASS  every gap on the board is resolved — this is CHECKED against the open board, not taken on your word
+    FAIL  at least one gap is still open, or you are not satisfied it was answered
 
 ── outcome in the wrong case
 exit 2
-feov-record: bench: record: outcome requires --as VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
+feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
+
+    VERIFIED    red passed the board and the bench agrees the question was answered
+    CEILING     the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so
+    HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
+    UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
 ── petition ruling outside the set
 exit 2
@@ -68,7 +79,14 @@ feov-record: verb "petition-rule" is outside this seat's role (available: regist
 
 ── closure class near-miss
 exit 2
-feov-record: merge: record: "closed-with-regression" is not a closure class — did you mean `closed_with_regression`? It is matched exactly, and it is the one class that requires --successor, so a near-miss spelling would have closed the gap with its remainder dropped
+feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of closed|closed_with_regression|amends_prior|rebuttal_sustained|risk_accepted|routed_to_infrastructure (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on closed_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
+
+    closed                    the repair was verified at the leaf and nothing regressed
+    closed_with_regression    repaired, but something else broke — REQUIRES --successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 ── dispute dimension outside the set
 exit 2
@@ -76,11 +94,19 @@ feov-record: verb "dispute" is outside this seat's role (available: register, ed
 
 ── verification trust outside the set
 exit 2
-feov-record: lens: record: verify requires --trust high|medium|low (got "banana") — the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)
+feov-record: invalid argument "banana" for "--trust" flag: --trust must be one of high|medium|low (got "banana") — the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)
+
+    high    the source says what the claim says, at the leaf, and you checked it there
+    medium  the source supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    low     the source is weak for this claim: it gestures at it, or is itself uncorroborated
 
 ── blue confidence outside the set
 exit 2
-feov-record: blue: record: confidence requires --confidence high|medium|low (got "banana") — the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable
+feov-record: invalid argument "banana" for "--confidence" flag: --confidence must be one of high|medium|low (got "banana") — the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable
+
+    high    you would defend this claim at the leaf under audit
+    medium  you believe it and can see where it might not hold
+    low     you are stating it because the report needs it stated, and you expect red to find something
 
 ── petition class outside the set
 exit 2

@@ -561,7 +561,7 @@ func inquiryMD(b *record.Board) []byte {
 	for _, a := range avs {
 		byStatus[a.Status] = append(byStatus[a.Status], a)
 	}
-	for _, status := range record.AvenueStatuses {
+	for _, status := range record.AvenueStatusNames() {
 		rows := byStatus[status]
 		if len(rows) == 0 {
 			continue

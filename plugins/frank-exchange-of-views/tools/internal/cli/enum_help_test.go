@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -106,12 +107,25 @@ var enforcedElsewhere = map[string]string{
 
 const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Value), with help and refusal both generated from flags.GradeNames() — a bad grade never reaches a payload"
 
-// setFlags finds every flag in the real tree whose usage advertises a set, keyed
-// "<verb> --<flag>" so a failure names the site to fix.
+// setFlags finds every flag in the real tree that ADVERTISES A SET, keyed "<verb> --<flag>" so a
+// failure names the site to fix.
+//
+// TWO WAYS TO ADVERTISE ONE NOW, and the second is the fix rather than a loophole. A flag used to
+// spell its set into its own usage string (`closed | risk_accepted | …`), which is what
+// setInHelp looks for. Values with MEANINGS do not fit on a usage line, so an enumhelp-registered
+// flag carries them in the command's enumerated-values section instead and its usage line goes
+// short — invisible to the regex, and a gate that stopped seeing seven flags the day they got
+// BETTER documentation would be read as noise and turned off.
 func setFlags(c *cobra.Command, out map[string]string) {
+	registered := enumhelp.Registered(c)
 	collect := func(f *pflag.Flag) {
-		if setInHelp.MatchString(f.Usage) {
+		switch {
+		case setInHelp.MatchString(f.Usage):
 			out[c.Name()+" --"+f.Name] = f.Usage
+		case registered[f.Name] != nil:
+			// Keyed the same way, so the exemption tables and the "declared but absent" check
+			// both keep working; the value is the MENU, which is what a seat now reads.
+			out[c.Name()+" --"+f.Name] = record.Menu(registered[f.Name])
 		}
 	}
 	c.Flags().VisitAll(collect)
@@ -147,10 +161,22 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 		case closed:
 			// The help must be GENERATED from the set, not restated beside it. A restated
 			// set is what was wrong: every one of these flags named values its write path
-			// did not enforce. Contains rather than HasPrefix, because the RequiredFields
-			// machinery prefixes "REQUIRED —" onto a mandatory flag's usage.
-			if want := strings.Join(e.Values, " | "); !strings.Contains(usage, want) {
-				t.Errorf("%s help is %q, which does not carry the declared set %q — build it with record.MustEnum(%q, %q).Usage(...)", site, usage, want, strings.SplitN(site, " ", 2)[0], e.Key)
+			// did not enforce.
+			//
+			// EVERY VALUE, not the joined string. The check used to require the literal
+			// `a | b | c` and that was the join, not the requirement — a flag whose values
+			// each get their own line WITH A MEANING carries the set better and matched
+			// nothing. Requiring the values themselves is what was always meant, and it holds
+			// for both renderings.
+			var absent []string
+			for _, v := range record.Names(e.Values) {
+				if !strings.Contains(usage, v) {
+					absent = append(absent, v)
+				}
+			}
+			if len(absent) > 0 {
+				t.Errorf("%s help does not carry %s from its declared set — generate it from record.MustEnum(%q, %q), do not restate it.\nhelp was: %q",
+					site, strings.Join(absent, ", "), strings.SplitN(site, " ", 2)[0], e.Key, usage)
 			}
 		case open:
 			if !strings.Contains(usage, "...") {

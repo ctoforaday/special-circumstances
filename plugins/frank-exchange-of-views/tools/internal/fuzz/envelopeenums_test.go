@@ -145,7 +145,7 @@ func recordEnumValues(t *testing.T, typ, key string) []string {
 	// express — one `motion-rule` carries granted|denied for a petition and accepted|rejected
 	// for a grade.
 	if subject, ok := strings.CutPrefix(typ, "motion:"); ok {
-		var values []string
+		var values []record.EnumValue
 		if key == "ruling" {
 			values = record.MotionVerdicts[subject]
 		} else {
@@ -154,13 +154,13 @@ func recordEnumValues(t *testing.T, typ, key string) []string {
 		if len(values) == 0 {
 			t.Fatalf("no motion enum %s.%s — the binding table names a subject field the record does not have", subject, key)
 		}
-		out := append([]string(nil), values...)
+		out := record.Names(values)
 		sort.Strings(out)
 		return out
 	}
 	for _, e := range record.EnumFields[typ] {
 		if e.Key == key {
-			out := append([]string(nil), e.Values...)
+			out := record.Names(e.Values)
 			sort.Strings(out)
 			return out
 		}

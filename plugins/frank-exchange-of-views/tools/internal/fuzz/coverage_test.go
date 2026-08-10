@@ -87,7 +87,7 @@ func unreachedEnumValues() []string {
 	var missing []string
 	for typ, fields := range record.EnumFields {
 		for _, e := range fields {
-			for _, v := range e.Values {
+			for _, v := range record.Names(e.Values) {
 				if seen[e.Flag][v] {
 					continue
 				}

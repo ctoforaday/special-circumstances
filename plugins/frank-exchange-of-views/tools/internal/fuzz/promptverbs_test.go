@@ -253,7 +253,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 			if byFlag[e.Flag] == nil {
 				byFlag[e.Flag] = map[string]bool{}
 			}
-			for _, v := range e.Values {
+			for _, v := range record.Names(e.Values) {
 				byFlag[e.Flag][v] = true
 			}
 		}
@@ -270,7 +270,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 		if byFlag[flags.As] == nil {
 			byFlag[flags.As] = map[string]bool{}
 		}
-		for _, v := range values {
+		for _, v := range record.Names(values) {
 			byFlag[flags.As][v] = true
 		}
 	}
@@ -283,7 +283,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 			if byFlag[flag] == nil {
 				byFlag[flag] = map[string]bool{}
 			}
-			for _, v := range values {
+			for _, v := range record.Names(values) {
 				byFlag[flag][v] = true
 			}
 		}

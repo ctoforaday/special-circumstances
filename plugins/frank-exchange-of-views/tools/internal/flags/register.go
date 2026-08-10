@@ -59,7 +59,28 @@ func ReadPayload(c *cobra.Command, stdin io.Reader) (string, error) {
 // supplied and the check passes on nothing. That regression was introduced while
 // renaming --gap-id to --id and caught by the bench's own required-fields test.
 func Set[P interface{ Set(string, any) P }](p P, key string, c *cobra.Command, flag string) {
-	if v, _ := c.Flags().GetString(flag); v != "" {
+	if v := Value(c, flag); v != "" {
 		p.Set(key, v)
 	}
+}
+
+// Value reads a flag AS A STRING WHATEVER ITS TYPE, and that qualifier is the whole point.
+//
+// `GetString` returns ("", err) for any flag that is not a string flag, and every caller here
+// discarded the error — so an enum flag, a grade flag, or anything else backed by a pflag.Value
+// read back as UNSET. It cost this the same bug twice in one afternoon: `motion grade file`
+// reported "--proposed is required" against a grade the seat had passed, and `bench opinion`
+// reported "opinion requires --as (opinions, not dispositions)" against a disposition it had.
+// Both times the flag was set, parsed and validated; only the READ was blind.
+//
+// A flag's own Value.String() is what it parsed, for every flag type there is. This is the one
+// place that knows it, so the next flag with a custom type does not rediscover the failure.
+func Value(c *cobra.Command, flag string) string {
+	if v, err := c.Flags().GetString(flag); err == nil {
+		return v
+	}
+	if f := c.Flags().Lookup(flag); f != nil {
+		return f.Value.String()
+	}
+	return ""
 }

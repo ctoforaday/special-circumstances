@@ -316,19 +316,9 @@ func Reason(cmd *cobra.Command) (string, error) {
 
 // Str reads a string flag.
 func Str(cmd *cobra.Command, name string) string {
-	v, err := cmd.Flags().GetString(name)
-	if err == nil {
-		return v
-	}
-	// NOT EVERY FLAG IS A STRING FLAG, and returning "" for the others was a silent wrong answer.
-	// `--proposed` is a flags.GradeValue (a pflag.Value) so a bad grade is refused at PARSE — and
-	// GetString fails on it, so every caller reading it through Str saw an unset flag. Under
-	// `motion grade file` that made the requiredness check fire on a grade the seat HAD passed.
-	// The flag's own String() is the value it parsed, for any flag type.
-	if f := cmd.Flags().Lookup(name); f != nil {
-		return f.Value.String()
-	}
-	return ""
+	// ONE IMPLEMENTATION, in flags.Value. This used to hand-roll the same fallback and
+	// flags.Set hand-rolled the broken version, which is how the identical defect shipped twice.
+	return flags.Value(cmd, name)
 }
 
 // Given answers whether the SEAT passed the flag. The absent/present distinction

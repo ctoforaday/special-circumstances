@@ -35,10 +35,20 @@ var MotionSubjects = []string{"grade", "petition", "direction"}
 // flag is `--as` on every one of them, which is the point: §I of the plan names
 // `ruling`/`ruling`/`response` as the structural defect, and a collapse that kept three
 // spellings would have reproduced it inside the new group.
-var MotionVerdicts = map[string][]string{
-	"grade":     {"accepted", "rejected"},
-	"petition":  {"granted", "denied"},
-	"direction": {"endorsed", "out-of-scope", "too-thin"},
+var MotionVerdicts = map[string][]EnumValue{
+	"grade": {
+		Ev("accepted", "the filer is right and the grade moves — say so, then MOVE it with `merge regrade`; accepting without regrading is a channel with no consequence"),
+		Ev("rejected", "the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion"),
+	},
+	"petition": {
+		Ev("granted", "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"),
+		Ev("denied", "the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest"),
+	},
+	"direction": {
+		Ev("endorsed", "worth this run's time — blue should take it up"),
+		Ev("out-of-scope", "a real question, but not THIS question"),
+		Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
+	},
 }
 
 // MotionFields are the ENUMERATED payload fields a subject's filing carries, beyond the verdict.
@@ -53,9 +63,19 @@ var MotionVerdicts = map[string][]string{
 // anything. The additive stage added the verb and nobody diffed its flag contract against the one
 // it replaces — which is the half-state that reads as done, one layer below where that rule is
 // usually applied.
-var MotionFields = map[string]map[string][]string{
-	"grade":    {"dimension": {"severity", "likelihood", "impact", "complexity_cost"}},
-	"petition": {"class": {"ethical", "safety", "integrity", "constitutional"}},
+var MotionFields = map[string]map[string][]EnumValue{
+	"grade": {"dimension": {
+		Ev("severity", "how bad the defect is in itself"),
+		Ev("likelihood", "how likely the CONSEQUENCE is — never how likely the defect is to exist; that is the `existence` axis"),
+		Ev("impact", "how bad the consequence is if it lands"),
+		Ev("complexity_cost", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
+	}},
+	"petition": {"class": {
+		Ev("ethical", "proceeding would require acting against the interests of someone the run affects"),
+		Ev("safety", "proceeding would create or conceal a hazard"),
+		Ev("integrity", "proceeding would require asserting what you believe false, or burying a real finding"),
+		Ev("constitutional", "the instruction itself conflicts with the rules the run is bound by"),
+	}},
 }
 
 // MotionFieldEnum builds the enum entry for one of those fields, so the CLI's help and the write

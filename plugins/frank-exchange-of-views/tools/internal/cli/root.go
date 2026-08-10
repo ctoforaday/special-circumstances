@@ -14,6 +14,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
@@ -435,6 +437,10 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newCapture(),     // operator: the post-hoc capture auditor (ported from capture-research-run.mjs)
 		newHook(),        // hook backend: the blue-report lockdown PreToolUse/PostToolUse gates (invoked by hooks.json)
 	)
+	// THE HELP TEMPLATE CARRIES WHAT COBRA HAS NO MODEL FOR: an enum's per-value meanings.
+	// Cobra's help is rich about commands and flags; a flag's VALUE-SPACE is neither, so every
+	// vocabulary here had nowhere to put its semantics and they went into source comments.
+	enumhelp.Install(root)
 	return root
 }
 

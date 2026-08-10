@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -43,7 +44,7 @@ func newVerdict() *cobra.Command {
 			return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
 		})
 
-	c.Flags().String(flags.As, "", record.MustEnum("verdict", "verdict").Usage("the seat's terminal act"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("verdict", "verdict"), ("the seat's terminal act"))
 	return c
 }
 

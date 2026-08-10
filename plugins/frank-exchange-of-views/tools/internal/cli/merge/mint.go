@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -168,12 +169,12 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.FixOld, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact current span you say is wrong (must be present and unique in blue/report.md — a proposal you cannot state legally is one blue cannot apply). Requires --fix-new")
 	c.Flags().String(flags.FixNew, "", "the exact text that span should become. Bounded: a replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Together these two derive fix_basis: verified")
 	c.Flags().String(flags.Check, "", "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
-	c.Flags().String(flags.CheckKind, "", record.MustEnum("mint", "check_kind").Usage("what would SETTLE that check — read a document, RUN a computation, or verify a source. A `computation` check cannot be closed by prose: it closes only when a proof answers this gap"))
+	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check — read a document, RUN a computation, or verify a source. A `computation` check cannot be closed by prose: it closes only when a proof answers this gap"))
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
 	c.Flags().Var(&cx, flags.Complexity, "complexity_cost — what fixing it costs, on the same scale")
-	c.Flags().String(flags.Existence, "", record.MustEnum("mint", "existence").Usage("the leaf-check axis, ORTHOGONAL to the grades: verified (you checked the defect at the leaf) | suspected (inferred). Likelihood grades the CONSEQUENCE only, so this is what says whether the defect is known to be real"))
+	enumhelp.Flag(c, flags.Existence, record.MustEnum("mint", "existence"), ("the leaf-check axis, ORTHOGONAL to the grades: verified (you checked the defect at the leaf) | suspected (inferred). Likelihood grades the CONSEQUENCE only, so this is what says whether the defect is known to be real"))
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
 	return c

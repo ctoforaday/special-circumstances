@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -60,7 +61,7 @@ func newFile(subject string, required []string) *cobra.Command {
 			c.Flags().Var(p, f, flags.GradeUsage("REQUIRED — the grade you say it should be"))
 		default:
 			if e, ok := record.MotionFieldEnum(subject, payloadKey(f), f); ok {
-				c.Flags().String(f, "", e.Usage("REQUIRED for a "+subject+" motion"))
+				enumhelp.Flag(c, f, e, "REQUIRED for a "+subject+" motion")
 				continue
 			}
 			c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
@@ -132,7 +133,7 @@ func newRule(subject, ruler string) *cobra.Command {
 	}
 	seat.Prose(c)
 	c.Flags().String(flags.ID, "", refHelp(subject))
-	c.Flags().String(flags.As, "", e.Usage("REQUIRED — your ruling"))
+	enumhelp.Flag(c, flags.As, e, "REQUIRED — your ruling")
 	return c
 }
 
