@@ -272,6 +272,76 @@ func RequireMotionSubjectRef(runDir, subject, id string) error {
 	return fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
 }
 
+// RequireSubjectMatches refuses a ruling whose SUBGROUP disagrees with the motion's own subject.
+//
+// MEASURED BY PROBING, and it is the defect the collapse was supposed to remove, reintroduced one
+// level down. `motion <subject> rule` takes its subject from its POSITION IN THE TREE — which
+// subgroup you typed — and validated the verdict against that, never against the subject the
+// motion was actually filed under. So `motion grade rule --id M1` on a PETITION motion was
+// accepted: it bypassed the gavel (the merge ruling what only the bench may rule) AND the verdict
+// vocabulary (`accepted`, which is not a petition ruling at all). The report then rendered
+// "petition (safety) … ruled accepted".
+//
+// A fact recovered from tree position rather than read from the record is exactly what
+// facts-are-fields is about. The record carries the subject; this reads it.
+func RequireSubjectMatches(runDir, subject, id string) error {
+	got, err := MotionSubjectOf(runDir, id)
+	if err != nil {
+		return err
+	}
+	if got != subject {
+		return fmt.Errorf("record: motion %s was filed as a %s motion and you are ruling it as a %s — rule it under `motion %s rule`. The subject decides BOTH who holds the gavel and which verdicts exist, so ruling under the wrong one answers with a vocabulary the motion does not have",
+			id, got, subject, got)
+	}
+	return nil
+}
+
+// MotionSubjectOf reports what a motion is ABOUT, from the record rather than from the caller.
+//
+// A direction has no filing event — the proposal is the filing — so an id that resolves to an
+// avenue IS a direction motion by construction.
+func MotionSubjectOf(runDir, id string) (string, error) {
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range m.Events {
+		if e.Type == "motion" && e.Payload.Str("motion_id") == id {
+			return e.Payload.Str("subject"), nil
+		}
+	}
+	for _, e := range m.Events {
+		if e.Type == "avenue" && e.Payload.Str("avenue_id") == id {
+			return "direction", nil
+		}
+	}
+	return "", fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
+}
+
+// RequireUnruledMotion refuses a SECOND ruling on a motion already answered.
+//
+// MEASURED BY PROBING: a petition ruled `accepted` by the merge was then ruled `denied` by the
+// bench, both accepted, and the report showed ONE of them with no sign the other existed. A
+// direction ruled `endorsed` was re-ruled `out-of-scope` the same way. Replay keeps whichever the
+// ordering happens to favour, so the answer a reader sees is decided by shard interleaving.
+//
+// Two writers disagreeing about one fate is the defect the avenue code already guards against by
+// giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
+// which is a new event that preserves both positions, rather than a second ruling that erases one.
+func RequireUnruledMotion(runDir, id string) error {
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range m.Events {
+		if e.Type == "motion-rule" && e.Payload.Str("motion_id") == id {
+			return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — it replays as whichever the shard ordering favours, and the other disappears. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
+				id, e.Payload.Str("ruling"), e.SeatID)
+		}
+	}
+	return nil
+}
+
 // RequireRuledMotion additionally refuses an appeal against a motion NOBODY HAS RULED.
 //
 // An appeal is the filer pressing on AFTER an answer; against no answer there is nothing to press

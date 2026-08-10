@@ -256,12 +256,30 @@ func requirePassClosesAllGaps(runDir string) error {
 			open = append(open, id)
 		}
 	}
-	if len(open) == 0 {
-		return nil
+	if len(open) != 0 {
+		sort.Strings(open)
+		return fmt.Errorf("record: verdict PASS refused — %d gap(s) still OPEN: %s. PASS requires every gap resolved through `close --id <id> --as closed|risk_accepted|rebuttal_sustained|routed_to_infrastructure`; close them, or issue `--as FAIL`",
+			len(open), strings.Join(open, ", "))
 	}
-	sort.Strings(open)
-	return fmt.Errorf("record: verdict PASS refused — %d gap(s) still OPEN: %s. PASS requires every gap resolved through `close --id <id> --as closed|risk_accepted|rebuttal_sustained|routed_to_infrastructure`; close them, or issue `--as FAIL`",
-		len(open), strings.Join(open, ", "))
+	// AND EVERY MOTION ANSWERED, which this gate did not check and a probe walked straight
+	// through: a run reached `verdict PASS` and `outcome VERIFIED` with a grade motion filed and
+	// never ruled. PASS is a claim that nothing is left open, and an unanswered ask is exactly
+	// that — the report named it, which is the only reason it was visible at all.
+	//
+	// The gate counts what is on the RECORD, both vocabularies, because a pre-collapse record
+	// replayed under this binary must be judged by the same standard it was written to.
+	var unruled []string
+	for _, m := range AllMotions(b) {
+		if !m.Ruled() {
+			unruled = append(unruled, m.ID)
+		}
+	}
+	if len(unruled) != 0 {
+		sort.Strings(unruled)
+		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
+			len(unruled), strings.Join(unruled, ", "))
+	}
+	return nil
 }
 
 // gapNamedIn returns the first gap id from the board that appears as a WHOLE TOKEN in

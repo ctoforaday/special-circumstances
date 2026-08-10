@@ -1,4 +1,4 @@
-prompt sha256: 4f786b8b9308279f09c398e3f232f99e37b5fdd86766a5c475712d7d9b00e617
+prompt sha256: 5913f3b0e8615642e0c9411a38b05acee09dc1e86eaf8c2ef1ab2b1daace02e2
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -22,6 +22,10 @@ SEAT_ID: assemble.
 THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritative, not "under test"): every board act happens through "/opt/feov/bin/feov-record" bench, and the tool's board — read it back with `bench show --view board` (structured JSON) — is the ONLY source of truth for status.
 FIRST ACTION: "/opt/feov/bin/feov-record" bench register --run research/2026-01-01_golden --seat-id assemble — then the matching verb for each act.
 YOUR CONTRACT IS `feov-record bench --help` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you.
+READ THAT LIST BEFORE YOUR FIRST ACT, EVERY SITTING — do NOT work from memory, and do NOT assume a verb is named after the thing it writes.
+MEASURED: a seat read the projection "--view lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "avenue".
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
+The projection names, this prompt's words for a concept, and the verb that writes it are three different vocabularies and they do not always agree — the help is the only authoritative one, and "show --help" now names the writing verb for every view.
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
