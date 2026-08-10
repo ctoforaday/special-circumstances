@@ -100,11 +100,22 @@ func newRule(subject, ruler string) *cobra.Command {
 		Short: "rule on a " + subject + " motion (the " + ruler + " seat's)",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			id := seat.Str(cmd, flags.ID)
+			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
+			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
+			// petition should be told it named the wrong subgroup, not that grade motions belong
+			// to the merge — which is true, irrelevant, and sends it to the wrong fix.
+			if err := record.RequireMotionSubjectRef(s.RunDir, subject, id); err != nil {
+				return err
+			}
+			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
+				return err
+			}
 			if err := requireRuler(subject, ruler, s.SeatID); err != nil {
 				return err
 			}
-			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireMotionSubjectRef(s.RunDir, subject, id); err != nil {
+			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
+			if err := record.RequireUnruledMotion(s.RunDir, id); err != nil {
 				return err
 			}
 			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
@@ -125,7 +136,13 @@ func newRule(subject, ruler string) *cobra.Command {
 	return c
 }
 
-// appeal: the filer presses on after a ruling.
+// appeal: a seat presses a motion on after a ruling.
+//
+// STANDING IS DELIBERATELY OPEN, and the first draft's comment said "the filer" while the code
+// checked nobody — so the doc was wrong rather than the code. A motion belongs to the RUN, not to
+// the seat that filed it: a lens files a safety petition and it is BLUE that the granted relief
+// binds, so restricting the appeal to the filer would leave the seat actually affected with no
+// channel. Any registered seat may appeal; who did is on the event.
 //
 // `contests_ruling` was a bespoke field on ONE of the three exchanges — blue pursuing a direction
 // red ruled out-of-scope. Here it is the same act on every subject that has one, which is what
@@ -139,6 +156,9 @@ func newAppeal(subject string) *cobra.Command {
 			s := seat.Of(cmd)
 			id := seat.Str(cmd, flags.ID)
 			if err := record.RequireRuledMotion(s.RunDir, subject, id); err != nil {
+				return err
+			}
+			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
 				return err
 			}
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")

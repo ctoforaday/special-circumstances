@@ -92,7 +92,15 @@ var enforcedElsewhere = map[string]string{
 	"file --dimension":      "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
 	"file --petition-class": "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
 
-	"show --view":       "generated from viewNames(), the same single-source pattern record.EnumFields provides — a projection name is a tool concept, not an event field, so it has no payload key to police",
+	// `show --view` IS NO LONGER SET-SHAPED, and that is the fix rather than the regression.
+	// Its usage was `board | findings | worklist | …` — a pipe list of nouns with no meanings,
+	// which is exactly what this gate's regex looks for. It is now a MENU: one line per view
+	// with its description and the verb that fills it, because a seat navigates by what the tool
+	// prints and a bare name list taught one to invent `blue line-of-inquiry`.
+	//
+	// So the pipe-list detector correctly stops seeing it, and the exemption correctly goes. The
+	// set is still policed — an unknown view is refused at runtime against ViewNames(), and
+	// viewnaming_test.go holds the contract that every view names its writing verb.
 	"scorecard --chair": "a read-only operator command that writes no event: the set is checked inline against the same map it renders from, so there is no write path for a bad value to reach",
 }
 

@@ -1,4 +1,4 @@
-prompt sha256: f7806c2f4c0cdcb74e9c7fef75aa39d7245af5bbc5e1a238c4ff92082846c014
+prompt sha256: 4a81b145cc7c3a30a000827e39fad7ffc7f5037f7f97ec4982aa0b61c67692f7
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 CITATION LEDGER: read the citation ledger first via "/opt/feov/bin/feov-record" lens show --run research/2026-01-01_golden --view citation-ledger (the tool renders it from cite events on the record); a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
@@ -34,6 +34,10 @@ SEAT_ID: red-lens-r2-L1.
 THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritative, not "under test"): every board act happens through "/opt/feov/bin/feov-record" lens, and the tool's board — read it back with `lens show --view board` (structured JSON) — is the ONLY source of truth for status.
 FIRST ACTION: "/opt/feov/bin/feov-record" lens register --run research/2026-01-01_golden --seat-id red-lens-r2-L1 — then the matching verb for each act.
 YOUR CONTRACT IS `feov-record lens --help` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you.
+READ THAT LIST BEFORE YOUR FIRST ACT, EVERY SITTING — do NOT work from memory, and do NOT assume a verb is named after the thing it writes.
+MEASURED: a seat read the projection "--view lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "avenue".
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
+The projection names, this prompt's words for a concept, and the verb that writes it are three different vocabularies and they do not always agree — the help is the only authoritative one, and "show --help" now names the writing verb for every view.
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
 If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
 Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.

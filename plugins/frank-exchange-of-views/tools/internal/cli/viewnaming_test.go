@@ -1,0 +1,105 @@
+package cli
+
+import (
+	"strings"
+	"testing"
+)
+
+// A SEAT NAVIGATES BY WHAT IT READS, SO EVERY VIEW MUST NAME THE VERB THAT FILLS IT.
+//
+// MEASURED, 2026-08-10, from a haiku seat's transcript on the seatprobe board:
+//
+//	FEOV blue show --view lines-of-inquiry     <- it read the projection
+//	FEOV blue line-of-inquiry --id A1 --decision pursued --conclusion "..."   <- INVENTED
+//	FEOV blue avenue --id A1 --decision pursued --conclusion "..."            <- invented flags
+//	FEOV blue avenue --help                    <- only NOW did it read the contract
+//
+// It built a verb name out of the VIEW name, singularised, and invented two flags to go with it.
+// The verb is `avenue`; nothing in the projection it had just read says so. In 32 tool calls that
+// seat read `--help` exactly once, and only after two invented calls failed — so the working
+// theory that a seat learns its surface from `<role> --help` is false in practice. It learns it
+// from what the tool prints back.
+//
+// That makes a projection's name a de facto API, and a projection that names a concept without
+// naming the verb that writes it is teaching a name that does not work.
+//
+// # What this test does and does not claim
+//
+// It does NOT require the view and the verb to share a name — `lines-of-inquiry` is the right
+// word for the reader of a report and `avenue` is the right word for the seat proposing one, and
+// collapsing them would cost more than it saves. It requires only that the view's own help SAY
+// which verb fills it, so the seat that reads the projection has the verb in the same breath.
+
+// viewWriters maps each projection to the verb(s) whose events fill it. It is declared rather
+// than derived because no structure in the tree connects them today — which is precisely the gap
+// this test exists to make visible rather than to paper over.
+var viewWriters = map[string][]string{
+	"ledger":           {"mint", "close", "regrade"},
+	"archive":          {"close"},
+	"worklist":         {"mint"},
+	"findings":         {"finding"},
+	"debate":           {"position"},
+	"changelog":        {"revision"},
+	"changes":          {"edit"},
+	"citation-ledger":  {"cite"},
+	"lines-of-inquiry": {"avenue"},
+	"friction":         {"friction"},
+	"telemetry":        {},
+	"board":            {"mint", "close", "regrade", "retire"},
+}
+
+// EVERY VIEW'S HELP NAMES THE VERB THAT FILLS IT.
+//
+// The failure this prevents is the one measured above: a seat reads a projection, forms a concept
+// name from it, and types a verb that does not exist. It then either finds the right one by
+// failing twice, or — the expensive case — decides the capability is missing and works around it
+// in prose, which is a capability lost for the whole run and reported nowhere.
+func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
+	help, err := run(t, "blue", "show", "--help")
+	if err != nil {
+		t.Fatalf("blue show --help: %v", err)
+	}
+
+	names := ViewNames()
+	if len(names) == 0 {
+		t.Fatal("no views found — a walk that finds nothing passes this forever")
+	}
+	for _, view := range names {
+		writers, declared := viewWriters[view]
+		if !declared {
+			t.Errorf("view %q is in the tree and not in viewWriters — say which verb fills it, or that nothing does. An undeclared view is one nobody has asked the discoverability question about", view)
+			continue
+		}
+		if len(writers) == 0 {
+			continue // telemetry and friends: written by the engine, not by a seat verb
+		}
+		var named bool
+		for _, w := range writers {
+			if strings.Contains(help, w) {
+				named = true
+				break
+			}
+		}
+		if !named {
+			t.Errorf("`show --help` describes view %q without naming any verb that fills it (%s).\n"+
+				"A seat reads the projection and builds a verb name out of it: measured, one read `--view lines-of-inquiry` and typed `blue line-of-inquiry`, which does not exist. Name the verb in the view's own description so the two arrive together.",
+				view, strings.Join(writers, ", "))
+		}
+	}
+}
+
+// AND NO DECLARED VIEW HAS GONE AWAY.
+//
+// The inverse, for the same reason every table in this package has one: an entry for a view that
+// no longer exists is checked coverage of nothing, and it reads exactly like coverage.
+func TestViewWritersHasNoStaleEntries(t *testing.T) {
+	live := map[string]bool{}
+	for _, v := range ViewNames() {
+		live[v] = true
+	}
+	for view := range viewWriters {
+		if !live[view] {
+			t.Errorf("viewWriters names %q, which is not a view in the tree — remove it", view)
+		}
+	}
+}

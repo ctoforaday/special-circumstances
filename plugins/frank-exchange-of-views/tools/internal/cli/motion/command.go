@@ -30,6 +30,8 @@
 package motion
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -59,7 +61,36 @@ func NewCommand() *cobra.Command {
 // subject builds one subgroup. `direction` gets no `file`: red rules on a line blue already
 // proposed, so a filing verb here would be a second way to say what `blue avenue` already says.
 func subject(name, short string, fileFlags []string, ruler string) *cobra.Command {
-	c := &cobra.Command{Use: name, Short: short, SilenceUsage: true}
+	c := &cobra.Command{
+		Use: name, Short: short, SilenceUsage: true,
+		// Tolerate unknown flags AT THE GROUP LEVEL so the Args check below is what answers.
+		// Cobra parses flags before Args, so `motion petition appeal --id M1` died on `--id`
+		// (unknown to the group) and never reached the message that explains the real problem.
+		// The group has no RunE, so anything landing here is already an error path — the only
+		// question is which error the seat is told about.
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	}
+	// A VERB THIS SUBJECT DOES NOT HAVE MUST SAY SO. Without this, cobra parsed the verb word as
+	// a positional ARGUMENT to the subgroup and then failed on the first flag: `motion petition
+	// appeal --id M1` answered "unknown flag: --id", which sends a seat looking at its flags for
+	// a problem that is not there. Measured by probing.
+	//
+	// The absent verb is a real design statement — a petition is heard BEFORE the debate
+	// continues, so there is nothing to escalate to — and the refusal is where a seat actually
+	// meets it, so it is where the reason belongs.
+	c.RunE = func(_ *cobra.Command, args []string) error {
+		var have []string
+		for _, sub := range c.Commands() {
+			have = append(have, sub.Name())
+		}
+		named := "names no verb"
+		if len(args) > 0 {
+			named = "has no `" + args[0] + "` verb"
+		}
+		return feov.Errorf(feov.Validation,
+			"a %s motion %s — it has %s. If you expected one, its absence is the design, not an omission: see `motion %s --help`",
+			name, named, strings.Join(have, ", "), name)
+	}
 	if fileFlags != nil {
 		c.AddCommand(newFile(name, fileFlags))
 	}
