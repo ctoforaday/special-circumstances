@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -100,6 +103,53 @@ func TestViewWritersHasNoStaleEntries(t *testing.T) {
 	for view := range viewWriters {
 		if !live[view] {
 			t.Errorf("viewWriters names %q, which is not a view in the tree — remove it", view)
+		}
+	}
+}
+
+// NO MESSAGE NAMES A VIEW THAT DOES NOT EXIST.
+//
+// The inverse of the contract above, and it caught a real one: `lens reproduce --id` told a seat
+// the proofs were listed by `show --view proofs`. There is no `proofs` view. A seat following that
+// runs a command which is refused, and the refusal it gets — "unknown view" — reads as its own
+// mistake rather than the tool's.
+//
+// This is the `--view lines-of-inquiry` failure in reverse. There, a seat invented a VERB from a
+// view name; here the tool invents a VIEW name for a seat. Both come from a projection vocabulary
+// referenced in prose that nothing checks, which is why the check is mechanical: every `--view X`
+// written anywhere in the tree must name a projection that exists.
+func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
+	live := map[string]bool{}
+	for _, v := range ViewNames() {
+		live[v] = true
+	}
+
+	// Every help string in the tree, plus the Long/Short of every command.
+	var texts []string
+	var walkAll func(*cobra.Command)
+	walkAll = func(c *cobra.Command) {
+		texts = append(texts, c.Short, c.Long)
+		c.Flags().VisitAll(func(f *pflag.Flag) { texts = append(texts, f.Usage) })
+		for _, sub := range c.Commands() {
+			walkAll(sub)
+		}
+	}
+	walkAll(newRoot())
+
+	named := regexp.MustCompile(`--view\s+([a-z][a-z-]*)`)
+	seen := map[string]bool{}
+	for _, text := range texts {
+		for _, m := range named.FindAllStringSubmatch(text, -1) {
+			name := m[1]
+			if name == "changes" || live[name] {
+				continue
+			}
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			t.Errorf("a help string names `--view %s`, which is not a projection. A seat that follows it is refused for a mistake the tool made, and reads the refusal as its own.\n\nthe projections are: %s",
+				name, strings.Join(ViewNames(), ", "))
 		}
 	}
 }

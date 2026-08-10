@@ -52,7 +52,7 @@ func newReproduce() *cobra.Command {
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			sha := seat.Str(cmd, flags.ID)
 			if sha == "" {
-				return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run (blue prove records it, and `show --view proofs` lists them)")
+				return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run — `blue prove` prints it when it records the proof, and every proof is listed in the report beside the sentence it backs")
 			}
 			ok, got, want, err := proof.Reproduce(s.RunDir, sha)
 			if err != nil {

@@ -193,7 +193,7 @@ func Show() *cobra.Command {
 			case "board", "findings", "friction", "worklist", "telemetry":
 				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
 			case "":
-				return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(ViewNames(), ", "))
+				return fmt.Errorf("%s show: --view is required for this role. The projections are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
 			default:
 				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction/worklist are JSON by name)", role, want)
 			}
@@ -261,7 +261,7 @@ func Show() *cobra.Command {
 			return nil
 		}
 		if want == "" {
-			return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(ViewNames(), ", "))
+			return fmt.Errorf("%s show: --view is required for this role. The projections are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
 		}
 		known := false
 		for _, v := range views {
@@ -270,7 +270,10 @@ func Show() *cobra.Command {
 			}
 		}
 		if !known {
-			return fmt.Errorf("%s show: unknown view %q (one of: %s)", role, want, strings.Join(ViewNames(), ", "))
+			// THE MENU, NOT THE NAMES. A seat that mistypes a view is a seat that does not
+			// know the view space, and a list of twelve nouns tells it which words are legal
+			// while leaving it to guess which one holds what it wants.
+			return fmt.Errorf("%s show: unknown view %q. The projections are:\n\n%s\nEach names the verb that fills it", role, want, ViewMenu())
 		}
 
 		// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
@@ -326,7 +329,6 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 	}
 	c.AddCommand(Show())
 	names = append(names, "show")
-	available := join(names)
 
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		for _, a := range args {
@@ -334,12 +336,20 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 				return cmd.Help()
 			}
 		}
+		// A FLAG IS NOT A VERB. DisableFlagParsing means `blue --run x` arrives here with
+		// "--run" as args[0], and the first draft answered `verb "--run" is outside this seat's
+		// role` — which is false twice over: it is not a verb, and it is not out of role. A seat
+		// told that looks for a permissions problem that does not exist.
+		if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+			return RefuseUnknownVerb(cmd, role, args[0])
+		}
 		if len(args) > 0 {
-			return fmt.Errorf("verb %q is outside this seat's role (available: %s)", args[0], available)
+			return RefuseAndTeach(cmd, fmt.Sprintf(
+				"%s: %q is a flag, not a verb — you named a role and its flags with no verb between them, so nothing was recorded. A verb is required; pick one below and pass the flags to it.", role, args[0]))
 		}
 		// A role invoked with no verb is a usage error, not a no-op: silently
 		// succeeding would let a mis-scripted seat believe it recorded something.
-		return fmt.Errorf("%s: a verb is required (%s)", role, available)
+		return RequireVerb(cmd, role)
 	}
 	return c
 }

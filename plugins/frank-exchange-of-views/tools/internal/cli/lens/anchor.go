@@ -100,6 +100,38 @@ func locateEnd(report, quote string) int {
 // invisible marker layer intact; a span that INTERNALLY contains a marker is the caller's to
 // reject (edit around it). No fuzzy/edit-distance matching.
 func LocateSpan(report, quote string) (int, int) {
+	return locate(report, quote, StopAtParagraph)
+}
+
+// SpanScope says whether a quote may cross a blank line.
+//
+// ONE MATCHER SERVED TWO OPPOSITE REQUIREMENTS AND THAT WAS THE BUG. A finding ANCHORS a
+// sentence, so a paragraph break is correctly a hard boundary — a marker that spanned one would
+// sit in two places at once. An EDIT REPLACES a span, and a span across paragraphs is an ordinary
+// thing to replace.
+//
+// Sharing the boundary made `blue edit`'s two rules jointly unsatisfiable, which is measurable
+// rather than theoretical. Blue is told to propagate a correction to every site stating a claim,
+// so the SAME SENTENCE IN TWO SECTIONS is the expected shape of a real report. Quote it alone and
+// the tool says "appears MORE THAN ONCE — quote more surrounding context"; take that advice and
+// the context crosses a blank line and the tool says "not found". A haiku seat hit that pair ten
+// times in one sitting and gave up with the repair unmade, correctly reporting that multi-line
+// spans were rejected "even with exact headers and context".
+type SpanScope int
+
+const (
+	// StopAtParagraph refuses a quote that crosses a blank line. For anchors.
+	StopAtParagraph SpanScope = iota
+	// CrossParagraphs allows it. For replacements.
+	CrossParagraphs
+)
+
+// LocateSpanScoped is LocateSpan with the boundary rule stated by the caller.
+func LocateSpanScoped(report, quote string, scope SpanScope) (int, int) {
+	return locate(report, quote, scope)
+}
+
+func locate(report, quote string, scope SpanScope) (int, int) {
 	nq := normalizeQuote(quote)
 	if nq == "" { // empty or all-trailing-punctuation → reject, never match at 0
 		return -1, -1
@@ -109,7 +141,7 @@ func LocateSpan(report, quote string) (int, int) {
 			start += n
 			continue
 		}
-		if s, e, ok := matchFrom(report, start, nq); ok {
+		if s, e, ok := matchFrom(report, start, nq, scope); ok {
 			return s, e
 		}
 		start++
@@ -123,7 +155,7 @@ func LocateSpan(report, quote string) (int, int) {
 // (consume no quote char); a quote separator matches a run of report whitespace; a quote
 // content char must match exactly. A whitespace run containing a blank line (paragraph
 // break) is a hard boundary — a single quoted sentence never spans one — so the match fails.
-func matchFrom(report string, start int, nq string) (int, int, bool) {
+func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, bool) {
 	ri := start
 	firstContent := -1
 	lastContentEnd := -1
@@ -151,8 +183,8 @@ func matchFrom(report string, start int, nq string) (int, int, bool) {
 				}
 				ri++
 			}
-			if newlines >= 2 {
-				return 0, 0, false // crossed a paragraph break
+			if newlines >= 2 && scope == StopAtParagraph {
+				return 0, 0, false // crossed a paragraph break, and this caller anchors
 			}
 			qi++
 			continue
@@ -183,13 +215,18 @@ func matchFrom(report string, start int, nq string) (int, int, bool) {
 //
 // Callers should refuse an ambiguous quote and ask for more context rather than guess.
 func LocateSpanUnique(report, quote string) (start, end int, ambiguous bool) {
-	start, end = LocateSpan(report, quote)
+	return LocateSpanUniqueScoped(report, quote, StopAtParagraph)
+}
+
+// LocateSpanUniqueScoped is LocateSpanUnique with the boundary rule stated by the caller.
+func LocateSpanUniqueScoped(report, quote string, scope SpanScope) (start, end int, ambiguous bool) {
+	start, end = LocateSpanScoped(report, quote, scope)
 	if start < 0 {
 		return start, end, false
 	}
 	// Look for a SECOND match beyond the first one's end.
 	if rest := end; rest < len(report) {
-		if s2, _ := LocateSpan(report[rest:], quote); s2 >= 0 {
+		if s2, _ := LocateSpanScoped(report[rest:], quote, scope); s2 >= 0 {
 			return start, end, true
 		}
 	}

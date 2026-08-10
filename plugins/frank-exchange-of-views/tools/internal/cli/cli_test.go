@@ -209,15 +209,24 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.role+"/"+tc.verb, func(t *testing.T) {
-			_, err := run(t, tc.role, tc.verb, "--run", t.TempDir(), "--seat-id", "x")
+			out, err := run(t, tc.role, tc.verb, "--run", t.TempDir(), "--seat-id", "x")
 			if err == nil {
 				t.Fatalf("%s ran the %s verb", tc.role, tc.verb)
 			}
-			if !strings.Contains(err.Error(), fmt.Sprintf("verb %q is outside this seat's role", tc.verb)) {
+			if !strings.Contains(err.Error(), fmt.Sprintf("verb %q is outside the %s seat's role", tc.verb, tc.role)) {
 				t.Errorf("error = %q, want it to name the verb as out of role", err)
 			}
-			if !strings.Contains(err.Error(), "available:") || !strings.Contains(err.Error(), "show") {
-				t.Errorf("the refusal must list what IS available: %q", err)
+			// THE LIST MOVED FROM THE ERROR TO THE HELP, and that is the fix rather than a
+			// regression. This used to require "available: a, b, c" in the message — a
+			// hand-rolled list of bare names beside a cobra help that already had the same
+			// verbs WITH their descriptions. A seat learns the surface here, at the refusal,
+			// so it now gets the real help: names, meanings, flags and the enumerated values.
+			//
+			// Checked on the combined output because the help goes to stdout and the refusal
+			// follows on the error, which is the order a seat reads them in.
+			text := out + "\n" + err.Error()
+			if !strings.Contains(text, "Available Commands:") || !strings.Contains(text, "show") {
+				t.Errorf("the refusal must show what IS available, with descriptions:\n%s", text)
 			}
 		})
 	}

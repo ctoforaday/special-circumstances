@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
@@ -440,6 +441,21 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// THE HELP TEMPLATE CARRIES WHAT COBRA HAS NO MODEL FOR: an enum's per-value meanings.
 	// Cobra's help is rich about commands and flags; a flag's VALUE-SPACE is neither, so every
 	// vocabulary here had nowhere to put its semantics and they went into source comments.
+	// AN UNKNOWN COMMAND PRINTS THE SURFACE. Cobra's default answers `unknown command "x" for
+	// "feov-record"` and stops — no list, no pointer, nothing. That is the one moment a seat is
+	// definitively looking for what exists, and it was the one moment the tool said least.
+	//
+	// Taking ArbitraryArgs routes the miss into RunE instead of cobra's built-in message, so the
+	// help goes out first and the refusal follows it.
+	root.Args = cobra.ArbitraryArgs
+	root.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return seat.RefuseAndTeach(cmd, "feov-record: you named no command, so nothing ran. The commands below are the whole surface.")
+		}
+		return seat.RefuseAndTeach(cmd, fmt.Sprintf(
+			"feov-record: no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", args[0]))
+	}
+
 	enumhelp.Install(root)
 	return root
 }
