@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -625,6 +626,30 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		}
 		if !p.Has("basis") || p.Str("basis") == "" {
 			return fmt.Errorf("record: regrade requires --reason (grade movement is recorded with its reason)")
+		}
+	case "motion":
+		if !p.Has("subject") || p.Str("basis") == "" {
+			return fmt.Errorf("record: a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
+		}
+	case "motion-rule", "motion-appeal":
+		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
+		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
+		// accepted|rejected for a grade. So the check lives here, and the CLI's help is generated
+		// from the SAME table (MotionVerdictEnum) — one source, two readers, which is the rule
+		// enums.go exists to keep.
+		if err := RequireMotionSubjectRef(runDir, p.Str("subject"), p.Str("motion_id")); err != nil {
+			return err
+		}
+		if typ == "motion-rule" {
+			subject, ruling := p.Str("subject"), p.Str("ruling")
+			allowed, known := MotionVerdicts[subject]
+			if !known {
+				return fmt.Errorf("record: %q is not a motion subject — one of %s", subject, strings.Join(MotionSubjects, " | "))
+			}
+			if !slices.Contains(allowed, ruling) {
+				return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
+					ruling, subject, strings.Join(allowed, " | "))
+			}
 		}
 	case "retire":
 		// A removal with no stated reason is the failure this verb exists to make

@@ -138,8 +138,15 @@ func itoa(n int) string {
 // the post-collapse events only and silently renders nothing for a pre-collapse record — the
 // exact failure the dual-read exists to prevent, reintroduced one call site at a time.
 func AllMotions(b *Board) []*Motion {
-	if m := Motions(b); len(m) > 0 {
-		return m
-	}
-	return legacyMotions(b)
+	// CONCATENATE, NEVER CHOOSE. The first draft returned the legacy set only when the motion set
+	// was EMPTY, and that is wrong for the whole additive stage, when both vocabularies are live:
+	// one `motion grade file` anywhere in a run would have made the motion set non-empty and
+	// dropped every `dispute`, `petition` and `avenue-rule` in the same record — silently, into a
+	// section that still rendered and still looked complete. The fuzz drives both by design, which
+	// is what put the mixed record in front of me.
+	//
+	// Nothing writes an exchange in both vocabularies, so there is no double count to guard
+	// against: a motion is filed one way or the other, and its id namespace says which (M-ids and
+	// avenue A-ids from the record, L-ids synthesised at read time).
+	return append(Motions(b), legacyMotions(b)...)
 }

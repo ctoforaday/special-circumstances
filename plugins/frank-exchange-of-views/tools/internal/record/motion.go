@@ -100,6 +100,39 @@ func (m Motion) Ruled() bool { return m.Ruling != "" }
 func Motions(b *Board) []*Motion {
 	byID := map[string]*Motion{}
 	var order []string
+
+	// Avenue PROPOSALS, indexed by their id — the filing half of every direction motion. Gathered
+	// in the same pass and read only when a ruling arrives, because a proposal nobody ruled on is
+	// not a motion (see the motion-rule arm).
+	type proposal struct {
+		filer, basis string
+		round        int
+	}
+	proposals := map[string]proposal{}
+
+	// TWO PASSES, FOR THE REASON compat.go SPELLS OUT, AND I WROTE THE BUG HERE ANYWAY.
+	//
+	// Each seat writes its own shard and replay orders by TIMESTAMP across all of them, so the
+	// shards interleave and A RULING CAN REPLAY BEFORE ITS FILING — the bench rules a petition blue
+	// filed, and the two events live in different shards. A single pass that files-then-rules drops
+	// every ruling that lands first, silently: the motion still renders, as an ask nobody answered.
+	//
+	// I documented exactly this in compat.go after the fixture caught it, and then shipped the same
+	// single pass in the function compat.go exists to be the legacy twin of. What caught it was the
+	// prose gate (#320) — "judge-petition/motion-rule prose absent from report" on 25 of 60 seeds —
+	// not the reasoning that had already been written down one file over.
+	// A PASS OF ITS OWN, for the same interleaving reason: blue proposes the avenue and the merge
+	// rules it, so the two live in different shards and the ruling can replay first. Gathered
+	// inside pass 1 this map was read before it was filled, and a direction motion came out with
+	// no filer, no round and no ask — rendering as an answer to a question nobody asked.
+	for _, e := range b.Events {
+		if e.Type == "avenue" && e.Payload.Str("supersedes_status") == "" {
+			if a := e.Payload.Str("avenue_id"); a != "" {
+				proposals[a] = proposal{filer: e.SeatID, basis: e.Payload.Str("line"), round: e.Round}
+			}
+		}
+	}
+
 	for _, e := range b.Events {
 		id := e.Payload.Str("motion_id")
 		if id == "" {
@@ -121,20 +154,57 @@ func Motions(b *Board) []*Motion {
 				}
 			}
 		case "motion-rule":
-			m, ok := byID[id]
-			if !ok {
-				continue // a ruling naming no filing; refs.go refuses this at the write
+			// PASS 1 only CREATES. A direction motion has no filing event of its own, so its
+			// ruling is also its creation; every other subject is created by its `motion` event,
+			// which this pass may not have reached yet. The ruling itself is attached in pass 2.
+			if _, ok := byID[id]; !ok {
+				if e.Payload.Str("subject") != "direction" {
+					continue // a ruling naming no filing; RequireMotionSubjectRef refuses this at the write
+				}
+				// A DIRECTION MOTION IS CREATED BY ITS RULING, and that is not a special case
+				// bolted on — it is the only shape that does not invent identity. `direction` has
+				// no `file` verb because the PROPOSAL is the filing (`blue avenue`), so the id it
+				// joins on is the avenue's own A-id: minted, refusable, already on the record.
+				//
+				// The rejected alternative was minting an M-id at propose time. It would have
+				// filed a motion for every line blue ever floated — ~60 a run in the fuzz against
+				// 45 rulings — so the report's "N motions received no ruling" would have been
+				// dominated by lines nobody was ever going to rule on, and the one signal that
+				// message exists to carry (a sitting that did not happen) would have drowned in it.
+				//
+				// compat.go builds the legacy direction motion the same way, from `avenue-rule`.
+				// One shape for both vocabularies, which is what makes the dual-read a translation
+				// rather than a second model.
+				m := &Motion{ID: id, Subject: "direction", Fields: map[string]string{"avenue_id": id}}
+				if p, ok := proposals[id]; ok {
+					m.Filer, m.Round, m.Basis = p.filer, p.round, p.basis
+				}
+				byID[id] = m
+				order = append(order, id)
 			}
+		}
+	}
+
+	// PASS 2 attaches every answer. Order-independent by construction, which is the only safe
+	// assumption about a multi-shard log.
+	for _, e := range b.Events {
+		id := e.Payload.Str("motion_id")
+		if id == "" {
+			continue
+		}
+		m, ok := byID[id]
+		if !ok {
+			continue // a ruling or appeal naming no filing; the write-side ref checks refuse these
+		}
+		switch e.Type {
+		case "motion-rule":
 			m.Ruling, m.RulingBy, m.RulingRound = e.Payload.Str("ruling"), e.SeatID, e.Round
 			m.Opinion = e.Payload.Str("opinion")
 		case "motion-appeal":
-			m, ok := byID[id]
-			if !ok {
-				continue
-			}
 			m.Appealed, m.AppealReason = true, e.Payload.Str("reason")
 		}
 	}
+
 	out := make([]*Motion, 0, len(order))
 	for _, id := range order {
 		out = append(out, byID[id])
@@ -142,12 +212,21 @@ func Motions(b *Board) []*Motion {
 	return out
 }
 
-// RequireMotionRef refuses a ruling or appeal naming a motion no filing created — the same
+// RequireMotionSubjectRef refuses a ruling or appeal naming a motion no filing created — the same
 // discipline every other cross-reference gets, for the same reason: a dangling reference is
 // accepted at write time and dropped at replay, where nobody sees it go.
-func RequireMotionRef(runDir, id string) error {
+//
+// It takes the SUBJECT because the subjects do not share a filing verb. `grade` and `petition` are
+// filed by `motion <subject> file` and join on the M-id it mints; `direction` has no file verb —
+// the proposal is the filing — so it joins on the AVENUE's own id, and the thing that must exist
+// is the avenue, not a motion event. Passing the subject keeps that difference in one place
+// instead of pushing it into each RunE.
+func RequireMotionSubjectRef(runDir, subject, id string) error {
 	if id == "" {
 		return fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
+	}
+	if subject == "direction" {
+		return RequireAvenueRef(runDir, id)
 	}
 	m, err := MergedEvents(runDir)
 	if err != nil {
@@ -159,6 +238,38 @@ func RequireMotionRef(runDir, id string) error {
 		}
 	}
 	return fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
+}
+
+// RequireRuledMotion additionally refuses an appeal against a motion NOBODY HAS RULED.
+//
+// An appeal is the filer pressing on AFTER an answer; against no answer there is nothing to press
+// against, and the event would replay as a motion both unruled and appealed — a state the report
+// has no honest sentence for. The check covers every subject rather than the one that surfaced it:
+// appealing an unruled grade is the same nonsense as appealing an unruled direction, and fixing
+// only the instance is how the class survives.
+func RequireRuledMotion(runDir, subject, id string) error {
+	if err := RequireMotionSubjectRef(runDir, subject, id); err != nil {
+		return err
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range m.Events {
+		switch e.Type {
+		case "motion-rule":
+			if e.Payload.Str("motion_id") == id {
+				return nil
+			}
+		case "avenue-rule":
+			// The pre-collapse spelling. An appeal filed under the new vocabulary against a
+			// ruling written under the old one is a real case for as long as both are live.
+			if e.Payload.Str("avenue_id") == id {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", subject, id)
 }
 
 // MotionVerdictEnum builds the enum entry for a subject's ruling, so the CLI's help and the write

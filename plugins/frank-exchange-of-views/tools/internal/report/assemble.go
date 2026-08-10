@@ -137,6 +137,11 @@ func Assemble(runDir string) (string, error) {
 	}
 	p(redFindings(board))
 	p(debate(evs))
+	// Every adjudicated exchange, joined on its id (#344). Reads through the dual-read, so a
+	// pre-collapse record renders here from its old vocabulary rather than silently as nothing.
+	if m := motions(board); m != "" {
+		p(m)
+	}
 	if c := confidenceSelfAssessment(evs); c != "" {
 		p(c)
 	}

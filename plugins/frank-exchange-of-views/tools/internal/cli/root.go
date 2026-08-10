@@ -18,6 +18,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/merge"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/motion"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -398,6 +399,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	root.AddCommand(
 		lens.NewCommand(),
 		merge.NewCommand(),
+		motion.NewCommand(),
 		blue.NewCommand(),
 		bench.NewCommand(),
 		newVerify(),      // operator cross-check, not a seat role — read-only over the record
