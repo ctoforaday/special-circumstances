@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -291,3 +292,64 @@ var (
 	scriptPath string
 	proofSHA   string
 )
+
+// A SUMMARY LINE THAT RESTATES A SET MUST RESTATE IT CORRECTLY.
+//
+// The `Short` of every verb is what a seat reads FIRST — it is the line in `Available Commands`,
+// which is now also the line a refusal prints. Several restate an enum inline to show the flag
+// shape: `--as sound|unsound`, `--trust high|medium|low`, `--view board|findings|…`.
+//
+// That is a SECOND rendering of a set the flag help already carries properly, and the second one
+// is the lossy copy: it has no meanings and nothing regenerates it. The `--view` list in `show`'s
+// Short was exactly this — it survived the whole enum-menu change untouched, so a seat reading
+// the summary still met twelve bare nouns.
+//
+// This does not forbid the shape: showing the flag shape in a summary is genuinely useful, and a
+// seat that must open a second help page to learn what `--as` takes is a seat that guesses. What
+// it forbids is the copy DIVERGING — a Short that offers a value the tool refuses, or omits one it
+// accepts, teaches a set that does not exist.
+func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
+	// THE SET IS RESOLVED PER COMMAND, NOT PER FLAG NAME. `--as` carries a different vocabulary
+	// on every verb that uses it — closure classes on `merge close`, dispositions on `bench
+	// opinion`, soundness on `lens reproduce` — which is the whole reason record.EnumFields is
+	// keyed by event type. A map from flag name to values holds whichever verb was registered
+	// last, and the first draft of this test compared `bench opinion --as carried|closed`
+	// against `sound|unsound` and reported both values as unreal.
+	//
+	// enumhelp.Registered answers for THIS command, which is exact by construction.
+	restated := regexp.MustCompile(`--([a-z-]+)\s+([a-z][a-zA-Z_-]*(?:\|[a-zA-Z_][a-zA-Z_-]*)+)`)
+
+	var checked int
+	walk(newRoot(), func(c *cobra.Command, path []string) {
+		registered := enumhelp.Registered(c)
+		for _, m := range restated.FindAllStringSubmatch(c.Short, -1) {
+			flag, listed := m[1], strings.Split(m[2], "|")
+			var want []string
+			switch {
+			case registered[flag] != nil:
+				want = record.Names(registered[flag])
+			case flag == "view":
+				want = ViewNames()
+			default:
+				continue // not an enum this command declares: a shape hint, not a set
+			}
+			checked++
+			real := map[string]bool{}
+			for _, v := range want {
+				real[v] = true
+			}
+			for _, v := range listed {
+				if v == "" || v == "..." {
+					continue
+				}
+				if !real[v] {
+					t.Errorf("`%s` summarises --%s as %q, and %q is NOT in the real set (%s).\n\nThe summary is the line a seat reads first — in Available Commands and now in every refusal — so a value offered here and refused by the tool is a set that does not exist, taught at the moment a seat is deciding what to type.",
+						strings.Join(path, " "), flag, m[2], v, strings.Join(want, "|"))
+				}
+			}
+		}
+	})
+	if checked == 0 {
+		t.Fatal("no summary restated any known set — either the convention is gone or the walk is broken, and a walk that finds nothing passes this forever")
+	}
+}

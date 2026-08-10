@@ -103,7 +103,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -155,7 +155,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -212,7 +212,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -225,7 +225,7 @@ feov-record: merge: seat "not a seat id" does not belong to any role namespace (
 exit 2
 feov-record: verb "mint" is outside the lens seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
 
-red lens seats — findings, observations, citations. Cannot mint or close.
+red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -249,7 +249,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -290,7 +290,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -325,7 +325,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -363,14 +363,14 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
 
 ── unknown role
 exit 2
-feov-record: feov-record: no command named "nonsuch" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: no command named "nonsuch" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
@@ -392,7 +392,7 @@ Available Commands:
   graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
   help         Help about any command
   hook         PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)
-  lens         red lens seats — findings, observations, citations. Cannot mint or close.
+  lens         red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
   merge        the red merge seat — the board's only writer.
   motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   scorecard    print a chair's scorecard for this run (operator; the seat's in-run self-read)
@@ -402,7 +402,7 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
   -v, --version          version for feov-record
 

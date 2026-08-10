@@ -3,7 +3,7 @@ exit 2
 stderr:
 feov-record: verb "mint" is outside the lens seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
 
-red lens seats — findings, observations, citations. Cannot mint or close.
+red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -27,7 +27,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -69,7 +69,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -111,7 +111,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -147,7 +147,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -155,7 +155,7 @@ Use "{TOOL} [command] --help" for more information about a command.
 $ lens help
 exit 0
 stdout:
-red lens seats — findings, observations, citations. Cannot mint or close.
+red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -179,7 +179,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -216,7 +216,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -256,7 +256,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
@@ -290,7 +290,7 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 Use "{TOOL} [command] --help" for more information about a command.
