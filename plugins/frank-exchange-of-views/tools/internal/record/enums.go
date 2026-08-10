@@ -140,7 +140,7 @@ var EnumFields = map[string][]EnumField{
 		{
 			Key: "check_kind", Flag: flags.CheckKind, Values: []EnumValue{
 				Ev("document", "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"),
-				Ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap, so ask for it whenever the answer is a number, a simulation or a forecast"),
+				Ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"),
 				Ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
 			},
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
