@@ -31,7 +31,7 @@ import (
 // ErrMisQuote is the sentinel for "the old span is not present". `blue edit` distinguishes
 // it to drive its crash-reconcile branch (old gone but new already present ⇒ the write
 // landed), so it must stay identifiable rather than collapse into a generic error.
-var ErrMisQuote = errors.New("the quoted span was not found in report.md — quote the EXACT current text you are replacing (whitespace and the invisible anchor layer are ignored; everything else must match)")
+var ErrMisQuote = errors.New("the quoted span was not found in report.md — quote the EXACT current text you are replacing. Runs of whitespace and the invisible anchor layer are ignored, and a span MAY cross blank lines; every other character must match")
 
 // LocateUnique resolves the one span `old` names, or explains why it cannot.
 //
@@ -42,7 +42,9 @@ var ErrMisQuote = errors.New("the quoted span was not found in report.md — quo
 // site the author may not have meant — and blue is explicitly told to propagate corrections
 // to every site stating a claim, so repeated text is the EXPECTED shape of a real report.
 func LocateUnique(verb, report, old string) (int, int, error) {
-	start, end, ambiguous := lens.LocateSpanUnique(report, old)
+	// AN EDIT MAY CROSS A PARAGRAPH BREAK; an anchor may not. Sharing one rule made this verb's
+	// own two refusals jointly unsatisfiable — see lens.SpanScope for the measurement.
+	start, end, ambiguous := lens.LocateSpanUniqueScoped(report, old, lens.CrossParagraphs)
 	if start < 0 {
 		return 0, 0, fmt.Errorf("%s: %w", verb, ErrMisQuote)
 	}

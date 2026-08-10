@@ -24,7 +24,7 @@ func newFinding() *cobra.Command {
 	var severity, likelihood, impact flags.GradeValue
 
 	c := seat.Prose(seat.New("finding",
-		`a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<section + quoted sentence>"`,
+		`a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {
@@ -38,7 +38,7 @@ func newFinding() *cobra.Command {
 			}
 			location := seat.Str(cmd, flags.Location)
 			if strings.TrimSpace(location) == "" {
-				return nil, fmt.Errorf("lens finding requires --location: a section heading plus a quoted sentence to anchor the finding")
+				return nil, fmt.Errorf("lens finding requires --location: the EXACT text you are flagging, quoted from the report and nothing else — it is matched against blue/report.md to place the marker")
 			}
 			// Crash-retry idempotency: a prior finding under this --key returns its
 			// label, no second event AND no second marker (BEFORE any write).
@@ -70,7 +70,7 @@ func newFinding() *cobra.Command {
 				next, err := InsertAnchor(old, location, marker)
 				switch {
 				case errors.Is(err, ErrMisQuote):
-					return nil, fmt.Errorf("lens finding: the quoted content was not found in report.md — quote the EXACT text you are flagging (via --location); check the section and wording")
+					return nil, fmt.Errorf("lens finding: --location was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
 				case errors.Is(err, ErrInFence):
 					return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
 				}
@@ -103,7 +103,7 @@ func newFinding() *cobra.Command {
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
-	c.Flags().String(flags.Location, "", "REQUIRED — where the defect lives: a section heading plus a QUOTED sentence (the exact text from the report; it anchors the finding-marker and is rejected if not found)")
+	c.Flags().String(flags.Location, "", "REQUIRED — the EXACT text you are flagging, quoted from blue/report.md and nothing else. NOT a section heading plus a sentence: this whole string is matched against the report to place the finding-marker, so anything you prepend (a section name, a dash, a pipe) makes it match nothing. Name the section in --reason, where prose belongs")
 	return c
 }
 

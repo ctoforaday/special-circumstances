@@ -163,7 +163,7 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.Definition, "", "what the new class is, in one line")
 	c.Flags().String(flags.Neighbor, "", "the existing class this one sits closest to")
 	c.Flags().String(flags.Distinguisher, "", "the tie-break question that tells the two apart")
-	c.Flags().String(flags.Location, "", "where the defect lives: a section heading plus a quoted sentence")
+	c.Flags().String(flags.Location, "", "where the defect lives: a section heading plus a quoted sentence. Unlike `lens finding --location` this is NOT matched against the report — it is recorded for a reader, so prose is fine here")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	c.Flags().String(flags.FixOld, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact current span you say is wrong (must be present and unique in blue/report.md — a proposal you cannot state legally is one blue cannot apply). Requires --fix-new")

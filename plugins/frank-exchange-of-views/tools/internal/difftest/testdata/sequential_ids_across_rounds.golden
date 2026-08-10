@@ -31,7 +31,41 @@ feov-record: merge: record: spot-check --ids names gap R1-1, which is still OPEN
 $ merge dispute-respond --run {RUN} --seat-id red-merge-r2 --id R1-1 --as rejected --reason the consequence stands
 exit 2
 stderr:
-feov-record: verb "dispute-respond" is outside this seat's role (available: register, mint, close, regrade, spot-check, near-match, position, closing, verdict, friction, show)
+feov-record: verb "dispute-respond" is outside the merge seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+the red merge seat — the board's only writer.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  close       close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
+  closing     a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  friction    attributed friction: --reason
+  mint        mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  near-match  screen a candidate against the board before minting: --candidate "<problem text>" [--location "<section>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
+  position    the round's ### RED section (prose via --reason)
+  register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID>
+  regrade     same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+  spot-check  the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
+  verdict     the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+
+Flags:
+  -h, --help   help for merge
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl

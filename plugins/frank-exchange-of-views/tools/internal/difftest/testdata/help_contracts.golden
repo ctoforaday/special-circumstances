@@ -1,12 +1,15 @@
 $ feov-record 
-exit 0
-stdout:
+exit 2
+stderr:
+feov-record: feov-record: you named no command, so nothing ran. The commands below are the whole surface.
+
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
 A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
+  feov-record [flags]
   feov-record [command]
 
 Available Commands:
@@ -45,6 +48,7 @@ A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
+  feov-record [flags]
   feov-record [command]
 
 Available Commands:
@@ -83,6 +87,7 @@ A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
+  feov-record [flags]
   feov-record [command]
 
 Available Commands:
@@ -127,7 +132,7 @@ Usage:
   feov-record lens [command]
 
 Available Commands:
-  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<section + quoted sentence>"
+  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>"
   friction    attributed friction (survives aborts as an event): --reason
   register    FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>
   reproduce   re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
@@ -197,7 +202,7 @@ Usage:
 
 Available Commands:
   avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
-  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<section + quoted sentence>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
@@ -263,5 +268,41 @@ feov-record version 0.49.0
 $ feov-record nonsuch help
 exit 2
 stderr:
-feov-record: unknown command "nonsuch" for "feov-record"
+feov-record: feov-record: no command named "nonsuch" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  bench        the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
+  blue         blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
+  completion   Generate the autocompletion script for the specified shell
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
+  help         Help about any command
+  hook         PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)
+  lens         red lens seats — findings, observations, citations. Cannot mint or close.
+  merge        the red merge seat — the board's only writer.
+  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  scorecard    print a chair's scorecard for this run (operator; the seat's in-run self-read)
+  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
+  verify       cross-check a run's record against its invariants, and tally it (read-only)
+
+Flags:
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — OPTIONAL: the engine injects it, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+  -v, --version          version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
 
