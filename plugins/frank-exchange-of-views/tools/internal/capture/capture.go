@@ -171,58 +171,29 @@ func TelemetryAudit(runDir string, redRounds int) Audit {
 	return Audit{Check: "telemetry", Verdict: v, Detail: fmt.Sprintf("%d telemetry round(s) vs %d red round(s) on the record", len(rounds), redRounds)}
 }
 
-// ---- AUDIT 2: shard self-report vs files ----
-
-var (
-	reIDLine       = regexp.MustCompile(`R\d+-\d+\s*\|`)
-	reArchiveBlock = regexp.MustCompile(`(?m)^#{1,4}\s+.*R\d+-\d+`)
-)
-
-func ShardAudit(runDir string, results []map[string]any) Audit {
-	ledgerP := filepath.Join(runDir, "red", "ledger.md")
-	archiveP := filepath.Join(runDir, "red", "archive.md")
-	ledgerB, ledgerErr := os.ReadFile(ledgerP)
-	archiveB, archiveErr := os.ReadFile(archiveP)
-	if ledgerErr != nil && archiveErr != nil {
-		return Audit{Check: "shards", Verdict: "SKIP", Detail: "no ledger/archive (pre-sharding run)"}
-	}
-	ledgerCount := 0
-	if ledgerErr == nil {
-		for _, l := range strings.Split(string(ledgerB), "\n") {
-			if reIDLine.MatchString(l) {
-				ledgerCount++
-			}
-		}
-	}
-	archiveCount := 0
-	if archiveErr == nil {
-		archiveCount = len(reArchiveBlock.FindAllString(string(archiveB), -1))
-	}
-	var lastRed map[string]any
-	for i := len(results) - 1; i >= 0; i-- {
-		if _, ok := numOf(results[i]["ledger_closure_lines"]); ok {
-			lastRed = results[i]
-			break
-		}
-		if _, ok := numOf(results[i]["archive_blocks"]); ok {
-			lastRed = results[i]
-			break
-		}
-	}
-	self := "no envelope self-report found in journal"
-	consistent := lastRed == nil
-	if lastRed != nil {
-		self = fmt.Sprintf("self-reported %s/%s", numOrUndefined(lastRed, "ledger_closure_lines"), numOrUndefined(lastRed, "archive_blocks"))
-		lcl, okL := numOf(lastRed["ledger_closure_lines"])
-		ab, okA := numOf(lastRed["archive_blocks"])
-		consistent = okL && okA && int(lcl) == ledgerCount && int(ab) == archiveCount
-	}
-	v := "FAIL"
-	if consistent {
-		v = "PASS"
-	}
-	return Audit{Check: "shards", Verdict: v, Detail: fmt.Sprintf("measured (heuristic) closure-index lines=%d, archive records=%d; %s", ledgerCount, archiveCount, self)}
-}
+// AUDIT 2 IS GONE: "shard self-report vs files".
+//
+// It read red/ledger.md and red/archive.md and compared their line counts against the merge's
+// self-reported ledger_closure_lines / archive_blocks. BOTH SIDES OF THAT COMPARISON ARE GONE —
+// the envelope counts were removed 2026-07-19 for comparing numbers the merge made up (a haiku
+// smoke self-reported archive_blocks: 22 in a round whose true archived count was 0), and the
+// files stopped being written when the ledger and archive became rendered projections.
+//
+// It never said so. With no files it returned SKIP, "no ledger/archive (pre-sharding run)" — a
+// benign, plausible reading, and wrong in the one way that mattered: those were the NEWEST runs.
+// Every 2026-08 capture reports it, and the audit had been measuring nothing for months while
+// reading as an antique politely declining to judge a modern run. Had the files existed, the
+// other half was dead too: no envelope carries those counts, so `lastRed` stays nil and the
+// verdict is a hardcoded PASS.
+//
+// Its unit test passed throughout, because the test WROTE the two files first. That is what kept
+// it looking alive: the only place in the system where those files still existed was the test
+// that proved the audit could read them.
+//
+// The duty it was reaching for is not lost, and is not restored here. It lives where the numbers
+// cannot be authored: record.SpotCheckAudit computes the archive's size at round start by replay,
+// and AttestationAudit reconciles each anchored closure against real tool calls. Both read the
+// board. A self-report has no place on either side of that comparison.
 
 // ---- AUDIT 3: friction parity ----
 
@@ -1058,7 +1029,6 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 
 	audits = []Audit{
 		TelemetryAudit(runDir, redRounds),
-		ShardAudit(runDir, results),
 		FrictionAudit(friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),

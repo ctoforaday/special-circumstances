@@ -118,31 +118,6 @@ func TestTelemetryAudit(t *testing.T) {
 	}
 }
 
-func TestShardAudit(t *testing.T) {
-	ok := fixtureRun(t, 2, 2)
-	results, _ := ReadJournal(filepath.Join(ok, "trajectories"))
-	if got := ShardAudit(ok, results); got.Verdict != "PASS" {
-		t.Errorf("consistent shard self-report: want PASS, got %s (%s)", got.Verdict, got.Detail)
-	}
-	// Envelope claims 2/2 but files hold 3 index lines → divergence FAILs.
-	lying := fixtureRun(t, 3, 2)
-	write(t, filepath.Join(lying, "trajectories", "journal.jsonl"),
-		`{"type":"result","result":{"ledger_closure_lines":2,"archive_blocks":2,"friction":[]}}`+"\n")
-	lr, _ := ReadJournal(filepath.Join(lying, "trajectories"))
-	got := ShardAudit(lying, lr)
-	if got.Verdict != "FAIL" {
-		t.Errorf("divergent self-report: want FAIL, got %s", got.Verdict)
-	}
-	if !strings.Contains(got.Detail, "measured (heuristic)") {
-		t.Errorf("detail should be labeled heuristic: %s", got.Detail)
-	}
-	// Pre-sharding run (no ledger/archive) → SKIP.
-	bare := t.TempDir()
-	if got := ShardAudit(bare, nil).Verdict; got != "SKIP" {
-		t.Errorf("no ledger/archive: want SKIP, got %s", got)
-	}
-}
-
 func TestFrictionAudit(t *testing.T) {
 	env := []string{"red-merge-r1: needed a PDF extractor for X"}
 	if got := FrictionAudit(env, env).Verdict; got != "PASS" {

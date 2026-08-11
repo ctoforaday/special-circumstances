@@ -35,12 +35,21 @@ import (
 // the run appear unseparated to anyone reading the tree.
 var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
 
+// A STUB IS A PROMISE THAT SOMETHING WILL FILL IT. Two here were promises nobody kept:
+// `debate.md` and `red/citation-ledger.md` became rendered projections (`show --view debate`,
+// `--view citation-ledger`) and no writer remained, so setup laid down a one-line husk that
+// survived to capture in every run since. Untouched-but-present is the worst state a file can
+// be in — it reads as an empty artifact rather than an absent one, which is how `red/ledger.md`
+// and `red/archive.md` took a capture audit down with them for months (see internal/capture,
+// AUDIT 2). What is listed below is written by something after setup:
+//
+//	report.md          `bench assemble`
+//	blue/report.md     the round-0 synthesizer, then every `blue edit`
+//	blue/CHANGELOG.md  blue, each round (#251 tracks its retirement)
 var stubs = [][2]string{
-	{"debate.md", "debate.md"},
 	{"report.md", "report.md"},
 	{"blue/report.md", "blue report"},
 	{"blue/CHANGELOG.md", "blue CHANGELOG"},
-	{"red/citation-ledger.md", "red citation-ledger"},
 }
 
 // marshalJSON matches JS `JSON.stringify(x, null, 2) + '\n'`: two-space indent, a

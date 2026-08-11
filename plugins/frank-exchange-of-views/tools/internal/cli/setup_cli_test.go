@@ -130,7 +130,7 @@ func TestSetupCLIArgParsing(t *testing.T) {
 	if r.code != 0 {
 		t.Fatalf("expected exit 0, got %d: %s", r.code, r.stderr)
 	}
-	if !strings.Contains(r.stdout, "skeleton: 5 created") {
+	if !strings.Contains(r.stdout, "skeleton: 3 created") {
 		t.Errorf("summary wrong: %s", r.stdout)
 	}
 	report, _ := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))

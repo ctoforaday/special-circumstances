@@ -407,6 +407,19 @@ import (
 //	       and a run that has recorded nothing yet were all about to become the same zero.
 //	       A stale binary ignores FEOV_RECORD_ROOT and writes into <runDir>/records.
 //
+//	       AND THE MARKDOWN THE RECORD REPLACED IS GONE. `setup` no longer stubs debate.md or
+//	       red/citation-ledger.md: both became rendered projections and their last writer left
+//	       months ago, so setup was laying down a one-line husk that survived to capture in every
+//	       run. An absent file is honest; a husk is a promise nothing keeps.
+//
+//	       Capture's AUDIT 2 ("shard self-report vs files") is DELETED rather than ported. It read
+//	       red/ledger.md and red/archive.md against envelope counts that were themselves removed
+//	       2026-07-19 — both sides of the comparison gone — and reported SKIP, "no ledger/archive
+//	       (pre-sharding run)", on every 2026-08 run. The benign reading of a dead audit. Its unit
+//	       test passed the whole time because the test wrote the two files first.
+//
+//	       A stale binary stubs the husks and prints the shards SKIP line.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
