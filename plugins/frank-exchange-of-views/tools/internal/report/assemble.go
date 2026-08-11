@@ -1024,19 +1024,39 @@ func confidenceSelfAssessment(evs []record.Event) string {
 // missing capability the run hit is a finding about the tooling; surfacing it is how it reaches
 // the human who can retool the seat, instead of dying on an unread channel.
 func frictionLog(evs []record.Event) string {
-	var rows []string
+	var rows, attested []string
 	for _, e := range evs {
-		if e.Type != "friction" {
+		t := strings.TrimSpace(e.Payload.Str("text"))
+		if t == "" {
 			continue
 		}
-		if t := strings.TrimSpace(e.Payload.Str("text")); t != "" {
+		switch e.Type {
+		case "friction":
 			rows = append(rows, fmt.Sprintf("- **%s**: %s", e.SeatID, t))
+		case "friction-none":
+			attested = append(attested, fmt.Sprintf("- **%s**: %s", e.SeatID, t))
 		}
 	}
-	if len(rows) == 0 {
+	if len(rows) == 0 && len(attested) == 0 {
 		return ""
 	}
-	return "## Friction (tooling gaps the run hit)\n\n" + strings.Join(rows, "\n")
+	out := "## Friction (tooling gaps the run hit)\n\n"
+	if len(rows) > 0 {
+		out += strings.Join(rows, "\n") + "\n"
+	} else {
+		out += "No capability gap was reported.\n"
+	}
+	// THE ATTESTATIONS BELONG BESIDE THE COMPLAINTS, and that is the whole point of recording
+	// them. "No friction this run" is worth nothing alone: it reads identically whether the seats
+	// looked and found none or never used the channel, and across eighteen recorded sittings it
+	// was the second every time. A named seat saying what it reached for turns the zero into a
+	// statement someone can be wrong about.
+	if len(attested) > 0 {
+		out += "\n### Seats that reported nothing blocked them\n\n" + strings.Join(attested, "\n") + "\n"
+	} else if len(rows) > 0 {
+		out += "\nNo seat closed the channel explicitly, so the list above is what was volunteered rather than what was met.\n"
+	}
+	return strings.TrimRight(out, "\n")
 }
 
 // revisionHistory is blue's per-round revision record (the CHANGELOG) folded into the report as

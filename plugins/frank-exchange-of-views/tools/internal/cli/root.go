@@ -439,10 +439,36 @@ import (
 //	       A stale binary calls itself feov-record whatever it is named, and answers a mistyped
 //	       command by complaining about its flags.
 //
+//	0.52.0 THE SEAT CAN SEE WHAT IT IS BEING HELD TO, and can say when it cannot. Three reads
+//	       and one write, all from measured seat behaviour across eighteen probed sittings.
+//
+//	       `check_kind` now reaches the board and worklist views. It is the field with teeth —
+//	       `computation` means a gap cannot be closed on prose, only by `blue prove --answers` —
+//	       and it reached no view at all, so the one seat that can satisfy the demand could not
+//	       see which gaps carried it. `prove` was invoked ZERO times in eighteen dispatches on
+//	       boards built to demand it; one seat summed twelve integers in its own reasoning,
+//	       wrote the answer, and was satisfied. The gate fired correctly at the merge's close,
+//	       one seat and one round too late to matter.
+//
+//	       `--view motions` is new, and is the only way to read a motion. An unruled motion
+//	       BLOCKS `verdict --as PASS` and nothing could read what it asked: a blocked merge seat
+//	       searched six views and three help pages, then ruled `rejected` on an argument it had
+//	       never seen. The PASS refusal now names the read.
+//
+//	       `friction --none --reason` records the EXPLICIT NEGATIVE, writing a `friction-none`
+//	       event that the friction view, the report and the audits carry separately. Zero
+//	       friction was recorded across all eighteen sittings, and an empty log cannot say
+//	       whether the run was clean or the channel went unused.
+//
+//	       `register`'s own help stopped telling seats to type `--run` and `--seat-id`, which
+//	       the engine injects and which the tool refuses when they disagree.
+//
+//	       A stale binary hides check_kind, has no motions view, and rejects `--none`.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.51.0"
+const Version = "0.52.0"
 
 func init() { record.ToolVersion = Version }
 

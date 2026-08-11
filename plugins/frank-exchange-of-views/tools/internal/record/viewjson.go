@@ -80,6 +80,17 @@ type GapJSON struct {
 	Problem        string `json:"problem,omitempty"`
 	RequiredFix    string `json:"required_fix,omitempty"`
 	AcceptanceGate string `json:"acceptance_check,omitempty"`
+	// CheckKind says what KIND of evidence settles the acceptance check, and it is the field
+	// with teeth: `computation` means the gap cannot be closed on prose at all — only a
+	// `blue prove --answers <id>` settles it. It lived on the mint event and reached NO view,
+	// so the one seat that can satisfy the demand could not see it existed.
+	//
+	// Measured: `prove` was invoked zero times across eighteen probed seat dispatches, on
+	// boards built to demand it. The arithmetic board's seat summed twelve integers in its own
+	// reasoning, wrote the answer into the report, and was satisfied — the exact failure the
+	// verb exists to prevent. The gate DID fire, correctly and with a good message, at the
+	// merge's close in the following round, by which time blue's sitting was over.
+	CheckKind string `json:"check_kind,omitempty"`
 	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint
 	// from whether fix_old/fix_new validated against the live report — never self-reported —
 	// so blue can tell a remedy red actually checked from one it guessed, and weight its
@@ -151,6 +162,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 			gj.Problem = g.Mint.Str("problem")
 			gj.RequiredFix = g.Mint.Str("required_fix")
 			gj.AcceptanceGate = g.Mint.Str("acceptance_check")
+			gj.CheckKind = g.Mint.Str("check_kind")
 			gj.FixBasis = g.Mint.Str("fix_basis")
 			gj.FixOld = g.Mint.Str("fix_old")
 			gj.FixNew = g.Mint.Str("fix_new")
@@ -276,15 +288,21 @@ type WorklistJSON struct {
 // prose — required_fix and acceptance_check stay on the board (--view board / ledger) for the
 // seat that opens the gap; the worklist is for scanning the open set, not re-deriving it.
 type WorklistGapJSON struct {
-	ID              string   `json:"id"`
-	Severity        any      `json:"severity"`
-	Likelihood      any      `json:"likelihood"`
-	Impact          any      `json:"impact"`
-	ComplexityCost  any      `json:"complexity_cost"`
-	Class           string   `json:"class,omitempty"`
-	Location        string   `json:"location,omitempty"`
-	ProblemSynopsis string   `json:"problem_synopsis,omitempty"`
-	FoundBy         []string `json:"found_by,omitempty"`
+	ID              string `json:"id"`
+	Severity        any    `json:"severity"`
+	Likelihood      any    `json:"likelihood"`
+	Impact          any    `json:"impact"`
+	ComplexityCost  any    `json:"complexity_cost"`
+	Class           string `json:"class,omitempty"`
+	Location        string `json:"location,omitempty"`
+	ProblemSynopsis string `json:"problem_synopsis,omitempty"`
+	// CheckKind rides the worklist too, though nothing else about the acceptance check does.
+	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
+	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
+	// and a seat scanning the open set has to know which of them cannot be answered in prose
+	// before it decides how to spend the sitting.
+	CheckKind string   `json:"check_kind,omitempty"`
+	FoundBy   []string `json:"found_by,omitempty"`
 }
 
 // ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
@@ -330,6 +348,7 @@ func WorklistJSONOf(b *Board) WorklistJSON {
 				wg.Class = g.Mint.Str("class")
 				wg.Location = g.Mint.Str("location")
 				wg.ProblemSynopsis = synopsis(g.Mint.Str("problem"))
+				wg.CheckKind = g.Mint.Str("check_kind")
 				wg.FoundBy = g.Mint.StrList("found_by")
 			}
 			out.Open = append(out.Open, wg)
@@ -437,8 +456,16 @@ func FindingsJSONBytes(runDir string) ([]byte, error) {
 // parsing a markdown/root file, the json-mode move toward the record as the single reader.
 type FrictionJSON struct {
 	Friction []FrictionEntryJSON `json:"friction"`
-	Counts   struct {
+	// NothingBlocked carries the EXPLICIT NEGATIVE — the seats that said, on the record, that
+	// nothing blocked their sitting. An empty friction list alone cannot say this: it reads the
+	// same whether every sitting was clean or the channel went unused for a whole run, and
+	// across eighteen probed dispatches it was the second while looking like the first.
+	NothingBlocked []FrictionEntryJSON `json:"nothing_blocked"`
+	Counts         struct {
 		Total int `json:"total"`
+		// Attested is how many seats made that statement. Total 0 with Attested 0 is a run
+		// nobody has spoken for; Total 0 with Attested 4 is four seats saying they looked.
+		Attested int `json:"attested"`
 	} `json:"counts"`
 }
 
@@ -450,14 +477,17 @@ type FrictionEntryJSON struct {
 
 // FrictionJSONOf projects the record's friction events — from BoardState, never the markdown.
 func FrictionJSONOf(b *Board) FrictionJSON {
-	out := FrictionJSON{Friction: []FrictionEntryJSON{}}
+	out := FrictionJSON{Friction: []FrictionEntryJSON{}, NothingBlocked: []FrictionEntryJSON{}}
 	for _, e := range b.Events {
-		if e.Type != "friction" {
-			continue
+		switch e.Type {
+		case "friction":
+			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
+		case "friction-none":
+			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
 		}
-		out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
 	}
 	out.Counts.Total = len(out.Friction)
+	out.Counts.Attested = len(out.NothingBlocked)
 	return out
 }
 

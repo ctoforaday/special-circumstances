@@ -79,6 +79,23 @@ func RecordsDir(runDir string) (string, error) {
 	}
 	env := strings.TrimSpace(os.Getenv(RecordRootEnv))
 
+	// A POINTER WITHOUT ITS MARKER IS A POINTER TO A RUN THAT NO LONGER EXISTS.
+	//
+	// The binding has two halves: the pointer in the user cache, and the marker in the run
+	// directory. Deleting a run directory removes one and leaves the other, and a NEW run at the
+	// same path then inherits its predecessor's root — which is not a hypothetical: the seat
+	// probe rebuilds nine boards at fixed paths on every invocation, and the second run refused
+	// all nine with a conflict naming two temp directories the operator never chose.
+	//
+	// Re-adopting is right rather than merely convenient. The pointer is a cache; the marker is
+	// on the artifact. When they disagree, the artifact wins.
+	if hasPtr {
+		if _, err := os.Stat(filepath.Join(abs, separatedMarker)); os.IsNotExist(err) {
+			hasPtr = false
+			_ = forgetRootPointer(abs)
+		}
+	}
+
 	switch {
 	case hasPtr && env != "" && !samePath(env, ptr):
 		// Silently preferring either one writes half a run into each root.
@@ -157,10 +174,17 @@ func adoptRoot(absRun, root string) (string, error) {
 	if err := writeRootPointer(absRun, root); err != nil {
 		return "", err
 	}
-	// BEST EFFORT, and it has to be: a read against a read-only run directory must still
-	// resolve. The pointer is the mechanism; the marker is what makes a LOST pointer loud,
-	// so its absence costs a diagnosis, never correctness.
-	_ = os.WriteFile(filepath.Join(absRun, separatedMarker), []byte(markerText), 0o644)
+	// REQUIRED, NOT BEST EFFORT. It was best-effort, on the reasoning that a read against a
+	// read-only run directory should still resolve — but the marker is now load-bearing in both
+	// directions: its ABSENCE is what tells a later resolve that this run directory was deleted
+	// and rebuilt, so a marker that silently failed to write would make every subsequent resolve
+	// re-adopt and hand the run a fresh empty root. Adoption happens at the first write to the
+	// record, so a run directory nobody can write to is not a case worth degrading for.
+	if err := os.WriteFile(filepath.Join(absRun, separatedMarker), []byte(markerText), 0o644); err != nil {
+		return "", fmt.Errorf("record: cannot mark %s as separated (%w) — without the marker a later "+
+			"read cannot tell this run from one whose directory was deleted, and would silently adopt a "+
+			"fresh empty root in place of the record", absRun, err)
+	}
 	return root, nil
 }
 
@@ -203,6 +227,18 @@ func readRootPointer(absRun string) (string, bool, error) {
 		return "", false, fmt.Errorf("record: the record-root pointer at %s is empty — delete it and re-declare %s", p, RecordRootEnv)
 	}
 	return root, true, nil
+}
+
+// forgetRootPointer drops a run's binding. Used when the run directory it named is gone.
+func forgetRootPointer(absRun string) error {
+	p, err := rootPointerPath(absRun)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func writeRootPointer(absRun, root string) error {

@@ -33,17 +33,47 @@ func Register(help string) *cobra.Command {
 	})
 }
 
+// Friction records a capability or protocol complaint — or, with --none, the explicit statement
+// that nothing blocked this sitting.
+//
+// WHY THE EXPLICIT NEGATIVE EXISTS. Across eighteen probed seat dispatches, not one friction
+// event was ever recorded, and "no friction on the record" is equally consistent with a clean
+// sitting and with a seat that hit walls and never used the channel. Those are the same bytes,
+// which is this project's recurring defect and the reason nobody could tell which had happened.
+//
+// It is not that seats were unwilling. Most refusals they met were their OWN errors, correctly
+// read as such — that is not friction and should not be filed. But one seat, blocked by a motion
+// it could not read, reasoned in its own words that no read verb existed, searched ten-plus
+// calls, and then GUESSED rather than reporting it: filing costs a turn and does not unblock,
+// while guessing might. A seat under that pressure needs the report to be a duty it discharges,
+// not an invitation it declines.
+//
+// The shape is `spot-check --none --reason`, already in this tree for the same reason: a duty
+// whose empty case must be ASSERTED rather than inferred from silence.
 func Friction(help string) *cobra.Command {
-	return Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
+	c := Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
+		none, _ := cmd.Flags().GetBool(flags.None)
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
+		}
+		if none {
+			// An empty discharge that does not say what you looked for is indistinguishable
+			// from a skipped duty — the same rule spot-check applies to its own --none.
+			if _, err := record.Append(s.RunDir, s.SeatID, "friction-none", record.NewPayload().Set("text", text)); err != nil {
+				return nil, err
+			}
+			return Msg{Message: "recorded: nothing blocked this sitting"}, nil
 		}
 		if _, err := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", text)); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "friction recorded"}, nil
 	}))
+	c.Flags().Bool(flags.None, false,
+		"nothing blocked this sitting — the EXPLICIT negative, with --reason saying what you reached for and found. "+
+			"Silence cannot say this: an empty friction log reads the same whether the sitting was clean or the channel went unused")
+	return c
 }
 
 func Position(help string) *cobra.Command {
@@ -93,6 +123,7 @@ var views = []struct {
 	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", "merge"},
 	{"worklist", "STRUCTURED JSON: the merge's shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "merge"},
 	{"friction", "STRUCTURED JSON: every friction event on the record (seat, round, text) — capability/protocol complaints as events; read by the dashboard instead of parsing a markdown file", ""},
+	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
 	{"ledger", "the board as markdown, for a human verification pass. Written by `mint`, `close` and `regrade`", ""},
 	{"archive", "closed gaps with their closure records and anchors. Written by `close`", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", "bench"},
@@ -195,12 +226,12 @@ func Show() *cobra.Command {
 				}
 				cmd.OutOrStdout().Write(b)
 				return nil
-			case "board", "findings", "friction", "worklist", "telemetry":
+			case "board", "findings", "friction", "motions", "worklist", "telemetry":
 				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
 			case "":
 				return fmt.Errorf("%s show: --view is required for this role. The projections are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
 			default:
-				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction/worklist are JSON by name)", role, want)
+				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction/motions/worklist are JSON by name)", role, want)
 			}
 		}
 
@@ -229,6 +260,16 @@ func Show() *cobra.Command {
 		// parse. This is the channel that replaced red/candidates/*.md.
 		if want == "findings" {
 			b, err := record.FindingsJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
+		}
+		// motions is JSON by name: a seat reads it to ANSWER a motion, so it needs the filer's
+		// basis as a field rather than prose it must find in a transcript.
+		if want == "motions" {
+			b, err := record.MotionsJSONBytes(runDir)
 			if err != nil {
 				return err
 			}

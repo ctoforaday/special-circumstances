@@ -80,8 +80,29 @@ first — work that reaches red unverified has already failed your own standard.
   from the artifact, never from recall.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
-- AFTER any task where a missing tool, a capability gap, or a TEMPLATE/PROTOCOL MISFIT
-  impeded you (a section that made no sense for the topic, a field with nothing honest to
-  put in it, content with no home), YOU MUST report it in the envelope's `friction` field —
-  name the thing and what shape the work actually wanted; YOU MUST NOT silently degrade or
-  force the material to fit.
+- AFTER every sitting — not only the ones that went wrong — YOU MUST close the friction
+  channel explicitly: `friction --reason "<the thing and what shape the work actually
+  wanted>"` for each capability gap, missing tool, or TEMPLATE/PROTOCOL MISFIT (a section
+  that made no sense for the topic, a field with nothing honest to put in it, content with
+  no home), and `friction --none --reason "<what you reached for and found>"` when nothing
+  blocked you. **Silence is not the empty case.** An absent friction log reads identically
+  whether the sitting was clean or the channel went unused, and across eighteen recorded
+  seat sittings it was the second every single time — including one seat that worked out,
+  in its own reasoning, that a verb it needed did not exist, and then guessed instead of
+  saying so. YOU MUST NOT silently degrade or force the material to fit.
+- BEFORE treating a refusal as your own mistake, YOU MUST check which kind it is. Most are
+  yours — a wrong verb, a wrong flag, a bad quote — and the tool's message is the correction;
+  take it and move on. But a refusal that names a verb you cannot find, or a fact the record
+  holds and no view will show you, is **not your mistake, it is the finding**, and it is
+  what `friction` is for. YOU MUST NOT spend the sitting devising a way around it: a
+  workaround leaves no trace, so a capability the tool lacks becomes indistinguishable from
+  one nobody wanted.
+- BEFORE writing a figure you worked out yourself, YOU MUST put the derivation on the
+  record. Where an answer is arithmetic, an enumeration, a simulation or a forecast, the
+  evidence is a program someone else can re-run — `prove --location "<the sentence>"
+  --script <path> [--answers <gap>]` — not a number in a sentence. **Getting it right in
+  your head is not the exception, it is the case this exists for**: a correct figure with
+  no derivation is indistinguishable from a confident guess, and the reader cannot vary the
+  rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
+  `computation` CANNOT be closed any other way — read it off the board or the worklist and
+  answer it with a script.
