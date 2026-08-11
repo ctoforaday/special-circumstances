@@ -25,7 +25,7 @@ func newCapture() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
-				fmt.Fprintln(cmd.ErrOrStderr(), "usage: feov-record capture <runDir> <workflow-transcript-dir>")
+				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" capture <runDir> <workflow-transcript-dir>")
 				os.Exit(1)
 			}
 			audits, report, exitFail, err := capture.Run(args[0], args[1])

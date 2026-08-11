@@ -10,7 +10,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 // newClaimIndex enumerates where each footnoted claim appears in blue's report —
@@ -41,7 +40,8 @@ func newClaimIndex() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			runDir, _ := cmd.Flags().GetString(flags.Run)
+			// Resolved, so the injected run reaches this read as it does every write.
+			runDir := seat.Of(cmd).RunDir
 			if runDir == "" {
 				runDir = seat.InferRunDir("")
 			}

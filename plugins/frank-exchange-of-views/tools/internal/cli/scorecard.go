@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
@@ -25,11 +26,12 @@ func newScorecard() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			runDir, _ := cmd.Flags().GetString(flags.Run)
+			// Resolved so the injected run reaches reads too, not only writes.
+			runDir := seat.Of(cmd).RunDir
 			chair, _ := cmd.Flags().GetString(flags.Chair)
 			cards := map[string]bool{"blue": true, "red": true, "bench": true}
 			if runDir == "" || !cards[chair] {
-				fmt.Fprintln(cmd.ErrOrStderr(), "usage: feov-record scorecard --run <runDir> --chair blue|red|bench")
+				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" scorecard --run <runDir> --chair blue|red|bench")
 				os.Exit(2)
 			}
 			// A run with no record yet (BoardState errors) leaves board nil — the record-derived

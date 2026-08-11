@@ -235,6 +235,16 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if _, err := seatenv.Resolve(flagRun, nil); err != nil {
 		return Of(cmd), err
 	}
+	// AND THE IDENTITY DISAGREEMENT, which Of's own comment said was refused here and which
+	// nothing refused anywhere. Measured: with FEOV_SEAT=blue-respond-r1 injected, a call
+	// passing --seat-id blue-respond-r9 was ACCEPTED and filed under r9 — a seat no dispatch
+	// ever created, carrying its own register event and its own shard. Attribution is the one
+	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
+	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
+	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
+	if _, err := seatenv.ResolveSeat(seatFlag, record.RoundOf); err != nil {
+		return Of(cmd), err
+	}
 	s := Of(cmd)
 	if s.RunDir == "" {
 		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")

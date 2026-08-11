@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -104,4 +106,76 @@ func trim(s string) string {
 		return s[:600] + "\n…"
 	}
 	return s
+}
+
+// THE WRONG COMMAND IS ANSWERED BEFORE THE WRONG FLAG.
+//
+// Cobra parses flags before deciding a command is unknown, so `show --view board` reported
+// `unknown flag: --view` — naming the one thing the caller had right, and sending a seat hunting
+// through view names instead of learning the role prefix it was missing.
+//
+// This is the most common failure a real seat hits. Across nine probed seats: 9 of 21 non-zero
+// exits were this message, and SIX OF NINE produced it on their first tool call.
+func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
+	root := newRoot()
+	for _, tc := range []struct {
+		name string
+		argv []string
+		want string
+	}{
+		// The measured slip: `show` is per-role, and the concept "show the board" carries no role.
+		{"real flags on a command that does not exist", []string{"feov-record", "show", "--run", "/x", "--view", "board"}, "no command named \"show\""},
+		{"no flags at all", []string{"feov-record", "show"}, "no command named \"show\""},
+		{"a command that does exist is left to cobra", []string{"feov-record", "blue", "--nonsuch"}, ""},
+		{"a bare flag is left to cobra", []string{"feov-record", "--version"}, ""},
+		{"help is left to cobra", []string{"feov-record", "--help"}, ""},
+		{"no arguments at all", []string{"feov-record"}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := refuseUnknownCommandFirst(root, tc.argv)
+			switch {
+			case tc.want == "" && err != nil:
+				t.Fatalf("refused %v, which it must leave alone: %v", tc.argv[1:], err)
+			case tc.want == "":
+				return
+			case err == nil:
+				t.Fatalf("%v was not refused — cobra answers it with a flag error naming the "+
+					"one part the caller had right", tc.argv[1:])
+			case !strings.Contains(err.Error(), tc.want):
+				t.Fatalf("refusal does not name the command: %v", err)
+			}
+			// The refusal must carry the surface, or it teaches nothing: this is the moment a
+			// seat is definitively looking for what exists.
+			if !strings.Contains(err.Error(), "blue") || !strings.Contains(err.Error(), "merge") {
+				t.Errorf("the refusal does not list the commands that DO exist:\n%v", err)
+			}
+		})
+	}
+}
+
+// The tool names itself by what it was actually invoked as. It used to claim "feov-record"
+// unconditionally — a statement about the filesystem it is in no position to make, and the seat
+// probe builds the binary under another name, so every refusal a probed seat read named a
+// program that did not exist on that machine.
+func TestTheToolNamesItselfByArgv0(t *testing.T) {
+	orig := os.Args
+	defer func() { os.Args = orig }()
+
+	// PATHS ARE BUILT NATIVE, because filepath.Base splits on the separator of the platform it
+	// runs on — and it is RIGHT not to split a backslash on Linux, where that is an ordinary
+	// character in a filename. A literal Windows path in this table passed on Windows and failed
+	// on Linux: the test being wrong about portability, not the code being wrong about paths.
+	for _, tc := range []struct{ argv0, want string }{
+		{filepath.Join("C:", "tools", "fxr.exe"), "fxr"},
+		{filepath.Join("usr", "local", "bin", "fxr"), "fxr"},
+		{filepath.Join("opt", "bin", "feov-record"), "feov-record"},
+		{filepath.Join("p", "feov-record.EXE"), "feov-record"}, // the extension match is case-insensitive
+		{"feov-record", "feov-record"},                         // bare, no directory at all
+		{"", "feov-record"},                                    // argv[0] can be empty; a name beats none
+	} {
+		os.Args = []string{tc.argv0}
+		if got := InvokedAs(); got != tc.want {
+			t.Errorf("InvokedAs() for %q = %q, want %q", tc.argv0, got, tc.want)
+		}
+	}
 }

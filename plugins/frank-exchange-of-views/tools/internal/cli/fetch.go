@@ -35,7 +35,8 @@ func newFetch() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			runDir, _ := cmd.Flags().GetString(flags.Run)
+			// Resolved so the injected run reaches reads too, not only writes.
+			runDir := seat.Of(cmd).RunDir
 			if runDir == "" {
 				runDir = seat.InferRunDir("")
 			}

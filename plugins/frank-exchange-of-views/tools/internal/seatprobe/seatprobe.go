@@ -251,7 +251,10 @@ func substituteFor(c *Choices, want string) string {
 
 // Report renders the whole picture for an operator: what each seat chose, what it left, and which
 // expectations went unmet.
-func Report(sf Surface, runDir string, seats []string, expect []Expectation) (string, error) {
+// Report renders the choice report. attempts maps seat id -> verb -> count, read from the
+// trajectory by Attempted; pass nil when no trajectory was captured, and the report says so
+// rather than presenting a record-only count as the whole picture.
+func Report(sf Surface, runDir string, seats []string, expect []Expectation, attempts map[string]map[string]int) (string, error) {
 	var b strings.Builder
 	b.WriteString("# Seat choice report\n\nWhich verbs each seat REACHED FOR, of those its role offers.\n\n")
 	for _, s := range seats {
@@ -259,15 +262,50 @@ func Report(sf Surface, runDir string, seats []string, expect []Expectation) (st
 		if err != nil {
 			return "", err
 		}
+		att := attempts[s]
+		// REACHED FOR = recorded OR invoked. A read leaves no event and a refusal leaves no
+		// event, so a record-only count reports both as verbs the seat never touched — which is
+		// exactly what it did, for `show`, on all nine boards of the first separated run.
+		reached := map[string]bool{}
+		for v := range c.Used {
+			reached[v] = true
+		}
+		for v := range att {
+			reached[v] = true
+		}
 		total := len(sf.Verbs(c.Role))
-		fmt.Fprintf(&b, "## %s (%s) — used %d of %d\n\n", s, c.Role, total-len(c.Unused), total)
+		fmt.Fprintf(&b, "## %s (%s) — reached for %d of %d\n\n", s, c.Role, len(reached), total)
+
 		var used []string
 		for v, n := range c.Used {
 			used = append(used, fmt.Sprintf("%s×%d", v, n))
 		}
 		sort.Strings(used)
-		fmt.Fprintf(&b, "- used: %s\n", strings.Join(used, ", "))
-		fmt.Fprintf(&b, "- NEVER REACHED: %s\n", strings.Join(c.Unused, ", "))
+		fmt.Fprintf(&b, "- recorded: %s\n", strings.Join(used, ", "))
+
+		// Invoked but absent from the record: a read (`show`), or a call the tool REFUSED. Both
+		// read as untouched before, and the second is a defect this package exists to find.
+		var only []string
+		for v, n := range att {
+			if _, recorded := c.Used[v]; !recorded {
+				only = append(only, fmt.Sprintf("%s×%d", v, n))
+			}
+		}
+		sort.Strings(only)
+		switch {
+		case attempts == nil:
+			b.WriteString("- invoked-but-unrecorded: NOT MEASURED (no trajectory) — reads and refusals are invisible here\n")
+		case len(only) > 0:
+			fmt.Fprintf(&b, "- invoked, no event (a read, or a refusal): %s\n", strings.Join(only, ", "))
+		}
+
+		var never []string
+		for _, v := range c.Unused {
+			if _, tried := att[v]; !tried {
+				never = append(never, v)
+			}
+		}
+		fmt.Fprintf(&b, "- NEVER REACHED: %s\n", strings.Join(never, ", "))
 		if len(c.Friction) > 0 {
 			fmt.Fprintf(&b, "- friction (%d): %s\n", len(c.Friction), strings.Join(c.Friction, " · "))
 		} else {

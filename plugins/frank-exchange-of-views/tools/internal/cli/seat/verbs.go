@@ -157,7 +157,12 @@ func Show() *cobra.Command {
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
 		role := roleOf(cmd)
-		runDir := Str(cmd, flags.Run)
+		// RESOLVED, NOT READ OFF THE FLAG. The engine injects FEOV_RUN and every WRITE verb
+		// honours it through Begin/Of — reads did not, so a seat that correctly omitted --run
+		// could record all round and then be told its board did not exist. Measured with the
+		// identity injected: register, friction and revision all succeeded; `show` and
+		// `claim-index` demanded the flag.
+		runDir := Of(cmd).RunDir
 		if runDir == "" {
 			return fmt.Errorf("%s: --run <runDir> is required", role)
 		}
