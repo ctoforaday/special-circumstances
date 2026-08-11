@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -159,16 +160,22 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 func TestTheToolNamesItselfByArgv0(t *testing.T) {
 	orig := os.Args
 	defer func() { os.Args = orig }()
-	for argv0, want := range map[string]string{
-		`C:\tools\fxr.exe`:     "fxr",
-		"/usr/local/bin/fxr":   "fxr",
-		"/opt/bin/feov-record": "feov-record",
-		`C:\p\feov-record.EXE`: "feov-record",
-		"":                     "feov-record", // argv[0] can be empty; a name beats none
+
+	// PATHS ARE BUILT NATIVE, because filepath.Base splits on the separator of the platform it
+	// runs on — and it is RIGHT not to split a backslash on Linux, where that is an ordinary
+	// character in a filename. A literal Windows path in this table passed on Windows and failed
+	// on Linux: the test being wrong about portability, not the code being wrong about paths.
+	for _, tc := range []struct{ argv0, want string }{
+		{filepath.Join("C:", "tools", "fxr.exe"), "fxr"},
+		{filepath.Join("usr", "local", "bin", "fxr"), "fxr"},
+		{filepath.Join("opt", "bin", "feov-record"), "feov-record"},
+		{filepath.Join("p", "feov-record.EXE"), "feov-record"}, // the extension match is case-insensitive
+		{"feov-record", "feov-record"},                         // bare, no directory at all
+		{"", "feov-record"},                                    // argv[0] can be empty; a name beats none
 	} {
-		os.Args = []string{argv0}
-		if got := InvokedAs(); got != want {
-			t.Errorf("InvokedAs() for %q = %q, want %q", argv0, got, want)
+		os.Args = []string{tc.argv0}
+		if got := InvokedAs(); got != tc.want {
+			t.Errorf("InvokedAs() for %q = %q, want %q", tc.argv0, got, tc.want)
 		}
 	}
 }
