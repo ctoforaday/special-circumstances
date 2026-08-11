@@ -91,6 +91,9 @@ for plugin_dir in "$cache_root"/*/*/; do
   mkdir -p "$plugin_dir/bin"
   for cmd_dir in "$tools"/cmd/*/; do
     name="$(basename "$cmd_dir")"
+    # A development harness that Go's internal-package rule forces to live here. The marker
+    # is the single fact; scripts/pluginparity reads the same one for its count.
+    [ -f "$cmd_dir/DEV-ONLY" ] && continue
     go build -C "$tools" -o "$plugin_dir/bin/$name" "./cmd/$name" \
       || warn "build failed: $name" &
   done

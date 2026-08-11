@@ -123,7 +123,7 @@ func main() {
 	}
 	dirs := 0
 	for _, d := range cmdDirs {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() && !devOnly(d) {
 			dirs++
 		}
 	}
@@ -152,7 +152,7 @@ func main() {
 		}
 		onDisk := map[string]bool{}
 		for _, d := range cmdDirs {
-			if fi, err := os.Stat(d); err == nil && fi.IsDir() &&
+			if fi, err := os.Stat(d); err == nil && fi.IsDir() && !devOnly(d) &&
 				strings.Contains(filepath.ToSlash(d), "plugins/"+plugin+"/") {
 				onDisk[filepath.Base(d)] = true
 			}
@@ -192,6 +192,18 @@ func contains(h []string, n string) bool {
 // plugin's _hook_binaries list. sc-doctor is an operator command, not a hook; it is
 // provisioned the same way and is called out in the manifest's own comment.
 func documentedException(name string) bool { return name == "sc-doctor" }
+
+// devOnly reports whether a cmd/ directory is a development harness rather than a shipped
+// binary, by the marker the BUILD script reads for the same decision.
+//
+// The marker rather than a name list here, and this check is the reason why: it exists because
+// the documented count went stale twice and the _hook_binaries manifest twice more. A list of
+// exempt names living in this file would be a third hand-maintained copy of the same fact,
+// kept by the same hands that let the first two drift.
+func devOnly(cmdDir string) bool {
+	_, err := os.Stat(filepath.Join(cmdDir, "DEV-ONLY"))
+	return err == nil
+}
 
 // manifestsOf lists a filename under every plugin, repo-relative.
 func manifestsOf(root, name string) []string {

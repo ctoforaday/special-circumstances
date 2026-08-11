@@ -39,6 +39,11 @@ authoritative file — read it with `show --view <name>` and never from disk.
 ```
 research/<date>_<slug>/
 ├── records/           # THE EVENT LOG — the source of truth; one append-only shard per seat
+│                      # (MAY live outside the run entirely; a `.records-elsewhere` note appears
+│                      #  here instead. Nothing changes for a seat, because a seat reads the
+│                      #  record with `show --view <name>` and never from disk — which is the
+│                      #  point: a run can be configured so that is the ONLY way, and then a
+│                      #  missing verb has to surface as friction instead of a workaround)
 ├── report.md          # final deliverable — assembled LAST, by union (authored)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/

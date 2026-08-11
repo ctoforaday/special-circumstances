@@ -224,7 +224,10 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))
-	fmt.Fprintln(stdout, "  NOT created (red-merge-born): red/ledger.md, red/archive.md, trajectories/board-telemetry.jsonl")
+	// "red-merge-born" was true when the merge wrote those files. It stopped being true, and the
+	// line went on implying a writer would arrive — the same promise the husk stubs made.
+	fmt.Fprintln(stdout, "  NOT created (rendered from the record on read, never materialized): the ledger,")
+	fmt.Fprintln(stdout, "  archive, debate transcript, citation ledger and board telemetry — `show --view <name>`")
 	if pinned.Written {
 		fmt.Fprintf(stdout, "  pinned: HEAD %s + %d cited path(s)\n", head, len(cfg.Cites))
 	} else {

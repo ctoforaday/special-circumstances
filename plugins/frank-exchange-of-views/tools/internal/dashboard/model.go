@@ -262,7 +262,11 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 	// board, not an error, when the dir is absent).
 	friction := Friction{Count: -1}
 	shards := Shards{OpenBySeverity: map[string]int{}, Findings: -1, Citations: -1}
-	if _, statErr := os.Stat(filepath.Join(runDir, "records")); statErr == nil {
+	// Resolution failure lands in the same arm as "no record yet", and here that is RIGHT: both
+	// mean the tiles have nothing truthful to show, and "unavailable" is what this branch already
+	// exists to render. It is a dashboard — the loud version of the diagnosis belongs to the tool.
+	recDir, recErr := record.RecordsDir(runDir)
+	if _, statErr := os.Stat(recDir); recErr == nil && statErr == nil {
 		if board, err := record.BoardState(runDir); err == nil {
 			bj := record.BoardJSONOf(board)
 			fj := record.FindingsJSONOf(board)

@@ -53,14 +53,17 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-func recordsDir(runDir string) string { return filepath.Join(runDir, "records") }
-
-func pointerPath(runDir, seatID string) string {
-	return filepath.Join(recordsDir(runDir), ".active-"+seatID)
+// The path helpers take an ALREADY-RESOLVED record directory rather than a run directory.
+// Resolution can fail (see RecordsDir), and a helper that cannot report that failure would have
+// to fall back to <runDir>/records — writing a separated run's events into the very directory
+// the separation exists to keep them out of, silently. So the resolve happens once, at each
+// public entry point, where there is an error to return.
+func pointerPath(recDir, seatID string) string {
+	return filepath.Join(recDir, ".active-"+seatID)
 }
 
-func shardPath(runDir, seatID, nonce string) string {
-	return filepath.Join(recordsDir(runDir), fmt.Sprintf("events-%s-%s.jsonl", seatID, nonce))
+func shardPath(recDir, seatID, nonce string) string {
+	return filepath.Join(recDir, fmt.Sprintf("events-%s-%s.jsonl", seatID, nonce))
 }
 
 var roundRe = regexp.MustCompile(`-r(\d+)`)
@@ -152,28 +155,34 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
-	if err := os.MkdirAll(recordsDir(runDir), 0o755); err != nil {
+	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
+	// resolving here means the root is bound (and its pointer written) before any event exists.
+	recDir, err := RecordsDir(runDir)
+	if err != nil {
+		return "", "", err
+	}
+	if err := os.MkdirAll(recDir, 0o755); err != nil {
 		return "", "", err
 	}
 	nonce = nonceFn()
 	// The pointer is a shared surface (two racing registers): lock per seatId.
 	var writeErr error
-	withLock(runDir, "ptr-"+seatID, func() {
+	withLock(recDir, "ptr-"+seatID, func() {
 		// The pointer decides which shard every later verb writes to, so it is
 		// durable-written like the shards themselves: a half-written pointer would
 		// send a resumed seat to a shard that does not exist.
-		writeErr = durableWrite(pointerPath(runDir, seatID), []byte(nonce), pointerPath(runDir, seatID)+".tmp")
+		writeErr = durableWrite(pointerPath(recDir, seatID), []byte(nonce), pointerPath(recDir, seatID)+".tmp")
 	})
 	if writeErr != nil {
 		return "", "", writeErr
 	}
-	shard = shardPath(runDir, seatID, nonce)
+	shard = shardPath(recDir, seatID, nonce)
 	// tool_version is stamped on the seat's FIRST act (R2g.2). The
 	// never-update-mid-run rule stands, but a run that somehow mixes binaries now
 	// says so in its own record instead of producing events whose difference
 	// nobody can explain afterwards.
 	ev := Event{
-		Seq: 0, TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
+		Seq: 0, TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
 		Type: "register", Key: seatID + ":register:" + nonce,
 		Payload: NewPayload().Set("tool_version", ToolVersion),
 	}
@@ -185,8 +194,8 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 
 // activeNonce reads the seat pointer, implicitly registering when absent —
 // deliberately tolerant, matching the oracle.
-func activeNonce(runDir, seatID string) (string, error) {
-	b, err := os.ReadFile(pointerPath(runDir, seatID))
+func activeNonce(runDir, recDir, seatID string) (string, error) {
+	b, err := os.ReadFile(pointerPath(recDir, seatID))
 	if err != nil {
 		if os.IsNotExist(err) {
 			n, _, rerr := RegisterSeat(runDir, seatID)
@@ -278,11 +287,11 @@ const stampLayout = "2006-01-02T15:04:05.000000000Z"
 // taken, or the clock file is unreadable or corrupt, fall back to the raw clock. That
 // degrades to the previous behaviour — ties possible, tiebreak by (SeatID, Seq) — rather
 // than failing an append. An event is never lost to bookkeeping.
-func nextStamp(runDir string) string {
+func nextStamp(recDir string) string {
 	var out string
-	withLock(runDir, "clock", func() {
+	withLock(recDir, "clock", func() {
 		now := Now()
-		p := filepath.Join(recordsDir(runDir), ".clock")
+		p := filepath.Join(recDir, ".clock")
 		if b, err := os.ReadFile(p); err == nil {
 			if prev, err := time.Parse(stampLayout, strings.TrimSpace(string(b))); err == nil && !now.After(prev) {
 				now = prev.Add(time.Nanosecond)
@@ -305,11 +314,15 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 	if p == nil {
 		p = NewPayload()
 	}
-	nonce, err := activeNonce(runDir, seatID)
+	recDir, err := RecordsDir(runDir)
 	if err != nil {
 		return Event{}, err
 	}
-	shard := shardPath(runDir, seatID, nonce)
+	nonce, err := activeNonce(runDir, recDir, seatID)
+	if err != nil {
+		return Event{}, err
+	}
+	shard := shardPath(recDir, seatID, nonce)
 	events, err := ReadShard(shard)
 	if err != nil {
 		return Event{}, err
@@ -326,7 +339,7 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 		return Event{}, err
 	}
 	ev := Event{
-		Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
+		Seq: len(events), TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
 		Type: typ, Key: deriveKey(seatID, typ, p, events), Payload: p,
 	}
 	if err := appendLine(shard, ev); err != nil {
