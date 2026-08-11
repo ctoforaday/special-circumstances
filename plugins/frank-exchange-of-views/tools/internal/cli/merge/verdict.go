@@ -60,7 +60,10 @@ func checkpoint(runDir string) (string, error) {
 	if err := os.MkdirAll(mirror, 0o755); err != nil {
 		return "", err
 	}
-	src := filepath.Join(runDir, "records")
+	src, err := record.RecordsDir(runDir)
+	if err != nil {
+		return "", err
+	}
 	if _, err := os.Stat(src); err == nil {
 		if err := copyDir(src, mirror); err != nil {
 			return "", err

@@ -449,7 +449,13 @@ func verbOf(t string) string {
 }
 
 func RecordJoinAudit(runDir, transcriptDir string, agentFiles []string) Audit {
-	recDir := filepath.Join(runDir, "records")
+	// A RUN WHOSE RECORD CANNOT BE RESOLVED IS NOT A PRE-RECORD RUN. The SKIP below says "this
+	// run predates the record tool" — an accurate, benign reading that a separated run with a
+	// lost root would silently borrow, retiring the join audit on exactly the runs it exists for.
+	recDir, err := record.RecordsDir(runDir)
+	if err != nil {
+		return Audit{Check: "record-join", Verdict: "FAIL", Detail: err.Error()}
+	}
 	entries, err := os.ReadDir(recDir)
 	if err != nil {
 		return Audit{Check: "record-join", Verdict: "SKIP", Detail: "no records/ (pre-record-tool run)"}

@@ -22,11 +22,18 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // dirs and stubs mirror the mjs constants exactly. friction.md is deliberately
 // absent (friction lives on the record); ledger/archive/telemetry are red-merge-born.
-var dirs = []string{"blue/candidates", "red", "trajectories", "inputs", "records"}
+//
+// `records` is NOT in this list — it is created at its RESOLVED location by BuildSkeleton,
+// because a separated run must not be handed an empty records/ in the run directory. An empty
+// one is worse than none: it shows up in the seat's listing as the place to look, and it makes
+// the run appear unseparated to anyone reading the tree.
+var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
 
 var stubs = [][2]string{
 	{"debate.md", "debate.md"},
@@ -65,6 +72,11 @@ func BuildSkeleton(runDir, topic string) SkeletonResult {
 	res := SkeletonResult{Created: []string{}, Skipped: []string{}}
 	for _, d := range dirs {
 		os.MkdirAll(filepath.Join(runDir, d), 0o755)
+	}
+	// Resolution failure is not fatal to a skeleton: setup's job is to lay out a directory, and
+	// the first record verb reports an unreachable root far better than a half-built run does.
+	if recDir, err := record.RecordsDir(runDir); err == nil {
+		os.MkdirAll(recDir, 0o755)
 	}
 	for _, s := range stubs {
 		rel, name := s[0], s[1]
@@ -682,9 +694,18 @@ func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
 	if json.Unmarshal(b, &reg) != nil || len(reg.Classes) == 0 {
 		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — `--class` will accept ANY string this run (#299)"}
 	}
-	dst := filepath.Join(runDir, "records", "class-registry.json")
+	// RESOLVED, NOT JOINED — and this is the same bug as the one documented above, one
+	// separation later. `loadRegistry` reads the record directory the RESOLVER returns; a
+	// hard-wired <runDir>/records here would stage the registry where a separated run never
+	// looks, `validateClass` would take its advisory branch again, and `--class` would go back
+	// to accepting any string on exactly the runs the seat probe is built to measure.
+	recDir, err := record.RecordsDir(runDir)
+	if err != nil {
+		return MirrorResult{Written: false, Reason: "cannot resolve the record directory: " + err.Error()}
+	}
+	dst := filepath.Join(recDir, "class-registry.json")
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return MirrorResult{Written: false, Reason: "cannot create records/: " + err.Error()}
+		return MirrorResult{Written: false, Reason: "cannot create the record directory: " + err.Error()}
 	}
 	if err := os.WriteFile(dst, b, 0o644); err != nil {
 		return MirrorResult{Written: false, Reason: "cannot stage the registry: " + err.Error()}

@@ -31,6 +31,18 @@
 // a seat and a hand-written artifact, and their quality is only visible when the reader is not
 // clever enough to paper over it. Haiku is the instrument, not the subject.
 //
+// # The record leaves the run directory
+//
+// By default each board's event record is written OUTSIDE the run, so the only way to the board
+// is `show --view <name>`. Without that the measurement is uninterpretable: the first dispatch
+// used 5 of 18 verbs, and the trajectory showed why — the seat never called `show` at all, it
+// ran `ls` and parsed records/*.jsonl itself. "The surface failed to teach" and "the seat found
+// a shortcut and never needed teaching" produce the same number and want opposite fixes.
+//
+// It is not a sandbox (see internal/record/recordroot.go) — Bash reaches anything. It moves the
+// record off the CHEAP path, which is sized to the measured failure: satisficing, not evasion.
+// `-records-in-run` restores the old layout as a control arm.
+//
 // # It reports; it does not gate
 //
 // Agent behaviour is not deterministic and a flaky gate is one the next person turns off. The
@@ -58,6 +70,7 @@ import (
 	"sync"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
@@ -71,6 +84,7 @@ func main() {
 		parallel   = flag.Int("parallel", 2, "how many boards to run at once")
 		reportOnly = flag.Bool("report-only", false, "skip build and dispatch; report on what is already there")
 		keep       = flag.Bool("keep", false, "keep an existing board directory instead of rebuilding it")
+		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
 	)
 	flag.Parse()
 
@@ -109,7 +123,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, surface)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, surface)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				return
@@ -127,7 +141,7 @@ func main() {
 	}
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep bool, surface seatprobe.Surface) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun bool, surface seatprobe.Surface) (string, error) {
 	if !reportOnly {
 		if !keep {
 			if err := os.RemoveAll(runDir); err != nil {
@@ -137,8 +151,33 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		if err := os.MkdirAll(runDir, 0o755); err != nil {
 			return "", err
 		}
+		// THE RECORD LEAVES THE RUN DIRECTORY, and that is what makes the probe's number mean
+		// something. On the first dispatch the seat never called `show` — it ran `ls` and parsed
+		// records/*.jsonl directly, so "used 5 of 18 verbs" was uninterpretable: it could mean the
+		// surface failed to teach, or that the seat found a shortcut and never needed teaching.
+		// Those want opposite fixes. With the record elsewhere, a seat that cannot find a verb has
+		// two exits — find it, or file friction — and both of those are signal.
+		//
+		// A TEMP ROOT, NOT A SIBLING OF THE RUN. `ls ..` is one keystroke.
+		recordRoot := ""
+		if !recordsInRun {
+			r, err := os.MkdirTemp("", "feov-records-")
+			if err != nil {
+				return "", err
+			}
+			recordRoot = r
+			if !keep {
+				defer os.RemoveAll(recordRoot)
+			}
+		}
 		run := func(args ...string) (string, error) {
 			cmd := exec.Command(bin, args...)
+			// Declared on the BUILD calls only. By the time the seat runs, the run is bound to
+			// its root by a pointer, so the seat's own process carries nothing — `env` in its
+			// Bash session names no record path.
+			if recordRoot != "" {
+				cmd.Env = append(os.Environ(), record.RecordRootEnv+"="+recordRoot)
+			}
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				return string(out), fmt.Errorf("%s: %s", strings.Join(args[:min(3, len(args))], " "), strings.TrimSpace(string(out)))

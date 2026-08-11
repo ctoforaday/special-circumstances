@@ -389,10 +389,28 @@ import (
 //	       `motion direction rule`'s ruling now reaches `--view lines-of-inquiry` — until this
 //	       version a direction ruled through the new verb read as a line nobody had ruled on.
 //
+//	0.50.0 THE RECORD CAN LIVE OUTSIDE THE RUN DIRECTORY. Every path to a run's events now goes
+//	       through record.RecordsDir instead of joining <runDir>/records, and FEOV_RECORD_ROOT
+//	       declares a root elsewhere — bound to the run by a pointer, so concurrent runs in one
+//	       process resolve independently and nothing after the first write needs the variable.
+//	       Default behaviour is unchanged; a run that never declares a root never notices.
+//
+//	       WHY: a seat with filesystem access to its own record does not need the tool. Measured
+//	       on the first seat-probe dispatch — the seat never called `show`, it ran `ls` and parsed
+//	       records/*.jsonl, so every teaching surface on the read path (view descriptions, enum
+//	       menus, refusals that name the verb you meant) reached nobody. The cost is not the
+//	       bypass: it is that a seat which cannot find a verb reads the record, proceeds, and
+//	       writes NOTHING, leaving a capability the surface failed to teach indistinguishable
+//	       from one no seat wanted.
+//
+//	       An unreachable root is an ERROR, never an empty board — a lost pointer, a deleted root
+//	       and a run that has recorded nothing yet were all about to become the same zero.
+//	       A stale binary ignores FEOV_RECORD_ROOT and writes into <runDir>/records.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.49.0"
+const Version = "0.50.0"
 
 func init() { record.ToolVersion = Version }
 

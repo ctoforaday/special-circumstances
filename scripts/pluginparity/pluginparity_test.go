@@ -63,3 +63,44 @@ func TestAlwaysOnImportParity(t *testing.T) {
 		})
 	}
 }
+
+// A dev-only cmd/ directory is skipped by TWO readers — this checker's shipped-binary count and
+// the cold-bootstrap build loop — and they must skip the same ones. Nothing makes that true by
+// construction: they are a Go program and a shell script reading one marker by agreement.
+//
+// The failure if they drift is silent in the direction that matters. Bootstrap stops honouring
+// the marker and every consumer quietly gains a binary that shells out to the `claude` CLI and
+// reads this repo's agents/; the count still agrees, the check still passes, and the only
+// symptom is a stray executable nobody looks at.
+func TestDevOnlyMarkerIsHonouredByBothReaders(t *testing.T) {
+	dir := t.TempDir()
+	if devOnly(dir) {
+		t.Fatal("an ordinary cmd/ directory was treated as dev-only — it would stop shipping")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "DEV-ONLY"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !devOnly(dir) {
+		t.Fatal("the marker was ignored: a development harness would ship to every consumer")
+	}
+
+	// The build script is the other reader. It cannot be called from here, so what is checked
+	// is that it still consults the same marker at all.
+	b, err := os.ReadFile(filepath.Join("..", "bootstrap-plugins.sh"))
+	if err != nil {
+		t.Fatalf("cannot read the bootstrap script: %v", err)
+	}
+	if !strings.Contains(string(b), "DEV-ONLY") {
+		t.Fatal("bootstrap-plugins.sh no longer skips DEV-ONLY directories, so a cold bootstrap " +
+			"builds a development harness into every consumer's plugin bin while this checker, " +
+			"which excludes it from the count, goes on agreeing with the documented number")
+	}
+
+	// And the marker has to be on something: a marker nothing carries is a check that passes
+	// by describing an empty set, which is how this class of guard usually dies.
+	hits, _ := filepath.Glob(filepath.Join("..", "..", "plugins", "*", "tools", "cmd", "*", "DEV-ONLY"))
+	if len(hits) == 0 {
+		t.Fatal("no cmd/ directory carries a DEV-ONLY marker — if the last dev harness was " +
+			"promoted or deleted, delete this mechanism too rather than leaving it passing vacuously")
+	}
+}

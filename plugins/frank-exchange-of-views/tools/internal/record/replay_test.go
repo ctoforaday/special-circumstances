@@ -21,10 +21,10 @@ import (
 // multi-nonce and torn-file situations a crash produces.
 func writeShard(t *testing.T, runDir, seatID, nonce string, evs []Event) string {
 	t.Helper()
-	if err := os.MkdirAll(recordsDir(runDir), 0o755); err != nil {
+	if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	p := shardPath(runDir, seatID, nonce)
+	p := shardPath(recordsDirT(runDir), seatID, nonce)
 	var b strings.Builder
 	for _, ev := range evs {
 		line, err := marshalEvent(ev)
@@ -291,12 +291,12 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 	}
 
 	runDir := t.TempDir()
-	if err := os.MkdirAll(recordsDir(runDir), 0o755); err != nil {
+	if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	// Files that are not shards must be ignored, not parsed.
 	for _, name := range []string{"ledger.md", ".lock-render", "class-registry.json", "events-bad.jsonl", "events-x-nothex.jsonl"} {
-		if err := os.WriteFile(filepath.Join(recordsDir(runDir), name), []byte("{}"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(recordsDirT(runDir), name), []byte("{}"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -805,10 +805,10 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 func TestValidateClassRegistry(t *testing.T) {
 	writeRegistry := func(t *testing.T, runDir string, body string) {
 		t.Helper()
-		if err := os.MkdirAll(recordsDir(runDir), 0o755); err != nil {
+		if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(recordsDir(runDir), "class-registry.json"), []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(recordsDirT(runDir), "class-registry.json"), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

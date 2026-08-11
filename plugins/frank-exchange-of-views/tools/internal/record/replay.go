@@ -89,7 +89,14 @@ type Merged struct {
 var shardRe = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)
 
 func MergedEvents(runDir string) (Merged, error) {
-	dir := recordsDir(runDir)
+	// A RESOLUTION FAILURE IS NOT AN EMPTY RUN. The IsNotExist arm below is the honest zero —
+	// a run that exists and has recorded nothing yet — and it is exactly what an unreachable
+	// separated record would otherwise be flattened into. RecordsDir refuses instead, so the
+	// two stay distinguishable here, where every board projection begins.
+	dir, err := RecordsDir(runDir)
+	if err != nil {
+		return Merged{}, err
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -485,8 +492,15 @@ type classRegistry struct {
 	Classes []registryClass `json:"classes"`
 }
 
+// loadRegistry degrades to advisory mode on ANY failure to read, resolution included: an
+// unreachable record root already fails loudly at MergedEvents, which every caller of this
+// reaches first, so erroring twice would only make the diagnosis harder to read.
 func loadRegistry(runDir string) *classRegistry {
-	p := filepath.Join(recordsDir(runDir), "class-registry.json")
+	recDir, err := RecordsDir(runDir)
+	if err != nil {
+		return nil
+	}
+	p := filepath.Join(recDir, "class-registry.json")
 	b, err := os.ReadFile(p)
 	if err != nil {
 		return nil

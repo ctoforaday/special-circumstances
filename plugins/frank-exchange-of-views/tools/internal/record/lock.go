@@ -43,9 +43,12 @@ const lockWait = 5 * time.Second
 // rather than serving out its own bounded wait.
 var heldFlocks sync.Map // *flock.Flock -> struct{}
 
-func withLock(runDir, name string, fn func()) {
-	os.MkdirAll(recordsDir(runDir), 0o755)
-	fl := flock.New(filepath.Join(recordsDir(runDir), ".lock-"+name))
+// withLock takes the RESOLVED record directory. The lock files live beside the shards they
+// guard, so a separated run must lock in the separated root — locking under the run directory
+// would leave concurrent seats guarding a path neither of them writes.
+func withLock(recDir, name string, fn func()) {
+	os.MkdirAll(recDir, 0o755)
+	fl := flock.New(filepath.Join(recDir, ".lock-"+name))
 
 	ctx, cancel := context.WithTimeout(context.Background(), lockWait)
 	defer cancel()
