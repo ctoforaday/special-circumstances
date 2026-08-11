@@ -31,7 +31,7 @@ func newDashboard() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
-				fmt.Fprintln(cmd.ErrOrStderr(), "usage: feov-record dashboard <runDir> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]")
+				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" dashboard <runDir> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]")
 				os.Exit(1)
 			}
 			runDir, transcriptDir := args[0], args[1]

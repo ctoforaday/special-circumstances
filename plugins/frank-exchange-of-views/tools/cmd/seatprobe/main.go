@@ -71,6 +71,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
@@ -141,6 +142,16 @@ func main() {
 	}
 }
 
+// trajectoryPath keeps the capture OUT of the run directory.
+//
+// It used to be written to <runDir>/probe-trajectory.jsonl, where the seat can read it — and one
+// did: the docket seat found the harness's own recording of the docket seat and tried to execute
+// it, producing 149 "command not found" lines in a single turn. A probe that leaves its
+// instrument inside the thing it measures is measuring itself.
+func trajectoryPath(runDir string) string {
+	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
+}
+
 func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun bool, surface seatprobe.Surface) (string, error) {
 	if !reportOnly {
 		if !keep {
@@ -192,13 +203,28 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		}
 	}
 
-	report, err := seatprobe.Report(surface, runDir, []string{b.Seat}, b.Expect)
+	// The record answers what LANDED; the trajectory answers what the seat REACHED FOR. Reads
+	// and refusals live only in the second, and counting from the record alone reported both as
+	// verbs the seat never touched.
+	attempts := map[string]map[string]int{}
+	role := ""
+	for _, s := range seatprobe.Seats {
+		if s.ID == b.Seat {
+			role = s.Role
+		}
+	}
+	if a, err := seatprobe.Attempted(trajectoryPath(runDir), filepath.Base(bin), surface, role); err == nil {
+		attempts[b.Seat] = a
+	} else {
+		attempts = nil // NOT MEASURED, and the report says so rather than counting zero
+	}
+	report, err := seatprobe.Report(surface, runDir, []string{b.Seat}, b.Expect, attempts)
 	if err != nil {
 		return "", err
 	}
 	// The reasoning, where the seat produced any. It is the half a record cannot hold: the record
 	// says which verb was taken, and this says what the seat was weighing when it chose.
-	if t := readThinking(runDir); t != "" {
+	if t := readThinking(trajectoryPath(runDir)); t != "" {
 		report += "\n### What the seat was reasoning about\n\n" + t + "\n"
 	}
 	return report, nil
@@ -222,8 +248,8 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string) error {
 
 	prompt := fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
 
-Run directory: %s — use this ABSOLUTE path in every command.
-The record tool is %s. Pass --run <the run directory> and --seat-id %s on every invocation.
+Run directory: %s — use this ABSOLUTE path when you read files under it.
+The record tool is %s. Your identity and run are INJECTED (%s): do not pass --run or --seat-id.
 
 Read the board and the artifact under audit, then do your sitting's work. Decide and act; do not ask me what to do.
 
@@ -241,6 +267,22 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	}
 	cmd := exec.Command("claude", args...)
 	cmd.Dir = runDir
+	// THE IDENTITY IS INJECTED, BECAUSE THAT IS WHAT PRODUCTION DOES. The PreToolUse hook
+	// prefixes a seat's feov-record calls with FEOV_RUN, and #348 extended the same treatment to
+	// identity — ResolveSeat prefers the injected seat over --seat-id and REFUSES a flag that
+	// disagrees, because "omitting --seat-id is correct and always right".
+	//
+	// The probe does not load the plugin's hooks, so without this it was telling seats to type
+	// both on every call: a HARDER surface than any real run presents, and every mistyped path
+	// or seat id it measured was friction production had already designed away.
+	cmd.Env = append(os.Environ(),
+		seatenv.Var+"="+runDir,
+		seatenv.SeatVar+"="+b.Seat,
+		// Every board is a single round-1 sitting. Injected rather than inferred: the regex
+		// fallback over a seat id cannot tell "round 0" from "no round in this name", which is
+		// the defect #348 put this variable here to end.
+		seatenv.RoundVar+"=1",
+	)
 	// STDIN IS CLOSED EXPLICITLY. Without it the CLI waits three seconds for piped input and
 	// warns, on every dispatch, which in a parallel run is noise that reads like a fault.
 	devNull, err := os.Open(os.DevNull)
@@ -250,7 +292,7 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	defer devNull.Close()
 	cmd.Stdin = devNull
 
-	out, err := os.Create(filepath.Join(runDir, "probe-trajectory.jsonl"))
+	out, err := os.Create(trajectoryPath(runDir))
 	if err != nil {
 		return err
 	}
@@ -294,8 +336,8 @@ func constitutionFor(role, dir string) (string, error) {
 // Thinking is ADAPTIVE on current models: the seat decides per turn whether to reason visibly, so
 // an empty result means it did not think out loud, NOT that the capture failed. Said here because
 // the two look identical from the outside and this whole package exists to stop that confusion.
-func readThinking(runDir string) string {
-	f, err := os.Open(filepath.Join(runDir, "probe-trajectory.jsonl"))
+func readThinking(path string) string {
+	f, err := os.Open(path)
 	if err != nil {
 		return ""
 	}

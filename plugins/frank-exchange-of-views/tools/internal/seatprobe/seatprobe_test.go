@@ -142,7 +142,7 @@ func TestNoFrictionIsNotReportedAsACleanBoard(t *testing.T) {
 	}{
 		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("text", "n")},
 	})
-	out, err := Report(surface(), runDir, []string{"blue-respond-r1"}, nil)
+	out, err := Report(surface(), runDir, []string{"blue-respond-r1"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
@@ -27,7 +26,8 @@ func newAssemble() *cobra.Command {
 		SilenceUsage: true,
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
-		runDir := seat.Str(cmd, flags.Run)
+		// Resolved, so the injected run reaches this read as it does every write.
+		runDir := seat.Of(cmd).RunDir
 		if runDir == "" {
 			return fmt.Errorf("bench assemble: --run <runDir> is required")
 		}

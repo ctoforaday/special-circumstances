@@ -11,6 +11,8 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -420,18 +422,61 @@ import (
 //
 //	       A stale binary stubs the husks and prints the shards SKIP line.
 //
+//	0.51.0 THE REFUSAL NAMES THE RIGHT THING. Two fixes, both about the one channel a seat
+//	       actually learns the surface through — measured across nine probed seats, where a seat
+//	       reads `--help` once or twice in 20-39 tool calls and meets refusals constantly.
+//
+//	       (1) The tool names itself by argv[0] rather than the constant "feov-record", which was
+//	       a claim about the filesystem it cannot make. The seat probe builds the binary under
+//	       another name, so every refusal a probed seat read named a program not on that machine.
+//
+//	       (2) An unknown COMMAND is answered before an unknown flag on it. Cobra parses flags
+//	       first, so `show --view board` reported `unknown flag: --view` — naming the one part the
+//	       caller had right, and sending the seat hunting through view names instead of learning
+//	       that `show` is per-role. It was the single most common failure: 9 of 21 non-zero exits,
+//	       and SIX OF NINE seats produced it on their FIRST tool call.
+//
+//	       A stale binary calls itself feov-record whatever it is named, and answers a mistyped
+//	       command by complaining about its flags.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.50.0"
+const Version = "0.51.0"
 
 func init() { record.ToolVersion = Version }
 
+// InvokedAs is the name this binary was actually run under, and every place the tool names
+// ITSELF uses it: the usage line, the refusals, the "did you mean" lists.
+//
+// It was the constant "feov-record", which is a claim about the filesystem the tool is in no
+// position to make. The seat probe caught it — the harness builds the binary as fxr.exe, a seat
+// typed a command wrong, and the refusal came back speaking about a `feov-record` that does not
+// exist anywhere on that machine. A seat has exactly one way to learn the surface (the refusal)
+// and the refusal was naming a different program.
+//
+// THE BASENAME, NOT THE FULL PATH, and the choice is measured rather than assumed. The full path
+// would make every example directly runnable, which is tempting — but the golden help contracts
+// are captured from a binary built into a temp directory, so a full path would make them
+// machine-dependent, and across nine probed seats not one ever typed a bare name copied out of
+// help: they all use the absolute path their prompt gives them. The copy-paste win is worth
+// nothing here and the determinism is worth a great deal.
+func InvokedAs() string {
+	n := filepath.Base(os.Args[0])
+	if ext := filepath.Ext(n); strings.EqualFold(ext, ".exe") {
+		n = n[:len(n)-len(ext)]
+	}
+	if n == "" || n == "." || n == string(filepath.Separator) {
+		return "feov-record" // argv[0] can be empty; a name is better than none
+	}
+	return n
+}
+
 func newRoot() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "feov-record",
+		Use:   InvokedAs(),
 		Short: "the seat-side record runtime (the verb set IS the role boundary)",
-		Long: `feov-record — the seat-side record runtime (the verb set IS the role boundary)
+		Long: InvokedAs() + ` — the seat-side record runtime (the verb set IS the role boundary)
 
 A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.`,
@@ -491,16 +536,67 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	return root
 }
 
+// refuseUnknownCommandFirst answers the WRONG COMMAND before cobra can answer the wrong flag.
+//
+// Cobra parses flags before it decides a command is unknown, so `show --view board` reported
+// `unknown flag: --view` — naming the one thing the caller had right. The flag is fine; it just
+// belongs to `blue show`, `merge show`, `lens show` or `bench show`. A seat reading that goes
+// hunting through view names and never meets the refusal that would have taught it the role
+// prefix, which inverts the whole point of a teaching refusal.
+//
+// MEASURED, and it is the single most common failure a seat hits: across nine probed seats,
+// 9 of 21 non-zero exits were this message, and SIX OF NINE SEATS produced it on their FIRST
+// tool call — the moment a seat is orienting and least able to spare a wasted turn. `show` is
+// per-role while the concept ("show the board") carries no role, so dropping the prefix is the
+// natural slip rather than a careless one.
+//
+// IT INSPECTS os.Args[1] AND NOTHING ELSE. Scanning for the first non-flag token would misread
+// a flag's VALUE as a command name (`--model haiku ...` would nominate "haiku"), and matching on
+// cobra's error text would make this depend on the shape of a string another library owns —
+// which is the failure mode this repo keeps finding. Position 1 cannot be a flag value, because
+// nothing precedes it.
+func refuseUnknownCommandFirst(root *cobra.Command, argv []string) error {
+	if len(argv) < 2 {
+		return nil
+	}
+	// COBRA BUILDS PART OF ITS OWN SURFACE DURING Execute, and refusing before that showed the
+	// seat a SMALLER surface than the one that exists: `help`, `completion`, `--help` and
+	// `--version` were all missing from the list. The golden caught it — a refusal that lists
+	// less than the tool has is a worse lie than the flag error this replaces, because it reads
+	// as authoritative.
+	root.InitDefaultHelpCmd()
+	root.InitDefaultCompletionCmd()
+	root.InitDefaultHelpFlag()
+	root.InitDefaultVersionFlag()
+
+	name := argv[1]
+	if name == "" || strings.HasPrefix(name, "-") {
+		return nil // a flag, or help/version: cobra's own handling is right for those
+	}
+	for _, c := range root.Commands() {
+		if c.Name() == name || c.HasAlias(name) {
+			return nil
+		}
+	}
+	return seat.RefuseAndTeach(root, fmt.Sprintf(
+		"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", name))
+}
+
 // Execute runs the CLI. Abort-safety is armed first: a seat killed mid-command
 // must lose an event, never leave a torn one or a stuck lock.
 func Execute() {
 	defer record.InstallSignalGuard()()
 
-	if err := newRoot().Execute(); err != nil {
+	root := newRoot()
+	if err := refuseUnknownCommandFirst(root, os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
+		os.Exit(2)
+	}
+	if err := root.Execute(); err != nil {
 		// Errors print bare, without cobra's usage dump: a validation refusal here
 		// is a TEACHING message a seat reads and acts on, and burying it under a
 		// flag listing is how it stops being read.
-		fmt.Fprintf(os.Stderr, "feov-record: %v\n", err)
+		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
 		os.Exit(2)
 	}
 }

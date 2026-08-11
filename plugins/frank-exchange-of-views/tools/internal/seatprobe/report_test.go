@@ -23,7 +23,7 @@ func TestSeatChoiceReport(t *testing.T) {
 	if !ok {
 		t.Fatalf("no board %q — set FEOV_PROBE_BOARD to one of the declared boards", name)
 	}
-	out, err := Report(surface(), runDir, []string{board.Seat}, board.Expect)
+	out, err := Report(surface(), runDir, []string{board.Seat}, board.Expect, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
