@@ -147,7 +147,6 @@ func TestRenderChairFormat(t *testing.T) {
 	rows := []Row{
 		{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Value: 0.5, Joint: "reads WITH red rigour"},
 		{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic", Value: objJSON(`{"pursued":2,"abandoned":1}`)},
-		{Clause: "Calibration is craft", Metric: "confidence_vs_survival", Cls: "benchmark", Note: "BLOCKED"},
 	}
 	out := RenderChair("blue", rows, "this run")
 	for _, want := range []string{
@@ -155,7 +154,6 @@ func TestRenderChairFormat(t *testing.T) {
 		"- `repair_regression_ratio` [benchmark] — Durable repairs: **0.5**",
 		"  - reads WITH red rigour",
 		"- `lines_of_inquiry` [diagnostic] — Alternatives explored: **{\"pursued\":2,\"abandoned\":1}**",
-		"- `confidence_vs_survival` [benchmark] — Calibration is craft: _not computed_ — BLOCKED",
 		"HEADLINE: repair_regression_ratio 0.5 [BENCHMARK] · lines_of_inquiry {\"pursued\":2,\"abandoned\":1} [DIAGNOSTIC]",
 	} {
 		if !strings.Contains(out, want) {

@@ -744,6 +744,18 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if p.Str("statement") == "" {
 			return fmt.Errorf("record: certify requires --reason (what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity)")
 		}
+	case "outcome":
+		// THE RUN'S TERMINAL ACT, and it carried no reasoning at all until a bench seat reached
+		// for --reason, found nothing, and filed the absence as friction (#375). Enforcement is
+		// HERE rather than in the cobra verb because validate is the single write path: a
+		// requirement the CLI holds and the record does not is one every other caller skips.
+		//
+		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
+		// where a run ended by judged deadlock nothing else records it — DeriveVerdict says so
+		// itself, that the determination "is not on the record (#289)".
+		if p.Str("prose") == "" {
+			return fmt.Errorf("record: outcome requires --reason (how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have)")
+		}
 	case "opinion":
 		if err := requireGap(runDir, p.Str("gap_id"), "opinion", "--id"); err != nil {
 			return err

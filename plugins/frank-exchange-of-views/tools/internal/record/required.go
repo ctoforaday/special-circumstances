@@ -43,6 +43,10 @@ var RequiredFields = map[string][]string{
 	"opinion": {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
 	"halt":    {"opinion"},
 	"certify": {"statement"},
+	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
+	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
+	// ENDED is not, and on a judged deadlock nothing else records it.
+	"outcome": {"prose"},
 }
 
 // THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its

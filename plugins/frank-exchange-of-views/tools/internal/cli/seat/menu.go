@@ -73,10 +73,45 @@ func RefuseAndTeach(c *cobra.Command, wrong string) error {
 }
 
 // RefuseUnknownVerb is "that verb is not yours", diagnosed then taught.
+// RefuseUnknownVerb answers a verb this role does not have — saying WHICH of the two cases it is.
+//
+// The message used to assert "it exists in this tool but not for you" unconditionally, which is
+// a claim about the rest of the tool that the function never checked. Caught by deleting a verb:
+// every call to the retired `blue confidence` came back insisting the verb existed somewhere,
+// and a seat reading that would go looking for a role that had it. A wrong-seat error and a
+// deleted capability want opposite responses from the seat — one is "use the right role", the
+// other is "this is gone, record friction if you needed it" — so the refusal has to know which
+// it is rather than guessing the flattering one.
 func RefuseUnknownVerb(c *cobra.Command, role, attempted string) error {
+	if elsewhere := roleWithVerb(c, attempted); elsewhere != "" {
+		return RefuseAndTeach(c, fmt.Sprintf(
+			"verb %q is outside the %s seat's role — it exists, on the %s seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.",
+			attempted, role, elsewhere))
+	}
 	return RefuseAndTeach(c, fmt.Sprintf(
-		"verb %q is outside the %s seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.",
-		attempted, role))
+		"no verb %q exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason \"...\"` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.",
+		attempted))
+}
+
+// roleWithVerb finds the sibling role that DOES have this verb, or "" when nothing does. It walks
+// the live tree from the root rather than a list, so a verb added or deleted anywhere is answered
+// correctly without anyone remembering to update this.
+func roleWithVerb(c *cobra.Command, verb string) string {
+	root := c
+	for root.Parent() != nil {
+		root = root.Parent()
+	}
+	for _, role := range root.Commands() {
+		if role == c {
+			continue
+		}
+		for _, v := range role.Commands() {
+			if v.Name() == verb || v.HasAlias(verb) {
+				return role.Name()
+			}
+		}
+	}
+	return ""
 }
 
 // RequireVerb is a role invoked with no verb at all.

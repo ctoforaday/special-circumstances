@@ -1,8 +1,8 @@
-prompt sha256: b9bedf57879ee61d297ddd9384578b145eeb0259cc10da4dab28ef069a05abc3
+prompt sha256: f9da4283dac68e405604952dc29b457af41b2a8bce715fc367ab36cc697418e4
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
-CITATION LEDGER: read the citation ledger first via "/opt/feov/bin/feov-record" lens show --run research/2026-01-01_golden --view citation-ledger (the tool renders it from cite events on the record); a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
+CITATION LEDGER: read the citation ledger first via "/opt/feov/bin/feov-record" lens show --run research/2026-01-01_golden show citation-ledger (the tool renders it from cite events on the record); a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
 RECORD every claim you verify — "/opt/feov/bin/feov-record" lens verify --run research/2026-01-01_golden --seat-id <your seat-id> --claim "<the quoted claim>" --reference "<the source>" --trust high|medium|low --access-date <YYYY-MM-DD>; the tool renders the ledger from these events, so never hand-write citation-ledger.md.
 THE VERB IS `verify`, NOT `cite`: blue's `cite` ATTACHES a source to a claim it is authoring, yours RECORDS THAT YOU CHECKED ONE.
 They shared an event type until #341, and the count of "citations checked" you copy into your envelope silently included blue's authored citations whenever one lacked a label.
@@ -28,11 +28,11 @@ YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open dock
 It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
 Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
 SEAT_ID: red-lens-r1-L1.
-THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritative, not "under test"): every board act happens through "/opt/feov/bin/feov-record" lens, and the tool's board — read it back with `lens show --view board` (structured JSON) — is the ONLY source of truth for status.
+THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritative, not "under test"): every board act happens through "/opt/feov/bin/feov-record" lens, and the tool's board — read it back with `lens show board` (structured JSON) — is the ONLY source of truth for status.
 FIRST ACTION: "/opt/feov/bin/feov-record" lens register --run research/2026-01-01_golden --seat-id red-lens-r1-L1 — then the matching verb for each act.
 YOUR CONTRACT IS `feov-record lens --help` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you.
 READ THAT LIST BEFORE YOUR FIRST ACT, EVERY SITTING — do NOT work from memory, and do NOT assume a verb is named after the thing it writes.
-MEASURED: a seat read the projection "--view lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "avenue".
+MEASURED: a seat read the projection "show lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "avenue".
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
 The projection names, this prompt's words for a concept, and the verb that writes it are three different vocabularies and they do not always agree — the help is the only authoritative one, and "show --help" now names the writing verb for every view.
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.

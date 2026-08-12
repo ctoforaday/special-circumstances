@@ -34,21 +34,21 @@ one is a hard refusal. Write for the reader; put what the machinery depends on i
 ## The run directory (the blackboard)
 
 **The tool is the read path.** Where a line below says RECORD, that artifact has no
-authoritative file — read it with `show --view <name>` and never from disk.
+authoritative file — read it with `show <name>` and never from disk — `show` is a GROUP, so `show --help` lists every projection.
 
 ```
 research/<date>_<slug>/
 ├── records/           # THE EVENT LOG — the source of truth; one append-only shard per seat
 │                      # (MAY live outside the run entirely; a `.records-elsewhere` note appears
 │                      #  here instead. Nothing changes for a seat, because a seat reads the
-│                      #  record with `show --view <name>` and never from disk — which is the
+│                      #  record with `show <name>` and never from disk — which is the
 │                      #  point: a run can be configured so that is the ONLY way, and then a
 │                      #  missing verb has to surface as friction instead of a workaround)
 ├── report.md          # final deliverable — assembled LAST, by union (authored)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
 │                      # (frontier.md is GONE — the opening hypotheses are AVENUES on the record;
-│                      #  read them with `show --view lines-of-inquiry`. A hypothesis in a file is
+│                      #  read them with `show lines-of-inquiry`. A hypothesis in a file is
 │                      #  one red cannot rule too-thin or out-of-scope, and the round-0 ones shape
 │                      #  the whole run)
 │   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
@@ -58,19 +58,19 @@ research/<date>_<slug>/
 └── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
 
 RECORD — no file; read through the tool:
-  --view board      open gaps with full grading
-  --view ledger     status: open gaps + the compact closure index (id | class | summary | supersedes)
-  --view archive    immutable closed prose; read on demand (near-match, chain rulings, spot-checks),
+  show board      open gaps with full grading
+  show ledger     status: open gaps + the compact closure index (id | class | summary | supersedes)
+  show archive    immutable closed prose; read on demand (near-match, chain rulings, spot-checks),
                     never resident in the default merge/judge read
-  --view findings   lens findings (candidate FILES were retired — findings are events)
-  --view citation-ledger   verified citations don't un-verify: claim | reference | confidence | round | date
-  --view friction   capability complaints (the pre-tool friction.md was retired 2026-07-19)
-  --view changes    the diff stack: what red prescribed, what blue applied, and the decline rate
-  --view lines-of-inquiry   the avenues, their hypotheses, and their fates
-  --view debate     the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
+  show findings   lens findings (candidate FILES were retired — findings are events)
+  show citation-ledger   verified citations don't un-verify: claim | reference | confidence | round | date
+  show friction   capability complaints (the pre-tool friction.md was retired 2026-07-19)
+  show changes    the diff stack: what red prescribed, what blue applied, and the decline rate
+  show lines-of-inquiry   the avenues, their hypotheses, and their fates
+  show debate     the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
                     ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the bench
                     rules on the closings, the transcript, and the final artifact state only)
-  --view telemetry  JSONL, one line per round: open count, max severity, mass under the pinned
+  show telemetry  JSONL, one line per round: open count, max severity, mass under the pinned
                     mapping, new mints by severity AND BY CLASS with the class repeat rate,
                     repair-regression ratio, edge deltas. The SIGNAL the stopping judgment
                     reads — a series, never a snapshot
@@ -82,13 +82,13 @@ trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
 `setup` lays down a few empty stubs so a human opening a fresh run sees the shape. **A stub
 is not an artifact**: measured in the 2026-08-05 run, `debate.md` finished at 36 bytes and
 `red/citation-ledger.md` at 46 while the record held 122 events. Reading either from disk
-returns the plausible zero. Read them with `--view`.
+returns the plausible zero. Read them with `show <name>`.
 
 **Termination is judged, and the standing practice is stop-and-resume**: `maxRounds` is a cost
 ceiling, never the terminator of record. Red owns PASS/FAIL — *is it defensible*. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
 against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
-reads `--view telemetry` and files a reasoned, cost-stated opinion; the operator acts on it,
+reads `show telemetry` and files a reasoned, cost-stated opinion; the operator acts on it,
 stopping a run past its value and resuming with a reduced `maxRounds` for the honest UNVERIFIED
 assembly — cache replay makes the stop ~$0 (measured). **Stopping is not passing**: the verdict
 stays UNVERIFIED with the open count stated. Automatic severity-floor termination was evaluated
@@ -139,4 +139,4 @@ A subagent's only voice is its return value — so capability complaints travel 
 - AFTER any task where a missing tool, denied permission, or capability gap impeded you, YOU MUST report it in the envelope's `friction` field: name the capability and what you would have done with it.
 - AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
 - YOU MUST NOT silently work around a capability gap — the workaround destroys the signal that would get you retooled.
-- Friction is recorded on the RECORD via the friction verb (read via `show --view friction`); capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
+- Friction is recorded on the RECORD via the friction verb (read via `show friction`); capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

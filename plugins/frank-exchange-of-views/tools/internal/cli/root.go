@@ -465,10 +465,113 @@ import (
 //
 //	       A stale binary hides check_kind, has no motions view, and rejects `--none`.
 //
+//	0.53.0 --reason IS THE RULE, AND A DEBT IS NOT A PROPERTY.
+//
+//	       `bench outcome` now REQUIRES --reason, enforced in validate like every other claim or
+//	       judgment act — it was simply missing from that list, which is how a bench seat came to
+//	       reach for it, find nothing, and file the absence as friction (#375). The verdict itself
+//	       is derived; how the SITTING ended is not, and where a run ends by judged deadlock
+//	       nothing else records it at all (DeriveVerdict says so: that determination "is not on
+//	       the record", #289). The derivation's own reasoning is recorded too — it was computed on
+//	       every call and used only to phrase an error, so the report stamped a verdict it could
+//	       not explain.
+//
+//	       `awaiting_proof` rides the board and the worklist: an OPEN computation gap no proof
+//	       answers, stated as a DEBT rather than as a property. Projecting `check_kind` in 0.52.0
+//	       was necessary and not sufficient — `prove` went from 0 uses across eighteen sittings to
+//	       1 across nine, because a seat reading "check_kind: computation" learns a fact about the
+//	       gap and not that it owes a program. `blue revision`, the last act of a sitting, now
+//	       names what is still owed; it REPORTS rather than refuses, because a seat that thinks
+//	       the demand is wrong has no verb to contest a check_kind and a gate would trap it.
+//
+//	       A stale binary accepts an outcome with no account and shows no debt.
+//
+//	0.54.0 `blue confidence` IS DELETED — verb, event, renderers, enum, flag and clause.
+//
+//	       Archaeology, because the name outlived the design. The plan specified confidence as a
+//	       FIELD on RED's corroboration, per statement↔reference pair: "for each statement ↔
+//	       reference pair it assigns a confidence that the source actually corroborates the
+//	       statement". That shipped, and is `lens verify --trust` — renamed precisely because
+//	       "blue's confidence is its self-grade on a claim, and one word for two questions is how
+//	       the two came to share an event type".
+//
+//	       What carried the name was a different act: blue grading blue's own claims. It set no
+//	       grade, entered no risk matrix, and the calibration computation that would have given it
+//	       meaning was specified, never built, and blocked on data only its own use would produce.
+//	       change-waves.md records both halves — "per-claim confidence has a verb but no
+//	       calibration computation", and elsewhere names it the thing to avoid becoming: "the next
+//	       `confidence self-graded` dead letter".
+//
+//	       DELETED RATHER THAN DUAL-READ. The retirement precedent (0.49.0) keeps reading a
+//	       vocabulary it replaced, because a record is permanent and consumers' runs are invisible
+//	       to this plugin. That reasoning does not hold here: this verb has no replacement to read
+//	       INTO, and no run outside this repo's own tests ever used it. An abandoned idea kept
+//	       alive in the files is one the next reader has to rule out.
+//
+//	       Also: a wrong-verb refusal now says WHICH case it is. It asserted "it exists in this
+//	       tool but not for you" unconditionally — a claim about the rest of the tool it never
+//	       checked — so every call to the deleted verb insisted it existed somewhere and sent the
+//	       seat looking for a role that had it.
+//
+//	       A stale binary still offers the verb and writes an event nothing renders.
+//
+//	0.55.0 A SEAT CAN SEE ITS OWN PENDING WORK, AND WHETHER IT IS FINISHED — on the read it
+//	       already does first, with no new command.
+//
+//	       `--view worklist` carries a `sitting` block: every outstanding duty, the ways to
+//	       discharge each, and `complete`. Every role now defaults to it. They did not: blue's
+//	       bare `show` returned `changelog` — a record of what blue had ALREADY done, handed to
+//	       it before it had done anything — the lens got `citation-ledger`, the bench `debate`.
+//	       Three views also claimed the merge's default and the LAST one silently won, because
+//	       the resolution loop kept overwriting; it takes the first match now.
+//
+//	       WHY: asked what would tell them a sitting was finished, only the merge could name a
+//	       mechanism — "the `verdict` command either succeeds or fails; if it fails the tool tells
+//	       me what's blocking closure". Blue and the bench answered with another seat's future act
+//	       ("red agrees it's sound"), which is not observable at the moment they must decide to
+//	       stop. A seat whose completion condition is someone else's next move cannot know it is
+//	       done; it can only stop and hand over.
+//
+//	       The duties are only ones already enforced or recorded elsewhere — open gaps and unruled
+//	       motions (which refuse `verdict`), an unanswered computation demand (which refuses
+//	       `close`), the round record, the friction channel. A duty invented here would make this
+//	       view disagree with the gates. Each names the WAYS OUT rather than one way: a seat
+//	       handed a single answer takes it and never weighs the alternative, and for a computation
+//	       demand the alternative — arguing the demand is wrong — is a legitimate move.
+//
+//	       `confidence_vs_survival` is removed from blue's scorecard: it reported "BLOCKED until
+//	       per-claim confidence records exist" on every run for a year, waiting on the verb
+//	       deleted in 0.54.0 for that exact circularity.
+//
+//	       A stale binary answers a bare `show` with whatever its role's old default was.
+//
+//	0.56.0 `show` IS A GROUP. `show --view <name>` became `show <name>`.
+//
+//	       Cobra models commands and flags, never a flag's VALUE space — the same
+//	       undiscoverability the motion collapse fixed one layer up. Every projection's
+//	       description had to be crammed into one usage string, with no --help of its own and no
+//	       completion. Making --view optional in 0.55.0 made it worse rather than better: a seat
+//	       now had no reason to discover the flag at all.
+//
+//	       As subcommands each projection is first-class, an unknown one gets the refusal that
+//	       lists the whole set, and a bare `show` still answers with the seat's pending work.
+//	       --view is retired; there is one way to name a projection.
+//
+//	       `changelog` is DELETED. The prompt gate found it: "named NOWHERE a seat can read" —
+//	       blue's own revision events, rendered for nobody, while the report already composes the
+//	       revision history and `changes` carries the diff stack red actually reads.
+//
+//	       CommandPaths now counts a runnable GROUP as a path, but only where its bare form is a
+//	       capability rather than a refusal. Runnable alone was the wrong test and the coverage
+//	       gate said so immediately: the role groups and motion subjects are runnable too, and all
+//	       they do is answer "a verb is required".
+//
+//	       A stale binary takes --view and does not answer `show <name>`.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.52.0"
+const Version = "0.56.0"
 
 func init() { record.ToolVersion = Version }
 

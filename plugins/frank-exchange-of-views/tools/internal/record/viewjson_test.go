@@ -64,9 +64,6 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "R1-1" || r1.RedClosings[0].Text != "red closes r1" {
 		t.Errorf("round 1 RedClosings = %+v", r1.RedClosings)
 	}
-	if len(r1.Confidence) != 1 || r1.Confidence[0].Label != "claim one" || r1.Confidence[0].Grade != "medium" {
-		t.Errorf("round 1 Confidence = %+v", r1.Confidence)
-	}
 	if len(r1.Disputes) != 1 || r1.Disputes[0].Kind != "dispute" || r1.Disputes[0].Proposed != "low" {
 		t.Errorf("round 1 Disputes = %+v", r1.Disputes)
 	}

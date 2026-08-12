@@ -60,6 +60,7 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "rationale": "r"},
 		"halt":            {"opinion": "o"},
 		"certify":         {"statement": "s"},
+		"outcome":         {"verdict": "VERIFIED", "prose": "p"},
 		"finding":         {"label": "L1-F1"},
 		"observe":         {"label": "L1-O1"},
 	}

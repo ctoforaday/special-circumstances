@@ -1,15 +1,16 @@
-prompt sha256: efe43d1625e29d15a6ddbc964d4fcc5e9aa61be0a0b78acc9fe8058b17bf4c0c
+prompt sha256: c8c3fefffa79b49ef7b48562e93c1369f5f6be99c67e0f21181cac3854c608d9
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
-FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `feov-record blue show --run research/2026-01-01_golden --view ledger > <your session scratchpad>/board-1.md && feov-record blue show --run research/2026-01-01_golden --view debate > <your session scratchpad>/debate-1.md && cat <your session scratchpad>/board-1.md <your session scratchpad>/debate-1.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden; the transcript is the RECORD rendered via --view debate, not a hand-written file) — then read that one file instead of three separate reads.
+FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `feov-record blue show --run research/2026-01-01_golden show ledger > <your session scratchpad>/board-1.md && feov-record blue show --run research/2026-01-01_golden show debate > <your session scratchpad>/debate-1.md && cat <your session scratchpad>/board-1.md <your session scratchpad>/debate-1.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden; the transcript is the RECORD rendered via show debate, not a hand-written file) — then read that one file instead of three separate reads.
 REPORT.MD IS READ-ONLY TO YOU (the lockdown): you change research/2026-01-01_golden/blue/report.md ONLY through feov-record blue edit --old "<exact current span>" --new "<replacement>" --reason "<why>" [--answers <gap-id>] — it matches your old span across the invisible anchor layer and REJECTS an edit that CHANGES WHICH ANCHORS EXIST — a `<!--fx:...-->` finding marker or a `<!--cite:...-->` citation anchor may travel THROUGH your edit, but never be dropped, duplicated or invented by one.
 YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES.
 You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it.
 WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR.
 Measured: a seat facing a gap that said the stated total did not match the per-source rows summed twelve integers inside its own reasoning, wrote the answer into the report, and moved on.
 The answer was RIGHT, which is exactly why nothing caught it: a correct figure with no derivation is indistinguishable from a confident guess, and a reader cannot vary the rate, re-check the sum, or locate the error on the day there is one.
-Every gap on the board and the worklist carries a check_kind — READ IT — and a gap whose check_kind is `computation` cannot be closed on prose at all: it closes only when you answer it with `blue prove --answers <gap-id>`, and the merge is refused if it tries to close it any other way.
+Every gap on the board and the worklist carries a check_kind AND an awaiting_proof flag — READ THEM — and a gap showing awaiting_proof: true is waiting on a program FROM YOU.
+A gap whose check_kind is `computation` cannot be closed on prose at all: it closes only when you answer it with `blue prove --answers <gap-id>`, and the merge is refused if it tries to close it any other way.
 Write a script under the run directory and record it (feov-record blue prove --location --script [--cites]).
 The tool runs it TWICE, caches the script and its output, and splices an invisible proof anchor at that sentence.
 Identical output twice is recorded as reproducible; output that moves is recorded as observed — still evidence, of a system in motion, but a MEASUREMENT rather than a proof, and the tool says which you produced.

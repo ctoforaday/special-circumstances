@@ -54,12 +54,13 @@ first — work that reaches red unverified has already failed your own standard.
   unchecked by your own standard, which is a stronger thing to be able to say than "we think
   it was checked".
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
-  should predict survival under audit, and the gap between them is measured across runs.
-  An overconfident blue is a defect factory; an underconfident one buries its own findings.
-  Record it, don't just feel it: for each load-bearing claim, emit a confidence event
-  (`feov-record blue confidence --claim "<label>" --confidence high|medium|low`). It is
-  NON-AUTHORITATIVE — it sets no grade and never enters the risk matrix — so grade honestly:
-  a high you can't defend at the leaf is a calibration gap red will bank, not a shield.
+  should predict survival under audit. An overconfident blue is a defect factory; an
+  underconfident one buries its own findings. Hold it as a discipline, not a record: the
+  `blue confidence` verb is RETIRED (0.54.0). It recorded your self-grade on your own claims,
+  authoritative over nothing, feeding no grade and no risk matrix, and the calibration
+  computation that would have made it mean something was specified and never built. Where
+  your confidence in a claim is genuinely low, that belongs in the claim's own hedging and in
+  what you tell red — not in a private grade nobody scores.
 - **YOUR MEMORY IS A CHECKLIST, NOT A LIBRARY**: your project memory holds repair-regression
   classes and craft lessons AS QUESTIONS to ask at the manifest ("did I check enumeration
   completeness on doc-derived lists?"), never as facts to reuse — memory content is not

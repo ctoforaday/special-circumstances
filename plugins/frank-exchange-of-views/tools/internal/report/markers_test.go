@@ -49,7 +49,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if _, err := record.Append(runDir, "red-merge-r1", "mint", p); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(runDir, "judge-terminal", "outcome", record.NewPayload().Set("verdict", "CEILING")); err != nil {
+	if _, err := record.Append(runDir, "judge-terminal", "outcome", record.NewPayload().Set("verdict", "CEILING").Set("prose", "the round ceiling arrived before red could pass the final revision")); err != nil {
 		t.Fatal(err)
 	}
 

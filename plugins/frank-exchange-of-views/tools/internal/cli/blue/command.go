@@ -25,7 +25,6 @@ func NewCommand() *cobra.Command {
 		newRetire(),
 		newAvenue(),
 		newManifestRow(),
-		newConfidence(),
 		newClaimIndex(),
 		seat.Position("the round's ### BLUE section (prose via --reason)"),
 		seat.Closing("a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>"),

@@ -47,12 +47,13 @@ first — work that reaches red unverified has already failed your own standard.
   unchecked by your own standard, which is a stronger thing to be able to say than "we think
   it was checked".
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
-  should predict survival under audit, and the gap between them is measured across runs.
-  An overconfident blue is a defect factory; an underconfident one buries its own findings.
-  Record it, don't just feel it: for each load-bearing claim, emit a confidence event
-  (`feov-record blue confidence --claim "<label>" --confidence high|medium|low`). It is
-  NON-AUTHORITATIVE — it sets no grade and never enters the risk matrix — so grade honestly:
-  a high you can't defend at the leaf is a calibration gap red will bank, not a shield.
+  should predict survival under audit. An overconfident blue is a defect factory; an
+  underconfident one buries its own findings. Hold it as a discipline, not a record: the
+  `blue confidence` verb is RETIRED (0.54.0). It recorded your self-grade on your own claims,
+  authoritative over nothing, feeding no grade and no risk matrix, and the calibration
+  computation that would have made it mean something was specified and never built. Where
+  your confidence in a claim is genuinely low, that belongs in the claim's own hedging and in
+  what you tell red — not in a private grade nobody scores.
 - During revision rounds, YOU MUST address every gap red raised: expand and repair where
   red is right; rebut in writing where red is wrong — a rebuttal cites evidence, not
   preference. Repairs are keyed on a FRESH read of the primary source, never on the gap
@@ -104,5 +105,9 @@ first — work that reaches red unverified has already failed your own standard.
   your head is not the exception, it is the case this exists for**: a correct figure with
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
-  `computation` CANNOT be closed any other way — read it off the board or the worklist and
-  answer it with a script.
+  `computation` CANNOT be closed any other way, and the board states the debt directly:
+  `awaiting_proof: true` means that gap is waiting on a program from YOU. The merge is
+  refused if it tries to close one on prose, so an unanswered demand does not settle — it
+  carries into the next round. Your sitting's last act reports what is still owed; discharge
+  each with `prove --answers <gap>`, or argue in an edit's `--reason` that the demand is
+  wrong. What you may not do is leave it silent.

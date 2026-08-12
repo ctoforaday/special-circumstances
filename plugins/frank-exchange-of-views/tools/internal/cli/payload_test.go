@@ -109,9 +109,9 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 }
 
 // The three verbs that carry only short values want NO payload channel. Symmetry for its
-// own sake would give `confidence` a --reason with nothing to fill.
+// own sake would give `verify` a --reason with nothing to fill.
 func TestShortValueVerbsHaveNoPayloadChannel(t *testing.T) {
-	for _, c := range [][2]string{{"lens", "verify"}, {"blue", "confidence"}, {"merge", "verdict"}} {
+	for _, c := range [][2]string{{"lens", "verify"}, {"merge", "verdict"}} {
 		if h := help(t, c[0], c[1], "--help"); strings.Contains(h, "--reason ") {
 			t.Errorf("%s %s grew a payload channel; its fields are a label and a grade, and --reason would have nothing to fill", c[0], c[1])
 		}

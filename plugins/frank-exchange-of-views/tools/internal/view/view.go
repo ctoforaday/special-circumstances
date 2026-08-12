@@ -490,15 +490,6 @@ func debateMD(b *record.Board) []byte {
 		for _, c := range sec("closing", "blue") {
 			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("text")))
 		}
-		var conf []string
-		for _, e := range re {
-			if e.Type == "confidence" {
-				conf = append(conf, fmt.Sprintf("- %s → **%s**", e.Payload.Str("label"), e.Payload.Str("grade")))
-			}
-		}
-		if len(conf) > 0 {
-			parts = append(parts, "### BLUE CONFIDENCE (self-assessment — non-authoritative; targeting signal, not a grade)\n"+strings.Join(conf, "\n"))
-		}
 		var disp []string
 		for _, e := range re {
 			switch e.Type {

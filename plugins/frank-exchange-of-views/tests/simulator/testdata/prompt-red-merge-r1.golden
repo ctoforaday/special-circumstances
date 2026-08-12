@@ -1,11 +1,11 @@
-prompt sha256: cd5c546f66793cc2dc4c392eb7ae20b16c0393b028c5d0cb9678b3a502d31b8a
+prompt sha256: 2a85257a7f15446266f2c0519840c7969aab503e33fa222e34f3e69a1faa47bf
 
 Red merge, round 1.
-FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show --view findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
+FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
 That view IS the channel: the lenses record findings as events, and there are no candidate files to read.
 THE BOARD IS THE TOOL'S (migrated 2026-07-19).
 You do NOT hand-write a ledger or an archive — you MINT each open gap and CLOSE each resolved one through `feov-record merge`, one gap per call, and the tool renders the ledger (open gaps + closure index) and the archive (closed prose).
-After your board acts, run `feov-record merge show --view board` to read your own board back; your envelope's gaps array is TRANSCRIBED FROM THAT BOARD (the tool-assigned ids and the grades you minted), never authored in a parallel hand-list.
+After your board acts, run `feov-record merge show board` to read your own board back; your envelope's gaps array is TRANSCRIBED FROM THAT BOARD (the tool-assigned ids and the grades you minted), never authored in a parallel hand-list.
 COALESCE — do not transcribe.
 Your job is to collapse the lens findings into the DISTINCT PROBLEM-CLASSES they represent, not to mint one gap per finding.
 Several findings that are the same defect at different sites are ONE gap.
@@ -18,9 +18,9 @@ It is not ceremony.
 It CHECKPOINTS the whole event log to a recovery mirror outside the run directory (which is untracked-by-design until capture, and a stray git operation has deleted a live blackboard mid-round before), and it is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.
 CLOSURE AMENDMENT (rulebook audit item 7): when a defect is found BETWEEN two repairs that each closed clean in an earlier round, close the new gap with class amends_prior and name both amended ids in supersedes — run 4's R1-12/R1-17 composition defect had no way to say this, so last round's closures had to be reclassified inside this round's closures array and the ledger hand-annotated, which makes a late-discovered composition defect indistinguishable from a this-round closure event.
 Every gap's location = section heading + quoted sentence; keep graded likelihood/impact/complexity + severity on every open gap.
-NEAR-MATCH RULE: your working set is the `worklist` view (`feov-record merge show --view worklist` — OPEN gaps lean, plus a prose-free closed index; the shrinking read you act on each turn, not the whole board).
-Before minting ANY fresh gap, SCREEN it — `feov-record merge near-match --candidate "<the gap's problem>"` (see its --help) ranks the open AND closed gaps that overlap it; on a near-match against a closed gap, read that gap's closure (`show --view archive`) FIRST (the tool screens, it never decides): the candidate is then a reopen (mint --supersedes the closed id) or genuinely new, and you say which.
-DEMANDED READS: any lineage or closure claim you assert (on the board, in the docket, or rebutting blue) MUST be verified against the closure record (`show --view archive`) by targeted read, and RE-VERIFY THE ARCHIVE EVERY ROUND IT IS NOT EMPTY — `feov-record merge spot-check --run research/2026-01-01_golden --seat-id <your SEAT_ID> --ids <the closures you re-read> --notes "<what you found>"`, or `--none --reason "<why>"` only when there was genuinely nothing archived at this round's start.
+NEAR-MATCH RULE: your working set is the `worklist` view (`feov-record merge show worklist` — OPEN gaps lean, plus a prose-free closed index; the shrinking read you act on each turn, not the whole board).
+Before minting ANY fresh gap, SCREEN it — `feov-record merge near-match --candidate "<the gap's problem>"` (see its --help) ranks the open AND closed gaps that overlap it; on a near-match against a closed gap, read that gap's closure (`show archive`) FIRST (the tool screens, it never decides): the candidate is then a reopen (mint --supersedes the closed id) or genuinely new, and you say which.
+DEMANDED READS: any lineage or closure claim you assert (on the board, in the docket, or rebutting blue) MUST be verified against the closure record (`show archive`) by targeted read, and RE-VERIFY THE ARCHIVE EVERY ROUND IT IS NOT EMPTY — `feov-record merge spot-check --run research/2026-01-01_golden --seat-id <your SEAT_ID> --ids <the closures you re-read> --notes "<what you found>"`, or `--none --reason "<why>"` only when there was genuinely nothing archived at this round's start.
 THE FLOOR IS COMPUTED, NOT REPORTED: verify replays the archive's size at round start from the board and fails the run if a round with closures available sampled none, or if a `--none` claim contradicts what the board says was there.
 That is deliberate — this duty was born because a round-2 spot-check degraded into the seat attesting blocks it was about to write itself, and every repair since had asked the seat for the number it was being checked against.
 Your --notes are what the sample FOUND, and they go in the report: a reader weighing the closure index needs to know which rounds re-read it.
@@ -60,7 +60,7 @@ The tool validates the pair against the LIVE report and refuses it unless the sp
 It also refuses a replacement more than 120 characters longer than the span it replaces: that size is a substantive ADDITION and it is BLUE'S to author, not yours.
 You never type a basis — the tool derives fix_basis: verified from the pair validating, proposed from prose alone.
 DID BLUE ACTUALLY DO WHAT YOU ASKED?
-Before closing a gap you prescribed a fix for, put the two side by side (feov-record merge show --view changes --id <gap>): it prints your required_fix and acceptance_check above the exact old->new spans blue recorded against them.
+Before closing a gap you prescribed a fix for, put the two side by side (feov-record merge show changes --id <gap>): it prints your required_fix and acceptance_check above the exact old->new spans blue recorded against them.
 This does NOT replace the lens re-read of the report — a span out of context misleads on research prose — it replaces INFERRING whether your prescription was answered.
 Two shapes worth naming: NONE recorded against an open gap (blue answered nothing, or answered without --answers), and a change that does not meet your own acceptance_check.
 ESTOPPEL IS ENFORCED NOW, NOT ADVISED: if the defect you are about to raise lives in text blue applied VERBATIM from your own --fix-new, the mint is REFUSED and the refusal is logged as friction.

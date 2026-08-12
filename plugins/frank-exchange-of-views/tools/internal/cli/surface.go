@@ -61,6 +61,11 @@ func CommandFlags() map[string][]string {
 	return out
 }
 
+// BareIsACapability marks a GROUP whose bare invocation does something, as opposed to one whose
+// bare invocation only teaches. `show` returns the seat's pending work; `blue` and `motion grade`
+// answer "a verb is required". Only the first is a command path.
+const BareIsACapability = "bare-is-a-capability"
+
 func CommandPaths() []string {
 	var out []string
 	var walk func(c *cobra.Command, prefix string)
@@ -74,6 +79,18 @@ func CommandPaths() []string {
 			path := strings.TrimSpace(prefix + " " + name)
 			if sub.HasSubCommands() {
 				walk(sub, path)
+				// A GROUP WHOSE BARE FORM IS A CAPABILITY IS ALSO A PATH. `show` became a
+				// group answering with the seat's pending work, and this walk collected only
+				// leaves — so the prompt gate reported `merge show`, which every constitution
+				// names and every seat runs, as a verb that "does not exist in the command tree".
+				//
+				// RUNNABLE ALONE IS THE WRONG TEST, and the coverage gate said so within a
+				// minute: the role groups and the motion subjects are runnable too, and all they
+				// do is REFUSE — "a verb is required, pick one below". Counting those as paths
+				// demands the sweep drive a teaching message as though it were a capability.
+				if sub.Runnable() && sub.Annotations[BareIsACapability] == "yes" {
+					out = append(out, path)
+				}
 				continue
 			}
 			out = append(out, path)

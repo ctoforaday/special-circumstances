@@ -63,10 +63,13 @@ const (
 	// `blue cite` anchors; --title is the human name that source carries into the composed
 	// bibliography. One canonical word each — a citation is tool-managed, so these are the
 	// only two facts a seat supplies about a source.
-	URL    = "url"
-	Title  = "title"
-	Row    = "row"
-	View   = "view"
+	URL   = "url"
+	Title = "title"
+	Row   = "row"
+	// View is RETIRED (0.56.0). `show --view <name>` became `show <name>`: cobra models
+	// commands and flags, never a flag's VALUE space, so every projection's description had to
+	// be crammed into one usage string with no --help and no completion of its own. Making the
+	// flag optional made it worse — a seat had no reason to discover it at all.
 	Format = "format" // operator output selector (graph: mermaid | dot)
 	// Candidate is the merge's near-match query: the problem text of a gap it is about
 	// to mint, screened against the board (open + closed) before minting so a
@@ -133,12 +136,14 @@ const (
 	Complexity = "cx"
 	Proposed   = "proposed"
 	Dimension  = "dimension"
-	// Confidence is one word for one intent: how sure the seat is. `blue confidence`
-	// called it --grade and `lens cite` called it --confidence, for the same self-graded
-	// high|medium|low. --grade is also the wrong word for it, because a GRADE elsewhere
-	// in this vocabulary is severity/likelihood/impact, which a seat does not self-assign.
-	Trust      = "trust"
-	Confidence = "confidence"
+	// Trust is how far a SOURCE supports a claim, graded by red per statement↔reference pair.
+	//
+	// It was --confidence, alongside a `blue confidence` that graded a CLAIM by its own author —
+	// one word for two questions, which is how the two acts came to share an event type (#341).
+	// The self-grade was retired in 0.54.0 (it fed no grade, entered no matrix, and its
+	// calibration computation was specified and never built), and this is what the original plan
+	// meant by confidence all along: a field on red's corroboration, not a verb of blue's.
+	Trust = "trust"
 
 	// Gap classification. A gap's --class is a slug from a GROWING REGISTRY; a petition's
 	// --petition-class is a FIXED four-value enum. They shared the word --class until
@@ -232,9 +237,9 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New, Answers,
+		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, Format, Candidate, Old, New, Answers,
 		As, Notes, Status, None,
-		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence, Trust,
+		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Trust,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
 		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,

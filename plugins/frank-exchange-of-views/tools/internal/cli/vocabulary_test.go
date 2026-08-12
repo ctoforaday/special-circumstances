@@ -115,7 +115,7 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		"mint": "merge", "close": "merge", "regrade": "merge",
 		"closing": "merge",
 		"retire":  "blue", "avenue": "blue",
-		"opinion": "bench", "halt": "bench", "certify": "bench",
+		"opinion": "bench", "halt": "bench", "certify": "bench", "outcome": "bench",
 		"finding": "lens", "observe": "lens",
 	}
 	// A FIELD THE VERB SUPPLIES IS NOT A FLAG THE SEAT MUST TYPE, and marking it produced help

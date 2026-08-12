@@ -57,7 +57,7 @@ func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
 		t.Fatalf("move: %v", err)
 	}
 
-	out, err := run(t, "blue", "show", "--run", runDir, "--seat-id", seat, "--view", "lines-of-inquiry")
+	out, err := run(t, "blue", "show", "--run", runDir, "--seat-id", seat, "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestRedRulesOnAProposedAvenue(t *testing.T) {
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "lines-of-inquiry")
+	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestOpenAvenuesAreSurfacedAsOwingADecision(t *testing.T) {
 	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat, "--line", "still open"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "blue", "show", "--run", runDir, "--seat-id", seat, "--view", "lines-of-inquiry")
+	out, err := run(t, "blue", "show", "--run", runDir, "--seat-id", seat, "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}

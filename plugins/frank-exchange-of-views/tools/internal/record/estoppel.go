@@ -169,6 +169,26 @@ func EstoppelRejections(b *Board) int {
 	return n
 }
 
+// CheckKindComputation is the acceptance-check kind that prose cannot settle. It was compared
+// as a bare literal in the close gate and in two projections, which is three chances to disagree
+// about the one rule that decides whether a gap can close at all.
+const CheckKindComputation = "computation"
+
+// proofNames is ProofAnswers against a board the caller already has. The projections run it per
+// open gap, and re-reading the whole record each time would make a board render quadratic in its
+// own size.
+func proofNames(b *Board, gapID string) bool {
+	if gapID == "" || b == nil {
+		return false
+	}
+	for _, e := range b.Events {
+		if e.Type == "proof" && e.Payload.Str("answers") == gapID {
+			return true
+		}
+	}
+	return false
+}
+
 // ProofAnswers reports whether any recorded proof names this gap in its --answers.
 //
 // It is the join a `computation` acceptance check closes on. The link is a FIELD checked
@@ -183,12 +203,7 @@ func ProofAnswers(runDir, gapID string) bool {
 	if err != nil {
 		return false
 	}
-	for _, e := range b.Events {
-		if e.Type == "proof" && e.Payload.Str("answers") == gapID {
-			return true
-		}
-	}
-	return false
+	return proofNames(b, gapID)
 }
 
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
@@ -226,4 +241,32 @@ func ClaimAppearsInAnEdit(runDir, claim string) bool {
 		}
 	}
 	return false
+}
+
+// GapsAwaitingProof lists the OPEN gaps minted --check-kind computation that no proof answers,
+// in board order.
+//
+// It is the same join the close gate and the board projection use, exposed as a debt a seat can
+// be handed at the moment it matters. The gate is at the MERGE's close, one seat and one round
+// after blue — the only seat that can discharge it — has finished its sitting.
+//
+// Measured: projecting check_kind moved `prove` from 0 uses across eighteen sittings to 1 across
+// nine. A seat reading "check_kind: computation" learns a property of the gap; it does not learn
+// that it owes a program, and only the second changes what the sitting produces.
+func GapsAwaitingProof(runDir string) []string {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, id := range b.GapOrder {
+		g := b.Gaps[id]
+		if g == nil || !g.Open || g.Mint == nil {
+			continue
+		}
+		if g.Mint.Str("check_kind") == CheckKindComputation && !proofNames(b, id) {
+			out = append(out, id)
+		}
+	}
+	return out
 }

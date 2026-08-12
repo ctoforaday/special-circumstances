@@ -142,9 +142,6 @@ func Assemble(runDir string) (string, error) {
 	if m := motions(board); m != "" {
 		p(m)
 	}
-	if c := confidenceSelfAssessment(evs); c != "" {
-		p(c)
-	}
 	if f := frictionLog(evs); f != "" {
 		p(f)
 	}
@@ -334,7 +331,7 @@ func verdictStamp(o *record.Payload) string {
 	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
 	// exactly that, because a ceiling termination IS derived (rounds against the configured
 	// ceiling) and is the most common way a run ends.
-	basis := basisNote(o.Str("verdict_basis"))
+	basis := basisNote(o.Str("verdict_basis")) + verdictWhy(o)
 	switch o.Str("verdict") {
 	case "CEILING":
 		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run." + basis
@@ -350,6 +347,24 @@ func verdictStamp(o *record.Payload) string {
 		}
 		return fmt.Sprintf("**Verdict:** %s%s%s", o.Str("verdict"), by, basis)
 	}
+}
+
+// verdictWhy carries the DERIVATION'S OWN REASONING and, on a deadlock, the bench's.
+//
+// The derivation computed a `why` on every call — "the merge recorded a PASS verdict", "the
+// record reaches round 3 against a ceiling of 3" — and used it only to phrase an error, so the
+// report could stamp a verdict and never say why it was that one. A judged deadlock is the
+// opposite case and had no account at all: it is the ONE terminal verdict the record cannot
+// derive (#289), so the bench's --reason is the only evidence it will ever have.
+func verdictWhy(o *record.Payload) string {
+	out := ""
+	if why := strings.TrimSpace(o.Str("verdict_why")); why != "" {
+		out += " (" + why + ")"
+	}
+	if r := strings.TrimSpace(o.Str("prose")); r != "" {
+		out += "\n\n> **The deadlock, in the bench's words:** " + r
+	}
+	return out
 }
 
 // basisNote spells out how a verdict came to be — DERIVED from the record, or ASSERTED by the
@@ -987,35 +1002,6 @@ func debate(evs []record.Event) string {
 	if len(disp) > 0 {
 		b.WriteString("\n\n### Bench disposition\n\n" + strings.Join(disp, "\n\n"))
 	}
-	return b.String()
-}
-
-// confidenceSelfAssessment renders blue's per-claim confidence — its OWN calibration, NOT red's
-// audit. Surfaced NON-AUTHORITATIVELY: kept out of the risk matrix (which composes from red's gap
-// board alone), placed with the debate, and labeled as blue's self-grade so no reader mistakes it
-// for red's verdict. Its use is targeting (where blue is sure vs. soft) and calibration (the gap
-// between stated confidence and survival under audit is the measurement). Empty when blue graded
-// nothing — the section is then omitted rather than shown empty.
-func confidenceSelfAssessment(evs []record.Event) string {
-	var rows []string
-	for _, e := range evs {
-		if e.Type != "confidence" {
-			continue
-		}
-		claim := e.Payload.Str("label")
-		if strings.TrimSpace(claim) == "" {
-			continue
-		}
-		rows = append(rows, fmt.Sprintf("| %s | %s | r%d |", cell(concise(claim)), grade(e.Payload.Str("grade")), e.Round))
-	}
-	if len(rows) == 0 {
-		return ""
-	}
-	var b strings.Builder
-	b.WriteString("## Blue's confidence self-assessment\n\n")
-	b.WriteString("_Blue's OWN calibration, not red's audit — a non-authoritative signal that sets no grade and does not feed the risk matrix above. Read it as where blue is sure and where it is not; the gap between a stated confidence and its survival under red's audit is the calibration measure._\n\n")
-	b.WriteString("| Claim | Blue's confidence | Round |\n|---|---|---|\n")
-	b.WriteString(strings.Join(rows, "\n"))
 	return b.String()
 }
 

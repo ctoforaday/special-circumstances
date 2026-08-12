@@ -332,7 +332,16 @@ func Report(sf Surface, runDir string, seats []string, expect []Expectation, att
 		fmt.Fprintf(&b, "- **UNMET · %s never used `%s`** — instead: %s\n  - why the board demanded it: %s\n",
 			v.Seat, v.Verb, v.Substitute, v.Because)
 	}
-	fmt.Fprintf(&b, "\n%d of %d expectations unmet. Each is a question about the CONSTITUTION or the verb's own --help, not about the tool: the seat had the verb and did not take it.\n",
+	// THREE THINGS PRODUCE AN UNMET EXPECTATION AND ONLY ONE IS ABOUT THE SEAT. This line used
+	// to assert the third unconditionally — "the seat had the verb and did not take it" — and
+	// an audit against it nearly retired verbs that were never honestly demanded: two boards
+	// offered an `or` in their required_fix that satisfied the gap WITHOUT the baited verb, and
+	// one expectation presumed a ruling the seat was free to make differently.
+	fmt.Fprintf(&b, "\n%d of %d expectations unmet. READ EACH AGAINST WHAT THE SEAT ACTUALLY DID.\n"+
+		"  · the board let the gap be satisfied WITHOUT the baited verb — a fixture bug, not a seat one\n"+
+		"  · the expectation presumed a judgement the seat could make differently (a REJECTED grade motion owes no regrade)\n"+
+		"  · the seat had the verb, had the situation, and did not reach for it\n"+
+		"Only the third is a question about the CONSTITUTION or the verb's own --help.\n",
 		unmet, len(verdicts))
 	return b.String(), nil
 }

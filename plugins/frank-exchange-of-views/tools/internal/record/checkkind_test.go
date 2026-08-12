@@ -85,3 +85,85 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Error("the attestation must name the seat that made it — an unattributed one cannot be weighed")
 	}
 }
+
+// A PROPERTY IS NOT A DEBT.
+//
+// Projecting check_kind was necessary and not sufficient: with it visible, `prove` moved from
+// 0 uses across eighteen sittings to 1 across nine. A seat reading `"check_kind": "computation"`
+// learns something about the gap; it does not learn that IT owes a program, and only the second
+// changes what the sitting produces.
+func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
+	runDir := t.TempDir()
+	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
+		if _, _, err := RegisterSeat(runDir, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mint := func(id, kind string) {
+		t.Helper()
+		if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().
+			Set("gap_id", id).Set("class", "self-attestation").
+			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
+			Set("acceptance_check", "c").Set("check_kind", kind).
+			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
+			Set("complexity_cost", "low").Set("existence", "verified")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mint("R1-1", CheckKindComputation)
+	mint("R1-2", CheckKindComputation)
+	mint("R1-3", "document")
+
+	owed := GapsAwaitingProof(runDir)
+	if len(owed) != 2 || owed[0] != "R1-1" || owed[1] != "R1-2" {
+		t.Fatalf("owed = %v, want the two computation gaps in board order", owed)
+	}
+	// A document gap is never a proof debt — over-reporting would train seats to ignore it.
+	for _, id := range owed {
+		if id == "R1-3" {
+			t.Error("a document-kind gap was reported as awaiting a computation")
+		}
+	}
+
+	if _, err := Append(runDir, "blue-respond-r1", "proof", NewPayload().
+		Set("answers", "R1-1").Set("location", "L").Set("script", "s.py").
+		Set("proof_id", "p-1").Set("reproducible", true)); err != nil {
+		t.Fatal(err)
+	}
+	if owed := GapsAwaitingProof(runDir); len(owed) != 1 || owed[0] != "R1-2" {
+		t.Fatalf("after proving R1-1, owed = %v, want [R1-2]", owed)
+	}
+
+	// THE BOARD AND THE GATE MUST NOT DISAGREE about what is owed. They share one join and one
+	// constant precisely so a seat cannot be told it owes nothing by the read and be refused by
+	// the write — three bare "computation" literals used to make that possible.
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromBoard := map[string]bool{}
+	for _, g := range BoardJSONOf(b).Open {
+		if g.AwaitingProof {
+			fromBoard[g.ID] = true
+		}
+	}
+	if len(fromBoard) != 1 || !fromBoard["R1-2"] {
+		t.Fatalf("board says %v awaits proof, the debt query says [R1-2]", fromBoard)
+	}
+	for _, g := range WorklistJSONOf(b).Open {
+		if g.AwaitingProof != fromBoard[g.ID] {
+			t.Errorf("worklist and board disagree on %s: %v vs %v", g.ID, g.AwaitingProof, fromBoard[g.ID])
+		}
+	}
+
+	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
+	if _, err := Append(runDir, "red-merge-r1", "close", NewPayload().
+		Set("gap_id", "R1-2").Set("disposition", "risk_accepted").
+		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "x").
+		Set("prose", "the demand outweighed the defect")); err != nil {
+		t.Fatal(err)
+	}
+	if owed := GapsAwaitingProof(runDir); len(owed) != 0 {
+		t.Errorf("a closed gap is still reported as owed: %v", owed)
+	}
+}

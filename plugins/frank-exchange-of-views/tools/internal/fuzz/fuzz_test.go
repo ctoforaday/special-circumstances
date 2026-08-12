@@ -9,7 +9,7 @@ package fuzz
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
 // not a happy path: lens (cite/finding/avenue/friction), merge (position/closing/
 // mint/close incl. closed_with_regression/regrade any axis/
-// dispute-respond/spot-check/verdict/petition), blue (position/closing/confidence/dispute
+// dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
 // across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
 // (opinion/outcome incl. --exhausted/--deadlocked/certify/assemble/petition-rule). The
 // petition->petition-rule docket and the disputes docket are driven through the ENVELOPE (see
@@ -49,6 +49,7 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -161,7 +162,6 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 		_, _ = r.exec(role, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
 	}
 	if role == "blue" {
-		r.emitConfidence(seatID) // blue calibrates its claims every round
 	}
 	if role == "merge" && len(open) > 0 && r.coin(30) {
 		id := open[r.rng.Intn(len(open))]
@@ -296,17 +296,11 @@ var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 
-var confGrades = []string{"high", "medium", "low"}
-
-// emitConfidence records blue's per-claim calibration — the NON-AUTHORITATIVE signal wired in
-// 0.13.0. Unique labels per act so the report oracle can prove each one actually rendered in the
-// "Blue's confidence self-assessment" section (and never leaked into the risk matrix).
-func (r *runner) emitConfidence(seatID string) {
-	for i := 0; i <= r.rng.Intn(2); i++ {
-		claim := fmt.Sprintf("conf-claim-%d-by-%s", i, seatID)
-		_, _ = r.exec("blue", "confidence", "--seat-id", seatID, "--claim", claim, "--confidence", confGrades[r.rng.Intn(len(confGrades))])
-	}
-}
+// trustGrades is the value space of `lens verify --trust` — the ONE surviving confidence
+// channel. It was named confGrades and shared with `blue confidence`, which is how one word came
+// to carry two questions; the self-grade was retired in 0.54.0 and red's per-source judgement,
+// the thing the original plan specified as a FIELD on corroboration, is what remains.
+var trustGrades = []string{"high", "medium", "low"}
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
 // introduces the class; the rest reuse it.
@@ -404,7 +398,7 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("merge", "show", "--view", "findings")
+	out, err := r.exec("merge", "show", "findings")
 	if err != nil {
 		return ""
 	}
@@ -420,7 +414,7 @@ func (r *runner) someFinding() string {
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("merge", "show", "--view", "board")
+	out, err := r.exec("merge", "show", "board")
 	if err != nil {
 		return nil
 	}
@@ -807,7 +801,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	switch {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
-		r.emitConfidence(seatID) // round-0 calibration
 		r.extras("blue", seatID, nil)
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
 
@@ -888,7 +881,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
 		open := r.openGaps()
-		r.dialectic("blue", seatID, open) // blue's position, closings, confidence
+		r.dialectic("blue", seatID, open) // blue's position and closings
 		r.extras("blue", seatID, open)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
 		// minted with; blue reads it back off the board and does what it says. This replaces a
@@ -964,7 +957,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if r.forceHalt {
 			verd = "HALTED" // a halted run's terminal outcome is HALTED (debate.js computes this)
 		}
-		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd}
+		// --reason is REQUIRED on outcome (#375): it is the run's terminal act, and every claim
+		// or judgment act on this record carries its reasoning. Driving it without one leaves
+		// `bench outcome` refused on every seed, which this sweep reports as a false green.
+		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd,
+			"--reason", "fuzz: the run reached " + verd + " and the bench recorded how it ended"}
 		// the terminal-outcome modifiers — a non-VERIFIED end may be by safety ceiling or deadlock
 		// (not on a halt, whose outcome stands alone).
 		if !r.forceHalt && verd != "VERIFIED" && r.coin(40) {
@@ -1004,7 +1001,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
 				_, _ = r.exec("lens", "verify", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
-					"--reference", "https://fuzz.invalid/"+seatID, "--trust", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
+					"--reference", "https://fuzz.invalid/"+seatID, "--trust", trustGrades[r.rng.Intn(len(trustGrades))], "--access-date", "2026-07-24")
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
@@ -1210,19 +1207,40 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// `board` is already exercised above; `findings`/`friction` are JSON by name; `debate --json`
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
+	ids := mintedGapIDs(runDir)
+	// EVERY PROJECTION, ON EVERY ROLE. `show` became a GROUP (0.56.0), so each projection is its
+	// own command path — and the coverage gate immediately reported 34 paths never invoked,
+	// because the sweep had only ever driven the handful it asserted on. A view that only the
+	// merge reads is a view nobody checks from the seat that actually reads it.
+	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+		for _, v := range viewNamesForFuzz {
+			args := []string{role, "show", v, "--run", runDir}
+			if v == "changes" && len(ids) > 0 {
+				args = append(args, "--id", ids[0])
+			}
+			if _, err := tracked(bin, args...); err != nil {
+				res.err = role + " show " + v + " failed: " + err.Error()
+				return res
+			}
+		}
+		if _, err := tracked(bin, role, "show", "--run", runDir); err != nil {
+			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
+			return res
+		}
+	}
 	for _, v := range []string{"findings", "friction"} {
-		out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir)
+		out, err := tracked(bin, "merge", "show", v, "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
-			res.err = "show --view " + v + " did not return valid JSON:\n" + truncate(string(out))
+			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
 			return res
 		}
 	}
 	{
-		out, err := tracked(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir)
+		out, err := tracked(bin, "merge", "show", "debate", "--json", "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
-			res.err = "show --view debate --json did not return valid JSON:\n" + truncate(string(out))
+			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -1240,14 +1258,14 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// role gate, so driving only `merge show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := tracked(bin, role, "show", "--view", "debate", "--run", runDir); err != nil {
-			res.err = role + " show --view debate failed:\n" + truncate(string(out))
+		if out, err := tracked(bin, role, "show", "debate", "--run", runDir); err != nil {
+			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = tracked(bin, role, "show", "--view", "changes", "--id", ids[0], "--run", runDir)
+			_, _ = tracked(bin, role, "show", "changes", "--id", ids[0], "--run", runDir)
 		}
 	}
 	for _, v := range cli.ViewNames() {
@@ -1255,8 +1273,8 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		case "board", "findings", "friction", "worklist":
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir); err != nil {
-			res.err = "show --view " + v + " (projection) failed:\n" + truncate(string(out))
+		if out, err := tracked(bin, "merge", "show", v, "--run", runDir); err != nil {
+			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -1265,12 +1283,12 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
-		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", ids[0], "--run", runDir); err != nil {
-			res.err = "show --view changes --id " + ids[0] + " failed:\n" + truncate(string(out))
+		if out, err := tracked(bin, "merge", "show", "changes", "--id", ids[0], "--run", runDir); err != nil {
+			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", "R9-99", "--run", runDir); err == nil {
-			res.err = "show --view changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
+		if out, err := tracked(bin, "merge", "show", "changes", "--id", "R9-99", "--run", runDir); err == nil {
+			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -1593,7 +1611,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
-	"confidence", "cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
+	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
 	"manifest-row", "verdict", "spot-check", "certify", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
@@ -1691,9 +1709,6 @@ var dialecticProseKey = map[string]string{
 	// The lens's below-the-bar work and the fate the merge gave it.
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
-	// confidence's "prose" is its claim label — it must render in the report's confidence
-	// self-assessment section, or blue's calibration silently vanishes (the dead-letter it was).
-	"confidence": "label",
 	// Run-level voices.
 	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
 	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint
@@ -1858,6 +1873,10 @@ func truncate(s string) string {
 	}
 	return s
 }
+
+// viewNamesForFuzz is the projection set, taken from the command tree so a view added or removed
+// is swept without anyone remembering to edit a list here.
+var viewNamesForFuzz = seat.ViewNames()
 
 func TestFuzzDebate(t *testing.T) {
 	bin := buildBinary(t)

@@ -172,15 +172,6 @@ var EnumFields = map[string][]EnumField{
 		Why:      "the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)",
 		Optional: true,
 	}},
-	"confidence": {{
-		Key: "grade", Flag: flags.Confidence, Values: []EnumValue{
-			Ev("high", "you would defend this claim at the leaf under audit"),
-			Ev("medium", "you believe it and can see where it might not hold"),
-			Ev("low", "you are stating it because the report needs it stated, and you expect red to find something"),
-		},
-		Why:      "the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable",
-		Optional: true,
-	}},
 }
 
 // Usage renders the flag's help from the set itself, so the contract a seat reads is the

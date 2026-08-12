@@ -96,5 +96,5 @@ func computationGapKind(runDir, gapID string) (bool, error) {
 	if g == nil || g.Mint == nil {
 		return false, nil
 	}
-	return g.Mint.Str("check_kind") == "computation", nil
+	return g.Mint.Str("check_kind") == record.CheckKindComputation, nil
 }
