@@ -1,4 +1,4 @@
-prompt sha256: bf1211fa20bfafefacfcda8303967cc11c74095cdf759997fd27fa241200e765
+prompt sha256: 2a4cbae1893aede8fd6afd1dda933c79388b098dc83f29a1393585dfd6150639
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -11,7 +11,7 @@ For a source YOU discover (corroboration, not a blue citation), pull it verbatim
 WebSearch is for DISCOVERY (find the URL); the read that GRADES a blue citation is always the cached bytes, read verbatim.
 If a source is too large for your context, read it in SECTIONS (paginate the cached file, curl byte ranges, or pdftotext then grep the region) and name the sections you read.
 A truncated read is NOT a read: state truncation in your pass, and never grade a body you could not fully read..
-Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
+Re-read the FULL living report through the tool — `lens show report` (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
 Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).

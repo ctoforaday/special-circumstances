@@ -54,6 +54,9 @@ first — work that reaches red unverified has already failed your own standard.
   computation that would have made it mean something was specified and never built. Where
   your confidence in a claim is genuinely low, that belongs in the claim's own hedging and in
   what you tell red — not in a private grade nobody scores.
+- BEFORE editing, YOU MUST read the report through the tool — `show report` — never off disk.
+  It carries an invisible anchor layer (`<!--fx:…-->`, `<!--cite:…-->`, `<!--proof:…-->`) that
+  `blue edit` holds you responsible for carrying across a span, so you have to SEE it.
 - During revision rounds, YOU MUST address every gap red raised: expand and repair where
   red is right; rebut in writing where red is wrong — a rebuttal cites evidence, not
   preference. Repairs are keyed on a FRESH read of the primary source, never on the gap

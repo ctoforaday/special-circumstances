@@ -1,4 +1,4 @@
-prompt sha256: 92a5b27ff9e20ec4d406e2f884909e36ce3b633a5f641a2e1819a6dfca1a5f0b
+prompt sha256: a64f925d25c0c5482d5f0e0a2489193f6ee3365112562ab6f156a97c82c88e96
 
 Red audit, round 2, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance) STEELMAN DUTY: read the exploration space via `"/opt/feov/bin/feov-record" blue show --run research/2026-01-01_golden show lines-of-inquiry` (the tool renders it fresh from the avenue events on the record).
 Blue's DECLINED and ABANDONED avenues are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -7,7 +7,7 @@ RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually to
 A section built on a line of inquiry that was never proposed is undeclared scope; an avenue still sitting at proposed or pursued late in the run is a decision nobody made.
 Both are findings.
 Measured over six runs: 83 of 86 avenues were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it..
-Re-read the FULL living report research/2026-01-01_golden/blue/report.md in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); for a navigation hint use the RECORD, not a hand-written file — "/opt/feov/bin/feov-record" lens show --run research/2026-01-01_golden show changes, which lists every recorded edit with the gap it answers.
+Re-read the FULL living report through the tool — `lens show report` (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); for a navigation hint use the RECORD, not a hand-written file — "/opt/feov/bin/feov-record" lens show --run research/2026-01-01_golden show changes, which lists every recorded edit with the gap it answers.
 It is a HINT: it never replaces the full re-read above.
 Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
