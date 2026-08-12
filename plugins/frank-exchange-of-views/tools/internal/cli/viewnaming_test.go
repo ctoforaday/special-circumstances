@@ -37,6 +37,9 @@ import (
 // than derived because no structure in the tree connects them today — which is precisely the gap
 // this test exists to make visible rather than to paper over.
 var viewWriters = map[string][]string{
+	// The motion group fills it: the ask, the answer, and the press-on. All three, because a
+	// view that named only `file` would leave a reader wondering where a ruling comes from.
+	"motions":          {"motion", "rule", "appeal"},
 	"ledger":           {"mint", "close", "regrade"},
 	"archive":          {"close"},
 	"worklist":         {"mint"},

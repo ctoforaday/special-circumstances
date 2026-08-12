@@ -153,6 +153,7 @@ func trajectoryPath(runDir string) string {
 }
 
 func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun bool, surface seatprobe.Surface) (string, error) {
+	recordRoot := ""
 	if !reportOnly {
 		if !keep {
 			if err := os.RemoveAll(runDir); err != nil {
@@ -170,16 +171,18 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		// two exits — find it, or file friction — and both of those are signal.
 		//
 		// A TEMP ROOT, NOT A SIBLING OF THE RUN. `ls ..` is one keystroke.
-		recordRoot := ""
 		if !recordsInRun {
 			r, err := os.MkdirTemp("", "feov-records-")
 			if err != nil {
 				return "", err
 			}
 			recordRoot = r
-			if !keep {
-				defer os.RemoveAll(recordRoot)
-			}
+			// THE RECORD ROOT IS NOT DELETED. It was, and the first separated run paid for it:
+			// every post-hoc question ("did any seat file friction?") hit the resolver's own
+			// dangling-pointer refusal, because the evidence had been removed while the pointer
+			// binding the run to it survived. An instrument that destroys its own measurement on
+			// the way out is one you can only ever read once. It is a temp directory; the OS
+			// reclaims it, and the report prints where it went.
 		}
 		run := func(args ...string) (string, error) {
 			cmd := exec.Command(bin, args...)
@@ -224,6 +227,9 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 	}
 	// The reasoning, where the seat produced any. It is the half a record cannot hold: the record
 	// says which verb was taken, and this says what the seat was weighing when it chose.
+	if recordRoot != "" {
+		report += fmt.Sprintf("\n_record kept at %s — query the board with `show --run %s --view <name>`_\n", recordRoot, runDir)
+	}
 	if t := readThinking(trajectoryPath(runDir)); t != "" {
 		report += "\n### What the seat was reasoning about\n\n" + t + "\n"
 	}
@@ -283,6 +289,13 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 		// the defect #348 put this variable here to end.
 		seatenv.RoundVar+"=1",
 	)
+	// The directory is created HERE, by the function that owns the path, rather than by the
+	// caller. Moving the trajectory out of the run directory and leaving its mkdir behind in
+	// probe() failed all nine boards at once — loudly and in seconds, which is the good version
+	// of this mistake, but a path and the directory it needs should not be two people's job.
+	if err := os.MkdirAll(filepath.Dir(trajectoryPath(runDir)), 0o755); err != nil {
+		return err
+	}
 	// STDIN IS CLOSED EXPLICITLY. Without it the CLI waits three seconds for piped input and
 	// warns, on every dispatch, which in a parallel run is noise that reads like a fault.
 	devNull, err := os.Open(os.DevNull)

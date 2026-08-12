@@ -560,7 +560,14 @@ func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
 // terminal/verdict-shaping acts (halt, certify, outcome, verdict) stay in the structured
 // cases above. Reference-taking verbs are gated on a referent existing.
 func (r *runner) extras(role, seatID string, open []string) {
+	// BOTH ARMS OF THE CHANNEL. --none is the explicit negative a sitting closes with when
+	// nothing blocked it, and it writes a DIFFERENT event type — so a sweep that only ever
+	// drove the complaint arm would leave the attestation path unexercised, which is the
+	// arm the whole change exists to make observable.
 	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
+	r.maybe(30, func() {
+		r.do(role, "friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
+	})
 	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: an avenue now has an id and a LIFECYCLE. Propose, then sometimes move it — the
 	// move is the path the old one-shot append could not record at all (measured: 0 of 86
@@ -1588,6 +1595,10 @@ var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
 	"confidence", "cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
 	"manifest-row", "verdict", "spot-check", "certify", "halt",
+	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
+	// so a gate listing only "friction" would report the channel covered while the arm that
+	// makes an empty log meaningful went undriven.
+	"friction-none",
 	// The motion collapse (#344): filed by any seat, ruled by one, appealed by the filer.
 	"motion", "motion-rule", "motion-appeal",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
@@ -1685,6 +1696,11 @@ var dialecticProseKey = map[string]string{
 	"confidence": "label",
 	// Run-level voices.
 	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
+	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint
+	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
+	// whether the seats looked and said so, or never used the channel. Those were the same
+	// bytes for eighteen recorded sittings, and this event is what separates them.
+	"friction-none": "text",
 	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
 	// checking it showed — the receipt reached no reader for a year, because the coverage metric
 	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).

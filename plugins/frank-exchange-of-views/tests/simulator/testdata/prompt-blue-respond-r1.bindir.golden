@@ -1,4 +1,4 @@
-prompt sha256: 2006eace990ac9497b0fd0ff2afc0e77e76d3c4dabc4f3dce14aca8a38257bf6
+prompt sha256: d3d890024edb968cc3489f5d33a63d07c293ec11615244cdf89aa38584654308
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -6,6 +6,10 @@ FIRST ACTION (read batching, W1.12): concatenate your working set with a single 
 REPORT.MD IS READ-ONLY TO YOU (the lockdown): you change research/2026-01-01_golden/blue/report.md ONLY through "/opt/feov/bin/feov-record" blue edit --old "<exact current span>" --new "<replacement>" --reason "<why>" [--answers <gap-id>] — it matches your old span across the invisible anchor layer and REJECTS an edit that CHANGES WHICH ANCHORS EXIST — a `<!--fx:...-->` finding marker or a `<!--cite:...-->` citation anchor may travel THROUGH your edit, but never be dropped, duplicated or invented by one.
 YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES.
 You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it.
+WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR.
+Measured: a seat facing a gap that said the stated total did not match the per-source rows summed twelve integers inside its own reasoning, wrote the answer into the report, and moved on.
+The answer was RIGHT, which is exactly why nothing caught it: a correct figure with no derivation is indistinguishable from a confident guess, and a reader cannot vary the rate, re-check the sum, or locate the error on the day there is one.
+Every gap on the board and the worklist carries a check_kind — READ IT — and a gap whose check_kind is `computation` cannot be closed on prose at all: it closes only when you answer it with `blue prove --answers <gap-id>`, and the merge is refused if it tries to close it any other way.
 Write a script under the run directory and record it — "/opt/feov/bin/feov-record" blue prove --location "<the exact sentence it backs>" --script <path> [--cites <the method's citation label>].
 The tool runs it TWICE, caches the script and its output, and splices an invisible proof anchor at that sentence.
 Identical output twice is recorded as reproducible; output that moves is recorded as observed — still evidence, of a system in motion, but a MEASUREMENT rather than a proof, and the tool says which you produced.
@@ -64,7 +68,10 @@ This is NON-AUTHORITATIVE and that is the point: it sets no grade, gates nothing
 Honesty is the whole value: an inflated confidence is not a defense — it is a defect signal red will catch as a calibration gap — and an underconfident one buries your strongest finding.
 Grade the CLAIM, not its citation: a claim you are unsure of with no source at all is exactly the row worth recording.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-respond-r1).
-FRICTION (blue-respond-r1): report any friction in the envelope's friction field AND through the tool's friction verb — the verb is the durable record that survives a later phase abort.
+FRICTION (blue-respond-r1) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with the friction verb (--reason names the thing and the shape the work actually wanted) AND in the envelope's friction field; then, if nothing blocked you, say so on the record with `friction --none --reason "<what you reached for and found>"`.
+SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.
+MOST REFUSALS ARE YOURS and are not friction: a wrong verb, a wrong flag, a bad quote — take the correction and move on.
+A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding; report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
 Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).

@@ -244,3 +244,54 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 		t.Fatal("MergedEvents reported a clean empty merge for a record whose directory is gone")
 	}
 }
+
+// A RUN DIRECTORY DELETED AND REBUILT AT THE SAME PATH IS A NEW RUN.
+//
+// The binding has two halves — the pointer in the user cache and the marker in the run — and
+// deleting the directory removes one while leaving the other. Measured: the seat probe rebuilds
+// nine boards at fixed paths every invocation, and its second run refused all nine with a
+// conflict naming two temp directories the operator never chose.
+func TestARebuiltRunDirectoryDoesNotInheritTheOldRoot(t *testing.T) {
+	isolate(t)
+	run := t.TempDir()
+	first := filepath.Join(t.TempDir(), "first")
+	t.Setenv(RecordRootEnv, first)
+	if _, err := RecordsDir(run); err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+
+	// What every probe invocation does: remove the run directory and build a fresh one there.
+	if err := os.RemoveAll(run); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(run, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	second := filepath.Join(t.TempDir(), "second")
+	t.Setenv(RecordRootEnv, second)
+	got, err := RecordsDir(run)
+	if err != nil {
+		t.Fatalf("a rebuilt run refused its own fresh root: %v", err)
+	}
+	if !samePath(got, second) {
+		t.Fatalf("resolved %s, want the fresh root %s — the new run inherited its predecessor's record", got, second)
+	}
+}
+
+// The marker is load-bearing in BOTH directions now, so a failure to write it must be an error:
+// a silently missing marker would make every later resolve treat a live separated run as a
+// deleted one and adopt a fresh empty root in place of its record.
+func TestAdoptionFailsIfTheMarkerCannotBeWritten(t *testing.T) {
+	isolate(t)
+	// A path that exists as a FILE cannot hold the marker inside it.
+	f := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(RecordRootEnv, filepath.Join(t.TempDir(), "elsewhere"))
+	if _, err := RecordsDir(f); err == nil {
+		t.Fatal("adoption succeeded without writing the marker — a later resolve would then treat " +
+			"this run as deleted and silently hand it a fresh empty root")
+	}
+}
