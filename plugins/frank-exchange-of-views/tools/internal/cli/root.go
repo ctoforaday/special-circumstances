@@ -545,10 +545,33 @@ import (
 //
 //	       A stale binary answers a bare `show` with whatever its role's old default was.
 //
+//	0.56.0 `show` IS A GROUP. `show --view <name>` became `show <name>`.
+//
+//	       Cobra models commands and flags, never a flag's VALUE space — the same
+//	       undiscoverability the motion collapse fixed one layer up. Every projection's
+//	       description had to be crammed into one usage string, with no --help of its own and no
+//	       completion. Making --view optional in 0.55.0 made it worse rather than better: a seat
+//	       now had no reason to discover the flag at all.
+//
+//	       As subcommands each projection is first-class, an unknown one gets the refusal that
+//	       lists the whole set, and a bare `show` still answers with the seat's pending work.
+//	       --view is retired; there is one way to name a projection.
+//
+//	       `changelog` is DELETED. The prompt gate found it: "named NOWHERE a seat can read" —
+//	       blue's own revision events, rendered for nobody, while the report already composes the
+//	       revision history and `changes` carries the diff stack red actually reads.
+//
+//	       CommandPaths now counts a runnable GROUP as a path, but only where its bare form is a
+//	       capability rather than a refusal. Runnable alone was the wrong test and the coverage
+//	       gate said so immediately: the role groups and motion subjects are runnable too, and all
+//	       they do is answer "a verb is required".
+//
+//	       A stale binary takes --view and does not answer `show <name>`.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.55.0"
+const Version = "0.56.0"
 
 func init() { record.ToolVersion = Version }
 

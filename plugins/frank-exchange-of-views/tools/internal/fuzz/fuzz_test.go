@@ -49,6 +49,7 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -397,7 +398,7 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("merge", "show", "--view", "findings")
+	out, err := r.exec("merge", "show", "findings")
 	if err != nil {
 		return ""
 	}
@@ -413,7 +414,7 @@ func (r *runner) someFinding() string {
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("merge", "show", "--view", "board")
+	out, err := r.exec("merge", "show", "board")
 	if err != nil {
 		return nil
 	}
@@ -1206,19 +1207,40 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// `board` is already exercised above; `findings`/`friction` are JSON by name; `debate --json`
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
+	ids := mintedGapIDs(runDir)
+	// EVERY PROJECTION, ON EVERY ROLE. `show` became a GROUP (0.56.0), so each projection is its
+	// own command path — and the coverage gate immediately reported 34 paths never invoked,
+	// because the sweep had only ever driven the handful it asserted on. A view that only the
+	// merge reads is a view nobody checks from the seat that actually reads it.
+	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+		for _, v := range viewNamesForFuzz {
+			args := []string{role, "show", v, "--run", runDir}
+			if v == "changes" && len(ids) > 0 {
+				args = append(args, "--id", ids[0])
+			}
+			if _, err := tracked(bin, args...); err != nil {
+				res.err = role + " show " + v + " failed: " + err.Error()
+				return res
+			}
+		}
+		if _, err := tracked(bin, role, "show", "--run", runDir); err != nil {
+			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
+			return res
+		}
+	}
 	for _, v := range []string{"findings", "friction"} {
-		out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir)
+		out, err := tracked(bin, "merge", "show", v, "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
-			res.err = "show --view " + v + " did not return valid JSON:\n" + truncate(string(out))
+			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
 			return res
 		}
 	}
 	{
-		out, err := tracked(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir)
+		out, err := tracked(bin, "merge", "show", "debate", "--json", "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
-			res.err = "show --view debate --json did not return valid JSON:\n" + truncate(string(out))
+			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -1236,14 +1258,14 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// role gate, so driving only `merge show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := tracked(bin, role, "show", "--view", "debate", "--run", runDir); err != nil {
-			res.err = role + " show --view debate failed:\n" + truncate(string(out))
+		if out, err := tracked(bin, role, "show", "debate", "--run", runDir); err != nil {
+			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = tracked(bin, role, "show", "--view", "changes", "--id", ids[0], "--run", runDir)
+			_, _ = tracked(bin, role, "show", "changes", "--id", ids[0], "--run", runDir)
 		}
 	}
 	for _, v := range cli.ViewNames() {
@@ -1251,8 +1273,8 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		case "board", "findings", "friction", "worklist":
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := tracked(bin, "merge", "show", "--view", v, "--run", runDir); err != nil {
-			res.err = "show --view " + v + " (projection) failed:\n" + truncate(string(out))
+		if out, err := tracked(bin, "merge", "show", v, "--run", runDir); err != nil {
+			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -1261,12 +1283,12 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
-		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", ids[0], "--run", runDir); err != nil {
-			res.err = "show --view changes --id " + ids[0] + " failed:\n" + truncate(string(out))
+		if out, err := tracked(bin, "merge", "show", "changes", "--id", ids[0], "--run", runDir); err != nil {
+			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := tracked(bin, "merge", "show", "--view", "changes", "--id", "R9-99", "--run", runDir); err == nil {
-			res.err = "show --view changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
+		if out, err := tracked(bin, "merge", "show", "changes", "--id", "R9-99", "--run", runDir); err == nil {
+			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -1851,6 +1873,10 @@ func truncate(s string) string {
 	}
 	return s
 }
+
+// viewNamesForFuzz is the projection set, taken from the command tree so a view added or removed
+// is swept without anyone remembering to edit a list here.
+var viewNamesForFuzz = seat.ViewNames()
 
 func TestFuzzDebate(t *testing.T) {
 	bin := buildBinary(t)

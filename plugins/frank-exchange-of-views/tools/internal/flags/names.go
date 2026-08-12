@@ -63,10 +63,13 @@ const (
 	// `blue cite` anchors; --title is the human name that source carries into the composed
 	// bibliography. One canonical word each — a citation is tool-managed, so these are the
 	// only two facts a seat supplies about a source.
-	URL    = "url"
-	Title  = "title"
-	Row    = "row"
-	View   = "view"
+	URL   = "url"
+	Title = "title"
+	Row   = "row"
+	// View is RETIRED (0.56.0). `show --view <name>` became `show <name>`: cobra models
+	// commands and flags, never a flag's VALUE space, so every projection's description had to
+	// be crammed into one usage string with no --help and no completion of its own. Making the
+	// flag optional made it worse — a seat had no reason to discover it at all.
 	Format = "format" // operator output selector (graph: mermaid | dot)
 	// Candidate is the merge's near-match query: the problem text of a gap it is about
 	// to mint, screened against the board (open + closed) before minting so a
@@ -234,7 +237,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, View, Format, Candidate, Old, New, Answers,
+		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, Format, Candidate, Old, New, Answers,
 		As, Notes, Status, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Trust,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,

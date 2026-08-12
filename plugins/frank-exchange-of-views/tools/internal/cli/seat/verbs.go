@@ -135,7 +135,6 @@ var views = []struct {
 	{"ledger", "the board as markdown, for a human verification pass. Written by `mint`, `close` and `regrade`", ""},
 	{"archive", "closed gaps with their closure records and anchors. Written by `close`", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
-	{"changelog", "blue's revision record, per round. Written by `revision`", ""},
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
 	{"citation-ledger", "verified claims with source, confidence and access date. Written by `cite` and `verify`", ""},
 	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned. Written by `avenue` (propose and move) and `motion direction rule` (red's ruling)", ""},
@@ -187,179 +186,213 @@ func ViewNames() []string {
 // differ. A second renderer would be a second reader of one artifact, which is the defect
 // class this whole tool exists to remove — writing one to serve reads would reintroduce it
 // at the read surface.
+// Show is a GROUP, not a verb with a flag.
+//
+// It was `show --view <name>`, and cobra models commands and flags — never a flag's VALUE
+// space. That is the same undiscoverability the motion collapse fixed one layer up: a value has
+// no --help of its own, no completion, and no place to say what it is for, so every projection's
+// description had to be crammed into one flag's usage string. Making `--view` optional (a bare
+// `show` now answers with the seat's pending work) made it worse rather than better: the flag
+// became something a seat had no reason to discover at all.
+//
+// As subcommands each projection is a first-class thing: `show board`, `show motions`, its own
+// --help, its own completion, and an unknown one gets the refusal that lists the whole surface
+// rather than a flag-parse error naming the value.
 func Show() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "show",
-		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view " + strings.Join(ViewNames(), "|"),
+		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: " + strings.Join(ViewNames(), " | "),
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
+		// Its bare form is the seat's pending work — a capability, not a refusal.
+		Annotations: map[string]string{"bare-is-a-capability": "yes"},
 	}
-	c.RunE = func(cmd *cobra.Command, _ []string) error {
-		role := roleOf(cmd)
-		// RESOLVED, NOT READ OFF THE FLAG. The engine injects FEOV_RUN and every WRITE verb
-		// honours it through Begin/Of — reads did not, so a seat that correctly omitted --run
-		// could record all round and then be told its board did not exist. Measured with the
-		// identity injected: register, friction and revision all succeeded; `show` and
-		// `claim-index` demanded the flag.
-		runDir := Of(cmd).RunDir
-		if runDir == "" {
-			return fmt.Errorf("%s: --run <runDir> is required", role)
+	// An unknown projection gets the SURFACE, not a parse error. Cobra's default answers
+	// `unknown command "x" for "feov-record blue show"` and stops — at the one moment a seat is
+	// definitively looking for what exists, which is the same argument that made the root and
+	// the role groups teach.
+	c.Args = cobra.ArbitraryArgs
+	c.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			return RefuseAndTeach(cmd, fmt.Sprintf(
+				"no projection named %q. The ones below are the whole set, and each names the verb that fills it.", args[0]))
 		}
-		want := Str(cmd, flags.View)
-		if want == "" {
-			// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
-			// claiming "merge" resolved by slice order — a default nobody chose.
-			for _, v := range views {
-				if v.defaultFor == role || v.defaultFor == "*" {
-					want = v.name
-					break
-				}
-			}
+		// The seat's own default — its pending work and whether the sitting is finished.
+		return renderView(cmd, "")
+	}
+	for _, v := range views {
+		v := v
+		sub := &cobra.Command{
+			Use:          v.name,
+			Short:        v.desc,
+			Args:         cobra.NoArgs,
+			SilenceUsage: true,
+			RunE:         func(cmd *cobra.Command, _ []string) error { return renderView(cmd, v.name) },
 		}
+		if v.name == "changes" {
+			sub.Flags().String(flags.ID, "", "scope to one gap — put red's required_fix and the edits answering it side by side")
+		}
+		c.AddCommand(sub)
+	}
+	return c
+}
 
-		// --json on a read opts into the STRUCTURED form of a view whose native form is
-		// markdown. It is the same inherited flag the mutating verbs use for their JSON
-		// envelopes; on reads it had been ignored (reads were view-selected only). It now
-		// selects the structured debate — the sole view with both a markdown transcript (for
-		// the human) and a JSON form (for the audits that used to regex the sections).
-		//
-		// One canonical way to each form ([[one-way-no-aliases]]): --json is an ERROR on the
-		// views already JSON by name (board/findings/friction — `--view board` is the single
-		// way to board JSON, no alias) and on markdown views with no JSON form. It is checked
-		// BEFORE the board/findings/friction branches so `--view board --json` refuses rather
-		// than falling through to the flagless JSON. A wrong guess fails loudly.
-		if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
-			switch want {
-			case "debate":
-				b, err := record.DebateJSONBytes(runDir)
-				if err != nil {
-					return err
-				}
-				cmd.OutOrStdout().Write(b)
-				return nil
-			case "board", "findings", "friction", "motions", "worklist", "telemetry":
-				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
-			case "":
-				return fmt.Errorf("%s show: --view is required for this role. The projections are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
-			default:
-				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction/motions/worklist are JSON by name)", role, want)
-			}
-		}
-
-		// The BOARD is served as structured JSON, because a seat ACTS on it.
-		//
-		// Every other view is prose a seat reads; the board is state a seat has to make
-		// decisions against — which gap is open, what its grades are, whether a closure
-		// carried its anchor. Parsing that back out of markdown is precisely where the
-		// scorecard defects came from (anchored_closures_pct read 0 against an 89
-		// baseline because it parsed sentences while the anchors sat in structured
-		// fields). Markdown for the same state stays available behind --view ledger.
-		//
-		// Resolved AFTER the role default, not before: `merge show` with no flags must
-		// reach this branch, and checking the raw flag first sent the merge seat's own
-		// default view looking for a board.md that no renderer writes.
-		if want == "board" {
-			b, err := record.BoardJSONBytes(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		// findings is served as JSON too, and for the same reason: the merge ACTS on it
-		// (coalesces findings into gaps), so it reads structured fields, not prose it must
-		// parse. This is the channel that replaced red/candidates/*.md.
-		if want == "findings" {
-			b, err := record.FindingsJSONBytes(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		// motions is JSON by name: a seat reads it to ANSWER a motion, so it needs the filer's
-		// basis as a field rather than prose it must find in a transcript.
-		if want == "motions" {
-			b, err := record.MotionsJSONBytes(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		if want == "friction" {
-			b, err := record.FrictionJSONBytes(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		// worklist is JSON by name too — the merge ACTS on it (scans the open set, screens
-		// candidates), so it reads structured fields, not prose. It is the shrinking
-		// once-per-turn read that the full board JSON is not.
-		if want == "worklist" {
-			b, err := record.WorklistJSONBytes(runDir, role, Of(cmd).SeatID)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		// telemetry is JSONL by name — one line per round, the wire shape the stopping
-		// judgment reads. It is a SERIES, not a snapshot, and the series is the whole
-		// point: a single round's numbers cannot show a trend changing character.
-		if want == "telemetry" {
-			b, err := view.TelemetryJSONL(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		if want == "" {
-			return fmt.Errorf("%s show: --view is required for this role. The projections are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
-		}
-		known := false
+// renderView writes one projection. want == "" means this role's default.
+func renderView(cmd *cobra.Command, want string) error {
+	role := roleOf(cmd)
+	// RESOLVED, NOT READ OFF THE FLAG. The engine injects FEOV_RUN and every WRITE verb
+	// honours it through Begin/Of — reads did not, so a seat that correctly omitted --run
+	// could record all round and then be told its board did not exist. Measured with the
+	// identity injected: register, friction and revision all succeeded; `show` and
+	// `claim-index` demanded the flag.
+	runDir := Of(cmd).RunDir
+	if runDir == "" {
+		return fmt.Errorf("%s: --run <runDir> is required", role)
+	}
+	if want == "" {
+		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
+		// claiming "merge" resolved by slice order — a default nobody chose.
 		for _, v := range views {
-			if v.name == want {
-				known = true
+			if v.defaultFor == role || v.defaultFor == "*" {
+				want = v.name
+				break
 			}
 		}
-		if !known {
-			// THE MENU, NOT THE NAMES. A seat that mistypes a view is a seat that does not
-			// know the view space, and a list of twelve nouns tells it which words are legal
-			// while leaving it to guess which one holds what it wants.
-			return fmt.Errorf("%s show: unknown view %q. The projections are:\n\n%s\nEach names the verb that fills it", role, want, ViewMenu())
-		}
+	}
 
-		// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
-		// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored).
-		// Silently dropping it is the worse failure here — a seat that asked for one gap's
-		// edits and received every edit would read the answer as the answer to its question.
-		scope := Str(cmd, flags.ID)
-		if scope != "" && want != "changes" {
-			return fmt.Errorf("%s show: --id scopes --view changes and nothing else; --view %s has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
+	// --json on a read opts into the STRUCTURED form of a view whose native form is
+	// markdown. It is the same inherited flag the mutating verbs use for their JSON
+	// envelopes; on reads it had been ignored (reads were view-selected only). It now
+	// selects the structured debate — the sole view with both a markdown transcript (for
+	// the human) and a JSON form (for the audits that used to regex the sections).
+	//
+	// One canonical way to each form ([[one-way-no-aliases]]): --json is an ERROR on the
+	// views already JSON by name (board/findings/friction — `--view board` is the single
+	// way to board JSON, no alias) and on markdown views with no JSON form. It is checked
+	// BEFORE the board/findings/friction branches so `--view board --json` refuses rather
+	// than falling through to the flagless JSON. A wrong guess fails loudly.
+	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
+		switch want {
+		case "debate":
+			b, err := record.DebateJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
+		case "board", "findings", "friction", "motions", "worklist", "telemetry":
+			return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON)", role, want)
+		case "":
+			return fmt.Errorf("%s show: name a projection. They are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
+		default:
+			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/friction/motions/worklist are JSON by name)", role, want)
 		}
+	}
 
-		b, err := view.Markdown(runDir, want, scope)
+	// The BOARD is served as structured JSON, because a seat ACTS on it.
+	//
+	// Every other view is prose a seat reads; the board is state a seat has to make
+	// decisions against — which gap is open, what its grades are, whether a closure
+	// carried its anchor. Parsing that back out of markdown is precisely where the
+	// scorecard defects came from (anchored_closures_pct read 0 against an 89
+	// baseline because it parsed sentences while the anchors sat in structured
+	// fields). Markdown for the same state stays available behind --view ledger.
+	//
+	// Resolved AFTER the role default, not before: `merge show` with no flags must
+	// reach this branch, and checking the raw flag first sent the merge seat's own
+	// default view looking for a board.md that no renderer writes.
+	if want == "board" {
+		b, err := record.BoardJSONBytes(runDir)
 		if err != nil {
 			return err
 		}
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	c.Flags().String(flags.View, "", "which projection to read (defaults to this role's own):\n"+ViewMenu())
-	c.Flags().String(flags.ID, "", "scope the view to one gap — `--view changes --id <gap>` only")
-	return c
+	// findings is served as JSON too, and for the same reason: the merge ACTS on it
+	// (coalesces findings into gaps), so it reads structured fields, not prose it must
+	// parse. This is the channel that replaced red/candidates/*.md.
+	if want == "findings" {
+		b, err := record.FindingsJSONBytes(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// motions is JSON by name: a seat reads it to ANSWER a motion, so it needs the filer's
+	// basis as a field rather than prose it must find in a transcript.
+	if want == "motions" {
+		b, err := record.MotionsJSONBytes(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	if want == "friction" {
+		b, err := record.FrictionJSONBytes(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// worklist is JSON by name too — the merge ACTS on it (scans the open set, screens
+	// candidates), so it reads structured fields, not prose. It is the shrinking
+	// once-per-turn read that the full board JSON is not.
+	if want == "worklist" {
+		b, err := record.WorklistJSONBytes(runDir, role, Of(cmd).SeatID)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// telemetry is JSONL by name — one line per round, the wire shape the stopping
+	// judgment reads. It is a SERIES, not a snapshot, and the series is the whole
+	// point: a single round's numbers cannot show a trend changing character.
+	if want == "telemetry" {
+		b, err := view.TelemetryJSONL(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	if want == "" {
+		return fmt.Errorf("%s show: name a projection. They are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
+	}
+	known := false
+	for _, v := range views {
+		if v.name == want {
+			known = true
+		}
+	}
+	if !known {
+		// THE MENU, NOT THE NAMES. A seat that mistypes a view is a seat that does not
+		// know the view space, and a list of twelve nouns tells it which words are legal
+		// while leaving it to guess which one holds what it wants.
+		return fmt.Errorf("%s show: unknown view %q. The projections are:\n\n%s\nEach names the verb that fills it", role, want, ViewMenu())
+	}
+
+	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
+	// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored).
+	// Silently dropping it is the worse failure here — a seat that asked for one gap's
+	// edits and received every edit would read the answer as the answer to its question.
+	scope := Str(cmd, flags.ID)
+	if scope != "" && want != "changes" {
+		return fmt.Errorf("%s show: --id scopes --view changes and nothing else; --view %s has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
+	}
+
+	b, err := view.Markdown(runDir, want, scope)
+	if err != nil {
+		return err
+	}
+	cmd.OutOrStdout().Write(b)
+	return nil
 }
 
-// Role assembles a role's command from the verbs it was given.
-//
-// The role knows only its own name, its own one-line contract, and which verbs
-// it has. That list IS the role boundary — a lens has no mint verb to call —
-// and a seat that reaches past it is answered with what it CAN do rather than
-// cobra's generic "unknown command".
 func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 	c := &cobra.Command{
 		Use:   role,

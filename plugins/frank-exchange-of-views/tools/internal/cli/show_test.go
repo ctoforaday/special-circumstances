@@ -31,15 +31,15 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	for _, name := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
+	for _, name := range []string{"ledger", "archive", "debate", "citation-ledger", "lines-of-inquiry"} {
 		t.Run(name, func(t *testing.T) {
-			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", name)
+			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", name)
 			if err != nil {
-				t.Fatalf("show --view %s: %v", name, err)
+				t.Fatalf("show %s: %v", name, err)
 			}
 			want := readProjection(t, runDir, name)
 			if out != want {
-				t.Errorf("show --view %s does not match the shared view.Markdown computation byte for byte — a re-derivation at the read surface is a second reader.\nstdout (%d bytes):\n%s\ncomputed (%d bytes):\n%s",
+				t.Errorf("show %s does not match the shared view.Markdown computation byte for byte — a re-derivation at the read surface is a second reader.\nstdout (%d bytes):\n%s\ncomputed (%d bytes):\n%s",
 					name, len(out), out, len(want), want)
 			}
 		})
@@ -92,7 +92,7 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 // improvise a file read instead, which is the behaviour this verb exists to replace.
 func TestUnknownViewIsRefusedWithTheListOfViews(t *testing.T) {
 	runDir := seatRun(t)
-	_, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "the-board")
+	_, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "the-board")
 	if err == nil {
 		t.Fatal("an unknown view was accepted; a seat would get an empty read and no signal that it asked for something that does not exist")
 	}
@@ -134,9 +134,9 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 
 	// debate --json parses and carries the rounds structure.
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "debate", "--json")
+	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "debate", "--json")
 	if err != nil {
-		t.Fatalf("show --view debate --json: %v", err)
+		t.Fatalf("show debate --json: %v", err)
 	}
 	var dj struct {
 		Rounds []struct {
@@ -160,12 +160,12 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 
 	// --json on a JSON-by-name view is refused (no alias to that JSON).
 	for _, v := range []string{"board", "findings", "friction", "worklist"} {
-		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", v, "--json"); err == nil {
+		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}
 	}
 	// --json on a markdown view with no JSON form is refused.
-	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "ledger", "--json"); err == nil {
+	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "ledger", "--json"); err == nil {
 		t.Error("--view ledger --json was accepted; ledger has no JSON form and must refuse")
 	}
 }

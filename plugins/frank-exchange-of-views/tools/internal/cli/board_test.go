@@ -39,9 +39,9 @@ type boardJSON struct {
 
 func board(t *testing.T, runDir, seatRole, seatID string) boardJSON {
 	t.Helper()
-	out, err := run(t, seatRole, "show", "--run", runDir, "--seat-id", seatID, "--view", "board")
+	out, err := run(t, seatRole, "show", "--run", runDir, "--seat-id", seatID, "board")
 	if err != nil {
-		t.Fatalf("show --view board: %v", err)
+		t.Fatalf("show board: %v", err)
 	}
 	var b boardJSON
 	if err := json.Unmarshal([]byte(out), &b); err != nil {
@@ -145,9 +145,9 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 		"--key", "F1", "--location", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "findings")
+	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "findings")
 	if err != nil {
-		t.Fatalf("show --view findings: %v", err)
+		t.Fatalf("show findings: %v", err)
 	}
 	var fv struct {
 		Findings []struct{ Label, Role, Text string }

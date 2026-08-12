@@ -150,14 +150,14 @@ func TestGolden(t *testing.T) {
 			}
 
 			// RENDERS: the markdown projections, pulled through the SAME path a seat uses —
-			// `show --view <v>`, which renders in-memory from the record via internal/view (no
+			// `show <v>`, which renders in-memory from the record via internal/view (no
 			// render-shadow). This byte-pins every projection across every scenario, the coverage
 			// the render-shadow removal (#203) dropped when it deleted the materialized snapshot.
 			// A view that errors on a given run (e.g. a pure-help/error scenario with no record)
 			// contributes nothing, so degenerate runs carry no RENDERS section — as before.
 			var renders strings.Builder
 			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
-				got := normalizeOutput(runGo(bin, runDir, cmd{role: "merge", args: []string{"show", "--view", v, "--run", runDir}}), runDir, m)
+				got := normalizeOutput(runGo(bin, runDir, cmd{role: "merge", args: []string{"show", v, "--run", runDir}}), runDir, m)
 				if got.code == 0 {
 					fmt.Fprintf(&renders, "-- %s\n%s\n", v, got.stdout)
 				}

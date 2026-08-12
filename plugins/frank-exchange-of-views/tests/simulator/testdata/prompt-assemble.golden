@@ -1,4 +1,4 @@
-prompt sha256: 59ecca1c0676ee341f06a16b5e7ced41cf82684e5098435d42085f8d933301ac
+prompt sha256: 3b234cf279c0e6e30fd30cab9292e4858908f637167f2fc7afc309036764157c
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -9,7 +9,7 @@ The assembler composes research/2026-01-01_golden/report.md FROM THE EVENT LOG (
 A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report.
 There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself.
 Verify research/2026-01-01_golden/report.md exists and read its top — the verdict stamp is the outcome event's, the sections are blue's and the record's.
-AUTHORITATIVE OPEN COUNT: after assembling, run "null/feov-record" bench show --run research/2026-01-01_golden --view board and report its counts.open as open_gaps in your envelope — this is the run's true outstanding-gap number (the board after every closure and ruling), and it is the ONLY correct source for it.
+AUTHORITATIVE OPEN COUNT: after assembling, run "null/feov-record" bench show --run research/2026-01-01_golden show board and report its counts.open as open_gaps in your envelope — this is the run's true outstanding-gap number (the board after every closure and ruling), and it is the ONLY correct source for it.
 Collated friction so far (report any of your own as well): [].
 FRICTION (assemble) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with the friction verb (--reason names the thing and the shape the work actually wanted) AND in the envelope's friction field; then, if nothing blocked you, say so on the record with `friction --none --reason "<what you reached for and found>"`.
 SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.

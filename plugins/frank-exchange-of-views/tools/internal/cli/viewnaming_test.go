@@ -45,7 +45,6 @@ var viewWriters = map[string][]string{
 	"worklist":         {"mint"},
 	"findings":         {"finding"},
 	"debate":           {"position"},
-	"changelog":        {"revision"},
 	"changes":          {"edit"},
 	"citation-ledger":  {"cite"},
 	"lines-of-inquiry": {"avenue"},

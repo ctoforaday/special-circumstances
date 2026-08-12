@@ -49,7 +49,7 @@ func refusals() []struct {
 		{"a role with no verb", []string{"blue"}},
 		{"an unknown top-level command", []string{"frobnicate"}},
 		{"a motion subject with no such verb", []string{"motion", "petition", "appeal", "--seat-id", "blue-respond-r1"}},
-		{"an unknown view", []string{"blue", "show", "--view", "nonesuch", "--seat-id", "blue-respond-r1"}},
+		{"an unknown view", []string{"blue", "show", "nonesuch", "--seat-id", "blue-respond-r1"}},
 	}
 }
 
@@ -110,7 +110,7 @@ func trim(s string) string {
 
 // THE WRONG COMMAND IS ANSWERED BEFORE THE WRONG FLAG.
 //
-// Cobra parses flags before deciding a command is unknown, so `show --view board` reported
+// Cobra parses flags before deciding a command is unknown, so `show board` reported
 // `unknown flag: --view` — naming the one thing the caller had right, and sending a seat hunting
 // through view names instead of learning the role prefix it was missing.
 //
@@ -124,7 +124,7 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 		want string
 	}{
 		// The measured slip: `show` is per-role, and the concept "show the board" carries no role.
-		{"real flags on a command that does not exist", []string{"feov-record", "show", "--run", "/x", "--view", "board"}, "no command named \"show\""},
+		{"real flags on a command that does not exist", []string{"feov-record", "show", "--run", "/x", "board"}, "no command named \"show\""},
 		{"no flags at all", []string{"feov-record", "show"}, "no command named \"show\""},
 		{"a command that does exist is left to cobra", []string{"feov-record", "blue", "--nonsuch"}, ""},
 		{"a bare flag is left to cobra", []string{"feov-record", "--version"}, ""},
