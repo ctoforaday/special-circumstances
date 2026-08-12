@@ -485,8 +485,14 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	rows = append(rows, Row{Clause: "Alternatives explored", Metric: "thin_avenue_reasons", Cls: "detector",
 		Value: len(thinLines), Note: thinNote})
 
-	rows = append(rows, Row{Clause: "Calibration is craft", Metric: "confidence_vs_survival", Cls: "benchmark",
-		Note: "BLOCKED until per-claim confidence records exist (W2f) — calibration cannot be computed from prose"})
+	// `confidence_vs_survival` IS GONE (0.54.0). It reported "BLOCKED until per-claim confidence
+	// records exist (W2f)" on every run for a year — a metric waiting on a verb whose own use it
+	// was the only justification for, and the verb has now been deleted for exactly that
+	// circularity. A row that can never compute is not a pending measurement; it is a claim that
+	// something is being watched.
+	//
+	// The judgement it reached for survives as red's, per source, on the record:
+	// `lens verify --trust`.
 	return rows
 }
 

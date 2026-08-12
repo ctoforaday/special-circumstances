@@ -106,10 +106,18 @@ func Closing(help string) *cobra.Command {
 	return c
 }
 
-// views are the projections a seat may read, and the role whose view each one is by
-// default. The default exists so a seat can type `show` and get the artifact it works
-// against, without having to learn the file layout of a directory it should not be
-// reading directly in the first place.
+// views are the projections a seat may read. `defaultFor` is the role whose default this view
+// is; "*" means every role.
+//
+// EVERY SEAT DEFAULTS TO ITS PENDING WORK. It did not: blue's bare `show` returned `changelog`
+// — a record of what blue had ALREADY done, handed to it before it had done anything — the lens
+// got `citation-ledger` and the bench got `debate`. Asked what would tell them a sitting was
+// finished, only the merge could name a mechanism; blue and the bench answered with another
+// seat's future act ("red agrees it's sound"), which is not observable at the moment they have
+// to decide to stop.
+//
+// THREE VIEWS ALSO CLAIMED "merge" AND THE LAST ONE SILENTLY WON, because the resolution loop
+// keeps overwriting. A default decided by slice order is a default nobody chose.
 var views = []struct {
 	name, desc, defaultFor string
 }{
@@ -119,17 +127,17 @@ var views = []struct {
 	// that does not exist, because nothing in the projection it had just read said `avenue`. It
 	// found the right verb by failing twice. The next seat may instead conclude the capability is
 	// missing and write prose, which loses it for the whole run and is reported nowhere.
-	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on. Written by `mint`, `close`, `regrade` and `retire`", "merge"},
-	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", "merge"},
-	{"worklist", "STRUCTURED JSON: the merge's shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "merge"},
+	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on. Written by `mint`, `close`, `regrade` and `retire`", ""},
+	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
+	{"worklist", "STRUCTURED JSON: YOUR PENDING WORK and whether this sitting is finished (`sitting.complete`, with every outstanding duty and the verb that discharges it), plus the shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "*"},
 	{"friction", "STRUCTURED JSON: every friction event on the record (seat, round, text) — capability/protocol complaints as events; read by the dashboard instead of parsing a markdown file", ""},
 	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
 	{"ledger", "the board as markdown, for a human verification pass. Written by `mint`, `close` and `regrade`", ""},
 	{"archive", "closed gaps with their closure records and anchors. Written by `close`", ""},
-	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", "bench"},
-	{"changelog", "blue's revision record, per round. Written by `revision`", "blue"},
+	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
+	{"changelog", "blue's revision record, per round. Written by `revision`", ""},
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
-	{"citation-ledger", "verified claims with source, confidence and access date. Written by `cite` and `verify`", "lens"},
+	{"citation-ledger", "verified claims with source, confidence and access date. Written by `cite` and `verify`", ""},
 	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned. Written by `avenue` (propose and move) and `motion direction rule` (red's ruling)", ""},
 	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
 }
@@ -199,9 +207,12 @@ func Show() *cobra.Command {
 		}
 		want := Str(cmd, flags.View)
 		if want == "" {
+			// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
+			// claiming "merge" resolved by slice order — a default nobody chose.
 			for _, v := range views {
-				if v.defaultFor == role {
+				if v.defaultFor == role || v.defaultFor == "*" {
 					want = v.name
+					break
 				}
 			}
 		}
@@ -288,7 +299,7 @@ func Show() *cobra.Command {
 		// candidates), so it reads structured fields, not prose. It is the shrinking
 		// once-per-turn read that the full board JSON is not.
 		if want == "worklist" {
-			b, err := record.WorklistJSONBytes(runDir)
+			b, err := record.WorklistJSONBytes(runDir, role, Of(cmd).SeatID)
 			if err != nil {
 				return err
 			}

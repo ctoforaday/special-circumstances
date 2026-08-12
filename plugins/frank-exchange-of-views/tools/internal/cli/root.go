@@ -515,10 +515,40 @@ import (
 //
 //	       A stale binary still offers the verb and writes an event nothing renders.
 //
+//	0.55.0 A SEAT CAN SEE ITS OWN PENDING WORK, AND WHETHER IT IS FINISHED — on the read it
+//	       already does first, with no new command.
+//
+//	       `--view worklist` carries a `sitting` block: every outstanding duty, the ways to
+//	       discharge each, and `complete`. Every role now defaults to it. They did not: blue's
+//	       bare `show` returned `changelog` — a record of what blue had ALREADY done, handed to
+//	       it before it had done anything — the lens got `citation-ledger`, the bench `debate`.
+//	       Three views also claimed the merge's default and the LAST one silently won, because
+//	       the resolution loop kept overwriting; it takes the first match now.
+//
+//	       WHY: asked what would tell them a sitting was finished, only the merge could name a
+//	       mechanism — "the `verdict` command either succeeds or fails; if it fails the tool tells
+//	       me what's blocking closure". Blue and the bench answered with another seat's future act
+//	       ("red agrees it's sound"), which is not observable at the moment they must decide to
+//	       stop. A seat whose completion condition is someone else's next move cannot know it is
+//	       done; it can only stop and hand over.
+//
+//	       The duties are only ones already enforced or recorded elsewhere — open gaps and unruled
+//	       motions (which refuse `verdict`), an unanswered computation demand (which refuses
+//	       `close`), the round record, the friction channel. A duty invented here would make this
+//	       view disagree with the gates. Each names the WAYS OUT rather than one way: a seat
+//	       handed a single answer takes it and never weighs the alternative, and for a computation
+//	       demand the alternative — arguing the demand is wrong — is a legitimate move.
+//
+//	       `confidence_vs_survival` is removed from blue's scorecard: it reported "BLOCKED until
+//	       per-claim confidence records exist" on every run for a year, waiting on the verb
+//	       deleted in 0.54.0 for that exact circularity.
+//
+//	       A stale binary answers a bare `show` with whatever its role's old default was.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.54.0"
+const Version = "0.55.0"
 
 func init() { record.ToolVersion = Version }
 

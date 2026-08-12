@@ -287,6 +287,9 @@ func BoardJSONBytes(runDir string) ([]byte, error) {
 // views still serve the full prose when a seat needs it), and closed gaps collapse to
 // {id, location, class}. Like every other JSON view it derives from BoardState.
 type WorklistJSON struct {
+	// Sitting answers "may I end my turn" on the read a seat already does first. A separate
+	// command would be a second way to ask a question this view should have been answering.
+	Sitting     SittingJSON       `json:"sitting"`
 	Open        []WorklistGapJSON `json:"open"`
 	ClosedIndex []ClosedIndexJSON `json:"closed_index"`
 	Counts      struct {
@@ -383,12 +386,14 @@ func WorklistJSONOf(b *Board) WorklistJSON {
 
 // WorklistJSONBytes renders the worklist as indented JSON (a seat reads it in a terminal
 // transcript), mirroring BoardJSONBytes.
-func WorklistJSONBytes(runDir string) ([]byte, error) {
+func WorklistJSONBytes(runDir, role, seatID string) ([]byte, error) {
 	b, err := BoardState(runDir)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(WorklistJSONOf(b), "", "  ")
+	w := WorklistJSONOf(b)
+	w.Sitting = SittingOf(b, role, seatID)
+	out, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return nil, err
 	}
