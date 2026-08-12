@@ -1,7 +1,7 @@
 $ merge petition --run {RUN} --seat-id red-merge-r1 --petition-class safety --reason the design erodes a consent gate --relief halt and escalate
 exit 2
 stderr:
-feov-record: verb "petition" is outside the merge seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: verb "petition" is outside the merge seat's role — it exists, on the motion seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
 
 the red merge seat — the board's only writer.
 
@@ -45,7 +45,7 @@ registered judge-petition (shard nonce NONCE001)
 $ bench petition-rule --run {RUN} --seat-id judge-petition --petitioner red-merge-r1 --petition-class safety --as granted --reason the relief binds the coming seats
 exit 2
 stderr:
-feov-record: verb "petition-rule" is outside the bench seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no verb "petition-rule" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
 
 the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
 
@@ -85,7 +85,7 @@ JUDICIAL HALT recorded — capture relays this verbatim
 
 ═══ EVENTS ═══
 -- events-judge-petition-NONCE001.jsonl
-{"key":"judge-petition:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.53.0"},"role":"bench","round":0,"seatId":"judge-petition","seq":0,"ts":0,"type":"register"}
+{"key":"judge-petition:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.54.0"},"role":"bench","round":0,"seatId":"judge-petition","seq":0,"ts":0,"type":"register"}
 {"key":"judge-petition:halt:#1","nonce":"NONCE001","payload":{"opinion":"continuing would compromise the consent gate"},"role":"bench","round":0,"seatId":"judge-petition","seq":1,"ts":1,"type":"halt"}
 
 ═══ RENDERS ═══

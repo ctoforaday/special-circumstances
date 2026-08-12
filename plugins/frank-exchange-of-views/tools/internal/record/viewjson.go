@@ -536,24 +536,18 @@ type DebateJSON struct {
 // present (possibly empty) arrays — a consumer counts `red.length` for the round's red
 // sitting, and a null would make that count throw. The richer sections omit when empty.
 type DebateRoundJSON struct {
-	Round        int                    `json:"round"`
-	Red          []string               `json:"red"`
-	Blue         []string               `json:"blue"`
-	Lead         []DebateOpinionJSON    `json:"lead"`
-	RedClosings  []DebateClosingJSON    `json:"red_closings,omitempty"`
-	BlueClosings []DebateClosingJSON    `json:"blue_closings,omitempty"`
-	Confidence   []DebateConfidenceJSON `json:"confidence,omitempty"`
-	Disputes     []DebateDisputeJSON    `json:"disputes,omitempty"`
+	Round        int                 `json:"round"`
+	Red          []string            `json:"red"`
+	Blue         []string            `json:"blue"`
+	Lead         []DebateOpinionJSON `json:"lead"`
+	RedClosings  []DebateClosingJSON `json:"red_closings,omitempty"`
+	BlueClosings []DebateClosingJSON `json:"blue_closings,omitempty"`
+	Disputes     []DebateDisputeJSON `json:"disputes,omitempty"`
 }
 
 type DebateClosingJSON struct {
 	GapID string `json:"gap_id"`
 	Text  string `json:"text"`
-}
-
-type DebateConfidenceJSON struct {
-	Label string `json:"label"`
-	Grade string `json:"grade"`
 }
 
 // DebateDisputeJSON carries both a claim (`dispute`) and its answer (`dispute-respond`),
@@ -580,7 +574,7 @@ type DebateOpinionJSON struct {
 
 // DebateJSONOf groups the record's events by round exactly as render.go's debate loop does:
 // position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
-// confidence→Confidence, dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
+// dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 func DebateJSONOf(b *Board) DebateJSON {
 	out := DebateJSON{Rounds: []DebateRoundJSON{}}
@@ -621,8 +615,6 @@ func DebateJSONOf(b *Board) DebateJSON {
 		}
 		for _, e := range re {
 			switch e.Type {
-			case "confidence":
-				rj.Confidence = append(rj.Confidence, DebateConfidenceJSON{Label: e.Payload.Str("label"), Grade: e.Payload.Str("grade")})
 			case "dispute":
 				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
 					Kind: "dispute", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),

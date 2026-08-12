@@ -205,7 +205,6 @@ Available Commands:
   cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
   edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
   friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
@@ -263,7 +262,7 @@ Use "feov-record bench [command] --help" for more information about a command.
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.53.0
+feov-record version 0.54.0
 
 $ feov-record nonsuch help
 exit 2

@@ -85,6 +85,7 @@ func main() {
 		parallel   = flag.Int("parallel", 2, "how many boards to run at once")
 		reportOnly = flag.Bool("report-only", false, "skip build and dispatch; report on what is already there")
 		keep       = flag.Bool("keep", false, "keep an existing board directory instead of rebuilding it")
+		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
 	)
 	flag.Parse()
@@ -124,7 +125,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, surface)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				return
@@ -152,7 +153,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun bool, surface seatprobe.Surface) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -201,9 +202,21 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		if err := seatprobe.Build(runDir, b, run); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
-		if err := dispatch(b, runDir, bin, constDir, model); err != nil {
+		if err := dispatch(b, runDir, bin, constDir, model, ask); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
+	}
+
+	// IN THE ELICITATION ARM THE ANSWER IS THE DELIVERABLE. A choice report over a sitting that
+	// deliberately recorded nothing would print "reached for 0 of 18" and mean nothing at all —
+	// the plausible zero again, manufactured by the instrument.
+	if ask {
+		out := "# " + b.Name + " — what the " + b.Seat + " seat thinks its options are\n\n" +
+			readAnswer(trajectoryPath(runDir))
+		if t := readThinking(trajectoryPath(runDir)); t != "" {
+			out += "\n\n### What it was reasoning about\n\n" + t + "\n"
+		}
+		return out, nil
 	}
 
 	// The record answers what LANDED; the trajectory answers what the seat REACHED FOR. Reads
@@ -237,7 +250,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model string) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -261,6 +274,19 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 
 %s`, role, b.Seat, runDir, bin, b.Seat, b.Sitting())
 
+	// THE ELICITATION ARM. Same board, same constitution, same identity — the seat is asked what
+	// it thinks its options are instead of being watched to see which it takes.
+	//
+	// The tool set drops Write and Edit, and the prompt says to record nothing. Not because a
+	// seat would cheat, but because an answer about judgement should not leave board state
+	// behind: the run directory has to stay comparable to the acting arm's, or the two probes
+	// are measuring different boards.
+	tools := "Bash Read Write Edit Grep Glob"
+	if ask {
+		prompt = seatprobe.ElicitPrompt(role, b.Seat, runDir, bin, b)
+		tools = "Bash Read Grep Glob"
+	}
+
 	args := []string{
 		"-p", prompt,
 		"--model", model,
@@ -268,7 +294,7 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 		"--verbose",
 		"--system-prompt-file", constitution,
 		"--add-dir", runDir,
-		"--allowedTools", "Bash Read Write Edit Grep Glob",
+		"--allowedTools", tools,
 		"--max-turns", "60",
 	}
 	cmd := exec.Command("claude", args...)
@@ -401,4 +427,44 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// readAnswer pulls the seat's own prose out of a captured trajectory — the assistant text blocks,
+// in order, which in the elicitation arm ARE the result.
+//
+// Tool calls and thinking are excluded: thinking is reported separately (it is what the seat was
+// weighing, not what it decided to tell us), and a tool call is the reading it did to answer.
+func readAnswer(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return "_(no trajectory captured)_"
+	}
+	defer f.Close()
+
+	var out []string
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 1<<20), 1<<24)
+	for sc.Scan() {
+		var ev struct {
+			Type    string `json:"type"`
+			Message struct {
+				Content []struct {
+					Type string `json:"type"`
+					Text string `json:"text"`
+				} `json:"content"`
+			} `json:"message"`
+		}
+		if json.Unmarshal(sc.Bytes(), &ev) != nil || ev.Type != "assistant" {
+			continue
+		}
+		for _, b := range ev.Message.Content {
+			if b.Type == "text" && strings.TrimSpace(b.Text) != "" {
+				out = append(out, strings.TrimSpace(b.Text))
+			}
+		}
+	}
+	if len(out) == 0 {
+		return "_(the seat produced no prose — an answer of silence, which is itself a result)_"
+	}
+	return strings.Join(out, "\n\n")
 }

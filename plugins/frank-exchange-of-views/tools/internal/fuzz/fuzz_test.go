@@ -9,7 +9,7 @@ package fuzz
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
 // not a happy path: lens (cite/finding/avenue/friction), merge (position/closing/
 // mint/close incl. closed_with_regression/regrade any axis/
-// dispute-respond/spot-check/verdict/petition), blue (position/closing/confidence/dispute
+// dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
 // across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
 // (opinion/outcome incl. --exhausted/--deadlocked/certify/assemble/petition-rule). The
 // petition->petition-rule docket and the disputes docket are driven through the ENVELOPE (see
@@ -161,7 +161,6 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 		_, _ = r.exec(role, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
 	}
 	if role == "blue" {
-		r.emitConfidence(seatID) // blue calibrates its claims every round
 	}
 	if role == "merge" && len(open) > 0 && r.coin(30) {
 		id := open[r.rng.Intn(len(open))]
@@ -296,17 +295,11 @@ var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 
-var confGrades = []string{"high", "medium", "low"}
-
-// emitConfidence records blue's per-claim calibration — the NON-AUTHORITATIVE signal wired in
-// 0.13.0. Unique labels per act so the report oracle can prove each one actually rendered in the
-// "Blue's confidence self-assessment" section (and never leaked into the risk matrix).
-func (r *runner) emitConfidence(seatID string) {
-	for i := 0; i <= r.rng.Intn(2); i++ {
-		claim := fmt.Sprintf("conf-claim-%d-by-%s", i, seatID)
-		_, _ = r.exec("blue", "confidence", "--seat-id", seatID, "--claim", claim, "--confidence", confGrades[r.rng.Intn(len(confGrades))])
-	}
-}
+// trustGrades is the value space of `lens verify --trust` — the ONE surviving confidence
+// channel. It was named confGrades and shared with `blue confidence`, which is how one word came
+// to carry two questions; the self-grade was retired in 0.54.0 and red's per-source judgement,
+// the thing the original plan specified as a FIELD on corroboration, is what remains.
+var trustGrades = []string{"high", "medium", "low"}
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
 // introduces the class; the rest reuse it.
@@ -807,7 +800,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	switch {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
-		r.emitConfidence(seatID) // round-0 calibration
 		r.extras("blue", seatID, nil)
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
 
@@ -888,7 +880,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
 		open := r.openGaps()
-		r.dialectic("blue", seatID, open) // blue's position, closings, confidence
+		r.dialectic("blue", seatID, open) // blue's position and closings
 		r.extras("blue", seatID, open)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
 		// minted with; blue reads it back off the board and does what it says. This replaces a
@@ -1008,7 +1000,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
 				_, _ = r.exec("lens", "verify", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
-					"--reference", "https://fuzz.invalid/"+seatID, "--trust", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
+					"--reference", "https://fuzz.invalid/"+seatID, "--trust", trustGrades[r.rng.Intn(len(trustGrades))], "--access-date", "2026-07-24")
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
@@ -1597,7 +1589,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
-	"confidence", "cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
+	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
 	"manifest-row", "verdict", "spot-check", "certify", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
@@ -1695,9 +1687,6 @@ var dialecticProseKey = map[string]string{
 	// The lens's below-the-bar work and the fate the merge gave it.
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
-	// confidence's "prose" is its claim label — it must render in the report's confidence
-	// self-assessment section, or blue's calibration silently vanishes (the dead-letter it was).
-	"confidence": "label",
 	// Run-level voices.
 	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
 	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint

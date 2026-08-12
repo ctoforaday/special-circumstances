@@ -75,7 +75,7 @@ feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VER
 
 ── petition ruling outside the set
 exit 2
-feov-record: verb "petition-rule" is outside the bench seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no verb "petition-rule" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
 
 the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
 
@@ -121,7 +121,7 @@ feov-record: invalid argument "closed-with-regression" for "--as" flag: --as mus
 
 ── dispute dimension outside the set
 exit 2
-feov-record: verb "dispute" is outside the blue seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no verb "dispute" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
 
 blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
 
@@ -139,7 +139,6 @@ Available Commands:
   cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
   edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
   friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
@@ -170,15 +169,7 @@ feov-record: invalid argument "banana" for "--trust" flag: --trust must be one o
 
 ── blue confidence outside the set
 exit 2
-feov-record: invalid argument "banana" for "--confidence" flag: --confidence must be one of high|medium|low (got "banana") — the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable
-
-    high    you would defend this claim at the leaf under audit
-    medium  you believe it and can see where it might not hold
-    low     you are stating it because the report needs it stated, and you expect red to find something
-
-── petition class outside the set
-exit 2
-feov-record: verb "petition" is outside the blue seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no verb "confidence" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
 
 blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
 
@@ -196,7 +187,46 @@ Available Commands:
   cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
+  edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
+  friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  position     the round's ### BLUE section (prose via --reason)
+  prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
+  register     FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
+  revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view board|findings|worklist|friction|motions|ledger|archive|debate|changelog|changes|citation-ledger|lines-of-inquiry|telemetry
+
+Flags:
+  -h, --help   help for blue
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
+
+── petition class outside the set
+exit 2
+feov-record: verb "petition" is outside the blue seat's role — it exists, on the motion seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+
+blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
   friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
@@ -223,7 +253,7 @@ feov-record: merge: seat "not a seat id" does not belong to any role namespace (
 
 ── verb outside the lens role
 exit 2
-feov-record: verb "mint" is outside the lens seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: verb "mint" is outside the lens seat's role — it exists, on the merge seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
 
 red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
 
@@ -256,7 +286,7 @@ Use "{TOOL} [command] --help" for more information about a command.
 
 ── verb outside the blue role
 exit 2
-feov-record: verb "close" is outside the blue seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: verb "close" is outside the blue seat's role — it exists, on the merge seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
 
 blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
 
@@ -274,7 +304,6 @@ Available Commands:
   cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
   claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  confidence   per-claim confidence (the calibration substrate): --claim <claim-label> --confidence high|medium|low
   edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
   friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
@@ -297,7 +326,7 @@ Use "{TOOL} [command] --help" for more information about a command.
 
 ── verb outside the bench role
 exit 2
-feov-record: verb "mint" is outside the bench seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: verb "mint" is outside the bench seat's role — it exists, on the merge seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
 
 the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
 
@@ -332,7 +361,7 @@ Use "{TOOL} [command] --help" for more information about a command.
 
 ── unknown verb
 exit 2
-feov-record: verb "frobnicate" is outside the merge seat's role — it exists in this tool but not for you, so this is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no verb "frobnicate" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
 
 the red merge seat — the board's only writer.
 

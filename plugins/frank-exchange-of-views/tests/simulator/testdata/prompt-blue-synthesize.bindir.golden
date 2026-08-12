@@ -1,4 +1,4 @@
-prompt sha256: ca1c897edb059c4ea7d72d0052f30abdf7dec836c20063d79fed706ad9d9058e
+prompt sha256: c7f3676a057b839a2d7bf8003dfcfe226f6179f71f24eda00d9bd4b00997b701
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -26,10 +26,6 @@ Start research/2026-01-01_golden/blue/CHANGELOG.md with a Round 0 entry describi
 LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), with --status pursued (it became your spine), abandoned (you tried it and it died), or declined (you weighed it and did not take it), and for the latter two a --reason.
 The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.
-CALIBRATION (self-assessment, on the record — your constitution's "confidence should predict survival under audit", made instrumentable): for each LOAD-BEARING claim — the ones a wrong answer would break — record your OWN confidence with the confidence verb: "/opt/feov/bin/feov-record" blue confidence --run research/2026-01-01_golden --seat-id blue-synthesize --claim "<short label or quoted span>" --confidence high|medium|low.
-This is NON-AUTHORITATIVE and that is the point: it sets no grade, gates nothing, and never enters the risk matrix — red reads it to TARGET (a HIGH-confidence claim is where a calibration miss costs most; a LOW one is you naming your own soft spot for red), and the bench reads it as context.
-Honesty is the whole value: an inflated confidence is not a defense — it is a defect signal red will catch as a calibration gap — and an underconfident one buries your strongest finding.
-Grade the CLAIM, not its citation: a claim you are unsure of with no source at all is exactly the row worth recording.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-synthesize).
 FRICTION (blue-synthesize) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with the friction verb (--reason names the thing and the shape the work actually wanted) AND in the envelope's friction field; then, if nothing blocked you, say so on the record with `friction --none --reason "<what you reached for and found>"`.
 SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.

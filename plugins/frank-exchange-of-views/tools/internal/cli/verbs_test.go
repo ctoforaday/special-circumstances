@@ -151,15 +151,6 @@ func TestVerbPayloads(t *testing.T) {
 			says: "avenue A1 recorded (abandoned): search the offline archive",
 		},
 		{
-			name: "blue confidence records the calibration substrate",
-			role: "blue", seatID: "blue-lane-1",
-			// The flag words are --claim/--confidence; the payload keys stay label/grade.
-			args: []string{"--claim", "C1", "--confidence", "medium"},
-			typ:  "confidence",
-			want: map[string]string{"label": "C1", "grade": "medium"},
-			says: "confidence recorded for C1",
-		},
-		{
 			name: "motion petition rule records the ruling and its opinion",
 			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},

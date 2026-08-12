@@ -486,10 +486,39 @@ import (
 //
 //	       A stale binary accepts an outcome with no account and shows no debt.
 //
+//	0.54.0 `blue confidence` IS DELETED — verb, event, renderers, enum, flag and clause.
+//
+//	       Archaeology, because the name outlived the design. The plan specified confidence as a
+//	       FIELD on RED's corroboration, per statement↔reference pair: "for each statement ↔
+//	       reference pair it assigns a confidence that the source actually corroborates the
+//	       statement". That shipped, and is `lens verify --trust` — renamed precisely because
+//	       "blue's confidence is its self-grade on a claim, and one word for two questions is how
+//	       the two came to share an event type".
+//
+//	       What carried the name was a different act: blue grading blue's own claims. It set no
+//	       grade, entered no risk matrix, and the calibration computation that would have given it
+//	       meaning was specified, never built, and blocked on data only its own use would produce.
+//	       change-waves.md records both halves — "per-claim confidence has a verb but no
+//	       calibration computation", and elsewhere names it the thing to avoid becoming: "the next
+//	       `confidence self-graded` dead letter".
+//
+//	       DELETED RATHER THAN DUAL-READ. The retirement precedent (0.49.0) keeps reading a
+//	       vocabulary it replaced, because a record is permanent and consumers' runs are invisible
+//	       to this plugin. That reasoning does not hold here: this verb has no replacement to read
+//	       INTO, and no run outside this repo's own tests ever used it. An abandoned idea kept
+//	       alive in the files is one the next reader has to rule out.
+//
+//	       Also: a wrong-verb refusal now says WHICH case it is. It asserted "it exists in this
+//	       tool but not for you" unconditionally — a claim about the rest of the tool it never
+//	       checked — so every call to the deleted verb insisted it existed somewhere and sent the
+//	       seat looking for a role that had it.
+//
+//	       A stale binary still offers the verb and writes an event nothing renders.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.53.0"
+const Version = "0.54.0"
 
 func init() { record.ToolVersion = Version }
 
