@@ -1,4 +1,4 @@
-prompt sha256: efe43d1625e29d15a6ddbc964d4fcc5e9aa61be0a0b78acc9fe8058b17bf4c0c
+prompt sha256: 930437738479088eb765795a20abbddcbf0cd9cbe9b650a371f7d42b86276a6c
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -9,7 +9,8 @@ You have Bash, Write and Edit, and for a whole class of questions running someth
 WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR.
 Measured: a seat facing a gap that said the stated total did not match the per-source rows summed twelve integers inside its own reasoning, wrote the answer into the report, and moved on.
 The answer was RIGHT, which is exactly why nothing caught it: a correct figure with no derivation is indistinguishable from a confident guess, and a reader cannot vary the rate, re-check the sum, or locate the error on the day there is one.
-Every gap on the board and the worklist carries a check_kind — READ IT — and a gap whose check_kind is `computation` cannot be closed on prose at all: it closes only when you answer it with `blue prove --answers <gap-id>`, and the merge is refused if it tries to close it any other way.
+Every gap on the board and the worklist carries a check_kind AND an awaiting_proof flag — READ THEM — and a gap showing awaiting_proof: true is waiting on a program FROM YOU.
+A gap whose check_kind is `computation` cannot be closed on prose at all: it closes only when you answer it with `blue prove --answers <gap-id>`, and the merge is refused if it tries to close it any other way.
 Write a script under the run directory and record it (feov-record blue prove --location --script [--cites]).
 The tool runs it TWICE, caches the script and its output, and splices an invisible proof anchor at that sentence.
 Identical output twice is recorded as reproducible; output that moves is recorded as observed — still evidence, of a system in motion, but a MEASUREMENT rather than a proof, and the tool says which you produced.

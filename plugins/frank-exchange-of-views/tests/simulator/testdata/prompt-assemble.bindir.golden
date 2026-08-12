@@ -1,9 +1,10 @@
-prompt sha256: d2070aa935a9c57bd4e91cbc50af57cf444104f48997895dd574fc08339e9a47
+prompt sha256: d57bc9c7c77b0a2c824c963104029d81a9660d6b0bc715157c59eaeddf47ac60
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
 THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs.
-After registering, exactly two tool calls in order: (1) record the terminal verdict as a fact — "/opt/feov/bin/feov-record" bench outcome --run research/2026-01-01_golden --seat-id <your SEAT_ID> --as VERIFIED; (2) "/opt/feov/bin/feov-record" bench assemble --run research/2026-01-01_golden.
+After registering, exactly two tool calls in order: (1) record the terminal verdict as a fact — "/opt/feov/bin/feov-record" bench outcome --run research/2026-01-01_golden --seat-id <your SEAT_ID> --as VERIFIED --reason "<HOW THIS RUN ENDED, IN YOUR WORDS — required, as it is on every claim and judgment act here.
+The VERDICT is derived from the record and needs no defence; this is your account of the sitting, and where the run ended by judged DEADLOCK it is the only evidence that determination will ever have, because a deadlock leaves nothing on the record a later reader can consult>"; (2) "/opt/feov/bin/feov-record" bench assemble --run research/2026-01-01_golden.
 The assembler composes research/2026-01-01_golden/report.md FROM THE EVENT LOG (the verdict stamp from the outcome event you just wrote, the graded risk matrix, the expansions and alternatives-considered from the avenue record, red's findings in full, and the entire debate transcript — positions, closings, grade disputes, the bench's opinions and petition rulings, the terminal halt/certification) and LIFTS blue's audited sections VERBATIM from blue/report.md (the title, the TL;DR, the Catechism, the technical foundations, the analysis, the open questions).
 A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report.
 There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself.

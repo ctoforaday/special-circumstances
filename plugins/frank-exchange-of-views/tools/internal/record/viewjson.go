@@ -91,6 +91,17 @@ type GapJSON struct {
 	// verb exists to prevent. The gate DID fire, correctly and with a good message, at the
 	// merge's close in the following round, by which time blue's sitting was over.
 	CheckKind string `json:"check_kind,omitempty"`
+	// AwaitingProof is check_kind stated as a DEBT rather than as a property.
+	//
+	// Projecting check_kind was necessary and not sufficient: with it visible, `prove` went
+	// from 0 uses in eighteen sittings to 1 in nine. A seat reading `"check_kind":
+	// "computation"` learns a fact about the gap; it does not learn that IT owes a program,
+	// and the difference decides whether the sitting produces one.
+	//
+	// True only while the gap is OPEN and no proof names it in --answers. It is DERIVED at
+	// projection from the same join the close gate uses, so the board and the gate cannot
+	// disagree about what is owed.
+	AwaitingProof bool `json:"awaiting_proof,omitempty"`
 	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint
 	// from whether fix_old/fix_new validated against the live report — never self-reported —
 	// so blue can tell a remedy red actually checked from one it guessed, and weight its
@@ -163,6 +174,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 			gj.RequiredFix = g.Mint.Str("required_fix")
 			gj.AcceptanceGate = g.Mint.Str("acceptance_check")
 			gj.CheckKind = g.Mint.Str("check_kind")
+			gj.AwaitingProof = g.Open && gj.CheckKind == CheckKindComputation && !proofNames(b, g.ID)
 			gj.FixBasis = g.Mint.Str("fix_basis")
 			gj.FixOld = g.Mint.Str("fix_old")
 			gj.FixNew = g.Mint.Str("fix_new")
@@ -301,8 +313,10 @@ type WorklistGapJSON struct {
 	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
 	// and a seat scanning the open set has to know which of them cannot be answered in prose
 	// before it decides how to spend the sitting.
-	CheckKind string   `json:"check_kind,omitempty"`
-	FoundBy   []string `json:"found_by,omitempty"`
+	CheckKind string `json:"check_kind,omitempty"`
+	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingProof.
+	AwaitingProof bool     `json:"awaiting_proof,omitempty"`
+	FoundBy       []string `json:"found_by,omitempty"`
 }
 
 // ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
@@ -349,6 +363,7 @@ func WorklistJSONOf(b *Board) WorklistJSON {
 				wg.Location = g.Mint.Str("location")
 				wg.ProblemSynopsis = synopsis(g.Mint.Str("problem"))
 				wg.CheckKind = g.Mint.Str("check_kind")
+				wg.AwaitingProof = wg.CheckKind == CheckKindComputation && !proofNames(b, g.ID)
 				wg.FoundBy = g.Mint.StrList("found_by")
 			}
 			out.Open = append(out.Open, wg)

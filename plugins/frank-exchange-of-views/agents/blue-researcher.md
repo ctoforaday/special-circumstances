@@ -104,5 +104,9 @@ first — work that reaches red unverified has already failed your own standard.
   your head is not the exception, it is the case this exists for**: a correct figure with
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
-  `computation` CANNOT be closed any other way — read it off the board or the worklist and
-  answer it with a script.
+  `computation` CANNOT be closed any other way, and the board states the debt directly:
+  `awaiting_proof: true` means that gap is waiting on a program from YOU. The merge is
+  refused if it tries to close one on prose, so an unanswered demand does not settle — it
+  carries into the next round. Your sitting's last act reports what is still owed; discharge
+  each with `prove --answers <gap>`, or argue in an edit's `--reason` that the demand is
+  wrong. What you may not do is leave it silent.

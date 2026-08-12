@@ -334,7 +334,7 @@ func verdictStamp(o *record.Payload) string {
 	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
 	// exactly that, because a ceiling termination IS derived (rounds against the configured
 	// ceiling) and is the most common way a run ends.
-	basis := basisNote(o.Str("verdict_basis"))
+	basis := basisNote(o.Str("verdict_basis")) + verdictWhy(o)
 	switch o.Str("verdict") {
 	case "CEILING":
 		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run." + basis
@@ -350,6 +350,24 @@ func verdictStamp(o *record.Payload) string {
 		}
 		return fmt.Sprintf("**Verdict:** %s%s%s", o.Str("verdict"), by, basis)
 	}
+}
+
+// verdictWhy carries the DERIVATION'S OWN REASONING and, on a deadlock, the bench's.
+//
+// The derivation computed a `why` on every call — "the merge recorded a PASS verdict", "the
+// record reaches round 3 against a ceiling of 3" — and used it only to phrase an error, so the
+// report could stamp a verdict and never say why it was that one. A judged deadlock is the
+// opposite case and had no account at all: it is the ONE terminal verdict the record cannot
+// derive (#289), so the bench's --reason is the only evidence it will ever have.
+func verdictWhy(o *record.Payload) string {
+	out := ""
+	if why := strings.TrimSpace(o.Str("verdict_why")); why != "" {
+		out += " (" + why + ")"
+	}
+	if r := strings.TrimSpace(o.Str("prose")); r != "" {
+		out += "\n\n> **The deadlock, in the bench's words:** " + r
+	}
+	return out
 }
 
 // basisNote spells out how a verdict came to be — DERIVED from the record, or ASSERTED by the

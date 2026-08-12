@@ -85,7 +85,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	add("blue-r1", "avenue", "avenue_id", "A2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
 	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
 		"tension", "cost vs certainty", "review_flag", "false", "rationale", "a model-check is owed before this closes")
-	add("judge-terminal", "outcome", "verdict", "CEILING")
+	add("judge-terminal", "outcome", "verdict", "CEILING", "prose", "the round ceiling arrived before red could pass the final revision")
 
 	path, err := Assemble(runDir)
 	if err != nil {

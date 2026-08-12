@@ -964,7 +964,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if r.forceHalt {
 			verd = "HALTED" // a halted run's terminal outcome is HALTED (debate.js computes this)
 		}
-		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd}
+		// --reason is REQUIRED on outcome (#375): it is the run's terminal act, and every claim
+		// or judgment act on this record carries its reasoning. Driving it without one leaves
+		// `bench outcome` refused on every seed, which this sweep reports as a false green.
+		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd,
+			"--reason", "fuzz: the run reached " + verd + " and the bench recorded how it ended"}
 		// the terminal-outcome modifiers — a non-VERIFIED end may be by safety ceiling or deadlock
 		// (not on a halt, whose outcome stands alone).
 		if !r.forceHalt && verd != "VERIFIED" && r.coin(40) {

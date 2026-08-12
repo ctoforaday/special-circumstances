@@ -465,10 +465,31 @@ import (
 //
 //	       A stale binary hides check_kind, has no motions view, and rejects `--none`.
 //
+//	0.53.0 --reason IS THE RULE, AND A DEBT IS NOT A PROPERTY.
+//
+//	       `bench outcome` now REQUIRES --reason, enforced in validate like every other claim or
+//	       judgment act — it was simply missing from that list, which is how a bench seat came to
+//	       reach for it, find nothing, and file the absence as friction (#375). The verdict itself
+//	       is derived; how the SITTING ended is not, and where a run ends by judged deadlock
+//	       nothing else records it at all (DeriveVerdict says so: that determination "is not on
+//	       the record", #289). The derivation's own reasoning is recorded too — it was computed on
+//	       every call and used only to phrase an error, so the report stamped a verdict it could
+//	       not explain.
+//
+//	       `awaiting_proof` rides the board and the worklist: an OPEN computation gap no proof
+//	       answers, stated as a DEBT rather than as a property. Projecting `check_kind` in 0.52.0
+//	       was necessary and not sufficient — `prove` went from 0 uses across eighteen sittings to
+//	       1 across nine, because a seat reading "check_kind: computation" learns a fact about the
+//	       gap and not that it owes a program. `blue revision`, the last act of a sitting, now
+//	       names what is still owed; it REPORTS rather than refuses, because a seat that thinks
+//	       the demand is wrong has no verb to contest a check_kind and a gate would trap it.
+//
+//	       A stale binary accepts an outcome with no account and shows no debt.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.52.0"
+const Version = "0.53.0"
 
 func init() { record.ToolVersion = Version }
 
