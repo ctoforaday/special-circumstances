@@ -8,6 +8,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -127,10 +128,13 @@ var views = []struct {
 	// that does not exist, because nothing in the projection it had just read said `avenue`. It
 	// found the right verb by failing twice. The next seat may instead conclude the capability is
 	// missing and write prose, which loses it for the whole run and is reported nowhere.
+	// THE ARTIFACT THE WHOLE DEBATE IS ABOUT, and the last thing a seat still opened by hand.
+	// The event record was moved out of reach so `show` became the only way to the board;
+	// report.md stayed behind as the one file a seat had to know the layout to find.
+	{"report", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. Written by the round-0 synthesis and every `blue edit`", ""},
 	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on. Written by `mint`, `close`, `regrade` and `retire`", ""},
 	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
 	{"worklist", "STRUCTURED JSON: YOUR PENDING WORK and whether this sitting is finished (`sitting.complete`, with every outstanding duty and the verb that discharges it), plus the shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "*"},
-	{"friction", "STRUCTURED JSON: every friction event on the record (seat, round, text) — capability/protocol complaints as events; read by the dashboard instead of parsing a markdown file", ""},
 	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
 	{"ledger", "the board as markdown, for a human verification pass. Written by `mint`, `close` and `regrade`", ""},
 	{"archive", "closed gaps with their closure records and anchors. Written by `close`", ""},
@@ -322,6 +326,16 @@ func renderView(cmd *cobra.Command, want string) error {
 	}
 	// motions is JSON by name: a seat reads it to ANSWER a motion, so it needs the filer's
 	// basis as a field rather than prose it must find in a transcript.
+	// The artifact under audit, through the tool rather than off disk. Anchors intact: they are
+	// what `blue edit` holds a seat responsible for carrying across an edit.
+	if want == "report" {
+		b, err := report.BlueReportForReading(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
 	if want == "motions" {
 		b, err := record.MotionsJSONBytes(runDir)
 		if err != nil {

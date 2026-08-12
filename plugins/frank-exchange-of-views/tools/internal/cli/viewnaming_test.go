@@ -37,6 +37,10 @@ import (
 // than derived because no structure in the tree connects them today — which is precisely the gap
 // this test exists to make visible rather than to paper over.
 var viewWriters = map[string][]string{
+	// The round-0 synthesis authors it; every later change is an `edit`. `cite`, `finding` and
+	// `prove` splice the anchor layer into it, which is why they are named here too — a seat
+	// reading the report meets their tokens and has to carry them.
+	"report": {"edit", "cite", "finding", "prove"},
 	// The motion group fills it: the ask, the answer, and the press-on. All three, because a
 	// view that named only `file` would leave a reader wondering where a ruling comes from.
 	"motions":          {"motion", "rule", "appeal"},
@@ -48,7 +52,6 @@ var viewWriters = map[string][]string{
 	"changes":          {"edit"},
 	"citation-ledger":  {"cite"},
 	"lines-of-inquiry": {"avenue"},
-	"friction":         {"friction"},
 	"telemetry":        {},
 	"board":            {"mint", "close", "regrade", "retire"},
 }

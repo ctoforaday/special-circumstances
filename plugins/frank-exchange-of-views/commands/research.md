@@ -35,13 +35,13 @@ is two script invocations.
    telemetry join, the mechanized post-hoc audits, and `.run-live` marker removal):
    `<path to the feov-record executable> capture <run directory> <transcript dir>`
    `--bin` lets the record-backed audits (telemetry, record-parity, friction-parity) read the
-   run through the tool's views (`show --view debate --json`, `--view friction`) instead of a
+   run through the tool's views (`show debate --json`, and the operator's `friction` command) instead of a
    markdown projection; omit it only for a pre-record legacy run, where those three SKIP.
    Relay `run-record-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
    finding (missing telemetry line, shard self-report diverging from disk, envelope friction
    that never reached the record) — report it like an UNVERIFIED: plainly, never smoothed over.
    Your judgment half: read the envelope's friction entries against the friction record (`show
-   --view friction`) and dedupe attributed near-duplicates the parity check can't (same
+   friction`) and dedupe attributed near-duplicates the parity check can't (same
    complaint, different wording).
 
 **Monitoring a live run** (start this as a BACKGROUND task right after the Workflow launches — the watcher keys its lifetime to the .run-live marker and exits on its own when run-capture lifts it): `<path to the feov-record executable> dashboard <run directory> <transcript dir> --watch` writes `<run directory>/dashboard.html` (auto-refreshing) — board mass trend, open gaps by severity, live seats, cost-so-far, blackboard growth. The dashboard IS the record tool, so it reads the record in-process (no `--bin`); on a pre-record run whose record does not exist yet, the record tiles read "unavailable". The Workflow panel shows the phase; the dashboard shows the debate.

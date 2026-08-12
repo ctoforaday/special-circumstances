@@ -39,6 +39,13 @@ func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 			"the view list moved and took the guard with it")
 	}
 
+	// A STUB WITH A WRITER IS NOT A HUSK. `show report` (0.57.0) made `report` a projection name,
+	// and this guard matches on basename — so report.md and blue/report.md, which `bench assemble`
+	// and every `blue edit` fill, were suddenly reported as files nothing would ever write. The
+	// target of this check is a stub NOTHING fills; TestEveryStubHasAWriter owns the other half,
+	// and the two together are what keep an empty artifact from surviving to capture.
+	written := map[string]bool{"report.md": true, "blue/report.md": true, "blue/CHANGELOG.md": true}
+
 	var offenders []string
 	err := filepath.WalkDir(runDir, func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -46,9 +53,10 @@ func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 		}
 		// Case-sensitively: blue/CHANGELOG.md is blue's own file and shares a name with the
 		// `changelog` VIEW. They are different artifacts and only one has a writer.
-		if base := filepath.Base(p); rendered[base] && base == strings.ToLower(base) {
-			rel, _ := filepath.Rel(runDir, p)
-			offenders = append(offenders, filepath.ToSlash(rel))
+		rel, _ := filepath.Rel(runDir, p)
+		rel = filepath.ToSlash(rel)
+		if base := filepath.Base(p); rendered[base] && base == strings.ToLower(base) && !written[rel] {
+			offenders = append(offenders, rel)
 		}
 		return nil
 	})

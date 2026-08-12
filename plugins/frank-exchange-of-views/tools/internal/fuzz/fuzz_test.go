@@ -1228,7 +1228,14 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			return res
 		}
 	}
-	for _, v := range []string{"findings", "friction"} {
+	// The OPERATOR's friction read — seats write the channel, the human reads it back.
+	if _, err := tracked(bin, "friction", "--run", runDir); err != nil {
+		res.err = "operator friction read failed: " + err.Error()
+		return res
+	}
+	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
+	// every role; only the view moved.
+	for _, v := range []string{"findings"} {
 		out, err := tracked(bin, "merge", "show", v, "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {

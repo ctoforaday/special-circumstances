@@ -568,10 +568,32 @@ import (
 //
 //	       A stale binary takes --view and does not answer `show <name>`.
 //
+//	0.57.0 `show report` — the artifact under audit, read THROUGH the tool; and the friction
+//	       channel splits along the line it always had.
+//
+//	       report.md was the last thing a seat still opened by hand. The event record was moved
+//	       out of reach precisely so `show` became the only way to the board, and the one document
+//	       the whole debate is ABOUT stayed behind as a file a seat had to know the layout to find.
+//
+//	       IT DOES NOT RESOLVE THE ANCHORS, though assembly does and the first draft here did.
+//	       `blue edit` refuses an edit that drops an anchor, so a seat reading a resolved
+//	       rendering would not know a token lived inside the span it was replacing, would omit it
+//	       from --new, and would have the edit refused — on a document it had every reason to
+//	       think it had read correctly. The anchors are not noise to clean up before blue sees
+//	       them; they are the part blue is responsible for carrying.
+//
+//	       `friction` leaves the SEAT menu and becomes an operator command. Every seat WRITES the
+//	       channel and closing it is a duty of every sitting; nobody reads it back from a seat,
+//	       and it was named in no prompt or constitution. Removing the view alone would have been
+//	       worse than leaving it: /research tells the operator to read friction at capture, so the
+//	       only CLI path would have pointed at nothing.
+//
+//	       A stale binary cannot answer `show report` and has no operator friction read.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.56.0"
+const Version = "0.57.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -636,6 +658,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		newVerify(),      // operator cross-check, not a seat role — read-only over the record
 		newGraph(),       // operator: render a run's actual behaviour from the record
 		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
+		newFriction(),    // operator: the friction channel — seats write it, the human reads it
 		newFetch(),       // operator: cached, hash-verified web read (replaces WebFetch) — feeds the run source cache
 		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
 		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
