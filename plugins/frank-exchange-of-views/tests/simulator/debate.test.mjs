@@ -420,7 +420,7 @@ test('the merge reads this round\'s findings from the record view, not a candida
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
   assert.ok(merge.prompt.includes('FIRST ACTION'), 'reading findings is the first action')
-  assert.ok(merge.prompt.includes('--view findings'), 'the merge reads the findings view from the record')
+  assert.ok(merge.prompt.includes('show findings'), 'the merge reads the findings view from the record')
   assert.ok(!merge.prompt.includes('red/candidates'), 'the candidate-file cat is retired')
 })
 
@@ -435,7 +435,11 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
   assert.ok(merge.prompt.includes('NEAR-MATCH RULE'), 'near-match forces the archive read before a fresh id (§4.5 cond 3)')
   assert.ok(merge.prompt.includes('drift triggers'), 'volatile-source closures inherit drift re-checks (§4.5 cond 4)')
   const judge = world.calls.find(c => c.opts.label.startsWith('judge'))
-  assert.ok(judge.prompt.includes('--view ledger') && judge.prompt.includes('--view archive') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board via show --view ledger/archive (no materialized-path read)')
+  // `show` became a GROUP: `show ledger`, not `show --view ledger`. A flag's VALUE space has no
+  // --help and no completion of its own, which is the undiscoverability the motion collapse fixed
+  // one layer up. The assertion is on the READ still being pulled through the tool, which is the
+  // property that matters — the spelling changed, the contract did not.
+  assert.ok(judge.prompt.includes('show ledger') && judge.prompt.includes('show archive') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board via show ledger/archive (no materialized-path read)')
 })
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
