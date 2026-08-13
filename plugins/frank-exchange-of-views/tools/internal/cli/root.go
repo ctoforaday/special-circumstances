@@ -633,10 +633,49 @@ import (
 //
 //	       A stale binary answers `show citation-ledger` and has no `show evidence`.
 //
+//	0.60.0 A VERIFICATION SAYS WHICH CITATION, AND WHAT IT FOUND. `lens verify` required no
+//	       flag at all: the bare verb printed "source verified:" and appended an event that
+//	       counted as red's audit volume. It now requires --claim, --as and --reason, plus
+//	       --anchor (the c-<hex> of the citation checked, from `show evidence`) or the explicit
+//	       --independent for a source red found itself. A dangling anchor is refused.
+//
+//	       TWO AXES, BOTH REQUIRED. `--as` is WHAT THE SOURCE DID: supports |
+//	       supports-with-bridge | weak | refutes | absent | unreachable. It is new, and its
+//	       negative half is the point — there was no field in which red could record that a
+//	       source does NOT hold up, so the strongest adversarial finding available on the
+//	       citation axis had to leave as prose (#296).
+//
+//	       `--confidence` is HOW SURE RED IS OF THAT, and it is the OLD field under its own
+//	       name. It shipped as `--trust`, a word surrendered in #341 to a collision with `blue
+//	       confidence`; that verb was deleted in 0.54.0, so the collision has not existed for
+//	       six releases while the substitute did — and the substitute cost more than it saved.
+//	       `trust` reads as a property of the SOURCE, so the field's own value descriptions
+//	       drifted into a support scale ("the source supports the claim but you had to bridge
+//	       something"), and read cold it looked like an outcome enum missing its negative half.
+//	       It is not one. It is the plan's per-pair confidence — "facts are rarely black and
+//	       white; low confidence → needs more evidence, blue digs further, not an automatic
+//	       fail" — and `refutes` at low confidence and `refutes` at high confidence are
+//	       different facts a reader must be able to tell apart.
+//
+//	       So `show evidence` joins: a source carries the verifications OF THAT SOURCE, and
+//	       `verified: []` means nobody has checked it (#382). Red's own anchorless corroboration
+//	       is the `independent` array — a different fact from an unverified citation, not a
+//	       missing one.
+//
+//	       AND THE ASSEMBLY SCREEN CHECKS SOMETHING AGAIN. It was built to catch a report still
+//	       citing a source red refuted, by regex-scanning a prose column for REFUTED|ABSENT.
+//	       When the grade became a closed supporting-only enum and the ledger became a rendered
+//	       projection, it read a 46-byte stub and reported PASS on every record-mode run; it was
+//	       then made honest (SKIP) and still checked nothing. It now joins fields — a source red
+//	       found against, still cited in the assembled report, is a FAIL.
+//
+//	       A stale binary takes `--trust`, has no `--confidence`, and accepts a verification of
+//	       nothing.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.59.0"
+const Version = "0.60.0"
 
 func init() { record.ToolVersion = Version }
 

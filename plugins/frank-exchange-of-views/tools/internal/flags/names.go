@@ -129,6 +129,19 @@ const (
 	Status = "status"
 	None   = "none"
 
+	// Confidence is how sure red is of a determination it just made — orthogonal to WHAT the
+	// determination was (--as), and the field the original plan specified: "for each statement ↔
+	// reference pair it assigns a confidence that the source actually corroborates the statement
+	// … low confidence → needs more evidence, blue digs further, not an automatic fail".
+	//
+	// The word was surrendered in #341 to a collision with `blue confidence` — blue self-grading
+	// its own claims — and the field went out as --trust. That verb was DELETED in 0.54.0, so the
+	// collision has not existed since, and the substitute cost more than it saved: `trust` reads
+	// as a property of the SOURCE, which pulled the value descriptions into a support scale and
+	// then read as a positive-only outcome. One word, one question — and the question is "how
+	// sure are you", never "how good is the source".
+	Confidence = "confidence"
+
 	// Grading.
 	Severity   = "severity"
 	Likelihood = "likelihood"
@@ -136,14 +149,6 @@ const (
 	Complexity = "cx"
 	Proposed   = "proposed"
 	Dimension  = "dimension"
-	// Trust is how far a SOURCE supports a claim, graded by red per statement↔reference pair.
-	//
-	// It was --confidence, alongside a `blue confidence` that graded a CLAIM by its own author —
-	// one word for two questions, which is how the two acts came to share an event type (#341).
-	// The self-grade was retired in 0.54.0 (it fed no grade, entered no matrix, and its
-	// calibration computation was specified and never built), and this is what the original plan
-	// meant by confidence all along: a field on red's corroboration, not a verb of blue's.
-	Trust = "trust"
 
 	// Gap classification. A gap's --class is a slug from a GROWING REGISTRY; a petition's
 	// --petition-class is a FIXED four-value enum. They shared the word --class until
@@ -182,6 +187,17 @@ const (
 	AnchorSeat   = "anchor-seat"
 	AnchorTarget = "anchor-target"
 	AnchorTool   = "anchor-tool"
+
+	// Anchor is the DOCUMENT anchor — the c-<hex> inside a `<!--cite:c-…-->` token — naming
+	// which citation a verification adjudicates. Distinct from the AnchorSeat/Target/Tool trio
+	// above, which anchor a CLOSURE (who checked what, with which tool); this one is the join
+	// key between red's verification and the source blue actually cited (#382).
+	Anchor = "anchor"
+	// Independent is the explicit negative beside it: a source red found itself, which has no
+	// anchor to name. Stated rather than left as an empty --anchor, because an empty field
+	// cannot distinguish "corroboration" from "I never looked it up" — the same argument that
+	// gave `friction` its --none.
+	Independent = "independent"
 
 	// The bench's vocabulary.
 	Principle  = "principle"
@@ -239,11 +255,11 @@ func All() []string {
 		Reason, ReasonFile,
 		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, Format, Candidate, Old, New, Answers,
 		As, Notes, Status, None,
-		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Trust,
+		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
 		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
-		AnchorSeat, AnchorTarget, AnchorTool,
+		AnchorSeat, AnchorTarget, AnchorTool, Anchor, Independent,
 		Principle, Tension, ReviewFlag, Relief,
 		Deadlocked, Exhausted,
 		Line, Method, AccessDate,
@@ -283,8 +299,13 @@ func ForPayloadKey(key string) string {
 // Only the keys whose flag is a DIFFERENT WORD need an entry. review_flag, principle,
 // tension and the rest are spelled by the fallback and would be noise here.
 var payloadFlag = map[string]string{
-	"gap_id":           ID,
-	"disposition":      As,
+	"gap_id":      ID,
+	"disposition": As,
+	// A verification's verdict — what the source did for the claim. Typed as --as, the word this
+	// vocabulary already uses for every verdict a seat renders (`close --as`, `reproduce --as`,
+	// `verdict --as`), and stored as `outcome` because the event schema names the fact rather
+	// than the syntax that carried it.
+	"outcome":          As,
 	"acceptance_check": Check,
 	// Every prose payload key now funnels through the one --reason flag, so each maps
 	// to it. The keys stay distinct in the event schema — a dispute stores `evidence`,

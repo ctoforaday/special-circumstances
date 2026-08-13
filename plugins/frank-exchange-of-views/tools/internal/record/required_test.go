@@ -63,6 +63,9 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"outcome":         {"verdict": "VERIFIED", "prose": "p"},
 		"finding":         {"label": "L1-F1"},
 		"observe":         {"label": "L1-O1"},
+		// The verb that took no required flag at all: a bare `lens verify` recorded an event and
+		// counted as red's audit volume. `outcome` is the payload key behind --as.
+		"verify": {"claim": "c", "outcome": "supports", "confidence": "high", "text": "what the source says"},
 	}
 
 	for typ, required := range RequiredFields {

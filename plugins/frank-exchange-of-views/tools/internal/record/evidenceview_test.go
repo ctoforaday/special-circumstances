@@ -118,20 +118,82 @@ func TestEvidence_ReproduceJoinsItsProofAndKeepsTheAxesApart(t *testing.T) {
 	}
 }
 
-// RED'S VERIFICATIONS ARE LISTED, AND NOT JOINED. `lens verify` records a free-text reference,
-// so any join to a citation anchor would be a guess wearing a fact's clothes.
-func TestEvidence_VerificationsAreListedSeparately(t *testing.T) {
+// A VERIFICATION ATTACHES TO THE CITATION IT NAMES. This is the join #382 made possible: red's
+// verdict travels with the source it is about, so "has anyone checked this?" is a field.
+func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "https://example.org/p"),
-		evidenceEvent("verify", 1, "lens-r1", "claim", "seven is prime", "reference", "example.org/p", "trust", "high"),
+		evidenceEvent("verify", 1, "lens-r1", "anchor", "c-1", "claim", "seven is prime",
+			"reference", "example.org/p", "outcome", "supports", "confidence", "high", "text", "the abstract says it"),
 	)
 	got := EvidenceJSONOf(b)
-	if len(got.Verifications) != 1 || got.Verifications[0].Trust != "high" {
-		t.Fatalf("Verifications = %+v, want red's one row with its trust grade", got.Verifications)
+	if len(got.Sources) != 1 || len(got.Sources[0].Verified) != 1 {
+		t.Fatalf("Sources = %+v, want the citation carrying its one verification", got.Sources)
 	}
-	if got.Counts.Sources != 1 || got.Counts.Verifications != 1 {
-		t.Errorf("counts = %d sources / %d verifications, want 1/1 — the two acts must not be pooled",
-			got.Counts.Sources, got.Counts.Verifications)
+	if v := got.Sources[0].Verified[0]; v.Outcome != "supports" || v.Text == "" {
+		t.Errorf("verification = %+v, want the outcome AND the reading behind it", v)
+	}
+	if got.Counts.SourcesUnverified != 0 || got.Counts.Verifications != 1 {
+		t.Errorf("counts: %d unverified / %d verifications, want 0/1",
+			got.Counts.SourcesUnverified, got.Counts.Verifications)
+	}
+}
+
+// AN INDEPENDENT CHECK HAS NO ANCHOR AND IS NOT A MISSING ONE. Corroboration red found itself
+// is a different fact from an unverified citation, so it lands in its own array.
+func TestEvidence_IndependentChecksStandApart(t *testing.T) {
+	b := evidenceBoard(
+		evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "https://example.org/p"),
+		evidenceEvent("verify", 1, "lens-r1", "claim", "seven is prime",
+			"reference", "a textbook I found", "outcome", "supports", "text", "chapter 2"),
+	)
+	got := EvidenceJSONOf(b)
+	if len(got.Independent) != 1 {
+		t.Fatalf("Independent = %+v, want red's anchorless check", got.Independent)
+	}
+	if len(got.Sources[0].Verified) != 0 || got.Counts.SourcesUnverified != 1 {
+		t.Errorf("an independent check was credited to the citation — the cited source is still unchecked")
+	}
+}
+
+// UNCHECKED IS AN EMPTY ARRAY IN THE JSON, not an absent key: "nobody has verified this source"
+// is what red reads to decide where its next pass goes.
+func TestEvidence_UncheckedSourceSaysSoInTheJSON(t *testing.T) {
+	b := evidenceBoard(evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "u"))
+	out, err := json.Marshal(EvidenceJSONOf(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"verified":[]`) {
+		t.Errorf("an unverified source omits the verified key:\n%s", out)
+	}
+}
+
+// REFUTES AND ABSENT ARE THE FINDING HALF, and they are counted — that count is what the
+// assembly screen acts on, and what the old high|medium|low enum could never produce.
+func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
+	for _, outcome := range []string{"refutes", "absent"} {
+		b := evidenceBoard(
+			evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "u"),
+			evidenceEvent("verify", 2, "lens-r2", "anchor", "c-1", "claim", "x",
+				"outcome", outcome, "text", "read it"),
+		)
+		got := EvidenceJSONOf(b)
+		if got.Counts.SourcesRefuted != 1 {
+			t.Errorf("outcome %q: SourcesRefuted = %d, want 1 — a source red found against must be countable",
+				outcome, got.Counts.SourcesRefuted)
+		}
+		if !got.Sources[0].Verified[0].Refuted() {
+			t.Errorf("outcome %q: Refuted() = false; the screen and the counts must agree on what 'found against' means", outcome)
+		}
+	}
+	// And the supporting half is NOT counted as found-against.
+	b := evidenceBoard(
+		evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "u"),
+		evidenceEvent("verify", 2, "lens-r2", "anchor", "c-1", "claim", "x", "outcome", "weak", "text", "thin"),
+	)
+	if got := EvidenceJSONOf(b); got.Counts.SourcesRefuted != 0 {
+		t.Errorf("`weak` counted as refuted — thin support is not contradiction, and conflating them turns a grading nuance into an assembly failure")
 	}
 }
 
@@ -142,7 +204,7 @@ func TestEvidence_EmptyRunRendersArraysNotNulls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"sources":[]`, `"proofs":[]`, `"verifications":[]`} {
+	for _, want := range []string{`"sources":[]`, `"proofs":[]`, `"independent":[]`} {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("empty evidence view is missing %s:\n%s", want, out)
 		}

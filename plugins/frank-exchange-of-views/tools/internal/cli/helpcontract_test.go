@@ -219,7 +219,7 @@ func placeholderFor(f *pflag.Flag, path []string) string {
 		return "severity"
 	case "as":
 		return "closed"
-	case "trust", "confidence":
+	case "confidence":
 		return "high"
 	}
 	return "placeholder"
@@ -297,7 +297,7 @@ var (
 //
 // The `Short` of every verb is what a seat reads FIRST — it is the line in `Available Commands`,
 // which is now also the line a refusal prints. Several restate an enum inline to show the flag
-// shape: `--as sound|unsound`, `--trust high|medium|low`, `--view board|findings|…`.
+// shape: `--as sound|unsound`, `--as supports|refutes|…`, `--status proposed|pursued|…`.
 //
 // That is a SECOND rendering of a set the flag help already carries properly, and the second one
 // is the lossy copy: it has no meanings and nothing regenerates it. The `--view` list in `show`'s

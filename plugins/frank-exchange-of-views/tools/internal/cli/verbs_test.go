@@ -88,22 +88,24 @@ func TestVerbPayloads(t *testing.T) {
 			name: "lens verify records the access date under its payload name",
 			role: "lens", seatID: "red-lens-r1-L1",
 			args: []string{"--claim", "the claim", "--reference", "https://example.test/a",
-				"--trust", "high", "--access-date", "2026-07-18"},
+				"--independent", "--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
+				"--access-date", "2026-07-18"},
 			typ: "verify",
 			// The flag is --access-date; the payload key is access_date, and the
-			// citation render reads the payload key.
+			// citation render reads the payload key. --as lands under `outcome`.
 			want: map[string]string{"claim": "the claim", "reference": "https://example.test/a",
-				"trust": "high", "access_date": "2026-07-18"},
-			says: "source verified: https://example.test/a",
+				"outcome": "supports", "confidence": "high", "text": "read at the leaf", "access_date": "2026-07-18"},
+			says: "independent source https://example.test/a verified: supports",
 		},
 		{
 			name: "lens verify without an access date leaves the key absent",
 			role: "lens", seatID: "red-lens-r1-L1",
-			args:   []string{"--claim", "c", "--reference", "https://example.test/b", "--trust", "low"},
+			args: []string{"--claim", "c", "--reference", "https://example.test/b", "--independent",
+				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
 			typ:    "verify",
-			want:   map[string]string{"reference": "https://example.test/b"},
+			want:   map[string]string{"reference": "https://example.test/b", "outcome": "weak", "confidence": "low"},
 			absent: []string{"access_date"},
-			says:   "source verified",
+			says:   "independent source https://example.test/b verified: weak",
 		},
 		{
 			name: "motion grade rule records the merge's answer",

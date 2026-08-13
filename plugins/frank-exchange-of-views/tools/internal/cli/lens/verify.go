@@ -1,6 +1,10 @@
 package lens
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
@@ -9,7 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// verify: red records that it CHECKED a claim against its source, and how far it trusts it.
+// verify: red adjudicates ONE citation — which one, and what the source actually did for it.
 //
 // SPLIT FROM `cite` (#341), and the reason is the sharpest instance of facts-are-fields in the
 // shipped tool. Blue authoring a citation and red verifying one shared the `cite` event type,
@@ -21,31 +25,143 @@ import (
 // red's audit volume — a number red reads as how much work it did — with no error and no signal.
 // Two acts, two event types now, and nothing infers which is which.
 //
-// The ledger is what makes cross-round re-verification cheap — a claim verified HIGH stays
-// verified unless its section changed, more than two rounds elapsed, or its source is volatile.
-// The access date is not bookkeeping: it drives that staleness trigger, which is why it is a
-// flag rather than something inferred.
+// # Three holes, one contract (0.60.0)
+//
+// The split fixed which ACT an event was and left the act itself unable to say anything
+// definite. Measured on the shipped binary:
+//
+//	$ feov-record lens verify --run <dir> --seat-id red-lens-L1-r1
+//	source verified:
+//
+// No flag was required. A verification of nothing, about nothing, recorded and counted.
+//
+//   - WHICH citation was unrecordable. `--reference` is free text a seat types, so nothing
+//     joined a verification to the `<!--cite:c-…-->` anchor it checked, and `show evidence`
+//     had to list red's work beside blue's sources without connecting them (#382).
+//   - WHAT IT FOUND was unrecordable in the one direction that matters. The verdict field had
+//     three values — high, medium, low — and no way to say the source does NOT hold up. So the
+//     strongest finding on this axis had to leave as prose, and the capture audit built to catch
+//     a report still carrying a refuted citation looked for a verdict no field could hold (#296).
+//
+// All three are the same defect wearing different clothes: the verb recorded that work
+// happened rather than what the work concluded.
+//
+// # Two axes, and they are not the same question
+//
+// `--as` is WHAT THE SOURCE DID. `--confidence` is HOW SURE RED IS OF THAT. `refutes` at low
+// confidence — this source may contradict the claim, I could not be certain — and `refutes` at
+// high confidence are different facts, and a reader who cannot tell them apart cannot act on
+// either. The plan specified exactly this: "for each statement ↔ reference pair it assigns a
+// confidence that the source actually corroborates the statement (facts are rarely black and
+// white); low confidence → needs more evidence, blue digs further, not an automatic fail".
+//
+// I COLLAPSED THEM AND WAS WRONG. The confidence field spent six releases named `--trust` — a
+// rename made to dodge a collision with `blue confidence`, a verb deleted in 0.54.0 — and under
+// that name its value descriptions drifted into a support scale ("the source supports the claim
+// but you had to bridge something"). Read cold, it looked like an outcome enum with only its
+// positive half, and folding it into `--as` looked like restoring a missing negative. It was not:
+// it was deleting the orthogonal axis. The word is free again, so the field has its name back.
+//
+// # Why --independent rather than an optional --anchor
+//
+// Red verifies two different things: a citation BLUE authored (which has an anchor), and a
+// source red went and found itself (corroboration, which has none). An optional --anchor
+// collapses those into one shape where the absence means either "corroboration" or "I did not
+// look it up" — the plausible zero again. So the anchor is REQUIRED, and the other case is
+// stated with a flag of its own. `friction --none` is the same move for the same reason: an
+// explicit negative is a fact; an empty field is a question.
 func newVerify() *cobra.Command {
-	c := seat.New("verify",
-		`record that you CHECKED a claim against its source (the cross-round re-fetch gate): --claim "..." --reference "..." --trust high|medium|low --access-date YYYY-MM-DD`,
+	c := seat.Prose(seat.New("verify",
+		`adjudicate ONE citation: --anchor c-<hex> (from `+"`show evidence`"+`) or --independent, --claim "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reference, flags.Trust)
+			anchor := strings.TrimSpace(seat.Str(cmd, flags.Anchor))
+			independent, _ := cmd.Flags().GetBool(flags.Independent)
+
+			switch {
+			case anchor == "" && !independent:
+				return nil, fmt.Errorf("lens verify requires --anchor <c-id> OR --independent: say WHICH citation you checked. Read the report, take the `<!--cite:c-…-->` token at the sentence, and resolve it with `lens show evidence --run <runDir>`. Pass --independent only for a source YOU found — corroboration blue never cited, which has no anchor to name")
+			case anchor != "" && independent:
+				return nil, fmt.Errorf("lens verify: --anchor and --independent are the two cases, not one. --anchor names a citation blue authored; --independent says this is a source you found yourself")
+			}
+
+			if anchor != "" {
+				if !citeAnchorShape.MatchString(anchor) {
+					return nil, fmt.Errorf("lens verify: %q is not a citation anchor. It is the c-<hex> inside a `<!--cite:c-…-->` token in the report; `lens show evidence --run <runDir>` lists every one with the source it points at", anchor)
+				}
+				// A DANGLING ANCHOR IS REFUSED. Recording a verification against a citation that
+				// does not exist would put a well-formed row on the record pointing at nothing —
+				// and it would read exactly like a real one, which is the shape this verb was
+				// rebuilt to stop producing.
+				known, err := record.CitationLabels(s.RunDir)
+				if err != nil {
+					return nil, err
+				}
+				found := false
+				for _, k := range known {
+					if k == anchor {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return nil, fmt.Errorf("lens verify: no citation %s on the record. Blue has cited %d source(s); `lens show evidence --run <runDir>` lists them by anchor. If you checked a source blue never cited, that is --independent", anchor, len(known))
+				}
+			}
+
+			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reference)
 			seat.Set(cmd, p, "access_date", flags.AccessDate)
+			seat.Set(cmd, p, "outcome", flags.As)
+			seat.Set(cmd, p, "confidence", flags.Confidence)
+			if anchor != "" {
+				p.Set("anchor", anchor)
+			} else {
+				p.Set("independent", true)
+			}
+			if err := seat.SetReason(cmd, p, "text"); err != nil {
+				return nil, err
+			}
 			if _, err := record.Append(s.RunDir, s.SeatID, "verify", p); err != nil {
 				return nil, err
 			}
-			return verifyResult{Reference: seat.Str(cmd, flags.Reference)}, nil
-		})
+			return verifyResult{Anchor: anchor, Independent: independent,
+				Outcome: p.Str("outcome"), Reference: seat.Str(cmd, flags.Reference)}, nil
+		}))
 
-	c.Flags().String(flags.Claim, "", "the claim being verified, quoted from the report")
-	c.Flags().String(flags.Reference, "", "the source the claim rests on")
-	enumhelp.Flag(c, flags.Trust, record.MustEnum("verify", "trust"), ("how far the source SUPPORTS the claim. Named --trust, not --confidence: blue's `confidence` is its self-grade on a claim, and one word for two questions is how the two came to share an event type"))
+	c.Flags().String(flags.Anchor, "", "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`. REQUIRED unless --independent")
+	c.Flags().Bool(flags.Independent, false, "this is a source YOU found, not one blue cited, so there is no anchor to name. The explicit form of 'no anchor', because an empty field cannot say whether you looked")
+	c.Flags().String(flags.Claim, "", "REQUIRED — the claim being verified, quoted from the report")
+	c.Flags().String(flags.Reference, "", "the source the claim rests on (for an --independent check this is the only identification it has)")
+	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: `refutes` and `absent` are findings, not failures to grade")
+	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: `refutes` you would defend and `refutes` you are unsure of are different facts")
 	c.Flags().String(flags.AccessDate, "", "YYYY-MM-DD you actually fetched it; drives the staleness re-fetch trigger")
 	return c
 }
 
+// citeAnchorShape is the citation id as it appears inside a `<!--cite:c-…-->` token. Checked
+// before the record lookup so a seat that pasted the whole comment gets told what the id is,
+// rather than being told the record has no such citation.
+var citeAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
+
 type verifyResult struct {
-	Reference string `json:"reference"`
+	Anchor      string `json:"anchor,omitempty"`
+	Independent bool   `json:"independent,omitempty"`
+	Outcome     string `json:"outcome"`
+	Reference   string `json:"reference,omitempty"`
 }
 
-func (r verifyResult) Human() string { return "source verified: " + r.Reference }
+func (r verifyResult) Human() string {
+	subject := "citation " + r.Anchor
+	if r.Independent {
+		subject = "independent source " + r.Reference
+	}
+	switch r.Outcome {
+	case "refutes":
+		return subject + " REFUTES the claim — recorded. The report still carries it; that is a finding, and this event is the evidence for it"
+	case "absent":
+		return subject + " does NOT contain the claim — recorded as absent (silence, not contradiction)"
+	case "unreachable":
+		return subject + " could not be read — recorded as unreachable, with what you tried"
+	default:
+		return subject + " verified: " + r.Outcome
+	}
+}

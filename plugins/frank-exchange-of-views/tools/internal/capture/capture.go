@@ -57,15 +57,6 @@ func strOf(v any) string {
 	return ""
 }
 
-// numOrUndefined renders a value as JS string-interpolation would: a number as its integer text,
-// an absent/non-number field as the literal "undefined" (the `${obj.missing}` coercion).
-func numOrUndefined(m map[string]any, k string) string {
-	if f, ok := numOf(m[k]); ok {
-		return strconv.FormatInt(int64(f), 10)
-	}
-	return "undefined"
-}
-
 // jsToFixed0 renders a float as JS `x.toFixed(0)`.
 func jsToFixed0(x float64) string { return strconv.FormatFloat(x, 'f', 0, 64) }
 
@@ -328,41 +319,81 @@ func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 
 // ---- AUDIT 5: assembly regression screen ----
 
-// AssemblyScreen SHOULD catch a report that still carries a citation red refuted. It cannot
-// today, and it now SAYS SO instead of reporting PASS.
+// AssemblyScreen catches a report that still carries a citation red found AGAINST.
+//
+// # It spent two releases unable to
 //
 // THE SIGNAL WAS DESTROYED, not merely relocated. Until the citation ledger moved onto the
 // record, red typed its verdict into the confidence column as prose — "LOW — REFUTED: closed
 // as duplicate", "LOW (absent from abs and html)" — and this screen regex-scanned that column
 // for REFUTED|ABSENT. Real ledgers carried 5-11 such rows (2026-07-12 through 2026-07-20).
-// Then `lens cite --confidence` became a CLOSED ENUM of high|medium|low, so there is no longer
-// any field in which red can record that verification FAILED, and red/citation-ledger.md
-// became a `setup` stub nothing writes (46 bytes on the 2026-08-05 run).
-//
-// So the screen has been reading an empty file and reporting
+// Then the grade became a CLOSED ENUM of high|medium|low — three values that all mean the
+// source SUPPORTS the claim — so there was no field in which red could say a verification
+// failed, and `red/citation-ledger.md` became a `setup` stub nothing writes (46 bytes on the
+// 2026-08-05 run). The screen read that empty file and reported
 // "PASS — 0 REFUTED-row token(s) screened; no hits" on every record-mode run.
 //
-// Porting the regex onto the rendered projection would reproduce the same nothing. What the
-// concept needs is a FIELD — a verification verdict on the cite event, distinct from
-// confidence, which grades how much a SUPPORTING source is trusted rather than recording that
-// a source does not support the claim at all. That is a schema decision with #247 in play, so
-// it is tracked (#296) rather than invented here. Until then this reports the gap.
+// It was then made honest — SKIP, naming the gap — which stopped the false PASS and still left
+// the check unable to check anything.
+//
+// # What made it possible again
+//
+// `lens verify --as` grew its negative half (#296): `refutes` (the source contradicts the claim)
+// and `absent` (the source is silent on it) are outcomes red can record, and `--anchor` (#382)
+// says WHICH citation each verdict is about. So the screen is now a join on fields rather than a
+// regex over prose: for every source with a verification that found against it, is the anchor
+// still in the assembled report?
+//
+// The prose match is gone with it. The old check keyed on the strings REFUTED|ABSENT appearing
+// in a rendered row, which was a hope about string shape — and would have gone on returning zero
+// the moment anyone reworded the renderer.
 func AssemblyScreen(runDir string) Audit {
 	board, err := record.BoardState(runDir)
 	if err != nil {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	cites := 0
-	for _, e := range board.Events {
-		if e.Type == "cite" {
-			cites++
-		}
-	}
-	if cites == 0 {
+	ev := record.EvidenceJSONOf(board)
+	if ev.Counts.Sources == 0 {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
-	return Audit{Check: "assembly-screen", Verdict: "SKIP",
-		Detail: fmt.Sprintf("%d citation(s) on the record, and NONE can be screened: a cite carries confidence (high|medium|low) but no verification VERDICT, so \"red checked this source and it does not support the claim\" is unrecordable. This check reported PASS on an empty stub before saying so. Tracked: #296", cites)}
+
+	assembled, rerr := os.ReadFile(filepath.Join(runDir, "report.md"))
+	if rerr != nil {
+		// Before assembly there is nothing to screen, and saying so beats a PASS that means
+		// "the file I was looking for was not there".
+		return Audit{Check: "assembly-screen", Verdict: "SKIP",
+			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled report.md yet — the screen runs against the assembled artifact (%v)", ev.Counts.Sources, rerr)}
+	}
+
+	var carried []string
+	for _, s := range ev.Sources {
+		found := false
+		for _, v := range s.Verified {
+			if v.Refuted() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			continue
+		}
+		// The assembled report has had its anchors woven into visible footnotes, so the c- id is
+		// screened against the PRE-assembly anchor AND the source's own url, which survives into
+		// the composed bibliography. Either surviving means the reader is still being pointed at
+		// a source red found against.
+		if s.URL != "" && strings.Contains(string(assembled), s.URL) {
+			carried = append(carried, fmt.Sprintf("%s (%s)", s.Anchor, s.URL))
+		}
+	}
+
+	if len(carried) > 0 {
+		return Audit{Check: "assembly-screen", Verdict: "FAIL",
+			Detail: fmt.Sprintf("%d source(s) red found AGAINST are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
+				len(carried), strings.Join(carried, ", "))}
+	}
+	return Audit{Check: "assembly-screen", Verdict: "PASS",
+		Detail: fmt.Sprintf("%d citation(s), %d found against by red (refutes|absent), none still cited in the assembled report; %d cited source(s) nobody has checked",
+			ev.Counts.Sources, ev.Counts.SourcesRefuted, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----
@@ -648,27 +679,6 @@ func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleF
 	}
 	return Audit{Check: "attestation-integrity", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls", len(sampled), len(claims))}
-}
-
-// splitAfter mirrors JS `archive.split(/^## /m).slice(1)`: split on the delimiter, drop the head.
-func splitAfter(s string, re *regexp.Regexp) []string {
-	if s == "" {
-		return nil
-	}
-	locs := re.FindAllStringIndex(s, -1)
-	if len(locs) == 0 {
-		return nil
-	}
-	var out []string
-	for i, loc := range locs {
-		start := loc[1]
-		end := len(s)
-		if i+1 < len(locs) {
-			end = locs[i+1][0]
-		}
-		out = append(out, s[start:end])
-	}
-	return out
 }
 
 // sampleClaims mirrors JS: all when ≤ floor, else index i where i % ceil(n/floor) === 0.

@@ -43,6 +43,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/dop251/goja"
@@ -296,11 +297,37 @@ var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 
-// trustGrades is the value space of `lens verify --trust` — the ONE surviving confidence
-// channel. It was named confGrades and shared with `blue confidence`, which is how one word came
-// to carry two questions; the self-grade was retired in 0.54.0 and red's per-source judgement,
-// the thing the original plan specified as a FIELD on corroboration, is what remains.
-var trustGrades = []string{"high", "medium", "low"}
+// verifyOutcomes is the value space of `lens verify --as` — what a source DID for the claim.
+//
+// It was `--trust high|medium|low`, all three of which mean the source SUPPORTS the claim. The
+// negative half is what this list exists to drive: `refutes` and `absent` are the outcomes that
+// make the assembly screen fire, and a fuzz that only ever generated supporting verdicts would
+// leave that whole path unexercised while the coverage gate read green.
+var verifyOutcomes = []string{"supports", "supports-with-bridge", "weak", "refutes", "absent", "unreachable"}
+
+// verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
+// Driven independently of the outcome, because the pairs that matter most — `refutes` at low
+// confidence, `supports` at low confidence — only exist if the two are drawn apart.
+var verifyConfidence = []string{"high", "medium", "low"}
+
+// someCitation returns a citation anchor on the record, or "" if blue has cited nothing yet —
+// a REAL tool-assigned c-<hex>, the same discipline someFinding uses. `lens verify --anchor`
+// refuses an id that names no citation, so a fabricated one would drive only the reject path.
+func (r *runner) someCitation() string {
+	out, err := r.exec("lens", "show", "evidence")
+	if err != nil {
+		return ""
+	}
+	var e struct {
+		Sources []struct {
+			Anchor string `json:"anchor"`
+		} `json:"sources"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &e) != nil || len(e.Sources) == 0 {
+		return ""
+	}
+	return e.Sources[r.rng.Intn(len(e.Sources))].Anchor
+}
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
 // introduces the class; the rest reuse it.
@@ -535,6 +562,25 @@ var checkKinds = []string{"document", "computation", "source"}
 // `deferred` was added as a fate in #246 and never driven — a value the tool accepts, the
 // registry declares, and no run has ever recorded.
 var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined", "deferred"}
+
+// nextAvenueStatus round-robins the undirected avenue's fate so every value is driven BY
+// CONSTRUCTION rather than by luck.
+//
+// It was a uniform random pick behind a 30% branch — a ~6% draw per avenue for any one fate —
+// so the enum-coverage gate passed on most seeds and failed the moment an unrelated change
+// shifted the RNG stream. A gate whose verdict depends on the draw is sampling coverage, not
+// measuring it, and the failure it produces looks like the change's fault rather than its own.
+//
+// The counter is PACKAGE-LEVEL and atomic, not a field on runner. Per-run it would be worse than
+// random: the sweep makes about 1.6 undirected avenues per run, so a counter resetting each time
+// would only ever reach index 0 and 1 and the last three fates would never be driven at all.
+// Atomic because the sweep's runs are concurrent.
+var avenueTick atomic.Int64
+
+func nextAvenueStatus() string {
+	return avenueStatus[int(avenueTick.Add(1)-1)%len(avenueStatus)]
+}
+
 var obsKind = []string{"note", "checked-held"}
 
 // disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
@@ -582,7 +628,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// rule from, so the ruling cycle and the oracle both skip it by construction.
 		line, st := pick(r.rng, avenueFates)+" ("+seatID+")", "proposed"
 		if r.coin(30) {
-			line, st = "fuzz undirected avenue "+seatID, pick(r.rng, avenueStatus)
+			line, st = "fuzz undirected avenue "+seatID, nextAvenueStatus()
 		}
 		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", line).
 			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").
@@ -1000,8 +1046,23 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
 			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
-				_, _ = r.exec("lens", "verify", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
-					"--reference", "https://fuzz.invalid/"+seatID, "--trust", trustGrades[r.rng.Intn(len(trustGrades))], "--access-date", "2026-07-24")
+				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
+				// adjudicating a citation blue authored, and red corroborating a source it found
+				// itself. Falling back to --independent when blue has cited nothing keeps the
+				// verb driven from round 0 rather than only after the first cite lands.
+				verify := r.do("lens", "verify", seatID).
+					set("--claim", "fuzz claim "+seatID).
+					set("--reference", "https://fuzz.invalid/"+seatID).
+					set("--as", verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]).
+					set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
+					set("--reason", "fuzz: what the source actually says").
+					on(60, "--access-date", "2026-07-24")
+				if anchor := r.someCitation(); anchor != "" && r.coin(70) {
+					verify.set("--anchor", anchor)
+				} else {
+					verify.bare("--independent")
+				}
+				verify.run()
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
@@ -1748,7 +1809,7 @@ var reportExemptions = map[string]string{
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "note",
-	"verify":    "red recording that it CHECKED a claim against its source. It reaches the reader through the citation-ledger view rather than the report: the report carries BLUE's citations (woven into the bibliography), and red verifying them is audit provenance rather than a claim the reader acts on. The trust grade IS surfaced — as the board's citations count, which #341 stopped inflating with blue's authored cites",
+	"verify":    "red adjudicating ONE citation. It reaches the reader through the evidence view rather than the report body: the report carries BLUE's citations (woven into the bibliography), and red's verdict on them is audit provenance rather than a claim the reader acts on. It IS surfaced — attached to the source it names in `show evidence`, in the board's citations count, and, for `refutes` and `absent`, as an assembly-screen FAILURE if the report still cites what red found against",
 	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
 	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
 	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",

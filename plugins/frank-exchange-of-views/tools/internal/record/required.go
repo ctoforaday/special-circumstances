@@ -47,6 +47,12 @@ var RequiredFields = map[string][]string{
 	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
 	// ENDED is not, and on a judged deadlock nothing else records it.
 	"outcome": {"prose"},
+	// A VERIFICATION OF NOTHING WAS RECORDABLE. `lens verify` required no flag at all: the bare
+	// verb printed "source verified:" and appended an event, which then counted as red's audit
+	// volume. The four fields here are what makes the row mean something — WHICH citation
+	// (or an explicit --independent), WHAT the source did for the claim, HOW SURE red is of that
+	// (a separate question), and the reading behind the verdict.
+	"verify": {"claim", "outcome", "confidence", "text"},
 }
 
 // THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its

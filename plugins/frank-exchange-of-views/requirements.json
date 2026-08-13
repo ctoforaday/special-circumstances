@@ -1,6 +1,6 @@
 {
   "_comment": "frank-exchange-of-views's own tool dependencies — aggregated by /prosthetic-conscience:doctor (each plugin owns its manifest; the doctor reports the whole suite). PLUGIN-SHIPPED BINARIES DO NOT BELONG HERE: this manifest lists EXTERNAL tools, checked by running them on PATH. A binary the plugin ships lives in its own bin/ and is discovered by sc-doctor's binary scan, which reports it and can fetch it; listing it here as well produced a check that could never pass (installed to <plugin>/bin, checked on PATH) and so a permanently DEGRADED verdict after a fully successful --fix.",
-  "recordToolVersion": "0.59.0",
+  "recordToolVersion": "0.60.0",
   "_recordToolVersion_comment": "The EVENT-SCHEMA contract version of the feov-record binary this plugin ships — not the plugin version, which answers a different question (what shipped, versus what shape the events are in). The `feov-record setup` subcommand refuses to start a run when the record binary's `--version` disagrees with it, so a stale binary on PATH cannot silently write events under an older contract. It is compiled into the binary as cli.Version and versionsync_test.go fails the build when the two drift. It lives HERE and not in .claude-plugin/plugin.json because that manifest has a fixed published schema: an extra field there is ignored at load time but makes `claude plugin validate` warn on every run, and a permanent expected warning is how a validator stops being read. This file is our own — see _comment and _hook_binaries elsewhere in the suite.",
   "tools": [
     {
