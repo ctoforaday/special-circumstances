@@ -59,8 +59,8 @@ research/<date>_<slug>/
 
 RECORD — no file; read through the tool:
   show board      open gaps with full grading
-  show ledger     status: open gaps + the compact closure index (id | class | summary | supersedes)
-  show archive    immutable closed prose; read on demand (near-match, chain rulings, spot-checks),
+  show board --format markdown     status: open gaps + the compact closure index (id | class | summary | supersedes)
+  show board --format markdown    immutable closed prose; read on demand (near-match, chain rulings, spot-checks),
                     never resident in the default merge/judge read
   show findings   lens findings (candidate FILES were retired — findings are events)
   show citation-ledger   verified citations don't un-verify: claim | reference | confidence | round | date

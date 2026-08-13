@@ -233,7 +233,7 @@ func ledgerMD(b *record.Board) []byte {
 	}
 
 	ledgerParts := []string{
-		"# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)",
+		"# The board — RENDERED PROJECTION (source of truth: the event log; do not hand-edit)",
 		"",
 		fmt.Sprintf("## OPEN GAPS (%d)", len(open)),
 		"",

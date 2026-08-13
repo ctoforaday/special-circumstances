@@ -439,7 +439,7 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
   // --help and no completion of its own, which is the undiscoverability the motion collapse fixed
   // one layer up. The assertion is on the READ still being pulled through the tool, which is the
   // property that matters — the spelling changed, the contract did not.
-  assert.ok(judge.prompt.includes('show ledger') && judge.prompt.includes('show archive') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board via show ledger/archive (no materialized-path read)')
+  assert.ok(judge.prompt.includes('show board --format markdown') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board through the tool (no materialized-path read); ledger and archive collapsed into board --format markdown')
 })
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
