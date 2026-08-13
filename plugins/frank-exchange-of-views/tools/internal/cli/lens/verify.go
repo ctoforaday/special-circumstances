@@ -38,14 +38,29 @@ import (
 //   - WHICH citation was unrecordable. `--reference` is free text a seat types, so nothing
 //     joined a verification to the `<!--cite:c-…-->` anchor it checked, and `show evidence`
 //     had to list red's work beside blue's sources without connecting them (#382).
-//   - WHAT IT FOUND was unrecordable in the one direction that matters. `--trust
-//     high|medium|low` grades how well a source SUPPORTS a claim; there was no value for "it
-//     does not". So the strongest finding on this axis had to leave as prose, and the capture
-//     audit built to catch a report still carrying a refuted citation looked for a verdict no
-//     field could hold (#296).
+//   - WHAT IT FOUND was unrecordable in the one direction that matters. The verdict field had
+//     three values — high, medium, low — and no way to say the source does NOT hold up. So the
+//     strongest finding on this axis had to leave as prose, and the capture audit built to catch
+//     a report still carrying a refuted citation looked for a verdict no field could hold (#296).
 //
 // All three are the same defect wearing different clothes: the verb recorded that work
 // happened rather than what the work concluded.
+//
+// # Two axes, and they are not the same question
+//
+// `--as` is WHAT THE SOURCE DID. `--confidence` is HOW SURE RED IS OF THAT. `refutes` at low
+// confidence — this source may contradict the claim, I could not be certain — and `refutes` at
+// high confidence are different facts, and a reader who cannot tell them apart cannot act on
+// either. The plan specified exactly this: "for each statement ↔ reference pair it assigns a
+// confidence that the source actually corroborates the statement (facts are rarely black and
+// white); low confidence → needs more evidence, blue digs further, not an automatic fail".
+//
+// I COLLAPSED THEM AND WAS WRONG. The confidence field spent six releases named `--trust` — a
+// rename made to dodge a collision with `blue confidence`, a verb deleted in 0.54.0 — and under
+// that name its value descriptions drifted into a support scale ("the source supports the claim
+// but you had to bridge something"). Read cold, it looked like an outcome enum with only its
+// positive half, and folding it into `--as` looked like restoring a missing negative. It was not:
+// it was deleting the orthogonal axis. The word is free again, so the field has its name back.
 //
 // # Why --independent rather than an optional --anchor
 //
@@ -57,7 +72,7 @@ import (
 // explicit negative is a fact; an empty field is a question.
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify",
-		`adjudicate ONE citation: --anchor c-<hex> (from `+"`show evidence`"+`) or --independent, --claim "..." --as supports|refutes|absent|… --reason "<what the source actually says>"`,
+		`adjudicate ONE citation: --anchor c-<hex> (from `+"`show evidence`"+`) or --independent, --claim "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			anchor := strings.TrimSpace(seat.Str(cmd, flags.Anchor))
 			independent, _ := cmd.Flags().GetBool(flags.Independent)
@@ -96,6 +111,7 @@ func newVerify() *cobra.Command {
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reference)
 			seat.Set(cmd, p, "access_date", flags.AccessDate)
 			seat.Set(cmd, p, "outcome", flags.As)
+			seat.Set(cmd, p, "confidence", flags.Confidence)
 			if anchor != "" {
 				p.Set("anchor", anchor)
 			} else {
@@ -115,7 +131,8 @@ func newVerify() *cobra.Command {
 	c.Flags().Bool(flags.Independent, false, "this is a source YOU found, not one blue cited, so there is no anchor to name. The explicit form of 'no anchor', because an empty field cannot say whether you looked")
 	c.Flags().String(flags.Claim, "", "REQUIRED — the claim being verified, quoted from the report")
 	c.Flags().String(flags.Reference, "", "the source the claim rests on (for an --independent check this is the only identification it has)")
-	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half now: `refutes` and `absent` are findings, not failures to grade")
+	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: `refutes` and `absent` are findings, not failures to grade")
+	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: `refutes` you would defend and `refutes` you are unsure of are different facts")
 	c.Flags().String(flags.AccessDate, "", "YYYY-MM-DD you actually fetched it; drives the staleness re-fetch trigger")
 	return c
 }

@@ -616,7 +616,7 @@ func inquiryMD(b *record.Board) []byte {
 // tell which citation each row adjudicates.
 func citationLedgerMD(b *record.Board) []byte {
 	cites := []string{"# red citation-ledger — RENDERED PROJECTION",
-		"", "_claim | source | verdict | citation | round | access date_", ""}
+		"", "_claim | source | verdict | confidence | citation | round | access date_", ""}
 	for _, e := range b.Events {
 		if e.Type != "verify" {
 			continue
@@ -627,8 +627,9 @@ func citationLedgerMD(b *record.Board) []byte {
 			// never had an anchor to name. A blank cell would read as a missing field.
 			anchor = "(independent)"
 		}
-		cites = append(cites, fmt.Sprintf("%s | %s | %s | %s | r%d | %s",
-			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "outcome"), anchor, e.Round, undefStr(e.Payload, "access_date")))
+		cites = append(cites, fmt.Sprintf("%s | %s | %s | %s | %s | r%d | %s",
+			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "outcome"),
+			undefStr(e.Payload, "confidence"), anchor, e.Round, undefStr(e.Payload, "access_date")))
 	}
 	return []byte(strings.Join(cites, "\n") + "\n")
 }

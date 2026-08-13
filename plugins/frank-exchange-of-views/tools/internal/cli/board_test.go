@@ -186,7 +186,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 		// whether this was corroboration or a lookup the seat skipped.
 		if _, err := run(t, "lens", "verify", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 			"--claim", c.claim, "--reference", c.ref, "--independent",
-			"--as", "supports", "--reason", "read at the leaf",
+			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 			"--access-date", "2026-07-24"); err != nil {
 			t.Fatalf("cite %q: %v", c.claim, err)
 		}

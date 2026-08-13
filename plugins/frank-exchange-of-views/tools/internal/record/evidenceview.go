@@ -32,7 +32,8 @@ import (
 // sentence, anchors it, and red checks it. Splitting them into `citations` and `proofs` would
 // have grown the surface by two to answer one question ("what does this token point to"), and
 // left a seat holding a `p-` id to guess which view took it. `citation-ledger` — red's
-// verifications, and nothing of what blue cited — is subsumed here as the `verifications` array.
+// verifications, and nothing of what blue cited — is subsumed here: anchored checks attach to the
+// source they name, and red's own corroboration is the `independent` array.
 //
 // # Both halves now carry their join
 //
@@ -117,6 +118,9 @@ type EvidenceVerificationJSON struct {
 	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
 	// axis left as prose and the assembly screen looked for a verdict no field could carry.
 	Outcome string `json:"outcome,omitempty"`
+	// Confidence is how sure red is of that outcome — orthogonal to it. `refutes` at low
+	// confidence is a call for more evidence; at high confidence it is a finding to act on.
+	Confidence string `json:"confidence,omitempty"`
 	// Text is red's reading — required, because a verdict with nothing behind it is the
 	// assertion the verb exists to replace.
 	Text       string `json:"text,omitempty"`
@@ -177,6 +181,7 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 			Claim:      e.Payload.Str("claim"),
 			Anchor:     e.Payload.Str("anchor"),
 			Outcome:    e.Payload.Str("outcome"),
+			Confidence: e.Payload.Str("confidence"),
 			Text:       e.Payload.Str("text"),
 			Reference:  e.Payload.Str("reference"),
 			AccessDate: e.Payload.Str("access_date"),

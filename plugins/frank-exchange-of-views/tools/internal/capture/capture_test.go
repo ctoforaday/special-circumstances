@@ -256,7 +256,7 @@ func screenRun(t *testing.T, outcome, url string) string {
 		record.NewPayload().Set("label", "c-1").Set("url", url).Set("title", "A Source"))
 	seed("red-lens-r1-L1", "30000000", 0, "verify",
 		record.NewPayload().Set("anchor", "c-1").Set("claim", "a claim").
-			Set("outcome", outcome).Set("text", "read it at the leaf"))
+			Set("outcome", outcome).Set("confidence", "high").Set("text", "read it at the leaf"))
 	return dir
 }
 

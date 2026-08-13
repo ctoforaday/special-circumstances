@@ -129,6 +129,19 @@ const (
 	Status = "status"
 	None   = "none"
 
+	// Confidence is how sure red is of a determination it just made — orthogonal to WHAT the
+	// determination was (--as), and the field the original plan specified: "for each statement ↔
+	// reference pair it assigns a confidence that the source actually corroborates the statement
+	// … low confidence → needs more evidence, blue digs further, not an automatic fail".
+	//
+	// The word was surrendered in #341 to a collision with `blue confidence` — blue self-grading
+	// its own claims — and the field went out as --trust. That verb was DELETED in 0.54.0, so the
+	// collision has not existed since, and the substitute cost more than it saved: `trust` reads
+	// as a property of the SOURCE, which pulled the value descriptions into a support scale and
+	// then read as a positive-only outcome. One word, one question — and the question is "how
+	// sure are you", never "how good is the source".
+	Confidence = "confidence"
+
 	// Grading.
 	Severity   = "severity"
 	Likelihood = "likelihood"
@@ -242,7 +255,7 @@ func All() []string {
 		Reason, ReasonFile,
 		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, Format, Candidate, Old, New, Answers,
 		As, Notes, Status, None,
-		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
+		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
 		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,

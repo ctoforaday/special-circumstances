@@ -110,11 +110,13 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
 		{"dispute dimension outside the set", []string{"blue", "dispute", "--id", "R1-1", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
-		{"verification outcome outside the set", []string{"lens", "verify", "--claim", "c", "--reference", "r", "--independent", "--as", "banana"}},
+		{"verification outcome outside the set", []string{"lens", "verify", "--claim", "c", "--reference", "r", "--independent", "--as", "banana", "--confidence", "high"}},
 		// The two cases that used to be unstatable: a verification that does not say WHICH
 		// citation it checked, and one with no verdict at all. Both were accepted — the bare verb
 		// recorded an event and printed "source verified:".
-		{"verification names no citation", []string{"lens", "verify", "--claim", "c", "--as", "supports", "--reason", "read it"}},
+		{"verification names no citation", []string{"lens", "verify", "--claim", "c", "--as", "supports", "--confidence", "high", "--reason", "read it"}},
+		// The axis I collapsed and had to restore: a determination with no stated confidence.
+		{"verification with no stated confidence", []string{"lens", "verify", "--independent", "--claim", "c", "--as", "refutes", "--reason", "the paper says the opposite"}},
 		{"verification of nothing", []string{"lens", "verify"}},
 		{"blue confidence outside the set", []string{"blue", "confidence", "--claim", "c", "--confidence", "banana"}},
 		{"petition class outside the set", []string{"blue", "petition", "--petition-class", "banana", "--relief", "x", "--reason", "r"}},

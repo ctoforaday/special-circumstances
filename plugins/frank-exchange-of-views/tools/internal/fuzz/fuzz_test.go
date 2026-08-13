@@ -305,6 +305,11 @@ func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 // leave that whole path unexercised while the coverage gate read green.
 var verifyOutcomes = []string{"supports", "supports-with-bridge", "weak", "refutes", "absent", "unreachable"}
 
+// verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
+// Driven independently of the outcome, because the pairs that matter most — `refutes` at low
+// confidence, `supports` at low confidence — only exist if the two are drawn apart.
+var verifyConfidence = []string{"high", "medium", "low"}
+
 // someCitation returns a citation anchor on the record, or "" if blue has cited nothing yet —
 // a REAL tool-assigned c-<hex>, the same discipline someFinding uses. `lens verify --anchor`
 // refuses an id that names no citation, so a fabricated one would drive only the reject path.
@@ -1049,6 +1054,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					set("--claim", "fuzz claim "+seatID).
 					set("--reference", "https://fuzz.invalid/"+seatID).
 					set("--as", verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]).
+					set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
 					set("--reason", "fuzz: what the source actually says").
 					on(60, "--access-date", "2026-07-24")
 				if anchor := r.someCitation(); anchor != "" && r.coin(70) {

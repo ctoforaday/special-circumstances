@@ -124,7 +124,7 @@ func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "https://example.org/p"),
 		evidenceEvent("verify", 1, "lens-r1", "anchor", "c-1", "claim", "seven is prime",
-			"reference", "example.org/p", "outcome", "supports", "text", "the abstract says it"),
+			"reference", "example.org/p", "outcome", "supports", "confidence", "high", "text", "the abstract says it"),
 	)
 	got := EvidenceJSONOf(b)
 	if len(got.Sources) != 1 || len(got.Sources[0].Verified) != 1 {

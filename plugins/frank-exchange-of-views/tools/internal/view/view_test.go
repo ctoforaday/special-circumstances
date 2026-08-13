@@ -546,7 +546,7 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 	writeShard(t, runDir, lens, "dddddddd", []record.Event{
 		ev(lens, "dddddddd", 0, 1, "verify", lens+":verify:https://x", record.NewPayload().
 			Set("claim", "the claim").Set("reference", "https://x").Set("anchor", "c-abc").
-			Set("outcome", "refutes").Set("access_date", "2026-07-18")),
+			Set("outcome", "refutes").Set("confidence", "medium").Set("access_date", "2026-07-18")),
 		ev(lens, "dddddddd", 1, 1, "verify", lens+":verify:https://y", record.NewPayload().Set("reference", "https://y")),
 	})
 
@@ -580,12 +580,12 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 	// The verdict column carries the OUTCOME, whose negative half is the point, and the citation
 	// column says which anchor the row adjudicates. Both were missing: the column was a
 	// supporting-only trust grade, and nothing said what the row was about.
-	if !strings.Contains(cites, "the claim | https://x | refutes | c-abc | r1 | 2026-07-18") {
+	if !strings.Contains(cites, "the claim | https://x | refutes | medium | c-abc | r1 | 2026-07-18") {
 		t.Errorf("citation row is wrong:\n%s", cites)
 	}
 	// A row with no anchor is red's own corroboration, and it says so — `(independent)` rather
 	// than a blank cell, which would read as a field that failed to render.
-	if !strings.Contains(cites, "undefined | https://y | undefined | (independent) | r1 | undefined") {
+	if !strings.Contains(cites, "undefined | https://y | undefined | undefined | (independent) | r1 | undefined") {
 		t.Errorf("a sparse citation must render its gaps as \"undefined\":\n%s", cites)
 	}
 }

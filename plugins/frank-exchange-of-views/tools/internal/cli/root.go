@@ -639,13 +639,23 @@ import (
 //	       --anchor (the c-<hex> of the citation checked, from `show evidence`) or the explicit
 //	       --independent for a source red found itself. A dangling anchor is refused.
 //
-//	       --trust is GONE, replaced by --as. Its three values — high|medium|low — all mean the
-//	       source SUPPORTS the claim, so red could grade how well a citation held and had no
-//	       field whatever for "it does not". The strongest adversarial finding available on the
-//	       citation axis had to leave as prose. The enum now carries its negative half:
-//	       supports | supports-with-bridge | weak | refutes | absent | unreachable. Trust and
-//	       outcome were never orthogonal — the trust scale WAS an outcome scale with the
-//	       negative half missing (#296).
+//	       TWO AXES, BOTH REQUIRED. `--as` is WHAT THE SOURCE DID: supports |
+//	       supports-with-bridge | weak | refutes | absent | unreachable. It is new, and its
+//	       negative half is the point — there was no field in which red could record that a
+//	       source does NOT hold up, so the strongest adversarial finding available on the
+//	       citation axis had to leave as prose (#296).
+//
+//	       `--confidence` is HOW SURE RED IS OF THAT, and it is the OLD field under its own
+//	       name. It shipped as `--trust`, a word surrendered in #341 to a collision with `blue
+//	       confidence`; that verb was deleted in 0.54.0, so the collision has not existed for
+//	       six releases while the substitute did — and the substitute cost more than it saved.
+//	       `trust` reads as a property of the SOURCE, so the field's own value descriptions
+//	       drifted into a support scale ("the source supports the claim but you had to bridge
+//	       something"), and read cold it looked like an outcome enum missing its negative half.
+//	       It is not one. It is the plan's per-pair confidence — "facts are rarely black and
+//	       white; low confidence → needs more evidence, blue digs further, not an automatic
+//	       fail" — and `refutes` at low confidence and `refutes` at high confidence are
+//	       different facts a reader must be able to tell apart.
 //
 //	       So `show evidence` joins: a source carries the verifications OF THAT SOURCE, and
 //	       `verified: []` means nobody has checked it (#382). Red's own anchorless corroboration
@@ -659,7 +669,8 @@ import (
 //	       then made honest (SKIP) and still checked nothing. It now joins fields — a source red
 //	       found against, still cited in the assembled report, is a FAIL.
 //
-//	       A stale binary takes `--trust` and accepts a verification of nothing.
+//	       A stale binary takes `--trust`, has no `--confidence`, and accepts a verification of
+//	       nothing.
 //
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
