@@ -590,10 +590,23 @@ import (
 //
 //	       A stale binary cannot answer `show report` and has no operator friction read.
 //
+//	0.58.0 THREE VIEWS OF ONE PROJECTION BECOME ONE. `ledger` and `archive` are retired;
+//	       `show board` carries both forms — JSON by default (what a seat acts on) and
+//	       `--format markdown` for the human-verification rendering: the open board, then the
+//	       closure archive with its prose.
+//
+//	       They were never separate data. The board JSON already carried the whole closure
+//	       payload, anchors included, so `ledger` was that JSON as markdown and `archive` was its
+//	       closed half — three names for one projection, which is the alias problem this
+//	       vocabulary bans everywhere else. --format is the flag `graph` already uses for exactly
+//	       this question, so the collapse adds no new spelling.
+//
+//	       A stale binary answers `show ledger` and `show archive` and takes no --format.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.57.0"
+const Version = "0.58.0"
 
 func init() { record.ToolVersion = Version }
 

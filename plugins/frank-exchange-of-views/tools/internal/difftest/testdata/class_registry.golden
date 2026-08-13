@@ -30,36 +30,12 @@ minted R1-2
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.57.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.58.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"compare anchors","check_kind":"document","class":"attestation-inflation","class_new":true,"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"medium","neighbor":"citation-drift","problem":"inflation","severity":"medium","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:class-new:#1","nonce":"NONCE001","payload":{"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","neighbor":"citation-drift","slug":"attestation-inflation"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"class-new"}
 {"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"same class again","check_kind":"document","class":"attestation-inflation","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"low","problem":"extension accepted","severity":"low","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"mint"}
 
 ═══ RENDERS ═══
--- ledger
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (2)
-
-### R1-1 — inflation
-
-severity medium | medium x high | cx undefined | class attestation-inflation
-required_fix: 
-acceptance_check: compare anchors
-
-### R1-2 — extension accepted
-
-severity low | low x low | cx undefined | class attestation-inflation
-required_fix: 
-acceptance_check: same class again
-
-## CLOSURE INDEX
-
-
-
--- archive
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 

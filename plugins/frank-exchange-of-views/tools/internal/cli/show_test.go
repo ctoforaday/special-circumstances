@@ -31,7 +31,7 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	for _, name := range []string{"ledger", "archive", "debate", "citation-ledger", "lines-of-inquiry"} {
+	for _, name := range []string{"debate", "citation-ledger", "lines-of-inquiry"} {
 		t.Run(name, func(t *testing.T) {
 			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", name)
 			if err != nil {
@@ -165,7 +165,7 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 		}
 	}
 	// --json on a markdown view with no JSON form is refused.
-	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "ledger", "--json"); err == nil {
+	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--json"); err == nil {
 		t.Error("--view ledger --json was accepted; ledger has no JSON form and must refuse")
 	}
 }

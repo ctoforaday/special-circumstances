@@ -15,21 +15,9 @@ feov-record: bench: record: opinion --id names gap R2-1, which no mint event cre
 
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl
-{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.57.0"},"role":"bench","round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
+{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.58.0"},"role":"bench","round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
 
 ═══ RENDERS ═══
--- ledger
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (0)
-
-## CLOSURE INDEX
-
-
-
--- archive
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 

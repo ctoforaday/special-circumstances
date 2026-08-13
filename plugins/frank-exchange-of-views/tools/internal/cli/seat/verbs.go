@@ -132,12 +132,10 @@ var views = []struct {
 	// The event record was moved out of reach so `show` became the only way to the board;
 	// report.md stayed behind as the one file a seat had to know the layout to find.
 	{"report", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. Written by the round-0 synthesis and every `blue edit`", ""},
-	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on. Written by `mint`, `close`, `regrade` and `retire`", ""},
+	{"board", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", ""},
 	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
 	{"worklist", "STRUCTURED JSON: YOUR PENDING WORK and whether this sitting is finished (`sitting.complete`, with every outstanding duty and the verb that discharges it), plus the shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "*"},
 	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
-	{"ledger", "the board as markdown, for a human verification pass. Written by `mint`, `close` and `regrade`", ""},
-	{"archive", "closed gaps with their closure records and anchors. Written by `close`", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
 	{"citation-ledger", "verified claims with source, confidence and access date. Written by `cite` and `verify`", ""},
@@ -236,6 +234,13 @@ func Show() *cobra.Command {
 		if v.name == "changes" {
 			sub.Flags().String(flags.ID, "", "scope to one gap — put red's required_fix and the edits answering it side by side")
 		}
+		// ONE COMMAND, BOTH FORMS. `ledger` and `archive` were markdown-only views of data the
+		// board JSON already carries whole — three names for one projection, which is the alias
+		// problem this vocabulary bans everywhere else. --format is the flag `graph` already
+		// uses for the same question.
+		if v.name == "board" {
+			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose)")
+		}
 		c.AddCommand(sub)
 	}
 	return c
@@ -306,6 +311,23 @@ func renderView(cmd *cobra.Command, want string) error {
 	// reach this branch, and checking the raw flag first sent the merge seat's own
 	// default view looking for a board.md that no renderer writes.
 	if want == "board" {
+		// The markdown arm is what `ledger` and `archive` rendered: the open board for a human
+		// verification pass, then the closure archive with its prose. Both were separate views
+		// of data this JSON already carries whole.
+		if f, _ := cmd.Flags().GetString(flags.Format); f == "markdown" || f == "md" {
+			led, err := view.Markdown(runDir, "ledger", "")
+			if err != nil {
+				return err
+			}
+			arc, err := view.Markdown(runDir, "archive", "")
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(led)
+			cmd.OutOrStdout().Write([]byte("\n"))
+			cmd.OutOrStdout().Write(arc)
+			return nil
+		}
 		b, err := record.BoardJSONBytes(runDir)
 		if err != nil {
 			return err
