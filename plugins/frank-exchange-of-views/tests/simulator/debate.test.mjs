@@ -59,7 +59,14 @@ test('null judge aborts cleanly instead of TypeError on judge.resolutions', asyn
 // ---- Run-3 docket row 2b + W2i: citation passes rescale every round, on the round's input ----
 
 const lensesByRound = (world, r) => world.calls.filter((c) => c.opts.label.match(new RegExp(`^red-lens-\\d+-r${r} `)))
-const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => c.prompt.includes('CITATION LEDGER'))
+// A CITATION SEAT IS IDENTIFIED BY A PHRASE IN ITS PROMPT, which is a pattern standing in for a
+// schema: reword the clause and every one of these tests reports zero citation seats, which reads
+// exactly like a dispatcher that stopped dispatching them. It broke once already, when the clause
+// was retitled for the evidence view. The field that should carry this is the lens ROLE — 1-4 are
+// the citation slices, 5 logic, 6 risk, and the role is already in the label — so the marker lives
+// here in ONE place until the tests key on the number instead.
+const CITATION_CLAUSE = 'HOW YOU RESOLVE AN ANCHOR'
+const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => c.prompt.includes(CITATION_CLAUSE))
 
 test('citationPasses recompute: round 1 sizes on the corpus, round 2 on the DELTA (W2i)', async () => {
   const world = makeWorld(makeResponder({
@@ -385,7 +392,7 @@ test('citation passes scale with claim_count and carry the ledger clause', async
     const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: claims })], red: [redEnv({ verdict: 'PASS' })] }))
     await world.run(script, ARGS)
     const lenses = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
-    for (const c of lenses.slice(0, lenses.length - 2)) assert.ok(c.prompt.includes('CITATION LEDGER'), 'citation lens carries the ledger clause')
+    for (const c of lenses.slice(0, lenses.length - 2)) assert.ok(c.prompt.includes(CITATION_CLAUSE), 'citation lens carries the ledger clause')
     return lenses.length
   }
   assert.equal(await lensCount(10), 1 + 2)   // floor: one citation pass + logic + risk
@@ -439,7 +446,10 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
   // --help and no completion of its own, which is the undiscoverability the motion collapse fixed
   // one layer up. The assertion is on the READ still being pulled through the tool, which is the
   // property that matters — the spelling changed, the contract did not.
-  assert.ok(judge.prompt.includes('show board --format markdown') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board through the tool (no materialized-path read); ledger and archive collapsed into board --format markdown')
+  // Two tokens, not one phrase: the projection now comes FIRST (`show board --run <dir> --format
+  // markdown`) so the group's subcommand is adjacent to `show`, which is what makes a stale name
+  // catchable. Asserting the contiguous string would have been asserting the argument ORDER.
+  assert.ok(judge.prompt.includes('show board') && judge.prompt.includes('--format markdown') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board through the tool (no materialized-path read); ledger and archive collapsed into board --format markdown')
 })
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
@@ -768,7 +778,7 @@ test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset
   assert.ok(respond.prompt.includes('PROBE CLASSES') && respond.prompt.includes('deferred acceptance test'), 'respond discharges by class (W1.10)')
   assert.ok(lens.prompt.includes('KNOWN HARNESS LIMIT') && lens.prompt.includes('SANCTIONED fallback'), 'Glob/Grep fallback sanctioned everywhere via speedClause (W1.11)')
   assert.ok(respond.prompt.includes('respond-1-workset'), 'respond FIRST ACTION batches its working set (W1.12)')
-  const citLens = world.calls.filter((c) => c.opts.label.startsWith('red-lens')).find((c) => c.prompt.includes('CITATION LEDGER'))
+  const citLens = world.calls.filter((c) => c.opts.label.startsWith('red-lens')).find((c) => c.prompt.includes(CITATION_CLAUSE))
   assert.ok(citLens && citLens.prompt.includes('VERBATIM READS ONLY') && citLens.prompt.includes('--comments'), 'citation lens carries the verbatim-reads rule (no WebFetch, curl/gh only)')
 })
 

@@ -1,8 +1,8 @@
-prompt sha256: 2a4cbae1893aede8fd6afd1dda933c79388b098dc83f29a1393585dfd6150639
+prompt sha256: 12f17f0bd92d691c20ae8c4296fddc663dfa952bf853c9a4cbdd660dc3649c47
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
-CITATION LEDGER: read research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
+THE EVIDENCE LAYER — HOW YOU RESOLVE AN ANCHOR: research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
 Append every claim you verify to the ledger (one line: claim | reference | confidence | round | access-date).
 MUST-TRY OBSERVABLE: every citation you grade DOWN (below high) MUST carry an attempt-or-impossibility line in your pass — which extraction tool or path you tried, or why none was triable; an untried "unable to corroborate" is an incomplete audit (run 4 caught a false "paywalled" on an open-access paper this clause would have exposed at round 0).
 VERBATIM READS ONLY — you have no WebFetch, by design (it returns a small model's SUMMARY, not the source).

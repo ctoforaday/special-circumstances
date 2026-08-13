@@ -50,6 +50,36 @@ var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|benc
 // which does not exist. See internal/cli.ViewNames.
 var promptView = regexp.MustCompile(`--view\s+([a-z][a-z-]+)`)
 
+// AND THE SUBCOMMAND FORM, which is now the only form there is.
+//
+// `show` became a group, so a prompt names a projection as `blue show evidence`, not `blue show
+// --view evidence`. The instant that landed, the gate above matched NOTHING — and reported
+// nothing, which reads exactly like a tree with no stale view names in it. The miss and the
+// honest zero are the same output.
+//
+// What it was covering while blind: EVERY read in the orchestrator's prompts. The restructure
+// rewrote `show --view X` into `show --run <dir> show X` — the flags kept their place and the
+// subcommand was appended after them, leaving a DOUBLED verb. `blue show --run <dir> show board`
+// parses as the `show` group with the argument "show", and the tool answers `no projection named
+// "show"`. Twelve sites, every projection a seat is told to read, refused. The engine's read path
+// was dead in the prompts and three gates were green.
+//
+// TWO CHECKS, because one regex cannot do both honestly.
+//
+// promptViewSub takes the word immediately after `show` and requires it to be a live projection.
+// That is the CONTRACT for an agent-facing file: `<role> show <view> [flags]`, view first. A
+// prompt that puts the view after its flags is not seen by this — and the contract is that
+// prompts do not write it that way, which is a rule stated here rather than a hole left unsaid.
+// The bare form (`show --run <dir>`, the seat's pending work) is a real capability, so a token
+// starting with a flag dash simply does not match.
+//
+// promptShowDoubled catches the regression above directly, because the bare form is exactly what
+// it hides behind: `show --run <dir> show board` opens with a flag and slips past the first
+// check. A second `show` inside one invocation is never right.
+var promptViewSub = regexp.MustCompile(`(?:feov-record"?|})\s+(?:lens|merge|blue|bench)\s+show\s+([a-z][a-z-]*)`)
+
+var promptShowDoubled = regexp.MustCompile(`\bshow\s+(?:--\S+\s+\S+\s+)+show\b`)
+
 // agentFacingFiles are the surfaces a seat reads: the orchestrator's prompts, the role
 // constitutions, and the skill that carries the protocol.
 func agentFacingFiles(t *testing.T) []string {
@@ -218,6 +248,25 @@ func TestEveryViewNamedInAPromptExists(t *testing.T) {
 			}
 			seen[k] = true
 			msgs = append(msgs, k)
+		}
+		for _, m := range promptViewSub.FindAllStringSubmatch(string(b), -1) {
+			tok := m[1]
+			if real[tok] {
+				continue
+			}
+			k := filepath.Base(path) + ": show " + tok
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			msgs = append(msgs, k)
+		}
+		if m := promptShowDoubled.FindString(string(b)); m != "" {
+			k := filepath.Base(path) + ": doubled verb — `" + strings.Join(strings.Fields(m), " ") + "` parses as the show group with the argument \"show\""
+			if !seen[k] {
+				seen[k] = true
+				msgs = append(msgs, k)
+			}
 		}
 	}
 	sort.Strings(msgs)

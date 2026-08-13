@@ -58,13 +58,15 @@ research/<date>_<slug>/
 └── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
 
 RECORD — no file; read through the tool:
-  show board      open gaps with full grading
-  show board --format markdown     status: open gaps + the compact closure index (id | class | summary | supersedes)
-  show board --format markdown    immutable closed prose; read on demand (near-match, chain rulings, spot-checks),
-                    never resident in the default merge/judge read
+  show            no projection named: YOUR PENDING WORK and whether this sitting is finished
+  show report     the artifact under audit, anchors intact (blue edit holds you to carrying them)
+  show board      open gaps with full grading; --format markdown adds the closure archive's prose
+  show worklist   your open set plus sitting.complete and every outstanding duty
   show findings   lens findings (candidate FILES were retired — findings are events)
-  show citation-ledger   verified citations don't un-verify: claim | reference | confidence | round | date
-  show friction   capability complaints (the pre-tool friction.md was retired 2026-07-19)
+  show evidence   WHAT BACKS THE REPORT: every source by its <!--cite:c-…--> anchor, every proof
+                    by its <!--proof:p-…--> anchor with the sha256 reproduce takes and red's
+                    re-run, and red's verified claims with trust grades. How you resolve an anchor
+  show motions    the docket: every ask in the filer's words, and its ruling if it has one
   show changes    the diff stack: what red prescribed, what blue applied, and the decline rate
   show lines-of-inquiry   the avenues, their hypotheses, and their fates
   show debate     the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
@@ -139,4 +141,4 @@ A subagent's only voice is its return value — so capability complaints travel 
 - AFTER any task where a missing tool, denied permission, or capability gap impeded you, YOU MUST report it in the envelope's `friction` field: name the capability and what you would have done with it.
 - AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
 - YOU MUST NOT silently work around a capability gap — the workaround destroys the signal that would get you retooled.
-- Friction is recorded on the RECORD via the friction verb (read via `show friction`); capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
+- Friction is recorded on the RECORD via the friction verb — every seat WRITES it, and the read is the OPERATOR's (`feov-record friction --run <dir>`, beside `verify` and `scorecard`), because a capability gap is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

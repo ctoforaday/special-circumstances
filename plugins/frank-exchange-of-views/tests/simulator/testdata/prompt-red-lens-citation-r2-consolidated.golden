@@ -1,7 +1,7 @@
-prompt sha256: 0d6f7af4a34a40cb2e72eaa4fe58257fbc8d3214d0c2ae836331e5e89ebab34f
+prompt sha256: 67e0a9bbb8b33ef2dc852afd58718ec6eba130737ef67cc6c8564cbe5534335b
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
-CITATION LEDGER: read research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
+THE EVIDENCE LAYER — HOW YOU RESOLVE AN ANCHOR: research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
 Append every claim you verify to the ledger (one line: claim | reference | confidence | round | access-date).
 MUST-TRY OBSERVABLE: every citation you grade DOWN (below high) MUST carry an attempt-or-impossibility line in your pass — which extraction tool or path you tried, or why none was triable; an untried "unable to corroborate" is an incomplete audit (run 4 caught a false "paywalled" on an open-access paper this clause would have exposed at round 0).
 VERBATIM READS ONLY — you have no WebFetch, by design (it returns a small model's SUMMARY, not the source).

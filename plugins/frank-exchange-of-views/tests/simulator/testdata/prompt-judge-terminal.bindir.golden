@@ -1,8 +1,8 @@
-prompt sha256: 33de469242f48b405c565166aac9cdba8250f9e8df63304a549cd1ddfda71048
+prompt sha256: 48b6c45a4c4eb0003fc15d106f01c21d2796e84ef5c67d4a68a435c6e6b78a5f
 
 Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
 Undisposed grade disputes: [{"gap_id":"R1-1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
-Read the transcript in full from the RECORD (feov-record bench show --run research/2026-01-01_golden show debate), and pull the board through the tool: feov-record bench show --run research/2026-01-01_golden show board --format markdown.
+Read the transcript in full from the RECORD (feov-record bench show debate --run research/2026-01-01_golden), and pull the board through the tool: feov-record bench show board --run research/2026-01-01_golden --format markdown.
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 The resolution set at a terminal exit EXCLUDES carried — rule each dispute grade_adjusted (state the corrected grade in the rationale; assembly records the delta) or unresolved (the contested grade ships, recorded as contested in the report). deadlock: false.
 Record your terminal ruling as an opinion event (feov-record bench opinion --id <gap> ...) — it renders as "### LEAD (terminal disputes)" from the record.

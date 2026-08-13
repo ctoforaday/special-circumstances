@@ -1,7 +1,7 @@
-prompt sha256: 90e9a3910ad0d0abc601574b03954a265ba60a0ad7b2e120986f28f3db92f418
+prompt sha256: b0de4aa678e507700bcf614068cb6bd598cc139529d2b98749c804206a188c1a
 
 Red merge, round 1.
-FIRST ACTION: read this round's lens findings from the RECORD — "/opt/feov/bin/feov-record" merge show --run research/2026-01-01_golden show findings — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
+FIRST ACTION: read this round's lens findings from the RECORD — "/opt/feov/bin/feov-record" merge show findings --run research/2026-01-01_golden — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
 That view IS the channel: the lenses record findings as events, and there are no candidate files to read.
 THE BOARD IS THE TOOL'S (migrated 2026-07-19).
 You do NOT hand-write a ledger or an archive — you MINT each open gap and CLOSE each resolved one through `feov-record merge`, one gap per call, and the tool renders the ledger (open gaps + closure index) and the archive (closed prose).
@@ -60,7 +60,7 @@ The tool validates the pair against the LIVE report and refuses it unless the sp
 It also refuses a replacement more than 120 characters longer than the span it replaces: that size is a substantive ADDITION and it is BLUE'S to author, not yours.
 You never type a basis — the tool derives fix_basis: verified from the pair validating, proposed from prose alone.
 DID BLUE ACTUALLY DO WHAT YOU ASKED?
-Before closing a gap you prescribed a fix for, put the two side by side — "/opt/feov/bin/feov-record" merge show --run research/2026-01-01_golden show changes --id <gap>: it prints your required_fix and acceptance_check above the exact old->new spans blue recorded against them.
+Before closing a gap you prescribed a fix for, put the two side by side — "/opt/feov/bin/feov-record" merge show changes --run research/2026-01-01_golden --id <gap>: it prints your required_fix and acceptance_check above the exact old->new spans blue recorded against them.
 This does NOT replace the lens re-read of the report — a span out of context misleads on research prose — it replaces INFERRING whether your prescription was answered.
 Two shapes worth naming: NONE recorded against an open gap (blue answered nothing, or answered without --answers), and a change that does not meet your own acceptance_check.
 ESTOPPEL IS ENFORCED NOW, NOT ADVISED: if the defect you are about to raise lives in text blue applied VERBATIM from your own --fix-new, the mint is REFUSED and the refusal is logged as friction.
@@ -70,7 +70,7 @@ And when blue applied your exact text, your prescription HAS been satisfied at t
 The guard only catches text blue took verbatim — text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 This is an amendment to the gap that prescribed it, not a fresh gap — 3 of 3 round-2 gaps in the 2026-08-04 smoke were text blue added in round 1 because red asked for it.
 Decide the binary verdict — PASS only when every remaining unadjudicated gap is closed, rebuttal_sustained, or risk_accepted.
-CITATIONS_CHECKED IS THE RECORD'S, NOT YOURS: set the envelope's citations_checked to counts.citations from the board (`"/opt/feov/bin/feov-record" merge show --run research/2026-01-01_golden show board`) — the tool counts the cite events the lenses recorded; never hand-count or estimate it.
+CITATIONS_CHECKED IS THE RECORD'S, NOT YOURS: set the envelope's citations_checked to counts.citations from the board (`"/opt/feov/bin/feov-record" merge show board --run research/2026-01-01_golden`) — the tool counts the cite events the lenses recorded; never hand-count or estimate it.
 Record your round-1 narrative on the RECORD as a position event — "/opt/feov/bin/feov-record" merge position --reason "<your RED narrative>" (--reason-file <path> for long prose); it renders as the round's "### RED" section from the record, so do NOT hand-write debate.md.
 CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, record a closing event — "/opt/feov/bin/feov-record" merge closing --id <gap> --reason "<your case, ~120 words>"; it renders as "### RED CLOSING" from the record and the judge reads it there: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far.
 The judge rules AFTER blue responds this round, on the closings, the transcript, and the final artifact state only — your closing is your case; overstatement the record does not support counts against you.

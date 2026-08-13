@@ -43,12 +43,14 @@ var viewWriters = map[string][]string{
 	"report": {"edit", "cite", "finding", "prove"},
 	// The motion group fills it: the ask, the answer, and the press-on. All three, because a
 	// view that named only `file` would leave a reader wondering where a ruling comes from.
-	"motions":          {"motion", "rule", "appeal"},
-	"worklist":         {"mint"},
-	"findings":         {"finding"},
-	"debate":           {"position"},
-	"changes":          {"edit"},
-	"citation-ledger":  {"cite"},
+	"motions":  {"motion", "rule", "appeal"},
+	"worklist": {"mint"},
+	"findings": {"finding"},
+	"debate":   {"position"},
+	"changes":  {"edit"},
+	// All four, because the view answers two different questions with one table: what blue
+	// offered as backing (`cite`, `prove`) and what red made of it (`verify`, `reproduce`).
+	"evidence":         {"cite", "prove", "verify", "reproduce"},
 	"lines-of-inquiry": {"avenue"},
 	"telemetry":        {},
 	"board":            {"mint", "close", "regrade", "retire"},
@@ -155,4 +157,49 @@ func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
 				name, strings.Join(ViewNames(), ", "))
 		}
 	}
+
+	// AND THE SAME CHECK FOR THE SUBCOMMAND FORM, which the `--view` regex above cannot see.
+	//
+	// `show` became a group, so the way a message names a projection is now `show evidence`, not
+	// `--view evidence` — and the moment that happened, the gate above went on passing while
+	// covering a syntax nothing writes any more. The miss is indistinguishable from the honest
+	// zero: no findings, which reads exactly like a clean tree.
+	//
+	// A forward match on `show <token>` cannot work — "show board" and "show the seat" are the
+	// same shape — so this runs BACKWARD, from a roster of names that USED to be projections. It
+	// catches the regression that actually happens (a view is renamed and a help string keeps the
+	// old word) with no guesswork about which English words are view names.
+	// AND NO HELP STRING DOUBLES THE VERB. `show --run <dir> show evidence` parses as the show
+	// group with the argument "show" and is refused. It is not a hypothetical: the restructure
+	// wrote it into twelve prompt sites, and while writing the fix for those I wrote it again into
+	// this package's own `lens reproduce` message. A shape you reproduce while repairing it is one
+	// that needs a check rather than care.
+	doubled := regexp.MustCompile(`\bshow\s+(?:--\S+\s+\S+\s+)+show\b`)
+	for _, text := range texts {
+		if m := doubled.FindString(text); m != "" {
+			t.Errorf("a help string doubles the verb: `%s` — it parses as the show group with the argument \"show\", and the tool refuses it. Put the projection first: `show <view> --run <dir>`",
+				strings.Join(strings.Fields(m), " "))
+			break
+		}
+	}
+
+	for _, gone := range retiredViews {
+		if live[gone] {
+			t.Errorf("retiredViews names %q, which IS a live projection — remove it from the roster before it starts failing every rename", gone)
+			continue
+		}
+		stale := regexp.MustCompile(`(--view|show)\s+` + regexp.QuoteMeta(gone) + `\b`)
+		for _, text := range texts {
+			if stale.MatchString(text) {
+				t.Errorf("a help string still names the retired projection %q. It was renamed and this carrier kept the old word — a seat following it gets 'unknown view' and reads the refusal as its own mistake.\n\nthe projections are: %s",
+					gone, strings.Join(ViewNames(), ", "))
+				break
+			}
+		}
+	}
 }
+
+// retiredViews are projection names that existed and do not any more. Every rename adds one, and
+// the entry is the whole point: a name nobody is watching for is how a stale reference survives a
+// rename in prose that compiles fine.
+var retiredViews = []string{"citation-ledger", "ledger", "archive", "changelog", "proofs"}
