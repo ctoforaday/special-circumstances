@@ -159,13 +159,24 @@ Global Flags:
 
 Use "{TOOL} [command] --help" for more information about a command.
 
-── verification trust outside the set
+── verification outcome outside the set
 exit 2
-feov-record: invalid argument "banana" for "--trust" flag: --trust must be one of high|medium|low (got "banana") — the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)
+feov-record: invalid argument "banana" for "--as" flag: --as must be one of supports|supports-with-bridge|weak|refutes|absent|unreachable (got "banana") — ONE AXIS, WITH ITS NEGATIVE HALF RESTORED. This was `--trust high|medium|low`, and all three values mean the source SUPPORTS the claim — so red could grade how well a citation held and had no way whatever to record that it did not hold. The strongest adversarial finding available on the citation axis was unrecordable, and the capture audit built to catch a report shipping a refuted citation (assembly-screen) went looking for a verdict no field could carry: it reported PASS over an empty file on every record-mode run (#296). Trust and outcome were never orthogonal — the trust scale WAS an outcome scale with its negative half missing, which is why widening it beats adding a second enum beside it
 
-    high    the source says what the claim says, at the leaf, and you checked it there
-    medium  the source supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
-    low     the source is weak for this claim: it gestures at it, or is itself uncorroborated
+    supports              you read the source at the leaf and it says what the claim says
+    supports-with-bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
+    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
+    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
+    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
+
+── verification names no citation
+exit 2
+feov-record: lens: lens verify requires --anchor <c-id> OR --independent: say WHICH citation you checked. Read the report, take the `<!--cite:c-…-->` token at the sentence, and resolve it with `lens show evidence --run <runDir>`. Pass --independent only for a source YOU found — corroboration blue never cited, which has no anchor to name
+
+── verification of nothing
+exit 2
+feov-record: lens: lens verify requires --anchor <c-id> OR --independent: say WHICH citation you checked. Read the report, take the `<!--cite:c-…-->` token at the sentence, and resolve it with `lens show evidence --run <runDir>`. Pass --independent only for a source YOU found — corroboration blue never cited, which has no anchor to name
 
 ── blue confidence outside the set
 exit 2
@@ -272,7 +283,7 @@ Available Commands:
   register    FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
   reproduce   re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | worklist | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  verify      record that you CHECKED a claim against its source (the cross-round re-fetch gate): --claim "..." --reference "..." --trust high|medium|low --access-date YYYY-MM-DD
+  verify      adjudicate ONE citation: --anchor c-<hex> (from `show evidence`) or --independent, --claim "..." --as supports|refutes|absent|… --reason "<what the source actually says>"
 
 Flags:
   -h, --help   help for lens

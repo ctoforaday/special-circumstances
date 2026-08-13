@@ -108,10 +108,17 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	}
 }
 
-// The three verbs that carry only short values want NO payload channel. Symmetry for its
-// own sake would give `verify` a --reason with nothing to fill.
+// A verb that carries only short values wants NO payload channel — symmetry for its own sake
+// would hand it a --reason with nothing to fill.
+//
+// `verify` WAS on this list, and the entry was load-bearing in the wrong direction: it recorded
+// the belief that a verification is a label and a grade. It is not. It is a judgement about what
+// a source says, and the judgement was the part that never reached the record — the verb accepted
+// no flags at all, so a bare `lens verify` appended an event and counted as audit volume. It now
+// requires the reading behind its verdict, which is exactly the payload channel this test used to
+// forbid it.
 func TestShortValueVerbsHaveNoPayloadChannel(t *testing.T) {
-	for _, c := range [][2]string{{"lens", "verify"}, {"merge", "verdict"}} {
+	for _, c := range [][2]string{{"merge", "verdict"}} {
 		if h := help(t, c[0], c[1], "--help"); strings.Contains(h, "--reason ") {
 			t.Errorf("%s %s grew a payload channel; its fields are a label and a grade, and --reason would have nothing to fill", c[0], c[1])
 		}

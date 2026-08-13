@@ -34,18 +34,22 @@ import (
 // left a seat holding a `p-` id to guess which view took it. `citation-ledger` — red's
 // verifications, and nothing of what blue cited — is subsumed here as the `verifications` array.
 //
-// # Why red's verifications are NOT joined to blue's sources
+// # Both halves now carry their join
 //
-// They cannot be, and pretending otherwise would be the exact defect this view repairs. `lens
-// verify` records a free-text `reference`, not the anchor of the citation it checked, so any
-// join would be a string-similarity guess presented as a fact — and a wrong join reads
-// identically to a right one. They are listed apart, and the absence of the join is stated
-// rather than papered over. Filed as its own defect; the fix is a join key on `verify`, not a
-// cleverer reader.
+// They did not. `lens verify` recorded a free-text `reference` rather than the anchor of the
+// citation it checked, so this view listed red's work beside blue's sources without connecting
+// them — and any join would have been a string-similarity guess presented as a fact, which reads
+// identically to a right one whether it is right or not. #382 gave `verify` an `--anchor`, so a
+// source now carries the verifications OF THAT SOURCE, and `verified: []` means nobody has
+// checked it — stated, not inferred from an absence.
 //
-// PROOFS DO carry the join, because `reproduce` records `proof_sha` — so a proof's verification
-// is attached to it, and a nil `verified` means nobody re-ran it. That absence is information a
-// seat acts on, so it is a field rather than an omission.
+// Red's INDEPENDENT checks (corroboration it found itself, which blue never cited) have no
+// anchor to join on and never will; they are the `independent` array, and that is a different
+// fact from an unverified citation rather than a missing one.
+//
+// PROOFS carry the same join through `reproduce`'s `proof_sha`, and a nil `verified` means
+// nobody re-ran it. Every absence in this view is a stated field, because an unaudited thing and
+// a clean thing are otherwise the same empty space.
 
 // EvidenceSourceJSON is one source blue cited, keyed by the anchor token in the report.
 type EvidenceSourceJSON struct {
@@ -61,6 +65,11 @@ type EvidenceSourceJSON struct {
 	Claim    string `json:"claim,omitempty"`
 	SeatID   string `json:"seat_id,omitempty"`
 	Round    int    `json:"round"`
+
+	// Verified is every `lens verify` naming THIS anchor. An empty slice is the honest zero and
+	// it is rendered, not omitted: "nobody has checked this source" is what red reads to decide
+	// where to spend its next pass, and an absent key would leave that to be inferred.
+	Verified []EvidenceVerificationJSON `json:"verified"`
 }
 
 // EvidenceProofJSON is one computation blue recorded, keyed by its anchor, WITH red's re-run.
@@ -102,35 +111,84 @@ type EvidenceReproductionJSON struct {
 // EvidenceVerificationJSON is one `lens verify` — a claim red checked against a source.
 type EvidenceVerificationJSON struct {
 	Claim string `json:"claim,omitempty"`
-	// Reference is FREE TEXT, which is why nothing here is joined to a citation anchor.
+	// Anchor is the citation adjudicated, empty on an independent check.
+	Anchor string `json:"anchor,omitempty"`
+	// Outcome is what the source DID for the claim, and it has a negative half: `refutes` and
+	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
+	// axis left as prose and the assembly screen looked for a verdict no field could carry.
+	Outcome string `json:"outcome,omitempty"`
+	// Text is red's reading — required, because a verdict with nothing behind it is the
+	// assertion the verb exists to replace.
+	Text       string `json:"text,omitempty"`
 	Reference  string `json:"reference,omitempty"`
-	Trust      string `json:"trust,omitempty"`
 	AccessDate string `json:"access_date,omitempty"`
 	SeatID     string `json:"seat_id,omitempty"`
 	Round      int    `json:"round"`
 }
 
+// Refuted reports whether this verification found AGAINST the claim — the two outcomes that
+// mean the report is carrying a citation it should not. A named predicate rather than a
+// string comparison at each call site: the assembly screen, the counts here and any future
+// reader must agree on what "found against" means, and they agree by calling this.
+func (v EvidenceVerificationJSON) Refuted() bool {
+	return v.Outcome == "refutes" || v.Outcome == "absent"
+}
+
 // EvidenceJSON is the whole evidence layer of the report.
 type EvidenceJSON struct {
-	Sources       []EvidenceSourceJSON       `json:"sources"`
-	Proofs        []EvidenceProofJSON        `json:"proofs"`
-	Verifications []EvidenceVerificationJSON `json:"verifications"`
-	Counts        struct {
+	Sources []EvidenceSourceJSON `json:"sources"`
+	Proofs  []EvidenceProofJSON  `json:"proofs"`
+	// Independent is red's corroboration — sources it went and found, which blue never cited and
+	// which therefore have no anchor. A separate array rather than anchorless rows mixed into the
+	// sources, because "checked something blue did not cite" and "checked a citation" answer
+	// different questions and only one of them is about the report's own backing.
+	Independent []EvidenceVerificationJSON `json:"independent"`
+	Counts      struct {
 		Sources int `json:"sources"`
 		Proofs  int `json:"proofs"`
 		// ProofsUnverified is the count nobody re-ran. It is stated because the honest zero and
 		// the unchecked case are otherwise the same empty space.
 		ProofsUnverified int `json:"proofs_unverified"`
-		Verifications    int `json:"verifications"`
+		// SourcesUnverified is its citation twin: cited, and nobody has checked it.
+		SourcesUnverified int `json:"sources_unverified"`
+		// SourcesRefuted counts the citations red found AGAINST — refuted or absent. It is the
+		// number the assembly screen acts on, and the one the old ledger could not produce.
+		SourcesRefuted int `json:"sources_refuted"`
+		Verifications  int `json:"verifications"`
 	} `json:"counts"`
 }
 
 // EvidenceJSONOf projects the record's evidence layer in event order.
 func EvidenceJSONOf(b *Board) EvidenceJSON {
 	out := EvidenceJSON{
-		Sources:       []EvidenceSourceJSON{},
-		Proofs:        []EvidenceProofJSON{},
-		Verifications: []EvidenceVerificationJSON{},
+		Sources:     []EvidenceSourceJSON{},
+		Proofs:      []EvidenceProofJSON{},
+		Independent: []EvidenceVerificationJSON{},
+	}
+
+	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
+	// so each source carries its own; the rest are corroboration and stand alone.
+	byAnchor := map[string][]EvidenceVerificationJSON{}
+	for _, e := range b.Events {
+		if e.Type != "verify" {
+			continue
+		}
+		v := EvidenceVerificationJSON{
+			Claim:      e.Payload.Str("claim"),
+			Anchor:     e.Payload.Str("anchor"),
+			Outcome:    e.Payload.Str("outcome"),
+			Text:       e.Payload.Str("text"),
+			Reference:  e.Payload.Str("reference"),
+			AccessDate: e.Payload.Str("access_date"),
+			SeatID:     e.SeatID,
+			Round:      e.Round,
+		}
+		out.Counts.Verifications++
+		if v.Anchor == "" {
+			out.Independent = append(out.Independent, v)
+			continue
+		}
+		byAnchor[v.Anchor] = append(byAnchor[v.Anchor], v)
 	}
 
 	// Red's re-runs, keyed by the proof sha they checked — the one join the record supports.
@@ -164,6 +222,12 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 			if label == "" {
 				continue
 			}
+			// An empty slice, never nil: `"verified": []` is "nobody has checked this source",
+			// which is a fact red acts on. A null would leave it to be inferred.
+			checks := byAnchor[label]
+			if checks == nil {
+				checks = []EvidenceVerificationJSON{}
+			}
 			out.Sources = append(out.Sources, EvidenceSourceJSON{
 				Anchor:     label,
 				URL:        e.Payload.Str("url"),
@@ -174,6 +238,7 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 				Claim:      e.Payload.Str("claim"),
 				SeatID:     e.SeatID,
 				Round:      e.Round,
+				Verified:   checks,
 			})
 		case "proof":
 			exit := 0
@@ -199,24 +264,28 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 				Round:    e.Round,
 				Verified: reruns[sha],
 			})
-		case "verify":
-			out.Verifications = append(out.Verifications, EvidenceVerificationJSON{
-				Claim:      e.Payload.Str("claim"),
-				Reference:  e.Payload.Str("reference"),
-				Trust:      e.Payload.Str("trust"),
-				AccessDate: e.Payload.Str("access_date"),
-				SeatID:     e.SeatID,
-				Round:      e.Round,
-			})
+			// `verify` is handled in the indexing pass above — it has to be, because a source
+			// must carry its verifications and a cite event may arrive after the check of it.
 		}
 	}
 
 	out.Counts.Sources = len(out.Sources)
 	out.Counts.Proofs = len(out.Proofs)
-	out.Counts.Verifications = len(out.Verifications)
 	for _, p := range out.Proofs {
 		if p.Verified == nil {
 			out.Counts.ProofsUnverified++
+		}
+	}
+	for _, s := range out.Sources {
+		if len(s.Verified) == 0 {
+			out.Counts.SourcesUnverified++
+			continue
+		}
+		for _, v := range s.Verified {
+			if v.Refuted() {
+				out.Counts.SourcesRefuted++
+				break
+			}
 		}
 	}
 	return out

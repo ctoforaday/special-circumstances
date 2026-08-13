@@ -600,22 +600,35 @@ func inquiryMD(b *record.Board) []byte {
 	return []byte(strings.Join(inquiry, "\n") + "\n")
 }
 
-// citationLedgerMD — the claims RED CHECKED, with source and trust. Trailing newline
-// (render.go parity).
+// citationLedgerMD — the claims RED CHECKED, with the source, the verdict, and which citation
+// it was about. Trailing newline (render.go parity).
 //
 // It reads `verify` events, not `cite`. Before the split (#341) both acts shared the `cite`
 // type, so this ledger rendered BLUE'S AUTHORED CITATIONS alongside red's verifications — and
 // blue's carry location/url/title rather than claim/reference/confidence, so each one rendered
 // as a row of undefined fields. The ledger red reads to decide what it need not re-fetch was
 // padded with blank rows for citations it had never checked.
+//
+// The verdict column USED to be a `trust` grade of high|medium|low, all three of which mean the
+// source supports the claim. A row saying the source did NOT could not be written, and this
+// file's reader — capture's assembly screen — scanned it for exactly that. It now renders the
+// `outcome`, whose negative half is the point, and the ANCHOR, so a human reading this file can
+// tell which citation each row adjudicates.
 func citationLedgerMD(b *record.Board) []byte {
-	cites := []string{"# red citation-ledger — RENDERED PROJECTION"}
+	cites := []string{"# red citation-ledger — RENDERED PROJECTION",
+		"", "_claim | source | verdict | citation | round | access date_", ""}
 	for _, e := range b.Events {
 		if e.Type != "verify" {
 			continue
 		}
-		cites = append(cites, fmt.Sprintf("%s | %s | %s | r%d | %s",
-			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "trust"), e.Round, undefStr(e.Payload, "access_date")))
+		anchor := e.Payload.Str("anchor")
+		if anchor == "" {
+			// The explicit negative, not a blank: red checked a source it found ITSELF, which
+			// never had an anchor to name. A blank cell would read as a missing field.
+			anchor = "(independent)"
+		}
+		cites = append(cites, fmt.Sprintf("%s | %s | %s | %s | r%d | %s",
+			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "outcome"), anchor, e.Round, undefStr(e.Payload, "access_date")))
 	}
 	return []byte(strings.Join(cites, "\n") + "\n")
 }

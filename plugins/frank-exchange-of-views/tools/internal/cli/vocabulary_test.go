@@ -116,7 +116,7 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		"closing": "merge",
 		"retire":  "blue", "avenue": "blue",
 		"opinion": "bench", "halt": "bench", "certify": "bench", "outcome": "bench",
-		"finding": "lens", "observe": "lens",
+		"finding": "lens", "observe": "lens", "verify": "lens",
 	}
 	// A FIELD THE VERB SUPPLIES IS NOT A FLAG THE SEAT MUST TYPE, and marking it produced help
 	// that contradicted itself: `blue avenue --status` read "REQUIRED — proposed (… the default)".

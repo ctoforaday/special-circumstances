@@ -164,13 +164,15 @@ var EnumFields = map[string][]EnumField{
 		Why: "REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the script actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a proof that looks maximally credible and establishes nothing",
 	}},
 	"verify": {{
-		Key: "trust", Flag: flags.Trust, Values: []EnumValue{
-			Ev("high", "the source says what the claim says, at the leaf, and you checked it there"),
-			Ev("medium", "the source supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
-			Ev("low", "the source is weak for this claim: it gestures at it, or is itself uncorroborated"),
+		Key: "outcome", Flag: flags.As, Values: []EnumValue{
+			Ev("supports", "you read the source at the leaf and it says what the claim says"),
+			Ev("supports-with-bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
+			Ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
+			Ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"),
+			Ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
+			Ev("unreachable", "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"),
 		},
-		Why:      "the grade is the whole content of a verification's claim about its source; an unreadable one makes it incomparable with every other row in the ledger it lands in. Named `trust` because blue's `confidence` grades a CLAIM and this grades a SOURCE — one word for two questions is how the two acts came to share an event type (#341)",
-		Optional: true,
+		Why: "ONE AXIS, WITH ITS NEGATIVE HALF RESTORED. This was `--trust high|medium|low`, and all three values mean the source SUPPORTS the claim — so red could grade how well a citation held and had no way whatever to record that it did not hold. The strongest adversarial finding available on the citation axis was unrecordable, and the capture audit built to catch a report shipping a refuted citation (assembly-screen) went looking for a verdict no field could carry: it reported PASS over an empty file on every record-mode run (#296). Trust and outcome were never orthogonal — the trust scale WAS an outcome scale with its negative half missing, which is why widening it beats adding a second enum beside it",
 	}},
 }
 

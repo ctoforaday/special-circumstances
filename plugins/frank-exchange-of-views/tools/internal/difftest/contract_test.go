@@ -110,7 +110,12 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
 		{"dispute dimension outside the set", []string{"blue", "dispute", "--id", "R1-1", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
-		{"verification trust outside the set", []string{"lens", "verify", "--claim", "c", "--reference", "r", "--trust", "banana"}},
+		{"verification outcome outside the set", []string{"lens", "verify", "--claim", "c", "--reference", "r", "--independent", "--as", "banana"}},
+		// The two cases that used to be unstatable: a verification that does not say WHICH
+		// citation it checked, and one with no verdict at all. Both were accepted — the bare verb
+		// recorded an event and printed "source verified:".
+		{"verification names no citation", []string{"lens", "verify", "--claim", "c", "--as", "supports", "--reason", "read it"}},
+		{"verification of nothing", []string{"lens", "verify"}},
 		{"blue confidence outside the set", []string{"blue", "confidence", "--claim", "c", "--confidence", "banana"}},
 		{"petition class outside the set", []string{"blue", "petition", "--petition-class", "banana", "--relief", "x", "--reason", "r"}},
 		{"invalid seat id", []string{"merge", "mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--problem", "p"}},

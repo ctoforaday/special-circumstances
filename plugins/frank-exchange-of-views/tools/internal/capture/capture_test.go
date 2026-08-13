@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,52 +160,104 @@ func TestContextUse(t *testing.T) {
 	}
 }
 
-// THE SCREEN CANNOT RUN, AND MUST SAY SO RATHER THAN PASS.
+// THE SCREEN RUNS AGAIN, AND ON FIELDS.
 //
 // It caught a report still citing a source red had refuted, by regex-scanning the confidence
 // column of red/citation-ledger.md for REFUTED|ABSENT. Red used to type its verdict there as
 // prose ("LOW - REFUTED: closed as duplicate"), and real ledgers carried 5-11 such rows.
 //
-// Two changes killed it. `lens cite --confidence` became a CLOSED ENUM of high|medium|low, so
-// there is nowhere left to record that verification FAILED; and the ledger became a rendered
-// projection, so the file the screen read is a `setup` stub (46 bytes on the 2026-08-05 run).
+// Two changes killed it. The grade became a CLOSED ENUM of high|medium|low — three values that
+// all mean the source SUPPORTS the claim — so there was nowhere to record that a verification
+// failed; and the ledger became a rendered projection, so the file the screen read was a `setup`
+// stub (46 bytes on the 2026-08-05 run). The result was PASS on every record-mode run. It was
+// then made honest (SKIP, naming the gap), which stopped the false green and left the check
+// checking nothing.
 //
-// The result was PASS on every record-mode run. These tests pin the honest state instead: the
-// audit reads the RECORD, and reports the missing field. Restoring a PASS here without adding
-// a verification verdict to the cite event would be restoring the false green — #296.
-func TestAssemblyScreenReportsTheMissingVerdictInsteadOfPassing(t *testing.T) {
-	// Citations on the record, but no field in which a refutation could be expressed.
+// `lens verify --as refutes|absent` plus `--anchor` is what brings it back (#296, #382), and the
+// prose match does not come with it: the screen joins a source to the verifications OF THAT
+// SOURCE and asks whether the assembled report still points a reader at it.
+func TestAssemblyScreenFailsOnARefutedCitationStillInTheReport(t *testing.T) {
+	for _, outcome := range []string{"refutes", "absent"} {
+		t.Run(outcome, func(t *testing.T) {
+			dir := screenRun(t, outcome, "https://example.test/refuted")
+			// The assembled report still cites it.
+			write(t, filepath.Join(dir, "report.md"), "A claim, sourced.[^1]\n\n[^1]: https://example.test/refuted\n")
+
+			got := AssemblyScreen(dir)
+			if got.Verdict != "FAIL" {
+				t.Fatalf("verdict = %s, want FAIL — the report cites a source red found against (%s)", got.Verdict, got.Detail)
+			}
+			if !strings.Contains(got.Detail, "c-1") {
+				t.Errorf("the detail must name WHICH citation, or the operator cannot act on it: %s", got.Detail)
+			}
+		})
+	}
+}
+
+// AND PASSES WHEN THE REPORT DROPPED IT — a real PASS, over a real comparison.
+func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
+	dir := screenRun(t, "refutes", "https://example.test/refuted")
+	write(t, filepath.Join(dir, "report.md"), "A claim, now sourced elsewhere.[^1]\n\n[^1]: https://example.test/other\n")
+
+	got := AssemblyScreen(dir)
+	if got.Verdict != "PASS" {
+		t.Fatalf("verdict = %s, want PASS (%s)", got.Verdict, got.Detail)
+	}
+	// The PASS must still SAY what it screened. "PASS" over an empty comparison is the shape
+	// this check spent two releases in.
+	if !strings.Contains(got.Detail, "1 found against") {
+		t.Errorf("the PASS does not state what it compared: %s", got.Detail)
+	}
+}
+
+// A SUPPORTED CITATION IS NOT SCREENED OUT. `weak` is thin support, not contradiction, and
+// conflating them would turn a grading nuance into an assembly failure.
+func TestAssemblyScreenIgnoresSupportingVerdicts(t *testing.T) {
+	dir := screenRun(t, "weak", "https://example.test/thin")
+	write(t, filepath.Join(dir, "report.md"), "A claim.[^1]\n\n[^1]: https://example.test/thin\n")
+	if got := AssemblyScreen(dir); got.Verdict != "PASS" {
+		t.Errorf("verdict = %s on a `weak` verification, want PASS (%s)", got.Verdict, got.Detail)
+	}
+}
+
+// THE TWO SKIPS STAY DISTINGUISHABLE: nothing to screen, and nothing assembled yet.
+func TestAssemblyScreenSkipsAreDistinct(t *testing.T) {
+	bare := t.TempDir()
+	if got := AssemblyScreen(bare); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "nothing to screen") {
+		t.Errorf("no citations: want SKIP naming the empty set, got %s (%s)", got.Verdict, got.Detail)
+	}
+	unassembled := screenRun(t, "refutes", "https://example.test/refuted")
+	got := AssemblyScreen(unassembled)
+	if got.Verdict != "SKIP" || !strings.Contains(got.Detail, "no assembled report.md") {
+		t.Errorf("pre-assembly: want SKIP naming the missing artifact, got %s (%s)", got.Verdict, got.Detail)
+	}
+}
+
+// screenRun seeds a run with one blue citation and one red verification of it.
+func screenRun(t *testing.T, outcome, url string) string {
+	t.Helper()
 	dir := t.TempDir()
 	recs := filepath.Join(dir, "records")
 	if err := os.MkdirAll(recs, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	const seat, nonce = "red-lens-r1-L1", "30000000"
-	e := record.Event{Seq: 0, SeatID: seat, Nonce: nonce, Round: 1, Type: "cite", Key: seat + ":cite:1",
-		Payload: record.NewPayload().Set("claim", "a claim").Set("reference", "a source").Set("confidence", "low")}
-	line, err := record.MarshalEvent(e)
-	if err != nil {
-		t.Fatal(err)
+	seed := func(seat, nonce string, seq int, typ string, p *record.Payload) {
+		e := record.Event{Seq: seq, SeatID: seat, Nonce: nonce, Round: 1, Type: typ,
+			Key: fmt.Sprintf("%s:%s:%d", seat, typ, seq), Payload: p}
+		line, err := record.MarshalEvent(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl")
+		prior, _ := os.ReadFile(f)
+		write(t, f, string(prior)+string(line)+"\n")
 	}
-	write(t, filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), string(line)+"\n")
-
-	got := AssemblyScreen(dir)
-	if got.Verdict != "SKIP" {
-		t.Errorf("verdict = %s, want SKIP — the screen has no field to key on and must not report a clean result (%s)", got.Verdict, got.Detail)
-	}
-	if !strings.Contains(got.Detail, "verification VERDICT") || !strings.Contains(got.Detail, "#296") {
-		t.Errorf("the detail must name the missing field and where it is tracked, or the gap is invisible again: %s", got.Detail)
-	}
-	if !strings.Contains(got.Detail, "1 citation") {
-		t.Errorf("the detail should say how many citations went unscreened: %s", got.Detail)
-	}
-
-	// No citations at all is a DIFFERENT skip, and the two details must stay distinguishable:
-	// "nothing to screen" and "cannot screen what is here" are not the same report.
-	bare := t.TempDir()
-	if got := AssemblyScreen(bare); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "nothing to screen") {
-		t.Errorf("no citations: want SKIP naming the empty set, got %s (%s)", got.Verdict, got.Detail)
-	}
+	seed("blue-r1", "40000000", 0, "cite",
+		record.NewPayload().Set("label", "c-1").Set("url", url).Set("title", "A Source"))
+	seed("red-lens-r1-L1", "30000000", 0, "verify",
+		record.NewPayload().Set("anchor", "c-1").Set("claim", "a claim").
+			Set("outcome", outcome).Set("text", "read it at the leaf"))
+	return dir
 }
 
 // seedRevisions writes N blue round records as EVENTS — the source record-parity now counts.

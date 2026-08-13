@@ -756,6 +756,26 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if p.Str("prose") == "" {
 			return fmt.Errorf("record: outcome requires --reason (how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have)")
 		}
+	case "verify":
+		// A VERIFICATION OF NOTHING WAS RECORDABLE. The bare verb — no flags at all — printed
+		// "source verified:" and appended an event that counted as red's audit volume. Enforced
+		// HERE and not only in the cobra verb, for the reason `outcome` states above: validate is
+		// the single write path, and a requirement the CLI holds alone is one every other caller
+		// skips.
+		//
+		// The ANCHOR case is the verb's own, because it needs the record to answer it (does that
+		// citation exist?) and because "--anchor or --independent" is a shape this table cannot
+		// express. What is enforced here is that the row says something: which claim, what the
+		// source did for it, and the reading behind that verdict.
+		if p.Str("claim") == "" {
+			return fmt.Errorf("record: verify requires --claim (the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted)")
+		}
+		if p.Str("outcome") == "" {
+			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports-with-bridge | weak | refutes | absent | unreachable — the negative half is the point, and until 0.60.0 there was no field for it)")
+		}
+		if p.Str("text") == "" {
+			return fmt.Errorf("record: verify requires --reason (what the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replace)")
+		}
 	case "opinion":
 		if err := requireGap(runDir, p.Str("gap_id"), "opinion", "--id"); err != nil {
 			return err
