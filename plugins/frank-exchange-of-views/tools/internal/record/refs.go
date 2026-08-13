@@ -281,7 +281,7 @@ func requirePassClosesAllGaps(runDir string) error {
 		// views and three help pages, then ruled `rejected` on an argument it had never read.
 		// A blocking message that does not say how to unblock is an invitation to guess.
 		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. "+
-			"Read what each one asks with `show --view motions` (its `basis` is the filer's argument, which your ruling answers), "+
+			"Read what each one asks with `show motions` (its `basis` is the filer's argument, which your ruling answers), "+
 			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`. "+
 			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
 			len(unruled), strings.Join(unruled, ", "))

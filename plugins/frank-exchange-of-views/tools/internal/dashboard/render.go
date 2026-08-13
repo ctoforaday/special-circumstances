@@ -389,7 +389,7 @@ func RenderHTML(m Model) string {
 		w(fmt.Sprintf(`<tr><td>closed gaps (closure index)</td><td>%d</td></tr>`+"\n", m.Shards.ClosureIndexRows))
 		w(fmt.Sprintf(`<tr><td>archived closure records</td><td>%d</td></tr>`+"\n", m.Shards.ArchiveRecords))
 		w(`<tr><td>lens findings recorded</td><td>` + intUnavail(m.Shards.Findings) + ` <span class="muted">(raw leaf audit, before the merge coalesces into gaps)</span></td></tr>` + "\n")
-		w(`</table><p class="muted">counts come from the board view (feov-record show --view board) — the record, read once by the tool, not a markdown parse</p>`)
+		w(`</table><p class="muted">counts come from the board view (feov-record &lt;role&gt; show board) — the record, read once by the tool, not a markdown parse</p>`)
 	} else {
 		w(`<p class="muted">board unavailable — the record does not exist yet</p>`)
 	}

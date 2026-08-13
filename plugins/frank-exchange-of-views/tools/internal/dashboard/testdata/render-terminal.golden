@@ -71,7 +71,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <tr><td>closed gaps (closure index)</td><td>3</td></tr>
 <tr><td>archived closure records</td><td>3</td></tr>
 <tr><td>lens findings recorded</td><td>9 <span class="muted">(raw leaf audit, before the merge coalesces into gaps)</span></td></tr>
-</table><p class="muted">counts come from the board view (feov-record show --view board) — the record, read once by the tool, not a markdown parse</p>
+</table><p class="muted">counts come from the board view (feov-record &lt;role&gt; show board) — the record, read once by the tool, not a markdown parse</p>
 <h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>
 <table>
 <tr><td>judge sittings</td><td>1</td></tr>

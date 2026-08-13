@@ -42,7 +42,7 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 		"Every recorded edit to `blue/report.md`, in round order. This is a navigation hint, not",
 		"a substitute for reading the report: a diff decontextualizes research prose, which is why",
 		"the audit is a full re-read. To put red's required_fix and blue's actual change side by",
-		"side, scope it — `show --view changes --id <gap>`.",
+		"side, scope it — `show changes --id <gap>`.",
 		"",
 	}
 	round, n, total := -1, 0, 0
@@ -162,7 +162,7 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 			"",
 			"_Blue recorded no edit answering this gap. That is not proof nothing changed — an edit",
 			"that omitted `--answers` is invisible here — but it is the honest state of the join, and",
-			"the unscoped `--view changes` lists every edit including the unattributed ones._", "")
+			"the unscoped `show changes` lists every edit including the unattributed ones._", "")
 		return []byte(strings.Join(out, "\n")), nil
 	}
 

@@ -94,7 +94,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		for _, m := range AllMotions(b) {
 			if m != nil && !m.Ruled() {
 				add("motion "+m.ID+" was filed and never ruled — PASS is refused while it stands",
-					`show --view motions   then   motion `+m.Subject+` rule --id `+m.ID+` --as <verdict> --reason "..."`)
+					`show motions   then   motion `+m.Subject+` rule --id `+m.ID+` --as <verdict> --reason "..."`)
 			}
 		}
 		if !seatDid(b, seatID, "verdict") {
@@ -105,7 +105,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		for _, m := range AllMotions(b) {
 			if m != nil && !m.Ruled() && m.Subject == "petition" {
 				add("petition "+m.ID+" is unruled, and petitions are heard BEFORE the debate continues",
-					`show --view motions   then   motion petition rule --id `+m.ID+` --as granted|denied --reason "..."`)
+					`show motions   then   motion petition rule --id `+m.ID+` --as granted|denied --reason "..."`)
 			}
 		}
 	}

@@ -221,6 +221,109 @@ func TestEveryRecordingVerbIsNamedInAPrompt(t *testing.T) {
 	}
 }
 
+// THE TRIGGER MAP IS A CONTRACT, SO IT IS CHECKED.
+//
+// `docs/seat-command-triggers.md` states, for every command, the ONE situation that should invoke
+// it and whether a second channel reaches the same act. Its own preamble says it is "kept current
+// with the code — update it in the same change as any verb move", and nothing enforced that: a
+// policy with no mechanism, which is a named class in this suite's registry and behaved exactly
+// as the class predicts.
+//
+// Measured on 2026-08-13, before this gate existed. The map carried rows for `blue dispute`,
+// `merge dispute-respond`, `<seat> petition`, `bench petition-rule` and `blue confidence` — all
+// retired or moved — and had NO row for `blue prove`, `blue edit`, `lens reproduce`,
+// `lens verify`, `merge near-match`, `blue claim-index`, `bench assemble`, `bench halt` or any of
+// the seven motion commands. Roughly a third of the live surface was undocumented while a third
+// of the document described a tree that no longer existed.
+//
+// Why the FULL PATH is in the first cell rather than a bare verb under a role heading: the role
+// was carried as prose in a `## Blue` header beside a “ `edit` “ cell, so recovering "which
+// command is this row about" meant knowing which heading you were under. That is the shape this
+// codebase keeps paying for. The cell now says `blue edit`, and the check is a set comparison.
+//
+// The `show <view>` subtree is excluded: projections are a vocabulary of their own with their own
+// gate (TestEveryViewNamesTheVerbThatFillsIt), and enumerating forty of them here would bury the
+// forty-odd acts this document is actually about.
+func TestEveryVerbHasATriggerRow(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "seat-command-triggers.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Every backticked token in a table row's FIRST cell that looks like a command path.
+	documented := map[string]bool{}
+	pathTok := regexp.MustCompile("`((?:lens|merge|blue|bench|motion) [a-z][a-z -]*)`")
+	for _, line := range strings.Split(string(b), "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
+			continue
+		}
+		cells := strings.Split(line, "|")
+		if len(cells) < 2 {
+			continue
+		}
+		for _, m := range pathTok.FindAllStringSubmatch(cells[1], -1) {
+			documented[strings.TrimSpace(m[1])] = true
+		}
+	}
+	if len(documented) == 0 {
+		t.Fatal("no command paths parsed out of the trigger map — a broken parse passes this forever")
+	}
+
+	// SCOPE: the five ROLE groups. The role IS the seat, so a path under one is a seat act by
+	// construction — no list to maintain and nothing to rot. Root commands are deliberately out:
+	// `setup`, `capture`, `dashboard`, `graph`, `scorecard`, `verify`, `friction` and the hooks
+	// belong to the operator and the engine, and this document is titled for the seat.
+	//
+	// Two root commands a seat IS told to run — `fetch` and `count-claims` — are documented in the
+	// map under "Every seat" and are NOT checked here, because deriving "root command a prompt
+	// names" would take a second prompt scan and the honest cost of that is a rule stated in one
+	// place instead of enforced in two. Stated rather than left as a silent hole.
+	isSeatPath := regexp.MustCompile(`^(lens|merge|blue|bench|motion) `)
+	real := map[string]bool{}
+	var missing []string
+	for _, p := range cli.CommandPaths() {
+		if !isSeatPath.MatchString(p) {
+			continue
+		}
+		real[p] = true
+		// A row for the bare `<role> show` covers the read path; the projections have their own gate.
+		if strings.Contains(p, " show ") {
+			continue
+		}
+		if !documented[p] {
+			missing = append(missing, p)
+		}
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Errorf("%d live command(s) have no row in docs/seat-command-triggers.md:\n  %s\n\n"+
+			"The map states the ONE trigger for each command and whether a second channel reaches the same act.\n"+
+			"A command missing from it is one nobody has asked the ambiguous-trigger question about.",
+			len(missing), strings.Join(missing, "\n  "))
+	}
+
+	// AND THE INVERSE, which is the half that rots first: a row for a command that no longer
+	// exists reads as coverage while describing a tree nobody can run. Struck-through rows
+	// (~~`blue dispute`~~) are DELIBERATE history — the map records what a collapse retired and
+	// why — so they are exempt by the strikethrough, which is a mark the author makes on purpose.
+	struck := map[string]bool{}
+	for _, m := range regexp.MustCompile("~~`((?:lens|merge|blue|bench|motion) [a-z][a-z -]*)`~~").FindAllStringSubmatch(string(b), -1) {
+		struck[strings.TrimSpace(m[1])] = true
+	}
+	var stale []string
+	for p := range documented {
+		if !real[p] && !struck[p] {
+			stale = append(stale, p)
+		}
+	}
+	sort.Strings(stale)
+	if len(stale) > 0 {
+		t.Errorf("%d row(s) in the trigger map name a command that does not exist:\n  %s\n\n"+
+			"Strike it through (~~`role verb`~~) to keep it as retirement history, or remove the row.",
+			len(stale), strings.Join(stale, "\n  "))
+	}
+}
+
 func TestEveryViewNamedInAPromptExists(t *testing.T) {
 	real := map[string]bool{}
 	for _, v := range cli.ViewNames() {

@@ -227,7 +227,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// "red-merge-born" was true when the merge wrote those files. It stopped being true, and the
 	// line went on implying a writer would arrive — the same promise the husk stubs made.
 	fmt.Fprintln(stdout, "  NOT created (rendered from the record on read, never materialized): the ledger,")
-	fmt.Fprintln(stdout, "  archive, debate transcript, citation ledger and board telemetry — `show --view <name>`")
+	fmt.Fprintln(stdout, "  debate transcript, evidence layer and board telemetry — `<role> show <name>`")
 	if pinned.Written {
 		fmt.Fprintf(stdout, "  pinned: HEAD %s + %d cited path(s)\n", head, len(cfg.Cites))
 	} else {

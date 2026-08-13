@@ -110,7 +110,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	if err == nil {
 		t.Fatal("PASS was allowed over an unruled motion")
 	}
-	if !strings.Contains(err.Error(), "--view motions") {
+	if !strings.Contains(err.Error(), "show motions") {
 		t.Errorf("the refusal does not name the read that unblocks it — handing a seat an id with "+
 			"no way to look it up is what produced a ruling written blind: %v", err)
 	}
