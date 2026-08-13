@@ -18,14 +18,14 @@ flowchart TB
     CE["cite events"]
     ME["mint / close / regrade events"]
   end
-  subgraph views["projections (show --view … — rendered just-in-time from the record)"]
+  subgraph views["projections (show &lt;name&gt; — rendered just-in-time from the record)"]
     FV["findings (live JSON)"]
-    CL["citation-ledger.md"]
+    CL["evidence (live JSON)"]
     BD["board (live JSON)"]
     DBT["debate.md"]
   end
   merge["red-merge seat"]
-  score["feov-record scorecard<br/>(reads show --view findings)"]
+  score["feov-record scorecard<br/>(reads show findings)"]
   bench["lead-judge"]
 
   L -->|emit| FE

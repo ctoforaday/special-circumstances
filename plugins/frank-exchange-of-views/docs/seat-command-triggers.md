@@ -31,7 +31,7 @@ canonical channel named). `DECIDE` = a genuine fork needing a human call before 
 |---|---|---|---|
 | `register` | first action at the seat | — | CLEAN |
 | `finding` | a defect in the report, anchored to a location | — | CLEAN — the canonical lens surface |
-| `cite` | a claim verified at its source | envelope `corroboration[]` re-types claim/reference/confidence | COLLAPSE → cite events; envelope drops `corroboration[]` (blue reads `--view citation-ledger`) — **NOT EXECUTED** (#326): the envelope still declares it and three constitutions still name it |
+| `cite` | a claim verified at its source | envelope `corroboration[]` re-types claim/reference/confidence | COLLAPSE → cite events; envelope drops `corroboration[]` (blue reads `show evidence`) — **NOT EXECUTED** (#326): the envelope still declares it and three constitutions still name it |
 | ~~`observe`~~ | RETIRED (#327) — a below-bar note | — | EXECUTED: the above/below-bar line is one judgement the lens makes on everything it notices, and `finding` plus a grade expresses it |
 | `avenue` | a line of inquiry pursued/abandoned/declined | — | CLEAN |
 | `friction` | a missing capability | — | CLEAN |

@@ -1,7 +1,7 @@
-prompt sha256: d661a489e2f1d5ddd7bd501f34c9879425e6efb7268f2e887a72dd14136d79f1
+prompt sha256: 47213f7f18fc688ffde0b3cf7cf140a25093a861419fa594aed137393a5e4187
 
 Blue lane 3 of 3 for topic: "the seat prompt contract".
-Read the frontier hypotheses from the RECORD — "/opt/feov/bin/feov-record" blue show --run research/2026-01-01_golden show lines-of-inquiry — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
+Read the frontier hypotheses from the RECORD — "/opt/feov/bin/feov-record" blue show lines-of-inquiry --run research/2026-01-01_golden — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
 Research your assigned slice to saturation per the research protocol (spend at least one search in five on disconfirming evidence; note each source inline with its URL, title, and access date).
 Your assigned METHOD LENS: local-repo critical-stance (audit the subject artifacts/codebase directly; trust nothing secondhand) — work primarily through this method's source class; take hypothesis 3 first, then breadth.
 SOURCE NOTES (not footnotes): a lane drafts candidates, it does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.

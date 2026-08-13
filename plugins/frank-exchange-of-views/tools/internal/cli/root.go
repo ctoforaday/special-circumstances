@@ -603,10 +603,40 @@ import (
 //
 //	       A stale binary answers `show ledger` and `show archive` and takes no --format.
 //
+//	0.59.0 THE ANCHOR A SEAT COULD NOT RESOLVE. `citation-ledger` becomes `evidence`, and it
+//	       answers the question the report actually poses: a sentence ends in an invisible
+//	       `<!--cite:c-…-->` or `<!--proof:p-…-->` token, and until now nothing could say what
+//	       it pointed at. Only findings were resolvable (`show findings` is keyed by the
+//	       f-label); a seat asked what it could do next answered "blocked by missing
+//	       information (what does `c-29a72fe2` point to?)" while the tool held that citation's
+//	       url, title, sha256 and the cached bytes themselves.
+//
+//	       It cost red its terminal duty. The constitution tells red to re-read the exact bytes
+//	       blue cited, with no path from the anchor to the url — and `lens reproduce --id` said
+//	       the sha256 was "listed in the report beside the sentence it backs", which is false:
+//	       the report carries `p-<hex>` and the sha lives on the record. The message now names
+//	       `show evidence`, where both ids and the sha sit in one row, with red's re-run beside
+//	       them (`verified: null` where nobody re-ran it — stated, because an unaudited proof
+//	       otherwise reads exactly like a clean one).
+//
+//	       Red's verifications stay a SEPARATE array. `lens verify` records a free-text
+//	       reference rather than the anchor it checked, so joining them to blue's sources would
+//	       be a string guess presented as a fact. The join key is a defect of its own.
+//
+//	       AND EVERY `show` IN EVERY PROMPT WAS BROKEN. The 0.58.0 group restructure rewrote
+//	       `show --view X` into `show --run <dir> show X` — the subcommand appended after the
+//	       flags instead of replacing them — so twelve sites parsed as the show group with the
+//	       argument "show" and the tool answered `no projection named "show"`. Every projection
+//	       a seat is told to read, refused, for one release. The gate that should have caught it
+//	       matched `--view X`, a syntax that stopped existing at the same commit: it reported
+//	       nothing, which reads exactly like a clean tree.
+//
+//	       A stale binary answers `show citation-ledger` and has no `show evidence`.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.58.0"
+const Version = "0.59.0"
 
 func init() { record.ToolVersion = Version }
 

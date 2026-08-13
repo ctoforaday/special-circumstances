@@ -138,7 +138,7 @@ var views = []struct {
 	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
-	{"citation-ledger", "verified claims with source, confidence and access date. Written by `cite` and `verify`", ""},
+	{"evidence", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
 	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned. Written by `avenue` (propose and move) and `motion direction rule` (red's ruling)", ""},
 	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
 }
@@ -289,7 +289,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			}
 			cmd.OutOrStdout().Write(b)
 			return nil
-		case "board", "findings", "friction", "motions", "worklist", "telemetry":
+		case "board", "findings", "friction", "motions", "worklist", "telemetry", "evidence":
 			return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON)", role, want)
 		case "":
 			return fmt.Errorf("%s show: name a projection. They are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
@@ -352,6 +352,16 @@ func renderView(cmd *cobra.Command, want string) error {
 	// what `blue edit` holds a seat responsible for carrying across an edit.
 	if want == "report" {
 		b, err := report.BlueReportForReading(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// evidence is JSON by name: it is a LOOKUP TABLE keyed by the anchor token a seat is holding,
+	// and a markdown rendering of it would be a table to parse rather than a field to read.
+	if want == "evidence" {
+		b, err := record.EvidenceJSONBytes(runDir)
 		if err != nil {
 			return err
 		}

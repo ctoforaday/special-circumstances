@@ -1,6 +1,6 @@
-prompt sha256: b7e652df416c385aeb9fea2726729da9db2dcfeb06940e6f37fc4c1afd6c2b7c
+prompt sha256: e463b0c77e7806691bea948d9d6591227be0514a2dfbc0c8ba8a0106ed3f0279
 
-Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via `"/opt/feov/bin/feov-record" blue show --run research/2026-01-01_golden show lines-of-inquiry` (the tool renders it fresh from the avenue events on the record).
+Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via `"/opt/feov/bin/feov-record" blue show lines-of-inquiry --run research/2026-01-01_golden` (the tool renders it fresh from the avenue events on the record).
 Blue's DECLINED and ABANDONED avenues are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
 Attack the reasons, not just the conclusions: a declined avenue whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong.
 RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually took must be the ones on the avenue record.

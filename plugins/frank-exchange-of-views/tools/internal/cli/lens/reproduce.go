@@ -52,7 +52,11 @@ func newReproduce() *cobra.Command {
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			sha := seat.Str(cmd, flags.ID)
 			if sha == "" {
-				return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run — `blue prove` prints it when it records the proof, and every proof is listed in the report beside the sentence it backs")
+				// THE WAY THROUGH, NAMED. This message used to say the sha was "listed in the report
+				// beside the sentence it backs". It is not: the report carries an opaque
+				// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
+				// document had the token this verb does not take and no path to the one it does.
+				return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `<!--proof:p-…-->` anchor, resolve it with `lens show evidence --run <runDir>` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet")
 			}
 			ok, got, want, err := proof.Reproduce(s.RunDir, sha)
 			if err != nil {

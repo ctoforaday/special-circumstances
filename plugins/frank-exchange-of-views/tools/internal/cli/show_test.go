@@ -31,7 +31,9 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	for _, name := range []string{"debate", "citation-ledger", "lines-of-inquiry"} {
+	// The markdown views, which are the only ones this contract can hold: a JSON-by-name view is
+	// not a view.Markdown rendering, so there is no shared computation to diverge from.
+	for _, name := range []string{"debate", "lines-of-inquiry"} {
 		t.Run(name, func(t *testing.T) {
 			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", name)
 			if err != nil {
@@ -96,7 +98,7 @@ func TestUnknownViewIsRefusedWithTheListOfViews(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unknown view was accepted; a seat would get an empty read and no signal that it asked for something that does not exist")
 	}
-	for _, want := range []string{"the-board", "ledger"} {
+	for _, want := range []string{"the-board", "evidence"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not mention %q — it must name what was asked for AND what is available: %v", want, err)
 		}
@@ -159,14 +161,22 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 
 	// --json on a JSON-by-name view is refused (no alias to that JSON).
-	for _, v := range []string{"board", "findings", "friction", "worklist"} {
+	// NAMES FROM ViewNames(), not a hand-kept list: `friction` sat here after it stopped being a
+	// view, and the assertion went on passing — it demands an error, and an unknown view is an
+	// error too. A stale name in a list like this checks nothing while reading as coverage.
+	for _, v := range []string{"board", "findings", "worklist", "motions", "evidence", "telemetry"} {
 		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}
 	}
-	// --json on a markdown view with no JSON form is refused.
+	// --json with no projection named is refused: the bare form answers with pending work, and
+	// there is no second way to ask for it.
 	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--json"); err == nil {
-		t.Error("--view ledger --json was accepted; ledger has no JSON form and must refuse")
+		t.Error("a bare `show --json` was accepted; it must refuse and name the projections")
+	}
+	// --json on a markdown view with no JSON form is refused.
+	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "lines-of-inquiry", "--json"); err == nil {
+		t.Error("show lines-of-inquiry --json was accepted; it has no JSON form and must refuse")
 	}
 }
 
