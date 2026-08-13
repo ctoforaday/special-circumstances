@@ -428,7 +428,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// edits and received every edit would read the answer as the answer to its question.
 	scope := Str(cmd, flags.ID)
 	if scope != "" && want != "changes" {
-		return fmt.Errorf("%s show: --id scopes --view changes and nothing else; --view %s has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
+		return fmt.Errorf("%s show: --id scopes `show changes` and nothing else; `show %s` has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
 	}
 
 	b, err := view.Markdown(runDir, want, scope)

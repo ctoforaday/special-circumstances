@@ -25,50 +25,89 @@ verb) is the default — it is the auditable single source; envelopes, files, an
 `CLEAN` = unique trigger, no competing channel. `COLLAPSE` = an ambiguous trigger to resolve (the
 canonical channel named). `DECIDE` = a genuine fork needing a human call before collapse.
 
+## Every seat (`register` · `friction` · `show`)
+
+Three acts every role carries, listed once. The full command path is in the first cell of every row
+in this file — **that is what makes the table checkable** (`TestEveryVerbHasATriggerRow`), and it
+replaces the role headings that used to carry the role as prose beside a bare verb name.
+
+| command | the one trigger | competing channel | verdict |
+|---|---|---|---|
+| `lens register` `merge register` `blue register` `bench register` | first action at the seat | — | CLEAN |
+| `lens friction` `merge friction` `blue friction` `bench friction` | a capability gap, or the explicit `--none` that says nothing blocked you | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record friction`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
+| `lens show` `merge show` `blue show` `bench show` | read a projection | — | CLEAN (read path). The projections are their own vocabulary with their own gate — see `TestEveryViewNamesTheVerbThatFillsIt` — so the `show <view>` subtree is not enumerated here |
+
 ## Lens (`feov-record lens`)
 
-| verb | the one trigger | competing channel | verdict |
+| command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `register` | first action at the seat | — | CLEAN |
-| `finding` | a defect in the report, anchored to a location | — | CLEAN — the canonical lens surface |
-| `cite` | a claim verified at its source | envelope `corroboration[]` re-types claim/reference/confidence | COLLAPSE → cite events; envelope drops `corroboration[]` (blue reads `show evidence`) — **NOT EXECUTED** (#326): the envelope still declares it and three constitutions still name it |
-| ~~`observe`~~ | RETIRED (#327) — a below-bar note | — | EXECUTED: the above/below-bar line is one judgement the lens makes on everything it notices, and `finding` plus a grade expresses it |
-| `avenue` | a line of inquiry pursued/abandoned/declined | — | CLEAN |
-| `friction` | a missing capability | — | CLEAN |
-| `petition` | an ethical/safety/integrity/constitutional objection | envelope `petitions[]` is the origination channel; the `petition` event is written but consumers read `petition-rule` + envelope, never the event | RESOLVED (#315, shipped): the `petition` event is the filing, and the report renders it beside its ruling |
-| `show` | read a projection | — | CLEAN (read path) |
+| `lens finding` | a defect in the report, anchored to a location | — | CLEAN — the canonical lens surface |
+| `lens verify` | you checked a citation against its source, or corroborated a claim from a source you found | envelope `corroboration[]` re-typed claim/reference/confidence | EXECUTED (#326/#382): the envelope carries no corroboration array, and blue reads what red found from `show evidence`. The verb now carries BOTH axes — `--as` what the source did (with its negative half: `refutes`, `absent`) and `--confidence` how sure you are of that — plus `--anchor` naming which citation, or `--independent` for a source blue never cited |
+| `lens reproduce` | a proof anchor in the report you can re-run and read | — | CLEAN. Two acts under one verb ON PURPOSE, and both are recorded: the tool COMPUTES whether it reproduced, and `--as sound\|unsound` is red's judgement from reading the script. A seat that perceives only the mechanical half correctly calls it theatre — measured, in exactly those words — which is why the reading is required rather than optional |
+| ~~`lens observe`~~ | RETIRED (#327) — a below-bar note | — | EXECUTED: the above/below-bar line is one judgement the lens makes on everything it notices, and `finding` plus a grade expresses it |
+| ~~`lens cite`~~ | RENAMED to `verify` (#341) | — | EXECUTED. It shared the `cite` event type with blue's authoring act, told apart by the ABSENCE of a label, so a blue cite written without one counted as red's audit volume |
 
 ## Merge (`feov-record merge`)
 
-| verb | the one trigger | competing channel | verdict |
+| command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `register` / `mint` / `close` | the core board acts | — | CLEAN |
-| the open docket (read-back) | transcribe the board into the envelope | `RED_ENVELOPE.gaps[]` re-types every open gap's prose every round; already on the board via `mint` | COLLAPSE → envelope carries `{id, severity, likelihood, impact, supersedes}` only; the tool re-derives prose at capture/assembly (the #1 token lever) |
-| ~~`dispose`~~ | RETIRED (#327) — gave a lens observation a fate | — | EXECUTED with `observe`. A finding is addressed by COALESCENCE: credited in a gap's found_by, and nothing else |
-| `regrade` | change a gap's grade in place | debate.js prose "apply the new grade in the ledger" never names the verb — seat may re-mint or edit instead | COLLAPSE → `regrade` is canonical; debate.js must name it — **NOT EXECUTED** (#325): zero mentions in debate.js or the constitutions; the report reads it and the fuzz is its only caller |
-| `spot-check` | the round archive spot-check duty | the `spot-check` event, and only that — the envelope array is deleted | RESOLVED (#317, shipped): the verb is the single channel, and its W1.8 floor is COMPUTED from the board at verify time rather than reported by the seat |
-| `dispute-respond` | answer a blue grade dispute | — | CLEAN (already a routing ref) |
-| `verdict` | the terminal PASS/FAIL act | — | CLEAN |
-| `existence` (field) | verified\|suspected — checked-at-leaf vs inferred | required by the envelope, read by the board, but **no `mint --existence` flag** — never on the record | HALF EXECUTED (#331): `mint --existence` shipped and is driven; no gap in the report shows verified vs suspected, which is grading v2's whole point |
+| `merge mint` | a defect worth putting on the board | `RED_ENVELOPE.gaps[]` re-typed every open gap's prose every round | EXECUTED: the envelope carries routing refs and the board is read back with `show worklist` |
+| `merge close` | a gap answered, with an anchor naming who checked what with which tool | — | CLEAN |
+| `merge regrade` | change a gap's grade in place | debate.js prose "apply the new grade in the ledger" never named the verb, so a seat may re-mint or edit instead | NOT EXECUTED (#325). Zero mentions in debate.js or the constitutions — and the 2026-08-12 elicitation found seats did not list it among their options at all, which is *never perceived* rather than *weighed and declined* |
+| `merge near-match` | before minting: is this gap already on the board, open or closed? | the archive read the merge would otherwise do by hand | CLEAN (read-only, records nothing). Same elicitation result as `regrade` — unnamed in the prompts, unlisted by the seats |
+| `merge spot-check` | the round archive spot-check duty | the envelope array is deleted | RESOLVED (#317): the verb is the single channel and its floor is computed from the board |
+| `merge position` | the round's RED narrative | a hand-written `### RED` section in debate.md | EXECUTED: the transcript is rendered from `position` events |
+| `merge closing` | a closing argument on a docketed item | — | CLEAN |
+| `merge verdict` | the terminal PASS/FAIL act | — | CLEAN. Refused while a gap is open or a motion is unruled — the gate is enforced at the tool, not trusted to the seat |
+| ~~`merge dispute-respond`~~ | COLLAPSED into `motion grade rule` (#344) | — | EXECUTED |
 
 ## Blue (`feov-record blue`)
 
-| verb | the one trigger | competing channel | verdict |
+| command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `register` / `position` / `closing` / `dispute` / `confidence` / `avenue` / `friction` | their acts | — | CLEAN |
-| `revision` | log a per-round revision | hand-written `blue/CHANGELOG.md` | COLLAPSE → `revision` event + changelog view; drop the hand-written file — **NOT EXECUTED** (#251): the event is canonical and rendered, `blue/CHANGELOG.md` is still written and still demanded |
-| `retire` | remove a claim from the report (additive integrity) | the detector read a phantom envelope field — **fixed (#226)**; the event is now the sole channel | CLEAN (post-#226) |
-| `manifest-row` | a self-audit manifest row | envelope `manifest[]` array (the `row` prose is genuinely envelope-only) | RESOLVED (#318, shipped): the verb is the single source, the row is on the record and in the report, and the envelope carries gap ids only |
-| `tldr` / `open_questions` (envelope) | — | authored into `report.md` AND round-tripped in the envelope; never consumed by the script | CLEAN — executed: the envelope declares neither, and assembly lifts both from report.md |
+| `blue edit` | any change to `blue/report.md` after round 0 | a raw Write/Edit to the file | EXECUTED — the lockdown: report.md is read-only to a response seat and the tool refuses an edit that drops, duplicates or invents an anchor |
+| `blue cite` | a source backing a claim you are authoring | a hand-typed `[^1]` footnote | EXECUTED: the tool fetches, caches, hashes and splices the invisible anchor; assembly weaves the bibliography. Blue never types a footnote |
+| `blue prove` | a claim a program settles, and the gaps whose `check_kind` is `computation` | prose asserting the computation happened | EXECUTED (#277): a computation gap CANNOT be closed on prose, and the tool runs the script twice and records which of reproducible/observed it produced |
+| `blue avenue` | a line of inquiry proposed, pursued, declined, abandoned or deferred | — | CLEAN |
+| `blue retire` | a claim leaving the report | a claim quietly not being there any more | EXECUTED (#226): capture compares the claim-count fall against the retire events, and an unaccounted drop is a detector hit |
+| `blue revision` | log a per-round revision | hand-written `blue/CHANGELOG.md` | NOT EXECUTED (#251). The event is canonical and the file is still authored beside it |
+| `blue manifest-row` | the self-audit receipt for a repaired gap | envelope `manifest[]` array | RESOLVED (#318): the verb is the single source, the row is on the record, and a closed gap with no row is named in the report as a repair nobody audited |
+| `blue position` | the round's BLUE narrative | a hand-written `### BLUE` section | EXECUTED |
+| `blue closing` | a closing argument on a docketed item | — | CLEAN |
+| `blue claim-index` | locating every site of a footnoted claim you are correcting | re-reading the whole report to hunt them | CLEAN (read-only, records nothing) |
+| ~~`blue confidence`~~ | DELETED (0.54.0) — blue self-grading its own claims | — | EXECUTED. It set no grade, entered no matrix, and its calibration computation was specified and never built. The word returned to the field the plan meant by it: `lens verify --confidence`, red's per-pair judgement |
+| ~~`blue dispute`~~ | COLLAPSED into `motion grade file` (#344) | — | EXECUTED |
+| `tldr` / `open_questions` (envelope) | — | authored into the report AND round-tripped in the envelope | CLEAN — executed: the envelope declares neither |
 
 ## Bench (`feov-record bench`)
 
-| verb | the one trigger | competing channel | verdict |
+| command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `register` / `opinion` / `outcome` | their acts | — | CLEAN |
-| `petition-rule` | rule granted\|denied\|**halt** on a petition | the ruling's `rationale`/`opinion` is re-typed in the envelope (= the opinion event) | COLLAPSE (prose) — **NOT EXECUTED** (#330): the ruling's `opinion` is still re-typed in the envelope. See the halt fork below |
-| **`halt`** | end the run on a safety boundary | `petition-rule --as halt` (debate.js-driven) vs the standalone `halt` verb (tool-designed, orphaned); **the enum rejects `halt`, so the driven path fails to record** | **NOT EXECUTED** (#329) — decided (route through `bench halt`) and never done. debate.js still emits `ruling: 'halt'`, the record enum still refuses it, so a halt-on-petition FAILS TO RECORD. The safety boundary is the one path that must not have this defect |
-| `certify` | the bench asking a human to re-examine something at run end | — (the fold-into-`outcome` decision is REVERSED, #328: a certification and a verdict are different speech acts) | CLEAN — unique trigger, a driver, and two readers in the report |
+| `bench opinion` | ruling on a docketed item, with principle, tension and review-flag | — | CLEAN |
+| `bench outcome` | the run's terminal act | — | CLEAN. It carried no reasoning at all until a bench seat reached for `--reason`, found nothing, and filed the absence as friction — so `--reason` is required (#375): the verdict is derived, how the sitting ENDED is not |
+| `bench halt` | end the run on a safety boundary | `motion petition rule --as halt` | NOT EXECUTED (#329). This is the safety boundary, and the two channels still disagree |
+| `bench certify` | asking a human to re-examine something at run end | — | CLEAN. The fold-into-`outcome` decision is REVERSED (#328): a certification and a verdict are different speech acts |
+| `bench assemble` | compose the final report from the record and blue's audited report | — | CLEAN |
+
+## Motion (`feov-record motion <subject> <act>`)
+
+One mechanism for the three propose→rule exchanges, each ask carrying an id its answer names.
+
+| command | the one trigger | competing channel | verdict |
+|---|---|---|---|
+| `motion grade file` | you dispute a gap's severity, likelihood, impact or complexity | `blue dispute` | EXECUTED (#344) |
+| `motion grade rule` | red answering a grade motion | `merge dispute-respond` | EXECUTED (#344) |
+| `motion grade appeal` | pressing a rejected grade ruling to the bench | — | CLEAN |
+| `motion direction rule` | red ruling on a proposed avenue | `merge avenue-rule` | EXECUTED (#344) |
+| `motion direction appeal` | pressing a direction ruling to the bench | — | CLEAN |
+| `motion petition file` | an ethical, safety, integrity or constitutional objection | envelope `petitions[]` | EXECUTED (#315): the event is the origination channel |
+| `motion petition rule` | the bench ruling on a petition | — | CLEAN, except for the halt channel above (#329) |
+
+> **The whole group was used on no subject in the 2026-08-12 elicitation** — `rule` fired nine
+> times, `file` not once. Seats read grades and never treat them as contestable: 10 of 110 blue
+> thinking blocks mention a grade and none weighs whether one is wrong. That is not the verbs'
+> discoverability; it is the absence of a frame for the value judgement, and it is the open
+> question behind this group's disuse.
 
 ## Decisions taken (the `DECIDE` rows)
 

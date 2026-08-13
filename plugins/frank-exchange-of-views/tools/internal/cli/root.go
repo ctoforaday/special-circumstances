@@ -672,10 +672,27 @@ import (
 //	       A stale binary takes `--trust`, has no `--confidence`, and accepts a verification of
 //	       nothing.
 //
+//	0.61.0 THE RENAME'S LAST CARRIERS. Nine runtime STRING LITERALS still spelled `--view`, the
+//	       form `show` had before it became a group — among them `.records-elsewhere`, the marker
+//	       the record separation drops in the run directory whose entire job is telling a seat how
+//	       to reach a board it cannot see, and `sitting.go`'s outstanding-duty text, which names
+//	       the command that discharges each duty at the moment a seat is deciding what to do.
+//
+//	       Measured on the 2026-08-13 probe: two seats read the marker, followed it, and got
+//	       `unknown flag: --view` — in a run where every prompt had already been corrected and
+//	       both prompt gates were green. Neither gate can see a Go constant.
+//
+//	       So the gate walks STRING LITERALS via go/ast rather than source text: a literal is
+//	       something the program emits at a seat, a comment is something a human reads, and a
+//	       source-text scan would flag every comment that explains a rename — including the ones
+//	       written beside these fixes.
+//
+//	       A stale binary tells a seat to run `show --view board`.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.60.0"
+const Version = "0.61.0"
 
 func init() { record.ToolVersion = Version }
 

@@ -55,10 +55,22 @@ const markerText = `This run's event record was written OUTSIDE this directory.
 The path is deliberately not recorded here: seats read this directory, and the separation
 exists so that a seat reaches the record through the tool rather than through the filesystem.
 
-Read the board the way a seat does:  feov-record show --run <this directory> --view board
+Read the board the way a seat does:  feov-record <role> show board --run <this directory>
 If that reports the record is unreachable, the resolver's pointer has been lost (a cleaned
 cache, or a copied run directory). Re-declare the root:  ` + RecordRootEnv + `=<path> feov-record ...
 `
+
+// THIS FILE IS AN AGENT-FACING SURFACE, and it went stale like every other one.
+//
+// It said `show --run <dir> --view board` — the spelling `show` had before it became a group —
+// and a seat that read the marker and followed it got `unknown flag: --view`. Measured on the
+// 2026-08-13 probe: two of them, in a run where every prompt had already been corrected, because
+// this text is written by the RESOLVER and no prompt gate looks at Go string literals that end up
+// in a file inside the run directory.
+//
+// It is the same rename, the same class, and the fourth carrier of it — after the prompts, the
+// help text, and `lens reproduce`'s error message. A surface a seat reads is agent-facing
+// wherever it lives, and this one lives in a const.
 
 // RecordsDir resolves where a run's events live, and REFUSES rather than guessing.
 //
