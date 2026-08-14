@@ -3,7 +3,7 @@ exit 0
 stdout:
 registered red-merge-r2 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r2 --class scope-creep --check reread --severity medium --likelihood medium --impact medium --problem carried case
+$ merge mint --run {RUN} --seat-id red-merge-r2 --class scope-creep --check-kind document --check reread --severity medium --likelihood medium --impact medium --problem carried case
 exit 0
 stdout:
 minted R2-1
@@ -15,38 +15,17 @@ feov-record: merge: record: close --carried-from claims gap R2-1 was closed in a
 
 ═══ EVENTS ═══
 -- events-red-merge-r2-NONCE001.jsonl
-{"key":"red-merge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":2,"seatId":"red-merge-r2","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE001","payload":{"acceptance_check":"reread","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R2-1","impact":"medium","likelihood":"medium","problem":"carried case","severity":"medium","supersedes":[]},"round":2,"seatId":"red-merge-r2","seq":1,"ts":1,"type":"mint"}
+{"key":"red-merge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.66.0"},"role":"merge","round":2,"seatId":"red-merge-r2","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE001","payload":{"acceptance_check":"reread","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R2-1","impact":"medium","likelihood":"medium","problem":"carried case","severity":"medium","supersedes":[]},"role":"merge","round":2,"seatId":"red-merge-r2","seq":1,"ts":1,"type":"mint"}
 
 ═══ RENDERS ═══
--- ledger
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (1)
-
-### R2-1 — carried case
-
-severity medium | medium x medium | cx undefined | class scope-creep
-required_fix: 
-acceptance_check: reread
-
-## CLOSURE INDEX
-
-
-
--- archive
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- changelog
-# blue CHANGELOG — RENDERED PROJECTION
-
--- citation-ledger
-# red citation-ledger — RENDERED PROJECTION
 
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

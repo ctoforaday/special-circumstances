@@ -8,19 +8,20 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // The verbs every role shares, defined once.
 //
-// register, friction, petition, position and closing are the SAME contract
+// register, friction, position and closing are the SAME contract
 // wherever they appear — a friction entry from a lens and one from the bench are
 // the same event with the same payload. Restating them per role would be four
 // copies to drift apart, and the drift would be silent because each copy would
 // still pass its own tests.
 //
 // Each role still supplies its OWN help text, because the contract is shared
-// while the guidance is not: a lens is told petitions do not pause its duties,
+// while the guidance is not: a lens is told what its friction entries are for,
 // the bench is told the same verb from the other side.
 
 func Register(help string) *cobra.Command {
@@ -33,41 +34,47 @@ func Register(help string) *cobra.Command {
 	})
 }
 
+// Friction records a capability or protocol complaint — or, with --none, the explicit statement
+// that nothing blocked this sitting.
+//
+// WHY THE EXPLICIT NEGATIVE EXISTS. Across eighteen probed seat dispatches, not one friction
+// event was ever recorded, and "no friction on the record" is equally consistent with a clean
+// sitting and with a seat that hit walls and never used the channel. Those are the same bytes,
+// which is this project's recurring defect and the reason nobody could tell which had happened.
+//
+// It is not that seats were unwilling. Most refusals they met were their OWN errors, correctly
+// read as such — that is not friction and should not be filed. But one seat, blocked by a motion
+// it could not read, reasoned in its own words that no read verb existed, searched ten-plus
+// calls, and then GUESSED rather than reporting it: filing costs a turn and does not unblock,
+// while guessing might. A seat under that pressure needs the report to be a duty it discharges,
+// not an invitation it declines.
+//
+// The shape is `spot-check --none --reason`, already in this tree for the same reason: a duty
+// whose empty case must be ASSERTED rather than inferred from silence.
 func Friction(help string) *cobra.Command {
-	return Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
+	c := Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
+		none, _ := cmd.Flags().GetBool(flags.None)
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
+		}
+		if none {
+			// An empty discharge that does not say what you looked for is indistinguishable
+			// from a skipped duty — the same rule spot-check applies to its own --none.
+			if _, err := record.Append(s.RunDir, s.SeatID, "friction-none", record.NewPayload().Set("text", text)); err != nil {
+				return nil, err
+			}
+			return Msg{Message: "recorded: nothing blocked this sitting"}, nil
 		}
 		if _, err := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", text)); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "friction recorded"}, nil
 	}))
-}
-
-// Petition takes a suffix because the lens is told one more thing than the
-// others: that the bench hears it before the debate continues.
-func Petition(help, suffix string) *cobra.Command {
-	c := New("petition", help, func(s Context, cmd *cobra.Command) (Result, error) {
-		p := SetSame(cmd, record.NewPayload(), flags.Relief)
-		// Flag word --reason (the one prose word), payload key stays basis.
-		reason, err := Reason(cmd)
-		if err != nil {
-			return nil, err
-		}
-		if reason != "" {
-			p.Set("basis", reason)
-		}
-		Set(cmd, p, "class", flags.PetitionClass)
-		if _, err := record.Append(s.RunDir, s.SeatID, "petition", p); err != nil {
-			return nil, err
-		}
-		return petitionResult{Class: Str(cmd, flags.PetitionClass), Suffix: suffix}, nil
-	})
-	c.Flags().String(flags.PetitionClass, "", record.MustEnum("petition", "class").Usage("what you are asking the bench to sit on"))
-	c.Flags().String(flags.Relief, "", "the relief sought, stated as it would bind the coming seats")
-	return Prose(c)
+	c.Flags().Bool(flags.None, false,
+		"nothing blocked this sitting — the EXPLICIT negative, with --reason saying what you reached for and found. "+
+			"Silence cannot say this: an empty friction log reads the same whether the sitting was clean or the channel went unused")
+	return c
 }
 
 func Position(help string) *cobra.Command {
@@ -96,29 +103,72 @@ func Closing(help string) *cobra.Command {
 		}
 		return closingResult{ID: Str(cmd, flags.ID)}, nil
 	}))
-	c.Flags().String(flags.ID, "", "the gap id this closing argues")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
 	return c
 }
 
-// views are the projections a seat may read, and the role whose view each one is by
-// default. The default exists so a seat can type `show` and get the artifact it works
-// against, without having to learn the file layout of a directory it should not be
-// reading directly in the first place.
+// views are the projections a seat may read. `defaultFor` is the role whose default this view
+// is; "*" means every role.
+//
+// EVERY SEAT DEFAULTS TO ITS PENDING WORK. It did not: blue's bare `show` returned `changelog`
+// — a record of what blue had ALREADY done, handed to it before it had done anything — the lens
+// got `citation-ledger` and the bench got `debate`. Asked what would tell them a sitting was
+// finished, only the merge could name a mechanism; blue and the bench answered with another
+// seat's future act ("red agrees it's sound"), which is not observable at the moment they have
+// to decide to stop.
+//
+// THREE VIEWS ALSO CLAIMED "merge" AND THE LAST ONE SILENTLY WON, because the resolution loop
+// keeps overwriting. A default decided by slice order is a default nobody chose.
 var views = []struct {
 	name, desc, defaultFor string
 }{
-	{"board", "STRUCTURED JSON: open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies — the form a seat acts on", "merge"},
-	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", "merge"},
-	{"friction", "STRUCTURED JSON: every friction event on the record (seat, round, text) — capability/protocol complaints as events; read by the dashboard instead of parsing a markdown file", ""},
-	{"ledger", "the board as markdown, for a human verification pass", ""},
-	{"archive", "closed gaps with their closure records and anchors", ""},
-	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits)", "bench"},
-	{"changelog", "blue's revision record, per round", "blue"},
-	{"citation-ledger", "verified claims with source, confidence and access date", "lens"},
-	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned", ""},
+	// EVERY DESCRIPTION NAMES THE VERB THAT FILLS THE VIEW, and that is a contract
+	// (viewnaming_test.go), not a convention. A seat navigates by what the tool PRINTS: measured
+	// on a probe, one read `--view lines-of-inquiry` and then typed `blue line-of-inquiry`, a verb
+	// that does not exist, because nothing in the projection it had just read said `avenue`. It
+	// found the right verb by failing twice. The next seat may instead conclude the capability is
+	// missing and write prose, which loses it for the whole run and is reported nowhere.
+	// THE ARTIFACT THE WHOLE DEBATE IS ABOUT, and the last thing a seat still opened by hand.
+	// The event record was moved out of reach so `show` became the only way to the board;
+	// report.md stayed behind as the one file a seat had to know the layout to find.
+	{"report", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", ""},
+	{"board", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", ""},
+	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
+	{"worklist", "STRUCTURED JSON: YOUR PENDING WORK and whether this sitting is finished (`sitting.complete`, with every outstanding duty and the verb that discharges it), plus the shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "*"},
+	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
+	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
+	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
+	{"evidence", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
+	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned. Written by `avenue` (propose and move) and `motion direction rule` (red's ruling)", ""},
+	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
 }
 
-func viewNames() []string {
+// ViewNames is the projection vocabulary — the single source behind the help text, the
+// unknown-view error, and (exported for this reason) the gate that asserts every `--view`
+// an agent-facing surface NAMES actually exists. See cli.ViewNames.
+// ViewMenu is the view list WITH ITS SEMANTICS, one per line.
+//
+// THE DESCRIPTIONS WERE DEAD TEXT UNTIL THIS EXISTED. The `views` table carried a written line for
+// every projection and the `desc` field was read NOWHERE — `--help` printed
+// `board|findings|worklist|…`, a bare list of nouns, and every seat that ever asked what a view
+// was got names with no meanings.
+//
+// Measured on a probe: a haiku seat read `--view lines-of-inquiry`, had no way to learn which verb
+// writes into it, and invented `blue line-of-inquiry` — a verb that does not exist. It found
+// `avenue` by failing twice. The next seat may instead conclude the capability is missing and
+// write prose, which loses it for the run and is reported nowhere.
+//
+// A field declared and never read is the shape this suite keeps finding: it reads as documented
+// while documenting nothing.
+func ViewMenu() string {
+	var b strings.Builder
+	for _, v := range views {
+		fmt.Fprintf(&b, "  %-16s %s\n", v.name, v.desc)
+	}
+	return b.String()
+}
+
+func ViewNames() []string {
 	out := make([]string, 0, len(views))
 	for _, v := range views {
 		out = append(out, v.name)
@@ -138,126 +188,257 @@ func viewNames() []string {
 // differ. A second renderer would be a second reader of one artifact, which is the defect
 // class this whole tool exists to remove — writing one to serve reads would reintroduce it
 // at the read surface.
+// Show is a GROUP, not a verb with a flag.
+//
+// It was `show --view <name>`, and cobra models commands and flags — never a flag's VALUE
+// space. That is the same undiscoverability the motion collapse fixed one layer up: a value has
+// no --help of its own, no completion, and no place to say what it is for, so every projection's
+// description had to be crammed into one flag's usage string. Making `--view` optional (a bare
+// `show` now answers with the seat's pending work) made it worse rather than better: the flag
+// became something a seat had no reason to discover at all.
+//
+// As subcommands each projection is a first-class thing: `show board`, `show motions`, its own
+// --help, its own completion, and an unknown one gets the refusal that lists the whole surface
+// rather than a flag-parse error naming the value.
 func Show() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "show",
-		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification): --view " + strings.Join(viewNames(), "|"),
+		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: " + strings.Join(ViewNames(), " | "),
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
+		// Its bare form is the seat's pending work — a capability, not a refusal.
+		Annotations: map[string]string{"bare-is-a-capability": "yes"},
 	}
-	c.RunE = func(cmd *cobra.Command, _ []string) error {
-		role := roleOf(cmd)
-		runDir := Str(cmd, flags.Run)
-		if runDir == "" {
-			return fmt.Errorf("%s: --run <runDir> is required", role)
+	// An unknown projection gets the SURFACE, not a parse error. Cobra's default answers
+	// `unknown command "x" for "feov-record blue show"` and stops — at the one moment a seat is
+	// definitively looking for what exists, which is the same argument that made the root and
+	// the role groups teach.
+	c.Args = cobra.ArbitraryArgs
+	c.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			return RefuseAndTeach(cmd, fmt.Sprintf(
+				"no projection named %q. The ones below are the whole set, and each names the verb that fills it.", args[0]))
 		}
-		want := Str(cmd, flags.View)
-		if want == "" {
-			for _, v := range views {
-				if v.defaultFor == role {
-					want = v.name
-				}
-			}
+		// The seat's own default — its pending work and whether the sitting is finished.
+		return renderView(cmd, "")
+	}
+	for _, v := range views {
+		v := v
+		sub := &cobra.Command{
+			Use:          v.name,
+			Short:        v.desc,
+			Args:         cobra.NoArgs,
+			SilenceUsage: true,
+			RunE:         func(cmd *cobra.Command, _ []string) error { return renderView(cmd, v.name) },
 		}
+		if v.name == "changes" {
+			sub.Flags().String(flags.ID, "", "scope to one gap — put red's required_fix and the edits answering it side by side")
+		}
+		// ONE COMMAND, BOTH FORMS. `ledger` and `archive` were markdown-only views of data the
+		// board JSON already carries whole — three names for one projection, which is the alias
+		// problem this vocabulary bans everywhere else. --format is the flag `graph` already
+		// uses for the same question.
+		if v.name == "board" {
+			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose)")
+		}
+		c.AddCommand(sub)
+	}
+	return c
+}
 
-		// --json on a read opts into the STRUCTURED form of a view whose native form is
-		// markdown. It is the same inherited flag the mutating verbs use for their JSON
-		// envelopes; on reads it had been ignored (reads were view-selected only). It now
-		// selects the structured debate — the sole view with both a markdown transcript (for
-		// the human) and a JSON form (for the audits that used to regex the sections).
-		//
-		// One canonical way to each form ([[one-way-no-aliases]]): --json is an ERROR on the
-		// views already JSON by name (board/findings/friction — `--view board` is the single
-		// way to board JSON, no alias) and on markdown views with no JSON form. It is checked
-		// BEFORE the board/findings/friction branches so `--view board --json` refuses rather
-		// than falling through to the flagless JSON. A wrong guess fails loudly.
-		if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
-			switch want {
-			case "debate":
-				b, err := record.DebateJSONBytes(runDir)
-				if err != nil {
-					return err
-				}
-				cmd.OutOrStdout().Write(b)
-				return nil
-			case "board", "findings", "friction":
-				return fmt.Errorf("%s show: --view %s is already JSON by name — drop --json (it is the single way to that view's JSON)", role, want)
-			case "":
-				return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
-			default:
-				return fmt.Errorf("%s show: --view %s has no --json form (only 'debate' does; board/findings/friction are JSON by name)", role, want)
-			}
-		}
-
-		// The BOARD is served as structured JSON, because a seat ACTS on it.
-		//
-		// Every other view is prose a seat reads; the board is state a seat has to make
-		// decisions against — which gap is open, what its grades are, whether a closure
-		// carried its anchor. Parsing that back out of markdown is precisely where the
-		// scorecard defects came from (anchored_closures_pct read 0 against an 89
-		// baseline because it parsed sentences while the anchors sat in structured
-		// fields). Markdown for the same state stays available behind --view ledger.
-		//
-		// Resolved AFTER the role default, not before: `merge show` with no flags must
-		// reach this branch, and checking the raw flag first sent the merge seat's own
-		// default view looking for a board.md that no renderer writes.
-		if want == "board" {
-			b, err := record.BoardJSONBytes(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		// findings is served as JSON too, and for the same reason: the merge ACTS on it
-		// (coalesces findings into gaps), so it reads structured fields, not prose it must
-		// parse. This is the channel that replaced red/candidates/*.md.
-		if want == "findings" {
-			b, err := record.FindingsJSONBytes(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		if want == "friction" {
-			b, err := record.FrictionJSONBytes(runDir)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(b)
-			return nil
-		}
-		if want == "" {
-			return fmt.Errorf("%s show: --view is required for this role (one of: %s)", role, strings.Join(viewNames(), ", "))
-		}
-		known := false
+// renderView writes one projection. want == "" means this role's default.
+func renderView(cmd *cobra.Command, want string) error {
+	role := roleOf(cmd)
+	// RESOLVED, NOT READ OFF THE FLAG. The engine injects FEOV_RUN and every WRITE verb
+	// honours it through Begin/Of — reads did not, so a seat that correctly omitted --run
+	// could record all round and then be told its board did not exist. Measured with the
+	// identity injected: register, friction and revision all succeeded; `show` and
+	// `claim-index` demanded the flag.
+	runDir := Of(cmd).RunDir
+	if runDir == "" {
+		return fmt.Errorf("%s: --run <runDir> is required", role)
+	}
+	if want == "" {
+		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
+		// claiming "merge" resolved by slice order — a default nobody chose.
 		for _, v := range views {
-			if v.name == want {
-				known = true
+			if v.defaultFor == role || v.defaultFor == "*" {
+				want = v.name
+				break
 			}
 		}
-		if !known {
-			return fmt.Errorf("%s show: unknown view %q (one of: %s)", role, want, strings.Join(viewNames(), ", "))
-		}
+	}
 
-		b, err := view.Markdown(runDir, want)
+	// --json on a read opts into the STRUCTURED form of a view whose native form is
+	// markdown. It is the same inherited flag the mutating verbs use for their JSON
+	// envelopes; on reads it had been ignored (reads were view-selected only). It now
+	// selects the structured debate — the sole view with both a markdown transcript (for
+	// the human) and a JSON form (for the audits that used to regex the sections).
+	//
+	// One canonical way to each form ([[one-way-no-aliases]]): --json is an ERROR on the
+	// views already JSON by name (board/findings/friction — `--view board` is the single
+	// way to board JSON, no alias) and on markdown views with no JSON form. It is checked
+	// BEFORE the board/findings/friction branches so `--view board --json` refuses rather
+	// than falling through to the flagless JSON. A wrong guess fails loudly.
+	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
+		switch want {
+		case "debate":
+			b, err := record.DebateJSONBytes(runDir)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(b)
+			return nil
+		case "board", "findings", "friction", "motions", "worklist", "telemetry", "evidence":
+			return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON)", role, want)
+		case "":
+			return fmt.Errorf("%s show: name a projection. They are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
+		default:
+			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/friction/motions/worklist are JSON by name)", role, want)
+		}
+	}
+
+	// The BOARD is served as structured JSON, because a seat ACTS on it.
+	//
+	// Every other view is prose a seat reads; the board is state a seat has to make
+	// decisions against — which gap is open, what its grades are, whether a closure
+	// carried its anchor. Parsing that back out of markdown is precisely where the
+	// scorecard defects came from (anchored_closures_pct read 0 against an 89
+	// baseline because it parsed sentences while the anchors sat in structured
+	// fields). Markdown for the same state stays available behind --view ledger.
+	//
+	// Resolved AFTER the role default, not before: `merge show` with no flags must
+	// reach this branch, and checking the raw flag first sent the merge seat's own
+	// default view looking for a board.md that no renderer writes.
+	if want == "board" {
+		// The markdown arm is what `ledger` and `archive` rendered: the open board for a human
+		// verification pass, then the closure archive with its prose. Both were separate views
+		// of data this JSON already carries whole.
+		if f, _ := cmd.Flags().GetString(flags.Format); f == "markdown" || f == "md" {
+			led, err := view.Markdown(runDir, "ledger", "")
+			if err != nil {
+				return err
+			}
+			arc, err := view.Markdown(runDir, "archive", "")
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write(led)
+			cmd.OutOrStdout().Write([]byte("\n"))
+			cmd.OutOrStdout().Write(arc)
+			return nil
+		}
+		b, err := record.BoardJSONBytes(runDir)
 		if err != nil {
 			return err
 		}
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	c.Flags().String(flags.View, "", "which projection to read: "+strings.Join(viewNames(), " | ")+" (defaults to this role's own)")
-	return c
+	// findings is served as JSON too, and for the same reason: the merge ACTS on it
+	// (coalesces findings into gaps), so it reads structured fields, not prose it must
+	// parse. This is the channel that replaced red/candidates/*.md.
+	if want == "findings" {
+		b, err := record.FindingsJSONBytes(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// motions is JSON by name: a seat reads it to ANSWER a motion, so it needs the filer's
+	// basis as a field rather than prose it must find in a transcript.
+	// The artifact under audit, through the tool rather than off disk. Anchors intact: they are
+	// what `blue edit` holds a seat responsible for carrying across an edit.
+	if want == "report" {
+		b, err := report.BlueReportForReading(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// evidence is JSON by name: it is a LOOKUP TABLE keyed by the anchor token a seat is holding,
+	// and a markdown rendering of it would be a table to parse rather than a field to read.
+	if want == "evidence" {
+		b, err := record.EvidenceJSONBytes(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	if want == "motions" {
+		b, err := record.MotionsJSONBytes(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	if want == "friction" {
+		b, err := record.FrictionJSONBytes(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// worklist is JSON by name too — the merge ACTS on it (scans the open set, screens
+	// candidates), so it reads structured fields, not prose. It is the shrinking
+	// once-per-turn read that the full board JSON is not.
+	if want == "worklist" {
+		b, err := record.WorklistJSONBytes(runDir, role, Of(cmd).SeatID)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// telemetry is JSONL by name — one line per round, the wire shape the stopping
+	// judgment reads. It is a SERIES, not a snapshot, and the series is the whole
+	// point: a single round's numbers cannot show a trend changing character.
+	if want == "telemetry" {
+		b, err := view.TelemetryJSONL(runDir)
+		if err != nil {
+			return err
+		}
+		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	if want == "" {
+		return fmt.Errorf("%s show: name a projection. They are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
+	}
+	known := false
+	for _, v := range views {
+		if v.name == want {
+			known = true
+		}
+	}
+	if !known {
+		// THE MENU, NOT THE NAMES. A seat that mistypes a view is a seat that does not
+		// know the view space, and a list of twelve nouns tells it which words are legal
+		// while leaving it to guess which one holds what it wants.
+		return fmt.Errorf("%s show: unknown view %q. The projections are:\n\n%s\nEach names the verb that fills it", role, want, ViewMenu())
+	}
+
+	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
+	// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored).
+	// Silently dropping it is the worse failure here — a seat that asked for one gap's
+	// edits and received every edit would read the answer as the answer to its question.
+	scope := Str(cmd, flags.ID)
+	if scope != "" && want != "changes" {
+		return fmt.Errorf("%s show: --id scopes `show changes` and nothing else; `show %s` has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
+	}
+
+	b, err := view.Markdown(runDir, want, scope)
+	if err != nil {
+		return err
+	}
+	cmd.OutOrStdout().Write(b)
+	return nil
 }
 
-// Role assembles a role's command from the verbs it was given.
-//
-// The role knows only its own name, its own one-line contract, and which verbs
-// it has. That list IS the role boundary — a lens has no mint verb to call —
-// and a seat that reaches past it is answered with what it CAN do rather than
-// cobra's generic "unknown command".
 func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 	c := &cobra.Command{
 		Use:   role,
@@ -284,7 +465,6 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 	}
 	c.AddCommand(Show())
 	names = append(names, "show")
-	available := join(names)
 
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		for _, a := range args {
@@ -292,29 +472,30 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 				return cmd.Help()
 			}
 		}
+		// A FLAG IS NOT A VERB. DisableFlagParsing means `blue --run x` arrives here with
+		// "--run" as args[0], and the first draft answered `verb "--run" is outside this seat's
+		// role` — which is false twice over: it is not a verb, and it is not out of role. A seat
+		// told that looks for a permissions problem that does not exist.
+		if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+			return RefuseUnknownVerb(cmd, role, args[0])
+		}
 		if len(args) > 0 {
-			return fmt.Errorf("verb %q is outside this seat's role (available: %s)", args[0], available)
+			return RefuseAndTeach(cmd, fmt.Sprintf(
+				"%s: %q is a flag, not a verb — you named a role and its flags with no verb between them, so nothing was recorded. A verb is required; pick one below and pass the flags to it.", role, args[0]))
 		}
 		// A role invoked with no verb is a usage error, not a no-op: silently
 		// succeeding would let a mis-scripted seat believe it recorded something.
-		return fmt.Errorf("%s: a verb is required (%s)", role, available)
+		return RequireVerb(cmd, role)
 	}
 	return c
 }
 
 func join(names []string) string {
-	out := ""
-	for i, n := range names {
-		if i > 0 {
-			out += ", "
-		}
-		out += n
-	}
-	return out
+	return strings.Join(names, ", ")
 }
 
-// registerResult, petitionResult and closingResult are the shared-verb results: these
-// three verbs are built by seat for every role, so their result types live beside them.
+// registerResult and closingResult are the shared-verb results: these verbs are built by
+// seat for every role, so their result types live beside them.
 type registerResult struct {
 	SeatID string `json:"seat_id"`
 	Nonce  string `json:"nonce"`
@@ -323,13 +504,6 @@ type registerResult struct {
 func (r registerResult) Human() string {
 	return "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
 }
-
-type petitionResult struct {
-	Class  string `json:"class"`
-	Suffix string `json:"suffix,omitempty"`
-}
-
-func (r petitionResult) Human() string { return "petition filed (" + r.Class + ")" + r.Suffix }
 
 type closingResult struct {
 	ID string `json:"id"`

@@ -123,8 +123,8 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			{Type: "finding", Payload: p("label", "L5-F1")}, // minted
 			{Type: "finding", Payload: p("label", "L5-F2")}, // un-minted
 			{Type: "opinion", Payload: p("gap_id", "G2", "disposition", "closed")},
-			{Type: "cite", Payload: p("claim", "c1", "reference", "r1")},
-			{Type: "cite", Payload: p("claim", "c2", "reference", "r2")},
+			{Type: "verify", Payload: p("claim", "c1", "reference", "r1")},
+			{Type: "verify", Payload: p("claim", "c2", "reference", "r2")},
 			{Type: "outcome", Payload: p("verdict", "CEILING")},
 		},
 	}

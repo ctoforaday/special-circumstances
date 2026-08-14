@@ -157,8 +157,13 @@ func TestFormatRewriteIsAnnounced(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("a rewritten file must be announced (exit 2), got %d", code)
 	}
-	if !strings.Contains(stderr, "rewrote") || !strings.Contains(stderr, "re-read") {
+	low := strings.ToLower(stderr)
+	if !strings.Contains(low, "rewrote") || !strings.Contains(low, "re-read") {
 		t.Errorf("stderr must tell the model to re-read: %q", stderr)
+	}
+	// Asserted on meaning, not casing: the emphasis is deliberate and may move.
+	if !strings.Contains(low, "stale") {
+		t.Errorf("it must say WHY re-reading matters — a stale cached copy: %q", stderr)
 	}
 	if !strings.Contains(readLog(t, dir), "formatted") {
 		t.Errorf("log = %q", readLog(t, dir))
@@ -395,5 +400,35 @@ func TestUnknownFlagNeverBlocks(t *testing.T) {
 	e.exec = (&fakeQlty{}).runner()
 	if _, _, code := call(t, "", e, "-nope"); code != 0 {
 		t.Fatalf("exit %d on an unknown flag", code)
+	}
+}
+
+// Exit 2 at PostToolUse is a FEEDBACK channel, not a rejection: the write already happened
+// and was not reverted. An agent that reads a non-zero exit as "my edit failed" re-applies
+// it, duplicating the change or fighting the formatter. The message must say so BEFORE the
+// findings, because that is the part read first (#212).
+func TestFindingsSayTheWriteAlreadyHappened(t *testing.T) {
+	dir, file := project(t, "a.go")
+	e := healthy(dir)
+	e.mode = modeCheck // check only: isolate the findings path from the rewrite path
+	e.exec = func(_ context.Context, _, _ string, args ...string) (string, int, error) {
+		return "a.go:1 some finding", 1, nil
+	}
+
+	_, stderr, code := call(t, payload(file), e)
+	if code != 2 {
+		t.Fatalf("findings must reach the model via exit 2, got %d", code)
+	}
+	low := strings.ToLower(stderr)
+	for _, want := range []string{"already happened", "not a rejection", "do not re-apply"} {
+		if !strings.Contains(low, want) {
+			t.Errorf("the feedback must say the write stands — missing %q:\n%s", want, stderr)
+		}
+	}
+	if !strings.Contains(low, "qlty check --no-fix") {
+		t.Errorf("it must name how to see the full set: %q", stderr)
+	}
+	if strings.Index(low, "already happened") > strings.Index(low, "some finding") {
+		t.Error("the reassurance must precede the findings — it is what an agent reads first")
 	}
 }

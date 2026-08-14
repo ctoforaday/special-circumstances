@@ -38,7 +38,7 @@ func runWithGap(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").
+		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,6 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"mint":            {"acceptance_check": "c", "class": "scope-creep"},
 		"close":           {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x", "prose": "p"},
 		"closing":         {"gap_id": "R1-1", "text": "t"},
-		"dispose":         {"disposition": "declined", "reason": "r"},
 		"regrade":         {"basis": "b"},
 		"dispute":         {"gap_id": "R1-1", "evidence": "e"},
 		"dispute-respond": {"gap_id": "R1-1", "rationale": "r"},
@@ -61,8 +60,12 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "rationale": "r"},
 		"halt":            {"opinion": "o"},
 		"certify":         {"statement": "s"},
+		"outcome":         {"verdict": "VERIFIED", "prose": "p"},
 		"finding":         {"label": "L1-F1"},
 		"observe":         {"label": "L1-O1"},
+		// The verb that took no required flag at all: a bare `lens verify` recorded an event and
+		// counted as red's audit volume. `outcome` is the payload key behind --as.
+		"verify": {"claim": "c", "outcome": "supports", "confidence": "high", "text": "what the source says"},
 	}
 
 	for typ, required := range RequiredFields {
@@ -96,10 +99,12 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 // case while telling us nothing.
 func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 	for typ, p := range map[string]*Payload{
-		"dispose": NewPayload().Set("disposition", "declined").Set("reason", "r"),
 		"regrade": NewPayload().Set("basis", "b"),
 		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
-		"avenue":  NewPayload().Set("status", "pursued").Set("line", "l"),
+		// avenue_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate
+		// requires it and no flag sets it, so it is not in RequiredFields but must be present
+		// for a complete payload.
+		"avenue": NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "l"),
 		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
 			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("rationale", "r"),
 	} {
@@ -138,7 +143,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("class", "x").
+	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	if _, err := Append(runDir, "red-merge-r1", "mint", mint); err != nil {
 		t.Fatal(err)
@@ -170,7 +175,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").
+		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +194,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 // rather than multiplied, so their absence is visible and they stay optional.
 func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 	base := func() *Payload {
-		return NewPayload().Set("acceptance_check", "c").Set("class", "scope-creep").
+		return NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "scope-creep").
 			Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 	for _, missing := range []string{"likelihood", "impact"} {

@@ -572,3 +572,196 @@ func keysOf(s RearmState) []string {
 	}
 	return out
 }
+
+// #215: release must only remove a lock we still hold. The stale-breaker cannot tell an
+// abandoned lock from a slow one, so a displaced holder used to delete its SUCCESSOR's lock
+// — after which a third hook could acquire while the second was mid-update.
+func TestReleaseOnlyRemovesItsOwnLock(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rearmed.json")
+
+	a, err := lockRearm(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Another hook breaks A's lock as stale and takes its own.
+	if err := os.Remove(a.path); err != nil {
+		t.Fatal(err)
+	}
+	b, err := lockRearm(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a.release() // A finishes, unaware it was displaced
+
+	if !b.owned() {
+		t.Error("A's release deleted B's lock — that is the mutual-exclusion violation #215 reported")
+	}
+	b.release()
+	if _, err := os.Stat(b.path); !os.IsNotExist(err) {
+		t.Error("B's own release must remove its lock")
+	}
+}
+
+// A displaced holder must ABANDON its write rather than overwrite the successor's. Losing
+// an event is the documented cheap failure; a lost update is the bug the lock exists for.
+func TestUpdateAbandonsWhenItsLockWasBroken(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rearmed.json")
+
+	// Seed a record so there is something to lose.
+	if err := UpdateRearm(path, func(s *RearmState) {
+		s.Rearmed[CheckKey("1. `go build` → ok")] = Rearm{Check: "1. `go build` → ok"}
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := UpdateRearm(path, func(s *RearmState) {
+		// Mid-update, another hook breaks this lock as stale and takes its own.
+		_ = os.Remove(path + ".lock")
+		if _, err := lockRearm(path); err != nil {
+			t.Fatal(err)
+		}
+		s.Rearmed["clobber"] = Rearm{Check: "should never be written"}
+	})
+	if err == nil {
+		t.Fatal("a displaced holder must refuse to commit, not write over the successor")
+	}
+	if !strings.Contains(err.Error(), "nothing is damaged") {
+		t.Errorf("the error must say the cost is one lost event: %v", err)
+	}
+
+	s, err := LoadRearm(os.ReadFile, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.Rearmed["clobber"]; ok {
+		t.Error("the abandoned update was written anyway")
+	}
+	if _, ok := s.Rearmed[CheckKey("1. `go build` → ok")]; !ok {
+		t.Error("the pre-existing record was lost")
+	}
+}
+
+// #217: a record whose check no longer exists is dropped — but ONLY when the caller
+// actually parsed a loop. An empty slice means "nothing parsed", never "prune everything".
+func TestPruneOrphansNeedsAParsedLoop(t *testing.T) {
+	seed := func() *RearmState {
+		return &RearmState{Rearmed: map[string]Rearm{
+			CheckKey("1. `go test ./...` → ok"):     {Check: "current wording"},
+			CheckKey("1. `go test ./...` → all ok"): {Check: "an older wording, now orphaned"},
+		}}
+	}
+	live := []Check{{Line: "1. `go test ./...` → ok"}}
+
+	s := seed()
+	dropped := s.PruneOrphans(live)
+	if len(dropped) != 1 {
+		t.Fatalf("dropped = %v; want exactly the orphaned wording", dropped)
+	}
+	if len(s.Rearmed) != 1 {
+		t.Errorf("state = %v; the current check's record must survive", s.Rearmed)
+	}
+	if _, ok := s.Rearmed[CheckKey("1. `go test ./...` → ok")]; !ok {
+		t.Error("the wrong record was dropped")
+	}
+
+	// THE GUARD. A note that failed to parse yields no checks; treating that as "no checks
+	// exist" would wipe the history rather than tidy it.
+	s = seed()
+	if dropped := s.PruneOrphans(nil); dropped != nil || len(s.Rearmed) != 2 {
+		t.Errorf("an unparsed loop must delete nothing: dropped=%v left=%d", dropped, len(s.Rearmed))
+	}
+	s = seed()
+	if dropped := s.PruneOrphans([]Check{}); dropped != nil || len(s.Rearmed) != 2 {
+		t.Errorf("an empty slice must delete nothing: dropped=%v left=%d", dropped, len(s.Rearmed))
+	}
+
+	// Renumbering must NOT orphan: identity strips the ordinal, which is why #213 keyed
+	// records this way in the first place.
+	s = seed()
+	if dropped := s.PruneOrphans([]Check{{Line: "7. `go test ./...` → ok"}}); len(dropped) != 1 {
+		t.Errorf("a renumbered check must still match its record: dropped=%v", dropped)
+	}
+}
+
+// NoteLoopProblems exists to make one mistake impossible: LoopProblems takes the SECTION,
+// and the note's OTHER sections are numbered too. `## Next intended steps` is a numbered
+// list in the schema, so handing the whole note to LoopProblems reports every step after
+// the first as a label disagreeing with its ordinal — confidently, about the wrong section.
+func TestNoteLoopProblemsReadsOnlyTheLoopSection(t *testing.T) {
+	note := "---\nschema: 2\n---\n" +
+		"## Validation loop\n1. `go test ./...` → ok · re-armed by: tools/\n" +
+		"## Next intended steps\n1. file the issue\n2. take the issue\n3. close the issue\n" +
+		"## Open threads\n1. the other thing\n"
+
+	if got := NoteLoopProblems(note); len(got) != 0 {
+		t.Errorf("NoteLoopProblems = %v; numbered lines outside the loop are not loop entries", got)
+	}
+	// Proof the guard is load-bearing rather than vacuous: the raw call DOES misfire on
+	// this note, which is the reason the wrapper exists.
+	if got := LoopProblems(note); len(got) == 0 {
+		t.Error("the whole-note call no longer misfires — if that is now safe, this wrapper's reason is gone and the test is asserting nothing")
+	}
+
+	// And a real problem inside the loop still surfaces through the wrapper.
+	bad := "---\nschema: 2\n---\n" +
+		"## Validation loop\n1. `a` · re-armed by: tools/\n7b. `b` · re-armed by: tools/\n" +
+		"## Next intended steps\n1. only one step\n"
+	got := NoteLoopProblems(bad)
+	if len(got) != 1 || !strings.Contains(got[0], "7b.") {
+		t.Errorf("NoteLoopProblems = %v; want the lettered entry reported", got)
+	}
+
+	// No loop section is not a loop problem — an absent loop is a different complaint,
+	// raised where something can be done about it.
+	if got := NoteLoopProblems("---\nschema: 2\n---\n## Open threads\n1. a\n2. b\n"); got != nil {
+		t.Errorf("NoteLoopProblems = %v; a note with no loop has no loop problems to report", got)
+	}
+}
+
+// #219 was not a missing feature — it was a sweep that stopped at the parsers. LoopProblems
+// was written for #192/#193 and wired into ONE of the three packages that parse the loop, so
+// a malformed note was reported at session start and nowhere else: not by the seal that
+// wrote it, not by the hook whose re-arms it was silently costing.
+//
+// Detection and surfacing are different sets, and the fix for a class is not three edits —
+// it is the thing that fails when a fourth site appears. This walks the real source.
+//
+// Following hookenv's guard, which passed VACUOUSLY for a while after a refactor moved the
+// files it globbed: the count assertion is what makes that survivable.
+func TestEveryPackageThatParsesTheLoopAlsoReportsItsProblems(t *testing.T) {
+	sources, err := filepath.Glob(filepath.Join("..", "*", "main.go"))
+	if err != nil {
+		t.Fatalf("walk failed: %v", err)
+	}
+	if len(sources) < 8 {
+		t.Fatalf("walked only %d hook sources (%v) — a broken walk passes this test silently forever", len(sources), sources)
+	}
+
+	var parsers, offenders []string
+	for _, path := range sources {
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := string(src)
+		if !strings.Contains(body, "ParseValidationLoop(") {
+			continue
+		}
+		parsers = append(parsers, path)
+		if !strings.Contains(body, "LoopProblems(") {
+			offenders = append(offenders, path)
+		}
+	}
+
+	// checkpointseal, checkpointrestore, filechangedrearm. Fewer means the walk broke.
+	if len(parsers) < 3 {
+		t.Fatalf("found only %d packages parsing the validation loop (%v) — there are three, so the walk is not seeing the source", len(parsers), parsers)
+	}
+	if len(offenders) > 0 {
+		t.Errorf("packages that parse the validation loop but never report what the parse DROPPED:\n  %s\n\nParseValidationLoop silently declines entries a human reader counts — a lettered label opens no check, and a mislabelled ordinal makes state keyed by position disagree with the labels in the note. A site that parses without reporting turns those into a check that is never watched, never re-armed, and never mentioned. Call checkpoint.NoteLoopProblems(note) — or LoopProblems(loop) if you already hold the section — and write the result to stderr. Never refuse: these are hooks, and a numbering slip must not cost a seal or block a tool call.",
+			strings.Join(offenders, "\n  "))
+	}
+}

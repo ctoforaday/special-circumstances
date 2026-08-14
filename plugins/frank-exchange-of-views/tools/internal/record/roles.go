@@ -47,6 +47,25 @@ func roleOfSeat(seatID string) string {
 	return ""
 }
 
+// PartyOf answers "which party wrote this" from the EVENT, not from its seat id (#348).
+//
+// NOT named RoleOf: that name is taken by the LENS-INDEX reader (findinglabel.go), which
+// extracts "L2" from "red-lens-r3-L2" and is the concurrency namespace this change must not
+// touch — collapsing it once made 39 of 60 disposals ambiguous. Two different things were about
+// to share one name, which is the collision this whole exercise exists to prevent.
+//
+// The field is stamped at the write. The fallback re-derives from the id only for records
+// written before the field existed — a real corpus this tool still reads — and it is the
+// fallback precisely because it is the thing being retired: `strings.HasPrefix(e.SeatID,
+// "red-merge")` decided whether a position rendered as RED or BLUE, so an id that failed to
+// match its expected prefix rendered as the wrong party with nothing to notice.
+func PartyOf(e Event) string {
+	if e.Role != "" {
+		return e.Role
+	}
+	return roleOfSeat(e.SeatID)
+}
+
 // CheckSeatRole enforces the binding at the CLI boundary.
 func CheckSeatRole(role, seatID string) error {
 	prefixes, known := roleSeats[role]

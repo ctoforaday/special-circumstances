@@ -15,6 +15,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -55,15 +56,6 @@ func strOf(v any) string {
 		return s
 	}
 	return ""
-}
-
-// numOrUndefined renders a value as JS string-interpolation would: a number as its integer text,
-// an absent/non-number field as the literal "undefined" (the `${obj.missing}` coercion).
-func numOrUndefined(m map[string]any, k string) string {
-	if f, ok := numOf(m[k]); ok {
-		return strconv.FormatInt(int64(f), 10)
-	}
-	return "undefined"
 }
 
 // jsToFixed0 renders a float as JS `x.toFixed(0)`.
@@ -171,58 +163,29 @@ func TelemetryAudit(runDir string, redRounds int) Audit {
 	return Audit{Check: "telemetry", Verdict: v, Detail: fmt.Sprintf("%d telemetry round(s) vs %d red round(s) on the record", len(rounds), redRounds)}
 }
 
-// ---- AUDIT 2: shard self-report vs files ----
-
-var (
-	reIDLine       = regexp.MustCompile(`R\d+-\d+\s*\|`)
-	reArchiveBlock = regexp.MustCompile(`(?m)^#{1,4}\s+.*R\d+-\d+`)
-)
-
-func ShardAudit(runDir string, results []map[string]any) Audit {
-	ledgerP := filepath.Join(runDir, "red", "ledger.md")
-	archiveP := filepath.Join(runDir, "red", "archive.md")
-	ledgerB, ledgerErr := os.ReadFile(ledgerP)
-	archiveB, archiveErr := os.ReadFile(archiveP)
-	if ledgerErr != nil && archiveErr != nil {
-		return Audit{Check: "shards", Verdict: "SKIP", Detail: "no ledger/archive (pre-sharding run)"}
-	}
-	ledgerCount := 0
-	if ledgerErr == nil {
-		for _, l := range strings.Split(string(ledgerB), "\n") {
-			if reIDLine.MatchString(l) {
-				ledgerCount++
-			}
-		}
-	}
-	archiveCount := 0
-	if archiveErr == nil {
-		archiveCount = len(reArchiveBlock.FindAllString(string(archiveB), -1))
-	}
-	var lastRed map[string]any
-	for i := len(results) - 1; i >= 0; i-- {
-		if _, ok := numOf(results[i]["ledger_closure_lines"]); ok {
-			lastRed = results[i]
-			break
-		}
-		if _, ok := numOf(results[i]["archive_blocks"]); ok {
-			lastRed = results[i]
-			break
-		}
-	}
-	self := "no envelope self-report found in journal"
-	consistent := lastRed == nil
-	if lastRed != nil {
-		self = fmt.Sprintf("self-reported %s/%s", numOrUndefined(lastRed, "ledger_closure_lines"), numOrUndefined(lastRed, "archive_blocks"))
-		lcl, okL := numOf(lastRed["ledger_closure_lines"])
-		ab, okA := numOf(lastRed["archive_blocks"])
-		consistent = okL && okA && int(lcl) == ledgerCount && int(ab) == archiveCount
-	}
-	v := "FAIL"
-	if consistent {
-		v = "PASS"
-	}
-	return Audit{Check: "shards", Verdict: v, Detail: fmt.Sprintf("measured (heuristic) closure-index lines=%d, archive records=%d; %s", ledgerCount, archiveCount, self)}
-}
+// AUDIT 2 IS GONE: "shard self-report vs files".
+//
+// It read red/ledger.md and red/archive.md and compared their line counts against the merge's
+// self-reported ledger_closure_lines / archive_blocks. BOTH SIDES OF THAT COMPARISON ARE GONE —
+// the envelope counts were removed 2026-07-19 for comparing numbers the merge made up (a haiku
+// smoke self-reported archive_blocks: 22 in a round whose true archived count was 0), and the
+// files stopped being written when the ledger and archive became rendered projections.
+//
+// It never said so. With no files it returned SKIP, "no ledger/archive (pre-sharding run)" — a
+// benign, plausible reading, and wrong in the one way that mattered: those were the NEWEST runs.
+// Every 2026-08 capture reports it, and the audit had been measuring nothing for months while
+// reading as an antique politely declining to judge a modern run. Had the files existed, the
+// other half was dead too: no envelope carries those counts, so `lastRed` stays nil and the
+// verdict is a hardcoded PASS.
+//
+// Its unit test passed throughout, because the test WROTE the two files first. That is what kept
+// it looking alive: the only place in the system where those files still existed was the test
+// that proved the audit could read them.
+//
+// The duty it was reaching for is not lost, and is not restored here. It lives where the numbers
+// cannot be authored: record.SpotCheckAudit computes the archive's size at round start by replay,
+// and AttestationAudit reconciles each anchored closure against real tool calls. Both read the
+// board. A self-report has no place on either side of that comparison.
 
 // ---- AUDIT 3: friction parity ----
 
@@ -357,88 +320,205 @@ func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 
 // ---- AUDIT 5: assembly regression screen ----
 
-var (
-	reBlueTeam = regexp.MustCompile(`(?m)^## Blue team report`)
-	reRefAbs   = regexp.MustCompile(`(?i)REFUTED|ABSENT`)
-	reIssueTok = regexp.MustCompile(`#\d{4,6}`)
-	reArxivTok = regexp.MustCompile(`(?i)arXiv:\d{4}\.\d{4,5}`)
-)
-
+// AssemblyScreen catches a report that still carries a citation red found AGAINST.
+//
+// # It spent two releases unable to
+//
+// THE SIGNAL WAS DESTROYED, not merely relocated. Until the citation ledger moved onto the
+// record, red typed its verdict into the confidence column as prose — "LOW — REFUTED: closed
+// as duplicate", "LOW (absent from abs and html)" — and this screen regex-scanned that column
+// for REFUTED|ABSENT. Real ledgers carried 5-11 such rows (2026-07-12 through 2026-07-20).
+// Then the grade became a CLOSED ENUM of high|medium|low — three values that all mean the
+// source SUPPORTS the claim — so there was no field in which red could say a verification
+// failed, and `red/citation-ledger.md` became a `setup` stub nothing writes (46 bytes on the
+// 2026-08-05 run). The screen read that empty file and reported
+// "PASS — 0 REFUTED-row token(s) screened; no hits" on every record-mode run.
+//
+// It was then made honest — SKIP, naming the gap — which stopped the false PASS and still left
+// the check unable to check anything.
+//
+// # What made it possible again
+//
+// `lens verify --as` grew its negative half (#296): `refutes` (the source contradicts the claim)
+// and `absent` (the source is silent on it) are outcomes red can record, and `--anchor` (#382)
+// says WHICH citation each verdict is about. So the screen is now a join on fields rather than a
+// regex over prose: for every source with a verification that found against it, is the anchor
+// still in the assembled report?
+//
+// The prose match is gone with it. The old check keyed on the strings REFUTED|ABSENT appearing
+// in a rendered row, which was a hope about string shape — and would have gone on returning zero
+// the moment anyone reworded the renderer.
 func AssemblyScreen(runDir string) Audit {
-	reportB, reportErr := os.ReadFile(filepath.Join(runDir, "report.md"))
-	ledgerB, ledgerErr := os.ReadFile(filepath.Join(runDir, "red", "citation-ledger.md"))
-	if reportErr != nil || ledgerErr != nil {
-		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "report.md or citation-ledger.md absent"}
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	report := string(reportB)
-	assembly := report
-	if loc := reBlueTeam.FindStringIndex(report); loc != nil && loc[0] > 0 {
-		assembly = report[:loc[0]]
+	ev := record.EvidenceJSONOf(board)
+	if ev.Counts.Sources == 0 {
+		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
-	var order []string
-	seen := map[string]bool{}
-	add := func(t string) {
-		if !seen[t] {
-			seen[t] = true
-			order = append(order, t)
+
+	assembled, rerr := os.ReadFile(filepath.Join(runDir, "report.md"))
+	if rerr != nil {
+		// Before assembly there is nothing to screen, and saying so beats a PASS that means
+		// "the file I was looking for was not there".
+		return Audit{Check: "assembly-screen", Verdict: "SKIP",
+			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled report.md yet — the screen runs against the assembled artifact (%v)", ev.Counts.Sources, rerr)}
+	}
+
+	var carried []string
+	for _, s := range ev.Sources {
+		found := false
+		for _, v := range s.Verified {
+			if v.Refuted() {
+				found = true
+				break
+			}
 		}
-	}
-	for _, row := range strings.Split(string(ledgerB), "\n") {
-		if !reRefAbs.MatchString(row) {
+		if !found {
 			continue
 		}
-		for _, t := range reIssueTok.FindAllString(row, -1) {
-			add(t)
-		}
-		for _, t := range reArxivTok.FindAllString(row, -1) {
-			add(t)
-		}
-	}
-	var hits []string
-	for _, t := range order {
-		if strings.Contains(assembly, t) {
-			hits = append(hits, t)
+		// The assembled report has had its anchors woven into visible footnotes, so the c- id is
+		// screened against the PRE-assembly anchor AND the source's own url, which survives into
+		// the composed bibliography. Either surviving means the reader is still being pointed at
+		// a source red found against.
+		if s.URL != "" && strings.Contains(string(assembled), s.URL) {
+			carried = append(carried, fmt.Sprintf("%s (%s)", s.Anchor, s.URL))
 		}
 	}
-	if len(hits) > 0 {
-		return Audit{Check: "assembly-screen", Verdict: "WARN",
-			Detail: fmt.Sprintf("%d REFUTED-row token(s) appear in assembly-owned text — verify each carries the CORRECTED form, not the round-0 one: %s", len(hits), strings.Join(hits, ", "))}
+
+	if len(carried) > 0 {
+		return Audit{Check: "assembly-screen", Verdict: "FAIL",
+			Detail: fmt.Sprintf("%d source(s) red found AGAINST are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
+				len(carried), strings.Join(carried, ", "))}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d REFUTED-row token(s) screened against assembly-owned text; no hits", len(order))}
+		Detail: fmt.Sprintf("%d citation(s), %d found against by red (refutes|absent), none still cited in the assembled report; %d cited source(s) nobody has checked",
+			ev.Counts.Sources, ev.Counts.SourcesRefuted, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----
 
-var (
-	reCLRound    = regexp.MustCompile(`(?im)^#+.*Round \d+`)
-	reRoundDigit = regexp.MustCompile(`(?i)Round (\d+)`)
-)
+// repoRootOf walks up from the run directory to the repository root — the directory holding
+// `plugins/`. Derived rather than passed: capture is invoked with a run directory and a
+// transcript directory, and threading a third path through every caller for one audit would be
+// more surface than the audit is worth.
+func repoRootOf(runDir string) string {
+	dir, err := filepath.Abs(runDir)
+	if err != nil {
+		return ""
+	}
+	for i := 0; i < 12; i++ {
+		if st, e := os.Stat(filepath.Join(dir, "plugins")); e == nil && st.IsDir() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+	return ""
+}
 
-// RecordParityAudit checks each red round has a blue sitting and a CHANGELOG round entry, floor
+// StrayRecordsAudit finds event shards written OUTSIDE any run directory.
+//
+// # What a stray is, and why it is not simply "another run"
+//
+// The repository holds many run directories, each with its own `records/`. What distinguishes a
+// STRAY is that its parent is not a run: no `inputs/run-config.json`, no `blue/`. Nothing set it
+// up; something wrote into it.
+//
+// Measured (#358): during research/2026-08-10_dual-read-vs-migration a seat whose shell cwd was
+// the `tools/` directory resolved the relative `research/<slug>/` from there, and the tool built
+// a whole second blackboard — the lane's entire 13.7 KB draft, its own shards, clock and locks —
+// while the real run's `blue/candidates/` stayed empty for the run. TWO shards of one seat class
+// existed in both places, so the resolution differed per INVOCATION, not per seat. The run
+// survived, which is the problem: work landing outside the run is indistinguishable from a seat
+// that produced nothing.
+//
+// `RegisterSeat` refuses a run directory that does not exist now, so the creation path is closed.
+// This audit covers what that cannot: a stray already on disk from an older binary, and the
+// narrower case where the wrongly-resolved directory happens to exist already.
+func StrayRecordsAudit(repoRoot, runDir string) Audit {
+	if repoRoot == "" {
+		return Audit{Check: "stray-records", Verdict: "SKIP", Detail: "no repository root to walk"}
+	}
+	captured, _ := filepath.Abs(runDir)
+	var strays []string
+	_ = filepath.WalkDir(repoRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil //nolint:nilerr // an unreadable subtree is not this audit's finding
+		}
+		switch d.Name() {
+		case ".git", "node_modules", "cache":
+			return filepath.SkipDir
+		case "records":
+		default:
+			return nil
+		}
+		parent := filepath.Dir(path)
+		if abs, _ := filepath.Abs(parent); abs == captured {
+			return filepath.SkipDir // the run being captured
+		}
+		// A REAL RUN DIRECTORY, just not this one. Every past run has records/, and reporting
+		// those would bury the finding under the corpus.
+		if _, e := os.Stat(filepath.Join(parent, "inputs", "run-config.json")); e == nil {
+			return filepath.SkipDir
+		}
+		if _, e := os.Stat(filepath.Join(parent, "blue")); e == nil {
+			return filepath.SkipDir
+		}
+		shards, _ := filepath.Glob(filepath.Join(path, "events-*.jsonl"))
+		if len(shards) > 0 {
+			rel, rerr := filepath.Rel(repoRoot, path)
+			if rerr != nil {
+				rel = path
+			}
+			strays = append(strays, fmt.Sprintf("%s (%d shard(s))", filepath.ToSlash(rel), len(shards)))
+		}
+		return filepath.SkipDir
+	})
+	sort.Strings(strays)
+	if len(strays) > 0 {
+		return Audit{Check: "stray-records", Verdict: "FAIL",
+			Detail: fmt.Sprintf("%d event shard tree(s) outside any run directory — seat work that did not reach the run it was dispatched into: %s. A relative --run resolves against the SEAT's working directory; the engine passes the absolute path recorded in inputs/run-config.json",
+				len(strays), strings.Join(strays, ", "))}
+	}
+	return Audit{Check: "stray-records", Verdict: "PASS",
+		Detail: "no event shards outside a run directory"}
+}
+
+// RecordParityAudit checks each red round has a blue sitting and a blue ROUND RECORD, floor
 // redRounds-1. redRounds/blueBlocks come from the debate view, read in-process.
+//
+// THE ROUND RECORD IS COUNTED FROM `revision` EVENTS, not from headings in blue/CHANGELOG.md.
+// The file is authored by hand while the event is emitted by the tool, so counting the file
+// audited the seat's typing rather than the record — and the two disagree: the 2026-08-05 run
+// carried a 6,847-byte CHANGELOG and exactly ONE revision event, from one of three eligible
+// blue seats. The old regex pair (`^#+.*Round \d+` then `Round (\d+)`) read the plausible
+// number and passed; the record shows the round records were never filed. See #268.
 func RecordParityAudit(runDir string, redRounds, blueBlocks int) Audit {
 	if redRounds == 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no red rounds on record"}
 	}
-	clRounds := 0
-	if b, err := os.ReadFile(filepath.Join(runDir, "blue", "CHANGELOG.md")); err == nil {
-		set := map[string]bool{}
-		for _, h := range reCLRound.FindAllString(string(b), -1) {
-			if m := reRoundDigit.FindStringSubmatch(h); m != nil {
-				set[m[1]] = true
+	rounds := map[int]bool{}
+	if board, err := record.BoardState(runDir); err == nil {
+		for _, e := range board.Events {
+			if e.Type == "revision" {
+				rounds[e.Round] = true
 			}
 		}
-		clRounds = len(set)
 	}
+	clRounds := len(rounds)
 	ok := blueBlocks >= redRounds-1 && clRounds >= redRounds-1
 	v := "FAIL"
 	if ok {
 		v = "PASS"
 	}
 	return Audit{Check: "record-parity", Verdict: v,
-		Detail: fmt.Sprintf("%d red round(s) vs %d blue sitting(s) and %d CHANGELOG round entr%s (floor: redRounds-1 — a PASS exit has no final blue response)",
-			redRounds, blueBlocks, clRounds, plural(clRounds, "y", "ies"))}
+		Detail: fmt.Sprintf("%d red round(s) vs %d blue sitting(s) and %d recorded round record(s) (floor: redRounds-1 — a PASS exit has no final blue response)",
+			redRounds, blueBlocks, clRounds)}
 }
 
 // ---- AUDIT 7: record-join ----
@@ -462,7 +542,13 @@ func verbOf(t string) string {
 }
 
 func RecordJoinAudit(runDir, transcriptDir string, agentFiles []string) Audit {
-	recDir := filepath.Join(runDir, "records")
+	// A RUN WHOSE RECORD CANNOT BE RESOLVED IS NOT A PRE-RECORD RUN. The SKIP below says "this
+	// run predates the record tool" — an accurate, benign reading that a separated run with a
+	// lost root would silently borrow, retiring the join audit on exactly the runs it exists for.
+	recDir, err := record.RecordsDir(runDir)
+	if err != nil {
+		return Audit{Check: "record-join", Verdict: "FAIL", Detail: err.Error()}
+	}
 	entries, err := os.ReadDir(recDir)
 	if err != nil {
 		return Audit{Check: "record-join", Verdict: "SKIP", Detail: "no records/ (pre-record-tool run)"}
@@ -582,45 +668,36 @@ type Claim struct {
 	ID, Seat, Tool, Target, Why string
 }
 
-var (
-	reArchiveSplit = regexp.MustCompile(`(?m)^## `)
-	reClosureID    = regexp.MustCompile(`^(R\d+-\d+)`)
-	reAnchor       = regexp.MustCompile(`verification anchor:\s*(.+)`)
-	reCarried      = regexp.MustCompile(`(?i)CARRIED from round`)
-)
-
 // AttestationAudit spot-checks anchored closures against actual tool-call inputs.
+//
+// IT READS THE RECORD, not red/archive.md. The file was the source until the archive became a
+// rendered projection, and `setup` stopped creating it — so this audit had been reading "" and
+// returning SKIP: "no archive records to reconcile" on every record-mode run. It reconciled
+// nothing, in silence, for as long as the record tier has existed.
+//
+// The old path was also the class in miniature: a close event carries anchor_seat, anchor_tool
+// and anchor_target as FIELDS; archiveMD concatenates them into a pipe-delimited line; and this
+// function split that line back apart on "|" and re-derived the gap id with `^(R\d+-\d+)`.
+// Fields to string to regex to fields, with a markdown file in the middle purely as a courier.
 func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleFloor int) Audit {
-	archive := ""
-	if b, err := os.ReadFile(filepath.Join(runDir, "red", "archive.md")); err == nil {
-		archive = string(b)
-	}
-	blocks := splitAfter(archive, reArchiveSplit)
-	if len(blocks) == 0 {
-		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "no archive records to reconcile"}
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
 	var claims []Claim
-	for _, b := range blocks {
-		id := "?"
-		if m := reClosureID.FindStringSubmatch(b); m != nil {
-			id = m[1]
-		}
-		anchor := reAnchor.FindStringSubmatch(b)
-		if anchor == nil {
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g == nil || g.Closure == nil {
 			continue
 		}
-		if reCarried.MatchString(anchor[1]) {
+		// A CARRIED closure attests nothing — it is last round's verification restated, and
+		// holding a seat to a tool call it never made this round is a false finding.
+		if g.Closure.Str("carried_from") != "" {
 			continue
 		}
-		fields := strings.Split(anchor[1], "|")
-		if len(fields) < 3 {
-			continue
-		}
-		seat := strings.TrimSpace(fields[0])
-		tool := strings.TrimSpace(fields[1])
-		target := strings.TrimSpace(fields[2])
+		seat, tool, target := g.Closure.Str("anchor_seat"), g.Closure.Str("anchor_tool"), g.Closure.Str("anchor_target")
 		if seat != "" && tool != "" && target != "" {
-			claims = append(claims, Claim{ID: id, Seat: seat, Tool: tool, Target: target})
+			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target})
 		}
 	}
 	if len(claims) == 0 {
@@ -693,27 +770,6 @@ func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleF
 	}
 	return Audit{Check: "attestation-integrity", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls", len(sampled), len(claims))}
-}
-
-// splitAfter mirrors JS `archive.split(/^## /m).slice(1)`: split on the delimiter, drop the head.
-func splitAfter(s string, re *regexp.Regexp) []string {
-	if s == "" {
-		return nil
-	}
-	locs := re.FindAllStringIndex(s, -1)
-	if len(locs) == 0 {
-		return nil
-	}
-	var out []string
-	for i, loc := range locs {
-		start := loc[1]
-		end := len(s)
-		if i+1 < len(locs) {
-			end = locs[i+1][0]
-		}
-		out = append(out, s[start:end])
-	}
-	return out
 }
 
 // sampleClaims mirrors JS: all when ≤ floor, else index i where i % ceil(n/floor) === 0.
@@ -1074,10 +1130,10 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 
 	audits = []Audit{
 		TelemetryAudit(runDir, redRounds),
-		ShardAudit(runDir, results),
 		FrictionAudit(friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
+		StrayRecordsAudit(repoRootOf(runDir), runDir),
 		RecordParityAudit(runDir, redRounds, blueBlocks),
 		RecordJoinAudit(runDir, transcriptDir, agentFiles),
 		AttestationAudit(runDir, transcriptDir, agentFiles, 5),

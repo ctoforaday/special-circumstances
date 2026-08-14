@@ -21,10 +21,10 @@ import (
 // multi-nonce and torn-file situations a crash produces.
 func writeShard(t *testing.T, runDir, seatID, nonce string, evs []Event) string {
 	t.Helper()
-	if err := os.MkdirAll(recordsDir(runDir), 0o755); err != nil {
+	if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	p := shardPath(runDir, seatID, nonce)
+	p := shardPath(recordsDirT(runDir), seatID, nonce)
 	var b strings.Builder
 	for _, ev := range evs {
 		line, err := marshalEvent(ev)
@@ -291,12 +291,12 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 	}
 
 	runDir := t.TempDir()
-	if err := os.MkdirAll(recordsDir(runDir), 0o755); err != nil {
+	if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	// Files that are not shards must be ignored, not parsed.
 	for _, name := range []string{"ledger.md", ".lock-render", "class-registry.json", "events-bad.jsonl", "events-x-nothex.jsonl"} {
-		if err := os.WriteFile(filepath.Join(recordsDir(runDir), name), []byte("{}"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(recordsDirT(runDir), name), []byte("{}"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -394,7 +394,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
 		if _, err := Append(runDir, seatID, "mint", NewPayload().
-			Set("gap_id", got).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+			Set("gap_id", got).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -421,7 +421,7 @@ func TestExistingMintByKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, seatID, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -498,53 +498,37 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	}
 }
 
-// dispose targets the FIRST matching observation, by label when it has one and
-// by event key otherwise.
-func TestBoardStateDispositionMatching(t *testing.T) {
+// FINDINGS REPLAY; DISPOSALS NO LONGER EXIST. `observe` and `dispose` are retired (#327), and
+// with them the label-matching that resolved a disposal to its target — a mechanism that once
+// attached 39 of 60 disposals by accident of ordering because 15 labels were reused across lens
+// seats. A finding is now addressed by COALESCENCE alone: its label named in a gap's found_by.
+//
+// What must still hold is that every finding lands on the board with its identity intact, since
+// the credit join is keyed on exactly that.
+func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
-	merge := "red-merge-r1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []Event{
 		ev(lens, "aaaaaaaa", 0, 1, "finding", lens+":finding:F1", NewPayload().Set("label", "F1").Set("text", "first")),
-		ev(lens, "aaaaaaaa", 1, 1, "observe", lens+":observe:#1", NewPayload().Set("text", "unlabelled")),
-		ev(lens, "aaaaaaaa", 2, 1, "finding", lens+":finding:F1-dup", NewPayload().Set("label", "F1").Set("text", "same label again")),
-	})
-	writeShard(t, runDir, merge, "bbbbbbbb", []Event{
-		ev(merge, "bbbbbbbb", 0, 1, "dispose", merge+":dispose:F1", NewPayload().Set("observation", "F1").Set("disposition", "minted-as")),
-		ev(merge, "bbbbbbbb", 1, 1, "dispose", merge+":dispose:key", NewPayload().Set("observation", lens+":observe:#1").Set("disposition", "declined")),
-		ev(merge, "bbbbbbbb", 2, 1, "dispose", merge+":dispose:none", NewPayload().Set("observation", "NOPE").Set("disposition", "declined")),
+		ev(lens, "aaaaaaaa", 1, 1, "finding", lens+":finding:F2", NewPayload().Set("label", "F2").Set("text", "second")),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.Observations) != 3 {
-		t.Fatalf("%d observations, want 3", len(b.Observations))
+	if len(b.Observations) != 2 {
+		t.Fatalf("both findings must replay onto the board, got %d", len(b.Observations))
 	}
-	byText := map[string]*Observation{}
-	for _, o := range b.Observations {
-		byText[o.Payload.Str("text")] = o
-	}
-	if o := byText["first"]; o.Disposition == nil || o.Disposition.Str("disposition") != "minted-as" {
-		t.Errorf("the FIRST match on a label was not disposed: %+v", o.Disposition)
-	}
-	// find() semantics: the second observation sharing the label stays undisposed.
-	if o := byText["same label again"]; o.Disposition != nil {
-		t.Error("dispose reached a SECOND observation with the same label; find() takes the first only")
-	}
-	// An unlabelled observation is addressable by its event key.
-	if o := byText["unlabelled"]; o.Disposition == nil || o.Disposition.Str("disposition") != "declined" {
-		t.Errorf("an unlabelled observation could not be disposed by key: %+v", o.Disposition)
-	}
-	// A dispose naming nothing must not attach itself to an arbitrary observation.
-	disposed := 0
-	for _, o := range b.Observations {
-		if o.Disposition != nil {
-			disposed++
+	for _, want := range []string{"F1", "F2"} {
+		found := false
+		for _, o := range b.Observations {
+			if o.Payload.Str("label") == want {
+				found = true
+			}
 		}
-	}
-	if disposed != 2 {
-		t.Errorf("%d observations disposed, want 2 — a non-matching dispose landed somewhere", disposed)
+		if !found {
+			t.Errorf("finding %s lost its label in replay — found_by credit is keyed on it", want)
+		}
 	}
 }
 
@@ -572,7 +556,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 		t.Run(field+"/accepts every canonical grade", func(t *testing.T) {
 			for _, g := range flags.GradeNames() {
-				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
+				p := NewPayload().Set(field, g).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 				if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err != nil {
 					t.Errorf("%s=%s refused: %v", field, g, err)
 				}
@@ -594,12 +578,10 @@ func TestValidateVerbContracts(t *testing.T) {
 	}{
 		{"mint without --check", "mint", NewPayload().Set("class", "x"), "mint requires --check"},
 		{"mint with an empty --check", "mint", NewPayload().Set("class", "x").Set("acceptance_check", ""), "mint requires --check"},
-		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c"), "mint requires --class"},
-		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p"), ""},
+		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c").Set("check_kind", "document"), "mint requires --class"},
+		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p"), ""},
 
 		{"close without --id", "close", NewPayload(), "close requires --id"},
-		{"dispose without --as", "dispose", NewPayload(), "dispose requires --as"},
-		{"dispose complete", "dispose", NewPayload().Set("disposition", "declined"), ""},
 		{"regrade without --basis", "regrade", NewPayload(), "regrade requires --reason"},
 		{"regrade complete", "regrade", NewPayload().Set("basis", "b"), ""},
 
@@ -607,13 +589,15 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"retire without --reason", "retire", NewPayload().Set("claim", "c"), "retire requires --reason"},
 		{"retire complete", "retire", NewPayload().Set("claim", "c").Set("reason", "r"), ""},
 
-		{"avenue with an unknown status", "avenue", NewPayload().Set("status", "shelved").Set("line", "l"), "avenue requires --status declined|abandoned|pursued"},
-		{"avenue with no status at all", "avenue", NewPayload().Set("line", "l"), "avenue requires --status"},
-		{"avenue without --line", "avenue", NewPayload().Set("status", "pursued"), "avenue requires --line"},
-		{"a declined avenue needs a reason", "avenue", NewPayload().Set("status", "declined").Set("line", "l"), "requires --reason"},
-		{"an abandoned avenue needs a reason", "avenue", NewPayload().Set("status", "abandoned").Set("line", "l"), "requires --reason"},
-		{"a PURSUED avenue does not need a reason", "avenue", NewPayload().Set("status", "pursued").Set("line", "l"), ""},
-		{"a declined avenue with a reason", "avenue", NewPayload().Set("status", "declined").Set("line", "l").Set("reason", "why"), ""},
+		{"avenue with an unknown status", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "shelved").Set("line", "l"), "avenue requires --status"},
+		{"avenue with no status at all", "avenue", NewPayload().Set("avenue_id", "A1").Set("line", "l"), "avenue requires --status"},
+		{"avenue with no id", "avenue", NewPayload().Set("status", "pursued").Set("line", "l"), "avenue requires an id"},
+		{"a deferred avenue needs a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "deferred").Set("line", "l"), "requires --reason"},
+		{"avenue without --line", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "pursued"), "avenue requires --line"},
+		{"a declined avenue needs a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "declined").Set("line", "l"), "requires --reason"},
+		{"an abandoned avenue needs a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "abandoned").Set("line", "l"), "requires --reason"},
+		{"a PURSUED avenue does not need a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "l"), ""},
+		{"a declined avenue with a reason", "avenue", NewPayload().Set("avenue_id", "A1").Set("status", "declined").Set("line", "l").Set("reason", "why"), ""},
 
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
@@ -660,7 +644,7 @@ func opinionRunDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").
+		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -713,6 +697,8 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		p.Set(f, "x")
 	}
 	p.Set("rationale", "the ruling's reasoning")
+	// disposition is a CLOSED set since #342 — a placeholder is no longer a legal value.
+	p.Set("disposition", "closed")
 	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
@@ -724,6 +710,11 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		q.Set(f, "")
 	}
 	q.Set("rationale", "the ruling's reasoning")
+	// DISPOSITION IS THE EXCEPTION TO THE EXCEPTION (#342). The Has-not-empty rule exists for
+	// fields like --review-flag, where "false" is a legitimate ruling. It never applied to the
+	// disposition: an EMPTY disposition rules nothing, and it was only ever accepted because
+	// the set was open. Now the set is closed, so it must be one of the words.
+	q.Set("disposition", DispositionCarried)
 	if err := validate(complete, "judge-r1", "opinion", q); err != nil {
 		t.Errorf("opinion fields present-but-empty were refused: %v", err)
 	}
@@ -738,7 +729,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
 	})
 	base := func() *Payload {
-		return NewPayload().Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
+		return NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 
 	if err := validate(runDir, "red-merge-r1", "mint", base().Set("supersedes", []string{"R1-1"})); err != nil {
@@ -814,16 +805,16 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 func TestValidateClassRegistry(t *testing.T) {
 	writeRegistry := func(t *testing.T, runDir string, body string) {
 		t.Helper()
-		if err := os.MkdirAll(recordsDir(runDir), 0o755); err != nil {
+		if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(recordsDir(runDir), "class-registry.json"), []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(recordsDirT(runDir), "class-registry.json"), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	registry := `{"classes":[{"slug":"scope-creep"},{"slug":"unfalsifiable"},{"slug":"stale-source"}]}`
 	mint := func(p *Payload) *Payload {
-		return p.Set("acceptance_check", "c").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
+		return p.Set("acceptance_check", "c").Set("check_kind", "document").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
 	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
@@ -832,11 +823,24 @@ func TestValidateClassRegistry(t *testing.T) {
 		}
 	})
 
-	t.Run("an unparseable registry degrades to advisory", func(t *testing.T) {
+	// AN UNPARSEABLE REGISTRY IS REFUSED. It used to degrade to advisory — accepting every class
+	// slug for the whole run, silently — and the reason recorded for that was "as in the oracle".
+	// The oracle is the JS engine retired in #121, so the justification outlived itself while the
+	// behaviour stayed: a corrupt file turning off the gate that keeps the class vocabulary
+	// honest, with nothing saying so.
+	//
+	// ABSENT stays advisory (the case above): a run with no registry has nothing to validate
+	// against. PRESENT-BUT-BROKEN is different in kind — somebody staged it, so somebody meant it
+	// to bind.
+	t.Run("an unparseable registry is refused, not waved through", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, "{not json")
-		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
-			t.Errorf("an unparseable registry made validation strict: %v", err)
+		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all")))
+		if err == nil {
+			t.Fatal("a corrupt registry accepted an arbitrary class — every --class passes while it stays that way, and the run reads as validated")
+		}
+		if !strings.Contains(err.Error(), "unreadable") {
+			t.Errorf("the refusal must name the REGISTRY as the problem, or a seat re-reads its own --class: %v", err)
 		}
 	})
 

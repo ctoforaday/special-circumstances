@@ -24,7 +24,7 @@ func TestProjectDirPrefersTheEnvironmentAndFallsBackToThePayload(t *testing.T) {
 
 // The one fallback that must NOT exist. os.Getwd() would turn "I do not know where the
 // project is" into "I will write somewhere", and the somewhere is unrelated to the
-// session — the exact defect sc-recall-index was already patched for, in one binary.
+// session — the exact defect the retired sc-recall-index was once patched for, in one binary.
 func TestUnknownStaysUnknownRatherThanBecomingTheWorkingDirectory(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {

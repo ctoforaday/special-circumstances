@@ -1,0 +1,20 @@
+This command is NOT shipped to installing projects. A cold bootstrap skips it, and the
+plugin's _hook_binaries manifest does not list it.
+
+seatprobe is a development harness: it shells out to the `claude` CLI, reads the seat
+constitutions from this repo's agents/, and writes throwaway run directories. In a consumer's
+plugin bin it would be dead weight wearing the same coat as the hook binaries beside it.
+
+It lives under plugins/<name>/tools/cmd/ anyway because Go's internal-package rule leaves it
+nowhere else to be: it drives internal/seatprobe, internal/cli and internal/record, and only a
+main inside this module may import them.
+
+THE MARKER IS THE FACT, and both readers derive from it rather than keeping their own list:
+
+  scripts/bootstrap-plugins.sh   skips a cmd/ directory holding this file
+  scripts/pluginparity           excludes it from the shipped-binary count and the
+                                 _hook_binaries cross-check
+
+Two hand-maintained lists is exactly the drift pluginparity exists to catch — it was written
+because the documented count went stale twice and the manifest twice more. A third list, kept
+by the same hands, would have been the fourth.

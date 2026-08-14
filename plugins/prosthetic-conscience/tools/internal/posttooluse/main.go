@@ -1,8 +1,9 @@
 // Package posttooluse is the ONE hook on the PostToolUse event.
 //
-// It replaces sc-quality-gate and sc-recall-index as separate binaries. They remain separate
-// UNITS — their logic is untouched, in their own packages, with their own tests — but they
-// now run in one process over one shared context.
+// It replaced sc-quality-gate and sc-recall-index as separate binaries; the checks stayed
+// separate UNITS — own packages, own tests — running in one process over one shared context.
+// The recall-index unit was RETIRED with the retrieval layer (2026-08-04), so one unit ships
+// today. The fan-in stays: it is this event's merge policy (below), not a headcount.
 //
 // # Why, given the client already ran them in parallel
 //
@@ -10,9 +11,9 @@
 // independent processes were already optimal and this merge must run its units concurrently
 // simply to MATCH that. Parity is the floor.
 //
-// The gain is everything the two processes could not share:
+// The gain is everything separate processes could not share:
 //
-//   - The payload is parsed ONCE, and the project root resolved ONCE, instead of twice.
+//   - The payload is parsed ONCE, and the project root resolved ONCE, per event.
 //   - ONE writer for the hook log. Two processes appending to one file on the same event
 //     were concurrent BY DESIGN, not by accident — the units now RETURN their log lines and
 //     this binary writes them in order.
@@ -42,7 +43,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/qualitygate"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/recallindex"
 )
 
 const version = "0.1.0"
@@ -101,7 +101,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 
 // Units are this event's checks, in the order their output should appear.
 func Units() []hookunit.Unit {
-	return []hookunit.Unit{qualitygate.Unit(), recallindex.Unit()}
+	return []hookunit.Unit{qualitygate.Unit()}
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

@@ -44,14 +44,24 @@ func nudge(statuses []toolchain.Status) string {
 			continue
 		}
 		if !s.Found && (s.Tier == "required" || s.Tier == "recommended") {
+			// The tool's own purpose, so the line says WHICH capability is absent rather
+			// than only which binary is. It comes from requirements.json, so it stays
+			// true as the manifest changes instead of drifting into a second description.
+			if s.Purpose != "" {
+				missing = append(missing, s.Name+" ("+s.Purpose+")")
+				continue
+			}
 			missing = append(missing, s.Name)
 		}
 	}
 	if len(missing) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("prosthetic-conscience: missing tool(s): %s — quality hooks degrade until installed; run /prosthetic-conscience:doctor for install commands.",
-		strings.Join(missing, ", "))
+	// Name WHICH capability is lost, not just that something degraded: "quality hooks
+	// degrade" tells an agent nothing it can weigh. Each tool's own purpose comes from
+	// requirements.json, so the line stays true as the manifest changes.
+	return fmt.Sprintf("prosthetic-conscience: missing tool(s) — %s. Those checks are SKIPPED, not failing: work continues and nothing is blocked, but their coverage is absent, so do not read a clean run as proof they passed. Install with /prosthetic-conscience:doctor --fix, or carry on and say in your summary which coverage was missing.",
+		strings.Join(missing, "; "))
 }
 
 // liveNudge warns when a research run is live — plugin updates and pushes to pinned

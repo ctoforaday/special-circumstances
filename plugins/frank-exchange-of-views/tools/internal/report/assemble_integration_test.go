@@ -42,9 +42,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"## Risk Matrix",
 		"blue's fabricated risk row that the tool must not echo.",
 		"",
-		// Blue's citations — kept (no bibliography composer yet).
+		// Blue hand-authors footnotes — DROPPED now (citations are tool-composed from the
+		// cite events; a blue-authored bibliography is fabrication).
 		"## Footnotes",
-		"[^cache]: a real citation blue authored.",
+		"[^cache]: a citation blue tried to hand-author.",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -77,14 +78,14 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// the run's terminal verdict is recorded.
 	add("red-merge-r1", "mint", "gap_id", "R1-1", "problem", "eviction races the reader", "location", "cache.go:88",
 		"class", "correctness", "likelihood", "medium", "impact", "high",
-		"acceptance_check", "race the eviction under -race", "required_fix", "take the read lock in evict")
+		"acceptance_check", "race the eviction under -race", "check_kind", "document", "required_fix", "take the read lock in evict")
 	add("red-merge-r1", "position", "text", "gap R1-1 stands until the race is shown impossible")
 	add("blue-r1", "position", "text", "R1-1 is repaired by ordering the invalidation before the store")
-	add("blue-r1", "avenue", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
-	add("blue-r1", "avenue", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
+	add("blue-r1", "avenue", "avenue_id", "A1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
+	add("blue-r1", "avenue", "avenue_id", "A2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
 	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
 		"tension", "cost vs certainty", "review_flag", "false", "rationale", "a model-check is owed before this closes")
-	add("judge-terminal", "outcome", "verdict", "CEILING")
+	add("judge-terminal", "outcome", "verdict", "CEILING", "prose", "the round ceiling arrived before red could pass the final revision")
 
 	path, err := Assemble(runDir)
 	if err != nil {
@@ -119,18 +120,17 @@ func TestAssembleEndToEnd(t *testing.T) {
 		// The reviewer-facing orientation, composed from the board.
 		"## Read this first",
 		"(R1-1)",
-		// Blue's citations survive in the embed.
-		"a real citation blue authored",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("assembled report missing %q\n---\n%s", want, got)
 		}
 	}
 
-	// Blue over-authored a Risk Matrix and a stale verdict; neither may be echoed. The tool's
-	// own "## Risk matrix" is authoritative, and blue's fabricated row / stale verdict must not
-	// appear anywhere in the assembled report.
-	for _, forbidden := range []string{"blue's fabricated risk row", "UNVERIFIED (Round 0)"} {
+	// Blue over-authored a Risk Matrix, a stale verdict, and hand-authored footnotes; none may
+	// be echoed. The tool's "## Risk matrix" is authoritative; blue's fabricated row / stale
+	// verdict / hand-authored citation must not appear anywhere. With no cite events on the
+	// record, no "## Bibliography" is composed either.
+	for _, forbidden := range []string{"blue's fabricated risk row", "UNVERIFIED (Round 0)", "a citation blue tried to hand-author", "## Bibliography"} {
 		if strings.Contains(got, forbidden) {
 			t.Errorf("blue's fabricated/duplicated content leaked into the report (%q)\n---\n%s", forbidden, got)
 		}

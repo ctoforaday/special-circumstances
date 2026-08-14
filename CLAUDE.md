@@ -18,6 +18,8 @@ Always-on rules bind every session via the imports below; the rest load on deman
 @plugins/prosthetic-conscience/skills/agent-guardrails/SKILL.md
 @plugins/prosthetic-conscience/skills/think-around-problem/SKILL.md
 @plugins/prosthetic-conscience/skills/validation-loop/SKILL.md
+@plugins/prosthetic-conscience/skills/complete-the-concept/SKILL.md
+@plugins/prosthetic-conscience/skills/facts-are-fields/SKILL.md
 
 ## Repository structure
 

@@ -55,14 +55,66 @@ const (
 	// Identity and reference.
 	ID        = "id"
 	IDs       = "ids"
-	Label     = "label"
 	Claim     = "claim"
 	Key       = "key"
 	Location  = "location"
 	Reference = "reference"
-	Row       = "row"
-	View      = "view"
-	Format    = "format" // operator output selector (graph: mermaid | dot)
+	// The citation axis (bibliography core). --url is the source a `fetch` reads and a
+	// `blue cite` anchors; --title is the human name that source carries into the composed
+	// bibliography. One canonical word each — a citation is tool-managed, so these are the
+	// only two facts a seat supplies about a source.
+	URL   = "url"
+	Title = "title"
+	Row   = "row"
+	// View is RETIRED (0.56.0). `show --view <name>` became `show <name>`: cobra models
+	// commands and flags, never a flag's VALUE space, so every projection's description had to
+	// be crammed into one usage string with no --help and no completion of its own. Making the
+	// flag optional made it worse — a seat had no reason to discover it at all.
+	Format = "format" // operator output selector (graph: mermaid | dot)
+	// Candidate is the merge's near-match query: the problem text of a gap it is about
+	// to mint, screened against the board (open + closed) before minting so a
+	// near-duplicate surfaces as a reopen rather than a fresh gap. One word, read-only.
+	Candidate = "candidate"
+
+	// `blue edit` is the ONLY write path to blue/report.md for a response seat: it replaces
+	// the exact current span --old with --new, preserving red's finding-markers. The words
+	// mirror the Edit tool's old_string/new_string so a seat reaches for what it knows.
+	Old = "old"
+	New = "new"
+	// Answers is the edit's PROVENANCE: the gap id this edit is blue's response to.
+	// A distinct word from --id (which names the gap an act is ABOUT) because the
+	// relation differs — the same reason --into, --successor, --superseded-by and
+	// --carried-from each get their own word rather than overloading one.
+	//
+	// It exists because the link was a CONVENTION: 19 of 26 edits in the 2026-08-04 smoke
+	// happened to open --reason with the gap id, and 7 did not. Prose that usually carries
+	// a fact is not a join key, and every measurement in #267 needs one.
+	Answers = "answers"
+	// An avenue's ABSTRACT: what would be true if this line of inquiry pays off (#246).
+	// Distinct from --problem (a defect) and --reason (the argument for an act) because it
+	// is a forward claim, and it is what makes a later abandonment checkable — an avenue
+	// abandoned against its own stated hypothesis is evidence of choosing; one abandoned on
+	// a shrug is not.
+	Hypothesis = "hypothesis"
+	// The proof axis (#277). --script is the program that settles a claim; --cites names the
+	// METHOD citation it applies. Separate words from --url/--title (a document's identity)
+	// because a computation and a source are different things a claim can rest on — and
+	// deliberately NOT --method, which already means "the source class an avenue belonged to".
+	Script = "script"
+	Cites  = "cites"
+	// Red's fate for a proposed direction. A separate word from --as (an observation's
+	// disposal) and --status (an avenue's own lifecycle state) because it is a different
+	// party ruling on a different question: is this worth the run's time at all.
+	// A CONCRETE proposed fix (#267 stage 3): the exact span red says is wrong and the exact
+	// text it should become. Distinct words from --old/--new, which are the edit blue APPLIES;
+	// these are what red PROPOSES, and one word per act keeps a seat from typing red's
+	// proposal into blue's write verb by muscle memory.
+	//
+	// Optional, and bounded: a proposal that grows the span past bluedoc.MaxProposalGrowth is
+	// refused as authoring. Their presence is what DERIVES `fix_basis: verified` — the basis is
+	// never a word a seat types about its own work.
+	FixOld = "fix-old"
+	FixNew = "fix-new"
 
 	// Disposition and justification.
 	//
@@ -75,8 +127,20 @@ const (
 	As     = "as"
 	Notes  = "notes"
 	Status = "status"
-	Into   = "into"
 	None   = "none"
+
+	// Confidence is how sure red is of a determination it just made — orthogonal to WHAT the
+	// determination was (--as), and the field the original plan specified: "for each statement ↔
+	// reference pair it assigns a confidence that the source actually corroborates the statement
+	// … low confidence → needs more evidence, blue digs further, not an automatic fail".
+	//
+	// The word was surrendered in #341 to a collision with `blue confidence` — blue self-grading
+	// its own claims — and the field went out as --trust. That verb was DELETED in 0.54.0, so the
+	// collision has not existed since, and the substitute cost more than it saved: `trust` reads
+	// as a property of the SOURCE, which pulled the value descriptions into a support scale and
+	// then read as a positive-only outcome. One word, one question — and the question is "how
+	// sure are you", never "how good is the source".
+	Confidence = "confidence"
 
 	// Grading.
 	Severity   = "severity"
@@ -85,11 +149,6 @@ const (
 	Complexity = "cx"
 	Proposed   = "proposed"
 	Dimension  = "dimension"
-	// Confidence is one word for one intent: how sure the seat is. `blue confidence`
-	// called it --grade and `lens cite` called it --confidence, for the same self-graded
-	// high|medium|low. --grade is also the wrong word for it, because a GRADE elsewhere
-	// in this vocabulary is severity/likelihood/impact, which a seat does not self-assign.
-	Confidence = "confidence"
 
 	// Gap classification. A gap's --class is a slug from a GROWING REGISTRY; a petition's
 	// --petition-class is a FIXED four-value enum. They shared the word --class until
@@ -102,12 +161,14 @@ const (
 	Definition    = "definition"
 	Neighbor      = "neighbor"
 	Distinguisher = "distinguisher"
-	Kind          = "kind"
 
 	// Gap substance.
 	Problem = "problem"
 	Fix     = "fix"
 	Check   = "check"
+	// CheckKind says what would SETTLE the acceptance check — read a document, run a
+	// computation, or verify a source. It is what lets red demand evidence prose cannot fake.
+	CheckKind = "check-kind"
 
 	// Lineage. Supersedes (a minted gap's ancestors) and SupersededBy (the claim that
 	// replaces a retired one) are different directions of a different relation on
@@ -123,11 +184,21 @@ const (
 	AnchorTarget = "anchor-target"
 	AnchorTool   = "anchor-tool"
 
+	// Anchor is the DOCUMENT anchor — the c-<hex> inside a `<!--cite:c-…-->` token — naming
+	// which citation a verification adjudicates. Distinct from the AnchorSeat/Target/Tool trio
+	// above, which anchor a CLOSURE (who checked what, with which tool); this one is the join
+	// key between red's verification and the source blue actually cited (#382).
+	Anchor = "anchor"
+	// Independent is the explicit negative beside it: a source red found itself, which has no
+	// anchor to name. Stated rather than left as an empty --anchor, because an empty field
+	// cannot distinguish "corroboration" from "I never looked it up" — the same argument that
+	// gave `friction` its --none.
+	Independent = "independent"
+
 	// The bench's vocabulary.
 	Principle  = "principle"
 	Tension    = "tension"
 	ReviewFlag = "review-flag"
-	Petitioner = "petitioner"
 	Relief     = "relief"
 
 	// The run's terminal determination (bench outcome). The verdict rides on --as; these
@@ -137,10 +208,9 @@ const (
 
 	// Blue's process record. (claim_count was --claim-count here until #70 moved the
 	// count to the deterministic `count-claims` root command; no flag types it now.)
-	Line        = "line"
-	Method      = "method"
-	AccessDate  = "access-date"
-	Observation = "observation"
+	Line       = "line"
+	Method     = "method"
+	AccessDate = "access-date"
 
 	// The operator `setup` command (ported from setup-research-run.mjs): it builds a
 	// research run's blackboard. These are operator flags, not seat-verb payload keys.
@@ -152,16 +222,17 @@ const (
 	Lanes         = "lanes"
 	BinDir        = "bin-dir"
 	MemoryDir     = "memory-dir"
-	NoQmd         = "no-qmd"
 
 	// The operator `scorecard` command (ported from scorecards.mjs): a chair's in-run
 	// self-read. --run is the shared persistent flag; --chair selects the chair.
 	Chair = "chair"
 
 	// The operator `dashboard` command (ported from render-run-dashboard.mjs): the live run
-	// dashboard. --watch regenerates on a timer; --now injects the clock (test determinism).
+	// dashboard. --watch regenerates on a timer; --now injects the clock (test determinism);
+	// --serve hosts it over HTTP, rendered fresh per request from the record.
 	Watch = "watch"
 	Now   = "now"
+	Serve = "serve"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -178,19 +249,19 @@ func All() []string {
 	return []string{
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Label, Claim, Key, Location, Reference, Row, View, Format,
-		As, Notes, Status, Into, None,
+		ID, IDs, Claim, Key, Location, Reference, URL, Title, Row, Format, Candidate, Old, New, Answers,
+		As, Notes, Status, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
-		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher, Kind,
-		Problem, Fix, Check,
+		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
+		Problem, Fix, Check, CheckKind, FixOld, FixNew, Hypothesis, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
-		AnchorSeat, AnchorTarget, AnchorTool,
-		Principle, Tension, ReviewFlag, Petitioner, Relief,
+		AnchorSeat, AnchorTarget, AnchorTool, Anchor, Independent,
+		Principle, Tension, ReviewFlag, Relief,
 		Deadlocked, Exhausted,
-		Line, Method, AccessDate, Observation,
-		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, NoQmd,
+		Line, Method, AccessDate,
+		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir,
 		Chair,
-		Watch, Now,
+		Watch, Now, Serve,
 	}
 }
 
@@ -224,8 +295,13 @@ func ForPayloadKey(key string) string {
 // Only the keys whose flag is a DIFFERENT WORD need an entry. review_flag, principle,
 // tension and the rest are spelled by the fallback and would be noise here.
 var payloadFlag = map[string]string{
-	"gap_id":           ID,
-	"disposition":      As,
+	"gap_id":      ID,
+	"disposition": As,
+	// A verification's verdict — what the source did for the claim. Typed as --as, the word this
+	// vocabulary already uses for every verdict a seat renders (`close --as`, `reproduce --as`,
+	// `verdict --as`), and stored as `outcome` because the event schema names the fact rather
+	// than the syntax that carried it.
+	"outcome":          As,
 	"acceptance_check": Check,
 	// Every prose payload key now funnels through the one --reason flag, so each maps
 	// to it. The keys stay distinct in the event schema — a dispute stores `evidence`,

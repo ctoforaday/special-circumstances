@@ -48,7 +48,7 @@ func ev(seatID, nonce string, seq, round int, typ, key string, p *record.Payload
 // md is view.Markdown or a fatal.
 func md(t *testing.T, runDir, name string) string {
 	t.Helper()
-	b, err := Markdown(runDir, name)
+	b, err := Markdown(runDir, name, "")
 	if err != nil {
 		t.Fatalf("Markdown(%q): %v", name, err)
 	}
@@ -219,8 +219,10 @@ func TestMarkdownOnAnEmptyRun(t *testing.T) {
 	if open != 0 || closed != 0 || anomalies != 0 {
 		t.Errorf("empty run reported open=%d closed=%d anomalies=%d", open, closed, anomalies)
 	}
-	for _, name := range []string{"ledger", "archive", "debate", "changelog", "lines-of-inquiry", "citation-ledger"} {
-		if _, err := Markdown(runDir, name); err != nil {
+	// THE REAL SET, not a copy of it. This loop used to carry its own list, which is how two
+	// renderers kept being exercised after their last caller went away.
+	for _, name := range MarkdownViews() {
+		if _, err := Markdown(runDir, name, ""); err != nil {
 			t.Errorf("projection %s errored on an empty run: %v", name, err)
 		}
 	}
@@ -314,7 +316,7 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 	}
 }
 
-func TestMarkdownSurfacesAnomaliesAndUndisposedObservations(t *testing.T) {
+func TestMarkdownSurfacesAnomaliesAndUncreditedFindings(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []record.Event{
@@ -338,14 +340,14 @@ func TestMarkdownSurfacesAnomaliesAndUndisposedObservations(t *testing.T) {
 	if !strings.Contains(ledger, "multi-nonce seat "+lens) {
 		t.Errorf("the anomaly does not name the seat:\n%s", ledger)
 	}
-	if !strings.Contains(ledger, "## undisposed lens observations") {
+	if !strings.Contains(ledger, "## lens findings credited by no gap") {
 		t.Errorf("the undisposed footer is missing:\n%s", ledger)
 	}
 	for _, line := range strings.Split(ledger, "\n") {
 		if strings.HasPrefix(line, "- "+lens+" F") {
 			prose := line[strings.Index(line, ": ")+2:]
 			if len(utf16.Encode([]rune(prose))) > 120 {
-				t.Errorf("undisposed prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
+				t.Errorf("uncredited-finding prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
 			}
 		}
 	}
@@ -411,6 +413,92 @@ func TestTelemetryIsComputed(t *testing.T) {
 	}
 }
 
+// THE STOPPING SIGNAL (#284). Severity answers "how bad"; it can sit flat for rounds while
+// the KIND of defect being found moves — and that phase change is what tells the bench the
+// remaining work is cheaper to shake out in execution than in review. The distribution and
+// the repeat rate against the previous round are what make "the findings changed character"
+// readable without re-reading every gap's prose.
+func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
+	runDir := t.TempDir()
+	mint := func(seat, nonce, id, class string, i, round int) record.Event {
+		return ev(seat, nonce, i, round, "mint", seat+":mint:"+id, record.NewPayload().
+			Set("gap_id", id).Set("problem", "p").Set("class", class).
+			Set("severity", "low").Set("likelihood", "low").Set("impact", "low"))
+	}
+	r1, r2 := "red-merge-r1", "red-merge-r2"
+	writeShard(t, runDir, r1, "aaaaaaaa", []record.Event{
+		mint(r1, "aaaaaaaa", "R1-1", "evidence-claim-not-documented", 0, 1),
+		mint(r1, "aaaaaaaa", "R1-2", "evidence-claim-not-documented", 1, 1),
+		mint(r1, "aaaaaaaa", "R1-3", "scope-closure-missing", 2, 1),
+	})
+	// Round 2: one class REPEATS from round 1, one is fresh. Repeat rate = 1/2.
+	writeShard(t, runDir, r2, "bbbbbbbb", []record.Event{
+		mint(r2, "bbbbbbbb", "R2-1", "scope-closure-missing", 0, 2),
+		mint(r2, "bbbbbbbb", "R2-2", "co-resident-rules-disagree", 1, 2),
+	})
+
+	raw, err := TelemetryJSONL(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("%d telemetry lines, want 2:\n%s", len(lines), raw)
+	}
+
+	decode := func(s string) map[string]any {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(s), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m["new_mint"].(map[string]any)
+	}
+
+	one := decode(lines[0])
+	byClass := one["by_class"].(map[string]any)
+	if byClass["evidence-claim-not-documented"] != float64(2) || byClass["scope-closure-missing"] != float64(1) {
+		t.Errorf("round 1 by_class = %v, want the two classes counted 2 and 1", byClass)
+	}
+	// Round 1 has no predecessor, so a repeat rate would be a fabricated number.
+	if one["class_repeat_rate"] != nil {
+		t.Errorf("round 1 class_repeat_rate = %v, want null — there is no prior round to repeat", one["class_repeat_rate"])
+	}
+
+	two := decode(lines[1])
+	if got := two["class_repeat_rate"]; got != 0.5 {
+		t.Errorf("round 2 class_repeat_rate = %v, want 0.5 (1 of 2 mints repeats a round-1 class)", got)
+	}
+}
+
+// A mint with no class contributes to the COUNT but not to the distribution — a "" bucket
+// would read as a real class and quietly inflate the repeat rate against itself.
+func TestTelemetryClasslessMintDoesNotBecomeAClass(t *testing.T) {
+	runDir := t.TempDir()
+	seat := "red-merge-r1"
+	writeShard(t, runDir, seat, "aaaaaaaa", []record.Event{
+		ev(seat, "aaaaaaaa", 0, 1, "mint", seat+":mint:R1-1", record.NewPayload().
+			Set("gap_id", "R1-1").Set("problem", "p").
+			Set("severity", "low").Set("likelihood", "low").Set("impact", "low")),
+	})
+	raw, err := TelemetryJSONL(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nm := func() map[string]any {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimRight(string(raw), "\n")), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m["new_mint"].(map[string]any)
+	}()
+	if nm["count"] != float64(1) {
+		t.Errorf("count = %v, want 1", nm["count"])
+	}
+	if bc := nm["by_class"].(map[string]any); len(bc) != 0 {
+		t.Errorf("by_class = %v, want empty — an empty class must not become a bucket", bc)
+	}
+}
+
 func TestTelemetryUndefinedSeverityKey(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
@@ -433,7 +521,7 @@ func TestTelemetryUndefinedSeverityKey(t *testing.T) {
 	}
 }
 
-func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
+func TestMarkdownDebateAndInquiry(t *testing.T) {
 	runDir := t.TempDir()
 	merge := "red-merge-r1"
 	blue := "blue-lane-1"
@@ -447,10 +535,10 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", record.NewPayload().Set("text", "blue says otherwise")),
 		ev(blue, "bbbbbbbb", 1, 1, "revision", blue+":revision", record.NewPayload().Set("text", "blue revised")),
 		ev(blue, "bbbbbbbb", 2, 1, "avenue", blue+":avenue:a1", record.NewPayload().
-			Set("label", "a1").Set("status", "abandoned").Set("line", "try the archive").
+			Set("avenue_id", "A1").Set("status", "abandoned").Set("line", "try the archive").
 			Set("method", "full-text search").Set("reason", "the archive is offline")),
 		ev(blue, "bbbbbbbb", 3, 1, "avenue", blue+":avenue:a2", record.NewPayload().
-			Set("label", "a2").Set("status", "pursued").Set("line", "read the source")),
+			Set("avenue_id", "A2").Set("status", "pursued").Set("line", "read the source")),
 	})
 	writeShard(t, runDir, judge, "cccccccc", []record.Event{
 		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", record.NewPayload().
@@ -458,10 +546,10 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 			Set("tension", "economy").Set("review_flag", "none").Set("rationale", "because")),
 	})
 	writeShard(t, runDir, lens, "dddddddd", []record.Event{
-		ev(lens, "dddddddd", 0, 1, "cite", lens+":cite:https://x", record.NewPayload().
-			Set("claim", "the claim").Set("reference", "https://x").
-			Set("confidence", "high").Set("access_date", "2026-07-18")),
-		ev(lens, "dddddddd", 1, 1, "cite", lens+":cite:https://y", record.NewPayload().Set("reference", "https://y")),
+		ev(lens, "dddddddd", 0, 1, "verify", lens+":verify:https://x", record.NewPayload().
+			Set("claim", "the claim").Set("reference", "https://x").Set("anchor", "c-abc").
+			Set("outcome", "refutes").Set("confidence", "medium").Set("access_date", "2026-07-18")),
+		ev(lens, "dddddddd", 1, 1, "verify", lens+":verify:https://y", record.NewPayload().Set("reference", "https://y")),
 	})
 
 	debate := md(t, runDir, "debate")
@@ -472,31 +560,23 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 		}
 	}
 
-	changelog := md(t, runDir, "changelog")
-	if !strings.Contains(changelog, "## Round 1\nblue revised") {
-		t.Errorf("changelog is wrong:\n%s", changelog)
-	}
-
 	inquiry := md(t, runDir, "lines-of-inquiry")
 	pursuedAt := strings.Index(inquiry, "## pursued (1)")
 	abandonedAt := strings.Index(inquiry, "## abandoned (1)")
 	if pursuedAt < 0 || abandonedAt < 0 || pursuedAt > abandonedAt {
 		t.Errorf("lines-of-inquiry sections are wrong or out of order:\n%s", inquiry)
 	}
-	if !strings.Contains(inquiry, "- **try the archive** _(full-text search)_ — the archive is offline (blue-lane-1)") {
+	if !strings.Contains(inquiry, "- **A1 try the archive** _(full-text search)_ — the archive is offline (blue-lane-1)") {
 		t.Errorf("an abandoned avenue row is wrong:\n%s", inquiry)
 	}
 	if strings.Contains(inquiry, "## declined") {
 		t.Errorf("an empty status produced a heading:\n%s", inquiry)
 	}
 
-	cites := md(t, runDir, "citation-ledger")
-	if !strings.Contains(cites, "the claim | https://x | high | r1 | 2026-07-18") {
-		t.Errorf("citation row is wrong:\n%s", cites)
-	}
-	if !strings.Contains(cites, "undefined | https://y | undefined | r1 | undefined") {
-		t.Errorf("a sparse citation must render its gaps as \"undefined\":\n%s", cites)
-	}
+	// THE CITATION-LEDGER ASSERTIONS ARE GONE WITH THEIR RENDERER. `citation-ledger` and
+	// `changelog` lost their last caller and kept passing here, which is what kept them looking
+	// alive — the only place either projection still existed was this test. The evidence layer is
+	// asserted where it is now read: record.EvidenceJSONOf, and `show evidence` end to end.
 }
 
 func TestMarkdownDebateSkipsEmptyRounds(t *testing.T) {
@@ -522,7 +602,7 @@ func TestMarkdownIsDeterministic(t *testing.T) {
 		ev(seatID, "aaaaaaaa", 1, 1, "mint", seatID+":mint:R1-2", record.NewPayload().
 			Set("gap_id", "R1-2").Set("problem", "q").Set("severity", "low")),
 	})
-	names := []string{"ledger", "archive", "debate", "changelog", "lines-of-inquiry", "citation-ledger"}
+	names := MarkdownViews()
 	first := map[string]string{}
 	for _, n := range names {
 		first[n] = md(t, runDir, n)

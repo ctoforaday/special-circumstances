@@ -14,7 +14,7 @@ import (
 
 // seedReferents creates the entities these cases NAME: two gaps and an observation.
 //
-// Every cross-reference is checked at write time now, so a case that disposes O1 or rules
+// Every cross-reference is checked at write time now, so a case that rules
 // on R1-1 must have an O1 and an R1-1 to point at. Before the checks landed these were
 // invented ids that resolved to nothing, which is exactly the state the checks exist to
 // refuse — the fixtures were demonstrating the bug.
@@ -22,26 +22,30 @@ func seedReferents(t *testing.T, runDir string) {
 	t.Helper()
 	for i := 0; i < 2; i++ {
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check", "c",
+			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
 			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "SEED-O1", "--kind", "note", "--reason", "a seeded observation"); err != nil {
-		t.Fatal(err)
 	}
 	// STATE, not just referents. A dispute-respond needs a dispute to answer, and a
 	// spot-check samples the ARCHIVE, so R1-3 is minted and closed to put something in
 	// it. Verbs are refused on the wrong state now, so the fixture has to build the
 	// world each verb actually operates in.
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
+	// the filing has to exist before the ruling can be tested at all — which is the join the
+	// collapse exists to make, and the reason these are seeded rather than assumed.
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
-		"--reason", "the seeded dispute this fixture answers"); err != nil {
+		"--reason", "the seeded grade motion this fixture answers"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+		"--petition-class", "safety", "--relief", "the relief sought",
+		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "seed-archived", "--class", "x", "--check", "c",
+		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -50,12 +54,26 @@ func seedReferents(t *testing.T, runDir string) {
 		"--anchor-target", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
+	// THE LENS SEAT MUST HAVE SAT. `petition-rule --petitioner` refuses a seat that recorded
+	// nothing in the run, and the lens's presence used to come from a seeded `observe` — retired
+	// with #327. `friction` is the lens verb with no referents of its own, so it seeds presence
+	// without seeding state any case then has to work around.
+	if _, err := run(t, "lens", "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "seeded so the lens seat has sat"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestVerbPayloads(t *testing.T) {
 	cases := []struct {
-		name   string
-		role   string
+		name string
+		role string
+		// path is the command path when it is not <role> <second word of name>. The default
+		// recovers the verb from the TEST NAME, which is a fact composed into a string and
+		// split apart again — it works only for a two-level tree, and `motion grade file` is
+		// three. Rather than re-derive a deeper path from a longer name, the cases that need
+		// one say so.
+		path   []string
 		seatID string
 		args   []string
 		typ    string
@@ -67,68 +85,45 @@ func TestVerbPayloads(t *testing.T) {
 		says string
 	}{
 		{
-			name: "lens observe defaults its kind to note",
-			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--label", "O1", "--reason", "a below-bar note"},
-			typ:  "observe",
-			want: map[string]string{"kind": "note", "label": "O1", "text": "a below-bar note"},
-			says: "observation recorded",
-		},
-		{
-			name: "lens observe takes an explicit kind",
-			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--kind", "checked-held", "--label", "O2", "--reason", "checked and held"},
-			typ:  "observe",
-			want: map[string]string{"kind": "checked-held", "label": "O2"},
-			says: "awaiting merge disposition",
-		},
-		{
-			name: "lens cite records the access date under its payload name",
+			name: "lens verify records the access date under its payload name",
 			role: "lens", seatID: "red-lens-r1-L1",
 			args: []string{"--claim", "the claim", "--reference", "https://example.test/a",
-				"--confidence", "high", "--access-date", "2026-07-18"},
-			typ: "cite",
+				"--independent", "--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
+				"--access-date", "2026-07-18"},
+			typ: "verify",
 			// The flag is --access-date; the payload key is access_date, and the
-			// citation render reads the payload key.
+			// citation render reads the payload key. --as lands under `outcome`.
 			want: map[string]string{"claim": "the claim", "reference": "https://example.test/a",
-				"confidence": "high", "access_date": "2026-07-18"},
-			says: "citation recorded: https://example.test/a",
+				"outcome": "supports", "confidence": "high", "text": "read at the leaf", "access_date": "2026-07-18"},
+			says: "independent source https://example.test/a verified: supports",
 		},
 		{
-			name: "lens cite without an access date leaves the key absent",
+			name: "lens verify without an access date leaves the key absent",
 			role: "lens", seatID: "red-lens-r1-L1",
-			args:   []string{"--claim", "c", "--reference", "https://example.test/b", "--confidence", "low"},
-			typ:    "cite",
-			want:   map[string]string{"reference": "https://example.test/b"},
+			args: []string{"--claim", "c", "--reference", "https://example.test/b", "--independent",
+				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
+			typ:    "verify",
+			want:   map[string]string{"reference": "https://example.test/b", "outcome": "weak", "confidence": "low"},
 			absent: []string{"access_date"},
-			says:   "citation recorded",
+			says:   "independent source https://example.test/b verified: weak",
 		},
 		{
-			name: "merge dispose gives an observation its fate",
-			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--observation", "SEED-O1", "--as", "folded-into", "--into", "R1-2", "--reason", "same root cause"},
-			typ:  "dispose",
-			want: map[string]string{"observation": "SEED-O1", "disposition": "folded-into",
-				"into": "R1-2", "reason": "same root cause"},
-			says: "disposed SEED-O1: folded-into",
+			name: "motion grade rule records the merge's answer",
+			path: []string{"motion", "grade", "rule"}, seatID: "red-merge-r1",
+			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
+			typ:  "motion-rule",
+			want: map[string]string{"motion_id": "M1", "subject": "grade", "ruling": "rejected",
+				"opinion": "the evidence does not reach it"},
+			says: "motion M1 ruled rejected",
 		},
 		{
-			name: "merge dispute-respond records red's answer",
-			role: "merge", seatID: "red-merge-r1",
-			args: []string{"--id", "R1-1", "--as", "rejected", "--reason", "the evidence does not reach it"},
-			typ:  "dispute-respond",
-			want: map[string]string{"gap_id": "R1-1", "response": "rejected",
-				"rationale": "the evidence does not reach it"},
-			says: "dispute on R1-1: rejected",
-		},
-		{
-			name: "blue dispute contests a grade through the accounted channel",
-			role: "blue", seatID: "blue-lane-1",
+			name: "motion grade file contests a grade through the accounted channel",
+			path: []string{"motion", "grade", "file"}, seatID: "blue-lane-1",
 			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
-			typ:  "dispute",
+			typ:  "motion",
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
-				"proposed": "low", "evidence": "§4 says otherwise"},
-			says: "dispute filed on R1-1.severity",
+				"proposed": "low", "basis": "§4 says otherwise", "subject": "grade"},
+			says: "filed (grade)",
 		},
 		{
 			name: "blue manifest-row records the receipt",
@@ -155,26 +150,16 @@ func TestVerbPayloads(t *testing.T) {
 			typ: "avenue",
 			want: map[string]string{"line": "search the offline archive", "status": "abandoned",
 				"reason": "the archive is unreachable", "method": "full-text search"},
-			says: "avenue recorded (abandoned): search the offline archive",
+			says: "avenue A1 recorded (abandoned): search the offline archive",
 		},
 		{
-			name: "blue confidence records the calibration substrate",
-			role: "blue", seatID: "blue-lane-1",
-			// The flag words are --claim/--confidence; the payload keys stay label/grade.
-			args: []string{"--claim", "C1", "--confidence", "medium"},
-			typ:  "confidence",
-			want: map[string]string{"label": "C1", "grade": "medium"},
-			says: "confidence recorded for C1",
-		},
-		{
-			name: "bench petition-rule records the ruling and its opinion",
-			role: "bench", seatID: "judge-petition",
-			args: []string{"--petitioner", "red-lens-r1-L1", "--petition-class", "safety",
-				"--as", "granted", "--reason", "the written opinion"},
-			typ: "petition-rule",
-			want: map[string]string{"petitioner": "red-lens-r1-L1", "class": "safety",
+			name: "motion petition rule records the ruling and its opinion",
+			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition",
+			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
+			typ:  "motion-rule",
+			want: map[string]string{"motion_id": "M2", "subject": "petition",
 				"ruling": "granted", "opinion": "the written opinion"},
-			says: "petition granted (red-lens-r1-L1)",
+			says: "motion M2 ruled granted",
 		},
 		{
 			name: "bench halt is the safety boundary",
@@ -198,8 +183,12 @@ func TestVerbPayloads(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			seedReferents(t, runDir)
-			verb := strings.SplitN(tc.name, " ", 3)[1]
-			args := append([]string{tc.role, verb, "--run", runDir, "--seat-id", tc.seatID}, tc.args...)
+			path := tc.path
+			if path == nil {
+				path = []string{tc.role, strings.SplitN(tc.name, " ", 3)[1]}
+			}
+			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
+			args = append(args, tc.args...)
 			out, err := run(t, args...)
 			if err != nil {
 				t.Fatalf("%v: %v", args, err)
@@ -294,7 +283,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check", "c", "--problem", "p",
+		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +329,6 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 		{"bench", "halt", "judge-terminal", "opinion", nil},
 		{"bench", "certify", "assemble", "statement", nil},
 		{"blue", "revision", "blue-lane-1", "text", nil},
-		{"lens", "observe", "red-lens-r1-L1", "text", []string{"--label", "PROSE-O1"}},
 		{"merge", "closing", "red-merge-r1", "text", []string{"--id", "R1-1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", []string{"--id", "R1-1"}},
 	}

@@ -35,17 +35,27 @@ func seatRun(t *testing.T) string {
 			t.Fatalf("register %s: %v", s.id, err)
 		}
 	}
+	// A lens finding is now anchored into blue/report.md and rejected unless its
+	// --location quote is present (slice 1b). Seed a report carrying the quotes the
+	// finding tests use, mirroring the real run where blue-synthesize wrote the report
+	// before red-lens files findings.
+	seedBlueReport(t, runDir)
 	return runDir
 }
 
 // mintGap mints through the merge seat and returns the tool-assigned id.
+//
+// It passes NO --location. Since 0.63.0 a mint's location is matched against blue/report.md, and
+// callers here seed different reports — a helper carrying one sentence would only work for the
+// callers whose report happens to contain it. Location is optional on mint; a test that means to
+// exercise it passes its own quote.
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", key, "--class-new", class,
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "§1 \"a quoted sentence\"", "--problem", "the defect", "--fix", "the fix",
-		"--check", "the acceptance check red runs at re-audit",
+		"--problem", "the defect", "--fix", "the fix",
+		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low")
 	if err != nil {
 		t.Fatalf("mint %s: %v", key, err)
@@ -66,7 +76,7 @@ func gapID(out string) string {
 // shared view library — the same bytes `show --view <name>` prints.
 func readProjection(t *testing.T, runDir, name string) string {
 	t.Helper()
-	b, err := view.Markdown(runDir, name)
+	b, err := view.Markdown(runDir, name, "")
 	if err != nil {
 		t.Fatalf("projection %s: %v", name, err)
 	}
@@ -120,29 +130,29 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "disputed-grade", "grade-dispute-visibility")
 
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("blue dispute: %v", err)
+		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "accepted",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "M1", "--as", "accepted",
 		"--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("red dispute-respond: %v", err)
+		t.Fatalf("motion grade rule: %v", err)
 	}
 
 	evs := events(t, runDir)
-	var sawDispute, sawResponse bool
+	var sawFiling, sawRuling bool
 	for _, e := range evs {
 		switch e.Type {
-		case "dispute":
-			sawDispute = true
-		case "dispute-respond":
-			sawResponse = true
+		case "motion":
+			sawFiling = true
+		case "motion-rule":
+			sawRuling = true
 		}
 	}
-	if !sawDispute || !sawResponse {
-		t.Fatalf("the exchange must survive in one shared record: dispute=%v response=%v", sawDispute, sawResponse)
+	if !sawFiling || !sawRuling {
+		t.Fatalf("the exchange must survive in one shared record: filing=%v ruling=%v", sawFiling, sawRuling)
 	}
 }
 
@@ -173,26 +183,6 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	}
 	if !keys["prose"] {
 		t.Error("closure lost its prose record")
-	}
-}
-
-// A lens observation must be disposable BY THE MERGE — a different seat, a different
-// role, referring to the first seat's label. This is the cross-seat reference the whole
-// found_by/dispose chain depends on.
-func TestMergeCanDisposeALensObservationByItsLabel(t *testing.T) {
-	runDir := seatRun(t)
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--reason", "a thing worth noticing but not yet a gap"); err != nil {
-		t.Fatalf("lens observe: %v", err)
-	}
-	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "L1-O1", "--as", "declined",
-		"--reason", "checked at the leaf and the behaviour is correct as written"); err != nil {
-		t.Fatalf("merge dispose of a lens observation: %v", err)
-	}
-	ev := lastOfType(t, runDir, "dispose")
-	if !payloadKeys(ev)["observation"] {
-		t.Error("the disposal must name the observation it disposes, or the lens's work has no fate")
 	}
 }
 

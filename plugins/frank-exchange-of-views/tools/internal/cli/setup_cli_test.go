@@ -96,7 +96,7 @@ func TestSetupCLIPinValidationRefusesAndCreatesNothing(t *testing.T) {
 	gitCommit(t, cwd)
 	runDir := filepath.Join(cwd, "research", "pin-test")
 
-	bad := runSetup(t, bin, cwd, runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku", "--cite", "plans/does-not-exist.md", "--no-qmd")
+	bad := runSetup(t, bin, cwd, runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku", "--max-rounds", "3", "--cite", "plans/does-not-exist.md")
 	if bad.code != 2 {
 		t.Fatalf("expected exit 2, got %d: %s", bad.code, bad.stderr)
 	}
@@ -110,7 +110,7 @@ func TestSetupCLIPinValidationRefusesAndCreatesNothing(t *testing.T) {
 		t.Error("nothing must be created — validation runs before the skeleton")
 	}
 
-	good := runSetup(t, bin, cwd, runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku", "--cite", "real.md", "--no-qmd")
+	good := runSetup(t, bin, cwd, runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku", "--max-rounds", "3", "--cite", "real.md")
 	if good.code != 0 {
 		t.Fatalf("expected exit 0, got %d: %s", good.code, good.stderr)
 	}
@@ -119,18 +119,18 @@ func TestSetupCLIPinValidationRefusesAndCreatesNothing(t *testing.T) {
 	}
 }
 
-// Arg parsing end-to-end: topic header, multi-cite pins, --no-qmd, summary lines, marker.
+// Arg parsing end-to-end: topic header, multi-cite pins, summary lines, marker.
 func TestSetupCLIArgParsing(t *testing.T) {
 	bin := buildSetupBinary(t)
 	cwd := t.TempDir()
 	runDir := filepath.Join(cwd, "research", "2026-01-01_cli-test")
 
-	r := runSetup(t, bin, cwd, runDir, "--topic", "cli parse topic", "--model", "haiku", "--judgment-model", "haiku",
-		"--cite", "a/path@abc1234", "--cite", "b/path", "--no-qmd")
+	r := runSetup(t, bin, cwd, runDir, "--topic", "cli parse topic", "--model", "haiku", "--judgment-model", "haiku", "--max-rounds", "3",
+		"--cite", "a/path@abc1234", "--cite", "b/path")
 	if r.code != 0 {
 		t.Fatalf("expected exit 0, got %d: %s", r.code, r.stderr)
 	}
-	if !strings.Contains(r.stdout, "skeleton: 6 created") || !strings.Contains(r.stdout, "skipped (--no-qmd)") {
+	if !strings.Contains(r.stdout, "skeleton: 3 created") {
 		t.Errorf("summary wrong: %s", r.stdout)
 	}
 	report, _ := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))
@@ -151,7 +151,7 @@ func TestSetupCLIModelTiersRequired(t *testing.T) {
 	bin := buildSetupBinary(t)
 	cwd := t.TempDir()
 	runDir := filepath.Join(cwd, "research", "no-model")
-	r := runSetup(t, bin, cwd, runDir, "--topic", "t", "--no-qmd")
+	r := runSetup(t, bin, cwd, runDir, "--topic", "t")
 	if r.code != 2 {
 		t.Fatalf("expected exit 2, got %d: %s", r.code, r.stderr)
 	}

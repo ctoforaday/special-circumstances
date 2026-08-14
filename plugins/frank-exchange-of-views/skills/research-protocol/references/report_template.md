@@ -33,16 +33,34 @@
 
 ## The expansions                       <!-- [RECORD] avenues PURSUED — a concept expansion accepted -->
 
-## Alternatives considered              <!-- [RECORD] avenues abandoned/declined — the alternative and its reason (the counter) -->
+## Alternatives considered              <!-- [RECORD] every avenue NOT pursued — abandoned, declined, deferred, or still
+                                              merely proposed — each with its reason (the counter), the history that
+                                              produced its status, RED'S RULING on the direction, and, where blue took a
+                                              line red ruled out-of-scope or too-thin, the fact that it did so against
+                                              that ruling. A ruling is an argument, not a command; the disagreement is
+                                              the substance. -->
 
 ## Open questions                       <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
 
 ## Blue team report (in full)           <!-- [BLUE] blue/report.md embedded verbatim — union, not summary -->
 
-## Red team findings (in full)          <!-- [RECORD] open gaps with grades + the closure index, from the board -->
+## Red team findings (in full)          <!-- [RECORD] open gaps with grades + the closure index, from the board; then the
+                                              lens findings credited by no gap's found_by — red's leaf audit the merge
+                                              weighed and did not mint. A finding is addressed by COALESCENCE and nothing
+                                              else since #327 retired observe/dispose. Then red's archive spot-checks and
+                                              blue's correctness manifest. -->
 
 ## The debate                           <!-- [RECORD] ONE transcript: per round the parties' positions, closings and grade
-                                              disputes, then the bench's opinions and petition rulings; then the terminal
-                                              bench disposition (halt / certification) -->
+                                              disputes, the PETITIONS — both the filing (class, basis, relief sought) and
+                                              its ruling, never the ruling alone — and the bench's opinions; then the
+                                              terminal bench disposition (halt / certification), which also states plainly
+                                              if any petition went unruled. -->
 
-## Footnotes                            <!-- [RECORD] the consolidated bibliography from the citation record (forthcoming) -->
+## Claims withdrawn                     <!-- [RECORD] from the retire events: the claim as it stood, why it went, and what
+                                              replaced it. A claim argued and then withdrawn is part of what the debate
+                                              decided; omitting it makes this report identical to one where the claim was
+                                              never made. Omitted entirely when nothing was retired. -->
+
+<!-- [RECORD] ## Bibliography is COMPOSED AT ASSEMBLY from the cite events — do NOT author it, and do
+     not author a "## Footnotes" section either: assembly drops a blue-authored one and weaves every
+     invisible <!--cite:--> anchor into the visible [^N] refs plus the bibliography. Cite with the tool. -->

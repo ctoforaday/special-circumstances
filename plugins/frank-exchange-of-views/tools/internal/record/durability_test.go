@@ -30,7 +30,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 	if _, _, err := RegisterSeat(runDir, seatID); err != nil {
 		t.Fatal(err)
 	}
-	before, err := ReadShard(shardPath(runDir, seatID, mustNonce(t, runDir, seatID)))
+	before, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 	}
 
 	// Nothing reached the shard while the append was correctly blocked.
-	mid, err := ReadShard(shardPath(runDir, seatID, mustNonce(t, runDir, seatID)))
+	mid, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatalf("the released append failed: %v", err)
 	}
-	after, err := ReadShard(shardPath(runDir, seatID, mustNonce(t, runDir, seatID)))
+	after, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 
 func mustNonce(t *testing.T, runDir, seatID string) string {
 	t.Helper()
-	b, err := os.ReadFile(pointerPath(runDir, seatID))
+	b, err := os.ReadFile(pointerPath(recordsDirT(runDir), seatID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 		t.Fatal("re-register reused the shard path")
 	}
 	// The pointer now names the NEW nonce.
-	b, err := os.ReadFile(pointerPath(runDir, seatID))
+	b, err := os.ReadFile(pointerPath(recordsDirT(runDir), seatID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,10 +359,10 @@ func TestAppendImplicitlyRegistersWhenThePointerIsAbsent(t *testing.T) {
 	if ev.Nonce == "" {
 		t.Error("implicit registration produced no nonce")
 	}
-	if _, err := os.Stat(pointerPath(runDir, seatID)); err != nil {
+	if _, err := os.Stat(pointerPath(recordsDirT(runDir), seatID)); err != nil {
 		t.Errorf("no pointer was written by the implicit register: %v", err)
 	}
-	evs, err := ReadShard(shardPath(runDir, seatID, ev.Nonce))
+	evs, err := ReadShard(shardPath(recordsDirT(runDir), seatID, ev.Nonce))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +401,7 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 				t.Errorf("refusal does not name the flag: %v", err)
 			}
 			// Nothing was written under a rejected id.
-			entries, rerr := os.ReadDir(recordsDir(runDir))
+			entries, rerr := os.ReadDir(recordsDirT(runDir))
 			if rerr == nil {
 				for _, e := range entries {
 					if strings.HasPrefix(e.Name(), "events-") || strings.HasPrefix(e.Name(), ".active-") {

@@ -1,7 +1,6 @@
 package report
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -97,16 +96,16 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 }
 
 func TestAvenuesSplitByFate(t *testing.T) {
-	evs := []record.Event{
-		{Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("status", "pursued").Set("line", "profile the hot path").Set("method", "bench")},
-		{Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
-		{Type: "avenue", SeatID: "red-lens-r1", Payload: record.NewPayload().Set("status", "declined").Set("line", "third-party audit").Set("reason", "out of scope")},
-	}
-	exp := avenues(evs, "The expansions", accepted)
+	board := &record.Board{Events: []record.Event{
+		{Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "profile the hot path").Set("method", "bench")},
+		{Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("avenue_id", "A2").Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
+		{Type: "avenue", SeatID: "red-lens-r1", Payload: record.NewPayload().Set("avenue_id", "A3").Set("status", "declined").Set("line", "third-party audit").Set("reason", "out of scope")},
+	}}
+	exp := avenues(board, "The expansions", accepted)
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
 		t.Errorf("expansions must carry ONLY accepted (pursued) avenues:\n%s", exp)
 	}
-	alt := avenues(evs, "Alternatives considered", rejected)
+	alt := avenues(board, "Alternatives considered", rejected)
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
 		t.Errorf("a rejected avenue is an alternative considered, its reason the counter:\n%s", alt)
 	}
@@ -117,8 +116,64 @@ func TestAvenuesSplitByFate(t *testing.T) {
 		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
 	}
 	// No avenues of a fate → flagged, not blank.
-	if none := avenues(nil, "The expansions", accepted); !strings.Contains(none, "none on the record") {
+	if none := avenues(&record.Board{}, "The expansions", accepted); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
+	}
+}
+
+// EVERY STATUS REACHES A SECTION. `proposed` and `deferred` matched neither predicate and
+// vanished from the report entirely — a direction blue put forward and never resolved, and one
+// it explicitly kept for a later run, both absent from the section whose whole job is the roads
+// not taken.
+func TestNoAvenueStatusVanishesFromTheReport(t *testing.T) {
+	for _, status := range record.AvenueStatuses {
+		board := &record.Board{Events: []record.Event{{Type: "avenue", SeatID: "blue-r1",
+			Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", status).Set("line", "the only line")}}}
+		exp, alt := avenues(board, "The expansions", accepted), avenues(board, "Alternatives considered", rejected)
+		in := strings.Contains(exp, "the only line")
+		inAlt := strings.Contains(alt, "the only line")
+		if in == inAlt {
+			t.Errorf("status %q lands in %d section(s); every avenue belongs to exactly one, or the reader never sees it:\nEXPANSIONS\n%s\nALTERNATIVES\n%s",
+				status, map[bool]int{true: 2, false: 0}[in], exp, alt)
+		}
+	}
+}
+
+// A MOVED AVENUE IS ONE AVENUE. Reading raw events rendered a line pursued at r0 and abandoned
+// at r2 under BOTH headings — as an expansion and as an alternative to itself.
+func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
+	board := &record.Board{Events: []record.Event{
+		{Round: 0, Type: "avenue", SeatID: "blue-r0", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "rewrite the parser")},
+		{Round: 2, Type: "avenue", SeatID: "blue-r2", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "abandoned").Set("reason", "the grammar moved under it")},
+	}}
+	exp := avenues(board, "The expansions", accepted)
+	alt := avenues(board, "Alternatives considered", rejected)
+	if strings.Contains(exp, "rewrite the parser") {
+		t.Errorf("an avenue ABANDONED at r2 is not an expansion — its latest status decides:\n%s", exp)
+	}
+	if !strings.Contains(alt, "rewrite the parser") || !strings.Contains(alt, "the grammar moved under it") {
+		t.Errorf("the abandoned avenue must carry its current reason:\n%s", alt)
+	}
+	// The substance came from the CREATION event and the reason from the MOVE — the history is
+	// the evidence of choosing, which is the whole point of giving an avenue a lifecycle.
+	if !strings.Contains(alt, "r0 pursued → r2 abandoned") {
+		t.Errorf("the history that produced the status must be rendered:\n%s", alt)
+	}
+}
+
+// RED'S RULING AND BLUE'S DEFIANCE OF IT ARE THE SUBSTANCE. Blue pursuing a line red ruled
+// out-of-scope looked identical to blue pursuing one red endorsed.
+func TestAvenueRulingAndContestReachTheReader(t *testing.T) {
+	board := &record.Board{Events: []record.Event{
+		{Round: 0, Type: "avenue", SeatID: "blue-r0", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "proposed").Set("line", "survey the adjacent literature")},
+		{Round: 1, Type: "avenue-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("avenue_id", "A1").Set("ruling", "out-of-scope").Set("reason", "a real question, not THIS run's")},
+		{Round: 1, Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("contests_ruling", "out-of-scope")},
+	}}
+	exp := avenues(board, "The expansions", accepted)
+	for _, want := range []string{"out-of-scope", "a real question, not THIS run's", "against red's"} {
+		if !strings.Contains(exp, want) {
+			t.Errorf("the reader must see the ruling AND that blue moved against it; missing %q:\n%s", want, exp)
+		}
 	}
 }
 
@@ -132,6 +187,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		{Round: 1, Type: "dispute", SeatID: "blue-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("dimension", "impact").Set("proposed", "low").Set("evidence", "trivial harm")},
 		{Round: 1, Type: "dispute-respond", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("response", "rejected").Set("rationale", "harm compounds")},
 		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("rationale", "needs a probe")},
+		{Round: 1, Type: "petition", SeatID: "blue", Payload: record.NewPayload().Set("class", "integrity").Set("basis", "the instruction would require asserting what I believe false").Set("relief", "strike the demand from the docket")},
 		{Round: 1, Type: "petition-rule", SeatID: "judge-petition", Payload: record.NewPayload().Set("petitioner", "blue").Set("ruling", "granted").Set("opinion", "relief warranted")},
 		{Round: 0, Type: "halt", SeatID: "judge-terminal", Payload: record.NewPayload().Set("opinion", "safety gate tripped")},
 		{Round: 0, Type: "certify", SeatID: "judge-terminal", Payload: record.NewPayload().Set("statement", "re-examine the cost model")},
@@ -140,7 +196,14 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	for _, want := range []string{
 		"### Round 1", "### RED\ngap A stands", "### BLUE\ngap A repaired",
 		"disputes R1-1/impact → low: trivial harm", "answered (rejected): harm compounds",
-		"R1-1: carried", "petition blue: granted", "relief warranted", // A3: petition prose now renders
+		"R1-1: carried",
+		// BOTH SIDES OF THE PETITION. The transcript used to render only the ruling, so the
+		// reader got the bench's answer with no question attached — and the relief sought and
+		// the basis argued are what the answer is an answer TO.
+		"### Petitions",
+		"**blue petitions the bench (integrity)**: the instruction would require asserting what I believe false",
+		"relief sought: strike the demand from the docket",
+		"ruled **granted** on blue's petition", "relief warranted",
 		"### Bench disposition", "**HALT** — safety gate tripped", "**Certification** — re-examine the cost model",
 	} {
 		if !strings.Contains(d, want) {
@@ -149,6 +212,113 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	}
 	if empty := debate(nil); !strings.Contains(empty, "no debate on the record") {
 		t.Errorf("empty debate should say so: %q", empty)
+	}
+}
+
+// THE BASIS FIELDS EXIST BECAUSE A SEAT ASKED TO SELF-REPORT REPORTS THE FLATTERING VALUE.
+// Each was derived rather than claimed, gated a write, and then reached the reader as nothing —
+// so a verdict the record itself decided read as the same word as one the bench simply asserted.
+func TestVerdictBasisReachesTheReader(t *testing.T) {
+	derived := record.NewPayload().Set("verdict", "VERIFIED").Set("verdict_basis", record.VerdictDerived)
+	if s := verdictStamp(derived); !strings.Contains(s, "derived from the record") {
+		t.Errorf("a DERIVED verdict must say so — it is the difference between a mechanical result and a claim: %q", s)
+	}
+	asserted := record.NewPayload().Set("verdict", "VERIFIED").Set("verdict_basis", record.VerdictAsserted)
+	s := verdictStamp(asserted)
+	if !strings.Contains(s, "asserted by the bench") {
+		t.Errorf("an ASSERTED verdict must say so, or it reads as a derived one: %q", s)
+	}
+	if strings.Contains(s, "derived from the record") {
+		t.Errorf("an asserted verdict must not claim derivation: %q", s)
+	}
+	// A run recorded before the field existed carries no basis; it says nothing rather than
+	// guessing, because guessing here would invent the very distinction the field preserves.
+	if s := verdictStamp(record.NewPayload().Set("verdict", "VERIFIED")); strings.Contains(s, "basis") {
+		t.Errorf("no recorded basis must produce no basis claim: %q", s)
+	}
+	// EVERY VERDICT BRANCH CARRIES IT. The first cut appended the note only to the default arm,
+	// so CEILING and HALTED returned early and dropped it — and a ceiling termination IS derived
+	// (rounds against the configured ceiling), and is the most common way a run ends.
+	for _, verdict := range []string{"CEILING", "HALTED", "VERIFIED", "UNVERIFIED"} {
+		p := record.NewPayload().Set("verdict", verdict).Set("verdict_basis", record.VerdictDerived)
+		if s := verdictStamp(p); !strings.Contains(s, "derived from the record") {
+			t.Errorf("%s dropped its basis — every terminal verdict says how it was reached: %q", verdict, s)
+		}
+	}
+}
+
+// fix_basis reads `verified` only when red supplied an exact span AND replacement that the tool
+// validated against the LIVE report — a forced re-read. A demand checked against the document
+// read identically to one written from memory of what the document probably said.
+func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
+	verified := record.NewPayload().Set("fix_basis", "verified").
+		Set("fix_old", "the parser is linear").Set("fix_new", "the parser is linear except on backtracking")
+	s := fixProposal(verified)
+	for _, want := range []string{"**verified**", "with the text in front of it", "the parser is linear except on backtracking"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("a verified fix must show its checked replacement; missing %q:\n%s", want, s)
+		}
+	}
+	if p := fixProposal(record.NewPayload().Set("fix_basis", "proposed")); !strings.Contains(p, "**proposed**") || !strings.Contains(p, "nothing checked this demand") {
+		t.Errorf("a prose-only demand must say nothing checked it against the report: %q", p)
+	}
+	if p := fixProposal(record.NewPayload()); p != "" {
+		t.Errorf("no recorded basis must produce no claim: %q", p)
+	}
+	if p := fixProposal(nil); p != "" {
+		t.Errorf("a nil mint must not panic or invent a basis: %q", p)
+	}
+}
+
+// A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
+// only the basis distinguishes one from an honest round-0 rewrite.
+func TestRemovalBasisReachesTheReader(t *testing.T) {
+	v := withdrawnClaims([]record.Event{{Type: "retire", SeatID: "blue-r2", Payload: record.NewPayload().
+		Set("claim", "c").Set("reason", "r").Set("removal_basis", record.RemovalVerified)}})
+	if !strings.Contains(v, "**verified**") || !strings.Contains(v, "the record shows it leaving") {
+		t.Errorf("a verified removal must say the record can show it:\n%s", v)
+	}
+	a := withdrawnClaims([]record.Event{{Type: "retire", SeatID: "blue-r0", Payload: record.NewPayload().
+		Set("claim", "c").Set("reason", "r").Set("removal_basis", record.RemovalAsserted)}})
+	if !strings.Contains(a, "**asserted**") || !strings.Contains(a, "nothing on the record shows it was ever present") {
+		t.Errorf("an asserted removal must say the record cannot show it:\n%s", a)
+	}
+}
+
+// AN UNANSWERED PETITION MUST BE LOUD. A petition is a seat's channel for an ethical, safety,
+// integrity or constitutional objection, and the engine routes it to a bench sitting BEFORE the
+// debate continues. A filing with no ruling means that sitting did not happen — and reporting
+// nothing would make it indistinguishable from a run that had no petitions at all.
+func TestAnUnansweredPetitionIsReported(t *testing.T) {
+	filed := []record.Event{{Round: 1, Type: "petition", SeatID: "red-merge-r1",
+		Payload: record.NewPayload().Set("class", "safety").Set("basis", "the demand would bury a hazard")}}
+	d := debate(filed)
+	if !strings.Contains(d, "1 petition(s) received no ruling") {
+		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
+	}
+	answered := append(filed, record.Event{Round: 1, Type: "petition-rule", SeatID: "judge-r1",
+		Payload: record.NewPayload().Set("petitioner", "red-merge-r1").Set("ruling", "denied").Set("opinion", "the hazard is graded, not buried")})
+	if d := debate(answered); strings.Contains(d, "received no ruling") {
+		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
+	}
+}
+
+// A WITHDRAWN CLAIM IS PART OF WHAT THE DEBATE DECIDED. Substance leaves the report only through
+// `retire`, which names the claim as it stood and why it went — and the reader saw none of it,
+// making a report where a claim was argued and withdrawn identical to one where it was never made.
+func TestWithdrawnClaimsReachTheReader(t *testing.T) {
+	evs := []record.Event{{Round: 2, Type: "retire", SeatID: "blue-respond-r2", Payload: record.NewPayload().
+		Set("claim", "the parser is O(n) in the input size").
+		Set("reason", "refuted at the leaf — the inner scan is quadratic on backtracking").
+		Set("superseded_by", "the parser is O(n) except on backtracking inputs")}}
+	w := withdrawnClaims(evs)
+	for _, want := range []string{"the parser is O(n) in the input size", "refuted at the leaf", "superseded by: the parser is O(n) except on backtracking inputs"} {
+		if !strings.Contains(w, want) {
+			t.Errorf("withdrawn claims missing %q:\n%s", want, w)
+		}
+	}
+	if withdrawnClaims(nil) != "" {
+		t.Error("a run that retired nothing omits the section rather than showing it empty")
 	}
 }
 
@@ -162,17 +332,17 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 		"## Risk Matrix", "blue fabricated a risk matrix.", "", // tool-owned — dropped
 		"## Red Team Findings (in full)", "blue cannot know red's findings.", "", // dropped
 		"## Blue Team Report (in full)", "[to be filled]", "", // recursive stub — dropped
-		"## Footnotes", "[^a]: a real citation blue authored.", "", // KEPT — no bibliography composer yet
+		"## Footnotes", "[^a]: a citation blue tried to author.", "", // DROPPED — citations are tool-composed now
 		"## Appendix: raw benchmarks", "novel blue content.", "", // KEPT — genuinely additional
 	}, "\n")
 	got := blueEmbed(blue)
 
-	for _, kept := range []string{"## Footnotes", "a real citation", "## Appendix: raw benchmarks", "novel blue content."} {
+	for _, kept := range []string{"## Appendix: raw benchmarks", "novel blue content."} {
 		if !strings.Contains(got, kept) {
 			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
 		}
 	}
-	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED"} {
+	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
 		if strings.Contains(got, dropped) {
 			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
 		}
@@ -258,90 +428,6 @@ func TestFrictionRendered(t *testing.T) {
 	}
 	if empty := frictionLog(nil); empty != "" {
 		t.Errorf("no friction events should render nothing, got: %q", empty)
-	}
-}
-
-func TestConfidenceSelfAssessmentRenders(t *testing.T) {
-	evs := []record.Event{
-		{Round: 0, Type: "confidence", SeatID: "blue-synthesize", Payload: record.NewPayload().Set("label", "C1: throughput doubles").Set("grade", "high")},
-		{Round: 1, Type: "confidence", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("label", "C2: latency budget holds").Set("grade", "low")},
-		// A confidence event with no claim label contributes no row (nothing to target).
-		{Round: 1, Type: "confidence", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("grade", "high")},
-		{Round: 1, Type: "mint", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("problem", "not a confidence event")},
-	}
-	got := confidenceSelfAssessment(evs)
-	for _, want := range []string{
-		"## Blue's confidence self-assessment",
-		"not red's audit", "does not feed the risk matrix", // the non-authoritative disclaimer
-		"C1: throughput doubles", "high", "r0",
-		"C2: latency budget holds", "low", "r1",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("confidence self-assessment missing %q:\n%s", want, got)
-		}
-	}
-	// Two labeled claims → exactly two table rows (the label-less event is dropped).
-	if n := strings.Count(got, "| r"); n != 2 {
-		t.Errorf("expected 2 confidence rows, got %d:\n%s", n, got)
-	}
-	if empty := confidenceSelfAssessment(nil); empty != "" {
-		t.Errorf("no confidence events should render nothing, got: %q", empty)
-	}
-}
-
-// The non-authoritative invariant, made structural: blue's confidence surfaces in its OWN
-// section but NEVER inside the risk matrix (which composes from red's gap board alone). This
-// is the guard against a future edit wiring confidence into the graded surface — blue must
-// not grade its own exam.
-func TestConfidenceStaysOutOfTheRiskMatrix(t *testing.T) {
-	runDir := t.TempDir()
-
-	// A real risk: red mints an open gap.
-	if _, _, err := record.RegisterSeat(runDir, "red-merge-r1"); err != nil {
-		t.Fatal(err)
-	}
-	id, err := record.MintGapID(runDir, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := record.Append(runDir, "red-merge-r1", "mint", record.NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("class", "x").Set("likelihood", "high").Set("impact", "high").
-		Set("problem", "the actual risk row")); err != nil {
-		t.Fatal(err)
-	}
-	// Blue self-grades a claim with a distinctive marker label.
-	if _, _, err := record.RegisterSeat(runDir, "blue-respond-r1"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := record.Append(runDir, "blue-respond-r1", "confidence", record.NewPayload().
-		Set("label", "BLUE-SELF-GRADE-MARKER").Set("grade", "high")); err != nil {
-		t.Fatal(err)
-	}
-
-	path, err := Assemble(runDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	full := string(b)
-
-	// The confidence surfaces in its own section...
-	if !strings.Contains(full, "## Blue's confidence self-assessment") || !strings.Contains(full, "BLUE-SELF-GRADE-MARKER") {
-		t.Fatalf("blue's confidence self-assessment missing from the report:\n%s", full)
-	}
-	// ...but the risk matrix carries the gap and NOT the confidence.
-	matrix := section(full, "Risk matrix")
-	if matrix == "" {
-		t.Fatalf("no risk matrix section in the assembled report:\n%s", full)
-	}
-	if !strings.Contains(matrix, "the actual risk row") {
-		t.Errorf("risk matrix lost the real gap:\n%s", matrix)
-	}
-	if strings.Contains(matrix, "BLUE-SELF-GRADE-MARKER") {
-		t.Errorf("NON-AUTHORITATIVE VIOLATION: blue's confidence leaked into the risk matrix:\n%s", matrix)
 	}
 }
 

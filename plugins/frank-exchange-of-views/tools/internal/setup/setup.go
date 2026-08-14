@@ -2,7 +2,7 @@
 // steps 1-3 — into the feov-record binary. It creates the run's blackboard
 // skeleton, pins the evidence base, mirrors red's gap-pattern + law + scorecard
 // memory into inputs/, writes the .run-live marker, and preflights the record
-// binary and qmd. Behaviour is preserved byte-for-byte against the mjs it replaces
+// binary. Behaviour is preserved byte-for-byte against the mjs it replaces
 // (the sole non-deterministic field is the marker's `started` timestamp, and the
 // marker lives outside the run dir).
 //
@@ -22,19 +22,34 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // dirs and stubs mirror the mjs constants exactly. friction.md is deliberately
 // absent (friction lives on the record); ledger/archive/telemetry are red-merge-born.
-var dirs = []string{"blue/candidates", "red", "trajectories", "inputs", "records"}
+//
+// `records` is NOT in this list — it is created at its RESOLVED location by BuildSkeleton,
+// because a separated run must not be handed an empty records/ in the run directory. An empty
+// one is worse than none: it shows up in the seat's listing as the place to look, and it makes
+// the run appear unseparated to anyone reading the tree.
+var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
 
+// A STUB IS A PROMISE THAT SOMETHING WILL FILL IT. Two here were promises nobody kept:
+// `debate.md` and `red/citation-ledger.md` became rendered projections (`show --view debate`,
+// `--view citation-ledger`) and no writer remained, so setup laid down a one-line husk that
+// survived to capture in every run since. Untouched-but-present is the worst state a file can
+// be in — it reads as an empty artifact rather than an absent one, which is how `red/ledger.md`
+// and `red/archive.md` took a capture audit down with them for months (see internal/capture,
+// AUDIT 2). What is listed below is written by something after setup:
+//
+//	report.md          `bench assemble`
+//	blue/report.md     the round-0 synthesizer, then every `blue edit`
+//	blue/CHANGELOG.md  blue, each round (#251 tracks its retirement)
 var stubs = [][2]string{
-	{"debate.md", "debate.md"},
 	{"report.md", "report.md"},
-	{"blue/frontier.md", "blue frontier"},
 	{"blue/report.md", "blue report"},
 	{"blue/CHANGELOG.md", "blue CHANGELOG"},
-	{"red/citation-ledger.md", "red citation-ledger"},
 }
 
 // marshalJSON matches JS `JSON.stringify(x, null, 2) + '\n'`: two-space indent, a
@@ -66,6 +81,11 @@ func BuildSkeleton(runDir, topic string) SkeletonResult {
 	res := SkeletonResult{Created: []string{}, Skipped: []string{}}
 	for _, d := range dirs {
 		os.MkdirAll(filepath.Join(runDir, d), 0o755)
+	}
+	// Resolution failure is not fatal to a skeleton: setup's job is to lay out a directory, and
+	// the first record verb reports an unreachable root far better than a half-built run does.
+	if recDir, err := record.RecordsDir(runDir); err == nil {
+		os.MkdirAll(recDir, 0o755)
 	}
 	for _, s := range stubs {
 		rel, name := s[0], s[1]
@@ -374,10 +394,16 @@ func BuildPatternIndex(memoryDirs []string) PatternIndex {
 
 // ---- pin validation ----
 
-// GitResult mirrors the fields the mjs reads off spawnSync: an exit Status and an Err.
+// GitResult mirrors the fields the mjs reads off spawnSync: an exit Status and an Err,
+// plus the Stdout `rev-parse` needs. Stdout exists so HEAD resolution goes through the SAME
+// injected seam as every other git call — it used to shell out directly, which meant the pin
+// gate could not be reached in a test at all: a temp cwd is not a repo, HEAD came back
+// "unknown", and ValidatePins skipped itself. A gate whose arming depends on ambient state
+// nobody can control is the same defect this file's preflight had.
 type GitResult struct {
 	Status int
 	Err    error
+	Stdout string
 }
 
 // GitFunc runs a git invocation; injectable for tests, defaults to the real git.
@@ -387,7 +413,7 @@ func realGit(cwd string) GitFunc {
 	return func(args []string) GitResult {
 		c := exec.Command("git", args...)
 		c.Dir = cwd
-		err := c.Run()
+		out, err := c.Output()
 		status := 0
 		if err != nil {
 			status = 1
@@ -395,7 +421,7 @@ func realGit(cwd string) GitFunc {
 				status = ee.ExitCode()
 			}
 		}
-		return GitResult{Status: status, Err: nil}
+		return GitResult{Status: status, Err: nil, Stdout: string(out)}
 	}
 }
 
@@ -452,7 +478,7 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 	return p
 }
 
-// ---- purge, preflight, version, qmd ----
+// ---- purge, preflight, version ----
 
 // PurgeStaleMirrors removes checkpoint mirrors older than maxAgeDays (default 30).
 func PurgeStaleMirrors(mirrorRoot string, now time.Time, maxAgeDays int) int {
@@ -478,6 +504,27 @@ func PurgeStaleMirrors(mirrorRoot string, now time.Time, maxAgeDays int) int {
 		}
 	}
 	return purged
+}
+
+// expectedRecordVersion resolves what the binary at recordBin OUGHT to report.
+//
+// THE SECOND HALF OF THE SAME DEFECT. Arming the preflight is not enough if the number it
+// compares against comes from the binary running `setup` — in the documented flow that is the
+// SAME binary the seats will use, so the check reduces to a number compared with itself and
+// passes by construction. That exact failure already shipped once: both sides read 0.1.0 for
+// the whole of 2026-07-19 while the event schema changed underneath (see versionsync_test).
+//
+// The authority is requirements.json sitting beside the binary's plugin root — `bin/` in an
+// installed cache, `tools/` in a dev tree, both one level up. That is the manifest shipped
+// with the PROMPTS this run will drive, which is the thing the binary has to agree with. The
+// compiled-in constant remains the fallback for a binary living outside a plugin layout,
+// where there is no manifest to disagree with.
+func expectedRecordVersion(recordBin, compiledIn string) string {
+	manifest := filepath.Join(filepath.Dir(filepath.Dir(recordBin)), "requirements.json")
+	if v := RecordToolVersion(manifest); v != "" {
+		return v
+	}
+	return compiledIn
 }
 
 // RecordToolVersion reads recordToolVersion from requirements.json (the version authority).
@@ -559,23 +606,6 @@ func PreflightRecordBinary(expectVersion, bin string, run ExecFunc) Preflight {
 	return Preflight{OK: true, Version: got}
 }
 
-// QmdResult reports the qmd recall-index refresh.
-type QmdResult struct {
-	Ran    bool
-	Update bool
-	Embed  bool
-	Reason string
-}
-
-func QmdRefresh(bin string, run ExecFunc) QmdResult {
-	if run(bin, []string{"--version"}).errored() {
-		return QmdResult{Ran: false, Reason: "qmd not installed (optional — doctor installs it)"}
-	}
-	upd := run(bin, []string{"update"})
-	emb := run(bin, []string{"embed"})
-	return QmdResult{Ran: true, Update: !upd.errored(), Embed: !emb.errored()}
-}
-
 func (r ExecResult) errored() bool { return r.Err != nil || r.Status != 0 }
 
 // ---- small helpers ----
@@ -638,5 +668,77 @@ func scorecardFiles(dir string) []string {
 		}
 	}
 	sort.Strings(out)
+	return out
+}
+
+// StageClassRegistry copies the gap class registry into the run, where record.loadRegistry
+// reads it.
+//
+// IT DID NOT EXIST UNTIL 2026-08-07 (#299). `loadRegistry` reads
+// <runDir>/records/class-registry.json; nothing ever wrote that file; so it always returned
+// nil, `validateClass` always took its advisory branch, and `--class` accepted ANY STRING on
+// every run there has ever been.
+//
+// The cost was not a tidy-taxonomy complaint. Delivery of red's accumulated gap patterns is
+// CLASS-INDEXED — the design that replaced whole-corpus staging after run 5 measured that
+// worthless — and with nothing constraining the key, red invented a fresh vocabulary each
+// run. Measured across both record-era runs: 10 and 14 minted classes, and ZERO overlap with
+// the 37 classes the memory corpus is indexed by. The corpus was built, the index was
+// written, and the join has never once delivered a pattern.
+//
+// Staging the file is what makes the key shared. A class not in it is UNDECLARED rather than
+// forbidden: `--class-new` introduces one with its definition, neighbour and distinguisher,
+// which is how the taxonomy is supposed to grow.
+func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
+	src := filepath.Join(repoMemoryDir, "class-registry.json")
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return MirrorResult{Written: false, Reason: "no class-registry.json — `--class` will accept ANY string this run (#299)"}
+	}
+	var reg struct {
+		Classes []struct {
+			Slug string `json:"slug"`
+		} `json:"classes"`
+	}
+	if json.Unmarshal(b, &reg) != nil || len(reg.Classes) == 0 {
+		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — `--class` will accept ANY string this run (#299)"}
+	}
+	// RESOLVED, NOT JOINED — and this is the same bug as the one documented above, one
+	// separation later. `loadRegistry` reads the record directory the RESOLVER returns; a
+	// hard-wired <runDir>/records here would stage the registry where a separated run never
+	// looks, `validateClass` would take its advisory branch again, and `--class` would go back
+	// to accepting any string on exactly the runs the seat probe is built to measure.
+	recDir, err := record.RecordsDir(runDir)
+	if err != nil {
+		return MirrorResult{Written: false, Reason: "cannot resolve the record directory: " + err.Error()}
+	}
+	dst := filepath.Join(recDir, "class-registry.json")
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return MirrorResult{Written: false, Reason: "cannot create the record directory: " + err.Error()}
+	}
+	if err := os.WriteFile(dst, b, 0o644); err != nil {
+		return MirrorResult{Written: false, Reason: "cannot stage the registry: " + err.Error()}
+	}
+	return MirrorResult{Written: true, Files: len(reg.Classes), Sources: 1}
+}
+
+// RegistrySlugs reads the staged registry's slugs, for the memory-join report.
+func RegistrySlugs(repoMemoryDir string) map[string]bool {
+	out := map[string]bool{}
+	b, err := os.ReadFile(filepath.Join(repoMemoryDir, "class-registry.json"))
+	if err != nil {
+		return out
+	}
+	var reg struct {
+		Classes []struct {
+			Slug string `json:"slug"`
+		} `json:"classes"`
+	}
+	if json.Unmarshal(b, &reg) != nil {
+		return out
+	}
+	for _, c := range reg.Classes {
+		out[c.Slug] = true
+	}
 	return out
 }

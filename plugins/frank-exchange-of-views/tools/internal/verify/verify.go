@@ -46,7 +46,35 @@ func Run(b *record.Board) []Check {
 		supersedesResolve(b),
 		passClosesAllGaps(b),
 		registerBeforeAppend(b),
+		archiveSpotCheckFloor(b),
 	}
+}
+
+// archiveSpotCheckFloor: W1.8, enforced at last from the board rather than reported by the seat.
+//
+// The duty was born from a real defect — run 5's round-2 spot-check "had degraded to same-seat
+// self-attestation" — and its fix shipped as an envelope self-report, which was deleted in 2026
+// for comparing numbers the merge made up. Nothing replaced it. The `merge spot-check` verb
+// carried a receipt that NOTHING READ, so the fix for a self-attestation defect was a better
+// place to write the self-attestation.
+//
+// Two teeth, both against replayed state no seat can author: a round that entered with a
+// non-empty archive and recorded no sample, and a round that CLAIMED an empty archive the board
+// says was not empty. The second is the direct heir of the run-5 degeneracy.
+func archiveSpotCheckFloor(b *record.Board) Check {
+	_, debt, falseEmpty := record.SpotCheckAudit(b)
+	var violations []string
+	for _, round := range debt {
+		violations = append(violations, fmt.Sprintf("round %d: the merge sat with archived closures available and recorded no spot-check", round))
+	}
+	for _, sc := range falseEmpty {
+		violations = append(violations, fmt.Sprintf("round %d (%s): discharged with --none (%q) while the board shows %d archived closure(s) at round start",
+			sc.Round, sc.SeatID, sc.NoneReason, sc.Archived))
+	}
+	return result("archive-spot-check-floor",
+		"every round that entered with a non-empty archive sampled it",
+		"the archive spot-check floor was not met — a closure index is only as good as the last time anyone looked, and these rounds did not look",
+		violations)
 }
 
 // Failed returns the checks that did not hold — the exit-code signal for a caller.
@@ -88,7 +116,7 @@ func gapsDisposed(b *record.Board) Check {
 func foundByResolves(b *record.Board) Check {
 	labels := map[string]bool{}
 	for _, e := range b.Events {
-		if e.Type == "finding" || e.Type == "observe" {
+		if e.Type == "finding" {
 			if l := e.Payload.Str("label"); l != "" {
 				labels[l] = true
 			}
@@ -250,7 +278,7 @@ func Compute(b *record.Board) Stats {
 				findingLabels[l] = true
 			}
 		}
-		if e.Type == "cite" {
+		if e.Type == "verify" { // red's verifications only — blue's authored cites are not audit volume (#341)
 			s.Citations++
 		}
 		if gid := e.Payload.Str("gap_id"); gid != "" {

@@ -114,3 +114,43 @@ func TestFrontmatterBoundaries(t *testing.T) {
 		t.Errorf("frontmatter must be at the very start: problems=%v scanned=%v", p, scanned)
 	}
 }
+
+// A CRLF FILE IS A CHECKED FILE. The prefix test was `---\n`, so a file written with CRLF
+// starts `---\r\n`, fails it, and is reported as having no frontmatter — silently skipped
+// rather than flagged, while Claude Code's loader reads it fine.
+//
+// Measured (#323): an edit that rewrote two agent constitutions with CRLF dropped the count
+// from 36 to 34 and the gate EXITED 0. Two constitutions stopped being checked and the run
+// reported success. On Windows the trigger is ordinary — any editor that writes CRLF removes
+// a file from this gate without a word.
+func TestCRLFFrontmatterIsStillChecked(t *testing.T) {
+	valid := "---\r\nname: agent\r\ndescription: does a thing\r\n---\r\n\r\nbody\r\n"
+	problems, scanned := check("plugins/x/agents/a.md", valid)
+	if !scanned {
+		t.Fatal("a CRLF frontmatter block must be SCANNED; skipping it silently is how two constitutions left the count while the gate passed")
+	}
+	if len(problems) > 0 {
+		t.Errorf("a valid CRLF block must not be reported as a problem: %v", problems)
+	}
+
+	// And the defects must still be caught THROUGH the CRLF, not merely tolerated.
+	broken := "---\r\nname: agent\r\ndescription: has skills: embedded unquoted\r\n---\r\n\r\nbody\r\n"
+	if p, _ := check("plugins/x/agents/b.md", broken); len(p) == 0 {
+		t.Error("a CRLF file's defects must be caught too — normalizing line endings must not become a way of skipping the checks")
+	}
+}
+
+// AN AGENT WITH NO BLOCK IS BROKEN, NOT PLAIN. It loads with empty metadata — no name, no
+// tools, no skills — and runs anyway. Absence used to be indistinguishable from a clean board.
+func TestAMandatoryFileWithNoFrontmatterFails(t *testing.T) {
+	for _, f := range []string{"plugins/p/agents/a.md", "plugins/p/commands/c.md"} {
+		if !mustCarryFrontmatter(f) {
+			t.Errorf("%s must be in the mandatory set", f)
+		}
+	}
+	for _, f := range []string{"README.md", "plugins/p/README.md", "plugins/p/skills/s/SKILL.md", "plugins/p/docs/d.md"} {
+		if mustCarryFrontmatter(f) {
+			t.Errorf("%s is ordinary markdown; demanding frontmatter of it would be noise", f)
+		}
+	}
+}

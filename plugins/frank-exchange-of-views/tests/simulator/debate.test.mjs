@@ -59,7 +59,14 @@ test('null judge aborts cleanly instead of TypeError on judge.resolutions', asyn
 // ---- Run-3 docket row 2b + W2i: citation passes rescale every round, on the round's input ----
 
 const lensesByRound = (world, r) => world.calls.filter((c) => c.opts.label.match(new RegExp(`^red-lens-\\d+-r${r} `)))
-const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => c.prompt.includes('CITATION LEDGER'))
+// A CITATION SEAT IS IDENTIFIED BY A PHRASE IN ITS PROMPT, which is a pattern standing in for a
+// schema: reword the clause and every one of these tests reports zero citation seats, which reads
+// exactly like a dispatcher that stopped dispatching them. It broke once already, when the clause
+// was retitled for the evidence view. The field that should carry this is the lens ROLE — 1-4 are
+// the citation slices, 5 logic, 6 risk, and the role is already in the label — so the marker lives
+// here in ONE place until the tests key on the number instead.
+const CITATION_CLAUSE = 'HOW YOU RESOLVE AN ANCHOR'
+const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => c.prompt.includes(CITATION_CLAUSE))
 
 test('citationPasses recompute: round 1 sizes on the corpus, round 2 on the DELTA (W2i)', async () => {
   const world = makeWorld(makeResponder({
@@ -160,17 +167,29 @@ test('lineage: a successor gap with supersedes arms the docket even under a fres
   assert.ok(judgeCalls[0].prompt.includes('"R2-1"'))
 })
 
-test('lineage enforcement: closed_with_regression without a successor naming it throws (R5-5)', async () => {
+// LINEAGE: the guard reads the ENVELOPE, which is a lossy summary of the record — so it reports
+// and continues rather than killing the run. Measured 2026-08-04: red closed R1-1 with regression
+// and correctly minted R2-1 with --supersedes R1-1 ON THE RECORD (the board showed
+// `R2-1 supersedes -> [R1-1]`), then omitted the field from its envelope. The old hard throw
+// discarded a 12-agent, 723k-token run whose lineage was entirely intact. `verify`'s
+// supersedes-resolve checks lineage where the truth lives; this clause only stops the engine
+// trusting the summary over the source.
+test('lineage: an envelope missing supersedes REPORTS and continues — the record is authoritative', async () => {
   const world = makeWorld(makeResponder({
     red: [
       redEnv({ gaps: [gap('R1-1')] }),
       redEnv({
-        gaps: [gap('R2-1')], // fresh id, NO supersedes — the silent-lineage-drop shape
+        gaps: [gap('R2-1')], // fresh id, NO supersedes in the ENVELOPE — the lossy-report shape
         closures: [{ id: 'R1-1', class: 'closed_with_regression' }],
       }),
+      redEnv({ verdict: 'PASS' }),
     ],
   }))
-  await assert.rejects(world.run(script, ARGS), /closed gap R1-1 WITH REGRESSION but no successor gap names it/)
+  const out = await world.run(script, ARGS) // MUST NOT throw — that is the fix
+  assert.ok(
+    out.friction.some((f) => /closed R1-1 WITH REGRESSION and no successor in the ENVELOPE/.test(f)),
+    'the reporting gap is logged as friction so it is still visible',
+  )
 })
 
 test('docket window is the whole debate: an id re-raised after skipping a round still arms the judge', async () => {
@@ -205,9 +224,16 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
-  for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble']) {
+  // THE LENS IS IN THIS LIST NOW. It was the one seat class the clause was never appended to —
+  // found 2026-08-13 when the orphan gate reported `lens friction` as named nowhere a seat reads.
+  // Four lens seats per round were told to close a channel nobody had told them about.
+  for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble', 'red-lens-1-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
-    assert.ok(c.prompt.includes('friction verb') && c.prompt.includes("envelope's friction field"), `${seat} missing friction-report clause (envelope + verb)`)
+    // The COMMAND, not the phrase "friction verb": the clause names `<role> friction` now, so a
+    // seat can run what it is told to run. Asserting the old prose would pass over a clause that
+    // never shows the invocation — which is exactly how these verbs went uninstructed.
+    assert.ok(/\b(lens|merge|blue|bench) friction --none\b/.test(c.prompt) && c.prompt.includes("envelope's friction field"),
+      `${seat} missing friction-report clause (envelope + the role-qualified command)`)
   }
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
   assert.ok(lens.prompt.includes('MUST NOT write to') && lens.prompt.includes('debate.md'), 'lens must be transcript-forbidden')
@@ -373,7 +399,7 @@ test('citation passes scale with claim_count and carry the ledger clause', async
     const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: claims })], red: [redEnv({ verdict: 'PASS' })] }))
     await world.run(script, ARGS)
     const lenses = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
-    for (const c of lenses.slice(0, lenses.length - 2)) assert.ok(c.prompt.includes('CITATION LEDGER'), 'citation lens carries the ledger clause')
+    for (const c of lenses.slice(0, lenses.length - 2)) assert.ok(c.prompt.includes(CITATION_CLAUSE), 'citation lens carries the ledger clause')
     return lenses.length
   }
   assert.equal(await lensCount(10), 1 + 2)   // floor: one citation pass + logic + risk
@@ -408,7 +434,7 @@ test('the merge reads this round\'s findings from the record view, not a candida
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
   assert.ok(merge.prompt.includes('FIRST ACTION'), 'reading findings is the first action')
-  assert.ok(merge.prompt.includes('--view findings'), 'the merge reads the findings view from the record')
+  assert.ok(merge.prompt.includes('show findings'), 'the merge reads the findings view from the record')
   assert.ok(!merge.prompt.includes('red/candidates'), 'the candidate-file cat is retired')
 })
 
@@ -423,7 +449,14 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
   assert.ok(merge.prompt.includes('NEAR-MATCH RULE'), 'near-match forces the archive read before a fresh id (§4.5 cond 3)')
   assert.ok(merge.prompt.includes('drift triggers'), 'volatile-source closures inherit drift re-checks (§4.5 cond 4)')
   const judge = world.calls.find(c => c.opts.label.startsWith('judge'))
-  assert.ok(judge.prompt.includes('--view ledger') && judge.prompt.includes('--view archive') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board via show --view ledger/archive (no materialized-path read)')
+  // `show` became a GROUP: `show ledger`, not `show --view ledger`. A flag's VALUE space has no
+  // --help and no completion of its own, which is the undiscoverability the motion collapse fixed
+  // one layer up. The assertion is on the READ still being pulled through the tool, which is the
+  // property that matters — the spelling changed, the contract did not.
+  // Two tokens, not one phrase: the projection now comes FIRST (`show board --run <dir> --format
+  // markdown`) so the group's subcommand is adjacent to `show`, which is what makes a stale name
+  // catchable. Asserting the contiguous string would have been asserting the argument ORDER.
+  assert.ok(judge.prompt.includes('show board') && judge.prompt.includes('--format markdown') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board through the tool (no materialized-path read); ledger and archive collapsed into board --format markdown')
 })
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
@@ -550,13 +583,13 @@ test('closing arguments: judge sits AFTER blue, both sides file closings, ruling
   assert.ok(judge2.prompt.includes('counts AGAINST the side that made it'), 'overstatement penalty stated to the judge')
   assert.ok(!judge2.prompt.includes('structurally unavailable'), 'dead-options patch removed — full resolution set for all classes')
 })
-test('lane footnote namespaces: every lane prompt assigns a lane-prefixed label convention', async () => {
+test('lanes record source notes as prose and do NOT mint footnote labels (citations are tool-managed at synthesis)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const lanes = world.calls.filter(c => c.opts.label.startsWith('blue-lane'))
   assert.equal(lanes.length, 3)
   for (const [i, c] of lanes.entries()) {
-    assert.ok(c.prompt.includes('FOOTNOTE NAMESPACE') && c.prompt.includes(`[^L${i + 1}`), `lane ${i + 1} prefix`)
+    assert.ok(c.prompt.includes('SOURCE NOTES') && c.prompt.includes('Do NOT mint footnote labels'), `lane ${i + 1} source-note convention`)
   }
 })
 
@@ -572,12 +605,12 @@ test('lens prompts carry harness notes: windowed full read, Grep counts lines, n
   }
 })
 
-test('multi-instance citation slices are assigned footnote-block ownership', async () => {
+test('multi-instance citation slices are assigned citation ownership', async () => {
   const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: 200 })], red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const citation = world.calls.filter(c => c.opts.label.startsWith('red-lens')).slice(0, 4)
   assert.equal(citation.length, 4, 'claim_count 200 scales to 4 citation instances')
-  for (const c of citation) assert.ok(c.prompt.includes('footnote-block ownership follows the slice'))
+  for (const c of citation) assert.ok(c.prompt.includes('citation ownership follows the slice'))
 })
 
 test('claim_count is echoed to the tracked CHANGELOG at synthesis and every blue response', async () => {
@@ -675,24 +708,43 @@ test('W1.6: pinned claim unit reaches synthesis and response prompts', async () 
   await world.run(script, ARGS)
   for (const seat of ['blue-synthesize', 'blue-respond-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
-    assert.ok(c.prompt.includes('CLAIM UNIT') && c.prompt.includes('FOOTNOTED'), `${seat} missing pinned claim unit`)
+    assert.ok(c.prompt.includes('CLAIM UNIT') && c.prompt.includes('CITED'), `${seat} missing pinned claim unit`)
   }
 })
 
-test('W1.7: blue-respond without the round-record attestation aborts with the parity error', async () => {
+// W1.7 + #249: the attestation duty stays; the CONSEQUENCE is recovery, not a dead run. Two
+// consecutive haiku validation runs died on this guard after 16-22 completed agents, so a missed
+// round record must degrade, never discard.
+test('W1.7/#249: blue-respond without the attestation is RE-PROMPTED, then continues with friction', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] })],
-    blueRespond: [blueEnv({ round_record_appended: false })],
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    blueRespond: [blueEnv({ round_record_appended: false })], // the retry re-serves the same false envelope
   }))
-  await assert.rejects(world.run(script, ARGS), /round-parity.*not on the record/)
+  const out = await world.run(script, ARGS) // MUST NOT throw — that is the whole fix
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-respond-r1-round-record')), 'the seat was re-prompted for its round record')
+  assert.ok(out.friction.some((f) => /round-parity.*UNRESOLVED/.test(f)), 'the unresolved parity gap is logged as friction')
 })
 
-test('W1.7: blue-synthesize without the Round 0 CHANGELOG attestation aborts before any red seat spawns', async () => {
+test('W1.7/#249: blue-synthesize without the Round 0 attestation continues — red still audits', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ round_record_appended: false })],
+    red: [redEnv({ verdict: 'PASS' })],
   }))
-  await assert.rejects(world.run(script, ARGS), /round-parity.*Round 0/)
-  assert.ok(!world.calls.some((c) => c.opts.label.startsWith('red-')), 'no red seat dispatched after a desynced synthesis')
+  const out = await world.run(script, ARGS)
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-synthesize-round-record')), 'synthesize was re-prompted')
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('red-')), 'red seats still dispatch — a bookkeeping miss no longer discards the run')
+  assert.ok(out.friction.some((f) => /round-parity.*UNRESOLVED/.test(f)), 'the gap is scored as friction')
+})
+
+test('W1.7/#249: a seat that attests ON THE RETRY continues with NO friction', async () => {
+  const world = makeWorld(makeResponder({
+    // first envelope misses the attestation; the re-prompt returns an attested one
+    blueSynth: [blueEnv({ round_record_appended: false }), blueEnv({ round_record_appended: true })],
+    red: [redEnv({ verdict: 'PASS' })],
+  }))
+  const out = await world.run(script, ARGS)
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-synthesize-round-record')), 'the retry happened')
+  assert.ok(!out.friction.some((f) => /round-parity/.test(f)), 'a recovered attestation logs no parity friction')
 })
 
 test('W1.8: empty spot-checks are EXEMPT when the archive entered the round with zero records (round 1 closed nothing)', async () => {
@@ -733,7 +785,7 @@ test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset
   assert.ok(respond.prompt.includes('PROBE CLASSES') && respond.prompt.includes('deferred acceptance test'), 'respond discharges by class (W1.10)')
   assert.ok(lens.prompt.includes('KNOWN HARNESS LIMIT') && lens.prompt.includes('SANCTIONED fallback'), 'Glob/Grep fallback sanctioned everywhere via speedClause (W1.11)')
   assert.ok(respond.prompt.includes('respond-1-workset'), 'respond FIRST ACTION batches its working set (W1.12)')
-  const citLens = world.calls.filter((c) => c.opts.label.startsWith('red-lens')).find((c) => c.prompt.includes('CITATION LEDGER'))
+  const citLens = world.calls.filter((c) => c.opts.label.startsWith('red-lens')).find((c) => c.prompt.includes(CITATION_CLAUSE))
   assert.ok(citLens && citLens.prompt.includes('VERBATIM READS ONLY') && citLens.prompt.includes('--comments'), 'citation lens carries the verbatim-reads rule (no WebFetch, curl/gh only)')
 })
 
@@ -847,12 +899,42 @@ test('W2c: a petition dispatches a bench sitting BEFORE the next seat; denied ->
 test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbatim to assembly and the envelope', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'the topic requires publishing an exploit chain', relief: 'halt the run' }] })],
-    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'halt', opinion: 'continuing would compromise safety; the human must decide' }] })],
+    // #329: a halt is NOT a ruling value. The petition is ruled on its merits, and the halt
+    // arrives on its own channel — because it is recorded through `bench halt`, whose opinion
+    // reaches the human verbatim. While `halt` sat in the ruling enum, the judge recorded it with
+    // `petition-rule`, the record REFUSED the write, and the engine halted off the envelope with
+    // no halt event anywhere: the report never said the bench halted.
+    petition: [petitionRulingEnv({
+      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', relief: 'the objection is sound' }],
+      halt: { opinion: 'continuing would compromise safety; the human must decide' },
+    })],
   }))
   const result = await world.run(script, { ...ARGS, maxRounds: 5 })
   assert.equal(result.verdict, 'HALTED')
   assert.equal(result.halted, true)
   assert.ok(result.halt_opinion.includes('the human must decide'))
+  // THE SEAT MUST BE TOLD WHICH VERB RECORDS IT. The engine stopping is not the same as the halt
+  // being on the record, and that gap is exactly what #329 was.
+  const sitting = world.calls.find((c) => c.opts.label.startsWith('judge-petition'))
+  assert.ok(!/rule granted[^.]*\| halt/.test(sitting.prompt), 'the prompt must not offer halt as a petition ruling')
+})
+
+// #329 IN RECORD MODE, which is what every real run uses: the sitting must name the verb that
+// actually records a halt. The engine stopping is not the same as the halt being on the record —
+// the prompt used to say "each ruling is recorded via the petition-rule verb" while the record's
+// enum refused `halt`, so the run ended with no halt event and the report never said so.
+test('W2c: the petition sitting names `bench halt` as the halt channel, not petition-rule (#329)', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'b', relief: 'halt the run' }] })],
+    petition: [petitionRulingEnv({
+      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', relief: 'sound' }],
+      halt: { opinion: 'the human must decide' },
+    })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 5, binDir: '/bin' })
+  const sitting = world.calls.find((c) => c.opts.label.startsWith('judge-petition'))
+  assert.ok(sitting.prompt.includes('bench halt'), 'the sitting prompt names the halt verb')
+  assert.ok(sitting.prompt.includes('VERBATIM'), 'and says the opinion reaches the human verbatim')
   assert.ok(!world.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'the round never continued past the halt')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('--as HALTED') && assemble.prompt.includes('terminal halt'), 'the halt is recorded via bench outcome (verdict HALTED) and the tool composes the terminal halt from the record')
@@ -864,7 +946,7 @@ test('W2c: no petitions -> no sitting (zero cost); granted relief binds subseque
   assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge-petition')), 'no petition, no sitting')
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ petitions: [{ class: 'constitutional', basis: 'b', relief: 'narrow the demanded scope' }] })],
-    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'blue-synthesize', class: 'constitutional', ruling: 'granted', opinion: 'scope narrowed to the shipped artifacts' }] })],
+    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'blue-synthesize', class: 'constitutional', ruling: 'granted', relief: 'scope narrowed to the shipped artifacts' }] })],
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   const result = await world.run(script, ARGS)

@@ -13,7 +13,7 @@ func base(typ, except string) *Payload {
 	p := NewPayload()
 	for _, e := range EnumFields[typ] {
 		if e.Key != except && !e.Optional {
-			p.Set(e.Key, e.Values[0])
+			p.Set(e.Key, e.Values[0].Name)
 		}
 	}
 	return p
@@ -38,7 +38,7 @@ func TestEveryClosedSetRefusesWhatIsNotInIt(t *testing.T) {
 				if len(e.Values) == 0 {
 					t.Fatalf("%s declares an empty set — it would refuse everything", typ)
 				}
-				for _, v := range e.Values {
+				for _, v := range Names(e.Values) {
 					if !e.Allows(v) {
 						t.Errorf("declared value %q is not allowed by its own set", v)
 					}
@@ -61,7 +61,7 @@ func TestEveryClosedSetRefusesWhatIsNotInIt(t *testing.T) {
 						}
 					}
 				}
-				for _, junk := range []string{"banana", "", " ", e.Values[0] + "x"} {
+				for _, junk := range []string{"banana", "", " ", Names(e.Values)[0] + "x"} {
 					if err := refuses(junk); err == nil {
 						t.Errorf("checkEnum accepted %q", junk)
 					}
@@ -114,7 +114,7 @@ func TestTheRefusalNamesTheSetAndTheConsequence(t *testing.T) {
 				t.Fatalf("%s.%s accepted junk", typ, e.Key)
 			}
 			msg := err.Error()
-			for _, v := range e.Values {
+			for _, v := range Names(e.Values) {
 				if !strings.Contains(msg, v) {
 					t.Errorf("%s.%s: the refusal does not offer %q: %s", typ, e.Key, v, msg)
 				}
@@ -168,13 +168,32 @@ func TestMustEnumPanicsRatherThanRenderingAnEmptySet(t *testing.T) {
 	_ = MustEnum("verdict", "no-such-key")
 }
 
-// Two verbs carry the SAME set (petition and petition-rule both take a petition class), so
-// they must not drift apart. They are separate entries because the consequence differs —
-// filing under an undefined class vs ruling under one — but the values are one vocabulary.
-func TestVerbsSharingASetAgreeOnIt(t *testing.T) {
-	filed, ruled := MustEnum("petition", "class"), MustEnum("petition-rule", "class")
-	if strings.Join(filed.Values, "|") != strings.Join(ruled.Values, "|") {
-		t.Errorf("petition and petition-rule disagree on the petition classes: %v vs %v — a class a seat can file but the bench cannot rule on is a petition that can never be answered", filed.Values, ruled.Values)
+// THE DUPLICATION THIS TEST GUARDED IS GONE, AND THAT IS WHAT IT NOW ASSERTS.
+//
+// It used to compare `petition.class` against `petition-rule.class` — two declared sets for one
+// vocabulary, kept in step by a test because nothing structural kept them in step. A class a seat
+// could file but the bench could not rule on was a petition that could never be answered.
+//
+// After #344 there is ONE table. The filing and the ruling read `MotionFields["petition"]["class"]`
+// and `MotionVerdicts["petition"]`, each declared once, so the drift is not detected — it is
+// unrepresentable. The test survives inverted: it fails if a second declaration of either
+// vocabulary ever reappears in EnumFields, which is how the duplication would come back.
+func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
+	for _, typ := range []string{"petition", "petition-rule", "dispute", "dispute-respond", "avenue-rule"} {
+		if _, ok := EnumFields[typ]; ok {
+			t.Errorf("EnumFields still declares sets for %q — that event type is retired (#344) and its vocabulary lives in record/motion.go. A second declaration is how the drift this test used to police comes back", typ)
+		}
+	}
+	if len(MotionFields["petition"]["class"]) == 0 {
+		t.Error("MotionFields lost the petition classes — the one source the filing and the ruling both read")
+	}
+	if len(MotionVerdicts["petition"]) == 0 {
+		t.Error("MotionVerdicts lost the petition rulings")
+	}
+	// The four grade axes, likewise: they were declared on `dispute` and read by
+	// `dispute-respond`'s join. One table now.
+	if got := strings.Join(Names(MotionFields["grade"]["dimension"]), "|"); got != "severity|likelihood|impact|complexity_cost" {
+		t.Errorf("the grade dimensions moved or changed: %q — the ruling is matched to the filing on (gap, dimension), so a change here silently unpairs asks from answers", got)
 	}
 }
 
@@ -195,13 +214,47 @@ func TestSameWordCatchesTyposAndNothingWider(t *testing.T) {
 	}
 }
 
-// The open sets stay open. `opinion` and `close` are deliberately NOT in the table
-// (enums.go says why), and a later change that quietly closes them would break legitimate
-// rulings mid-round — the failure this test exists to make loud.
-func TestTheDeliberatelyOpenSetsAreStillOpen(t *testing.T) {
-	for _, typ := range []string{"opinion", "close"} {
-		if _, closed := EnumFields[typ]; closed {
-			t.Errorf("%s has been given a closed set — its help ends in \"...\" by decision, and closing it means a legitimate act failing hard mid-round. If that decision changed, change the comment in enums.go too", typ)
+// THE TWO CLOSURE SETS ARE CLOSED NOW (#342), and this test is the inverse of the one it
+// replaces. That test asserted `opinion` and `close` must have NO closed set, on the reasoning
+// that "closing it means a legitimate act failing hard mid-round" — sound while the candidate
+// words were inconsistent, which enums.go recorded as the blocker.
+//
+// The inconsistency was the thing to fix, and it was worse than the note said: FOUR
+// vocabularies for one concept. Now there is one, so an unrecognized class is a typo rather
+// than a legitimate act the tool has not heard of.
+func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
+	closeSet := EnumFields["close"]
+	opinionSet := EnumFields["opinion"]
+	if len(closeSet) != 1 || len(opinionSet) != 1 {
+		t.Fatal("both closing verbs must declare exactly one closed set")
+	}
+	closes := map[string]bool{}
+	for _, v := range Names(closeSet[0].Values) {
+		closes[v] = true
+	}
+	// Every class red may close with must also be a disposition the bench may rule, or the
+	// two verbs mean different things by the same outcome — which is what #342 removed.
+	for _, v := range Names(opinionSet[0].Values) {
+		if v == DispositionCarried {
+			continue
 		}
+		if !closes[v] {
+			t.Errorf("the bench may rule %q but red cannot close with it — one outcome, two vocabularies again", v)
+		}
+	}
+	for _, v := range closeSet[0].Values {
+		found := false
+		for _, d := range opinionSet[0].Values {
+			if d == v {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("red may close with %q but the bench cannot rule it — one outcome, two vocabularies again", v)
+		}
+	}
+	// `carried` is the ONE word that defers instead of closing, and only the bench has it.
+	if closes[DispositionCarried] {
+		t.Error("`carried` is not a closure — red must not be able to close a gap with it")
 	}
 }

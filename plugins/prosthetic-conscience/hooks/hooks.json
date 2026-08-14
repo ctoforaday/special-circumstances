@@ -15,7 +15,7 @@
     ],
     "PostToolUse": [
       {
-        "_comment": "ONE hook for this event (#201 step 3). The quality gate and the recall index are still separate UNITS with their own packages and tests; they now run in one process over one shared context. Measured (hook-surface-spike.md §4b): the client runs an event's hooks in PARALLEL, so this merge runs its units concurrently simply to MATCH that — parity is the floor. What it buys is what two processes could not share: the payload parsed once, the project root resolved once, ONE writer for the hook log (those two appends were concurrent by design), and a place for expensive reads to be memoised as they arrive. The matcher is the UNION of the units' own, and each unit still checks its own applicability.",
+        "_comment": "ONE hook for this event (#201 step 3). Units keep their own packages and tests and run in one process over one shared context; the recall-index unit was retired with the retrieval layer (2026-08-04), so the quality gate is the one unit today and the fan-in stays for the merge policy, not for a headcount. Measured (hook-surface-spike.md §4b): the client runs an event's hooks in PARALLEL, so this merge runs its units concurrently simply to MATCH that — parity is the floor. What it buys is what separate processes could not share: the payload parsed once, the project root resolved once, ONE writer for the hook log (two appends on one event were concurrent by design), and a place for expensive reads to be memoised as they arrive. The matcher is the UNION of the units' own, and each unit still checks its own applicability.",
         "matcher": "Write|Edit",
         "hooks": [
           {

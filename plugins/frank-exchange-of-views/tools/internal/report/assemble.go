@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -35,6 +36,71 @@ import (
 // Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
 // carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
 // the report from those two — no --inputs, no intermediate round-trip.
+// findingMarker matches the invisible finding-anchor token "<!--fx:f-<id>-->" (slice
+// 1b). It is stripped from the FINAL assembled output — not just blue's lifted content
+// — because a finding's location/reason text can carry the token into the
+// record-derived findings/transcript sections, which a blue-only strip misses.
+var findingMarker = regexp.MustCompile(`<!--fx:[^>]*-->`)
+
+// StripFindingMarkers removes every finding-anchor token from report markdown.
+func StripFindingMarkers(md string) string { return findingMarker.ReplaceAllString(md, "") }
+
+// citeAnchor matches an invisible citation anchor "<!--cite:c-<id>-->" — the tool-inserted
+// immortal marker blue cite splices at a cited sentence. Unlike a finding marker (stripped),
+// a citation is RESOLVED at assembly: rewritten to a visible [^N] and listed in the composed
+// bibliography.
+var citeAnchor = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
+
+// weaveCitations turns the invisible citation layer into a visible one: each "<!--cite:c-…-->"
+// anchor becomes a footnote reference [^N] (N in first-appearance order; a label used twice
+// shares one N), and a "## Bibliography" of "[^N]: <title>. <url> (accessed <date>)" is
+// appended, composed from the cite events. A dangling anchor — one with no source on the
+// record (bijection-impossible under the lockdown, but defended) — becomes an explicit
+// unresolved-citation line rather than a crash or a silent drop. With no citations the report
+// is returned unchanged (no empty bibliography).
+func weaveCitations(md string, sources []record.Source) string {
+	byLabel := map[string]record.Source{}
+	for _, s := range sources {
+		byLabel[s.Label] = s
+	}
+	var order []string
+	num := map[string]int{}
+	body := citeAnchor.ReplaceAllStringFunc(md, func(tok string) string {
+		label := citeAnchor.FindStringSubmatch(tok)[1]
+		n, seen := num[label]
+		if !seen {
+			n = len(order) + 1
+			num[label] = n
+			order = append(order, label)
+		}
+		return fmt.Sprintf("[^%d]", n)
+	})
+	if len(order) == 0 {
+		return body
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimRight(body, "\n"))
+	b.WriteString("\n\n## Bibliography\n\n")
+	for _, label := range order {
+		n := num[label]
+		s, ok := byLabel[label]
+		if !ok {
+			fmt.Fprintf(&b, "[^%d]: _(unresolved citation %s — no source on the record)_\n", n, label)
+			continue
+		}
+		title := strings.TrimSpace(s.Title)
+		if title == "" {
+			title = "_(untitled)_"
+		}
+		accessed := ""
+		if s.AccessDate != "" {
+			accessed = fmt.Sprintf(" (accessed %s)", s.AccessDate)
+		}
+		fmt.Fprintf(&b, "[^%d]: %s. %s%s\n", n, title, s.URL, accessed)
+	}
+	return b.String()
+}
+
 func Assemble(runDir string) (string, error) {
 	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
 
@@ -60,8 +126,8 @@ func Assemble(runDir string) (string, error) {
 
 	// Tool-composed from the record.
 	p(riskMatrix(bj))
-	p(avenues(evs, "The expansions", accepted))
-	p(avenues(evs, "Alternatives considered", rejected))
+	p(avenues(board, "The expansions", accepted))
+	p(avenues(board, "Alternatives considered", rejected))
 	p(sectionOr(blue, "Open questions"))
 	// The embed carries ONLY blue content not already composed above — its lifted synthesis
 	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
@@ -71,17 +137,45 @@ func Assemble(runDir string) (string, error) {
 	}
 	p(redFindings(board))
 	p(debate(evs))
-	if c := confidenceSelfAssessment(evs); c != "" {
-		p(c)
+	// Every adjudicated exchange, joined on its id (#344). Reads through the dual-read, so a
+	// pre-collapse record renders here from its old vocabulary rather than silently as nothing.
+	if m := motions(board); m != "" {
+		p(m)
 	}
 	if f := frictionLog(evs); f != "" {
 		p(f)
+	}
+	if w := withdrawnClaims(evs); w != "" {
+		p(w)
 	}
 	if r := revisionHistory(evs); r != "" {
 		p(r)
 	}
 
-	out := collapseBlanks(b.String())
+	// Strip finding-markers from the WHOLE composed report, not just blue's lifted
+	// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
+	// the record-derived findings/transcript sections, and only a final-output strip
+	// catches those. No raw marker ships (the leak fix).
+	out := StripFindingMarkers(collapseBlanks(b.String()))
+
+	// Resolve the citation layer: rewrite every "<!--cite:c-…-->" anchor to a visible [^N]
+	// and append the composed "## Bibliography" from the cite events. Findings are STRIPPED,
+	// citations are RESOLVED — orthogonal passes over the same document, strip first.
+	sources, err := record.CitedSources(runDir)
+	if err != nil {
+		return "", fmt.Errorf("assemble: cited sources: %w", err)
+	}
+	out = collapseBlanks(weaveCitations(out, sources))
+
+	// Resolve the PROOF layer the same way (#277). Without this pass the anchor shipped RAW
+	// into the deliverable and the computation appeared nowhere in it — the evidence existed
+	// on the record, in the cache and to the auditor, and was invisible to the reader.
+	proofs, err := record.RecordedProofs(runDir)
+	if err != nil {
+		return "", fmt.Errorf("assemble: recorded proofs: %w", err)
+	}
+	out = collapseBlanks(weaveProofs(runDir, out, proofs))
+
 	path := filepath.Join(runDir, "report.md")
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.md: %w", err)
@@ -99,22 +193,28 @@ func readOr(path, fallback string) string {
 
 // blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
 // synthesis surfaces are dropped (they appear at the top), and the sections blue must never
-// author — the risk matrix, red findings, the debate, a verdict — are dropped as fabrication
-// (the tool composes those from the record; blue cannot know red's findings or the run's
-// outcome). What survives is genuinely ADDITIONAL blue content — including blue's Footnotes,
-// its citation apparatus, which the tool does not yet compose a bibliography for, so they are
-// KEPT here rather than lost. Empty output means blue authored only what it should; the caller
-// then omits the embed entirely rather than lift-AND-embed the same sections twice.
+// author — the risk matrix, red findings, the debate, a verdict, and now the footnotes /
+// bibliography — are dropped as fabrication (the tool composes those from the record; blue
+// cannot know red's findings or the run's outcome, and citations are tool-managed, woven from
+// the cite events at assembly). What survives is genuinely ADDITIONAL blue content. Empty
+// output means blue authored only what it should; the caller then omits the embed entirely
+// rather than lift-AND-embed the same sections twice.
 func blueEmbed(blue string) string {
 	drop := map[string]bool{
 		// lifted to the top verbatim
 		"tl;dr": true, "the catechism": true, "technical foundations": true,
 		"analysis": true, "open questions": true,
-		// tool-owned — composed from the record, never blue's to author. NOTE: footnotes are
-		// NOT here — they are blue's own citations and nothing else composes them yet.
+		// tool-owned — composed from the record, never blue's to author. Footnotes /
+		// bibliography are now tool-composed too (woven from the cite events), so a
+		// blue-authored one is dropped rather than shipped alongside the composed one.
 		"risk matrix": true, "the expansions": true, "expansions": true,
 		"alternatives considered": true, "red team findings": true,
 		"the debate": true, "blue team report": true, "verdict": true,
+		"footnotes": true, "bibliography": true,
+		// Composed from the retire events. A blue-authored one would be a SECOND account of
+		// what left the report, written by the party that removed it — the record already
+		// carries the claim, the reason and the successor, checked at the write.
+		"claims withdrawn": true,
 	}
 	var out []string
 	fence, keep, inPreamble := false, false, true
@@ -227,11 +327,16 @@ func verdictStamp(o *record.Payload) string {
 	if o == nil {
 		return "**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_"
 	}
+	// EVERY branch carries the basis. The first cut appended it only to the default arm, so
+	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
+	// exactly that, because a ceiling termination IS derived (rounds against the configured
+	// ceiling) and is the most common way a run ends.
+	basis := basisNote(o.Str("verdict_basis")) + verdictWhy(o)
 	switch o.Str("verdict") {
 	case "CEILING":
-		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run." + basis
 	case "HALTED":
-		return "**Verdict:** HALTED — the bench ended this run. The halt opinion is on the record below (Bench disposition) and is relayed to the human verbatim, never smoothed."
+		return "**Verdict:** HALTED — the bench ended this run. The halt opinion is on the record below (Bench disposition) and is relayed to the human verbatim, never smoothed." + basis
 	default:
 		by := ""
 		switch {
@@ -240,7 +345,44 @@ func verdictStamp(o *record.Payload) string {
 		case payloadBool(o, "exhausted"):
 			by = " by safety ceiling"
 		}
-		return fmt.Sprintf("**Verdict:** %s%s", o.Str("verdict"), by)
+		return fmt.Sprintf("**Verdict:** %s%s%s", o.Str("verdict"), by, basis)
+	}
+}
+
+// verdictWhy carries the DERIVATION'S OWN REASONING and, on a deadlock, the bench's.
+//
+// The derivation computed a `why` on every call — "the merge recorded a PASS verdict", "the
+// record reaches round 3 against a ceiling of 3" — and used it only to phrase an error, so the
+// report could stamp a verdict and never say why it was that one. A judged deadlock is the
+// opposite case and had no account at all: it is the ONE terminal verdict the record cannot
+// derive (#289), so the bench's --reason is the only evidence it will ever have.
+func verdictWhy(o *record.Payload) string {
+	out := ""
+	if why := strings.TrimSpace(o.Str("verdict_why")); why != "" {
+		out += " (" + why + ")"
+	}
+	if r := strings.TrimSpace(o.Str("prose")); r != "" {
+		out += "\n\n> **The deadlock, in the bench's words:** " + r
+	}
+	return out
+}
+
+// basisNote spells out how a verdict came to be — DERIVED from the record, or ASSERTED by the
+// bench and cross-checked against nothing.
+//
+// The field exists because a seat asked to self-report reports the flattering value, and the
+// verdict is the single most consequential such report in the run. It gated the write (`bench
+// outcome --as` is refused when it contradicts the record) and then reached the reader as the
+// bare word "VERIFIED" — which is exactly the same word an unbacked assertion produces. The
+// distinction the field was built to preserve survived every stage except the one that mattered.
+func basisNote(basis string) string {
+	switch basis {
+	case record.VerdictDerived:
+		return " — **derived from the record**, not claimed: the events themselves decide this verdict, and `bench outcome` refuses an `--as` that contradicts them."
+	case record.VerdictAsserted:
+		return " — **asserted by the bench.** The record could not derive this verdict, so it rests on the bench's judgement rather than on the events; read it as an opinion with authority, not as a mechanical result."
+	default:
+		return ""
 	}
 }
 
@@ -337,37 +479,108 @@ func concise(s string) string {
 	return s
 }
 
-// avenue fate: the user's mapping — an avenue PURSUED is a concept expansion accepted; an
-// avenue abandoned or declined is an alternative considered, its reason the counter.
+// avenue fate: the user's mapping — an avenue PURSUED is a concept expansion accepted;
+// anything else is an alternative considered, its reason the counter.
+//
+// `rejected` is the COMPLEMENT of `pursued`, not a list. It used to be {abandoned, declined},
+// which left `proposed` and `deferred` matching NEITHER predicate: an avenue blue put forward
+// and never resolved, and one it explicitly kept for a later run, both vanished from the report
+// entirely. That is the exact failure the status enum's own Why warns about ("it silently
+// vanishes from the section that exists to show the roads not taken") — the enum was complete
+// and the reader's two buckets did not cover it. A complement cannot develop that hole again
+// when a sixth status is added.
 func accepted(status string) bool { return status == "pursued" }
-func rejected(status string) bool { return status == "abandoned" || status == "declined" }
+func rejected(status string) bool { return !accepted(status) }
 
-// avenues renders the avenue events whose status matches want, under the given heading.
-func avenues(evs []record.Event, heading string, want func(string) bool) string {
+// avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
+// avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
+// line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
+// and as an alternative to itself.
+//
+// Each row now carries what the reader needed to judge the choice and could not see: the
+// history that produced the status, RED'S RULING on the direction, and — when blue moved a line
+// red ruled out-of-scope or too-thin — the fact that it did so against that ruling. Red's ruling
+// is an argument, not a command, so blue may pursue anyway; the disagreement is the substance,
+// and until now the report showed the line with no trace that anyone had contested it.
+func avenues(board *record.Board, heading string, want func(string) bool) string {
 	var rows []string
-	for _, e := range evs {
-		if e.Type != "avenue" || !want(e.Payload.Str("status")) {
+	for _, a := range record.Avenues(board) {
+		if !want(a.Status) {
 			continue
 		}
 		method := ""
-		if m := e.Payload.Str("method"); m != "" {
-			method = fmt.Sprintf(" _(%s)_", m)
+		if a.Method != "" {
+			method = fmt.Sprintf(" _(%s)_", a.Method)
 		}
 		reason := ""
-		if r := e.Payload.Str("reason"); r != "" {
-			reason = " — " + r
+		if a.Reason != "" {
+			reason = " — " + a.Reason
 		}
 		status := ""
-		if s := e.Payload.Str("status"); s != "pursued" {
-			status = fmt.Sprintf(" [%s]", s) // abandoned vs declined is the shape of the counter
+		if !accepted(a.Status) {
+			status = fmt.Sprintf(" [%s]", a.Status) // abandoned vs declined vs deferred is the shape of the counter
 		}
-		rows = append(rows, fmt.Sprintf("- **%s**%s%s%s (%s)", e.Payload.Str("line"), method, status, reason, e.SeatID))
+		row := fmt.Sprintf("- **%s**%s%s%s (%s)", a.Line, method, status, reason, a.SeatID)
+		if len(a.History) > 1 {
+			row += fmt.Sprintf("\n  - history: %s", strings.Join(a.History, " → "))
+		}
+		if a.Ruling != "" {
+			ruled := fmt.Sprintf("\n  - red ruled **%s** (r%d)", a.Ruling, a.RuledRound)
+			if a.RulingWhy != "" {
+				ruled += " — " + a.RulingWhy
+			}
+			row += ruled
+		}
+		if a.Contests != "" {
+			row += fmt.Sprintf("\n  - **blue took this line against red's `%s` ruling.** A ruling is an argument, not a command; the disagreement stands on the record.", a.Contests)
+		}
+		rows = append(rows, row)
 	}
 	body := "_(none on the record)_"
 	if len(rows) > 0 {
 		body = strings.Join(rows, "\n")
 	}
 	return "## " + heading + "\n\n" + body
+}
+
+// withdrawnClaims renders the claims blue REMOVED from the report, from the retire events.
+//
+// Substance leaves the report only through `blue retire`, which names the claim as it stood,
+// why it went, and what replaced it — and the reader of the finished report saw none of it. A
+// claim that was argued, weighed and then withdrawn is part of what the debate decided; dropping
+// it makes the report indistinguishable from one where the claim was never made.
+func withdrawnClaims(evs []record.Event) string {
+	var rows []string
+	for _, e := range evs {
+		if e.Type != "retire" {
+			continue
+		}
+		claim := strings.TrimSpace(e.Payload.Str("claim"))
+		if claim == "" {
+			continue
+		}
+		row := fmt.Sprintf("- **%s** — %s (%s, r%d)", concise(claim), e.Payload.Str("reason"), e.SeatID, e.Round)
+		if s := e.Payload.Str("superseded_by"); s != "" {
+			row += "\n  - superseded by: " + s
+		}
+		// A PHANTOM RETIREMENT IS WORSE THAN USELESS, and only the basis distinguishes one.
+		// The scorecard's additive-integrity detector computes unrecorded_claim_loss as the
+		// drop in claim_count MINUS the retire events, so a retirement of a claim that was
+		// never in the report subtracts from the accounted side and CANCELS real loss —
+		// blinding the one detector built to catch silent deletion. The field records whether
+		// the record can actually show the claim leaving; the reader could not see which.
+		switch e.Payload.Str("removal_basis") {
+		case record.RemovalVerified:
+			row += "\n  - basis: **verified** — the claim appears in the old span of a recorded edit, so the record shows it leaving."
+		case record.RemovalAsserted:
+			row += "\n  - basis: **asserted** — the claim is absent now, but nothing on the record shows it was ever present. Honest for a round-0 claim written and rewritten in one sitting; indistinguishable, here, from a retirement of something that never existed."
+		}
+		rows = append(rows, row)
+	}
+	if len(rows) == 0 {
+		return ""
+	}
+	return "## Claims withdrawn\n\n_Substance leaves this report only through the `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
 // redFindings composes the full findings from the board's gaps: every open gap with its
@@ -381,22 +594,20 @@ func redFindings(board *record.Board) string {
 			continue
 		}
 		if g.Open {
-			regraded := ""
-			if n := len(g.Regrades); n > 0 {
-				regraded = fmt.Sprintf(" · regraded x%d (latest basis: %s)", n, g.Regrades[n-1].Str("basis"))
-			}
+			regraded := regradeHistory(g)
 			// Provenance: which lens findings surfaced this gap. The findings are on the
 			// record now (not candidate files), so found_by names real, verifiable labels.
 			foundBy := ""
 			if fb := g.Mint.StrList("found_by"); len(fb) > 0 {
 				foundBy = "\nsurfaced by: " + strings.Join(fb, ", ")
 			}
-			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s%s",
+			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s%s\nacceptance_check: %s%s",
 				g.ID, g.Mint.Str("problem"),
 				g.Mint.Str("location"),
 				grade(g.Severity), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), grade(g.Mint.Str("class")),
 				regraded,
 				g.Mint.Str("required_fix"),
+				fixProposal(g.Mint),
 				g.Mint.Str("acceptance_check"),
 				foundBy))
 		} else {
@@ -408,7 +619,7 @@ func redFindings(board *record.Board) string {
 			if succ == "" {
 				succ = "-"
 			}
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s", g.ID, cc, g.Mint.Str("problem"), succ))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s", g.ID, cc, g.Mint.Str("problem"), succ, regradeHistory(g)))
 		}
 	}
 	var b strings.Builder
@@ -434,7 +645,159 @@ func redFindings(board *record.Board) string {
 	if un := unmintedFindings(board); un != "" {
 		fmt.Fprintf(&b, "\n\n%s", un)
 	}
+	if sc := archiveSpotChecks(board); sc != "" {
+		fmt.Fprintf(&b, "\n\n%s", sc)
+	}
+	if cm := correctnessManifest(board); cm != "" {
+		fmt.Fprintf(&b, "\n\n%s", cm)
+	}
 	return b.String()
+}
+
+// correctnessManifest renders blue's self-audit receipts — one row per repaired gap, saying what
+// blue checked and what checking it showed.
+//
+// "An unmanifested repair is unchecked by blue's OWN standard, which is a stronger thing to be
+// able to say than 'we think it was checked'." That is the verb's own justification, and until
+// now nobody could say it: the manifest was scored from a transient envelope and the receipt on
+// the record reached no reader. A repair claimed as done and a repair audited by the party that
+// made it are different things, and only this section shows which one a closure was.
+//
+// A repaired gap with NO row is named rather than omitted. An absent receipt is the finding.
+func correctnessManifest(board *record.Board) string {
+	type row struct {
+		gapID, text, seat string
+		round             int
+	}
+	var rows []row
+	manifested := map[string]bool{}
+	for _, e := range board.Events {
+		if e.Type != "manifest-row" {
+			continue
+		}
+		text := strings.TrimSpace(e.Payload.Str("row"))
+		if text == "" {
+			continue
+		}
+		id := e.Payload.Str("gap_id")
+		manifested[id] = true
+		rows = append(rows, row{id, text, e.SeatID, e.Round})
+	}
+	// Every gap blue actually repaired: one the record shows CLOSED. A closure with no manifest
+	// row is a repair nobody audited, including its author.
+	var unmanifested []string
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g != nil && g.HasClosed && !manifested[id] {
+			unmanifested = append(unmanifested, id)
+		}
+	}
+	if len(rows) == 0 && len(unmanifested) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", len(rows))
+	b.WriteString("Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than \"we think it was checked\".\n\n")
+	for _, r := range rows {
+		fmt.Fprintf(&b, "- **%s** (%s, r%d): %s\n", r.gapID, r.seat, r.round, r.text)
+	}
+	if len(unmanifested) > 0 {
+		fmt.Fprintf(&b, "\n**%d closed gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
+			len(unmanifested), strings.Join(unmanifested, ", "))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// archiveSpotChecks renders red's re-verification of its own closure archive — which closures it
+// re-read each round, what that found, and any round that owed a sample and did not take one.
+//
+// The closure index is the report's claim that a gap was dealt with, and it is only as good as
+// the last time anyone looked. Red looked, recorded which closures it re-read, and the reader was
+// never told — the receipt sat on the record with no consumer at all. The DEBT is rendered beside
+// the discharges rather than left to the exit code, because a reader deciding how much to trust
+// the closure index needs to know which rounds checked it and which did not.
+func archiveSpotChecks(board *record.Board) string {
+	checks, debt, falseEmpty := record.SpotCheckAudit(board)
+	if len(checks) == 0 && len(debt) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "### Archive spot-checks (%d)\n\n", len(checks))
+	b.WriteString("Red re-reading its own closure record. A closure index is only as good as the last time anyone looked; these are the rounds that looked.\n\n")
+	for _, sc := range checks {
+		b.WriteString("- " + sc.Describe() + "\n")
+	}
+	for _, sc := range falseEmpty {
+		fmt.Fprintf(&b, "- **r%d claimed there was nothing to sample, and the board shows %d archived closure(s) at that round's start.** The claim does not survive the record.\n", sc.Round, sc.Archived)
+	}
+	if len(debt) > 0 {
+		fmt.Fprintf(&b, "\n**%d round(s) entered with a non-empty archive and sampled none of it", len(debt))
+		var rs []string
+		for _, r := range debt {
+			rs = append(rs, fmt.Sprintf("r%d", r))
+		}
+		fmt.Fprintf(&b, " (%s).** Those closures went un-re-examined; weigh the closure index accordingly.\n", strings.Join(rs, ", "))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// fixProposal renders how a gap's required_fix was arrived at, and — where red stated one — the
+// concrete span-and-replacement that goes with it.
+//
+// `fix_basis` is DERIVED at the mint, never claimed: it reads `verified` only when red supplied
+// both --fix-old and --fix-new and the tool validated that span against the live report. That
+// validation is a forced re-read, and it exists because all three of one smoke's round-2 gaps
+// were contradictions between blue's new text and text red had never re-read before prescribing.
+//
+// The field gated the estoppel machinery and reached the reader as nothing at all, so a demand
+// red had checked against the document read identically to one written from memory of what the
+// document probably said. That is the whole difference the axis was built to record.
+func fixProposal(mint *record.Payload) string {
+	if mint == nil {
+		return ""
+	}
+	switch mint.Str("fix_basis") {
+	case "verified":
+		s := "\nfix_basis: **verified** — red stated an exact replacement and the tool checked the span against the live report, so this demand was written with the text in front of it."
+		if old, nw := mint.Str("fix_old"), mint.Str("fix_new"); old != "" && nw != "" {
+			s += fmt.Sprintf("\n  - replace: %q\n  - with: %q", old, nw)
+		}
+		return s
+	case "proposed":
+		return "\nfix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text."
+	default:
+		return ""
+	}
+}
+
+// regradeHistory renders EVERY grade movement on a gap with the reason given for it, or "" if
+// the gap was never regraded.
+//
+// It used to render a count and the LATEST basis, on OPEN gaps only. Two ways a stated reason
+// was lost: an earlier regrade's basis was overwritten in the display by a later one, and a gap
+// that closed dropped its whole regrade history — so a grade argued down over three rounds and
+// then closed showed the reader no argument at all. A regrade is red revising its own assessment,
+// usually because blue disputed it; the dispute renders, and the reasoning that answered it did
+// not.
+func regradeHistory(g *record.Gap) string {
+	if len(g.Regrades) == 0 {
+		return ""
+	}
+	var rows []string
+	for _, r := range g.Regrades {
+		var axes []string
+		for _, axis := range []string{"severity", "likelihood", "impact", "complexity_cost"} {
+			if v := r.Str(axis); v != "" {
+				axes = append(axes, axis+" → "+v)
+			}
+		}
+		moved := strings.Join(axes, ", ")
+		if moved == "" {
+			moved = "regraded"
+		}
+		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, r.Str("basis")))
+	}
+	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
 
 // unmintedFindings renders the lens findings whose label is credited by NO gap's found_by, or
@@ -466,6 +829,11 @@ func unmintedFindings(board *record.Board) string {
 		if loc != "" {
 			loc = " — " + loc
 		}
+		// A finding is addressed by COALESCENCE and nothing else now (#327): its label named in
+		// some gap's found_by. The `dispose` path that could give it an explicit fate is retired,
+		// so a finding reaching this section means exactly one thing — the merge weighed it and
+		// did not mint it — and the section says so rather than distinguishing two ways of not
+		// being minted.
 		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s\n%s",
 			head, loc,
 			grade(e.Payload.Str("severity")), grade(e.Payload.Str("likelihood")), grade(e.Payload.Str("impact")),
@@ -499,13 +867,13 @@ func debate(evs []record.Event) string {
 		var round []string
 		for _, e := range re {
 			switch {
-			case e.Type == "position" && strings.HasPrefix(e.SeatID, "red-merge"):
+			case e.Type == "position" && record.PartyOf(e) == "merge":
 				round = append(round, "### RED\n"+e.Payload.Str("text"))
-			case e.Type == "closing" && strings.HasPrefix(e.SeatID, "red-merge"):
+			case e.Type == "closing" && record.PartyOf(e) == "merge":
 				round = append(round, fmt.Sprintf("### RED CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
-			case e.Type == "position" && strings.HasPrefix(e.SeatID, "blue"):
+			case e.Type == "position" && record.PartyOf(e) == "blue":
 				round = append(round, "### BLUE\n"+e.Payload.Str("text"))
-			case e.Type == "closing" && strings.HasPrefix(e.SeatID, "blue"):
+			case e.Type == "closing" && record.PartyOf(e) == "blue":
 				round = append(round, fmt.Sprintf("### BLUE CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
 			}
 		}
@@ -522,17 +890,47 @@ func debate(evs []record.Event) string {
 		if len(disp) > 0 {
 			round = append(round, "### Grade disputes\n"+strings.Join(disp, "\n"))
 		}
-		// The bench's in-round acts: opinions and petition rulings.
-		var lead []string
+		// PETITIONS: the filing AND the ruling, in event order, in one block.
+		//
+		// The report used to render the ruling alone — "petition red-merge: granted — <opinion>"
+		// — so the reader got the bench's answer with no question attached. A petition is the one
+		// channel a seat has for an ethical, safety, integrity or constitutional objection; the
+		// relief it sought and the basis it argued are the substance, and the ruling is only
+		// meaningful against them.
+		//
+		// The two are NOT joined into a single row. `petition-rule` carries the petitioner and
+		// the class but no petition id (#312), so pairing two filings by the same seat in one
+		// round would be a guess. They are rendered in the order they happened, which is a fact,
+		// and the run-level count check below says plainly if a filing went unanswered.
+		var pets []string
 		for _, e := range re {
 			switch e.Type {
-			case "opinion":
-				lead = append(lead, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
-					e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
-					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("rationale")))
+			case "petition":
+				class := e.Payload.Str("class")
+				if class != "" {
+					class = " (" + class + ")"
+				}
+				row := fmt.Sprintf("- **%s petitions the bench%s**: %s", e.SeatID, class, e.Payload.Str("basis"))
+				if r := e.Payload.Str("relief"); r != "" {
+					row += "\n  - relief sought: " + r
+				}
+				pets = append(pets, row)
 			case "petition-rule":
-				lead = append(lead, fmt.Sprintf("- petition %s: %s — %s", e.Payload.Str("petitioner"), e.Payload.Str("ruling"), e.Payload.Str("opinion")))
+				pets = append(pets, fmt.Sprintf("- ruled **%s** on %s's petition — %s", e.Payload.Str("ruling"), e.Payload.Str("petitioner"), e.Payload.Str("opinion")))
 			}
+		}
+		if len(pets) > 0 {
+			round = append(round, "### Petitions\n"+strings.Join(pets, "\n"))
+		}
+		// The bench's in-round acts: opinions on the docket.
+		var lead []string
+		for _, e := range re {
+			if e.Type != "opinion" {
+				continue
+			}
+			lead = append(lead, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
+				e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
+				e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("rationale")))
 		}
 		if len(lead) > 0 {
 			round = append(round, "### LEAD\n"+strings.Join(lead, "\n"))
@@ -544,13 +942,27 @@ func debate(evs []record.Event) string {
 
 	// Terminal bench disposition: halt and certify are run-level, not a round's.
 	var disp []string
+	filed, ruled := 0, 0
 	for _, e := range evs {
 		switch e.Type {
 		case "halt":
 			disp = append(disp, "**HALT** — "+e.Payload.Str("opinion"))
 		case "certify":
 			disp = append(disp, "**Certification** — "+e.Payload.Str("statement"))
+		case "petition":
+			filed++
+		case "petition-rule":
+			ruled++
 		}
+	}
+	// AN UNANSWERED PETITION IS THE LOUD CASE. A petition is a seat's channel for an ethical,
+	// safety, integrity or constitutional objection, and the engine routes it to a bench sitting
+	// BEFORE the debate continues — so a filing with no ruling means that sitting did not happen.
+	// Counted rather than joined (see the Petitions block above): the count is sound where the
+	// pairing is not, and reporting nothing would make the failure indistinguishable from a run
+	// that had no petitions at all.
+	if filed > ruled {
+		disp = append(disp, fmt.Sprintf("**%d petition(s) received no ruling on the record.** A petition is heard before the debate continues; a filing with no ruling means that sitting is missing, not that the objection was withdrawn.", filed-ruled))
 	}
 
 	var b strings.Builder
@@ -566,53 +978,44 @@ func debate(evs []record.Event) string {
 	return b.String()
 }
 
-// confidenceSelfAssessment renders blue's per-claim confidence — its OWN calibration, NOT red's
-// audit. Surfaced NON-AUTHORITATIVELY: kept out of the risk matrix (which composes from red's gap
-// board alone), placed with the debate, and labeled as blue's self-grade so no reader mistakes it
-// for red's verdict. Its use is targeting (where blue is sure vs. soft) and calibration (the gap
-// between stated confidence and survival under audit is the measurement). Empty when blue graded
-// nothing — the section is then omitted rather than shown empty.
-func confidenceSelfAssessment(evs []record.Event) string {
-	var rows []string
-	for _, e := range evs {
-		if e.Type != "confidence" {
-			continue
-		}
-		claim := e.Payload.Str("label")
-		if strings.TrimSpace(claim) == "" {
-			continue
-		}
-		rows = append(rows, fmt.Sprintf("| %s | %s | r%d |", cell(concise(claim)), grade(e.Payload.Str("grade")), e.Round))
-	}
-	if len(rows) == 0 {
-		return ""
-	}
-	var b strings.Builder
-	b.WriteString("## Blue's confidence self-assessment\n\n")
-	b.WriteString("_Blue's OWN calibration, not red's audit — a non-authoritative signal that sets no grade and does not feed the risk matrix above. Read it as where blue is sure and where it is not; the gap between a stated confidence and its survival under red's audit is the calibration measure._\n\n")
-	b.WriteString("| Claim | Blue's confidence | Round |\n|---|---|---|\n")
-	b.WriteString(strings.Join(rows, "\n"))
-	return b.String()
-}
-
 // frictionLog surfaces the tooling gaps the seats hit — friction events, recorded through the
 // friction verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A
 // missing capability the run hit is a finding about the tooling; surfacing it is how it reaches
 // the human who can retool the seat, instead of dying on an unread channel.
 func frictionLog(evs []record.Event) string {
-	var rows []string
+	var rows, attested []string
 	for _, e := range evs {
-		if e.Type != "friction" {
+		t := strings.TrimSpace(e.Payload.Str("text"))
+		if t == "" {
 			continue
 		}
-		if t := strings.TrimSpace(e.Payload.Str("text")); t != "" {
+		switch e.Type {
+		case "friction":
 			rows = append(rows, fmt.Sprintf("- **%s**: %s", e.SeatID, t))
+		case "friction-none":
+			attested = append(attested, fmt.Sprintf("- **%s**: %s", e.SeatID, t))
 		}
 	}
-	if len(rows) == 0 {
+	if len(rows) == 0 && len(attested) == 0 {
 		return ""
 	}
-	return "## Friction (tooling gaps the run hit)\n\n" + strings.Join(rows, "\n")
+	out := "## Friction (tooling gaps the run hit)\n\n"
+	if len(rows) > 0 {
+		out += strings.Join(rows, "\n") + "\n"
+	} else {
+		out += "No capability gap was reported.\n"
+	}
+	// THE ATTESTATIONS BELONG BESIDE THE COMPLAINTS, and that is the whole point of recording
+	// them. "No friction this run" is worth nothing alone: it reads identically whether the seats
+	// looked and found none or never used the channel, and across eighteen recorded sittings it
+	// was the second every time. A named seat saying what it reached for turns the zero into a
+	// statement someone can be wrong about.
+	if len(attested) > 0 {
+		out += "\n### Seats that reported nothing blocked them\n\n" + strings.Join(attested, "\n") + "\n"
+	} else if len(rows) > 0 {
+		out += "\nNo seat closed the channel explicitly, so the list above is what was volunteered rather than what was met.\n"
+	}
+	return strings.TrimRight(out, "\n")
 }
 
 // revisionHistory is blue's per-round revision record (the CHANGELOG) folded into the report as

@@ -15,14 +15,13 @@ const role = "bench"
 
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
-		"the bench — opinions, petition rulings, halt, certification. Never originates.",
-		seat.Register("FIRST ACTION at the sitting: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
+		"the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.",
+		seat.Register("FIRST ACTION at the sitting: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
 		newOpinion(),
-		newPetitionRule(),
 		newHalt(),
 		newCertify(),
 		newOutcome(),
 		newAssemble(),
-		seat.Friction("attributed friction (the bench seats had no event path before — the abort-surviving copy): --reason"),
+		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),
 	)
 }

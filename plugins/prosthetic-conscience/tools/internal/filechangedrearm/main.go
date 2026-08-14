@@ -164,12 +164,37 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 	checks := checkpoint.ParseValidationLoop(loop)
+
+	// A malformed entry costs a re-arm that never happens, and this hook is where that
+	// cost lands (#219). Until now only sc-checkpoint-restore said anything, once, at
+	// session start — so an entry that opens no check was silent for the whole session
+	// it was actually failing in.
+	problems := checkpoint.LoopProblems(loop)
+
 	if len(checks) == 0 {
+		// The severe case: the note carries a loop a reader would count and the parser
+		// opens nothing from. No file change re-arms anything, all session, silently.
+		if len(problems) > 0 {
+			fmt.Fprintf(stderr, "sc-filechanged-rearm: this note's validation loop opens NO checks, so no file change re-arms anything — %s\n", strings.Join(problems, "; "))
+		}
 		return 0
 	}
 
 	c, matched := attribute(checks, targetsFor(checks, projectDir), projectDir, in.FilePath)
+
+	// Said only on an UNMATCHED change, and deliberately: this hook fires once per file,
+	// so an unconditional complaint would repeat dozens of times a turn and be tuned out.
+	// An unmatched change is the moment a dropped entry could be the cause — the entry
+	// that should have claimed this file is exactly the kind that fails to parse. This
+	// does not CLAIM that correlation (the problems are strings, not entries with
+	// surfaces); it reports both facts at the moment they might be the same fact.
+	if !matched && len(problems) > 0 {
+		fmt.Fprintf(stderr, "sc-filechanged-rearm: %s changed and no check claimed it, and the loop has entries a reader counts that the parser does not — the check that should have claimed this file may be one of them: %s\n",
+			relTo(projectDir, in.FilePath), strings.Join(problems, "; "))
+	}
 	stamp := now.UTC().Format(time.RFC3339)
+
+	var dropped []string
 
 	// One locked read-modify-write. Loading outside the lock is what lost two of
 	// six concurrent events, measured — see checkpoint.UpdateRearm.
@@ -179,6 +204,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// mid-session is invisible without it, because an unmatched event
 		// correctly records nothing else.
 		s.LastEvent = stamp
+		// Drop records whose check no longer exists in the note (#217). This runs on
+		// every delivered event, matched or not, because a check's text can be edited in
+		// a turn that never touches a watched surface — waiting for a match would leave
+		// the orphan until the next unrelated file change.
+		//
+		// `checks` is what THIS hook parsed from the live note moments ago, and
+		// PruneOrphans refuses to act on an empty slice: a note that failed to parse must
+		// not be read as "no checks exist" and wipe the history.
+		dropped = s.PruneOrphans(checks)
 		if !matched {
 			// A directory watch is coarser than the surface it stands in for,
 			// so unclaimed changes are expected and are NOT evidence about any
@@ -196,6 +230,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 	}); err != nil {
 		fmt.Fprintln(stderr, "sc-filechanged-rearm: "+err.Error())
+	} else if len(dropped) > 0 {
+		// Reported only AFTER the write commits. Said from inside the callback it would
+		// announce a prune that an abandoned update (#215) never performed — a message
+		// about state must not outrun the state.
+		fmt.Fprintf(stderr, "sc-filechanged-rearm: dropped %d re-arm record(s) whose check no longer appears in the note — the check's text was edited, so those records name a check that is gone. Nothing else changed; the surviving records and this event's re-arm are unaffected.\n", len(dropped))
 	}
 	return 0
 }

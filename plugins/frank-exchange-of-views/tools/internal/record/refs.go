@@ -27,6 +27,28 @@ import (
 // seat named something it had not yet created. This would have refused nothing.
 
 // requireGap refuses a reference to a gap no mint created.
+// THE EXPORTED FORMS, for flags that carry their own existence check.
+//
+// A typed flag declares what it is checked against (`flags.GapID().WithCheck(record.GapExists)`),
+// and seat.Begin runs it once the run directory is resolved. These are THIN WRAPPERS over the
+// same helpers `validate` uses — one implementation, two call sites — because validate remains
+// the enforcer: it is the single write path every caller goes through, and a rule the CLI held
+// alone would be one every other caller skips. Two enforcers drifting is the defect this
+// codebase keeps finding; two callers of one enforcer is not.
+//
+// The subject is named as the FLAG, not the verb: this refusal arrives while the seat is looking
+// at one command, so "--id names gap R9-9, which no mint event created" is the whole sentence it
+// needs. validate's copy keeps the verb too, because there it can be reached by any caller.
+func GapExists(runDir, id string) error { return requireGap(runDir, id, "the", "--id") }
+
+// AvenueExists resolves a line of inquiry.
+func AvenueExists(runDir, id string) error { return requireAvenue(runDir, id, "the", "--id") }
+
+// CitationExists resolves a citation anchor.
+func CitationExists(runDir, label string) error {
+	return requireCitation(runDir, label, "the", "--cites")
+}
+
 func requireGap(runDir, id, verb, flag string) error {
 	if id == "" {
 		return nil
@@ -51,59 +73,6 @@ func requireGaps(runDir string, ids []string, verb, flag string) error {
 	return nil
 }
 
-// requireObservation resolves a disposal's target, ROUND-SCOPED, and refuses ambiguity.
-//
-// The historical problem (2026-07-18 run): 15 labels were used by more than one lens seat
-// (L5-F1 existed in rounds 1, 2 and 3), so 39 of 60 disposals named something that matched
-// several findings; 13 named a label no event ever created; and 8 finding events carried no
-// label at all. That is fixed at the SOURCE now: finding labels are tool-assigned, run-unique
-// per role (findinglabel.go), so a label names exactly one finding run-wide — cross-round
-// collision is impossible, not merely disambiguated.
-//
-// Round scoping therefore is no longer the disambiguator; it is simply the natural scope of
-// a disposal — a merge coalesces THIS round's lens findings, so red-merge-r3 disposing L5-F3
-// resolves it among round 3's findings. It stays as belt-and-suspenders: with unique labels
-// it can only agree with a global lookup, and it keeps the refusal-on-ambiguity path honest.
-//
-// Where it still cannot tell, it REFUSES AND NAMES THE CANDIDATES rather than picking. A
-// silent wrong pick writes the wrong finding's fate into the record and leaves the right
-// one looking undisposed forever — invisible, and exactly the class of defect the whole
-// tool exists to remove.
-func requireObservation(runDir, label, seatID, verb, flag string) error {
-	if label == "" {
-		return nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return err
-	}
-	round := RoundOf(seatID)
-	var sameRound, anyRound []string
-	for _, e := range m.Events {
-		if e.Type != "observe" && e.Type != "finding" {
-			continue
-		}
-		if e.Payload.Str("label") != label {
-			continue
-		}
-		anyRound = append(anyRound, e.SeatID)
-		if RoundOf(e.SeatID) == round {
-			sameRound = append(sameRound, e.SeatID)
-		}
-	}
-	switch {
-	case len(sameRound) == 1:
-		return nil
-	case len(sameRound) > 1:
-		return fmt.Errorf("record: %s %s names %s, which %d seats recorded THIS ROUND (%v) — the label does not identify one finding, so the disposal would write the wrong one's fate and leave the right one looking undisposed", verb, flag, label, len(sameRound), sameRound)
-	case len(anyRound) == 1:
-		return nil
-	case len(anyRound) > 1:
-		return fmt.Errorf("record: %s %s names %s, recorded by %v in other rounds and by nobody this round — name the finding from your own round, or the disposal is guesswork", verb, flag, label, anyRound)
-	}
-	return fmt.Errorf("record: %s %s names %s, which no observe or finding event created — the disposal would name nothing and the real observation would stay undisposed. If the lens wrote it in prose but never recorded it, the finding is the thing that is missing", verb, flag, label)
-}
-
 // requireFindings refuses found_by attribution to a finding that does not exist.
 //
 // found_by is the credit chain from a lens's work to the board gap it earned, and it is
@@ -119,7 +88,7 @@ func requireFindings(runDir string, labels []string, verb, flag string) error {
 	}
 	have := map[string]bool{}
 	for _, e := range m.Events {
-		if e.Type == "finding" || e.Type == "observe" {
+		if e.Type == "finding" {
 			if l := e.Payload.Str("label"); l != "" {
 				have[l] = true
 			}
@@ -134,6 +103,52 @@ func requireFindings(runDir string, labels []string, verb, flag string) error {
 }
 
 // requireSeat refuses attribution to a seat that never registered.
+// requireCitation refuses a citation label that names no `blue cite` on the record.
+//
+// `blue prove --cites` names the METHOD a computation applies — "the source that says trial
+// division decides primality". It was set into the payload and never checked, so a proof could
+// cite a citation that does not exist and the assembled report would carry the link as though it
+// meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same
+// axis, one verb over.
+func requireCitation(runDir, label, verb, flag string) error {
+	if label == "" {
+		return nil
+	}
+	known, err := CitationLabels(runDir)
+	if err != nil {
+		return err
+	}
+	for _, k := range known {
+		if k == label {
+			return nil
+		}
+	}
+	return fmt.Errorf("record: %s %s=%s names no citation on the record — blue has cited %d source(s), and `show evidence` lists them by anchor. Cite the method with `blue cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
+		verb, flag, label, len(known))
+}
+
+// requireAvenue refuses a move against an avenue nobody proposed.
+//
+// `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
+// a status change for a line of inquiry that was never opened — and the lines-of-inquiry view
+// renders it, so the run shows a direction being abandoned that nothing ever proposed.
+func requireAvenue(runDir, id, verb, flag string) error {
+	if id == "" {
+		return nil
+	}
+	b, err := BoardState(runDir)
+	if err != nil {
+		return err
+	}
+	for _, a := range Avenues(b) {
+		if a != nil && a.ID == id {
+			return nil
+		}
+	}
+	return fmt.Errorf("record: %s %s=%s names no avenue on the record — `show lines-of-inquiry` lists every one with its id and fate. Propose it first (`blue avenue --line …`, which ASSIGNS the id); --id moves an avenue that already exists",
+		verb, flag, id)
+}
+
 func requireSeat(runDir, seatID, verb, flag string) error {
 	if seatID == "" {
 		return nil
@@ -216,7 +231,11 @@ func requireClosedGaps(runDir string, ids []string, verb, flag string) error {
 // channel rather than evidence that nobody disagreed. When it does fire, a response with no
 // dispute behind it would record one half of an exchange and make the accounting — disputes
 // raised against disputes answered — silently wrong in the flattering direction.
-func requirePriorDispute(runDir, gapID string) error {
+// The pair, not just the gap: blue disputes a SINGLE grade and may contest more than one on
+// the same gap, so an answer matching only the gap resolves to neither when it does. The
+// orchestrator always matched on (gap_id, dimension) — off the envelope, which evaporates —
+// while the durable record kept the lossier half.
+func requirePriorDispute(runDir, gapID, dimension string) error {
 	if gapID == "" {
 		return nil
 	}
@@ -225,41 +244,17 @@ func requirePriorDispute(runDir, gapID string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.Type == "dispute" && e.Payload.Str("gap_id") == gapID {
+		if e.Type != "dispute" || e.Payload.Str("gap_id") != gapID {
+			continue
+		}
+		if dimension == "" || e.Payload.Str("dimension") == dimension {
 			return nil
 		}
 	}
+	if dimension != "" {
+		return fmt.Errorf("record: dispute-respond names %s.%s, on which no dispute was filed — answering an argument nobody made records half an exchange and inflates the answered-disputes count against a denominator of zero", gapID, dimension)
+	}
 	return fmt.Errorf("record: dispute-respond --id names gap %s, on which no dispute was filed — answering an argument nobody made records half an exchange and inflates the answered-disputes count against a denominator of zero", gapID)
-}
-
-// requireUndisposed refuses giving one finding a SECOND fate.
-//
-// This was unmeasurable before ids existed: the run showed 16 observations "disposed more
-// than once", but every one was a label collision — three rounds of lens 5 each recording
-// an L5-F1, and three disposals landing on whichever replayed first. That collision can no
-// longer happen (finding labels are tool-assigned run-unique per role), and identity is
-// assigned by the tool, so a second disposal of the same finding is unambiguous, and it is
-// wrong: the first fate is already on the record and in the counts, and a second silently
-// overwrites which one the projection shows.
-//
-// A seat that has changed its mind about a fate is describing a REGRADE of a judgement, and
-// there is no verb for that yet — which is a finding about the tooling, and the friction
-// verb is how it gets one.
-func requireUndisposed(runDir, target string) error {
-	if target == "" {
-		return nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return err
-	}
-	for _, e := range m.Events {
-		if e.Type == "dispose" && e.Payload.Str("observation") == target {
-			return fmt.Errorf("record: dispose --observation names %s, which %s already gave the fate %q — a finding has one fate, and a second silently replaces which one the projection shows. If the first was wrong, record it with the friction verb: there is no verb for revising a disposal, and that absence is itself the finding",
-				target, e.SeatID, e.Payload.Str("disposition"))
-		}
-	}
-	return nil
 }
 
 // requireSupersededAreClosed is a COMPLETION duty, checked at the seat's terminal act.
@@ -312,7 +307,7 @@ func requireSupersededAreClosed(runDir string) error {
 }
 
 // requirePassClosesAllGaps refuses a PASS while ANY gap is still open. The protocol is "PASS
-// only when every remaining gap is closed, evidence-rebutted, or risk-accepted", and all of
+// only when every remaining gap is closed, rebuttal_sustained, or risk_accepted", and all of
 // those resolutions go through `close` (which sets the gap not-open) — so an open gap at PASS
 // is an unadjudicated one. requireSupersededAreClosed catches only the lineage subset; the
 // 2026-07-20 run recorded PASS with 9 PLAIN open gaps (one HIGH) that no lineage check saw,
@@ -329,10 +324,68 @@ func requirePassClosesAllGaps(runDir string) error {
 			open = append(open, id)
 		}
 	}
-	if len(open) == 0 {
-		return nil
+	if len(open) != 0 {
+		sort.Strings(open)
+		return fmt.Errorf("record: verdict PASS refused — %d gap(s) still OPEN: %s. PASS requires every gap resolved through `close --id <id> --as closed|risk_accepted|rebuttal_sustained|routed_to_infrastructure`; close them, or issue `--as FAIL`",
+			len(open), strings.Join(open, ", "))
 	}
-	sort.Strings(open)
-	return fmt.Errorf("record: verdict PASS refused — %d gap(s) still OPEN: %s. PASS requires every gap resolved through `close --id <id> --as closed|risk_accepted|rebuttal_sustained|routed_to_infrastructure`; close them, or issue `--as FAIL`",
-		len(open), strings.Join(open, ", "))
+	// AND EVERY MOTION ANSWERED, which this gate did not check and a probe walked straight
+	// through: a run reached `verdict PASS` and `outcome VERIFIED` with a grade motion filed and
+	// never ruled. PASS is a claim that nothing is left open, and an unanswered ask is exactly
+	// that — the report named it, which is the only reason it was visible at all.
+	//
+	// The gate counts what is on the RECORD, both vocabularies, because a pre-collapse record
+	// replayed under this binary must be judged by the same standard it was written to.
+	var unruled []string
+	for _, m := range AllMotions(b) {
+		if !m.Ruled() {
+			unruled = append(unruled, m.ID)
+		}
+	}
+	if len(unruled) != 0 {
+		sort.Strings(unruled)
+		// THE REFUSAL NAMES THE READ. Until `--view motions` existed, this message handed a seat
+		// an id and no way to look it up — and a probed merge seat, blocked here, searched six
+		// views and three help pages, then ruled `rejected` on an argument it had never read.
+		// A blocking message that does not say how to unblock is an invitation to guess.
+		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. "+
+			"Read what each one asks with `show motions` (its `basis` is the filer's argument, which your ruling answers), "+
+			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`. "+
+			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
+			len(unruled), strings.Join(unruled, ", "))
+	}
+	return nil
+}
+
+// gapNamedIn returns the first gap id from the board that appears as a WHOLE TOKEN in
+// prose, or "". It exists for one refusal: `blue edit` prose that names the gap the edit
+// answers while `--answers` is empty (validate, case "blue_edit").
+//
+// It matches against the BOARD, never against a pattern. A regex for "gap-id-shaped" would
+// have to guess the shape (R1-5, R1-11 today) and would fire on any prose that happens to
+// look like one — a version number, a section reference, a matrix cell. Membership in the
+// set of ids some mint actually created is exact, needs no shape at all, and costs the same
+// read requireGap already does.
+//
+// Tokens break on anything outside [A-Za-z0-9-], so "R1-5: Quantify…" yields "R1-5" with
+// its trailing colon shed, and a longer id is never matched by a shorter one's prefix.
+func gapNamedIn(runDir, prose string) (string, error) {
+	if strings.TrimSpace(prose) == "" {
+		return "", nil
+	}
+	ids, err := allGapIDs(runDir)
+	if err != nil {
+		return "", err
+	}
+	if len(ids) == 0 {
+		return "", nil
+	}
+	for _, tok := range strings.FieldsFunc(prose, func(r rune) bool {
+		return !(r == '-' || (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z'))
+	}) {
+		if ids[tok] {
+			return tok, nil
+		}
+	}
+	return "", nil
 }

@@ -152,29 +152,50 @@ func TelemetryJSONL(runDir string) ([]byte, error) {
 	return []byte(out), nil
 }
 
+// markdownViews is the set of markdown projections, and it is a TABLE so that the set can be
+// ENUMERATED rather than restated.
+//
+// It was a switch, and the test that exercised it carried its own hand-written list of names. The
+// two drifted the only way they could: `changelog` and `citation-ledger` lost their last caller
+// (one to the board collapse, one to `show evidence`), nothing wrote their files any more, and the
+// test went on rendering them — so the ONLY place those projections still existed was the test
+// proving the code could produce them. One of them was carefully extended, with a new column, six
+// releases after its last reader went away.
+//
+// MarkdownViews() is what a test iterates now. A renderer with no name in this table does not
+// compile in; a name here with no test is one the coverage walk reports.
+var markdownViews = map[string]func(b *record.Board, scope string) ([]byte, error){
+	"changes":          func(b *record.Board, scope string) ([]byte, error) { return changesMD(b, scope) },
+	"ledger":           func(b *record.Board, _ string) ([]byte, error) { return ledgerMD(b), nil },
+	"archive":          func(b *record.Board, _ string) ([]byte, error) { return archiveMD(b), nil },
+	"debate":           func(b *record.Board, _ string) ([]byte, error) { return debateMD(b), nil },
+	"lines-of-inquiry": func(b *record.Board, _ string) ([]byte, error) { return inquiryMD(b), nil },
+}
+
+// MarkdownViews returns the markdown projection names, sorted. Exported so a test iterates the
+// REAL set rather than a copy of it.
+func MarkdownViews() []string {
+	out := make([]string, 0, len(markdownViews))
+	for name := range markdownViews {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // Markdown returns one markdown projection, rendered in-memory from the record.
 // Byte-identical to what render.go formerly wrote to disk.
-func Markdown(runDir, name string) ([]byte, error) {
+// scope narrows a view that supports it (today: `changes`, by gap id). "" is unscoped.
+func Markdown(runDir, name, scope string) ([]byte, error) {
+	render, ok := markdownViews[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown markdown view %q (have: %s)", name, strings.Join(MarkdownViews(), ", "))
+	}
 	b, err := record.BoardState(runDir)
 	if err != nil {
 		return nil, err
 	}
-	switch name {
-	case "ledger":
-		return ledgerMD(b), nil
-	case "archive":
-		return archiveMD(b), nil
-	case "debate":
-		return debateMD(b), nil
-	case "changelog":
-		return changelogMD(b), nil
-	case "citation-ledger":
-		return citationLedgerMD(b), nil
-	case "lines-of-inquiry":
-		return inquiryMD(b), nil
-	default:
-		return nil, fmt.Errorf("unknown markdown view %q", name)
-	}
+	return render(b, scope)
 }
 
 // ledgerMD — open gaps + closure index. NB: no trailing newline (render.go parity).
@@ -197,27 +218,40 @@ func ledgerMD(b *record.Board) []byte {
 		}
 		anomalyFooter = "\n## render anomalies (never silently normalized)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
-	var undisposed []*record.Observation
+	// UNCREDITED, not undisposed (#327). `observe` and `dispose` are retired: a finding is
+	// addressed by being named in some gap's found_by, and that is the only way. This footer
+	// is the merge's live worklist of lens work it has neither minted nor credited — the same
+	// question the old "undisposed" footer asked, against the channel that still exists.
+	credited := map[string]bool{}
+	for _, g := range b.Gaps {
+		if g == nil || g.Mint == nil {
+			continue
+		}
+		for _, lbl := range g.Mint.StrList("found_by") {
+			credited[lbl] = true
+		}
+	}
+	var uncredited []*record.Observation
 	for _, o := range b.Observations {
-		if o.Disposition == nil {
-			undisposed = append(undisposed, o)
+		if lbl := o.Payload.Str("label"); lbl == "" || !credited[lbl] {
+			uncredited = append(uncredited, o)
 		}
 	}
 	notesFooter := ""
-	if len(undisposed) > 0 {
-		lines := make([]string, len(undisposed))
-		for i, o := range undisposed {
+	if len(uncredited) > 0 {
+		lines := make([]string, len(uncredited))
+		for i, o := range uncredited {
 			name := o.Payload.Str("label")
 			if name == "" {
 				name = o.Key
 			}
 			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Payload.Str("text"), 120))
 		}
-		notesFooter = "\n## undisposed lens observations (every observation demands a merge disposition)\n\n" + strings.Join(lines, "\n") + "\n"
+		notesFooter = "\n## lens findings credited by no gap (each is work the merge has not yet weighed)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
 
 	ledgerParts := []string{
-		"# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)",
+		"# The board — RENDERED PROJECTION (source of truth: the event log; do not hand-edit)",
 		"",
 		fmt.Sprintf("## OPEN GAPS (%d)", len(open)),
 		"",
@@ -302,6 +336,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 	sort.Ints(rounds)
 
 	var telemetry []string
+	prevClasses := map[string]bool{} // the previous round's mint classes — the repeat-rate basis
 	for _, r := range rounds {
 		var openAtR, minted, closedAtR, lineage []*record.Gap
 		realizedOpen := 0
@@ -351,6 +386,45 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			}
 			bySev.Set(k, n+1)
 		}
+		// THE CLASS DISTRIBUTION — "did the findings change CHARACTER" made computable.
+		//
+		// The severity profile answers "how bad", and a run can hold severity flat for
+		// rounds while the KIND of thing being found moves from "this is wrong about the
+		// world" to "this document disagrees with itself". That phase change is the bench's
+		// stopping signal (#284): findings continuing is normal; findings turning into
+		// internal-consistency complaints means the rest is cheaper to shake out in
+		// execution than in review. Class is already a REQUIRED mint field validated
+		// against the registry, so this is an aggregation, never a new assertion.
+		byClass := record.NewPayload()
+		for _, g := range minted {
+			k := g.Mint.Str("class")
+			if k == "" {
+				continue
+			}
+			n := 0
+			if v, ok := byClass.Get(k); ok {
+				n, _ = v.(int)
+			}
+			byClass.Set(k, n+1)
+		}
+		// Repeat rate against the PREVIOUS round's classes: high means the run is
+		// circling the same kind of defect, which is signal 1 without reading the prose.
+		repeated := 0
+		for _, g := range minted {
+			if prevClasses[g.Mint.Str("class")] {
+				repeated++
+			}
+		}
+		var repeatRate any
+		if len(minted) > 0 && r > 1 {
+			repeatRate = round2(float64(repeated) / float64(len(minted)))
+		}
+		nextPrevClasses := map[string]bool{}
+		for _, g := range minted {
+			if c := g.Mint.Str("class"); c != "" {
+				nextPrevClasses[c] = true
+			}
+		}
 		maxSeverity := any(nil)
 		if len(openAtR) > 0 {
 			sevs := make([]any, len(openAtR))
@@ -373,7 +447,11 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			Set("mapping_version", record.MassMappingVersion).
 			Set("open_count", len(openAtR)).
 			Set("max_severity", maxSeverity).
-			Set("new_mint", record.NewPayload().Set("count", len(minted)).Set("by_severity", bySev)).
+			Set("new_mint", record.NewPayload().
+				Set("count", len(minted)).
+				Set("by_severity", bySev).
+				Set("by_class", byClass).
+				Set("class_repeat_rate", repeatRate)).
 			Set("mass", massSum(openAtR)).
 			Set("realized_open", realizedOpen).
 			Set("repair_regression", record.NewPayload().
@@ -388,6 +466,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			return nil, err
 		}
 		telemetry = append(telemetry, string(enc))
+		prevClasses = nextPrevClasses
 	}
 	return telemetry, nil
 }
@@ -429,15 +508,6 @@ func debateMD(b *record.Board) []byte {
 		for _, c := range sec("closing", "blue") {
 			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("text")))
 		}
-		var conf []string
-		for _, e := range re {
-			if e.Type == "confidence" {
-				conf = append(conf, fmt.Sprintf("- %s → **%s**", e.Payload.Str("label"), e.Payload.Str("grade")))
-			}
-		}
-		if len(conf) > 0 {
-			parts = append(parts, "### BLUE CONFIDENCE (self-assessment — non-authoritative; targeting signal, not a grade)\n"+strings.Join(conf, "\n"))
-		}
 		var disp []string
 		for _, e := range re {
 			switch e.Type {
@@ -469,56 +539,69 @@ func debateMD(b *record.Board) []byte {
 	return []byte(strings.Join(debateParts, "\n") + "\n")
 }
 
-// changelogMD — blue's per-round revision record. Trailing newline (render.go parity).
-func changelogMD(b *record.Board) []byte {
-	changelog := []string{"# blue CHANGELOG — RENDERED PROJECTION"}
-	for _, e := range b.Events {
-		if e.Type != "revision" {
-			continue
-		}
-		changelog = append(changelog, fmt.Sprintf("\n## Round %d\n%s", e.Round, e.Payload.Str("text")))
-	}
-	return []byte(strings.Join(changelog, "\n") + "\n")
-}
-
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(b *record.Board) []byte {
+	// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot avenue entries by
+	// status. An avenue now has an id, a hypothesis, a status that MOVES with a stated
+	// reason, and red's ruling — so the projection renders the DECISION: what was proposed,
+	// what became of it, why, and what red said about it. That sequence is the evidence of
+	// choosing; a flat list by final status records only the outcome.
 	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
-	for _, status := range []string{"pursued", "abandoned", "declined"} {
-		var rows []string
-		for _, e := range b.Events {
-			if e.Type != "avenue" || e.Payload.Str("status") != status {
-				continue
-			}
-			method := ""
-			if m := e.Payload.Str("method"); m != "" {
-				method = fmt.Sprintf(" _(%s)_", m)
-			}
-			reason := e.Payload.Str("reason")
-			if reason != "" {
-				reason = " — " + reason
-			}
-			rows = append(rows, fmt.Sprintf("- **%s**%s%s (%s)", e.Payload.Str("line"), method, reason, e.SeatID))
-		}
+	avs := record.Avenues(b)
+	if len(avs) == 0 {
+		inquiry = append(inquiry, "_No avenues recorded. On a run past round 0 that is itself a finding: the exploration",
+			"either did not happen or was not written down, and a report with no roads-not-taken is",
+			"indistinguishable from one that never looked._", "")
+		return []byte(strings.Join(inquiry, "\n"))
+	}
+	byStatus := map[string][]*record.Avenue{}
+	for _, a := range avs {
+		byStatus[a.Status] = append(byStatus[a.Status], a)
+	}
+	for _, status := range record.AvenueStatusNames() {
+		rows := byStatus[status]
 		if len(rows) == 0 {
 			continue
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
-		inquiry = append(inquiry, rows...)
+		for _, a := range rows {
+			method := ""
+			if a.Method != "" {
+				method = fmt.Sprintf(" _(%s)_", a.Method)
+			}
+			// The one-line row keeps its shape — line, method, reason, seat — and the
+			// lifecycle adds to it rather than replacing it.
+			head := a.ID + " " + a.Line
+			reason := ""
+			if a.Reason != "" {
+				reason = " — " + a.Reason
+			}
+			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s%s (%s)", head, method, reason, a.SeatID))
+			if a.Hypothesis != "" {
+				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
+			}
+			// The history is what makes a move legible as a CHOICE rather than a state.
+			if len(a.History) > 1 {
+				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
+			}
+			if a.Ruling != "" {
+				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (r%d): %s", a.Ruling, a.RuledRound, a.RulingWhy))
+			}
+		}
 		inquiry = append(inquiry, "")
 	}
-	return []byte(strings.Join(inquiry, "\n") + "\n")
-}
-
-// citationLedgerMD — verified claims with source/confidence. Trailing newline (render.go parity).
-func citationLedgerMD(b *record.Board) []byte {
-	cites := []string{"# red citation-ledger — RENDERED PROJECTION"}
-	for _, e := range b.Events {
-		if e.Type != "cite" {
-			continue
+	// The revisit duty, made visible: an avenue still open late in a run is one nobody has
+	// decided. The measured failure was not bad choosing, it was that nothing ever asked
+	// blue to choose again after round 0.
+	if stale := record.StaleAvenues(b); len(stale) > 0 {
+		ids := make([]string, len(stale))
+		for i, a := range stale {
+			ids[i] = a.ID
 		}
-		cites = append(cites, fmt.Sprintf("%s | %s | %s | r%d | %s",
-			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "confidence"), e.Round, undefStr(e.Payload, "access_date")))
+		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
+			"_Still `proposed` or `pursued`: "+strings.Join(ids, ", ")+". Each owes a move or a",
+			"reaffirmation before the run closes — an avenue declared once and never revisited records",
+			"an intention, not a choice._", "")
 	}
-	return []byte(strings.Join(cites, "\n") + "\n")
+	return []byte(strings.Join(inquiry, "\n") + "\n")
 }

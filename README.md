@@ -32,6 +32,7 @@ The base plugin. It carries a set of **always-on skills** that bind every sessio
 - **validation-loop** — write down the exact commands that prove a change works, then actually run them; never claim success from a clean diff.
 - **think-around-problem** — never satisfice; treat docs, comments, and the human's own claims as unverified until checked.
 - **agent-guardrails** — single-purpose agents, no privileged mutations without approval, no secrets sent off-box — the backstop for when permission prompts don't fire (auto mode, headless, scheduled loops).
+- **complete-the-concept** — a change is one conceptual action, finished when the concept is, not when the first commit merges; follow it to every carrier — call sites, tests, fuzzers, goldens, prompts, constitutions, docs, diagrams — and never truncate scope silently.
 
 On top of the always-on set it ships **on-demand skills** (pair-programming, spec-driven-development, test-driven-development, refactoring-safety, project-memory, and proficiency guides for git / markdown / qlty), a **plan-audit gate** (`/plan-audit` runs an implementation plan through a binary PASS/FAIL auditor against the five-section spec standard), and **Go hook binaries** that enforce the pattern-matchable rules deterministically:
 

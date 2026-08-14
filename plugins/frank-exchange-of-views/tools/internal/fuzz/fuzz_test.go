@@ -7,9 +7,9 @@ package fuzz
 // finding (in debate.js, the tool, or verify), reproducible from its seed.
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
-// not a happy path: lens (cite/finding/observe/avenue/friction), merge (position/closing/
-// mint/close incl. closed_with_regression/dispose across its full --as domain/regrade any axis/
-// dispute-respond/spot-check/verdict/petition), blue (position/closing/confidence/dispute
+// not a happy path: lens (cite/finding/avenue/friction), merge (position/closing/
+// mint/close incl. closed_with_regression/regrade any axis/
+// dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
 // across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
 // (opinion/outcome incl. --exhausted/--deadlocked/certify/assemble/petition-rule). The
 // petition->petition-rule docket and the disputes docket are driven through the ENVELOPE (see
@@ -32,19 +32,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -52,16 +58,58 @@ import (
 // malformed id makes every tool call fail silently and the fuzz degrades to trivial PASS runs.
 var seatRe = regexp.MustCompile(`SEAT_ID:\s*([A-Za-z0-9-]+)`)
 
+// THE CITATION AXIS NEEDS A SOURCE TO FETCH (#256). `feov-record fetch` performs a REAL http GET —
+// that IS the code under test, caps and all — so this harness serves it from 127.0.0.1 rather than
+// stubbing it out. Loopback only: the same discipline internal/fetchcache's own tests use, so CI
+// touches no external network while the whole fetch → cache → cite → anchor path runs end to end
+// through the real binary. One server per test binary; the path varies so distinct URLs exercise
+// cache misses as well as hits.
+var (
+	sourceSrvOnce sync.Once
+	sourceSrvURL  string
+)
+
+func sourceURL(path string) string {
+	sourceSrvOnce.Do(func() {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			fmt.Fprintf(w, "fuzz source body for %s\n", req.URL.Path)
+		}))
+		sourceSrvURL = srv.URL // deliberately never closed: it lives for the test binary
+	})
+	return sourceSrvURL + path
+}
+
 // runner shells the real binary for one run's seats. runDir + bin are fixed per fuzz iteration.
 type runner struct {
 	bin, runDir string
 	rng         *rand.Rand
 	registered  map[string]bool
 	classMade   bool
+	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
+	// until a proof answers it, so closeGap satisfies it first — otherwise the fuzzer
+	// accumulates unclosable gaps and every open-gap-scaled drive grows with them (measured:
+	// a uniform draw took the 60-run sweep from 47s to a 900s timeout).
+	computationGaps map[string]bool
 	// #62 Stage 2: disputes blue RAISED (event emitted + envelope ref), awaiting red's answer
 	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
 	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
 	raised []map[string]any
+	// disputedThisRound is what blueRespondTo raised for the CURRENT round's envelope.
+	disputedThisRound []map[string]any
+	// ruledMotions are motions that HAVE a ruling and can therefore be appealed. Kept apart from
+	// the pending set (r.raised) because the two states admit different verbs: an appeal against
+	// no ruling is refused, and a list that mixed them would drive the verb without exercising it.
+	ruledMotions []string
+	// presented records the gaps a responder was actually shown: a gap minted in the terminal
+	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
+	presented map[string]bool
+	// evaluated records the gaps red actually SAT ON after blue had responded — the only ones
+	// whose terminal fate red is answerable for. Blue repairing in the final round leaves a
+	// satisfied gap legitimately open, because red never sits again.
+	evaluated map[string]bool
+	// reproduced records the PROVE gaps whose proof a lens re-ran and confirmed. Red closes on
+	// THIS, not on its own assertion that a computation happened.
+	reproduced map[string]bool
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
@@ -115,7 +163,6 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 		_, _ = r.exec(role, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
 	}
 	if role == "blue" {
-		r.emitConfidence(seatID) // blue calibrates its claims every round
 	}
 	if role == "merge" && len(open) > 0 && r.coin(30) {
 		id := open[r.rng.Intn(len(open))]
@@ -124,28 +171,11 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 	}
 }
 
-// raiseDisputes is blue's Stage-2 contest path: EMIT a dispute event (evidence on the record)
-// and return the ROUTING REF ({gap_id, dimension, proposed}) for the envelope's grade_disputes.
-// The raised set is remembered so red answers it next round (drives the docket machinery). Unique
-// evidence prose per gap so the report oracle can prove it rendered.
-func (r *runner) raiseDisputes(seatID string, open []string) []map[string]any {
-	var refs []map[string]any
-	for _, id := range open {
-		if !r.coin(40) {
-			continue
-		}
-		proposed := r.g()
-		dim := pick(r.rng, disputeDims) // contest each dimension over a run, not only impact
-		if _, err := r.exec("blue", "dispute", "--seat-id", seatID, "--id", id, "--dimension", dim, "--proposed", proposed, "--reason", "dispute-evidence-for-"+id+"-by-"+seatID); err != nil {
-			continue
-		}
-		ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed}
-		refs = append(refs, ref)
-		r.raised = append(r.raised, ref)
-	}
-	return refs
-}
-
+// THE SECOND DISPUTE DRIVER IS GONE. `raiseDisputes` sat here, fully written and NEVER CALLED —
+// the live driver is in blueRespondTo's dirDisputeWon/dirDisputeLost arm. Migrating it to the
+// motion verbs would have produced a second correct-looking copy of a path nothing runs, and the
+// command tally would have gone on reporting the verb as driven either way.
+//
 // answerDisputes is red's Stage-2 answer to blue's pending disputes: EMIT a dispute-respond event
 // (rationale on the record) and return the ROUTING REF ({gap_id, dimension, response}) for the
 // envelope's dispute_responses. Clears the pending set. A random accept/reject exercises both the
@@ -155,13 +185,27 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 	for _, d := range r.raised {
 		id, _ := d["gap_id"].(string)
 		dim, _ := d["dimension"].(string)
-		resp := "accepted"
-		if r.coin(50) {
-			resp = "rejected"
+		// THE ANSWER FOLLOWS THE SCENARIO, not a coin. The gap was minted WON or LOST, and
+		// both branches must run: an accepted regrade moves the board's mass (the
+		// accepted-delta path), a rejected one is held a round and then dockets. Coining it
+		// meant red's answer bore no relation to the dispute it was answering.
+		resp := "rejected"
+		if r.scenarioOf(id) == dirDisputeWon {
+			resp = "accepted"
 		}
-		if _, err := r.exec("merge", "dispute-respond", "--seat-id", seatID, "--id", id, "--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
+		mid, _ := d["motion_id"].(string)
+		if mid == "" {
 			continue
 		}
+		if _, err := r.exec("motion", "grade", "rule", "--seat-id", seatID, "--id", mid,
+			"--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
+			continue
+		}
+		// AN APPEAL IS ONLY POSSIBLE ONCE A RULING EXISTS, so the ruled id goes to blue rather
+		// than blue appealing what it just filed. The first appeal driver fired in the same
+		// breath as the filing and all 14 were REFUSED — driven in the tally, exercising nothing,
+		// which is exactly the false green the refusal count was added to expose.
+		r.ruledMotions = append(r.ruledMotions, mid)
 		refs = append(refs, map[string]any{"gap_id": id, "dimension": dim, "response": resp})
 	}
 	r.raised = nil
@@ -180,10 +224,18 @@ func (r *runner) maybePetition(role, seatID string) []any {
 	}
 	class := pick(r.rng, petitionClasses)
 	basis := "fuzz petition basis from " + seatID
-	if _, err := r.exec(role, "petition", "--seat-id", seatID, "--petition-class", class, "--reason", basis, "--relief", "fuzz relief"); err != nil {
+	entry := map[string]any{"who": seatID, "class": class}
+	out, err := r.exec("--json", "motion", "petition", "file", "--seat-id", seatID,
+		"--petition-class", class, "--relief", "fuzz relief", "--reason", basis)
+	if err != nil {
 		return arr()
 	}
-	r.petitioned = append(r.petitioned, map[string]any{"who": seatID, "class": class})
+	id := motionIDOf(out)
+	if id == "" {
+		return arr()
+	}
+	entry["motion"] = id
+	r.petitioned = append(r.petitioned, entry)
 	return arr(map[string]any{"class": class, "basis": basis, "relief": "fuzz relief"})
 }
 
@@ -198,27 +250,38 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		class, _ := p["class"].(string)
 		opinion := "fuzz ruling opinion for " + who
 		ruling := "granted"
-		if r.forceHalt {
-			ruling = "halt"
-			_, _ = r.exec("bench", "halt", "--seat-id", seatID, "--reason", "fuzz judicial halt — safety boundary")
-		} else {
-			if r.coin(50) {
-				ruling = "denied"
-			}
-			_, _ = r.exec("bench", "petition-rule", "--seat-id", seatID, "--petitioner", who, "--petition-class", class, "--as", ruling, "--reason", opinion)
+		if r.coin(50) {
+			ruling = "denied"
 		}
-		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "opinion": opinion})
+		// THE PETITION IS ALWAYS RULED ON ITS MERITS. A halt is a separate decision about the
+		// RUN, on its own channel (#329) — both can be true, and the petition does not stop
+		// being answered because the bench also ended the run.
+		id, _ := p["motion"].(string)
+		_, _ = r.exec("motion", "petition", "rule", "--seat-id", seatID, "--id", id,
+			"--as", ruling, "--reason", opinion)
+		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "relief": opinion})
 	}
 	r.petitioned = nil
 	if rulings == nil {
 		rulings = arr()
 	}
-	return map[string]any{"rulings": rulings, "friction": arr()}
+	env := map[string]any{"rulings": rulings, "friction": arr()}
+	if r.forceHalt {
+		// `bench halt` writes the record; the envelope's halt object is only what stops the
+		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
+		// that told a real judge to record a halt through petition-rule, where the enum refuses
+		// it. The fuzz stayed green over a production path that could not work.
+		haltOpinion := "fuzz judicial halt — safety boundary"
+		_, _ = r.exec("bench", "halt", "--seat-id", seatID, "--reason", haltOpinion)
+		env["halt"] = map[string]any{"opinion": haltOpinion}
+	}
+	return env
 }
 
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
+	noteExec(args, err)
 	return string(out), err
 }
 
@@ -234,27 +297,92 @@ var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 
-var confGrades = []string{"high", "medium", "low"}
+// verifyOutcomes is the value space of `lens verify --as` — what a source DID for the claim.
+//
+// It was `--trust high|medium|low`, all three of which mean the source SUPPORTS the claim. The
+// negative half is what this list exists to drive: `refutes` and `absent` are the outcomes that
+// make the assembly screen fire, and a fuzz that only ever generated supporting verdicts would
+// leave that whole path unexercised while the coverage gate read green.
+var verifyOutcomes = []string{"supports", "supports-with-bridge", "weak", "refutes", "absent", "unreachable"}
 
-// emitConfidence records blue's per-claim calibration — the NON-AUTHORITATIVE signal wired in
-// 0.13.0. Unique labels per act so the report oracle can prove each one actually rendered in the
-// "Blue's confidence self-assessment" section (and never leaked into the risk matrix).
-func (r *runner) emitConfidence(seatID string) {
-	for i := 0; i <= r.rng.Intn(2); i++ {
-		claim := fmt.Sprintf("conf-claim-%d-by-%s", i, seatID)
-		_, _ = r.exec("blue", "confidence", "--seat-id", seatID, "--claim", claim, "--confidence", confGrades[r.rng.Intn(len(confGrades))])
+// verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
+// Driven independently of the outcome, because the pairs that matter most — `refutes` at low
+// confidence, `supports` at low confidence — only exist if the two are drawn apart.
+var verifyConfidence = []string{"high", "medium", "low"}
+
+// someCitation returns a citation anchor on the record, or "" if blue has cited nothing yet —
+// a REAL tool-assigned c-<hex>, the same discipline someFinding uses. `lens verify --anchor`
+// refuses an id that names no citation, so a fabricated one would drive only the reject path.
+func (r *runner) someCitation() string {
+	out, err := r.exec("lens", "show", "evidence")
+	if err != nil {
+		return ""
 	}
+	var e struct {
+		Sources []struct {
+			Anchor string `json:"anchor"`
+		} `json:"sources"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &e) != nil || len(e.Sources) == 0 {
+		return ""
+	}
+	return e.Sources[r.rng.Intn(len(e.Sources))].Anchor
 }
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
 // introduces the class; the rest reuse it.
 func (r *runner) mint(seatID string) string {
-	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check", "acc", "--likelihood", r.g(), "--impact", r.g()}
+	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
+	// computation branch — a gap that CANNOT be closed without a proof answering it — driven by
+	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
+	// not exist, behind a green sweep). Both the refusal and the satisfied path run across a
+	// sweep, because the prove drive below answers a computation gap when one is open.
+	// THE SCENARIO IS DRAWN HERE, ONCE, and travels in required_fix.
+	//
+	// The fake used to decide everything downstream by coin flip, and nothing read
+	// acceptance_check or required_fix — `grep -c` returned 0 — so the one question that
+	// matters, DID THE RESPONSE SATISFY WHAT WAS ASKED, was never posed, because nothing knew
+	// what had been asked. A directive fixes that without modelling a seat's judgement: red
+	// draws the outcome at mint and every later seat READS IT BACK FROM THE BOARD. We model
+	// COMMAND CHAINS, not minds — the seat boundary is only where the JS happens to cut. And
+	// because the outcome is chosen rather than emergent, it is ASSERTABLE.
+	directive := directives[r.rng.Intn(len(directives))]
+	kind := checkKinds[r.rng.Intn(len(checkKinds))]
+	if directive == dirProve || directive == dirProveDrifts {
+		// The demand and the answer must agree: a gap settled by computing is minted as a
+		// COMPUTATION check, so the tool's own close guard is in force alongside the scenario.
+		kind = "computation"
+	}
+	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
+		"--check", "acc", "--fix", directive, "--likelihood", r.g(), "--impact", r.g(),
+		// --location is the anchor ESTOPPEL keys on and the sweep never passed it; --key is
+		// mint's crash-retry idempotency
+		// handle; --reason is the prose channel. Four fields on the most consequential verb in
+		// the tool, none of them ever exercised by a run.
+		// A QUOTE FROM THE SEEDED REPORT, not a composed label. Since 0.63.0 a mint's --location
+		// is matched against blue/report.md — the same rule `lens finding` has always been held
+		// to — so `"§ fuzz — " + directive[:12]` is refused. The sweep went to ZERO gaps the
+		// moment the check landed, and every gap-dependent verb (close, regrade, opinion,
+		// closing, manifest-row, reproduce) followed it to zero. The coverage gate caught that;
+		// the mint refusal alone would have looked like a quieter run.
+		//
+		// It quotes the ANCHOR sentence, not the cost sentence: the blue-edit drive swaps the
+		// cost sentence between two phrasings, so a mint quoting it fails once an edit has run —
+		// which is correct behaviour (red must quote text that is actually there) and useless as
+		// a fixture. The anchor sentence is stable, and the invisible anchor layer spliced into
+		// it is ignored by the match.
+		"--location", "A § fuzz sentence to anchor findings.",
+		"--reason", "fuzz: the argument for raising this"}
 	if !r.classMade {
 		r.classMade = true
 		args = append(args, "--class-new", "fuzzcls", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
 	} else {
 		args = append(args, "--class", "fuzzcls")
+	}
+	if r.coin(40) {
+		// --key is mint's crash-retry idempotency handle: a retried mint under the same key
+		// returns the first id rather than minting twice. Never driven.
+		args = append(args, "--key", fmt.Sprintf("K%d", r.rng.Intn(3)))
 	}
 	// optional grade/lineage flags — exercised so mint's full flag surface runs, not the minimum.
 	if r.coin(50) {
@@ -269,6 +397,21 @@ func (r *runner) mint(seatID string) string {
 	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
 		args = append(args, "--supersedes", open[r.rng.Intn(len(open))]) // lineage: this gap replaces an ancestor
 	}
+	// #267 stage 3: a CONCRETE proposed fix, which the tool validates against the live report
+	// and which DERIVES fix_basis: verified. It swaps the seeded edit-target sentence, exactly
+	// as blue's own edit drive does, so a legal pair exists whichever way the last edit left
+	// the file — and both branches (proposal present / prose only) run across the sweep.
+	if r.coin(40) {
+		if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil {
+			fixOld, fixNew := "rising over time", "climbing sharply"
+			if !strings.Contains(string(cur), fixOld) {
+				fixOld, fixNew = fixNew, fixOld
+			}
+			if strings.Contains(string(cur), fixOld) {
+				args = append(args, "--fix-old", fixOld, "--fix-new", fixNew)
+			}
+		}
+	}
 	out, err := r.exec(args...)
 	if err != nil {
 		return ""
@@ -281,13 +424,19 @@ func (r *runner) mint(seatID string) string {
 	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil {
 		return ""
 	}
+	if kind == "computation" && env.Result.GapID != "" {
+		if r.computationGaps == nil {
+			r.computationGaps = map[string]bool{}
+		}
+		r.computationGaps[env.Result.GapID] = true
+	}
 	return env.Result.GapID
 }
 
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("merge", "show", "--view", "findings")
+	out, err := r.exec("merge", "show", "findings")
 	if err != nil {
 		return ""
 	}
@@ -303,7 +452,7 @@ func (r *runner) someFinding() string {
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("merge", "show", "--view", "board")
+	out, err := r.exec("merge", "show", "board")
 	if err != nil {
 		return nil
 	}
@@ -323,6 +472,20 @@ func (r *runner) openGaps() []string {
 }
 
 func (r *runner) closeGap(seatID, id string, allowReg bool) {
+	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, deterministically.
+	//
+	// The guard refuses a closure with no proof answering the gap, so leaving it to chance
+	// meant unclosable gaps piling up run after run — and every drive that iterates the open
+	// set grew with them. Answering it here drives the SATISFIED path on every computation
+	// gap, which is the branch a probabilistic prove would mostly skip, and the refusal is
+	// still covered by the integration tests that assert it.
+	if r.computationGaps[id] {
+		name := "fuzz-answer-" + id + ".js"
+		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
+			_, _ = r.exec("blue", "prove", "--seat-id", "blue-respond-r1", "--location", "§ fuzz",
+				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
+		}
+	}
 	// A regression close carries lineage forward: it mints a successor and closes WITH it
 	// (record.go requires --successor for closed_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
@@ -334,17 +497,102 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 			}
 		}
 	}
-	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed", "--reason", "fuzz close",
+	// A CARRIED closure restates last round's verification rather than asserting a fresh act,
+	// and takes --carried-from instead of an anchor. Never driven, though the attestation audit
+	// treats it as a distinct case and skips it deliberately.
+	if r.coin(20) {
+		if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed",
+			"--reason", "fuzz: carried from the prior round", "--carried-from", "1"); err == nil {
+			return
+		}
+	}
+	// THE WHOLE CLOSURE VOCABULARY, not just `closed`. #342 closed the set, so the
+	// enum-coverage sweep now demands every value be reached — and three of them
+	// (rebuttal_sustained, risk_accepted, routed_to_infrastructure) had never been driven by
+	// anything, on either closing verb, in the tool's life.
+	//
+	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
+	// closed clean earlier, so it needs a prior closure to amend.
+	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(20) {
+		if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
+			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
+			"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec"); err == nil {
+			return
+		}
+	}
+	as := pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure"})
+	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
 		"--anchor-seat", seatID, "--anchor-tool", "fuzz", "--anchor-target", "rec")
 }
 
-var avenueStatus = []string{"pursued", "abandoned", "declined"}
-var obsKind = []string{"note", "checked-held"}
-var disposeAs = []string{"declined", "banked"}
+// checkKinds draws uniformly: closeGap satisfies a computation gap before closing it, so the
+// kind no longer decides whether a run accumulates dead gaps.
+// directives are the scenario vocabulary a mint draws from. The string IS the expected
+// behaviour of every seat downstream, and the oracle asserts the record shows it happened.
+const (
+	dirApply       = "FUZZ-APPLY: blue applies the proposed pair verbatim; red closes it"
+	dirCounter     = "FUZZ-COUNTER: blue edits, but not the proposed text; red closes it"
+	dirDisputeWon  = "FUZZ-DISPUTE-WON: blue contests the grade and red accepts the regrade"
+	dirDisputeLost = "FUZZ-DISPUTE-LOST: blue contests the grade and red rejects it"
+	dirIgnore      = "FUZZ-IGNORE: blue does nothing; the gap stays open"
+	// dirProve is the COMPUTATION CHAIN, end to end. It is the only axis where the tool
+	// re-executes evidence rather than re-reading it, and it was the least represented: `blue
+	// prove` fired from a 35% probe, `lens reproduce` picked ANY proof on the record at 35%
+	// with no connection to the gap being audited, and red closed the gap BEFORE any of that.
+	// The order was inverted — reproduction decorated a decision already taken, when it is the
+	// thing that should EARN it. Nothing would have noticed if reproduce returned garbage.
+	dirProve = "FUZZ-PROVE: blue settles it by computing; red re-runs the proof and closes only if it holds"
+	// dirProveDrifts is the case that makes the re-run MEAN something. A deterministic script
+	// always reproduces, so with only dirProve the scenario check and the tool's own
+	// computation guard are indistinguishable — probing by deleting the check caught NOTHING.
+	// A drifting script (an unseeded random, a live sample) is graded `observed` rather than
+	// `reproducible`, and red must NOT close on it: that is the whole difference between a
+	// proof and a measurement, and it is the branch a fake with only tidy scripts never shows.
+	dirProveDrifts = "FUZZ-PROVE-DRIFTS: blue computes, but the output moves between runs; red cannot close on it"
+)
 
-// disposeInto are the dispositions that FOLD an observation into a gap — they take --into <open
-// gap>. Kept separate from disposeAs so the fuzz only picks them when an open gap exists.
-var disposeInto = []string{"minted-as", "folded-into"}
+// WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
+// board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING —
+// which is right, and would leave VERIFIED uncovered if the draw were uniform. Four of seven
+// draws are satisfiable, which keeps both terminal states in the sweep.
+var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore, dirProve, dirProve, dirProveDrifts}
+
+// satisfied reports whether a directive means the gap is repaired and red should close it.
+func satisfied(directive string) bool { return directive == dirApply || directive == dirCounter }
+
+// contested reports whether the directive routes through a grade dispute rather than a repair.
+func contested(directive string) bool {
+	return directive == dirDisputeWon || directive == dirDisputeLost
+}
+
+// outcomeRe reads the verdict debate.js states in the assembler's prompt.
+var outcomeRe = regexp.MustCompile(`Debate outcome: ([A-Z]+)`)
+
+var checkKinds = []string{"document", "computation", "source"}
+
+// `deferred` was added as a fate in #246 and never driven — a value the tool accepts, the
+// registry declares, and no run has ever recorded.
+var avenueStatus = []string{"proposed", "pursued", "abandoned", "declined", "deferred"}
+
+// nextAvenueStatus round-robins the undirected avenue's fate so every value is driven BY
+// CONSTRUCTION rather than by luck.
+//
+// It was a uniform random pick behind a 30% branch — a ~6% draw per avenue for any one fate —
+// so the enum-coverage gate passed on most seeds and failed the moment an unrelated change
+// shifted the RNG stream. A gate whose verdict depends on the draw is sampling coverage, not
+// measuring it, and the failure it produces looks like the change's fault rather than its own.
+//
+// The counter is PACKAGE-LEVEL and atomic, not a field on runner. Per-run it would be worse than
+// random: the sweep makes about 1.6 undirected avenues per run, so a counter resetting each time
+// would only ever reach index 0 and 1 and the last three fates would never be driven at all.
+// Atomic because the sweep's runs are concurrent.
+var avenueTick atomic.Int64
+
+func nextAvenueStatus() string {
+	return avenueStatus[int(avenueTick.Add(1)-1)%len(avenueStatus)]
+}
+
+var obsKind = []string{"note", "checked-held"}
 
 // disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
 var disputeDims = []string{"severity", "likelihood", "impact", "complexity_cost"}
@@ -363,33 +611,234 @@ func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
 // terminal/verdict-shaping acts (halt, certify, outcome, verdict) stay in the structured
 // cases above. Reference-taking verbs are gated on a referent existing.
 func (r *runner) extras(role, seatID string, open []string) {
+	// BOTH ARMS OF THE CHANNEL. --none is the explicit negative a sitting closes with when
+	// nothing blocked it, and it writes a DIFFERENT event type — so a sweep that only ever
+	// drove the complaint arm would leave the attestation path unexercised, which is the
+	// arm the whole change exists to make observable.
 	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
+	r.maybe(30, func() {
+		r.do(role, "friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
+	})
 	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
+	// #246: an avenue now has an id and a LIFECYCLE. Propose, then sometimes move it — the
+	// move is the path the old one-shot append could not record at all (measured: 0 of 86
+	// events across six runs ever changed status).
 	avenue := func(role string) {
-		r.do(role, "avenue", seatID).set("--status", pick(r.rng, avenueStatus)).set("--line", "fuzz avenue "+seatID).on(50, "--method", "fuzz-method").run()
+		// A DECLINED OR ABANDONED avenue requires --reason (record.go: an unexplained
+		// non-pursuit is the decoration this verb exists to refuse). Without it two of the
+		// three statuses were rejected on every call, so only `pursued` ever reached the
+		// record while the verb gate read as covered. Found by the execution tally
+		// (blue avenue: 48 of 72 calls refused).
+		// A FATE-CARRYING LINE IS BORN `proposed`, so the ruling cycle can run on it: red rules
+		// it, blue answers. Creating one directly as `pursued` or `declined` skips the cycle
+		// entirely — which the oracle caught, reporting endorsed avenues that "ended declined"
+		// when they had simply never been through a ruling at all.
+		//
+		// An UNDIRECTED line keeps the random status: proposing something already declined is a
+		// real shape (blue weighed it and did not start), and it carries no fate for red to
+		// rule from, so the ruling cycle and the oracle both skip it by construction.
+		line, st := pick(r.rng, avenueFates)+" ("+seatID+")", "proposed"
+		if r.coin(30) {
+			line, st = "fuzz undirected avenue "+seatID, nextAvenueStatus()
+		}
+		c := r.do(role, "avenue", seatID).set("--status", st).set("--line", line).
+			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").
+			on(50, "--method", "fuzz-method")
+		if st != "pursued" && st != "proposed" {
+			c = c.set("--reason", "fuzz: why this line was not pursued")
+		}
+		c.run()
 	}
 	switch role {
 	case "lens":
-		r.maybe(45, func() {
-			r.do("lens", "observe", seatID).set("--label", fmt.Sprintf("O%d", r.rng.Intn(1_000_000))).set("--kind", pick(r.rng, obsKind)).set("--reason", "fuzz observation").run()
-		})
-		r.maybe(45, func() { avenue("lens") })
+		// NO avenue DRIVE HERE: the lens role has no avenue verb (register/finding/
+		// cite/friction/show). This called it 183 times per sweep, every one refused, while
+		// the verb gate stayed green on blue's avenue events — a dead drive that read as
+		// coverage. Found by the execution tally (lens avenue: 183 of 183 refused).
 	case "merge":
-		// W1.8 archive spot-check — the merge's duty. --none is always valid (an empty archive at
-		// round start); it exercises the verb and its --none/--reason branch.
-		r.maybe(45, func() {
-			r.do("merge", "spot-check", seatID).bare("--none").set("--reason", "fuzz: nothing to sample").run()
+		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
+		//
+		// The additive stage added a blue-files/merge-rules pair here beside the `blue dispute`
+		// scenario driver, because the old verb was still live and both had to be exercised. When
+		// the old verb went, the scenario driver became a motion driver too — and the two minted
+		// ids independently while tracking them in separate lists. They crossed: M2 was ruled
+		// twice, once by each, and the second ruling OVERWROTE the first at replay. The report
+		// showed M2 answered with the reasoning written for another gap.
+		//
+		// The rulings live in answerDisputes now, where the ask is, so the id never leaves the
+		// bookkeeping that minted it.
+		// W1.8 archive spot-check — the merge's duty, and now ENFORCED from the board
+		// (verify.archiveSpotCheckFloor).
+		//
+		// THE OLD DRIVER MODELLED A NON-COMPLIANT SEAT AND NOTHING NOTICED. It fired at 45%, so
+		// most rounds skipped the duty outright, and its comment claimed "--none is always valid
+		// (an empty archive at round start)" — which is false whenever the archive is not empty,
+		// and is EXACTLY the self-attestation the duty exists to prevent. Both passed because
+		// the event had no reader.
+		//
+		// It now models a seat that discharges the duty honestly: sample when there is something
+		// to sample, and claim emptiness only when the board agrees.
+		if closed := r.closedGapIDs(); len(closed) > 0 {
+			r.do("merge", "spot-check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
+				set("--notes", "fuzz: re-read the closure record; the anchor still resolves").run()
+		} else {
+			r.do("merge", "spot-check", seatID).bare("--none").
+				set("--reason", "fuzz: the archive was empty at round start").run()
+		}
+		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
+		// rejected 18 of its own 86 avenues and red rejected none, because it could not.
+		// RED RULES EVERY UNRULED AVENUE, and the ruling follows the line it was proposed as.
+		//
+		// It used to rule ONE random avenue at 45% with a random ruling, so a ruling had no
+		// relation to what was proposed and no consequence for what happened next: an
+		// out-of-scope line could be pursued and an endorsed one abandoned, and the record kept
+		// both halves while joining them nowhere. The avenue's own --line now carries its
+		// intended fate, exactly as a gap's --fix carries its scenario.
+		r.ruleOpenAvenues(seatID)
+		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
+		// left no event and no gate saw it — while the merge prompt calls it every round.
+		r.maybe(40, func() {
+			r.readOnly("merge", "near-match", seatID, "--candidate", "fuzz candidate problem text for screening", "--location", "§ fuzz")
 		})
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
+		// APPEAL WHAT HAS ALREADY BEEN RULED — a round later than the filing, which is when an
+		// appeal is possible at all.
+		for _, id := range r.ruledMotions {
+			if r.coin(40) {
+				_, _ = r.exec("motion", "grade", "appeal", "--seat-id", seatID, "--id", id,
+					"--reason", "fuzz: pressing it to the bench")
+			}
+		}
+		r.ruledMotions = nil
+		// NO RANDOM AVENUE MOVE HERE. answerAvenueRulings owns moves now: it answers red's
+		// ruling, comply or contest, one decision per avenue. A second writer sliding statuses
+		// at random fought it — the oracle caught it immediately, 24 of 60, reporting endorsed
+		// avenues that ended declined and contests the record never recorded because the move
+		// landed before the ruling did. Two writers disagreeing about a fate is the same defect
+		// the edit drive had, one axis over.
+		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
+		// the source through the run cache and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor
+		// at the quoted sentence. --location must appear VERBATIM in blue/report.md, so it quotes the
+		// seeded "§ fuzz" text the same way lens finding does. A --key from a small space exercises
+		// the retry short-circuit; a shared URL across seats exercises the cache HIT path (fetch-once),
+		// while the per-seat path exercises the MISS path.
+		r.maybe(55, func() {
+			url := sourceURL("/blue-shared")
+			if r.coin(50) {
+				url = sourceURL("/" + seatID)
+			}
+			r.do("blue", "cite", seatID).
+				set("--location", "§ fuzz").
+				set("--url", url).
+				set("--title", "fuzz source "+seatID).
+				on(50, "--claim", "fuzz cited claim "+seatID).
+				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
+				on(50, "--reason", "fuzz: why this source backs the claim").
+				run()
+		})
+		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
+		// auto-logged as friction. Driving it here proves the reject path never wedges the run.
+		r.maybe(15, func() {
+			r.do("blue", "cite", seatID).
+				set("--location", "§ fuzz").
+				set("--url", "http://127.0.0.1:1/unreachable").
+				set("--title", "unreachable "+seatID).
+				run()
+		})
+		// THE ONLY WRITE PATH to blue/report.md, driven end to end through the real binary.
+		// It swaps the seeded edit-target sentence between two phrasings, so a valid unique
+		// --old exists whichever way the previous edit left the file — no state to thread.
+		//
+		// --answers carries the PROVENANCE (#267): the gap this edit responds to. Sent when
+		// the board has an open gap, omitted otherwise, so BOTH validation branches run —
+		// the reference check and the legal no-gap edit. The --reason deliberately names no
+		// gap: prose naming a real gap with --answers empty is REFUSED, and this drive must
+		// exercise the path that is allowed to succeed.
+		r.maybe(45, func() {
+			cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+			if err != nil {
+				return
+			}
+			oldSpan, newSpan := "rising over time", "climbing sharply"
+			if !strings.Contains(string(cur), oldSpan) {
+				oldSpan, newSpan = newSpan, oldSpan
+			}
+			if !strings.Contains(string(cur), oldSpan) {
+				return // an anchor landed mid-span; skip rather than force a mis-quote
+			}
+			// THIS DRIVE NO LONGER CLAIMS TO ANSWER A GAP.
+			//
+			// It used to pick a random open gap for --answers, and the scenario oracle caught it
+			// on its first run: 5 of 60 seeds attached provenance to a gap whose directive said
+			// blue does nothing. Two writers disagreed about who had repaired what — which is
+			// exactly the defect --answers exists to make impossible, reproduced inside the fake.
+			//
+			// Answering a gap is blueRespondTo's job, one decision per gap, from the directive.
+			// What remains is an UNATTRIBUTED edit: blue sharpening its own prose, which is real
+			// and must stay legal (--answers' own help says to omit it when no gap is answered).
+			r.do("blue", "edit", seatID).
+				set("--old", oldSpan).
+				set("--new", newSpan).
+				set("--reason", "fuzz edit: sharper phrasing, answering no gap").
+				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2))).
+				run()
+		})
+		// READ-ONLY, PROMPT-CALLED, AND PREVIOUSLY UNFUZZED. claim-index records nothing, so the
+		// event-type coverage gate cannot see it — yet blue's response prompt tells blue to call
+		// it when propagating a correction to every site of a claim. A crash here costs a real
+		// round; no gate would have noticed.
+		// #277: settle a claim by COMPUTING it. The script is written into the run dir and the
+		// tool runs it twice — so this drives the real interpreter, the cache, the anchor
+		// splice and the reproducible/observed grading, not a stub.
+		r.maybe(35, func() {
+			name := "fuzz-proof-" + seatID + ".js"
+			body := "console.log('fuzz proof for " + seatID + "');"
+			if r.coin(25) {
+				body = "console.log(Math.random());" // exercises the OBSERVED grade
+			}
+			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err != nil {
+				return
+			}
+			pv := r.do("blue", "prove", seatID).
+				set("--location", "§ fuzz").
+				set("--script", name).
+				set("--reason", "fuzz: computing rather than arguing").
+				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2)))
+			// ANSWER a real gap most of the time: a computation check closes only on a proof
+			// that names it, so without this the guard would only ever be seen refusing.
+			if len(open) > 0 && r.coin(70) {
+				pv = pv.set("--answers", pick(r.rng, open))
+			}
+			pv.run()
+		})
+		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
 		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
-			r.do("blue", "retire", seatID).set("--claim", "fuzz claim "+seatID).set("--reason", "fuzz retire").on(50, "--superseded-by", "fuzz replacement claim "+seatID).run()
+			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a
+			// string that was never in the report — 45 times a sweep. A phantom retire is not
+			// merely uninformative: the scorecard computes unrecorded_claim_loss as the drop in
+			// claim_count MINUS the retire events, so retiring something that was never there
+			// cancels real loss and blinds the detector built to catch silent deletion.
+			//
+			// A real retirement names text a recorded edit took out, which is what makes the
+			// removal something the record can SHOW rather than something a seat says.
+			if claim := r.recentlyEditedOut(); claim != "" {
+				r.do("blue", "retire", seatID).set("--claim", claim).set("--reason", "fuzz: the claim went with the edit").
+					on(50, "--superseded-by", "fuzz replacement claim").run()
+			}
 		})
-		if len(open) > 0 {
-			r.maybe(40, func() {
-				r.do("blue", "manifest-row", seatID).set("--id", pick(r.rng, open)).set("--row", "fuzz manifest row").run()
-			})
+		// THE CORRECTNESS MANIFEST: one row per repaired gap, on the record (#318).
+		//
+		// It used to fire at 40% for ONE random gap, which modelled a seat that mostly skipped
+		// its own self-audit — and nothing noticed, because the row had no reader and the
+		// coverage metric was counting the ENVELOPE array instead. The verb is now what the
+		// prompt asks for and what the scorecard counts, so the fake discharges it the way a
+		// compliant blue would: every gap it is repairing this round.
+		for _, id := range open {
+			r.do("blue", "manifest-row", seatID).set("--id", id).
+				set("--row", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").
+				on(50, "--reason", "fuzz: the receipt's argument").run()
 		}
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
@@ -399,116 +848,118 @@ func (r *runner) extras(role, seatID string, open []string) {
 	}
 }
 
-// disposeObservations gives every observation a FATE — the merge's duty — so a run that
-// randomly grew observations still ends clean and exercises observe -> dispose end to end.
-func (r *runner) disposeObservations(seatID string) {
-	out, err := r.exec("merge", "show", "--view", "board")
-	if err != nil {
-		return
-	}
-	var b struct {
-		Observations []struct {
-			Label    string `json:"label"`
-			Disposed bool   `json:"disposed"`
-		} `json:"observations"`
-		Open []struct {
-			ID string `json:"id"`
-		} `json:"open"`
-	}
-	if json.Unmarshal([]byte(out), &b) != nil {
-		return
-	}
-	for _, o := range b.Observations {
-		if o.Disposed || o.Label == "" {
-			continue
-		}
-		// The FOLD dispositions (minted-as|folded-into) require a target gap via --into; pick one
-		// when an open gap exists, else fall back to the free dispositions (declined|banked). This
-		// exercises the full --as domain plus the --into flag.
-		if len(b.Open) > 0 && r.coin(50) {
-			into := b.Open[r.rng.Intn(len(b.Open))].ID
-			_, _ = r.exec("merge", "dispose", "--seat-id", seatID, "--observation", o.Label, "--as", pick(r.rng, disposeInto), "--into", into, "--reason", "fuzz dispose")
-		} else {
-			_, _ = r.exec("merge", "dispose", "--seat-id", seatID, "--observation", o.Label, "--as", pick(r.rng, disposeAs), "--reason", "fuzz dispose")
-		}
-	}
-}
-
 // arr / obj are goja-friendly envelope builders.
 func arr(v ...any) []any { return append([]any{}, v...) }
 
 // envelopeFor performs the seat's tool acts and returns the envelope debate.js expects. The
 // randomisation here is what drives debate.js's control flow: red's verdict and gap count
 // decide whether the loop continues, deadlocks, or terminates.
-func (r *runner) envelopeFor(seatID string) map[string]any {
+func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	switch {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
-		r.emitConfidence(seatID) // round-0 calibration
 		r.extras("blue", seatID, nil)
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "red-merge"):
 		r.register("merge", seatID)
-		// Answer blue's pending disputes FIRST (debate.js processes dispute_responses before the
-		// PASS/FAIL branch) — emits the events + returns the routing refs, whatever the verdict.
+		// RED NOW EVALUATES THE REPAIR AGAINST WHAT IT ASKED FOR.
+		//
+		// It used to coin PASS at 40%, mint 1-3 fresh gaps unconditionally, and close every
+		// open gap on a PASS regardless of what blue had done — so the verdict bore no relation
+		// to whether anything was actually repaired. Each gap now carries the scenario it was
+		// minted with, and red reads it back off the board: a repaired gap CLOSES, a contested
+		// or ignored one STAYS OPEN. The round's verdict falls out of what is left.
 		responses := r.answerDisputes(seatID)
 		r.extras("merge", seatID, r.openGaps())
-		// PASS ~40%: run the round's dialectic, dispose any loose observations, then close every
-		// open gap so the #67 gate (and verify) holds.
-		if r.coin(40) {
-			open := r.openGaps()
-			r.dialectic("merge", seatID, open)
-			r.disposeObservations(seatID)
-			// Close every open gap so the #67 gate (and verify) holds. The FIRST pass may
-			// regression-close (minting successors) and dispose may have minted-as new gaps; re-read
-			// and plain-close until the board is empty. Bounded: only the first pass regression-closes.
-			for first := true; ; first = false {
-				rem := r.openGaps()
-				if len(rem) == 0 {
-					break
-				}
-				for _, id := range rem {
-					r.closeGap(seatID, id, first)
-				}
-			}
-			// The merge's TERMINAL act on a PASS: checkpoints records/ (the event log) to the
-			// recovery mirror. A PASS ends the debate, so this round is terminal.
-			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+
+		if r.evaluated == nil {
+			r.evaluated = map[string]bool{}
 		}
-		// FAIL: mint 1-3 fresh gaps (a FAIL with empty gaps is a degenerate merge debate.js
-		// rejects on purpose). Report the FULL open set as the docket.
-		for range r.rng.Intn(3) + 1 {
+		for _, id := range r.openGaps() {
+			d := r.scenarioOf(id)
+			if r.presented[id] {
+				r.evaluated[id] = true
+			}
+			switch {
+			case satisfied(d):
+				r.closeGap(seatID, id, r.coin(25)) // the regression-close variant is still sampled
+			case d == dirProve && r.reproduced[id]:
+				// THE REPRODUCTION EARNS THE CLOSE. Red does not take blue's word that a
+				// computation happened, and does not take its own: a lens re-ran the recorded
+				// script and got the same bytes. Without that, the gap stays open — which is
+				// also what the tool's own computation guard would enforce.
+				r.closeGap(seatID, id, false)
+			case d == dirDisputeWon:
+				// Red accepted the regrade in answerDisputes; the substance is settled, so the
+				// gap closes on the corrected grade.
+				r.closeGap(seatID, id, false)
+			}
+			// dirDisputeLost and dirIgnore: deliberately left open. The first goes to the
+			// bench's docket, the second is blue owing work it did not do.
+		}
+
+		// MINT BEFORE JUDGING WHETHER ANYTHING REMAINS. Round 1 has an empty board until red
+		// puts something on it — evaluating PASS first made every run pass in one round with
+		// nothing ever raised, which the coverage gate caught immediately.
+		// 0 is legal at round 1: red auditing and raising NOTHING is a real shape, and it is the
+		// only way a run reaches PASS in a single round.
+		fresh := r.rng.Intn(4)
+		if !strings.HasSuffix(seatID, "-r1") {
+			fresh = r.rng.Intn(2) // later rounds may raise nothing
+		}
+		for range fresh {
 			r.mint(seatID)
 		}
+
 		open := r.openGaps()
-		if len(open) > 0 {
-			r.dialectic("merge", seatID, open)
+		if len(open) == 0 {
+			r.dialectic("merge", seatID, nil)
+			// The merge's TERMINAL act on a PASS: checkpoints the event log to the recovery mirror.
+			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
+
+		// Something is unrepaired, so the round FAILs.
+		r.dialectic("merge", seatID, open)
 		var gaps []any
-		for _, id := range r.openGaps() {
+		for _, id := range open {
 			gaps = append(gaps, map[string]any{"id": id, "supersedes": arr()})
 		}
 		if len(gaps) == 0 {
-			// The mints did not take (a tool refusal we could not satisfy) — degrade to PASS
-			// rather than fabricate a docket. A FAIL with an empty gaps array is exactly the
-			// degenerate merge debate.js rejects, and we must not hand it one.
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
-		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "corroboration": arr(), "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+		// The merge's terminal act on a FAIL too: the checkpoint is what protects the event log
+		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
+		// `FAIL` half of a two-value enum had never been recorded by anything.
+		_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "FAIL")
+		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
 		open := r.openGaps()
-		r.dialectic("blue", seatID, open) // blue's position, closings, confidence
+		r.dialectic("blue", seatID, open) // blue's position and closings
 		r.extras("blue", seatID, open)
-		disputes := r.raiseDisputes(seatID, open) // emit dispute events + envelope routing refs
+		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
+		// minted with; blue reads it back off the board and does what it says. This replaces a
+		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
+		// looked at what red had actually asked for.
+		r.answerAvenueRulings(seatID)
+		r.disputedThisRound = nil
+		if r.presented == nil {
+			r.presented = map[string]bool{}
+		}
+		for _, id := range open {
+			r.presented[id] = true
+		}
+		r.blueRespondTo(seatID, open)
+		disputes := r.disputedThisRound
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
-		// receipt. One row per open gap it is repairing this round.
+		// receipt. #318: the envelope is a ROUTING REF now, gap ids only; the rows themselves are
+		// on the record, written by the manifest-row calls above against this same `open` set.
 		var manifest []any
 		for _, id := range open {
-			manifest = append(manifest, map[string]any{"gap_id": id, "row": "fuzz: checked"})
+			manifest = append(manifest, id)
 		}
 		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
 
@@ -519,12 +970,28 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 	case strings.HasPrefix(seatID, "judge"): // adjudication + terminal
 		r.register("bench", seatID)
 		r.extras("bench", seatID, nil)
+		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
+		// its scenario left it open, and the scenario says why: a LOST dispute is a contest
+		// red refused and the bench settles it; an IGNORE is blue owing work, which is what
+		// `carried` means — "the material needs another round", stated as a decision.
 		var res []any
 		for _, id := range r.openGaps() {
 			disp := "carried"
-			if r.rng.Intn(2) == 0 {
-				disp = "closed"
-				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", "closed",
+			// A CARRIED GAP IS STILL A RULING, and the bench records it. The fake used to put
+			// `carried` in the envelope and write NO opinion event, so the bench's most common
+			// act — deferring a gap with a stated direction — had never been driven once. The
+			// enum-coverage gate found it the moment #342 closed the disposition set.
+			if r.scenarioOf(id) != dirDisputeLost {
+				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", "carried",
+					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false",
+					"--reason", "fuzz: carried with a stated direction for "+id)
+			}
+			if r.scenarioOf(id) == dirDisputeLost {
+				// EVERY CLOSING DISPOSITION, not just `closed` (#342). The bench shares red's
+				// closure vocabulary now, and the sweep must reach all of it — bench opinion
+				// had driven exactly one closing word.
+				disp = pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure", "amends_prior"})
+				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", disp,
 					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "rationale": "fuzz"})
@@ -533,11 +1000,25 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	case strings.HasPrefix(seatID, "assemble"):
 		r.register("bench", seatID)
-		verd := []string{"VERIFIED", "CEILING", "UNVERIFIED"}[r.rng.Intn(3)]
+		// THE VERDICT IS READ, NOT INVENTED. debate.js computes the terminal outcome and TELLS
+		// the assembler ("Debate outcome: <verdict> after N round(s)") — exactly as a real seat
+		// is told. The fake used to ignore that and draw from a hat, so `bench outcome --as`
+		// could record a verdict contradicting the engine's own computation, and no oracle had
+		// ever checked that a board with open gaps yields UNVERIFIED or a closed one VERIFIED.
+		// The single most consequential value the engine emits was uncorrelated with everything
+		// upstream of it.
+		verd := "UNVERIFIED"
+		if m := outcomeRe.FindStringSubmatch(prompt); m != nil {
+			verd = m[1]
+		}
 		if r.forceHalt {
 			verd = "HALTED" // a halted run's terminal outcome is HALTED (debate.js computes this)
 		}
-		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd}
+		// --reason is REQUIRED on outcome (#375): it is the run's terminal act, and every claim
+		// or judgment act on this record carries its reasoning. Driving it without one leaves
+		// `bench outcome` refused on every seed, which this sweep reports as a false green.
+		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd,
+			"--reason", "fuzz: the run reached " + verd + " and the bench recorded how it ended"}
 		// the terminal-outcome modifiers — a non-VERIFIED end may be by safety ceiling or deadlock
 		// (not on a halt, whose outcome stands alone).
 		if !r.forceHalt && verd != "VERIFIED" && r.coin(40) {
@@ -553,24 +1034,53 @@ func (r *runner) envelopeFor(seatID string) map[string]any {
 
 	default: // frontier, blue lanes, red lenses — register, and lenses record onto the channel
 		if seatID != "" {
+			// THE DEFAULT IS lens, SO EVERY MAPPING MISS IS A SILENTLY UNREGISTERED SEAT.
+			// `frontier` is a BLUE seat (roles.go: blue owns blue-*, frontier) and was mapped
+			// to lens here, so its register was REFUSED once per run, in every run, and that
+			// seat's whole path went unexercised behind a green sweep. Found by the execution
+			// tally (lens register: exactly 60 refusals across 60 runs — one per run is a
+			// pattern, not noise).
 			role := "lens"
-			switch {
-			case strings.HasPrefix(seatID, "blue"):
+			if strings.HasPrefix(seatID, "blue") || strings.HasPrefix(seatID, "frontier") {
 				role = "blue"
-			case strings.HasPrefix(seatID, "frontier"):
-				role = "lens"
 			}
 			r.register(role, seatID)
 			// The non-prose lens channel is the RECORD now, not red/candidates files: a
 			// citation lens records cite events, and every red lens records finding events
 			// (label TOOL-assigned). This is the ONLY harness that drives that path end to
 			// end through the real debate.js + binary, so it must actually exercise it.
+			// RED RE-RUNS a recorded proof (#277) — the one audit that does not end in believing
+			// bytes someone else chose.
+			// RED RE-RUNS THE PROOF FOR THE GAP IT IS AUDITING, and the result is what red
+			// closes on. It used to pick ANY proof on the record at 35% with no connection to
+			// the gap, AFTER red had already closed it — reproduction decorating a decision
+			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
+			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
-				_, _ = r.exec("lens", "cite", "--seat-id", seatID, "--claim", "fuzz claim "+seatID,
-					"--reference", "https://fuzz.invalid/"+seatID, "--confidence", confGrades[r.rng.Intn(len(confGrades))], "--access-date", "2026-07-24")
+				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
+				// adjudicating a citation blue authored, and red corroborating a source it found
+				// itself. Falling back to --independent when blue has cited nothing keeps the
+				// verb driven from round 0 rather than only after the first cite lands.
+				verify := r.do("lens", "verify", seatID).
+					set("--claim", "fuzz claim "+seatID).
+					set("--reference", "https://fuzz.invalid/"+seatID).
+					set("--as", verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]).
+					set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
+					set("--reason", "fuzz: what the source actually says").
+					on(60, "--access-date", "2026-07-24")
+				if anchor := r.someCitation(); anchor != "" && r.coin(70) {
+					verify.set("--anchor", anchor)
+				} else {
+					verify.bare("--independent")
+				}
+				verify.run()
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--location", "§ fuzz", "--reason", "fuzz finding")
+				// Red verifies a cited source by reading the CACHED bytes (#256): the same
+				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
+				// store, hit — real in the fuzz rather than unit-tested only.
+				_, _ = r.exec("fetch", "--url", sourceURL("/"+seatID))
 				r.extras("lens", seatID, nil)
 			}
 		}
@@ -604,6 +1114,24 @@ type outcome struct {
 	verdict   string         // the terminal verdict this run reached (coverage signal)
 	rounds    int            // how many rounds it ran (coverage signal)
 	dialectic map[string]int // dialectic events this run left on the record (coverage signal)
+	// #256 citation axis: the fetch -> cache -> cite -> anchor chain leaves TWO artifacts a
+	// `cite` event alone does not prove — a cached source file and an INVISIBLE anchor spliced
+	// into blue/report.md. `cite` is already in verbsWithEvents but is satisfied by red's
+	// `lens cite`, which touches neither, so a blue-cite regression would pass the verb gate
+	// silently. These two counters are what actually pin the new path.
+	citeAnchors int
+	cacheFiles  int
+	// #267 provenance: blue_edit events carrying --answers. The verb gate below is satisfied
+	// by ANY blue_edit, so an edit drive that never sent the flag would pass it silently —
+	// exactly the false green the citation counters exist to prevent for cite.
+	editAnswers int
+	// #267 stage 3: gaps whose fix_basis was EARNED by a validated concrete proposal. The
+	// mint verb gate is satisfied by any mint, so a proposal path that stopped validating
+	// would pass it while the axis quietly went all-prose.
+	verifiedBasis int
+	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
+	// could counter-edit every time and the estoppel path would never be reached at all.
+	verbatimApplied int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -638,7 +1166,7 @@ func (r *runner) installAgent(vm *goja.Runtime) {
 			}
 			r.models = append(r.models, mdl)
 		}
-		env := r.envelopeFor(seatID)
+		env := r.envelopeFor(seatID, prompt)
 		p, resolve, _ := vm.NewPromise()
 		resolve(vm.ToValue(env))
 		return vm.ToValue(p)
@@ -655,6 +1183,14 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 			settledErr = fmt.Sprintf("panic: %v", p)
 		}
 	}()
+	// The fuzz builds its run directly rather than through `setup`, so it must lay down the
+	// same inputs/run-config.json setup writes — the ceiling recorded there is what the CEILING
+	// verdict is DERIVED against (#308). Without it, every ceiling run recorded an ASSERTED
+	// verdict, which is exactly what the tripwire flagged: 24 of 60, purely for a missing file.
+	_ = os.MkdirAll(filepath.Join(r.runDir, "inputs"), 0o755)
+	_ = os.WriteFile(filepath.Join(r.runDir, "inputs", "run-config.json"),
+		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","maxRounds":"3","lanes":"1"}`), 0o644)
+
 	loop := eventloop.NewEventLoop()
 	loop.Run(func(vm *goja.Runtime) {
 		vm.Set("args", map[string]any{
@@ -699,6 +1235,14 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 
 func runOne(wrapped, bin string, seed int64) outcome {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
+	// A lens finding anchors into blue/report.md and is rejected unless its --location
+	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
+	// ("§ fuzz") so findings are accepted and the coverage gate sees them.
+	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
+	// The trailing sentence is the EDIT TARGET: `blue edit` swaps it between two fixed
+	// phrasings, so every round has a valid unique span to replace whichever way the last
+	// edit left it, while the anchor quote above stays untouched for findings and cites.
+	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
 	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
 	res := outcome{seed: seed, runDir: runDir}
@@ -727,7 +1271,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	// Oracle 1: the record the run left must pass verify.
-	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
+	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
 		res.err = "verify FAILED:\n" + truncate(string(out))
 		return res
 	}
@@ -735,33 +1279,326 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// `board` is already exercised above; `findings`/`friction` are JSON by name; `debate --json`
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
-	for _, v := range []string{"findings", "friction"} {
-		out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput()
+	ids := mintedGapIDs(runDir)
+	// EVERY PROJECTION, ON EVERY ROLE. `show` became a GROUP (0.56.0), so each projection is its
+	// own command path — and the coverage gate immediately reported 34 paths never invoked,
+	// because the sweep had only ever driven the handful it asserted on. A view that only the
+	// merge reads is a view nobody checks from the seat that actually reads it.
+	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+		for _, v := range viewNamesForFuzz {
+			args := []string{role, "show", v, "--run", runDir}
+			if v == "changes" && len(ids) > 0 {
+				args = append(args, "--id", ids[0])
+			}
+			if _, err := tracked(bin, args...); err != nil {
+				res.err = role + " show " + v + " failed: " + err.Error()
+				return res
+			}
+		}
+		if _, err := tracked(bin, role, "show", "--run", runDir); err != nil {
+			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
+			return res
+		}
+	}
+	// The OPERATOR's friction read — seats write the channel, the human reads it back.
+	if _, err := tracked(bin, "friction", "--run", runDir); err != nil {
+		res.err = "operator friction read failed: " + err.Error()
+		return res
+	}
+	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
+	// every role; only the view moved.
+	for _, v := range []string{"findings"} {
+		out, err := tracked(bin, "merge", "show", v, "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
-			res.err = "show --view " + v + " did not return valid JSON:\n" + truncate(string(out))
+			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
 			return res
 		}
 	}
 	{
-		out, err := exec.Command(bin, "merge", "show", "--view", "debate", "--json", "--run", runDir).CombinedOutput()
+		out, err := tracked(bin, "merge", "show", "debate", "--json", "--run", runDir)
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
-			res.err = "show --view debate --json did not return valid JSON:\n" + truncate(string(out))
+			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
 			return res
 		}
 	}
-	// Oracle 1c: the SIX markdown views now render in-memory (view.Markdown) with no render-shadow
+	// Oracle 1c: the markdown views now render in-memory (view.Markdown) with no render-shadow
 	// round-trip. Each must exit 0 on whatever state the run reached — this restores the randomized
 	// coverage the `render` verb + the difftest RENDERS section used to give the projection renderer,
 	// which the render-shadow removal (#203) took away (view_test.go pins the bytes on fixed
 	// fixtures; only the fuzz drives them across arbitrary run shapes).
-	for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
-		if out, err := exec.Command(bin, "merge", "show", "--view", v, "--run", runDir).CombinedOutput(); err != nil {
-			res.err = "show --view " + v + " (markdown projection) failed:\n" + truncate(string(out))
+	//
+	// DRIVEN FROM cli.ViewNames(), not a list maintained here. A hand-kept roster of what
+	// exists is how the coverage gap this oracle closes was created in the first place: a
+	// view ships, nobody adds it to the list, and the sweep reports full coverage of a
+	// surface it never drove. The JSON-by-name views take their own dispatch branches above.
+	// EVERY ROLE'S show, not merge's alone. Each role has a different DEFAULT view and its own
+	// role gate, so driving only `merge show --view` left the other three reachable but never
+	// reached — and --id (the scoped form) never passed at all.
+	for _, role := range []string{"blue", "lens", "bench"} {
+		if out, err := tracked(bin, role, "show", "debate", "--run", runDir); err != nil {
+			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
+	if ids := mintedGapIDs(runDir); len(ids) > 0 {
+		for _, role := range []string{"blue", "lens", "bench"} {
+			_, _ = tracked(bin, role, "show", "changes", "--id", ids[0], "--run", runDir)
+		}
+	}
+	for _, v := range cli.ViewNames() {
+		switch v {
+		case "board", "findings", "friction", "worklist":
+			continue // JSON by name — driven by their own oracles, not the markdown path
+		}
+		if out, err := tracked(bin, "merge", "show", v, "--run", runDir); err != nil {
+			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
+			return res
+		}
+	}
+	// And the SCOPED form, over a gap the run actually minted: `--view changes --id <gap>`
+	// takes a different path (it resolves the gap and renders the comparison), so the unscoped
+	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
+	// rendered empty — the read-side twin of requireGap.
+	if ids := mintedGapIDs(runDir); len(ids) > 0 {
+		if out, err := tracked(bin, "merge", "show", "changes", "--id", ids[0], "--run", runDir); err != nil {
+			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
+			return res
+		}
+		if out, err := tracked(bin, "merge", "show", "changes", "--id", "R9-99", "--run", runDir); err == nil {
+			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
+			return res
+		}
+	}
+	// Oracle 1d: THE READ-ONLY CENSUS. Every record-nothing surface must survive whatever
+	// shape this run reached. These emit no events, so the verb-coverage gate below is blind
+	// to them by construction — this is the only thing that exercises them at all.
+	if msg := sweepReadOnly(bin, runDir); msg != "" {
+		res.err = msg
+		return res
+	}
+	// SCENARIO ORACLE: the record must SHOW the decision the scenario specified.
+	//
+	// This is what the directives buy. Every other oracle here asks "did anything break" —
+	// verify passes, the views parse, prose renders. None can tell a chain that CARRIED a
+	// decision from one that dropped it, because until now no decision was written down before
+	// it was taken. Each gap is now minted with the outcome it should reach, so the terminal
+	// record is checkable rather than merely well-formed.
+	//
+	// IGNORE is the sharpest: if --answers stopped recording provenance, an ignored gap and a
+	// repaired one would look identical — and that join is what #267's whole measurement axis
+	// is built on.
+	if board, err := record.BoardState(runDir); err == nil {
+		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
+		for _, e := range board.Events {
+			if e.Type == "proof" && e.Payload.Str("answers") != "" {
+				proved[e.Payload.Str("answers")] = true
+			}
+			switch e.Type {
+			case "blue_edit":
+				if id := e.Payload.Str("answers"); id != "" {
+					answered[id] = true
+				}
+			case "motion":
+				// A grade motion IS the contest, and the oracle reads it by subject rather than
+				// by event type now: `motion` carries petitions and directions too, so keying on
+				// the type alone would count a petition as a contested grade.
+				if e.Payload.Str("subject") == "grade" {
+					if id := e.Payload.Str("gap_id"); id != "" {
+						disputed[id] = true
+					}
+				}
+			}
+		}
+		for _, id := range board.GapOrder {
+			g := board.Gaps[id]
+			// Only gaps a responder was SHOWN can be judged: one minted in the terminal round
+			// never reaches blue, so its scenario was never dispatched.
+			if g == nil || g.Mint == nil || !r.presented[id] {
+				continue
+			}
+			switch g.Mint.Str("required_fix") {
+			case dirIgnore:
+				if answered[id] {
+					res.err = "scenario IGNORE: " + id + " was answered by a blue_edit, but the scenario said blue does nothing — either a writer ignored the directive or --answers is attaching provenance nobody claimed"
+					return res
+				}
+			case dirDisputeWon, dirDisputeLost:
+				if !disputed[id] {
+					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
+					return res
+				}
+			case dirProve, dirProveDrifts:
+				// The chain must be VISIBLE ON THE RECORD, not merely to have happened: a proof
+				// answering this gap, and the gap closed only behind a reproduction that held.
+				if !proved[id] {
+					res.err = "scenario PROVE: " + id + " has no proof answering it — the computation the scenario specified left no artifact red could re-run"
+					return res
+				}
+				if r.evaluated[id] && !g.Open && !r.reproduced[id] {
+					res.err = "scenario PROVE: " + id + " was CLOSED without its proof reproducing — red accepted a computation on somebody's word, which is the one thing re-running exists to prevent"
+					return res
+				}
+			case dirApply:
+				if !answered[id] {
+					res.err = "scenario APPLY: " + id + " has no blue_edit answering it — a repair the scenario specified left no provenance"
+					return res
+				}
+			}
+			// THE TERMINAL FATE, which is the assertion the first pass was missing. Found by
+			// probe: making red never close a repaired gap produced ZERO oracle failures — the
+			// run simply ended CEILING with work sitting done-but-open, and nothing said so.
+			// Scoped to gaps red actually sat on after blue answered: a repair landed in the
+			// final round leaves the gap legitimately open, because red never sits again.
+			if satisfied(g.Mint.Str("required_fix")) && r.evaluated[id] && g.Open {
+				res.err = "scenario " + g.Mint.Str("required_fix") + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
+				return res
+			}
+		}
+	}
+
+	// A RULING HAS A CONSEQUENCE, AND A CONTEST IS VISIBLE AS ONE.
+	//
+	// Red's ruling and the avenue's fate were both on the record and joined NOWHERE, so blue
+	// pursuing a line red called out-of-scope looked exactly like pursuing one red endorsed.
+	// The design says a ruling is an ARGUMENT blue may contest. That contest used to be
+	// `contests_ruling`, a field set as a SIDE EFFECT of moving a line to `pursued` — so it could
+	// only record disagreement that won, and a seat that argued and then yielded fell out of the
+	// count silently (measured on a real run; see #344). It is `motion direction appeal` now: its
+	// own event, with its own reason, filed against the ruling and independent of what the line's
+	// status does next.
+	if board, err := record.BoardState(runDir); err == nil {
+		contests := map[string]string{}
+		for _, e := range board.Events {
+			if e.Type == "motion-appeal" && e.Payload.Str("subject") == "direction" {
+				contests[e.Payload.Str("motion_id")] = "appealed"
+			}
+			// The PRE-#344 spelling, still read: a stored record carries it and the oracle runs
+			// against replayed records as well as fresh ones.
+			if e.Type == "avenue" && e.Payload.Str("contests_ruling") != "" {
+				contests[e.Payload.Str("avenue_id")] = e.Payload.Str("contests_ruling")
+			}
+		}
+		for _, a := range record.Avenues(board) {
+			ruling := record.AvenueRuling(runDir, a.ID)
+			if ruling == "" || a.Status == "proposed" {
+				continue // never ruled, or blue has not answered yet
+			}
+			switch {
+			case strings.HasPrefix(a.Line, avContest):
+				if a.Status != "pursued" {
+					res.err = "avenue " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
+					return res
+				}
+				if contests[a.ID] == "" {
+					res.err = "avenue " + a.ID + " was pursued AGAINST a " + ruling + " ruling and the record does not say so — the disagreement is invisible, which is the state this join exists to end"
+					return res
+				}
+			case ruling == "endorsed":
+				if a.Status != "pursued" {
+					res.err = "avenue " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
+					return res
+				}
+			default:
+				if a.Status == "pursued" && contests[a.ID] == "" {
+					res.err = "avenue " + a.ID + " was ruled " + ruling + " and pursued anyway with nothing recording the contest"
+					return res
+				}
+			}
+		}
+	}
+
+	// EVERY RETIREMENT IS EVIDENCED. The fake retires only text a recorded edit removed, so an
+	// `asserted` retire means either the fake regressed to phantom retirements or the
+	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
+	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
+	if board, err := record.BoardState(runDir); err == nil {
+		for _, e := range board.Events {
+			if e.Type == "retire" && e.Payload.Str("removal_basis") != record.RemovalVerified {
+				res.err = "a retire recorded removal_basis=" + e.Payload.Str("removal_basis") +
+					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
+				return res
+			}
+		}
+	}
+
+	// EVERY VERDICT IS DERIVABLE TODAY, and this is the tripwire on that fact.
+	//
+	// The tool refuses an --as that contradicts the record (#308), so a recorded verdict is
+	// either DERIVED or came from the one case the record cannot decide: a judged deadlock.
+	// debate.js cannot currently produce one — `deadlock` is hardcoded false whenever red
+	// raised anything new (#289) — so an `asserted` basis anywhere in a fuzz run means the
+	// derivation stopped working, not that a deadlock happened.
+	//
+	// When #289 gives the bench a real stopping call, this WILL fail, loudly and correctly, and
+	// the right response is to update it rather than to widen it: an asserted verdict is
+	// exactly the thing that should be rare enough to notice.
+	if board, err := record.BoardState(runDir); err == nil {
+		for _, e := range board.Events {
+			if e.Type != "outcome" {
+				continue
+			}
+			switch e.Payload.Str("verdict_basis") {
+			case record.VerdictDerived:
+			case "":
+				res.err = "the outcome event carries no verdict_basis — the field that says whether the verdict was computed or claimed has gone missing"
+				return res
+			default:
+				res.err = "the run recorded an ASSERTED verdict (" + e.Payload.Str("verdict") + "), which today can only mean the derivation failed: debate.js cannot produce a judged deadlock while it is hardcoded false (#289)"
+				return res
+			}
+		}
+	}
+
+	// VERDICT ORACLE: the recorded outcome must agree with the board it describes.
+	//
+	// The terminal verdict is the single most consequential value the engine emits, and until
+	// now the fake DREW IT FROM A HAT — so `bench outcome --as` could record VERIFIED over a
+	// board with open gaps and nothing anywhere would notice. The assembler is now told the
+	// verdict the way a real seat is (debate.js states it in the prompt), which makes the
+	// agreement between outcome and board checkable for the first time.
+	if board, err := record.BoardState(runDir); err == nil {
+		openCount := 0
+		for _, id := range board.GapOrder {
+			if g := board.Gaps[id]; g != nil && g.Open {
+				openCount++
+			}
+		}
+		recorded := ""
+		for _, e := range board.Events {
+			if e.Type == "outcome" {
+				recorded = e.Payload.Str("verdict")
+			}
+		}
+		if recorded == "VERIFIED" && openCount > 0 {
+			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED with %d gap(s) still open — a pass over unfinished work", openCount)
+			return res
+		}
+		// THE CONVERSE NEEDS A CARVE-OUT, and finding out why is the point of running it.
+		//
+		// It fired 2 of 60 on "CEILING with every gap closed", which looked like a verdict
+		// contradicting its board — and is not. The BENCH closes gaps at the terminal sitting,
+		// AFTER the ceiling has already been determined: the verdict describes the debate's
+		// exit, not the post-adjudication board. That is why Gap.ClosedByBench exists.
+		//
+		// So the check is only sound over gaps RED closed. A non-passing verdict whose board
+		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
+		// the contradiction worth catching.
+		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.GapOrder) > 0 {
+			benchClosed := 0
+			for _, id := range board.GapOrder {
+				if g := board.Gaps[id]; g != nil && g.ClosedByBench {
+					benchClosed++
+				}
+			}
+			if benchClosed == 0 {
+				res.err = "verdict oracle: the run recorded " + recorded + " with every gap closed BY RED — an unfinished verdict over work red itself finished"
+				return res
+			}
+		}
+	}
+
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
@@ -774,7 +1611,35 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	if m := proseRenders(board, runDir); m != "" {
 		res.err = m
 	}
+	if res.err == "" {
+		if m := basisRenders(board, runDir); m != "" {
+			res.err = m
+		}
+	}
 	res.dialectic = tallyDialectic(board)
+	// #256: count the citation axis's two real artifacts (see outcome). A cite that fetched and
+	// anchored leaves BOTH; a cite event alone leaves neither.
+	if md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md")); err == nil {
+		res.citeAnchors = strings.Count(string(md), "<!--cite:")
+	}
+	for _, e := range board.Events {
+		if e.Type == "blue_edit" && e.Payload.Str("answers") != "" {
+			res.editAnswers++
+		}
+		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
+			res.verifiedBasis++
+		}
+		if e.Type == "blue_edit" && e.Payload.Bool("applied_verbatim") {
+			res.verbatimApplied++
+		}
+	}
+	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
+		for _, e := range ents {
+			if !e.IsDir() && e.Name() != "index" {
+				res.cacheFiles++
+			}
+		}
+	}
 	return res
 }
 
@@ -824,9 +1689,21 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // emitting one fails loudly (the old gate guarded only cite/finding). `halt` terminates the run
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
-	"closing", "position", "dispute", "dispute-respond", "opinion", "regrade", "mint", "close",
-	"confidence", "cite", "finding", "observe", "avenue", "friction", "revision", "retire",
-	"manifest-row", "dispose", "petition", "petition-rule", "verdict", "spot-check", "certify", "halt",
+	"closing", "position", "opinion", "regrade", "mint", "close",
+	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
+	"manifest-row", "verdict", "spot-check", "certify", "halt",
+	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
+	// so a gate listing only "friction" would report the channel covered while the arm that
+	// makes an empty log meaningful went undriven.
+	"friction-none",
+	// The motion collapse (#344): filed by any seat, ruled by one, appealed by the filer.
+	"motion", "motion-rule", "motion-appeal",
+	// Added 2026-08-04 by a census of every type record.Append can write: these three were
+	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
+	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
+	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
+	// write, `outcome` is the bench's.
+	"blue_edit", "anchor", "class-new", "outcome", "proof",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -868,7 +1745,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	if halts == 0 {
 		t.Fatal("no halt event on the record — the halt verb never ran")
 	}
-	if out, err := exec.Command(bin, "verify", "--run", runDir).CombinedOutput(); err != nil {
+	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
 		t.Fatalf("verify FAILED on the halted run (a safety exit must still be a valid record):\n%s", truncate(string(out)))
 	}
 }
@@ -888,12 +1765,128 @@ func tallyDialectic(board *record.Board) map[string]int {
 	return m
 }
 
+// THIS MAP WAS AN ALLOWLIST, AND THAT IS WHY IT STOPPED WORKING.
+//
+// It held six event types. A type absent from it was not checked, and absence was silent — so
+// every event type added after it was written defaulted to "the report need not render this",
+// with nothing anywhere saying so. A 2026-08-08 trace of all 30 types found four whole exchanges
+// reaching the record and never the reader (petition filings, avenue rulings, retirements,
+// observations) plus two verbs read by nothing at all, under a green sweep.
+//
+// It is now EXHAUSTIVE over the types a run actually produces: every event type seen on the
+// record must appear here or in reportExemptions with a stated reason, and an unclassified type
+// FAILS. A new verb cannot be added without deciding, in writing, what its reader gets.
 var dialecticProseKey = map[string]string{
-	"closing": "text", "opinion": "rationale", "dispute": "evidence",
-	"dispute-respond": "rationale", "petition-rule": "opinion",
-	// confidence's "prose" is its claim label — it must render in the report's confidence
-	// self-assessment section, or blue's calibration silently vanishes (the dead-letter it was).
-	"confidence": "label",
+	// The debate proper.
+	"position": "text", "closing": "text", "opinion": "rationale",
+	// Motions: the ASK and the ANSWER, on one id. `petition-rule` alone used to be the half-dialog — the
+	// reader got the bench's ruling with no question attached.
+	// The board.
+	"mint": "problem", "finding": "text", "regrade": "basis",
+	// Directions: the line, red's ruling on it, and blue's reason for its fate.
+	"avenue": "line",
+	// The lens's below-the-bar work and the fate the merge gave it.
+	// Substance leaving the report, on the record, with its reason.
+	"retire": "claim",
+	// Run-level voices.
+	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
+	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint
+	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
+	// whether the seats looked and said so, or never used the channel. Those were the same
+	// bytes for eighteen recorded sittings, and this event is what separates them.
+	"friction-none": "text",
+	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
+	// checking it showed — the receipt reached no reader for a year, because the coverage metric
+	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).
+	"manifest-row": "row",
+	// The motion group. `basis` is the ASK, `opinion` the answer, `reason` the appeal — all three
+	// render in the report's one Motions section, joined on the motion id (#344).
+	"motion":        "basis",
+	"motion-rule":   "opinion",
+	"motion-appeal": "reason",
+	// Red re-reading its own closure archive. `notes` is what the sample FOUND — the whole
+	// point of sampling — and it reached no reader at all until the floor was enforced (#317).
+	"spot-check": "notes",
+}
+
+// reportExemptions are event types whose prose is deliberately NOT expected in the report, each
+// with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
+// from an oversight, which is precisely how this gate decayed.
+var reportExemptions = map[string]string{
+	"register":  "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
+	"anchor":    "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
+	"blue_edit": "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
+	"class-new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
+	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
+	// by the tool and rendered beside the proof either way (#343).
+	"reproduce": "note",
+	"verify":    "red adjudicating ONE citation. It reaches the reader through the evidence view rather than the report body: the report carries BLUE's citations (woven into the bibliography), and red's verdict on them is audit provenance rather than a claim the reader acts on. It IS surfaced — attached to the source it names in `show evidence`, in the board's citations count, and, for `refutes` and `absent`, as an assembly-screen FAILURE if the report still cites what red found against",
+	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
+	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
+	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
+	"outcome":   "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":   "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+}
+
+// basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
+// phrase the report must contain when that value is on the record.
+//
+// Every one of these exists because a seat asked to self-report reports the flattering value —
+// so each is computed by the tool at the write. Each then gated something (estoppel, the outcome
+// cross-check, the claim-loss detector) and reached the reader as NOTHING, which collapsed the
+// distinction at the only point where a human could act on it: a verdict the record itself
+// decided printed the same word as one the bench merely asserted.
+//
+// prose keys cannot cover this — a basis is a field on an event whose OTHER prose renders fine,
+// so the prose gate is green while the qualifier is gone.
+var basisFields = []struct{ evType, key, value, want string }{
+	{"outcome", "verdict_basis", "derived", "derived from the record"},
+	{"outcome", "verdict_basis", "asserted", "asserted by the bench"},
+	{"mint", "fix_basis", "verified", "with the text in front of it"},
+	{"mint", "fix_basis", "proposed", "nothing checked this demand"},
+	{"retire", "removal_basis", "verified", "the record shows it leaving"},
+	{"retire", "removal_basis", "asserted", "nothing on the record shows it was ever present"},
+	// proof_basis was already rendered before this gate existed (weaveProofs prints it with an
+	// explanation of reproducible vs observed). It is here so the coverage is stated rather
+	// than assumed — the one that was fine is the easiest to break unnoticed.
+	{"proof", "proof_basis", "reproducible", "reproducible"},
+	{"proof", "proof_basis", "observed", "observed"},
+}
+
+func basisRenders(board *record.Board, runDir string) string {
+	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+	if err != nil {
+		return "no report.md: " + err.Error()
+	}
+	rpt := string(report)
+	var missing []string
+	for _, bf := range basisFields {
+		present := false
+		for _, e := range board.Events {
+			// A CLOSED gap's mint is still on the record but its fix_basis is no longer shown —
+			// the demand was met, and the report's closure index is a one-line index by design.
+			// Only OPEN gaps are checked, which is where the qualifier changes what a reader does.
+			if e.Type == bf.evType && e.Payload.Str(bf.key) == bf.value {
+				if bf.evType == "mint" && !gapIsOpen(board, e.Payload.Str("gap_id")) {
+					continue
+				}
+				present = true
+				break
+			}
+		}
+		if present && !strings.Contains(rpt, bf.want) {
+			missing = append(missing, fmt.Sprintf("%s.%s=%s is on the record and the report never says so (looked for %q)", bf.evType, bf.key, bf.value, bf.want))
+		}
+	}
+	if len(missing) > 0 {
+		return "derived-basis absent from report — the qualifier the field exists to preserve:\n" + strings.Join(missing, "\n")
+	}
+	return ""
+}
+
+func gapIsOpen(board *record.Board, id string) bool {
+	g := board.Gaps[id]
+	return g != nil && g.Open
 }
 
 func proseRenders(board *record.Board, runDir string) string {
@@ -902,10 +1895,18 @@ func proseRenders(board *record.Board, runDir string) string {
 		return "no report.md: " + err.Error()
 	}
 	rpt := string(report)
-	var missing []string
+	var missing, unclassified []string
+	seen := map[string]bool{}
 	for _, e := range board.Events {
 		key, ok := dialecticProseKey[e.Type]
 		if !ok {
+			// An event type in neither table is a DECISION NOBODY MADE. Registering it here
+			// costs one line; leaving it unclassified is how four exchanges reached the record
+			// and never the reader.
+			if reportExemptions[e.Type] == "" && !seen[e.Type] {
+				seen[e.Type] = true
+				unclassified = append(unclassified, e.Type)
+			}
 			continue
 		}
 		prose := strings.TrimSpace(e.Payload.Str(key))
@@ -917,10 +1918,28 @@ func proseRenders(board *record.Board, runDir string) string {
 			break
 		}
 	}
+	if len(unclassified) > 0 {
+		sort.Strings(unclassified)
+		return "event type(s) on the record with NO entry in dialecticProseKey and NO stated exemption: " + strings.Join(unclassified, ", ") +
+			"\nDecide what the reader gets from each — render it (add the prose key) or say why not (add the exemption). Silence here is how the report loses a whole exchange."
+	}
 	if len(missing) > 0 {
 		return "prose-not-rendered (A1-A3 class):\n" + strings.Join(missing, "\n")
 	}
 	return ""
+}
+
+// motionIDOf pulls the tool-assigned motion id out of a filing's JSON envelope.
+func motionIDOf(out string) string {
+	var env struct {
+		Result struct {
+			MotionID string `json:"motion_id"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		return ""
+	}
+	return env.Result.MotionID
 }
 
 func binDir(bin string) string { return filepath.ToSlash(filepath.Dir(bin)) }
@@ -931,6 +1950,10 @@ func truncate(s string) string {
 	}
 	return s
 }
+
+// viewNamesForFuzz is the projection set, taken from the command tree so a view added or removed
+// is swept without anyone remembering to edit a list here.
+var viewNamesForFuzz = seat.ViewNames()
 
 func TestFuzzDebate(t *testing.T) {
 	bin := buildBinary(t)
@@ -964,7 +1987,11 @@ func TestFuzzDebate(t *testing.T) {
 	var completed int
 	verdicts := map[string]int{}
 	roundHist := map[int]int{}
-	dcov := map[string]int{} // dialectic-event coverage across all runs (proves the fuzz emits them)
+	dcov := map[string]int{}
+	citeAnchors, cacheFiles := 0, 0 // dialectic-event coverage across all runs (proves the fuzz emits them)
+	editAnswers := 0                // #267: blue_edit events that carried the provenance key
+	verifiedBasis := 0              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
+	verbatimApplied := 0            // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -981,6 +2008,11 @@ func TestFuzzDebate(t *testing.T) {
 			for k, v := range o.dialectic {
 				dcov[k] += v
 			}
+			citeAnchors += o.citeAnchors
+			cacheFiles += o.cacheFiles
+			editAnswers += o.editAnswers
+			verifiedBasis += o.verifiedBasis
+			verbatimApplied += o.verbatimApplied
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -991,7 +2023,8 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v", completed, len(failures), verdicts, roundHist, dcov)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -1011,12 +2044,66 @@ func TestFuzzDebate(t *testing.T) {
 				t.Errorf("fuzz drove ZERO %s events across %d runs — that seat verb is unexercised (false green); a generator branch dropped it", k, completed)
 			}
 		}
-	} else {
+	}
+	// #256 CITATION-CHAIN GATE. `cite` in the verb gate above is satisfied by red's `lens cite`,
+	// which neither fetches nor anchors — so a blue-cite regression would sail through it. These
+	// two assert the chain that actually matters ran end to end through the real binary: a source
+	// was FETCHED into <run>/cache (loopback server, see sourceURL) and an INVISIBLE anchor was
+	// spliced into blue/report.md. Zero of either across the whole sweep is a false green.
+	if completed >= 40 {
+		if citeAnchors == 0 {
+			t.Errorf("fuzz spliced ZERO <!--cite:--> anchors across %d runs — `blue cite` never anchored (false green); the citation axis is unexercised", completed)
+		}
+		if cacheFiles == 0 {
+			t.Errorf("fuzz cached ZERO sources across %d runs — `fetch`/`blue cite` never populated <run>/cache (false green); the fetch path is unexercised", completed)
+		}
+		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
+		// that stopped sending --answers would satisfy it while the join key every #267
+		// measurement reads went silently missing.
+		if editAnswers == 0 {
+			t.Errorf("fuzz recorded ZERO blue_edit events carrying --answers across %d runs — the provenance key is unexercised (false green)", completed)
+		}
+		if verifiedBasis == 0 {
+			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", completed)
+		}
+		if verbatimApplied == 0 {
+			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)
+		}
+	}
+	if completed < 40 {
 		for _, k := range []string{"cite", "finding"} {
 			if dcov[k] == 0 {
 				t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, completed)
 			}
 		}
+	}
+	// FULL-SURFACE GATE, DERIVED FROM THE COMMAND TREE.
+	//
+	// The harness tallies EVERY invocation it makes (noteExec), so "what did the fuzz drive"
+	// is observed rather than declared. cli.CommandPaths() walks the real cobra tree for
+	// "what exists". Nothing hand-written states the surface, which is the point: the gap
+	// this closes was created by a hand list going stale — 18 of 44 seat verbs and 7 of 9
+	// root commands undriven, every undriven seat verb one that records nothing and so was
+	// invisible to the event gate above.
+	//
+	// The only hand-written list left is exemptSurfaces, and each entry states its reason.
+	if completed >= 40 {
+		if un := unreachedSurfaces(); len(un) > 0 {
+			t.Errorf("%d command path(s) exist in the tool and were NEVER invoked across %d runs (false green — add a drive, or an exemption with its reason):\n  %s",
+				len(un), completed, strings.Join(un, "\n  "))
+		}
+		// DRIVING A VERB IS NOT DRIVING ITS SURFACE. The gate above asks whether every verb
+		// ran; these ask whether the flags those verbs take were ever passed, and whether
+		// every value of every closed set was ever recorded. An unpassed flag is code no run
+		// has executed, and an unreached enum member is a word nothing has written — both
+		// sitting behind a sweep that reports full coverage.
+		if un := unreachedFlags(); len(un) > 0 {
+			t.Errorf("%d flag(s) on verbs the sweep DOES drive were never passed:\n  %s", len(un), strings.Join(un, "\n  "))
+		}
+		if un := unreachedEnumValues(); len(un) > 0 {
+			t.Errorf("%d enum value(s) were never driven:\n  %s", len(un), strings.Join(un, "\n  "))
+		}
+		t.Log(execReport())
 	}
 	if len(failures) > 0 {
 		show := failures
@@ -1039,4 +2126,401 @@ func buildBinary(t *testing.T) string {
 		t.Fatalf("build feov-record: %v\n%s", err, out)
 	}
 	return bin
+}
+
+// mintedGapIDs lists the gaps a run actually created, so a scoped-view oracle asks about
+// something real rather than about a shape the fuzz happened not to produce this seed.
+func mintedGapIDs(runDir string) []string {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range b.Events {
+		if e.Type == "mint" {
+			out = append(out, e.Payload.Str("gap_id"))
+		}
+	}
+	return out
+}
+
+// someProposal returns a gap carrying a concrete proposal, with its exact pair, so the fuzz
+// can drive the VERBATIM-application path rather than only the counter-edit one.
+
+// scenarioOf reads a gap's directive BACK FROM THE BOARD, not from Go memory. The round trip
+// is part of what is tested: if required_fix stopped surviving a mint, every seat would
+// silently revert to coin-flip behaviour and the oracle would catch it.
+
+// reproveOpenProofs re-runs the proof answering each open PROVE gap and records whether it
+// held. This is the lens's audit — the one that does not end in believing bytes somebody else
+// chose — and merge closes on its result rather than on its own say-so.
+
+// recentlyEditedOut returns text a recorded edit removed and which is absent from the report
+// now — a claim whose retirement the record can evidence.
+func (r *runner) recentlyEditedOut() string {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return ""
+	}
+	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	if err != nil {
+		return ""
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		e := b.Events[i]
+		if e.Type != "blue_edit" {
+			continue
+		}
+		old := e.Payload.Str("old")
+		if old != "" && !strings.Contains(string(cur), old) {
+			return old
+		}
+	}
+	return ""
+}
+
+// avenueFates are the scenarios an avenue is proposed under. The line itself carries it, the
+// way a gap's required_fix does — red rules from it, and blue's next move answers the ruling.
+const (
+	avEndorse = "FUZZ-AVENUE-ENDORSE: a line worth the run's time"
+	avScope   = "FUZZ-AVENUE-OUT-OF-SCOPE: a real question, but not this run's"
+	avThin    = "FUZZ-AVENUE-TOO-THIN: in scope, but the hypothesis does not carry its budget"
+	// avContest is the case gb's design named and the tool could not express: red rules the
+	// line out, and blue PURSUES IT ANYWAY with an argument. A ruling is an argument, never a
+	// command — `blue dispute --id A1` is refused outright, because disputes are gap-shaped —
+	// so the move itself is the contest, and it is now recorded as one.
+	avContest = "FUZZ-AVENUE-CONTESTED: red rules it out and blue pursues it anyway, with reasons"
+)
+
+var avenueFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
+
+// rulingFor maps a proposed line to the ruling red should give it.
+func rulingFor(line string) string {
+	switch {
+	case strings.HasPrefix(line, avEndorse):
+		return "endorsed"
+	case strings.HasPrefix(line, avScope):
+		return "out-of-scope"
+	case strings.HasPrefix(line, avThin):
+		return "too-thin"
+	case strings.HasPrefix(line, avContest):
+		return "out-of-scope"
+	}
+	return ""
+}
+
+// ruleOpenAvenues has red rule every avenue that has no ruling yet, from the line it carries.
+func (r *runner) ruleOpenAvenues(seatID string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return
+	}
+	for _, a := range record.Avenues(b) {
+		if rulingFor(a.Line) == "" || directionRuling(b, r.runDir, a.ID) != "" {
+			continue
+		}
+		_, _ = r.exec("motion", "direction", "rule", "--seat-id", seatID, "--id", a.ID,
+			"--as", rulingFor(a.Line), "--reason", "fuzz: ruling as the line was proposed")
+	}
+}
+
+// directionRuling reports an avenue's ruling under EITHER vocabulary.
+//
+// Asking only record.AvenueRuling would have seen the legacy events alone, so every
+// motion-ruled avenue would read as unruled and be ruled again each round — the drive would
+// have looked correct and measured nothing, because a second ruling on a settled line is not a
+// path the run takes.
+func directionRuling(b *record.Board, runDir, avenueID string) string {
+	if v := record.AvenueRuling(runDir, avenueID); v != "" {
+		return v
+	}
+	for _, m := range record.AllMotions(b) {
+		if m.Subject == "direction" && m.Fields["avenue_id"] == avenueID && m.Ruled() {
+			return m.Ruling
+		}
+	}
+	return ""
+}
+
+// answerAvenueRulings is blue's move after red has ruled: comply, or CONTEST by pursuing
+// anyway with an argument. Which one is decided by the line, not by a coin.
+func (r *runner) answerAvenueRulings(seatID string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return
+	}
+	for _, a := range record.Avenues(b) {
+		ruling := directionRuling(b, r.runDir, a.ID)
+		if ruling == "" || a.Status != "proposed" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(a.Line, avContest):
+			// THE CONTEST, IN BOTH VOCABULARIES. `contests_ruling` is a field the move sets as a
+			// side effect; `motion direction appeal` is the act named as itself. Both are live
+			// during the additive stage, so the move still happens either way — what the appeal
+			// adds is that the disagreement has its own event instead of riding on a status
+			// change, which is the whole reason the collapse treats an appeal as one act across
+			// all three subjects.
+			// UNCONDITIONAL, not a coin. Behind a 50% gate this reached 2 invocations across 60
+			// runs — contests are already rare — and a drive that thin flakes to ZERO, which the
+			// unreached-path gate reports as a missing drive in CI and nowhere else. The legacy
+			// `contests_ruling` field is still exercised by the move below either way.
+			_, _ = r.exec("motion", "direction", "appeal", "--seat-id", seatID, "--id", a.ID,
+				"--reason", "fuzz: the scope call is wrong, this bears on the core claim")
+			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", "pursued").
+				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
+		case ruling == "endorsed":
+			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", "pursued").
+				set("--reason", "fuzz: endorsed, taking it up").run()
+		default:
+			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--status", "declined").
+				set("--reason", "fuzz: accepting the ruling").run()
+		}
+	}
+}
+
+func (r *runner) reproveOpenProofs(seatID string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return
+	}
+	if r.reproduced == nil {
+		r.reproduced = map[string]bool{}
+	}
+	proofFor := map[string]string{} // gap -> sha
+	for _, e := range b.Events {
+		if e.Type == "proof" && e.Payload.Str("answers") != "" && e.Payload.Str("sha256") != "" {
+			proofFor[e.Payload.Str("answers")] = e.Payload.Str("sha256")
+		}
+	}
+	for _, id := range r.openGaps() {
+		if d := r.scenarioOf(id); d != dirProve && d != dirProveDrifts {
+			continue
+		}
+		sha := proofFor[id]
+		if sha == "" {
+			continue // blue has not answered it yet; red has nothing to re-run
+		}
+		out, err := r.exec("--json", "lens", "reproduce", "--seat-id", seatID, "--id", sha, "--as", pick(r.rng, []string{"sound", "unsound"}), "--reason", "fuzz: read the script and re-ran it")
+		if err != nil {
+			continue
+		}
+		var env struct {
+			Result struct {
+				Matches bool `json:"matches"`
+			} `json:"result"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Matches {
+			r.reproduced[id] = true
+		}
+	}
+}
+
+func (r *runner) scenarioOf(gapID string) string {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return ""
+	}
+	g := b.Gaps[gapID]
+	if g == nil || g.Mint == nil {
+		return ""
+	}
+	return g.Mint.Str("required_fix")
+}
+
+// blueRespondTo carries out the scenario each open gap was minted with — one decision per gap,
+// taken from the gap rather than from a coin, which is what makes the terminal state assertable.
+func (r *runner) blueRespondTo(seatID string, open []string) {
+	for _, id := range open {
+		switch r.scenarioOf(id) {
+		case dirApply:
+			// The only branch that sets applied_verbatim, and so the only one that estops red.
+			if gid, fo, fn := r.proposalFor(id); gid != "" {
+				if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil && strings.Contains(string(cur), fo) {
+					r.do("blue", "edit", seatID).set("--old", fo).set("--new", fn).
+						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run()
+					continue
+				}
+			}
+			// No concrete pair to apply — degrade to a counter-edit rather than fake one.
+			fallthrough
+		case dirCounter:
+			r.counterEdit(seatID, id)
+		case dirDisputeWon, dirDisputeLost:
+			dim := pick(r.rng, disputeDims)
+			proposed := r.g()
+			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID, "--id", id,
+				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id)
+			if err == nil {
+				if mid := motionIDOf(out); mid != "" {
+					// The envelope ref keeps (gap_id, dimension) because debate.js routes the
+					// DOCKET on them; the motion id rides alongside so the ruling can name the
+					// ask it answers. Not redundant: the pair says which grade, the id says
+					// which ASK about it, and #312 is the case where one gap and one dimension
+					// had two asks and the pair could not tell them apart.
+					ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed, "motion_id": mid}
+					r.raised = append(r.raised, ref)
+					r.disputedThisRound = append(r.disputedThisRound, ref)
+				}
+			}
+		case dirProve, dirProveDrifts:
+			// SETTLE IT BY COMPUTING. The script is written into the run dir and the tool runs
+			// it TWICE, so this drives the real interpreter, the cache, the anchor splice and
+			// the reproducible/observed grading — and --answers ties the execution to the gap
+			// it settles, which is what makes red's re-run targetable rather than arbitrary.
+			name := "fuzz-answer-" + id + ".js"
+			body := "console.log('settles " + id + "');"
+			if r.scenarioOf(id) == dirProveDrifts {
+				body = "console.log(Math.random());" // graded `observed`, and it will not re-run the same
+			}
+			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err == nil {
+				prove := r.do("blue", "prove", seatID).
+					set("--location", "§ fuzz").
+					set("--script", name).
+					set("--answers", id).
+					set("--reason", "fuzz: computing rather than arguing")
+				// The METHOD is cited and the instance computed — that pairing is the whole
+				// claim of the proof axis. It passed the FABRICATED label "c-fuzz", which named
+				// no citation on the record: a proof claiming a provenance it did not have, and
+				// the report rendered the link. `requireCitation` refuses it now, so this takes
+				// a real anchor off the record — the same discipline someFinding and someCitation
+				// already impose everywhere else a label is passed.
+				if anchor := r.someCitation(); anchor != "" && r.coin(50) {
+					prove.set("--cites", anchor)
+				}
+				prove.run()
+			}
+		case dirIgnore:
+			// Deliberately nothing. The oracle asserts NO edit answers this gap, which is what
+			// proves --answers records provenance rather than decorating it.
+		}
+	}
+}
+
+// counterEdit makes a real edit that is NOT red's proposed text.
+func (r *runner) counterEdit(seatID, gapID string) {
+	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	if err != nil {
+		return
+	}
+	oldSpan, newSpan := "rising over time", "climbing sharply"
+	if !strings.Contains(string(cur), oldSpan) {
+		oldSpan, newSpan = newSpan, oldSpan
+	}
+	if !strings.Contains(string(cur), oldSpan) {
+		return
+	}
+	r.do("blue", "edit", seatID).set("--old", oldSpan).set("--new", newSpan).
+		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").run()
+}
+
+// proposalFor returns the concrete pair for ONE gap, when it carries one.
+func (r *runner) proposalFor(gapID string) (string, string, string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return "", "", ""
+	}
+	g := b.Gaps[gapID]
+	if g == nil || g.Mint == nil || g.Mint.Str("fix_basis") != "verified" {
+		return "", "", ""
+	}
+	return gapID, g.Mint.Str("fix_old"), g.Mint.Str("fix_new")
+}
+
+func (r *runner) someProposal() (string, string, string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return "", "", ""
+	}
+	for _, e := range b.Events {
+		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
+			return e.Payload.Str("gap_id"), e.Payload.Str("fix_old"), e.Payload.Str("fix_new")
+		}
+	}
+	return "", "", ""
+}
+
+// ---- read-only INVOCATION: the surfaces the event gate is blind to ----
+//
+// These verbs RECORD NOTHING, so the event-type gate cannot see them: of 44 seat verbs, every
+// one with zero fuzz coverage was of this kind, plus 7 of 9 root commands. What follows only
+// CALLS them — the counting is done by the execution tally (noteExec), which observes every
+// invocation the harness makes rather than keeping a second ledger of its own.
+
+// readOnly invokes a record-nothing seat verb. r.exec tallies it; a non-zero exit shows up in
+// the report's refusal count, which is where the dead `lens avenue` drive and the misrouted
+// `frontier` registration were both found.
+func (r *runner) readOnly(role, verb, seatID string, extra ...string) {
+	args := append([]string{role, verb, "--seat-id", seatID}, extra...)
+	_, _ = r.exec(args...)
+}
+
+// readOnlySurfaces is the CENSUS, not a sample: every record-nothing surface a seat or the
+// operator can reach, with the argv that exercises it. Adding a read-only verb without adding
+// it here leaves it unfuzzed, and the gate below is what says so out loud.
+//
+// `setup` and `capture` are deliberately absent and that is stated rather than silently
+// omitted: setup CREATES a run (the fuzz builds its run dir directly, so driving setup would
+// mean fuzzing a different thing), and capture needs a transcript directory the harness has no
+// analogue for. Both carry their own package tests. `hook` reads a JSON payload on stdin rather
+// than argv and is covered by internal/cli's hook tests.
+var readOnlySurfaces = [][]string{
+	// Every role's `show` with NO --view, which resolves that role's DEFAULT view. Only the
+	// merge's was ever driven, so a regression in any other role's default was invisible.
+	{"lens", "show"}, {"merge", "show"}, {"blue", "show"}, {"bench", "show"},
+	// The operator renders, over whatever shape the run actually reached.
+	{"graph", "--format", "mermaid"},
+	{"graph", "--format", "dot"},
+	{"count-claims"},
+	{"scorecard", "--chair", "red"},
+}
+
+// dashboardArgv is separate because `dashboard` is POSITIONAL — `dashboard <runDir>
+// <transcript-dir>` — not `--run`. Discovered by this very census: the first version of it
+// passed --run and dashboard failed on all 60 runs with a usage error, which is the census
+// working (the surface had never been driven, so nothing here was known).
+func dashboardArgv(runDir string) []string { return []string{"dashboard", runDir, runDir} }
+
+// sweepReadOnly runs the census against a finished run and reports the first surface that
+// fails. Run AFTER the debate so the state is arbitrary rather than empty — an empty run
+// proves only that nothing crashed on nothing.
+func sweepReadOnly(bin, runDir string) string {
+	// The transcript dir is the run dir here: dashboard tolerates finding no agent-*.jsonl,
+	// and what is under test is that it RENDERS whatever board shape the run reached.
+	if out, err := tracked(bin, dashboardArgv(runDir)...); err != nil {
+		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
+	}
+	for _, argv := range readOnlySurfaces {
+		args := append(append([]string{}, argv...), "--run", runDir)
+		if len(argv) == 2 && argv[1] == "show" {
+			args = append(args, "--seat-id", seatFor(argv[0]))
+		}
+		if out, err := tracked(bin, args...); err != nil {
+			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
+		}
+	}
+	return ""
+}
+
+// seatFor returns a seat id bound to the role, since `show` is role-scoped like any verb.
+func seatFor(role string) string {
+	switch role {
+	case "lens":
+		return "red-lens-r1-L1"
+	case "merge":
+		return "red-merge-r1"
+	case "blue":
+		return "blue-respond-r1"
+	default:
+		return "judge-r1"
+	}
+}
+
+func sumCounts(m map[string]int) int {
+	n := 0
+	for _, v := range m {
+		n += v
+	}
+	return n
 }

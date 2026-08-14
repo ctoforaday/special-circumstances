@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 )
@@ -219,5 +220,76 @@ func TestDigestCarriesStaleness(t *testing.T) {
 	}
 	if !strings.Contains(got, "written: 2026-07-30T04:00:00Z") {
 		t.Errorf("the timestamp must survive alongside it:\n%s", got)
+	}
+}
+
+// THE #218 MEASUREMENT, reproduced. A digest over the cap used to drop its last sections
+// entirely — heading and all — and say only that something had been cut. Foot-guns were
+// last, so the section a resumed session most needs BEFORE acting was first to vanish.
+func TestOversizeDigestKeepsEverySectionVisible(t *testing.T) {
+	long := func(n int) string { return strings.Repeat("detail line that fills the budget\n", n) }
+	note := "---\nschema: 2\nobjective: ship it\n---\n" +
+		"## Validation loop\n" + long(60) +
+		"## Invariants / foot-guns\n- NEVER amend a published commit\n" +
+		"## Next intended steps\n" + long(40) +
+		"## In-flight handles\n- background task bg-77\n"
+
+	got := digest(note, "projects/x/CHECKPOINT.md", "startup", checkpoint.RearmState{})
+	if got == "" {
+		t.Fatal("no digest")
+	}
+	if len(got) > maxDigest {
+		t.Errorf("digest is %d chars, over the %d cap", len(got), maxDigest)
+	}
+
+	// EVERY section must at least be named. That is the whole fix: an absent section must
+	// not read like a section that had nothing in it.
+	for _, h := range digestSections {
+		if !strings.Contains(got, "## "+h) {
+			t.Errorf("section %q vanished entirely:\n%s", h, got)
+		}
+	}
+	// And the foot-gun itself survives, because it is now second in budget priority.
+	if !strings.Contains(got, "NEVER amend a published commit") {
+		t.Errorf("the foot-gun was dropped — that is the line #218 measured going missing:\n%s", got)
+	}
+	// What was reduced is NAMED, not merely implied by a byte count.
+	if !strings.Contains(got, "Shortened to fit:") {
+		t.Errorf("truncation must say WHAT was shortened:\n%s", got)
+	}
+	if !strings.Contains(got, "projects/x/CHECKPOINT.md") {
+		t.Error("the full note must stay one read away")
+	}
+}
+
+// A digest that fits is untouched: no truncation furniture on a healthy note.
+func TestDigestThatFitsSaysNothingAboutTruncation(t *testing.T) {
+	note := "---\nschema: 2\nobjective: ship it\n---\n" +
+		"## Validation loop\n1. go test ./...\n## Invariants / foot-guns\n- do not amend\n"
+	got := digest(note, "p/CHECKPOINT.md", "startup", checkpoint.RearmState{})
+	for _, unwanted := range []string{"Shortened to fit", "omitted here", "section truncated"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("a digest that fits must carry no truncation notice, found %q:\n%s", unwanted, got)
+		}
+	}
+}
+
+// Byte slicing can split a rune, and these notes are full of em-dashes and arrows. Invalid
+// UTF-8 in the one artifact a resumed session reads as authoritative is not acceptable.
+func TestTruncationNeverSplitsARune(t *testing.T) {
+	for _, s := range []string{
+		strings.Repeat("— an em-dash line that costs three bytes per dash\n", 200),
+		strings.Repeat("✓ check marks and ← arrows everywhere\n", 200),
+		strings.Repeat("日本語のテキストもここにあります\n", 200),
+	} {
+		for n := 1; n < 64; n++ {
+			if got := cut(s, n); !utf8.ValidString(got) {
+				t.Fatalf("cut(%d) produced invalid UTF-8: %q", n, got)
+			}
+		}
+		note := "---\nschema: 2\n---\n## Validation loop\n" + s + "## Invariants / foot-guns\n- " + s
+		if got := digest(note, "p/CHECKPOINT.md", "startup", checkpoint.RearmState{}); !utf8.ValidString(got) {
+			t.Error("digest produced invalid UTF-8")
+		}
 	}
 }

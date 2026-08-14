@@ -31,22 +31,28 @@ package record
 // that prose: a ruling, a closure, a removal or a dispute with no stated reasoning is
 // indistinguishable from a default, and the tool refuses it rather than let it through.
 var RequiredFields = map[string][]string{
-	"mint": {"acceptance_check", "class", "likelihood", "impact", "problem"},
+	"mint": {"acceptance_check", "check_kind", "class", "likelihood", "impact", "problem"},
 	// finding's label is TOOL-assigned now (not seat-provided), so it is not listed
 	// here — same as mint's gap_id, which validate requires but no flag sets. validate
 	// still enforces the finding-label INVARIANT; the table lists only seat-set fields.
-	"observe":         {"label"},
-	"close":           {"gap_id", "prose"},
-	"closing":         {"text"},
-	"dispose":         {"disposition"},
-	"regrade":         {"basis"},
-	"dispute":         {"evidence"},
-	"dispute-respond": {"rationale"},
-	"retire":          {"claim", "reason"},
-	"avenue":          {"status", "line"},
-	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
-	"halt":            {"opinion"},
-	"certify":         {"statement"},
+	"close":   {"gap_id", "prose"},
+	"closing": {"text"},
+	"regrade": {"basis"},
+	"retire":  {"claim", "reason"},
+	"avenue":  {"status", "line"},
+	"opinion": {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
+	"halt":    {"opinion"},
+	"certify": {"statement"},
+	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
+	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
+	// ENDED is not, and on a judged deadlock nothing else records it.
+	"outcome": {"prose"},
+	// A VERIFICATION OF NOTHING WAS RECORDABLE. `lens verify` required no flag at all: the bare
+	// verb printed "source verified:" and appended an event, which then counted as red's audit
+	// volume. The four fields here are what makes the row mean something — WHICH citation
+	// (or an explicit --independent), WHAT the source did for the claim, HOW SURE red is of that
+	// (a separate question), and the reading behind the verdict.
+	"verify": {"claim", "outcome", "confidence", "text"},
 }
 
 // THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its

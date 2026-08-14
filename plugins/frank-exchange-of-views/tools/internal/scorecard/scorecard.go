@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -257,7 +258,7 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 
 // ---- row builders ----
 
-func blueRows(runDir string, results []map[string]any, telemetry []map[string]any) []Row {
+func blueRows(runDir string, results []map[string]any, telemetry []map[string]any, board *record.Board) []Row {
 	var rows []Row
 
 	// repair_regression_ratio
@@ -281,22 +282,41 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Note: "no telemetry rounds with closures"})
 	}
 
-	// manifest_coverage
+	// manifest_coverage — COUNTED FROM THE RECORD (#318).
+	//
+	// It used to count the ENVELOPE's manifest array, which is why `blue manifest-row` was never
+	// called once in the tool's lifetime: the record-tool plan moved the manifest onto the record
+	// and listed the envelope plumbing as DELETED, the verb shipped, the deletion did not, and
+	// the metric kept scoring the old channel. Blue was required to fill the envelope, graded on
+	// the envelope, and told about the verb by nothing.
+	//
+	// A metric that reads the transient channel cannot see a receipt on the durable one, which
+	// is the whole reason the migration existed.
 	manifested, repaired := 0, 0
-	for _, r := range results {
-		if m, ok := r["manifest"].([]any); ok {
-			manifested += len(m)
+	manifestedGaps := map[string]bool{}
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "manifest-row" {
+				manifested++
+				if id := e.Payload.Str("gap_id"); id != "" {
+					manifestedGaps[id] = true
+				}
+			}
 		}
+	}
+	for _, r := range results {
 		if rg, ok := r["repaired_gaps"].([]any); ok {
 			repaired += len(rg)
 		}
 	}
-	if repaired > 0 {
+	switch {
+	case repaired > 0:
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: float64(manifested) / float64(repaired)})
-	} else {
+			Value: float64(len(manifestedGaps)) / float64(repaired),
+			Joint: "manifest-row EVENTS over repaired gaps; distinct gaps, so two rows on one gap is not coverage of two"})
+	default:
 		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: manifested, Note: "manifest rows counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio"})
+			Value: manifested, Note: "manifest-row events counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio"})
 	}
 
 	// round_parity_failures
@@ -318,13 +338,21 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 
 	// unrecorded_claim_loss
 	var counts []float64
-	retires := 0
 	for _, r := range results {
 		if v, ok := num(r["claim_count"]); ok {
 			counts = append(counts, v)
 		}
-		if rt, ok := r["retired"].([]any); ok {
-			retires += len(rt)
+	}
+	// Retires come from the RECORD (retire events), NOT a BLUE_ENVELOPE field. The envelope
+	// never carried `retired`, so this detector counted zero and flagged every LEGITIMATE
+	// retirement as an unrecorded loss — the additive-integrity guard was blind in both
+	// directions. A claim leaves the report ONLY through the retire verb, which is on the record.
+	retires := 0
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "retire" {
+				retires++
+			}
 		}
 	}
 	drop := 0.0
@@ -343,6 +371,61 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
 			Note: "needs at least two rounds reporting claim_count"})
 	}
+
+	// dropped_finding_markers (immortal-marker tampering, slice 1b). A red finding is
+	// anchored in blue/report.md with an invisible [^f-<id>] marker; the marker is
+	// IMMORTAL — a citation is red's and blue may never delete it. EXPECTED = the anchor
+	// events; PRESENT = the f- ids in the current report. An anchored id absent from the
+	// report is blue silently dropping red's audit point — a hard additive-integrity
+	// violation, keyed by id with no text match and no legitimate-removal exception.
+	expectedSet := map[string]bool{}
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "anchor" {
+				if id := e.Payload.Str("id"); id != "" {
+					expectedSet[id] = true
+				}
+			}
+		}
+	}
+	expected := make([]string, 0, len(expectedSet))
+	for id := range expectedSet {
+		expected = append(expected, id)
+	}
+	md, _ := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))
+	// The shared EXPECTED⊄PRESENT check — the same helper the blue-report lockdown's
+	// PostToolUse backstop uses, so the detector and the live gate cannot drift.
+	droppedMarkers := len(claimcount.MissingAnchorIDs(expected, string(md)))
+	rows = append(rows, Row{Clause: "TAMPER: dropped finding-markers", Metric: "dropped_finding_markers", Cls: "detector",
+		Value: droppedMarkers,
+		Note:  strconv.Itoa(len(expectedSet)) + " finding-marker(s) anchored, " + strconv.Itoa(droppedMarkers) + " missing from the report",
+		Joint: "a marker red anchored that is gone from blue's report is blue dropping red's audit point — markers are immortal, so any absence is tampering"})
+
+	// unbacked_citations (the citation-axis twin of dropped_finding_markers; bibliography
+	// core). A blue citation is anchored in blue/report.md with an invisible
+	// <!--cite:c-<id>--> marker; like a finding marker it is IMMORTAL and tool-managed.
+	// EXPECTED = the cite events' labels; PRESENT = the c- ids in the current report. Under
+	// the cite⟺anchor bijection the two sets are equal; a mismatch means a hand-typed
+	// footnote or a tampered anchor — a real defect, keyed by id with no text match.
+	citeExpectedSet := map[string]bool{}
+	if board != nil {
+		for _, e := range board.Events {
+			if e.Type == "cite" {
+				if id := e.Payload.Str("label"); id != "" {
+					citeExpectedSet[id] = true
+				}
+			}
+		}
+	}
+	citeExpected := make([]string, 0, len(citeExpectedSet))
+	for id := range citeExpectedSet {
+		citeExpected = append(citeExpected, id)
+	}
+	unbackedCitations := len(claimcount.MissingCitationAnchorIDs(citeExpected, string(md)))
+	rows = append(rows, Row{Clause: "TAMPER: unbacked citations", Metric: "unbacked_citations", Cls: "detector",
+		Value: unbackedCitations,
+		Note:  strconv.Itoa(len(citeExpectedSet)) + " citation(s) anchored, " + strconv.Itoa(unbackedCitations) + " missing from the report",
+		Joint: "a citation the tool anchored that is gone from the report breaks the cite⟺anchor bijection — citations are tool-managed, so any absence is a hand-typed footnote or tampering"})
 
 	// lines_of_inquiry (object value, insertion-order byStatus)
 	var statusOrder []string
@@ -402,8 +485,14 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	rows = append(rows, Row{Clause: "Alternatives explored", Metric: "thin_avenue_reasons", Cls: "detector",
 		Value: len(thinLines), Note: thinNote})
 
-	rows = append(rows, Row{Clause: "Calibration is craft", Metric: "confidence_vs_survival", Cls: "benchmark",
-		Note: "BLOCKED until per-claim confidence records exist (W2f) — calibration cannot be computed from prose"})
+	// `confidence_vs_survival` IS GONE (0.54.0). It reported "BLOCKED until per-claim confidence
+	// records exist (W2f)" on every run for a year — a metric waiting on a verb whose own use it
+	// was the only justification for, and the verb has now been deleted for exactly that
+	// circularity. A row that can never compute is not a pending measurement; it is a claim that
+	// something is being watched.
+	//
+	// The judgement it reached for survives as red's, per source, on the record:
+	// `lens verify --trust`.
 	return rows
 }
 
@@ -540,7 +629,7 @@ func benchRows(results []map[string]any, board *record.Board) []Row {
 func Compute(runDir string, results []map[string]any, board *record.Board) map[string][]Row {
 	telemetry := ReadTelemetry(runDir)
 	return map[string][]Row{
-		"blue":  blueRows(runDir, results, telemetry),
+		"blue":  blueRows(runDir, results, telemetry, board),
 		"red":   redRows(results, telemetry, board),
 		"bench": benchRows(results, board),
 	}

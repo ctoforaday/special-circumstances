@@ -37,18 +37,28 @@ type BoardJSON struct {
 }
 
 type CountsJSON struct {
-	Open              int `json:"open"`
-	Closed            int `json:"closed"`
-	ClosedByBench     int `json:"closed_by_bench"`
-	UndisposedObserv  int `json:"undisposed_observations"`
-	Anomalies         int `json:"anomalies"`
-	TotalObservations int `json:"total_observations"`
+	Open          int `json:"open"`
+	Closed        int `json:"closed"`
+	ClosedByBench int `json:"closed_by_bench"`
+	// UncreditedFindings counts lens findings whose label is named in NO gap's found_by.
+	//
+	// It replaces undisposed_observations (#327). That metric counted `observe` events with no
+	// `dispose` fate, and both verbs are retired — so it would now be PERMANENTLY ZERO, which is
+	// the plausible-zero this codebase keeps finding: a clean board and a dead detector print the
+	// same number. A finding's fate is coalescence, so the honest question is whether the finding
+	// was ever credited, and that is what this counts.
+	UncreditedFindings int `json:"uncredited_findings"`
+	Anomalies          int `json:"anomalies"`
+	TotalObservations  int `json:"total_observations"`
 	// Citations is the count of cite events on the record — the canonical source
 	// for the envelope's citations_checked, which red reads from its native board
 	// view instead of self-reporting (a number fabricated on haiku). Cite events are
 	// reference-keyed, so this is DISTINCT sources verified (a re-verification of the
 	// same reference updates in place, matching the citation-ledger projection).
 	Citations int `json:"citations"`
+	// CitationsAuthored is blue's tool-inserted citations (#256). Kept SEPARATE from Citations:
+	// counting them together inflated red's audit-volume metric by 43% on the 2026-08-04 smoke.
+	CitationsAuthored int `json:"citations_authored"`
 }
 
 type GapJSON struct {
@@ -70,6 +80,37 @@ type GapJSON struct {
 	Problem        string `json:"problem,omitempty"`
 	RequiredFix    string `json:"required_fix,omitempty"`
 	AcceptanceGate string `json:"acceptance_check,omitempty"`
+	// CheckKind says what KIND of evidence settles the acceptance check, and it is the field
+	// with teeth: `computation` means the gap cannot be closed on prose at all — only a
+	// `blue prove --answers <id>` settles it. It lived on the mint event and reached NO view,
+	// so the one seat that can satisfy the demand could not see it existed.
+	//
+	// Measured: `prove` was invoked zero times across eighteen probed seat dispatches, on
+	// boards built to demand it. The arithmetic board's seat summed twelve integers in its own
+	// reasoning, wrote the answer into the report, and was satisfied — the exact failure the
+	// verb exists to prevent. The gate DID fire, correctly and with a good message, at the
+	// merge's close in the following round, by which time blue's sitting was over.
+	CheckKind string `json:"check_kind,omitempty"`
+	// AwaitingProof is check_kind stated as a DEBT rather than as a property.
+	//
+	// Projecting check_kind was necessary and not sufficient: with it visible, `prove` went
+	// from 0 uses in eighteen sittings to 1 in nine. A seat reading `"check_kind":
+	// "computation"` learns a fact about the gap; it does not learn that IT owes a program,
+	// and the difference decides whether the sitting produces one.
+	//
+	// True only while the gap is OPEN and no proof names it in --answers. It is DERIVED at
+	// projection from the same join the close gate uses, so the board and the gate cannot
+	// disagree about what is owed.
+	AwaitingProof bool `json:"awaiting_proof,omitempty"`
+	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint
+	// from whether fix_old/fix_new validated against the live report — never self-reported —
+	// so blue can tell a remedy red actually checked from one it guessed, and weight its
+	// response accordingly. Blue is NEVER obliged to apply: it may counter-edit or dispute.
+	FixBasis   string   `json:"fix_basis,omitempty"`
+	FixOld     string   `json:"fix_old,omitempty"`
+	FixNew     string   `json:"fix_new,omitempty"`
+	FoundBy    []string `json:"found_by,omitempty"`
+	Supersedes []string `json:"supersedes,omitempty"`
 
 	ClosedRound   int  `json:"closed_round,omitempty"`
 	ClosedByBench bool `json:"closed_by_bench,omitempty"`
@@ -78,24 +119,24 @@ type GapJSON struct {
 	// sentence that the scorecard then failed to parse back out.
 	Closure  map[string]any   `json:"closure,omitempty"`
 	Regrades []map[string]any `json:"regrades,omitempty"`
-	Mint     map[string]any   `json:"mint,omitempty"`
 }
 
 type ObservationJSON struct {
-	// ID is the tool-assigned, unguessable identity — what a disposal names. It leads
-	// the struct because it is the field the merge seat acts on; the label below is
-	// description, and two lenses may both use "F1" without either being wrong.
-	ID     string         `json:"id"`
-	SeatID string         `json:"seat_id"`
-	Key    string         `json:"key"`
-	Kind   string         `json:"kind,omitempty"`
-	Label  string         `json:"label,omitempty"`
-	Text   string         `json:"text,omitempty"`
-	Fate   map[string]any `json:"fate,omitempty"`
-	// Disposed is explicit rather than inferred from Fate being null: "has no fate yet" is
-	// the single most actionable fact about an observation for the merge seat, and making
-	// the consumer test for null is how it gets missed.
-	Disposed bool `json:"disposed"`
+	// ID is the tool-assigned, unguessable identity. It leads the struct because it is the
+	// field the merge seat acts on; the label below is description, and two lenses may both
+	// use "F1" without either being wrong.
+	ID     string `json:"id"`
+	SeatID string `json:"seat_id"`
+	Key    string `json:"key"`
+	Kind   string `json:"kind,omitempty"`
+	Label  string `json:"label,omitempty"`
+	Text   string `json:"text,omitempty"`
+
+	// Credited says the finding's label is named in some gap's found_by — the ONLY way a
+	// finding is addressed now that `dispose` is retired (#327). It is explicit rather than
+	// left for the consumer to re-derive by scanning every gap, because that re-derivation is
+	// a second definition free to disagree with this one.
+	Credited bool `json:"credited"`
 }
 
 // BoardJSONOf projects the replayed board into the seat-facing shape.
@@ -121,12 +162,18 @@ func BoardJSONOf(b *Board) BoardJSON {
 			ClosedByBench: g.ClosedByBench,
 		}
 		if g.Mint != nil {
-			gj.Mint = payloadMap(g.Mint)
 			gj.Class = g.Mint.Str("class")
 			gj.Location = g.Mint.Str("location")
 			gj.Problem = g.Mint.Str("problem")
 			gj.RequiredFix = g.Mint.Str("required_fix")
 			gj.AcceptanceGate = g.Mint.Str("acceptance_check")
+			gj.CheckKind = g.Mint.Str("check_kind")
+			gj.AwaitingProof = g.Open && gj.CheckKind == CheckKindComputation && !proofNames(b, g.ID)
+			gj.FixBasis = g.Mint.Str("fix_basis")
+			gj.FixOld = g.Mint.Str("fix_old")
+			gj.FixNew = g.Mint.Str("fix_new")
+			gj.FoundBy = g.Mint.StrList("found_by")
+			gj.Supersedes = g.Mint.StrList("supersedes")
 		}
 		if g.HasClosed {
 			gj.ClosedRound = g.ClosedRound
@@ -147,20 +194,27 @@ func BoardJSONOf(b *Board) BoardJSON {
 		}
 	}
 
-	for _, o := range b.Observations {
-		oj := ObservationJSON{
-			SeatID: o.SeatID, Key: o.Key, Kind: o.Kind,
-			Disposed: o.Disposition != nil,
+	// CREDITED, not disposed (#327). A finding is addressed by being named in some gap's
+	// found_by; the dispose verb that used to give it an explicit fate is retired.
+	credited := map[string]bool{}
+	for _, g := range b.Gaps {
+		if g == nil || g.Mint == nil {
+			continue
 		}
+		for _, lbl := range g.Mint.StrList("found_by") {
+			credited[lbl] = true
+		}
+	}
+	for _, o := range b.Observations {
+		oj := ObservationJSON{SeatID: o.SeatID, Key: o.Key, Kind: o.Kind}
 		if o.Payload != nil {
 			oj.ID = o.Payload.Str("finding_id")
 			oj.Label = o.Payload.Str("label")
 			oj.Text = o.Payload.Str("text")
 		}
-		if o.Disposition != nil {
-			oj.Fate = payloadMap(o.Disposition)
-		} else {
-			out.Counts.UndisposedObserv++
+		oj.Credited = oj.Label != "" && credited[oj.Label]
+		if !oj.Credited {
+			out.Counts.UncreditedFindings++
 		}
 		out.Observations = append(out.Observations, oj)
 	}
@@ -169,8 +223,15 @@ func BoardJSONOf(b *Board) BoardJSON {
 	}
 
 	for _, e := range b.Events {
-		if e.Type == "cite" {
+		// Citations counts what RED VERIFIED. Blue's authored cites are counted separately: a
+		// number red reads as its audit volume must not grow when blue writes. The two are
+		// different EVENT TYPES now (#341), so neither count can absorb the other's events by
+		// a field happening to be empty.
+		switch e.Type {
+		case "verify":
 			out.Counts.Citations++
+		case "cite":
+			out.Counts.CitationsAuthored++
 		}
 	}
 
@@ -202,6 +263,130 @@ func BoardJSONBytes(runDir string) ([]byte, error) {
 		return nil, err
 	}
 	out, err := json.MarshalIndent(BoardJSONOf(b), "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
+}
+
+// WorklistJSON is the merge's SHRINKING working set: OPEN gaps only, in the lean shape a
+// merge acts on turn to turn, plus a prose-free index of the closed gaps so a near-match
+// screen has ids and locations to hit without carrying every closed gap's full prose.
+//
+// It exists because the full board JSON grows monotonically (every closed gap stays, with
+// all its prose), and the merge re-read that whole thing every round only to act on the
+// open few. The worklist is the once-per-turn read: open gaps carry their grades + a
+// TRUNCATED problem synopsis (enough to recognise, not the whole record — the ledger/board
+// views still serve the full prose when a seat needs it), and closed gaps collapse to
+// {id, location, class}. Like every other JSON view it derives from BoardState.
+type WorklistJSON struct {
+	// Sitting answers "may I end my turn" on the read a seat already does first. A separate
+	// command would be a second way to ask a question this view should have been answering.
+	Sitting     SittingJSON       `json:"sitting"`
+	Open        []WorklistGapJSON `json:"open"`
+	ClosedIndex []ClosedIndexJSON `json:"closed_index"`
+	Counts      struct {
+		Open   int `json:"open"`
+		Closed int `json:"closed"`
+	} `json:"counts"`
+}
+
+// WorklistGapJSON is an open gap in its lean form: the grades a merge weighs, its class and
+// location, a synopsis of the problem, and the lens findings that surfaced it. NOT the full
+// prose — required_fix and acceptance_check stay on the board (--view board / ledger) for the
+// seat that opens the gap; the worklist is for scanning the open set, not re-deriving it.
+type WorklistGapJSON struct {
+	ID              string `json:"id"`
+	Severity        any    `json:"severity"`
+	Likelihood      any    `json:"likelihood"`
+	Impact          any    `json:"impact"`
+	ComplexityCost  any    `json:"complexity_cost"`
+	Class           string `json:"class,omitempty"`
+	Location        string `json:"location,omitempty"`
+	ProblemSynopsis string `json:"problem_synopsis,omitempty"`
+	// CheckKind rides the worklist too, though nothing else about the acceptance check does.
+	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
+	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
+	// and a seat scanning the open set has to know which of them cannot be answered in prose
+	// before it decides how to spend the sitting.
+	CheckKind string `json:"check_kind,omitempty"`
+	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingProof.
+	AwaitingProof bool     `json:"awaiting_proof,omitempty"`
+	FoundBy       []string `json:"found_by,omitempty"`
+}
+
+// ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
+// class — with NO prose. The full closure record (with anchors and the problem) is behind
+// --view archive for the seat that has to audit a specific closure.
+type ClosedIndexJSON struct {
+	ID       string `json:"id"`
+	Location string `json:"location,omitempty"`
+	Class    string `json:"class,omitempty"`
+}
+
+// synopsisLimit is the rune budget for an open gap's problem synopsis in the worklist — long
+// enough to recognise which gap this is, short enough that the open set stays a scan.
+const synopsisLimit = 140
+
+// synopsis truncates on a rune boundary and marks the cut with an ellipsis, so a
+// multi-byte problem string is never split mid-rune.
+func synopsis(s string) string {
+	r := []rune(s)
+	if len(r) <= synopsisLimit {
+		return s
+	}
+	return strings.TrimRight(string(r[:synopsisLimit]), " ") + "…"
+}
+
+// WorklistJSONOf projects the replayed board into the merge's working set. It walks the same
+// GapOrder as BoardJSONOf so the two views agree on membership and order — open gaps to the
+// lean worklist shape, closed gaps to the prose-free index.
+func WorklistJSONOf(b *Board) WorklistJSON {
+	out := WorklistJSON{Open: []WorklistGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
+	for _, id := range b.GapOrder {
+		g, ok := b.Gaps[id]
+		if !ok {
+			continue
+		}
+		if g.Open {
+			wg := WorklistGapJSON{
+				ID:       g.ID,
+				Severity: g.Severity, Likelihood: g.Likelihood,
+				Impact: g.Impact, ComplexityCost: g.ComplexityCost,
+			}
+			if g.Mint != nil {
+				wg.Class = g.Mint.Str("class")
+				wg.Location = g.Mint.Str("location")
+				wg.ProblemSynopsis = synopsis(g.Mint.Str("problem"))
+				wg.CheckKind = g.Mint.Str("check_kind")
+				wg.AwaitingProof = wg.CheckKind == CheckKindComputation && !proofNames(b, g.ID)
+				wg.FoundBy = g.Mint.StrList("found_by")
+			}
+			out.Open = append(out.Open, wg)
+		} else {
+			ci := ClosedIndexJSON{ID: g.ID}
+			if g.Mint != nil {
+				ci.Location = g.Mint.Str("location")
+				ci.Class = g.Mint.Str("class")
+			}
+			out.ClosedIndex = append(out.ClosedIndex, ci)
+		}
+	}
+	out.Counts.Open = len(out.Open)
+	out.Counts.Closed = len(out.ClosedIndex)
+	return out
+}
+
+// WorklistJSONBytes renders the worklist as indented JSON (a seat reads it in a terminal
+// transcript), mirroring BoardJSONBytes.
+func WorklistJSONBytes(runDir, role, seatID string) ([]byte, error) {
+	b, err := BoardState(runDir)
+	if err != nil {
+		return nil, err
+	}
+	w := WorklistJSONOf(b)
+	w.Sitting = SittingOf(b, role, seatID)
+	out, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +469,16 @@ func FindingsJSONBytes(runDir string) ([]byte, error) {
 // parsing a markdown/root file, the json-mode move toward the record as the single reader.
 type FrictionJSON struct {
 	Friction []FrictionEntryJSON `json:"friction"`
-	Counts   struct {
+	// NothingBlocked carries the EXPLICIT NEGATIVE — the seats that said, on the record, that
+	// nothing blocked their sitting. An empty friction list alone cannot say this: it reads the
+	// same whether every sitting was clean or the channel went unused for a whole run, and
+	// across eighteen probed dispatches it was the second while looking like the first.
+	NothingBlocked []FrictionEntryJSON `json:"nothing_blocked"`
+	Counts         struct {
 		Total int `json:"total"`
+		// Attested is how many seats made that statement. Total 0 with Attested 0 is a run
+		// nobody has spoken for; Total 0 with Attested 4 is four seats saying they looked.
+		Attested int `json:"attested"`
 	} `json:"counts"`
 }
 
@@ -297,14 +490,17 @@ type FrictionEntryJSON struct {
 
 // FrictionJSONOf projects the record's friction events — from BoardState, never the markdown.
 func FrictionJSONOf(b *Board) FrictionJSON {
-	out := FrictionJSON{Friction: []FrictionEntryJSON{}}
+	out := FrictionJSON{Friction: []FrictionEntryJSON{}, NothingBlocked: []FrictionEntryJSON{}}
 	for _, e := range b.Events {
-		if e.Type != "friction" {
-			continue
+		switch e.Type {
+		case "friction":
+			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
+		case "friction-none":
+			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
 		}
-		out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
 	}
 	out.Counts.Total = len(out.Friction)
+	out.Counts.Attested = len(out.NothingBlocked)
 	return out
 }
 
@@ -338,24 +534,18 @@ type DebateJSON struct {
 // present (possibly empty) arrays — a consumer counts `red.length` for the round's red
 // sitting, and a null would make that count throw. The richer sections omit when empty.
 type DebateRoundJSON struct {
-	Round        int                    `json:"round"`
-	Red          []string               `json:"red"`
-	Blue         []string               `json:"blue"`
-	Lead         []DebateOpinionJSON    `json:"lead"`
-	RedClosings  []DebateClosingJSON    `json:"red_closings,omitempty"`
-	BlueClosings []DebateClosingJSON    `json:"blue_closings,omitempty"`
-	Confidence   []DebateConfidenceJSON `json:"confidence,omitempty"`
-	Disputes     []DebateDisputeJSON    `json:"disputes,omitempty"`
+	Round        int                 `json:"round"`
+	Red          []string            `json:"red"`
+	Blue         []string            `json:"blue"`
+	Lead         []DebateOpinionJSON `json:"lead"`
+	RedClosings  []DebateClosingJSON `json:"red_closings,omitempty"`
+	BlueClosings []DebateClosingJSON `json:"blue_closings,omitempty"`
+	Disputes     []DebateDisputeJSON `json:"disputes,omitempty"`
 }
 
 type DebateClosingJSON struct {
 	GapID string `json:"gap_id"`
 	Text  string `json:"text"`
-}
-
-type DebateConfidenceJSON struct {
-	Label string `json:"label"`
-	Grade string `json:"grade"`
 }
 
 // DebateDisputeJSON carries both a claim (`dispute`) and its answer (`dispute-respond`),
@@ -382,7 +572,7 @@ type DebateOpinionJSON struct {
 
 // DebateJSONOf groups the record's events by round exactly as render.go's debate loop does:
 // position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
-// confidence→Confidence, dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
+// dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 func DebateJSONOf(b *Board) DebateJSON {
 	out := DebateJSON{Rounds: []DebateRoundJSON{}}
@@ -423,8 +613,6 @@ func DebateJSONOf(b *Board) DebateJSON {
 		}
 		for _, e := range re {
 			switch e.Type {
-			case "confidence":
-				rj.Confidence = append(rj.Confidence, DebateConfidenceJSON{Label: e.Payload.Str("label"), Grade: e.Payload.Str("grade")})
 			case "dispute":
 				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
 					Kind: "dispute", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),

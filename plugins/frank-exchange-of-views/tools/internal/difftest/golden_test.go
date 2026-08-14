@@ -92,6 +92,14 @@ func TestGolden(t *testing.T) {
 		t.Run(sc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			seed(t, runDir, sc.seed)
+			// A lens finding anchors into blue/report.md (slice 1b) and is rejected
+			// unless its --location quote is present. Ensure a report carrying the
+			// scenario heading anchors (## S2 / ## S4) exists; a scenario may override.
+			if _, ok := sc.seed["blue/report.md"]; !ok {
+				seed(t, runDir, map[string]string{
+					"blue/report.md": "## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n",
+				})
+			}
 			m := newMapper()
 			var transcript strings.Builder
 
@@ -142,14 +150,14 @@ func TestGolden(t *testing.T) {
 			}
 
 			// RENDERS: the markdown projections, pulled through the SAME path a seat uses —
-			// `show --view <v>`, which renders in-memory from the record via internal/view (no
+			// `show <v>`, which renders in-memory from the record via internal/view (no
 			// render-shadow). This byte-pins every projection across every scenario, the coverage
 			// the render-shadow removal (#203) dropped when it deleted the materialized snapshot.
 			// A view that errors on a given run (e.g. a pure-help/error scenario with no record)
 			// contributes nothing, so degenerate runs carry no RENDERS section — as before.
 			var renders strings.Builder
 			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
-				got := normalizeOutput(runGo(bin, runDir, cmd{role: "merge", args: []string{"show", "--view", v, "--run", runDir}}), runDir, m)
+				got := normalizeOutput(runGo(bin, runDir, cmd{role: "merge", args: []string{"show", v, "--run", runDir}}), runDir, m)
 				if got.code == 0 {
 					fmt.Fprintf(&renders, "-- %s\n%s\n", v, got.stdout)
 				}

@@ -35,19 +35,56 @@ import (
 //
 // NOT EVERY SET IS HERE, and that is deliberate:
 //
-//   - `bench opinion`'s disposition is an OPEN set by decision (its help ends in "...")
-//     — closing it would mean a legitimate ruling failing hard mid-round. It is guarded
-//     narrowly instead, in validate, for the one word that is another verb's act.
-//   - `merge close`'s closure_class is likewise open, and its candidate values are not
-//     yet consistent across the suite (the PASS refusal names `rebuttal_sustained`, the
-//     red-auditor prompt names `evidence-rebutted`). Closing it before that is resolved
-//     would refuse honest closures. It gets the same narrow guard, on the one class that
-//     gates an invariant.
+// BOTH CLOSURE SETS ARE NOW CLOSED (#342). This comment used to explain why they were not:
+// "`merge close`'s closure_class is likewise open, and its candidate values are not yet
+// consistent across the suite (the PASS refusal names `rebuttal_sustained`, the red-auditor
+// prompt names `evidence-rebutted`). Closing it before that is resolved would refuse honest
+// closures."
+//
+// That inconsistency is what #342 resolved, and it was worse than the note recorded — FOUR
+// vocabularies for one concept: the record's close classes, the bench's dispositions, the
+// envelope's `class` enum (which declared `rebuttal_accepted` and `risk_argued`, words no
+// other surface used), and the prose in prompts (`evidence-rebutted`, `risk-accepted`). One
+// concept, four spellings, and no mechanism could see them disagree because every set was
+// open.
+// DispositionCarried is the ONE bench disposition that does not end a gap: it defers the
+// question to a later round with a stated research direction. Every other disposition is a
+// ClosureClass.
+const DispositionCarried = "carried"
+
+// ClosureClasses is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
+//
+// `merge close` (red closes on verified repair) and `bench opinion` (the bench closes on
+// judgement) are different acts with different evidence bars, and they stay different verbs.
+// What they must not have is different WORDS for the same outcome: before this, a reader had
+// to know which verb produced a closure before it could interpret the word, and four surfaces
+// spelled the same three outcomes six ways.
+var ClosureClasses = []EnumValue{
+	Ev("closed", "the repair was verified at the leaf and nothing regressed"),
+	Ev("closed_with_regression", "repaired, but something else broke — REQUIRES --successor naming the gap that carries the regression forward"),
+	Ev("amends_prior", "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit"),
+	Ev("rebuttal_sustained", "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"),
+	Ev("risk_accepted", "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"),
+	Ev("routed_to_infrastructure", "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped"),
+}
+
+// ClosureClassNames is the bare vocabulary, for the readers that only need the words.
+func ClosureClassNames() []string { return Names(ClosureClasses) }
+
+// benchDispositions is ClosureClasses plus the one word that does not close.
+var benchDispositions = append(append([]EnumValue{}, ClosureClasses...),
+	Ev(DispositionCarried, "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes"))
+
 type EnumField struct {
-	Key    string   // the payload key the value lands in
-	Flag   string   // the flag a seat types — NOT derived: payload keys are not globally
-	Values []string // unique, and flags.ForPayloadKey says so itself
-	Why    string   // what a near-miss did before this was enforced; the seat reads it
+	Key  string // the payload key the value lands in
+	Flag string // the flag a seat types — NOT derived: payload keys are not globally
+	// unique, and flags.ForPayloadKey says so itself.
+	//
+	// Values carry their MEANINGS, not only their spellings: a set rendered as six words and
+	// one shared sentence leaves a seat to guess which situation warrants which, and the
+	// guessing is measurable (see enumvalue.go).
+	Values []EnumValue
+	Why    string // what a near-miss did before this was enforced; the seat reads it
 
 	// Optional means the field may be ABSENT. A present value is still policed; only
 	// "not passed at all" is allowed through. Requiredness is a separate rule with a
@@ -61,74 +98,96 @@ type EnumField struct {
 // verb alone is what made the first pass look complete when it covered one flag per verb.
 var EnumFields = map[string][]EnumField{
 	"verdict": {{
-		Key: "verdict", Flag: flags.As, Values: []string{"PASS", "FAIL"},
+		Key: "verdict", Flag: flags.As, Values: []EnumValue{
+			Ev("PASS", "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"),
+			Ev("FAIL", "at least one gap is still open, or you are not satisfied it was answered"),
+		},
 		Why: "a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass",
 	}},
 	"outcome": {{
-		Key: "verdict", Flag: flags.As, Values: []string{"VERIFIED", "CEILING", "HALTED", "UNVERIFIED"},
+		Key: "verdict", Flag: flags.As, Values: []EnumValue{
+			Ev("VERIFIED", "red passed the board and the bench agrees the question was answered"),
+			Ev("CEILING", "the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so"),
+			Ev("HALTED", "the bench ended the run on a safety, ethics, consent or integrity boundary"),
+			Ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
+		},
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
 	}},
-	"dispose": {{
-		Key: "disposition", Flag: flags.As, Values: []string{"minted-as", "folded-into", "declined", "banked"},
-		Why: "a fate outside the four is a fifth meaning nobody defined, and one finding gets one fate — an unreadable one cannot be audited as either given or withheld",
+	"avenue": {{
+		Key: "status", Flag: flags.Status, Values: AvenueStatuses,
+		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	"dispute-respond": {{
-		Key: "response", Flag: flags.As, Values: []string{"accepted", "rejected"},
-		Why: "the orchestrator holds a dispute for a round only on an exact `rejected`; anything else falls through to the accepting branch, so a misspelt REJECTION silently applies blue's proposed grade",
+	// dispute, dispute-respond, petition, petition-rule and avenue-rule ARE ABSENT AND THAT IS
+	// DELIBERATE (#344). EnumFields is checked at the WRITE, and nothing writes those types any
+	// more — the verbs are gone. Their READ paths are permanent (record/compat.go), but a reader
+	// does not re-validate: a record written in 2026 under a set that has since changed is still
+	// the record. The motion sets that replaced them are keyed on (subject, key), which this map
+	// cannot express, and live in record/motion.go.
+	"close": {{
+		Key: "closure_class", Flag: flags.As, Values: ClosureClasses,
+		// Optional per this file's own rule: closing a SET is not the same decision as making
+		// the flag REQUIRED, and conflating them here would make several flags mandatory as a
+		// side effect. required.go owns requiredness.
+		Optional: true,
+		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on closed_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
 	}},
-	"petition-rule": {
+	"opinion": {{
+		Key: "disposition", Flag: flags.As, Values: benchDispositions,
+		Optional: true,
+		Why:      "the bench's disposition both RULES and ends the gap; `carried` is the one value that defers instead of closing, and the replay keys the gap's whole fate on that distinction. A near-miss spelling silently carried a gap the bench meant to close, or closed one it meant to carry",
+	}},
+	"mint": {
 		{
-			Key: "ruling", Flag: flags.As, Values: []string{"granted", "denied"},
-			Why: "relief binds the coming seats only on an exact `granted`, so a near-miss grants nothing while reading as a grant on the record — and a halt is the bench's own verb, which this set closing is what actually makes true",
-		},
-		{
-			Key: "class", Flag: flags.PetitionClass, Values: []string{"ethical", "safety", "integrity", "constitutional"},
-			Why:      "the four classes are what the bench is convened to hear; a fifth is a petition nobody defined a standard for, ruled on under whichever standard the seat happened to imagine",
-			Optional: true,
+			Key: "check_kind", Flag: flags.CheckKind, Values: []EnumValue{
+				Ev("document", "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"),
+				Ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"),
+				Ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
+			},
+			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
 		},
 	},
-	"petition": {{
-		Key: "class", Flag: flags.PetitionClass, Values: []string{"ethical", "safety", "integrity", "constitutional"},
-		Why:      "the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine",
-		Optional: true,
+	"reproduce": {{
+		Key: "soundness", Flag: flags.As, Values: []EnumValue{
+			Ev("sound", "you READ the script and it computes what it claims to compute"),
+			Ev("unsound", "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"),
+		},
+		Why: "REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the script actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a proof that looks maximally credible and establishes nothing",
 	}},
-	"dispute": {{
-		Key: "dimension", Flag: flags.Dimension, Values: []string{"severity", "likelihood", "impact", "complexity_cost"},
-		Why:      "the orchestrator matches red's answer to blue's dispute on (gap_id, dimension) and then reads the gap's grade AT that dimension: an axis outside the four matches no answer and reads no grade, so the dispute auto-dockets and its accepted delta computes as zero",
-		Optional: true,
-	}},
-	"observe": {{
-		Key: "kind", Flag: flags.Kind, Values: []string{"note", "checked-held"},
-		Why:      "the two kinds are what an observation can BE — a note the merge may decline, or a check that was run and held. A third word exports into the findings projection as a flavour nothing downstream knows how to read",
-		Optional: true,
-	}},
-	"cite": {{
-		Key: "confidence", Flag: flags.Confidence, Values: []string{"high", "medium", "low"},
-		Why:      "the grade is the whole content of a citation's claim about its source; an unreadable one makes the citation's confidence incomparable with every other row in the table it lands in",
-		Optional: true,
-	}},
-	"confidence": {{
-		Key: "grade", Flag: flags.Confidence, Values: []string{"high", "medium", "low"},
-		Why:      "the report renders these as a confidence table meant to be read down the column, and a value outside the three renders verbatim into it — comparable-looking and not comparable",
-		Optional: true,
+	"verify": {{
+		Key: "outcome", Flag: flags.As, Values: []EnumValue{
+			Ev("supports", "you read the source at the leaf and it says what the claim says"),
+			Ev("supports-with-bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
+			Ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
+			Ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"),
+			Ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
+			Ev("unreachable", "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"),
+		},
+		Why: "THE NEGATIVE HALF, WHICH DID NOT EXIST. Red could say how a citation held and had no way whatever to record that it did NOT — so the strongest adversarial finding available on this axis had to leave as prose, and the capture audit built to catch a report shipping a refuted citation went looking for a verdict no field could carry: it reported PASS over an empty file on every record-mode run (#296). This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence",
+	}, {
+		Key: "confidence", Flag: flags.Confidence, Values: []EnumValue{
+			Ev("high", "you read the source at the leaf and would defend this determination as it stands"),
+			Ev("medium", "you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement"),
+			Ev("low", "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further"),
+		},
+		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION WAS. It is orthogonal to --outcome and always has been: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nThe original plan specified exactly this — \"for each statement ↔ reference pair it assigns a confidence that the source actually corroborates the statement (facts are rarely black and white); low confidence → needs more evidence, blue digs further, not an automatic fail\" — and this field is what shipped from it.\n\nIt spent time called `--trust`, a rename made in #341 to dodge a collision with `blue confidence` (one word carrying two questions). That verb was DELETED in 0.54.0, so the collision has not existed for six releases while the dodge did — and the substitute word invited its own misreading: `trust` sounds like a property of the SOURCE, so its own value descriptions drifted into a support scale (\"the source supports the claim but you had to bridge something\"), and the axis read as a positive-only outcome. It is not one; it is how sure you are",
 	}},
 }
 
 // Usage renders the flag's help from the set itself, so the contract a seat reads is the
 // contract the write path enforces.
 func (e EnumField) Usage(what string) string {
-	return strings.Join(e.Values, " | ") + " — " + what
+	return strings.Join(Names(e.Values), " | ") + " — " + what
 }
 
 // Spelling is the set as a verb summary writes it: PASS|FAIL, no spaces.
-func (e EnumField) Spelling() string { return strings.Join(e.Values, "|") }
+func (e EnumField) Spelling() string { return strings.Join(Names(e.Values), "|") }
 
 // Allows reports whether v is in the set. Exact and case-sensitive by construction: the
 // gates downstream compare literally, so anything looser here would re-open the hole one
 // layer down.
 func (e EnumField) Allows(v string) bool {
 	for _, want := range e.Values {
-		if v == want {
+		if v == want.Name {
 			return true
 		}
 	}
@@ -184,15 +243,15 @@ func checkEnum(typ string, p *Payload) error {
 		// the mistype WOULD have done, not just that a set exists.
 		detail := ""
 		for _, want := range e.Values {
-			if strings.EqualFold(got, want) {
-				detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want))
+			if strings.EqualFold(got, want.Name) {
+				detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want.Name))
 			}
 		}
 		if got == "" {
 			detail = "nothing was passed, and "
 		}
 		return fmt.Errorf("record: %s requires --%s %s (got %s) — %s%s",
-			typ, e.Flag, strings.Join(e.Values, "|"), jsonish(got), detail, e.Why)
+			typ, e.Flag, strings.Join(Names(e.Values), "|"), jsonish(got), detail, e.Why)
 	}
 	return nil
 }

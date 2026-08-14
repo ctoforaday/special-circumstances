@@ -468,6 +468,23 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		}
 		seal(projectDir, note, now, event, in, stderr)
 
+		// A malformed loop is reported HERE, at the seam, by the session that wrote it
+		// (#219). It was previously reported only by sc-checkpoint-restore, which means
+		// the next session inherits the fault and is told about it — a different session,
+		// after the snapshot froze the bad note, and after the state keyed by ordinal has
+		// already disagreed with the labels a human reads.
+		//
+		// Unconditional on this event, unlike drift: drift needs evidence of what the
+		// session wrote, but a bad label is wrong on its own terms and needs nothing but
+		// the note. It NEVER refuses — the seal's whole contract is that a note gets
+		// written; trading continuity for a numbering slip is the worse failure.
+		if problems := checkpoint.NoteLoopProblems(body); len(problems) > 0 {
+			fmt.Fprintf(stderr, "sc-checkpoint-seal: the note just sealed has %d validation-loop problem(s). The snapshot is written either way — fix the LIVE note now, while you still have the context that explains it, or the next session inherits both the fault and the confusion:\n", len(problems))
+			for _, p := range problems {
+				fmt.Fprintln(stderr, "  - "+p)
+			}
+		}
+
 		// The drift check runs on EVERY event, because drift is drift at any seam: a
 		// compaction, a session ending, and a seat finishing all discard the same
 		// context. stderr does not reach the transcript, so this costs the session no

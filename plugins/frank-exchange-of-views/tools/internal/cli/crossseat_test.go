@@ -91,14 +91,14 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "grade-moves", "dispute-to-regrade")
 
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("blue dispute: %v", err)
+		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "merge", "dispute-respond", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("red dispute-respond: %v", err)
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
+		t.Fatalf("motion grade rule: %v", err)
 	}
 	if _, err := run(t, "merge", "regrade", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--severity", "low",
@@ -115,82 +115,41 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	}
 }
 
-// A lens finds, the merge mints citing it, the merge disposes the leftover observation.
-// This is the whole red pipeline, and every step names an artifact a DIFFERENT seat made.
-func TestLensWorkReachesTheBoardAndEveryObservationGetsAFate(t *testing.T) {
-	runDir := seatRun(t)
-
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--key", "F1", "--location", "§3 \"the parser accepts an empty body\"",
-		"--reason", "an empty body is accepted where the grammar requires one element",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
-		t.Fatalf("lens finding: %v", err)
-	}
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note",
-		"--reason", "the neighbouring function has the same shape but validates first"); err != nil {
-		t.Fatalf("lens observe: %v", err)
-	}
-
-	// The mint cites the lens's finding by ITS label — a cross-seat reference.
-	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "from-l1", "--class-new", "lens-to-board",
-		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "§3 \"the parser accepts an empty body\"",
-		"--problem", "the defect", "--fix", "the fix",
-		"--check", "feed the parser an empty body and assert it is refused",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
-		"--found-by", "L1-F1")
-	if err != nil {
-		t.Fatalf("mint --found-by: %v", err)
-	}
-	if id := gapID(out); id == "" {
-		t.Fatalf("mint returned no id: %q", out)
-	}
-
-	mint := lastOfType(t, runDir, "mint")
-	if got := mint.Payload.StrList("found_by"); len(got) != 1 || got[0] != "L1-F1" {
-		t.Errorf("the minted gap records found_by %v, want [L1-F1] — without it the lens's finding and the board gap are two unrelated records and no one can tell which lens earned the gap", got)
-	}
-
-	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "L1-O1", "--as", "declined",
-		"--reason", "checked at the leaf; the neighbour validates first, so there is no defect"); err != nil {
-		t.Fatalf("dispose: %v", err)
-	}
-	if got := lastOfType(t, runDir, "dispose").Payload.Str("observation"); got != "L1-O1" {
-		t.Errorf("the disposal names observation %q, want L1-O1 — an observation with no fate is the lens's work quietly dropped", got)
-	}
-}
-
 // A petition crosses roles in both directions: a MERGE files it, the BENCH rules on it,
 // and the relief is meant to bind the seats that come after. Both halves must be in the
 // one record, or "heard before the debate continues" is unenforceable.
 func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	runDir := seatRun(t)
 
-	if _, err := run(t, "merge", "petition", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--petition-class", "safety",
 		"--reason", "continuing would require asserting a consent gate exists where it does not",
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
-		t.Fatalf("merge petition: %v", err)
+		t.Fatalf("motion petition file: %v", err)
 	}
-	if _, err := run(t, "bench", "petition-rule", "--run", runDir, "--seat-id", "judge-r1",
-		"--petitioner", "red-merge-r1", "--petition-class", "safety", "--as", "granted",
+	if _, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge-r1",
+		"--id", "M1", "--as", "granted",
 		"--reason", "the relief binds the coming seats"); err != nil {
-		t.Fatalf("bench petition-rule: %v", err)
+		t.Fatalf("motion petition rule: %v", err)
 	}
 
-	pet := lastOfType(t, runDir, "petition")
+	pet := lastOfType(t, runDir, "motion")
 	if pet.Payload.Str("class") != "safety" || !payloadKeys(pet)["relief"] {
 		t.Errorf("the petition lost its class or relief (payload %v) — relief that is not recorded cannot bind anybody", pet.Payload.Keys())
 	}
-	rule := lastOfType(t, runDir, "petition-rule")
+	rule := lastOfType(t, runDir, "motion-rule")
 	if got := rule.Payload.Str("ruling"); got != "granted" {
 		t.Errorf("the ruling recorded %q, want granted", got)
 	}
-	if got := rule.Payload.Str("petitioner"); got != "red-merge-r1" {
-		t.Errorf("the ruling names petitioner %q, want the merge seat that filed it — an unattributed ruling cannot be matched to its petition", got)
+	// THE ATTRIBUTION IS THE ID NOW, and that is the substance of #312. The old check read
+	// `petitioner` off the ruling — a field the ruler restated, which is why two petitions from
+	// one seat in one round could not be told apart. The ruling names the MOTION, and the motion
+	// names its filer, so the join is a fact rather than a restatement.
+	if got := rule.Payload.Str("motion_id"); got != "M1" {
+		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
+	}
+	if got := pet.SeatID; got != "red-merge-r1" {
+		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
 	}
 }
 

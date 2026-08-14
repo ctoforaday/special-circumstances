@@ -89,7 +89,14 @@ type Merged struct {
 var shardRe = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)
 
 func MergedEvents(runDir string) (Merged, error) {
-	dir := recordsDir(runDir)
+	// A RESOLUTION FAILURE IS NOT AN EMPTY RUN. The IsNotExist arm below is the honest zero —
+	// a run that exists and has recorded nothing yet — and it is exactly what an unreachable
+	// separated record would otherwise be flattened into. RecordsDir refuses instead, so the
+	// two stay distinguishable here, where every board projection begins.
+	dir, err := RecordsDir(runDir)
+	if err != nil {
+		return Merged{}, err
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -237,12 +244,11 @@ type Gap struct {
 // accepted as it stands, blue's rebuttal was sustained, or the work moved to the lead's
 // infrastructure debt. Each leaves the board with nothing further to adjudicate.
 func benchClosesGap(disposition string) bool {
-	switch disposition {
-	case "closed", "risk_accepted", "rebuttal_sustained", "routed_to_infrastructure":
-		return true
-	default:
-		return false
-	}
+	// ONE VOCABULARY (#342). Every ClosureClass ends a gap; `carried` is the sole
+	// disposition that does not, because it defers the question to a later round.
+	// Enumerating the closing words here was a THIRD list of the same concept, beside
+	// `close`'s classes and the envelope's — and the three disagreed.
+	return disposition != "" && disposition != DispositionCarried
 }
 
 // missingGap describes a mutation that referenced a gap the replay has never seen.
@@ -277,13 +283,18 @@ func GradeStr(v any) string {
 	return s
 }
 
-// Observation is a lens finding or note plus the merge's disposition of it.
+// Observation is a lens FINDING as replayed. The name is historical: it once covered both
+// findings and `observe` notes, and carried the merge's `dispose` fate for each.
+//
+// Both retired (#327). A finding's fate is now COALESCENCE and only coalescence — it is
+// addressed by being credited in some gap's found_by — so there is no Disposition to carry and
+// no second kind to distinguish. A finding credited nowhere is the report's "Lens findings not
+// raised to a gap", which is where that work reaches the reader.
 type Observation struct {
-	SeatID      string
-	Key         string
-	Kind        string
-	Payload     *Payload
-	Disposition *Payload
+	SeatID  string
+	Key     string
+	Kind    string
+	Payload *Payload
 }
 
 // Board is the replayed board: gaps in mint order, observations in event order.
@@ -394,54 +405,10 @@ func BoardState(runDir string) (*Board, error) {
 			g.ClosedRound = e.Round
 			g.HasClosed = true
 			g.ClosedByBench = true
-		case "finding", "observe":
+		case "finding":
 			b.Observations = append(b.Observations, &Observation{
 				SeatID: e.SeatID, Key: e.Key, Kind: e.Type, Payload: e.Payload,
 			})
-		case "dispose":
-			// BY ID FIRST, then by label within the SAME ROUND, then by label anywhere.
-			//
-			// "first match wins on the label" was the old rule, and it silently attached
-			// a disposal to whichever round's finding happened to replay first: 15
-			// labels in the 2026-07-18 run were used by more than one lens seat, so 39
-			// of 60 disposals were resolved by accident of ordering. The wrong finding
-			// got the fate and the right one stayed in the undisposed set forever.
-			target := e.Payload.Str("observation")
-			round := RoundOf(e.SeatID)
-			var byLabelSameRound, byLabelAny *Observation
-			var matched bool
-			for _, o := range b.Observations {
-				if o.Payload.Str("finding_id") == target && target != "" {
-					o.Disposition = e.Payload
-					matched = true
-					break
-				}
-				name := o.Payload.Str("label")
-				if name == "" {
-					name = o.Key
-				}
-				if name != target {
-					continue
-				}
-				if byLabelAny == nil {
-					byLabelAny = o
-				}
-				if byLabelSameRound == nil && RoundOf(o.SeatID) == round {
-					byLabelSameRound = o
-				}
-			}
-			if !matched {
-				switch {
-				case byLabelSameRound != nil:
-					byLabelSameRound.Disposition = e.Payload
-				case byLabelAny != nil:
-					byLabelAny.Disposition = e.Payload
-				default:
-					b.Anomalies = append(b.Anomalies, fmt.Sprintf(
-						"dispose by %s referenced %s, which matches no finding or observation — the disposal was DROPPED and the intended one stays undisposed",
-						e.SeatID, target))
-				}
-			}
 		}
 	}
 	return b, nil
@@ -525,21 +492,43 @@ type classRegistry struct {
 	Classes []registryClass `json:"classes"`
 }
 
-func loadRegistry(runDir string) *classRegistry {
-	p := filepath.Join(recordsDir(runDir), "class-registry.json")
+// loadRegistry reads the gap-class registry, and DISTINGUISHES "there is none" from "there is one
+// and it is broken".
+//
+// It used to return nil on any failure, and `validateClass` reads nil as advisory mode — so an
+// unparseable registry accepted every class slug ever passed, silently. That is this codebase's
+// recurring shape: the miss and the honest zero produce the same output, and a corrupt file turns
+// off the gate that keeps the class vocabulary honest without anything saying so.
+//
+// An ABSENT registry stays advisory. That is a deliberate, narrower tolerance: a run set up
+// before the registry existed, or one deliberately run without one, has nothing to validate
+// against, and refusing every mint would make those runs unusable. A registry that IS there and
+// cannot be read is different in kind — somebody staged it, so somebody meant it to bind.
+//
+// An unreachable record root is not this function's error to report: MergedEvents fails loudly on
+// it, and every caller reaches that first, so erroring twice only makes the diagnosis harder.
+func loadRegistry(runDir string) (*classRegistry, error) {
+	recDir, err := RecordsDir(runDir)
+	if err != nil {
+		return nil, nil
+	}
+	p := filepath.Join(recDir, "class-registry.json")
 	b, err := os.ReadFile(p)
 	if err != nil {
-		return nil
+		return nil, nil // absent — advisory, see above
 	}
 	var reg classRegistry
 	if err := json.Unmarshal(b, &reg); err != nil {
-		return nil // unparseable registry degrades to advisory mode, as in the oracle
+		return nil, fmt.Errorf("record: the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file, or remove it to run without a registry deliberately", p, err)
 	}
-	return &reg
+	return &reg, nil
 }
 
 func validateClass(runDir string, p *Payload) error {
-	reg := loadRegistry(runDir)
+	reg, err := loadRegistry(runDir)
+	if err != nil {
+		return err
+	}
 	m, err := MergedEvents(runDir)
 	if err != nil {
 		return err

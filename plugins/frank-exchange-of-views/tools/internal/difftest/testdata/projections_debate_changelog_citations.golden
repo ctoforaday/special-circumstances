@@ -8,7 +8,7 @@ exit 0
 stdout:
 position recorded
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check x --severity medium --likelihood medium --impact medium --problem docketed
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
 minted R1-1
@@ -39,24 +39,96 @@ stdout:
 manifest row recorded for R1-1
 
 $ blue dispute --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
-exit 0
-stdout:
-dispute filed on R1-1.likelihood
+exit 2
+stderr:
+feov-record: no verb "dispute" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+
+blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
+  friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  position     the round's ### BLUE section (prose via --reason)
+  prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
+  register     FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
+  revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | worklist | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Flags:
+  -h, --help   help for blue
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 $ blue confidence --run {RUN} --seat-id blue-respond-r1 --claim C7 --confidence medium
-exit 0
-stdout:
-confidence recorded for C7
+exit 2
+stderr:
+feov-record: no verb "confidence" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
 
-$ lens cite --run {RUN} --seat-id red-lens-r1-L1 --claim throughput doubled --reference https://example.invalid/paper --confidence high --access-date 2026-07-18
-exit 0
-stdout:
-citation recorded: https://example.invalid/paper
+blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  avenue       PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
+  cite         cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
+  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
+  closing      a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  edit         replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
+  friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  manifest-row one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  position     the round's ### BLUE section (prose via --reason)
+  prove        settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
+  register     FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  retire       remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
+  revision     the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land
+  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | worklist | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Flags:
+  -h, --help   help for blue
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
+
+$ lens verify --run {RUN} --seat-id red-lens-r1-L1 --claim throughput doubled --reference https://example.invalid/paper --trust high --access-date 2026-07-18
+exit 2
+stderr:
+feov-record: unknown flag: --trust
 
 $ bench register --run {RUN} --seat-id judge-r1
 exit 0
 stdout:
-registered judge-r1 (shard nonce NONCE004)
+registered judge-r1 (shard nonce NONCE003)
 
 $ bench opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --reason the rationale body
 exit 0
@@ -70,45 +142,22 @@ certification recorded
 
 ═══ EVENTS ═══
 -- events-blue-respond-r1-NONCE002.jsonl
-{"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"blue-respond-r1","seq":0,"ts":4,"type":"register"}
-{"key":"blue-respond-r1:position","nonce":"NONCE002","payload":{"text":"blue's round position"},"round":1,"seatId":"blue-respond-r1","seq":1,"ts":5,"type":"position"}
-{"key":"blue-respond-r1:closing:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","text":"blue's closing"},"round":1,"seatId":"blue-respond-r1","seq":2,"ts":6,"type":"closing"}
-{"key":"blue-respond-r1:revision","nonce":"NONCE002","payload":{"text":"repairs landed"},"round":1,"seatId":"blue-respond-r1","seq":3,"ts":7,"type":"revision"}
-{"key":"blue-respond-r1:manifest-row:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seatId":"blue-respond-r1","seq":4,"ts":8,"type":"manifest-row"}
-{"key":"blue-respond-r1:dispute:R1-1","nonce":"NONCE002","payload":{"dimension":"likelihood","evidence":"the harm needs two failures","gap_id":"R1-1","proposed":"low"},"round":1,"seatId":"blue-respond-r1","seq":5,"ts":9,"type":"dispute"}
-{"key":"blue-respond-r1:confidence:C7","nonce":"NONCE002","payload":{"grade":"medium","label":"C7"},"round":1,"seatId":"blue-respond-r1","seq":6,"ts":10,"type":"confidence"}
--- events-judge-r1-NONCE004.jsonl
-{"key":"judge-r1:register:NONCE004","nonce":"NONCE004","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"judge-r1","seq":0,"ts":13,"type":"register"}
-{"key":"judge-r1:opinion:R1-1","nonce":"NONCE004","payload":{"disposition":"carried","gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","tension":"thoroughness vs cost"},"round":1,"seatId":"judge-r1","seq":1,"ts":14,"type":"opinion"}
-{"key":"judge-r1:certify:#1","nonce":"NONCE004","payload":{"statement":"what a human should re-examine"},"round":1,"seatId":"judge-r1","seq":2,"ts":15,"type":"certify"}
--- events-red-lens-r1-L1-NONCE003.jsonl
-{"key":"red-lens-r1-L1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":11,"type":"register"}
-{"key":"red-lens-r1-L1:cite:https://example.invalid/paper","nonce":"NONCE003","payload":{"access_date":"2026-07-18","claim":"throughput doubled","confidence":"high","reference":"https://example.invalid/paper"},"round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":12,"type":"cite"}
+{"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.66.0"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":0,"ts":4,"type":"register"}
+{"key":"blue-respond-r1:position","nonce":"NONCE002","payload":{"text":"blue's round position"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":1,"ts":5,"type":"position"}
+{"key":"blue-respond-r1:closing:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","text":"blue's closing"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":2,"ts":6,"type":"closing"}
+{"key":"blue-respond-r1:revision","nonce":"NONCE002","payload":{"text":"repairs landed"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":3,"ts":7,"type":"revision"}
+{"key":"blue-respond-r1:manifest-row:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":4,"ts":8,"type":"manifest-row"}
+-- events-judge-r1-NONCE003.jsonl
+{"key":"judge-r1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.66.0"},"role":"bench","round":1,"seatId":"judge-r1","seq":0,"ts":9,"type":"register"}
+{"key":"judge-r1:opinion:R1-1","nonce":"NONCE003","payload":{"disposition":"carried","gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","tension":"thoroughness vs cost"},"role":"bench","round":1,"seatId":"judge-r1","seq":1,"ts":10,"type":"opinion"}
+{"key":"judge-r1:certify:#1","nonce":"NONCE003","payload":{"statement":"what a human should re-examine"},"role":"bench","round":1,"seatId":"judge-r1","seq":2,"ts":11,"type":"certify"}
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position"},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
-{"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","text":"red's closing"},"round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"closing"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.66.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
+{"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","text":"red's closing"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"closing"}
 
 ═══ RENDERS ═══
--- ledger
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (1)
-
-### R1-1 — docketed
-
-severity medium | medium x medium | cx undefined | class scope-creep
-required_fix: 
-acceptance_check: x
-
-## CLOSURE INDEX
-
-
-
--- archive
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
@@ -126,27 +175,14 @@ blue's round position
 ### BLUE CLOSING (round 1) — R1-1
 blue's closing
 
-### BLUE CONFIDENCE (self-assessment — non-authoritative; targeting signal, not a grade)
-- C7 → **medium**
-
-### Grade disputes
-- **blue-respond-r1** disputes R1-1/likelihood → low: the harm needs two failures
-
 ### LEAD
 - R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
 the rationale body
 
--- changelog
-# blue CHANGELOG — RENDERED PROJECTION
-
-## Round 1
-repairs landed
-
--- citation-ledger
-# red citation-ledger — RENDERED PROJECTION
-throughput doubled | https://example.invalid/paper | high | r1 | 2026-07-18
-
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

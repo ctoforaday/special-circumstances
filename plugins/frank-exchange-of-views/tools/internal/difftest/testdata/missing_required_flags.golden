@@ -11,33 +11,52 @@ feov-record: merge: --seat-id is required (the engine assigns it; it is in your 
 $ merge not-a-verb --run {RUN} --seat-id red-merge-r1
 exit 2
 stderr:
-feov-record: verb "not-a-verb" is outside this seat's role (available: register, mint, close, dispose, regrade, dispute-respond, spot-check, position, closing, verdict, friction, petition, show)
+feov-record: no verb "not-a-verb" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+
+the red merge seat — the board's only writer.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with the 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} [flags]
+  {TOOL} [command]
+
+Available Commands:
+  close       close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"
+  closing     a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  mint        mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  near-match  screen a candidate against the board before minting: --candidate "<problem text>" [--location "<section>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
+  position    the round's ### RED section (prose via --reason)
+  register    FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  regrade     same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--cx <grade>] --reason "..."
+  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | worklist | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  spot-check  the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start
+  verdict     the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+
+Flags:
+  -h, --help   help for merge
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+Use "{TOOL} [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
 
 ═══ RENDERS ═══
--- ledger
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (0)
-
-## CLOSURE INDEX
-
-
-
--- archive
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- changelog
-# blue CHANGELOG — RENDERED PROJECTION
-
--- citation-ledger
-# red citation-ledger — RENDERED PROJECTION
 
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

@@ -15,7 +15,8 @@ require (
 require (
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
-	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
+	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/thediveo/enumflag/v2 v2.2.1 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )

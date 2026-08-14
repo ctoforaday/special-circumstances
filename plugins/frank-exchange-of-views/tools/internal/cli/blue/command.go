@@ -16,19 +16,18 @@ const role = "blue"
 
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
-		"blue seats — revisions, manifest rows, disputes. No board verbs at all.",
-		seat.Register("FIRST ACTION at the seat: register --run <runDir> --seat-id <SEAT_ID from your prompt>"),
+		"blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.",
+		seat.Register("FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
+		newEdit(),
+		newCite(),
+		newProve(),
 		newRevision(),
 		newRetire(),
 		newAvenue(),
 		newManifestRow(),
-		newDispute(),
-		newConfidence(),
+		newClaimIndex(),
 		seat.Position("the round's ### BLUE section (prose via --reason)"),
 		seat.Closing("a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
-		seat.Friction("attributed friction (survives aborts as an event): --reason"),
-		seat.Petition(
-			`petition the bench (never sanctioned; does not pause your duties): --petition-class ethical|safety|integrity|constitutional --reason "..." --relief "..."`,
-			""),
+		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),
 	)
 }

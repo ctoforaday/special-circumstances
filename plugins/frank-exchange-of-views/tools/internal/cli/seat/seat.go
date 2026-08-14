@@ -26,10 +26,12 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // FrictionFooter closes the loop the help opens. A seat that needs something the
@@ -47,17 +49,31 @@ type Context struct {
 	RunDir string
 	SeatID string
 	Role   string
+	// Round is the seat's round as a FACT — injected by the dispatcher, not recovered from the
+	// seat id (#348). -1 means unknown, which is NOT round 0: round 0 is synthesis, and
+	// conflating the two is what produced the phantom-archive bug in #327.
+	Round int
 }
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
 // directory when the flag is absent.
+// It stays error-free by design: the resolution that CAN fail (an injected run directory
+// disagreeing with a typed --run) is surfaced by Begin, which already has an error to return.
+// Threading one through Of would have changed every caller for a case only Begin acts on.
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	if runDir == "" {
-		runDir = InferRunDir("")
+	resolved, err := seatenv.Resolve(runDir, func() string { return InferRunDir("") })
+	if err == nil {
+		runDir = resolved
 	}
+	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
+	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
-	return Context{RunDir: runDir, SeatID: seatID, Role: roleOf(cmd)}
+	round := -1
+	if id, rerr := seatenv.ResolveSeat(seatID, record.RoundOf); rerr == nil {
+		seatID, round = id.ID, id.Round
+	}
+	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd)}
 }
 
 // roleOf reads the role from the command's POSITION in the tree: a verb's parent is its
@@ -176,12 +192,33 @@ type Handler func(Context, *cobra.Command) (Result, error)
 //
 // Applied AFTER the verb has registered its own flags, so a verb cannot forget to call it
 // and no verb has to remember what it requires twice.
+// suppliedByTheVerb are (verb, payload key) pairs the RECORD requires and the VERB fills, with
+// what fills them.
+//
+// A REQUIRED FIELD IS NOT A REQUIRED FLAG, and conflating them produced help that contradicted
+// itself in one line: `blue avenue --status` read "REQUIRED — proposed (put forward, undecided —
+// the default)". Required, and also the default. A seat reading that supplies a value it did not
+// need to choose, and the one state the field exists to express — a direction PUT FORWARD and not
+// yet resolved — is the one a seat is least likely to type.
+//
+// Caught by TestEveryRequiredFlagIsActuallyRefused, which ran the verb without the flag and it
+// worked.
+var suppliedByTheVerb = map[string]string{
+	"avenue.status": "a fresh proposal defaults to `proposed` in the verb — the state the old shape could not express, and the one a seat would not think to type. A MOVE still requires it, and the move's own refusal says so",
+}
+
 func markRequired(c *cobra.Command, verb string) {
 	for _, key := range record.RequiredFields[verb] {
 		f := c.Flags().Lookup(flags.ForPayloadKey(key))
 		if f == nil {
 			// The field is set by the verb rather than typed by the seat. Nothing to
 			// annotate, and nothing wrong: not every payload key has a flag.
+			continue
+		}
+		if suppliedByTheVerb[verb+"."+key] != "" {
+			// Required of the RECORD, supplied by the VERB. Marking it would tell a seat to
+			// type what it does not have to, and the annotation would sit beside the word
+			// "default" in the same sentence.
 			continue
 		}
 		f.Usage = "REQUIRED — " + f.Usage
@@ -192,6 +229,23 @@ func markRequired(c *cobra.Command, verb string) {
 // called at the TOP of the one RunE — NOT a PreRunE hook — so there is no lifecycle chaining
 // to reason about. It requires the run dir and seat id and holds the seat to its role.
 func Begin(cmd *cobra.Command) (Context, error) {
+	// The disagreement refusal fires FIRST — before "--run is required" and before the seat-id
+	// checks — because a seat pointed at the wrong run must not get a message about anything
+	// else. Of() swallows the error to stay signature-compatible; this is where it is honoured.
+	flagRun, _ := cmd.Flags().GetString(flags.Run)
+	if _, err := seatenv.Resolve(flagRun, nil); err != nil {
+		return Of(cmd), err
+	}
+	// AND THE IDENTITY DISAGREEMENT, which Of's own comment said was refused here and which
+	// nothing refused anywhere. Measured: with FEOV_SEAT=blue-respond-r1 injected, a call
+	// passing --seat-id blue-respond-r9 was ACCEPTED and filed under r9 — a seat no dispatch
+	// ever created, carrying its own register event and its own shard. Attribution is the one
+	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
+	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
+	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
+	if _, err := seatenv.ResolveSeat(seatFlag, record.RoundOf); err != nil {
+		return Of(cmd), err
+	}
 	s := Of(cmd)
 	if s.RunDir == "" {
 		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")
@@ -202,7 +256,50 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if err := record.CheckSeatRole(s.Role, s.SeatID); err != nil {
 		return s, err
 	}
+	if err := CheckFlagReferences(cmd, s.RunDir); err != nil {
+		return s, err
+	}
 	return s, nil
+}
+
+// referenceChecker is what a typed flag implements when it knows what it is checked against.
+// Declared here rather than imported so the flags package keeps no dependency on this one.
+type referenceChecker interface {
+	Check(runDir string) error
+}
+
+// CheckFlagReferences resolves every flag that carries an existence check.
+//
+// # Why HERE and not in a cobra hook
+//
+// A pflag.Value cannot do it: parsing is ONE left-to-right pass over argv with the parent's
+// persistent flags merged in, so `close --id R1-1 --run <dir>` calls `--id`'s Set() before --run
+// is bound. Measured. The check has to run after parse.
+//
+// The obvious after-parse seam is PersistentPreRunE, and it is a trap: a command defining its own
+// SHADOWS the root's entirely, with no error and no warning — so a hook installed once at the
+// root stops running the moment any verb grows one, silently. Measured too.
+//
+// `Begin` has neither problem. It is a plain function at the top of the one hook-free RunE that
+// `New` wires for every seat verb, which is the shape this package already chose (see New): the
+// run directory is resolved, nothing chains, and a failure renders through the same Emit as any
+// other refusal. Coverage is DERIVED — a new verb is checked because it goes through Begin, not
+// because someone remembered to add it to a list.
+//
+// The checks themselves are record.GapExists and friends — thin wrappers over the helpers
+// `validate` uses. validate stays the enforcer, because it is the single write path every caller
+// goes through; this is the earlier, better-placed copy of the same refusal, not a second one.
+func CheckFlagReferences(cmd *cobra.Command, runDir string) error {
+	var err error
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if err != nil {
+			return
+		}
+		if c, ok := f.Value.(referenceChecker); ok {
+			err = c.Check(runDir)
+		}
+	})
+	return err
 }
 
 // Emit renders a verb's outcome. It is the ONE place both a success and a failure are
@@ -294,11 +391,9 @@ func Reason(cmd *cobra.Command) (string, error) {
 
 // Str reads a string flag.
 func Str(cmd *cobra.Command, name string) string {
-	v, err := cmd.Flags().GetString(name)
-	if err != nil {
-		return ""
-	}
-	return v
+	// ONE IMPLEMENTATION, in flags.Value. This used to hand-roll the same fallback and
+	// flags.Set hand-rolled the broken version, which is how the identical defect shipped twice.
+	return flags.Value(cmd, name)
 }
 
 // Given answers whether the SEAT passed the flag. The absent/present distinction

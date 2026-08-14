@@ -112,12 +112,18 @@ func dedupe(in []string) []string {
 // verb's help must actually say REQUIRED.
 func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	verbRole := map[string]string{
-		"mint": "merge", "close": "merge", "dispose": "merge", "regrade": "merge",
-		"dispute-respond": "merge", "closing": "merge",
-		"retire": "blue", "avenue": "blue", "dispute": "blue",
-		"opinion": "bench", "halt": "bench", "certify": "bench",
-		"finding": "lens", "observe": "lens",
+		"mint": "merge", "close": "merge", "regrade": "merge",
+		"closing": "merge",
+		"retire":  "blue", "avenue": "blue",
+		"opinion": "bench", "halt": "bench", "certify": "bench", "outcome": "bench",
+		"finding": "lens", "observe": "lens", "verify": "lens",
 	}
+	// A FIELD THE VERB SUPPLIES IS NOT A FLAG THE SEAT MUST TYPE, and marking it produced help
+	// that contradicted itself: `blue avenue --status` read "REQUIRED — proposed (… the default)".
+	// seat.suppliedByTheVerb is the one statement of that distinction; this mirrors its keys so
+	// the two gates cannot disagree about the same flag.
+	suppliedByTheVerb := map[string]bool{"avenue/status": true}
+
 	for verb, required := range record.RequiredFields {
 		role, ok := verbRole[verb]
 		if !ok {
@@ -126,6 +132,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		}
 		h := help(t, role, verb, "--help")
 		for _, key := range required {
+			if suppliedByTheVerb[verb+"/"+key] {
+				continue
+			}
 			flag := flags.ForPayloadKey(key)
 			t.Run(verb+"/"+flag, func(t *testing.T) {
 				if !strings.Contains(h, "--"+flag+" ") {

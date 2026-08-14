@@ -1,6 +1,7 @@
 package record
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -63,9 +64,6 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "R1-1" || r1.RedClosings[0].Text != "red closes r1" {
 		t.Errorf("round 1 RedClosings = %+v", r1.RedClosings)
 	}
-	if len(r1.Confidence) != 1 || r1.Confidence[0].Label != "claim one" || r1.Confidence[0].Grade != "medium" {
-		t.Errorf("round 1 Confidence = %+v", r1.Confidence)
-	}
 	if len(r1.Disputes) != 1 || r1.Disputes[0].Kind != "dispute" || r1.Disputes[0].Proposed != "low" {
 		t.Errorf("round 1 Disputes = %+v", r1.Disputes)
 	}
@@ -107,5 +105,136 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	}
 	if !strings.Contains(string(out), `"rounds"`) || !strings.Contains(string(out), `"red"`) {
 		t.Errorf("DebateJSONBytes output missing expected keys:\n%s", out)
+	}
+}
+
+// TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse pins the merge's shrinking working set:
+// OPEN gaps only in a lean shape (grades + class + location + a TRUNCATED problem synopsis +
+// found_by, but NOT required_fix/acceptance_check), and closed gaps collapsed to a prose-free
+// {id, location, class} index. This is the once-per-turn read the full board is not.
+func TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
+	runDir := t.TempDir()
+	m := "red-merge-r1"
+	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
+	writeShard(t, runDir, m, "aaaaaaaa", []Event{
+		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
+			Set("gap_id", "R1-1").Set("problem", longProblem).Set("location", "§open").
+			Set("class", "correctness").Set("required_fix", "SECRET_FIX_PROSE").
+			Set("acceptance_check", "SECRET_CHECK_PROSE").Set("severity", "high").
+			Set("found_by", []string{"L1-F1"})),
+		ev(m, "aaaaaaaa", 1, 1, "mint", m+":mint:R1-2", NewPayload().
+			Set("gap_id", "R1-2").Set("problem", "a closed problem").Set("location", "§closed").
+			Set("class", "citation").Set("required_fix", "fix").Set("acceptance_check", "chk")),
+		ev(m, "aaaaaaaa", 2, 1, "close", m+":close:R1-2", NewPayload().
+			Set("gap_id", "R1-2").Set("class", "resolved")),
+	})
+
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := WorklistJSONOf(b)
+
+	if len(w.Open) != 1 || w.Open[0].ID != "R1-1" {
+		t.Fatalf("worklist Open = %+v, want the single open gap R1-1", w.Open)
+	}
+	if len(w.ClosedIndex) != 1 || w.ClosedIndex[0].ID != "R1-2" {
+		t.Fatalf("worklist ClosedIndex = %+v, want the single closed gap R1-2", w.ClosedIndex)
+	}
+	if w.Counts.Open != 1 || w.Counts.Closed != 1 {
+		t.Errorf("counts = %+v, want open 1 closed 1", w.Counts)
+	}
+	// The open gap's problem is TRUNCATED to the synopsis budget, and the full-prose fields
+	// (required_fix, acceptance_check) are absent from the JSON entirely.
+	if r := []rune(w.Open[0].ProblemSynopsis); len(r) > synopsisLimit+1 { // +1 for the ellipsis
+		t.Errorf("problem synopsis is %d runes, want <= %d + ellipsis", len(r), synopsisLimit)
+	}
+	if !strings.HasSuffix(w.Open[0].ProblemSynopsis, "…") {
+		t.Errorf("a truncated synopsis must be marked with an ellipsis: %q", w.Open[0].ProblemSynopsis)
+	}
+	blob, _ := json.Marshal(w)
+	for _, secret := range []string{"SECRET_FIX_PROSE", "SECRET_CHECK_PROSE", "a closed problem"} {
+		if strings.Contains(string(blob), secret) {
+			t.Errorf("the worklist must not carry prose %q — it is lean by design:\n%s", secret, blob)
+		}
+	}
+	// The lean open gap keeps its grades, class, location and found_by.
+	if w.Open[0].Severity != "high" || w.Open[0].Class != "correctness" || w.Open[0].Location != "§open" {
+		t.Errorf("open gap lost a lean field: %+v", w.Open[0])
+	}
+	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "L1-F1" {
+		t.Errorf("open gap lost found_by: %+v", w.Open[0].FoundBy)
+	}
+	// The closed index carries id/location/class only — no problem prose.
+	if w.ClosedIndex[0].Location != "§closed" || w.ClosedIndex[0].Class != "citation" {
+		t.Errorf("closed index lost id/location/class: %+v", w.ClosedIndex[0])
+	}
+}
+
+// TestBoardJSONFlattensMintWithoutDuplicating pins the board de-duplication: a gap's lineage
+// (found_by, supersedes) used to live ONLY inside a nested `mint`
+// object that ALSO re-stated every top-level field, so each gap carried its prose twice. They are
+// now first-class and the nested object is gone — one copy, and nothing a reader needs is buried.
+func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
+	runDir := t.TempDir()
+	m := "red-merge-r1"
+	writeShard(t, runDir, m, "aaaaaaaa", []Event{
+		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
+			Set("gap_id", "R1-1").Set("problem", "an open problem").Set("location", "§1").
+			Set("required_fix", "do the thing").Set("acceptance_check", "run the check").
+			Set("severity", "high").Set("existence", "verified").
+			Set("found_by", []string{"L1-F1", "L5-F3"}).Set("supersedes", []string{"R0-9"})),
+	})
+	b, err := BoardJSONBytes(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	// The lineage + leaf-check fields are promoted to the top level (their only home now).
+	// Tokens, not a compact substring — BoardJSONBytes pretty-prints.
+	for _, want := range []string{`"found_by"`, `"L1-F1"`, `"L5-F3"`, `"supersedes"`, `"R0-9"`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
+		}
+	}
+	// The redundant nested `mint` object is gone, so the prose appears exactly ONCE.
+	if strings.Contains(s, `"mint":`) {
+		t.Error("the board still carries the redundant nested `mint` object")
+	}
+	if n := strings.Count(s, "an open problem"); n != 1 {
+		t.Errorf("the problem prose appears %d times, want exactly 1 (the duplication this removed)", n)
+	}
+}
+
+// UNCREDITED FINDINGS, not undisposed observations (#327).
+//
+// The old metric counted `observe` events with no `dispose` fate. Both verbs are retired, so it
+// would now be PERMANENTLY ZERO — a dead detector and a clean board printing the same number,
+// which is the exact shape this codebase keeps finding. A finding is addressed by coalescence,
+// so the honest question is whether it was ever credited in a gap's found_by.
+func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
+	runDir := t.TempDir()
+	s := "red-lens-r1-L1"
+	m := "red-merge-r1"
+	writeShard(t, runDir, s, "aaaaaaaa", []Event{
+		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("text", "credited")),
+		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("text", "never credited")),
+	})
+	writeShard(t, runDir, m, "bbbbbbbb", []Event{
+		ev(m, "bbbbbbbb", 0, 1, "mint", m+":mint:k", NewPayload().Set("gap_id", "R1-1").Set("found_by", []string{"L1-F1"})),
+	})
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bj := BoardJSONOf(b)
+	if bj.Counts.UncreditedFindings != 1 {
+		t.Errorf("exactly one finding is credited by no gap; got %d uncredited", bj.Counts.UncreditedFindings)
+	}
+	for _, o := range bj.Observations {
+		want := o.Label == "L1-F1"
+		if o.Credited != want {
+			t.Errorf("%s: credited=%v, want %v", o.Label, o.Credited, want)
+		}
 	}
 }

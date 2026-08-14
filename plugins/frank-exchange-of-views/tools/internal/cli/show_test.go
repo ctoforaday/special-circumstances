@@ -31,15 +31,17 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	for _, name := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
+	// The markdown views, which are the only ones this contract can hold: a JSON-by-name view is
+	// not a view.Markdown rendering, so there is no shared computation to diverge from.
+	for _, name := range []string{"debate", "lines-of-inquiry"} {
 		t.Run(name, func(t *testing.T) {
-			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", name)
+			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", name)
 			if err != nil {
-				t.Fatalf("show --view %s: %v", name, err)
+				t.Fatalf("show %s: %v", name, err)
 			}
 			want := readProjection(t, runDir, name)
 			if out != want {
-				t.Errorf("show --view %s does not match the shared view.Markdown computation byte for byte — a re-derivation at the read surface is a second reader.\nstdout (%d bytes):\n%s\ncomputed (%d bytes):\n%s",
+				t.Errorf("show %s does not match the shared view.Markdown computation byte for byte — a re-derivation at the read surface is a second reader.\nstdout (%d bytes):\n%s\ncomputed (%d bytes):\n%s",
 					name, len(out), out, len(want), want)
 			}
 		})
@@ -52,14 +54,24 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 	runDir := seatRun(t)
 	mintGap(t, runDir, "role-views", "read-surface")
 
-	// merge's own view is the structured BOARD, not the markdown ledger: the merge seat
-	// is the one that acts on gap state, and it should get it in the form it acts on
-	// rather than prose it has to parse back.
+	// merge's own view is the structured WORKLIST — its shrinking working set (OPEN gaps
+	// lean + a prose-free closed_index), the once-per-turn read it acts on. It is the
+	// last-wins default among the merge's views (board, findings, worklist all default to
+	// merge; worklist is registered last), so a bare `merge show` resolves here. The marker
+	// is `closed_index`, which ONLY the worklist carries — board/findings would also match a
+	// bare `"counts"`, so pinning on the unique key is what fixes the default to worklist.
+	// EVERY ROLE NOW DEFAULTS TO ITS OWN PENDING WORK, which is what a bare `show` should
+	// answer. It did not: blue got `changelog` — a record of what it had ALREADY done, before it
+	// had done anything — the lens got `citation-ledger`, and the bench got `debate`. Asked what
+	// would tell them a sitting was finished, only the merge could name a mechanism; the others
+	// answered with another seat's future act, which is not observable when they must decide to
+	// stop. The marker is `sitting`, the block that says what is outstanding and whether anything
+	// is.
 	for _, c := range []struct{ role, marker string }{
-		{"merge", `"counts"`},
-		{"blue", "CHANGELOG"},
-		{"lens", "citation-ledger"},
-		{"bench", "debate.md"},
+		{"merge", `"sitting"`},
+		{"blue", `"sitting"`},
+		{"lens", `"sitting"`},
+		{"bench", `"sitting"`},
 	} {
 		t.Run(c.role, func(t *testing.T) {
 			seat := map[string]string{
@@ -82,11 +94,11 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 // improvise a file read instead, which is the behaviour this verb exists to replace.
 func TestUnknownViewIsRefusedWithTheListOfViews(t *testing.T) {
 	runDir := seatRun(t)
-	_, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "the-board")
+	_, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "the-board")
 	if err == nil {
 		t.Fatal("an unknown view was accepted; a seat would get an empty read and no signal that it asked for something that does not exist")
 	}
-	for _, want := range []string{"the-board", "ledger"} {
+	for _, want := range []string{"the-board", "evidence"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not mention %q — it must name what was asked for AND what is available: %v", want, err)
 		}
@@ -124,9 +136,9 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 
 	// debate --json parses and carries the rounds structure.
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "debate", "--json")
+	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "debate", "--json")
 	if err != nil {
-		t.Fatalf("show --view debate --json: %v", err)
+		t.Fatalf("show debate --json: %v", err)
 	}
 	var dj struct {
 		Rounds []struct {
@@ -149,14 +161,22 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 
 	// --json on a JSON-by-name view is refused (no alias to that JSON).
-	for _, v := range []string{"board", "findings", "friction"} {
-		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", v, "--json"); err == nil {
+	// NAMES FROM ViewNames(), not a hand-kept list: `friction` sat here after it stopped being a
+	// view, and the assertion went on passing — it demands an error, and an unknown view is an
+	// error too. A stale name in a list like this checks nothing while reading as coverage.
+	for _, v := range []string{"board", "findings", "worklist", "motions", "evidence", "telemetry"} {
+		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}
 	}
+	// --json with no projection named is refused: the bare form answers with pending work, and
+	// there is no second way to ask for it.
+	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--json"); err == nil {
+		t.Error("a bare `show --json` was accepted; it must refuse and name the projections")
+	}
 	// --json on a markdown view with no JSON form is refused.
-	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--view", "ledger", "--json"); err == nil {
-		t.Error("--view ledger --json was accepted; ledger has no JSON form and must refuse")
+	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "lines-of-inquiry", "--json"); err == nil {
+		t.Error("show lines-of-inquiry --json was accepted; it has no JSON form and must refuse")
 	}
 }
 

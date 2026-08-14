@@ -82,24 +82,40 @@ func TestComputeDirectionUptake(t *testing.T) {
 	}
 }
 
-func TestUnrecordedClaimLossComputedBranch(t *testing.T) {
-	// ≥2 claim_count envelopes with a fall → the COMPUTED value, not the "needs two rounds" note.
+func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
+	// The additive-integrity detector: a claim_count fall the retire EVENTS don't account for is
+	// substance leaving silently. Retires come from the RECORD (retire events on the board), NOT a
+	// BLUE_ENVELOPE `retired` field — that field never existed, so the old code counted zero and
+	// flagged every legitimate retirement as a violation.
 	results := []map[string]any{
 		{"claim_count": float64(10)},
-		{"claim_count": float64(7), "retired": []any{map[string]any{}}},
+		{"claim_count": float64(7)},
 	}
-	r := rowByMetric(blueRows("", results, nil), "unrecorded_claim_loss")
+	board := &record.Board{Events: []record.Event{{Type: "retire"}}} // one recorded retirement
+	r := rowByMetric(blueRows("", results, nil, board), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)
 	}
-	if v, _ := r.Value.(int); v != 2 { // drop 3, 1 retired → max(0, 3-1)=2
-		t.Errorf("unrecorded_claim_loss = %v, want 2", r.Value)
+	if v, _ := r.Value.(int); v != 2 { // drop 3, 1 retire event → max(0, 3-1)=2
+		t.Errorf("unrecorded_claim_loss = %v, want 2 (drop 3 − 1 retire event on the record)", r.Value)
 	}
 	if !strings.Contains(r.Note, "3 claim(s) lost across rounds, 1 retired") {
 		t.Errorf("note = %q", r.Note)
 	}
+
+	// A `retired` field on the ENVELOPE must be IGNORED — the fix guards against the phantom-field
+	// source. No board + a bogus envelope `retired` → retires stays 0 → the whole drop is flagged.
+	phantom := []map[string]any{
+		{"claim_count": float64(10)},
+		{"claim_count": float64(7), "retired": []any{map[string]any{}, map[string]any{}}},
+	}
+	rp := rowByMetric(blueRows("", phantom, nil, nil), "unrecorded_claim_loss")
+	if v, _ := rp.Value.(int); v != 3 {
+		t.Errorf("a phantom envelope `retired` field must not count: want lost=3 (drop 3 − 0), got %v", rp.Value)
+	}
+
 	// A single round → the not-computed note.
-	r1 := rowByMetric(blueRows("", []map[string]any{{"claim_count": float64(5)}}, nil), "unrecorded_claim_loss")
+	r1 := rowByMetric(blueRows("", []map[string]any{{"claim_count": float64(5)}}, nil, nil), "unrecorded_claim_loss")
 	if r1.Value != nil {
 		t.Errorf("single round must not compute: %+v", r1)
 	}
@@ -131,7 +147,6 @@ func TestRenderChairFormat(t *testing.T) {
 	rows := []Row{
 		{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Value: 0.5, Joint: "reads WITH red rigour"},
 		{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic", Value: objJSON(`{"pursued":2,"abandoned":1}`)},
-		{Clause: "Calibration is craft", Metric: "confidence_vs_survival", Cls: "benchmark", Note: "BLOCKED"},
 	}
 	out := RenderChair("blue", rows, "this run")
 	for _, want := range []string{
@@ -139,7 +154,6 @@ func TestRenderChairFormat(t *testing.T) {
 		"- `repair_regression_ratio` [benchmark] — Durable repairs: **0.5**",
 		"  - reads WITH red rigour",
 		"- `lines_of_inquiry` [diagnostic] — Alternatives explored: **{\"pursued\":2,\"abandoned\":1}**",
-		"- `confidence_vs_survival` [benchmark] — Calibration is craft: _not computed_ — BLOCKED",
 		"HEADLINE: repair_regression_ratio 0.5 [BENCHMARK] · lines_of_inquiry {\"pursued\":2,\"abandoned\":1} [DIAGNOSTIC]",
 	} {
 		if !strings.Contains(out, want) {

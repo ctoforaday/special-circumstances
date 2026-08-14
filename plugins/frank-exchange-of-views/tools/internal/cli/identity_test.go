@@ -2,7 +2,6 @@ package cli
 
 import (
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -31,51 +30,6 @@ func TestARecordedFindingIsToldItsID(t *testing.T) {
 	}
 	if !findingID.MatchString(out) {
 		t.Errorf("the lens was not told the id it must use later: %q", out)
-	}
-}
-
-// The whole loop, as a seat runs it: record, LIST, dispose by what the list said.
-func TestTheMergeDisposesByTheIDTheBoardLists(t *testing.T) {
-	runDir := seatRun(t)
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "worth noticing"); err != nil {
-		t.Fatal(err)
-	}
-
-	b := board(t, runDir, "merge", "red-merge-r1")
-	if len(b.Observations) != 1 {
-		t.Fatalf("the board lists %d observations, want 1", len(b.Observations))
-	}
-	id := b.Observations[0].ID
-	if !findingID.MatchString(id) {
-		t.Fatalf("the board does not carry a tool-assigned id: %+v", b.Observations[0])
-	}
-
-	if _, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", id, "--as", "declined",
-		"--reason", "checked at the leaf and the behaviour is correct"); err != nil {
-		t.Fatalf("disposing by the id the board listed must work: %v", err)
-	}
-	if !board(t, runDir, "merge", "red-merge-r1").Observations[0].Disposed {
-		t.Error("the disposal did not attach to the observation it named")
-	}
-}
-
-// THE POINT OF UNGUESSABLE. A composed id is refused, and the refusal says where to look
-// rather than merely that the id is wrong.
-func TestAComposedFindingIDIsRefused(t *testing.T) {
-	runDir := seatRun(t)
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "o"); err != nil {
-		t.Fatal(err)
-	}
-	_, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "f-deadbeef", "--as", "declined", "--reason", "r")
-	if err == nil {
-		t.Fatal("a composed id was accepted — this is exactly how nine findings that were never recorded came to be disposed")
-	}
-	if !strings.Contains(err.Error(), "show --view board") {
-		t.Errorf("the refusal must point at the LIST, since the remedy is to look it up: %v", err)
 	}
 }
 

@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -42,35 +43,41 @@ func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "long-form", "payload-channel")
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "o"); err != nil {
-		t.Fatal(err)
-	}
-	// The STATE each verb needs, not just the referent. dispute-respond answers a
-	// dispute, so one is filed on a DIFFERENT gap the case answers.
+	// The STATE each verb needs, not just the referent. A ruling answers a motion, so M1 is
+	// filed for the rule case to answer; the file case contests a DIFFERENT gap.
 	undisputed := mintGap(t, runDir, "undisputed", "payload-channel")
-	if _, err := run(t, "blue", "dispute", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", id, "--dimension", "severity", "--proposed", "low", "--reason", "b"); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, c := range []struct {
 		name, key string
-		args      []string
+		// typ is the event type to look for. It used to be args[1] — the verb word, read back
+		// out of the argv the case had just composed. That works only while every command path
+		// is <role> <verb> AND the verb word equals the event type; `motion grade file` breaks
+		// both halves at once, and the failure was "no grade event in the log".
+		typ  string
+		args []string
 	}{
-		{"merge dispose", "reason", []string{"merge", "dispose", "--seat-id", "red-merge-r1", "--observation", "L1-O1", "--as", "declined"}},
-		{"merge regrade", "basis", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
-		{"merge dispute-respond", "rationale", []string{"merge", "dispute-respond", "--seat-id", "red-merge-r1", "--id", id, "--as", "accepted"}},
-		{"blue dispute", "evidence", []string{"blue", "dispute", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"merge petition", "basis", []string{"merge", "petition", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
+		{"merge regrade", "basis", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
+		{"motion grade rule", "opinion", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
+		{"motion grade file", "basis", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"motion petition file", "basis", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			args := append([]string{c.args[0], c.args[1], "--run", runDir}, c.args[2:]...)
+			// The path is however many leading non-flag words the case supplies.
+			split := 0
+			for split < len(c.args) && !strings.HasPrefix(c.args[split], "-") {
+				split++
+			}
+			args := append(append([]string{}, c.args[:split]...), "--run", runDir)
+			args = append(args, c.args[split:]...)
 			args = append(args, "--reason-file", "-")
 			if out, err := runStdin(t, hostile, args...); err != nil {
 				t.Fatalf("%s via stdin: %v (%s)", c.name, err, out)
 			}
-			ev := lastOfType(t, runDir, c.args[1])
+			ev := lastOfType(t, runDir, c.typ)
 			if got := ev.Payload.Str(c.key); got != hostile {
 				t.Errorf("%s did not fill %s from the payload channel.\n got: %q\nwant: %q", c.name, c.key, got, hostile)
 			}
@@ -83,13 +90,14 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 // verb would have dropped, not discover it in a projection three rounds later.
 func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "lens", "observe", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--label", "L1-O1", "--kind", "note", "--reason", "o"); err != nil {
-		t.Fatal(err)
+	// Driven through `merge position` since #327 retired `dispose`, which this used to use.
+	// The rule is the seat.Prose contract's, not any one verb's — any prose verb proves it.
+	both := filepath.Join(t.TempDir(), "prose.md")
+	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
+		t.Fatal(werr)
 	}
-	_, err := run(t, "merge", "dispose", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--observation", "L1-O1", "--as", "declined",
-		"--reason", "inline", "--reason-file", writeTemp(t, "from a file"))
+	_, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--reason", "inline", "--reason-file", both)
 	if err == nil {
 		t.Fatal("passing --reason AND --reason-file was accepted; one of them was silently dropped")
 	}
@@ -100,10 +108,17 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	}
 }
 
-// The three verbs that carry only short values want NO payload channel. Symmetry for its
-// own sake would give `confidence` a --reason with nothing to fill.
+// A verb that carries only short values wants NO payload channel — symmetry for its own sake
+// would hand it a --reason with nothing to fill.
+//
+// `verify` WAS on this list, and the entry was load-bearing in the wrong direction: it recorded
+// the belief that a verification is a label and a grade. It is not. It is a judgement about what
+// a source says, and the judgement was the part that never reached the record — the verb accepted
+// no flags at all, so a bare `lens verify` appended an event and counted as audit volume. It now
+// requires the reading behind its verdict, which is exactly the payload channel this test used to
+// forbid it.
 func TestShortValueVerbsHaveNoPayloadChannel(t *testing.T) {
-	for _, c := range [][2]string{{"lens", "cite"}, {"blue", "confidence"}, {"merge", "verdict"}} {
+	for _, c := range [][2]string{{"merge", "verdict"}} {
 		if h := help(t, c[0], c[1], "--help"); strings.Contains(h, "--reason ") {
 			t.Errorf("%s %s grew a payload channel; its fields are a label and a grade, and --reason would have nothing to fill", c[0], c[1])
 		}

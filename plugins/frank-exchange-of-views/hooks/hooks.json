@@ -1,0 +1,27 @@
+{
+  "_comment": "TWO jobs on one PreToolUse hook. (1) THE BLUE-REPORT LOCKDOWN. report.md is read-only to every seat EXCEPT the allowlisted author agent_type (frank-exchange-of-views:blue-synthesizer); a response seat changes it only through `feov-record blue edit`. PreToolUse DENIES a non-author raw write (Edit/Write/MultiEdit/NotebookEdit by file_path, or a Bash cp/mv/tee/redirect/sed -i into blue/report.md); PostToolUse BLOCKS and forces a repair if a non-author call dropped a finding-marker by any mechanism (the exotic-Bash backstop the PreToolUse verb-set cannot enumerate). The gate reads agent_type from the hook stdin (present inside subagent tool calls) and decides in-binary. Both reuse the doctor-installed feov-record via the `hook` subcommand — no separate binary. The bootstrap guard mirrors prosthetic-conscience: a fresh plugin-cache version ships without binaries (they arrive via doctor --fix), and an unguarded hook would crash-storm every tool call in that window; the guard degrades to ONE stderr line. The decision ALWAYS travels in the stdout JSON with exit 0. (2) RUN-DIRECTORY INJECTION (#281): when the call is NOT denied and the payload cwd resolves a live-run marker, PreToolUse REWRITES a Bash command that invokes feov-record in command position, prefixing `export FEOV_RUN='<runDir>'; ` — so a seat stops typing an absolute path it can mistype (measured: one typo cost five manifest receipts and produced a false bug report). Deny wins structurally: hookgate.PreOutcome consults the deny arm first and cannot return a rewrite once it fires, because the protocol permits ONE hookSpecificOutput document and a rewrite emitted in a deny's place is a lockdown that silently opened.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-record\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" hook pretooluse; fi; echo 'frank-exchange-of-views: feov-record missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-record\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" hook posttooluse; fi; echo 'frank-exchange-of-views: feov-record missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ]
+  }
+}

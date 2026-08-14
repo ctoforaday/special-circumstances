@@ -3,7 +3,7 @@ exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check a --severity low --likelihood low --impact low --problem from the stale dispatch
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
 exit 0
 stdout:
 minted R1-1
@@ -13,7 +13,7 @@ exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE002)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check b --severity high --likelihood high --impact high --problem from the live dispatch
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
 exit 0
 stdout:
 minted R1-1
@@ -25,46 +25,21 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"low","likelihood":"low","problem":"from the stale dispatch","severity":"low","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.66.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"low","likelihood":"low","problem":"from the stale dispatch","severity":"low","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 -- events-red-merge-r1-NONCE002.jsonl
-{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.23.0"},"round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE002","payload":{"acceptance_check":"b","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"from the live dispatch","severity":"high","supersedes":[]},"round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"mint"}
-{"key":"red-merge-r1:verdict","nonce":"NONCE002","payload":{"verdict":"FAIL"},"round":1,"seatId":"red-merge-r1","seq":2,"ts":4,"type":"verdict"}
+{"key":"red-merge-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.66.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":2,"type":"register"}
+{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE002","payload":{"acceptance_check":"b","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"from the live dispatch","severity":"high","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":3,"type":"mint"}
+{"key":"red-merge-r1:verdict","nonce":"NONCE002","payload":{"verdict":"FAIL"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":4,"type":"verdict"}
 
 ═══ RENDERS ═══
--- ledger
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (1)
-
-### R1-1 — from the live dispatch
-
-severity high | high x high | cx undefined | class scope-creep
-required_fix: 
-acceptance_check: b
-
-## CLOSURE INDEX
-
-
-## render anomalies (never silently normalized)
-
-- multi-nonce seat red-merge-r1: 2 dispatches (NONCE001, NONCE002); winner NONCE002 by terminal event
-
-
--- archive
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- changelog
-# blue CHANGELOG — RENDERED PROJECTION
-
--- citation-ledger
-# red citation-ledger — RENDERED PROJECTION
 
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

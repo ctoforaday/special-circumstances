@@ -3,62 +3,35 @@ exit 0
 stdout:
 registered red-merge-r3 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check x --severity medium --likelihood medium --impact medium --problem minted once
+$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
 minted R3-1
 
-$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check x --severity medium --likelihood medium --impact medium --problem minted once
+$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
 minted R3-1 (idempotent retry — existing id returned)
 
-$ merge mint --run {RUN} --seat-id red-merge-r3 --key L6-F1 --class scope-creep --check y --severity low --likelihood low --impact low --problem a different key mints
+$ merge mint --run {RUN} --seat-id red-merge-r3 --key L6-F1 --class scope-creep --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints
 exit 0
 stdout:
 minted R3-2
 
 ═══ EVENTS ═══
 -- events-red-merge-r3-NONCE001.jsonl
-{"key":"red-merge-r3:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.23.0"},"round":3,"seatId":"red-merge-r3","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r3:mint:R3-1","nonce":"NONCE001","payload":{"acceptance_check":"x","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-1","impact":"medium","likelihood":"medium","mint_key":"L5-F3","problem":"minted once","severity":"medium","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":1,"ts":1,"type":"mint"}
-{"key":"red-merge-r3:mint:R3-2","nonce":"NONCE001","payload":{"acceptance_check":"y","class":"scope-creep","class_new":false,"found_by":[],"gap_id":"R3-2","impact":"low","likelihood":"low","mint_key":"L6-F1","problem":"a different key mints","severity":"low","supersedes":[]},"round":3,"seatId":"red-merge-r3","seq":2,"ts":2,"type":"mint"}
+{"key":"red-merge-r3:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.66.0"},"role":"merge","round":3,"seatId":"red-merge-r3","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r3:mint:R3-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R3-1","impact":"medium","likelihood":"medium","mint_key":"L5-F3","problem":"minted once","severity":"medium","supersedes":[]},"role":"merge","round":3,"seatId":"red-merge-r3","seq":1,"ts":1,"type":"mint"}
+{"key":"red-merge-r3:mint:R3-2","nonce":"NONCE001","payload":{"acceptance_check":"y","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R3-2","impact":"low","likelihood":"low","mint_key":"L6-F1","problem":"a different key mints","severity":"low","supersedes":[]},"role":"merge","round":3,"seatId":"red-merge-r3","seq":2,"ts":2,"type":"mint"}
 
 ═══ RENDERS ═══
--- ledger
-# red/ledger.md — RENDERED PROJECTION (source of truth: records/ event log; do not hand-edit)
-
-## OPEN GAPS (2)
-
-### R3-1 — minted once
-
-severity medium | medium x medium | cx undefined | class scope-creep
-required_fix: 
-acceptance_check: x
-
-### R3-2 — a different key mints
-
-severity low | low x low | cx undefined | class scope-creep
-required_fix: 
-acceptance_check: y
-
-## CLOSURE INDEX
-
-
-
--- archive
-# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)
-
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- changelog
-# blue CHANGELOG — RENDERED PROJECTION
-
--- citation-ledger
-# red citation-ledger — RENDERED PROJECTION
 
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
+_No avenues recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
 

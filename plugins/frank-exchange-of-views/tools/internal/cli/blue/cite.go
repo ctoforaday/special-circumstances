@@ -1,0 +1,131 @@
+package blue
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+)
+
+// cite: blue's ONLY mechanism for citing a source.
+//
+// Blue never hand-writes a footnote. `blue cite` fetches the source through the run cache
+// (fetch-once, hash-verified — red re-reads the exact bytes), then splices an INVISIBLE,
+// IMMORTAL "<!--cite:c-<hex>-->" anchor at the quoted sentence, exactly the way a lens
+// finding is anchored. Assembly weaves those anchors into the visible [^N] footnotes and a
+// composed ## Bibliography. Because the anchor is tool-inserted and the lockdown forbids
+// removing it by a raw edit, the set of cite events is a strict bijection with the anchors
+// in the document — the record shows exactly what the report references.
+//
+// A source that cannot be loaded is an UNUSABLE citation: the cite is REJECTED and the
+// failure is auto-logged as friction (a bare `fetch` miss is only an error — but the
+// DECISION to cite an unreachable source is a protocol event worth surfacing).
+//
+// Crash-safety mirrors lens finding: the marker write is the atomic commit and the cite
+// event follows, so a crash between them leaves an ORPHAN anchor the assembly surfaces as a
+// dangling citation — never a wedge, never a phantom event.
+func newCite() *cobra.Command {
+	c := seat.Prose(seat.New("cite",
+		`cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]`,
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			location := seat.Str(cmd, flags.Location)
+			if strings.TrimSpace(location) == "" {
+				return nil, fmt.Errorf("blue cite requires --location: a section heading plus the QUOTED sentence to anchor the citation")
+			}
+			url := seat.Str(cmd, flags.URL)
+			if strings.TrimSpace(url) == "" {
+				return nil, fmt.Errorf("blue cite requires --url: the source being cited (fetched once and cached; red re-reads the same bytes)")
+			}
+			title := seat.Str(cmd, flags.Title)
+			if strings.TrimSpace(title) == "" {
+				return nil, fmt.Errorf("blue cite requires --title: the source's name as it appears in the composed bibliography")
+			}
+
+			// Crash-retry idempotency: a prior cite under this --key returns its label, no
+			// second fetch AND no second anchor (BEFORE any effect).
+			key := seat.Str(cmd, flags.Key)
+			if prior, err := record.ExistingCiteByKey(s.RunDir, s.SeatID, key); err != nil {
+				return nil, err
+			} else if prior != "" {
+				return citeResult{Label: prior, Idempotent: true}, nil
+			}
+
+			// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
+			// citation: reject AND auto-emit a friction event (unlike a bare `fetch` miss).
+			sha, _, _, err := fetchcache.Resolve(s.RunDir, url, fetchcache.Default)
+			if err != nil {
+				msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
+				if _, ferr := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", msg)); ferr != nil {
+					return nil, ferr
+				}
+				return nil, errors.New(msg)
+			}
+
+			// Mint the label UP FRONT: it forms the marker, so it must exist before the report
+			// write. Append will not re-mint (the label is already in the payload).
+			label := record.NewCitationID()
+			marker := "<!--cite:" + label + "-->"
+
+			// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
+			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
+			// in-fence -> reject; nothing is written and no cite is recorded.
+			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+				next, aerr := lens.InsertAnchor(old, location, marker)
+				switch {
+				case errors.Is(aerr, lens.ErrMisQuote):
+					return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --location); check the section and wording")
+				case errors.Is(aerr, lens.ErrInFence):
+					return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
+				}
+				return next, aerr
+			}); err != nil {
+				return nil, err
+			}
+
+			// The anchor is committed; the cite event follows. access_date is engine-supplied
+			// from the record clock (pinned under the golden harness), not typed by the seat.
+			p := record.NewPayload().
+				Set("label", label).
+				Set("url", url).
+				Set("sha256", sha).
+				Set("title", title).
+				Set("location", location).
+				Set("access_date", record.Now().Format("2006-01-02"))
+			seat.Set(cmd, p, "cite_key", flags.Key)
+			if claim := seat.Str(cmd, flags.Claim); strings.TrimSpace(claim) != "" {
+				p.Set("claim", claim)
+			}
+			if _, err := record.Append(s.RunDir, s.SeatID, "cite", p); err != nil {
+				return nil, err
+			}
+			return citeResult{Label: label, URL: url, Sha256: sha}, nil
+		}))
+
+	c.Flags().String(flags.Location, "", "REQUIRED — where the claim sits: a section heading plus the QUOTED sentence (anchors the invisible citation; rejected if not found)")
+	c.Flags().String(flags.URL, "", "REQUIRED — the source URL (fetched once and cached; red re-reads the exact bytes)")
+	c.Flags().String(flags.Title, "", "REQUIRED — the source's name, as it appears in the composed bibliography")
+	c.Flags().String(flags.Claim, "", "the claim this source backs, quoted from the report (optional)")
+	c.Flags().String(flags.Key, "", "a stable local handle (your own C1, C2 …) making a retried cite idempotent; the TOOL assigns the c-<hex> label")
+	return c
+}
+
+type citeResult struct {
+	Label      string `json:"label"`
+	URL        string `json:"url,omitempty"`
+	Sha256     string `json:"sha256,omitempty"`
+	Idempotent bool   `json:"idempotent,omitempty"`
+}
+
+func (r citeResult) Human() string {
+	if r.Idempotent {
+		return "cite " + r.Label + " (idempotent retry — existing anchor returned)"
+	}
+	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")"
+}

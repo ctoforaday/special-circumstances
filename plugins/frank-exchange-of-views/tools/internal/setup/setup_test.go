@@ -30,20 +30,30 @@ func read(t *testing.T, path string) string {
 
 func has(s, sub string) bool { return strings.Contains(s, sub) }
 
-// BuildSkeleton: creates the 6 stubs with topic headers; ledger/archive/telemetry are
-// NOT created (red-merge-born).
-func TestBuildSkeletonCreatesStubsNotRedMergeBorn(t *testing.T) {
+// BuildSkeleton creates a stub only for a file something later WRITES. The count has fallen
+// twice for the same reason, and the reason is worth keeping: an artifact that moved onto the
+// record leaves a stub behind, and the stub outlives its writer silently.
+//
+//	6 -> 5  blue/frontier.md (#297) — the frontier hypotheses became AVENUES, which carry an id,
+//	        a fate and an argument red can rule on, as a markdown file never could
+//	5 -> 3  debate.md and red/citation-ledger.md — rendered projections since the record
+//	        migration, stubbed for months after the last writer went away
+func TestBuildSkeletonCreatesStubsOnlyForFilesSomethingWrites(t *testing.T) {
 	dir := t.TempDir()
 	res := BuildSkeleton(dir, "test topic")
-	if len(res.Created) != 6 {
-		t.Fatalf("created = %d, want 6: %v", len(res.Created), res.Created)
+	if len(res.Created) != 3 {
+		t.Fatalf("created = %d, want 3: %v", len(res.Created), res.Created)
 	}
 	if !has(read(t, filepath.Join(dir, "blue", "report.md")), "test topic") {
 		t.Error("stub header missing the topic")
 	}
-	for _, p := range []string{"red/candidates", "red/ledger.md", "red/archive.md", "trajectories/board-telemetry.jsonl"} {
+	// Every one of these is rendered from the record on read. A stub here is not a harmless
+	// placeholder: it survives to capture as an EMPTY artifact, which reads as "nothing
+	// happened" rather than "this lives somewhere else".
+	for _, p := range []string{"red/candidates", "red/ledger.md", "red/archive.md", "debate.md",
+		"red/citation-ledger.md", "trajectories/board-telemetry.jsonl"} {
 		if exists(filepath.Join(dir, filepath.FromSlash(p))) {
-			t.Errorf("%s must NOT be created at setup (red-merge-born)", p)
+			t.Errorf("%s must NOT be created at setup — the tool renders it on read", p)
 		}
 	}
 }
@@ -62,8 +72,8 @@ func TestBuildSkeletonIdempotent(t *testing.T) {
 	if !found {
 		t.Errorf("blue/report.md not reported skipped: %v", res.Skipped)
 	}
-	if len(res.Created) != 5 {
-		t.Errorf("created = %d, want 5", len(res.Created))
+	if len(res.Created) != 2 {
+		t.Errorf("created = %d, want 2", len(res.Created))
 	}
 	if read(t, filepath.Join(dir, "blue", "report.md")) != "PRE-STAGED CONTENT\n" {
 		t.Error("a pre-staged file was overwritten")
@@ -265,14 +275,6 @@ func TestRecordToolVersion(t *testing.T) {
 	}
 	if RecordToolVersion(filepath.Join(t.TempDir(), "absent.json")) != "" {
 		t.Error("absent manifest should yield empty, not panic")
-	}
-}
-
-// QmdRefresh: a not-installed binary is a stated no-op.
-func TestQmdRefreshNotInstalled(t *testing.T) {
-	r := QmdRefresh("qmd", func(string, []string) ExecResult { return ExecResult{Err: errors.New("ENOENT")} })
-	if r.Ran || !has(r.Reason, "not installed") {
-		t.Errorf("not-installed branch: %+v", r)
 	}
 }
 

@@ -57,9 +57,9 @@ func FindingByID(runDir, id string) (*Event, error) {
 	}
 	for i := range m.Events {
 		e := m.Events[i]
-		if (e.Type == "finding" || e.Type == "observe") && e.Payload.Str("finding_id") == id {
+		if e.Type == "finding" && e.Payload.Str("finding_id") == id {
 			return &m.Events[i], nil
 		}
 	}
-	return nil, feov.Errorf(feov.NotFound, "record: no finding or observation has id %s — list what exists with `show --view board` rather than composing an id, which is how L6-F8 through L6-F16 came to be disposed without ever having been recorded", id)
+	return nil, feov.Errorf(feov.NotFound, "record: no finding or observation has id %s — list what exists with `show findings` rather than composing an id, which is how L6-F8 through L6-F16 came to be disposed without ever having been recorded", id)
 }

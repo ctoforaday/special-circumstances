@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -25,7 +25,6 @@ type Config struct {
 	Lanes         string
 	BinDir        string
 	MemoryDir     string
-	NoQmd         bool
 
 	Cwd           string
 	Home          string
@@ -37,7 +36,7 @@ type Config struct {
 }
 
 // Run reproduces the mjs main(): the four fail-fast gates (runDir→1; model tiers→2;
-// pin miss→2; --bin-dir preflight→2), then the run-dir build + mirrors + marker + qmd,
+// pin miss→2; --bin-dir preflight→2), then the run-dir build + mirrors + marker,
 // then the summary. Returns the process exit code; writes to the given streams.
 func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.Git == nil {
@@ -51,14 +50,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 
 	if cfg.RunDir == "" || strings.HasPrefix(cfg.RunDir, "--") {
-		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --model <m> --judgment-model <m> [--cite <path>[@pin]]... [--bin-dir <dir>] [--memory-dir <dir>] [--no-qmd]`)
+		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --model <m> --judgment-model <m> [--cite <path>[@pin]]... [--bin-dir <dir>] [--memory-dir <dir>]`)
 		return 1
 	}
 	topic := cfg.Topic
 	if topic == "" {
 		topic = "(topic not stated)"
 	}
-	head := gitHead(cfg.Cwd)
+	head := gitHead(cfg.Git)
 
 	// Gate: model tiers REQUIRED (#111), before the run dir exists.
 	if cfg.Model == "" || cfg.JudgmentModel == "" {
@@ -71,6 +70,25 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintln(stderr, "  the engine does not guess a tier or inherit the session model. Pass both, e.g.")
 		fmt.Fprintln(stderr, "  --model sonnet --judgment-model sonnet   (a smoke run passes --model haiku --judgment-model haiku)")
+		return 2
+	}
+
+	// Gate: the ROUND CEILING is required, for the reason the model tiers are (#308).
+	//
+	// It was optional, and debate.js defaults it to 12 in JS — so a run launched without it had
+	// a ceiling nobody recorded, and CEILING became underivable from the record: the verdict
+	// fell back to the seat's word. Found by the fuzz tripwire, which flagged 24 of 60 runs as
+	// carrying an ASSERTED verdict purely because no ceiling was on file.
+	//
+	// The operator resolves this value anyway to hand the Workflow, and /research already says
+	// to pass setup the SAME config. The engine does not guess a tier; it should not guess a
+	// bound either.
+	if cfg.MaxRounds == "" {
+		fmt.Fprintln(stderr, "run-setup: --max-rounds REQUIRED — refusing to create the run:")
+		fmt.Fprintln(stderr, "  the round ceiling is the bound the terminal CEILING verdict is derived against, and a")
+		fmt.Fprintln(stderr, "  run that does not record it leaves its own outcome underivable — the verdict falls back")
+		fmt.Fprintln(stderr, "  to whatever a seat says it was. Pass the same value you will hand the workflow, e.g.")
+		fmt.Fprintln(stderr, "  --max-rounds 12   (a smoke run passes --max-rounds 2)")
 		return 2
 	}
 
@@ -89,13 +107,29 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// Gate: record-binary preflight — bound to INTENT (--bin-dir), before any run state.
+	// Gate: record-binary preflight — UNCONDITIONAL, before any run state.
+	//
+	// It used to be armed by INTENT (`!pre.OK && cfg.BinDir != ""`), and `--bin-dir` was never
+	// passed on the documented launch — `grep -rn "bin-dir"` across the plugin returned
+	// nothing. So the guarantee `commands/research.md` states ("setup preflights the binary's
+	// version before the run exists, so a missing or skewed one fails there rather than
+	// mid-round") was false: the real path printed a WARNING and proceeded, and the 2026-08-05
+	// smoke's first setup did exactly that. A run would then take the legacy prompt set,
+	// record nothing through the tool, and every axis added since would be silently absent
+	// with every gate green. `--bin-dir` now says only WHERE the seats' binary is; whether the
+	// run records through the tool is the Workflow's `binDir`, which is a different decision
+	// at a different seam.
 	recordBin := "feov-record"
 	if cfg.BinDir != "" {
 		recordBin = filepath.Join(cfg.BinDir, "feov-record")
+	} else if self, err := os.Executable(); err == nil {
+		// The documented flow runs THIS binary and hands the seats the same one, so its own
+		// directory is the honest default — better than a bare PATH lookup, which refuses an
+		// operator who is demonstrably holding a working binary.
+		recordBin = filepath.Join(filepath.Dir(self), "feov-record")
 	}
-	pre := PreflightRecordBinary(cfg.ExpectVersion, recordBin, cfg.Exec)
-	if !pre.OK && cfg.BinDir != "" {
+	pre := PreflightRecordBinary(expectedRecordVersion(recordBin, cfg.ExpectVersion), recordBin, cfg.Exec)
+	if !pre.OK {
 		fmt.Fprintln(stderr, "run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:")
 		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
 		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
@@ -103,14 +137,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	skel := BuildSkeleton(cfg.RunDir, topic)
-	mirrorsPurged := PurgeStaleMirrors(filepath.Join(cfg.Home, ".cache", "feov", "run-mirror"), cfg.Now, 30)
-	if mirrorsPurged > 0 {
-		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", mirrorsPurged)
-	}
-	pinned := BuildPinned(cfg.RunDir, head, cfg.Cites)
-
-	// Memory dirs: --memory-dir wins; else [promoted, raw], promoted first.
 	memHome := func(d string) string {
 		return filepath.Join(d, ".claude", "agent-memory", "frank-exchange-of-views-red-auditor")
 	}
@@ -125,17 +151,68 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 			break
 		}
 	}
+	// --memory-dir ADDS a source; it does NOT replace the promoted corpus.
+	//
+	// MEASURED, and it cost a whole run's memory. It used to replace, and
+	// `commands/research.md` documents passing it as the remedy when gap-patterns reports "no
+	// memory dir" — so an operator following the documented advice silently discarded the
+	// curated corpus (57 files, 55 classified) in favour of the raw accrual (60 files, 1
+	// classified). The 2026-08-05 run's inputs/gap-patterns-by-class.json: 0 classes, 0
+	// entries. Red opened that run with nothing, and the setup summary said so in one line
+	// nobody read.
+	//
+	// Promoted stays FIRST: BuildPatternIndex dedupes by filename, so the reviewed copy of a
+	// pattern wins over the raw one it was promoted from.
 	memDirs := []string{promoted, raw}
 	if cfg.MemoryDir != "" {
-		memDirs = []string{cfg.MemoryDir}
+		memDirs = append(memDirs, cfg.MemoryDir)
 	}
-	mirror := MirrorGapPatterns(memDirs, cfg.RunDir)
 	patternIndex := BuildPatternIndex(memDirs)
+	// A corpus that is MOSTLY unclassified is a composition failure, not sloppy authoring.
+	//
+	// The count was already printed — "(59 UNCLASSIFIED, not delivered)" — and it is one line
+	// in a long summary, so it read as a nag rather than as "red is starting this run blind".
+	// Delivery is class-indexed: an unclassified pattern reaches no seat at all. A handful is
+	// normal accrual; a majority means the sources are wrong, which is exactly what the old
+	// replacing --memory-dir produced.
+	if delivered := len(patternIndex.ByClass); len(patternIndex.Unclassified) > 0 && len(patternIndex.Unclassified) > delivered {
+		fmt.Fprintln(stderr, "run-setup: GAP-PATTERN CORPUS MOSTLY UNCLASSIFIED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %d unclassified pattern(s) against %d delivered class(es).\n", len(patternIndex.Unclassified), delivered)
+		fmt.Fprintln(stderr, "  Delivery is class-indexed, so an unclassified pattern reaches no seat: red would open this run")
+		fmt.Fprintln(stderr, "  substantially blind while its memory directory looks full. Sources read, in order:")
+		for _, d := range memDirs {
+			if d != "" {
+				fmt.Fprintf(stderr, "    - %s\n", d)
+			}
+		}
+		fmt.Fprintln(stderr, "  remedy: check the promoted corpus is among them (feov-memory/red-gap-patterns), or classify")
+		fmt.Fprintln(stderr, "  the accrued files by adding `classes: [<slug>, ...]` to their frontmatter.")
+		return 2
+	}
+
+	skel := BuildSkeleton(cfg.RunDir, topic)
+	mirrorsPurged := PurgeStaleMirrors(filepath.Join(cfg.Home, ".cache", "feov", "run-mirror"), cfg.Now, 30)
+	if mirrorsPurged > 0 {
+		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", mirrorsPurged)
+	}
+	pinned := BuildPinned(cfg.RunDir, head, cfg.Cites)
+
+	// The registry is staged BEFORE any seat can mint, because it is what makes `--class` mean
+	// anything at all (#299).
+	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), cfg.RunDir)
+
+	// The index was built and GATED above, before any run state existed; this only mirrors the
+	// files into the run and writes the class join the engine hands to a repairing seat.
+	mirror := MirrorGapPatterns(memDirs, cfg.RunDir)
 	if b, err := marshalJSON(patternIndex.ByClass); err == nil {
 		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "gap-patterns-by-class.json"), b, 0o644)
 	}
 
-	rc := runConfig{Topic: topic, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes)}
+	absRun, absErr := filepath.Abs(cfg.RunDir)
+	if absErr != nil {
+		absRun = cfg.RunDir
+	}
+	rc := runConfig{Topic: topic, RunDir: absRun, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes)}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "run-config.json"), b, 0o644)
 	}
@@ -148,16 +225,13 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		pinnedPaths = append(pinnedPaths, p)
 	}
 	marker := WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now)
-	var qmd QmdResult
-	if cfg.NoQmd {
-		qmd = QmdResult{Ran: false, Reason: "skipped (--no-qmd)"}
-	} else {
-		qmd = QmdRefresh("qmd", cfg.Exec)
-	}
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))
-	fmt.Fprintln(stdout, "  NOT created (red-merge-born): red/ledger.md, red/archive.md, trajectories/board-telemetry.jsonl")
+	// "red-merge-born" was true when the merge wrote those files. It stopped being true, and the
+	// line went on implying a writer would arrive — the same promise the husk stubs made.
+	fmt.Fprintln(stdout, "  NOT created (rendered from the record on read, never materialized): the ledger,")
+	fmt.Fprintln(stdout, "  debate transcript, evidence layer and board telemetry — `<role> show <name>`")
 	if pinned.Written {
 		fmt.Fprintf(stdout, "  pinned: HEAD %s + %d cited path(s)\n", head, len(cfg.Cites))
 	} else {
@@ -168,8 +242,34 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintf(stdout, "  pin validation: %d cite(s) verified at their pins\n", pv.Checked)
 	}
+	// The registry decides whether `--class` means anything this run, so it is reported before
+	// the corpus that joins on it.
+	if registry.Written {
+		fmt.Fprintf(stdout, "  class registry: %d class(es) staged — `--class` is validated; `--class-new` extends it\n", registry.Files)
+	} else {
+		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
+	}
 	if mirror.Written {
 		fmt.Fprintf(stdout, "  gap-patterns: %d pattern(s) mirrored from %d source(s) (promoted corpus first)\n", mirror.Files, mirror.Sources)
+		// THE JOIN'S HEALTH, stated rather than assumed. Patterns are delivered by matching the
+		// class of the gap in front of a seat, so a corpus indexed by classes the registry does
+		// not contain reaches nobody however well it is composed — which is what both
+		// record-era runs did, at zero overlap.
+		if slugs := RegistrySlugs(filepath.Join(cfg.Cwd, "feov-memory")); len(slugs) > 0 {
+			joinable, orphaned := 0, []string{}
+			for class := range patternIndex.ByClass {
+				if slugs[class] {
+					joinable++
+				} else {
+					orphaned = append(orphaned, class)
+				}
+			}
+			sort.Strings(orphaned)
+			fmt.Fprintf(stdout, "    class join: %d of %d indexed class(es) exist in the registry\n", joinable, len(patternIndex.ByClass))
+			if len(orphaned) > 0 {
+				fmt.Fprintf(stdout, "    NOT joinable (indexed by a class no gap can carry): %s\n", strings.Join(firstN(orphaned, 8), ", "))
+			}
+		}
 	} else {
 		fmt.Fprintf(stdout, "  gap-patterns: %s\n", mirror.Reason)
 	}
@@ -198,26 +298,34 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, `  scorecards arg: pass inputs/scorecards.json as the workflow's "scorecards" arg`)
 		fmt.Fprintf(stdout, "    %s\n", compactJSON(cards.Headlines))
 	}
-	if pre.OK {
-		v := pre.Version
-		if v == "" {
-			v = "(version unreported)"
-		}
-		fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
-	} else {
-		fmt.Fprintf(stdout, "  record binary: NOT AVAILABLE — %s (this run will not record through the tool; pass --bin-dir to require it)\n", pre.Reason)
+	// Reached only when the preflight PASSED — it refuses above now, so there is no
+	// "NOT AVAILABLE" line any more. That line used to be the whole failure mode: it told the
+	// operator the run would not record through the tool and then created the run anyway.
+	v := pre.Version
+	if v == "" {
+		v = "(version unreported)"
 	}
+	fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
-	if qmd.Ran {
-		fmt.Fprintf(stdout, "  qmd refresh: update %s, embed %s\n", okFailed(qmd.Update), okFailed(qmd.Embed))
-	} else {
-		fmt.Fprintf(stdout, "  qmd refresh: %s\n", qmd.Reason)
-	}
 	return 0
 }
 
 type runConfig struct {
-	Topic         string  `json:"topic"`
+	Topic string `json:"topic"`
+	// RunDir is the ABSOLUTE path of this run.
+	//
+	// It is recorded because the run directory reaches a seat as a STRING each seat resolves
+	// against its own working directory, and a relative one resolves differently per invocation.
+	// Measured (#358): a seat whose shell cwd was the `tools/` directory resolved
+	// `research/<slug>/` from there and built a second blackboard — the lane's entire draft, its
+	// own shards, clock and locks — while the real run's candidates directory stayed empty. Two
+	// shards of one seat class existed in both places.
+	//
+	// A seat can no longer CREATE a run directory (RegisterSeat refuses one that does not exist),
+	// which turns that failure loud. This field is the other half: the operator and every
+	// post-hoc reader can see which absolute path the run was set up at, rather than inferring it
+	// from wherever they happen to be standing.
+	RunDir        string  `json:"runDir"`
 	Model         string  `json:"model"`
 	JudgmentModel string  `json:"judgmentModel"`
 	MaxRounds     *string `json:"maxRounds"`
@@ -231,22 +339,13 @@ func ptrOrNil(s string) *string {
 	return &s
 }
 
-func okFailed(b bool) string {
-	if b {
-		return "ok"
-	}
-	return "FAILED"
-}
-
-// gitHead runs `git rev-parse --short HEAD` in cwd; "unknown" if it fails (non-git).
-func gitHead(cwd string) string {
-	c := exec.Command("git", "rev-parse", "--short", "HEAD")
-	c.Dir = cwd
-	out, err := c.Output()
-	if err != nil {
+// gitHead resolves HEAD through the INJECTED git seam; "unknown" if it fails (non-git).
+func gitHead(git GitFunc) string {
+	r := git([]string{"rev-parse", "--short", "HEAD"})
+	if r.Err != nil || r.Status != 0 {
 		return "unknown"
 	}
-	h := strings.TrimSpace(string(out))
+	h := strings.TrimSpace(r.Stdout)
 	if h == "" {
 		return "unknown"
 	}
