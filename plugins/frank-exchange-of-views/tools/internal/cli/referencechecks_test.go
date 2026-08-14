@@ -3,8 +3,12 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -90,6 +94,14 @@ var referenceChecks = []struct {
 		extra: []string{"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "false", "--reason", "r"}},
 	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
+	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
+	// exactly the hole the derived gate exists to close, caught the first time it ran.
+	{verb: []string{"blue", "prove"}, flag: "--answers", against: "the board", bogus: "R9-9",
+		extra: []string{"--location", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
+	{verb: []string{"blue", "prove"}, flag: "--cites", against: "the citations on the record", bogus: "c-deadbeef",
+		extra: []string{"--location", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
+	{verb: []string{"lens", "verify"}, flag: "--anchor", against: "the citations on the record", bogus: "c-deadbeef",
+		extra: []string{"--claim", "c", "--as", "supports", "--confidence", "high", "--reason", "r"}},
 }
 
 // stageClassRegistry writes a registry into the run's RESOLVED record directory.
@@ -137,6 +149,54 @@ func TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unreadable") {
 		t.Errorf("the refusal must say the registry is the problem, or the seat re-reads its own --class: %v", err)
+	}
+}
+
+// AND THE TABLE CANNOT GO STALE, because the TREE says what must be in it.
+//
+// The table above supplies something nothing can derive: the other flags a verb needs before it
+// will reach its reference check. What it must NOT be is the source of truth for WHICH flags
+// carry a check — that is a maintained list, and a maintained list of what to test is how a new
+// verb ships uncovered while the suite stays green.
+//
+// So the tree is asked instead. Every flag whose value carries a Checker (`flags.GapID().
+// WithCheck(record.GapExists)`) must appear in the table, and a flag added tomorrow fails here
+// until someone states how to drive it. Coverage is declared by the REGISTRATION, which is also
+// where the check itself is declared — one place, not two.
+func TestEveryCheckedFlagIsInTheTable(t *testing.T) {
+	declared := map[string]bool{}
+	for _, c := range referenceChecks {
+		declared[strings.Join(c.verb, " ")+" "+c.flag] = true
+	}
+
+	type carrier interface{ Check(string) error }
+	var missing []string
+	var walk func(cmd *cobra.Command, path string)
+	walk = func(cmd *cobra.Command, path string) {
+		p := strings.TrimSpace(path + " " + cmd.Name())
+		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+			if _, ok := f.Value.(carrier); !ok {
+				return
+			}
+			// Strip the binary's own name: the table names command paths as a seat types them.
+			key := strings.TrimSpace(strings.TrimPrefix(p, cmd.Root().Name())) + " --" + f.Name
+			if !declared[key] {
+				missing = append(missing, key)
+			}
+		})
+		for _, sub := range cmd.Commands() {
+			walk(sub, p)
+		}
+	}
+	walk(newRoot(), "")
+
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Errorf("%d flag(s) carry an existence check that no case in referenceChecks drives:\n  %s\n\n"+
+			"The check is declared at the registration; this table is where its FIXTURE lives (the other flags\n"+
+			"the verb needs first, which nothing can derive). A checked flag with no case is one nobody has\n"+
+			"proven refuses a dangling value.",
+			len(missing), strings.Join(missing, "\n  "))
 	}
 }
 

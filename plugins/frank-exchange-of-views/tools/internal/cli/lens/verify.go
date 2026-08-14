@@ -84,29 +84,15 @@ func newVerify() *cobra.Command {
 				return nil, fmt.Errorf("lens verify: --anchor and --independent are the two cases, not one. --anchor names a citation blue authored; --independent says this is a source you found yourself")
 			}
 
-			if anchor != "" {
-				if !citeAnchorShape.MatchString(anchor) {
-					return nil, fmt.Errorf("lens verify: %q is not a citation anchor. It is the c-<hex> inside a `<!--cite:c-…-->` token in the report; `lens show evidence --run <runDir>` lists every one with the source it points at", anchor)
-				}
-				// A DANGLING ANCHOR IS REFUSED. Recording a verification against a citation that
-				// does not exist would put a well-formed row on the record pointing at nothing —
-				// and it would read exactly like a real one, which is the shape this verb was
-				// rebuilt to stop producing.
-				known, err := record.CitationLabels(s.RunDir)
-				if err != nil {
-					return nil, err
-				}
-				found := false
-				for _, k := range known {
-					if k == anchor {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return nil, fmt.Errorf("lens verify: no citation %s on the record. Blue has cited %d source(s); `lens show evidence --run <runDir>` lists them by anchor. If you checked a source blue never cited, that is --independent", anchor, len(known))
-				}
-			}
+			// THE SHAPE AND THE EXISTENCE ARE ON THE FLAG NOW. This block hand-rolled both — a
+			// regexp for the c-<hex> form and a scan of CitationLabels — and both moved to the
+			// typed flag (`flags.CitationAnchor().WithCheck(record.CitationExists)`), which
+			// seat.Begin resolves before this handler runs. Keeping a second copy here would be
+			// two readers of one rule, which is the thing this file's own header warns about.
+			//
+			// What stays is the part no flag can express: --anchor and --independent are the two
+			// CASES, and exactly one must be chosen. That is a relation between flags, and a
+			// pflag.Value sees only its own.
 
 			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reference)
 			seat.Set(cmd, p, "access_date", flags.AccessDate)
@@ -127,13 +113,13 @@ func newVerify() *cobra.Command {
 				Outcome: p.Str("outcome"), Reference: seat.Str(cmd, flags.Reference)}, nil
 		}))
 
-	c.Flags().String(flags.Anchor, "", "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`. REQUIRED unless --independent")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`. REQUIRED unless --independent")
 	c.Flags().Bool(flags.Independent, false, "this is a source YOU found, not one blue cited, so there is no anchor to name. The explicit form of 'no anchor', because an empty field cannot say whether you looked")
 	c.Flags().String(flags.Claim, "", "REQUIRED — the claim being verified, quoted from the report")
 	c.Flags().String(flags.Reference, "", "the source the claim rests on (for an --independent check this is the only identification it has)")
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: `refutes` and `absent` are findings, not failures to grade")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: `refutes` you would defend and `refutes` you are unsure of are different facts")
-	c.Flags().String(flags.AccessDate, "", "YYYY-MM-DD you actually fetched it; drives the staleness re-fetch trigger")
+	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually fetched it; drives the staleness re-fetch trigger")
 	return c
 }
 

@@ -33,7 +33,7 @@ func newManifestRow() *cobra.Command {
 			return manifestRowResult{GapID: seat.Str(cmd, flags.ID)}, nil
 		}))
 
-	c.Flags().String(flags.ID, "", "the gap id this receipt covers")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this receipt covers")
 	c.Flags().String(flags.Row, "", "what you checked and what it showed, compressed to one line")
 	return c
 }

@@ -65,13 +65,13 @@ func newClose() *cobra.Command {
 			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: class}, nil
 		})
 
-	c.Flags().String(flags.ID, "", "the gap id")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
 	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word"))
 	c.Flags().String(flags.AnchorSeat, "", "WHO verified the closure (the seat)")
 	c.Flags().String(flags.AnchorTool, "", "WITH WHAT it was verified (the tool or command)")
 	c.Flags().String(flags.AnchorTarget, "", "AGAINST WHAT — the exact file, ref or URL read")
 	c.Flags().String(flags.CarriedFrom, "", "the round this closure was carried from, when it is not a fresh act")
-	c.Flags().String(flags.Successor, "", "the gap id carrying the unresolved remainder forward")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Successor, "the gap id carrying the unresolved remainder forward")
 	return seat.Prose(c)
 }
 

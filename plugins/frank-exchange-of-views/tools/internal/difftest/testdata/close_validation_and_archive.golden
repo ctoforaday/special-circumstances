@@ -16,7 +16,7 @@ feov-record: merge: record: close requires the attestation anchor (--anchor-seat
 $ merge close --run {RUN} --seat-id red-merge-r1 --id R9-9 --anchor-seat L1 --anchor-tool git show --anchor-target 7bc501e:x
 exit 2
 stderr:
-feov-record: merge: record: close of unknown gap R9-9
+feov-record: merge: record: the --id names gap R9-9, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 $ merge close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed_with_regression --anchor-seat L1 --anchor-tool git show --anchor-target 7bc501e:x
 exit 2
@@ -30,7 +30,7 @@ closed R1-1 (closed)
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.63.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.64.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"refetch","check_kind":"document","class":"citation-drift","class_new":false,"complexity_cost":"medium","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"source moved","severity":"high","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:close:R1-1","nonce":"NONCE001","payload":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"closed","gap_id":"R1-1","prose":"refetched; the source now resolves and supports the claim"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"close"}
 

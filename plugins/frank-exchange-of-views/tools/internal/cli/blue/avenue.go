@@ -116,7 +116,7 @@ func newAvenue() *cobra.Command {
 			return avenueResult{ID: id, Status: status, Line: line, Moved: moving}, nil
 		}))
 
-	c.Flags().String(flags.ID, "", "an avenue you already proposed (A1, A2 …) whose fate you are MOVING; omit to propose a new one")
+	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "an avenue you already proposed (A1, A2 …) whose fate you are MOVING; omit to propose a new one")
 	c.Flags().String(flags.Line, "", "the question or approach you are proposing — what you are going to try")
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	enumhelp.Flag(c, flags.Status, record.MustEnum("avenue", "status"), ("proposed (put forward, undecided — the default) | pursued (being followed) | declined (considered, not taken) | abandoned (pursued, then died)"))

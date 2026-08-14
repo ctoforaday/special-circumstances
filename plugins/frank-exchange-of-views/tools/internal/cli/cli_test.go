@@ -40,6 +40,15 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	root.SetErr(&out)
 	root.SetArgs(args)
 	err = root.Execute()
+	// THE HARNESS REPRODUCES THE BINARY. A flag-PARSE refusal never reaches seat.Emit, so
+	// Execute() renders it as a --json envelope itself; a harness that skipped that step would
+	// measure a wire shape the binary does not produce.
+	if err != nil {
+		EmitTopLevelError(&out, args, err)
+	}
+	// The error is STILL RETURNED. The binary exits 2 whether or not it rendered an envelope, so
+	// "this call failed" stays true for the tests that assert a refusal; the envelope is an
+	// additional rendering, not a substitute for the failure.
 	return out.String(), err
 }
 
@@ -731,7 +740,11 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	if err == nil {
 		t.Fatal("a closure of an unknown gap was accepted")
 	}
-	if !strings.Contains(err.Error(), "close of unknown gap") {
+	// THE REFUSAL MOVED EARLIER. `--id` is a typed flag carrying record.GapExists now, so
+	// seat.Begin resolves it before the handler runs and the message is the reference one. That
+	// is the point of moving the check to the flag: the seat is told the id names nothing,
+	// rather than being told about an anchor for a gap that does not exist.
+	if !strings.Contains(err.Error(), "names gap R9-9") {
 		t.Errorf("error = %q", err)
 	}
 }

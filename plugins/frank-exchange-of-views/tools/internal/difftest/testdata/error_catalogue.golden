@@ -28,7 +28,7 @@ feov-record: merge: record: mint requires --likelihood — it multiplies into th
 
 ── close unknown gap
 exit 2
-feov-record: merge: record: close of unknown gap R7-7
+feov-record: merge: record: the --id names gap R7-7, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 ── close without id
 exit 2
