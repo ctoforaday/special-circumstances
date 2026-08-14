@@ -15,7 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -561,73 +560,23 @@ func UpdateRearm(path string, mutate func(*RearmState)) error {
 // worse than a hook that occasionally loses one, so this is short.
 const lockRearmTimeout = 2 * time.Second
 
-// lockSeq distinguishes concurrent holders inside ONE process, where the pid is
-// the same for all of them.
-var lockSeq atomic.Uint64
-
-// lockNonce identifies this acquisition. pid alone is not enough — the tests and
-// the hook can both hold this lock from several goroutines at once.
-func lockNonce() string {
-	return strconv.Itoa(os.Getpid()) + "-" + strconv.FormatUint(lockSeq.Add(1), 10)
-}
-
 // lockRearm takes an exclusive lock via O_EXCL create, which works on every
 // platform this ships to — unlike flock, which would need a Windows variant for
 // the CI this repo actually runs.
-//
-// # THE LOCK NAMES ITS HOLDER, AND THAT IS NOT DECORATION (#215)
-//
-// The first version wrote an empty lock file and broke a stale one by removing
-// it. That can violate the mutual exclusion it exists to provide:
-//
-//	A acquires at T. B arrives at T+2.1s, judges the lock abandoned, removes it,
-//	creates its own. A finishes and its unlock removes THE LOCK B IS HOLDING.
-//	C now acquires while B is still mid-update — two writers, no exclusion.
-//
-// So the file carries a nonce, and both dangerous operations are conditional on
-// it: unlock removes only a lock that is still ours, and a stale break removes
-// only the exact lock that was observed to be stale.
-//
-// Residual, stated rather than hidden: there is no portable filesystem
-// compare-and-delete, so between reading a nonce and removing that file another
-// process could in principle replace it. The window is a syscall wide instead of
-// seconds wide, and a loser of that race fails its O_EXCL create and retries.
 func lockRearm(path string) (func(), error) {
 	lock := path + ".lock"
-	me := lockNonce()
 	deadline := time.Now().Add(lockRearmTimeout)
 	for {
 		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 		if err == nil {
-			_, writeErr := f.WriteString(me)
 			_ = f.Close()
-			if writeErr != nil {
-				// A lock nobody can identify is worse than no lock: it can never
-				// be safely broken or released.
-				_ = os.Remove(lock)
-				return nil, fmt.Errorf("could not write the re-arm lock at %s: %w", lock, writeErr)
-			}
-			return func() {
-				// Ours only. After a stale break this file belongs to someone
-				// else, and removing it would hand a third process a lock the
-				// second one still thinks it holds.
-				if held, readErr := os.ReadFile(lock); readErr == nil && string(held) == me {
-					_ = os.Remove(lock)
-				}
-			}, nil
+			return func() { _ = os.Remove(lock) }, nil
 		}
-
 		// A process that died holding the lock must not wedge the mechanism
-		// forever — losing a re-arm is cheap and losing the file is not.
+		// forever — the whole point is that losing a re-arm is cheap and losing
+		// the file is not.
 		if fi, statErr := os.Stat(lock); statErr == nil && time.Since(fi.ModTime()) > lockRearmTimeout {
-			stale, readErr := os.ReadFile(lock)
-			if readErr == nil {
-				// Re-read immediately before removing: if the nonce moved, the
-				// lock was replaced since it looked abandoned and is live.
-				if now, err2 := os.ReadFile(lock); err2 == nil && string(now) == string(stale) {
-					_ = os.Remove(lock)
-				}
-			}
+			_ = os.Remove(lock)
 			continue
 		}
 		if time.Now().After(deadline) {

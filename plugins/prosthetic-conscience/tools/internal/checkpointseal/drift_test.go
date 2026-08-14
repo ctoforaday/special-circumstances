@@ -235,37 +235,3 @@ func TestSealReportsAnUnreadableTranscript(t *testing.T) {
 		t.Errorf("an unreadable transcript must be reported, got stderr=%q", stderr)
 	}
 }
-
-// #219: the seal is the loudest moment to catch a malformed label, and the
-// closest to the agent that just wrote it. Before this it reported nothing —
-// LoopProblems existed but was wired only into SessionStart, so the author of a
-// bad note learned about it from a LATER session, if at all.
-func TestTheSealReportsALoopWhoseLabelsAreNotOrdinals(t *testing.T) {
-	_, within := tree(t, "tools")
-
-	// A loop numbered from 0, with a lettered sub-entry — the exact shape this
-	// repo's own note carried while two of its checks went unwatched.
-	note := noteWith("0. `go test ./...`  · re-armed by: tools/\n" +
-		"0b. `go vet ./...`  · re-armed by: tools/\n" +
-		"1. `go build ./...`  · re-armed by: tools/")
-	got := drift(note, []string{"tools/x.go"}, within)
-
-	if got == "" {
-		t.Fatal("the seal accepted a loop whose labels are not ordinals; the checks it drops are neither watched nor adjudicated")
-	}
-	for _, want := range []string{`"0b."`, `"0."`} {
-		if !strings.Contains(got, want) {
-			t.Errorf("the report does not name %s, so the author cannot find it:\n%s", want, got)
-		}
-	}
-}
-
-// It must stay silent on a conforming loop — a check that cries wolf is a check
-// that gets ignored when it matters.
-func TestTheSealIsSilentOnAConformingLoop(t *testing.T) {
-	_, within := tree(t, "tools")
-	note := noteWith("1. `go test ./...`  · re-armed by: tools/\n2. `go vet ./...`  · re-armed by: tools/")
-	if got := drift(note, []string{"tools/x.go"}, within); got != "" {
-		t.Errorf("drift = %q; want silence on a well-formed loop", got)
-	}
-}

@@ -163,14 +163,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if !ok {
 		return 0
 	}
-	// A malformed label costs a check that is never re-armed — the concrete harm
-	// #193 was filed about — and this hook is where that harm lands. Reported on
-	// stderr and never fatal: the well-formed checks still attribute, because a
-	// numbering slip must not stop a file watcher (#219).
-	for _, p := range checkpoint.LoopProblems(loop) {
-		fmt.Fprintln(stderr, "sc-filechanged-rearm: "+p)
-	}
-
 	checks := checkpoint.ParseValidationLoop(loop)
 	if len(checks) == 0 {
 		return 0
