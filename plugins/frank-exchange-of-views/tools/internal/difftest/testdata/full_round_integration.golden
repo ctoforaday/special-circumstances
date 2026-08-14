@@ -45,15 +45,15 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
 -- events-red-lens-r1-L1-NONCE001.jsonl
-{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.65.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
+{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.66.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
 {"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"high","label":"L1-F1","likelihood":"medium","location":"## S2","severity":"medium","text":"citation does not support"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":1,"type":"finding"}
 {"key":"red-lens-r1-L1:anchor:FINDING001","nonce":"NONCE001","payload":{"id":"FINDING001","location":"## S2"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":2,"ts":2,"type":"anchor"}
 -- events-red-lens-r1-L5-NONCE002.jsonl
-{"key":"red-lens-r1-L5:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.65.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":3,"type":"register"}
+{"key":"red-lens-r1-L5:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.66.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":3,"type":"register"}
 {"key":"red-lens-r1-L5:finding:L5-F1","nonce":"NONCE002","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"high","label":"L5-F1","likelihood":"high","location":"## S4","severity":"high","text":"a leap of faith"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":4,"type":"finding"}
 {"key":"red-lens-r1-L5:anchor:FINDING001","nonce":"NONCE002","payload":{"id":"FINDING001","location":"## S4"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":2,"ts":5,"type":"anchor"}
 -- events-red-merge-r1-NONCE003.jsonl
-{"key":"red-merge-r1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.65.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":6,"type":"register"}
+{"key":"red-merge-r1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.66.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":6,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE003","payload":{"acceptance_check":"refetch and diff","check_kind":"document","class":"citation-drift","class_new":false,"complexity_cost":"medium","fix_basis":"proposed","found_by":["L1-F1","L5-F1"],"gap_id":"R1-1","impact":"high","likelihood":"high","location":"## S2","problem":"the cited source does not say this","severity":"high","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":7,"type":"mint"}
 {"key":"red-merge-r1:position","nonce":"NONCE003","payload":{"text":"round one: FAIL"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":8,"type":"position"}
 {"key":"red-merge-r1:verdict","nonce":"NONCE003","payload":{"verdict":"FAIL"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":3,"ts":9,"type":"verdict"}

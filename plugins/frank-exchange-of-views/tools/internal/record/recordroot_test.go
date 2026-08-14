@@ -295,3 +295,40 @@ func TestAdoptionFailsIfTheMarkerCannotBeWritten(t *testing.T) {
 			"this run as deleted and silently hand it a fresh empty root")
 	}
 }
+
+// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
+//
+// Measured (#358). The run directory reaches a seat as a string it resolves against its OWN
+// working directory, and this MkdirAll obligingly built a second blackboard wherever that landed:
+// a full duplicate tree with the lane's 13.7 KB draft, its own shards, clock and locks, while the
+// real run's candidates directory stayed empty for the whole run. The seat was told "registered".
+//
+// Work landing outside the run is indistinguishable from a seat that produced nothing — the
+// plausible zero, built by a helpful mkdir.
+func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
+	parent := t.TempDir()
+	missing := filepath.Join(parent, "research", "no-such-run")
+
+	_, _, err := RegisterSeat(missing, "red-merge-r1")
+	if err == nil {
+		t.Fatal("a seat created a run directory from nothing and reported success — the exact failure that produced a second blackboard beside a live run")
+	}
+	// The message must name the RESOLVED path: a seat that passed a relative --run cannot see
+	// where it landed, and that is the whole defect.
+	if !strings.Contains(err.Error(), missing) {
+		t.Errorf("the refusal does not name the path it resolved to: %v", err)
+	}
+	if _, statErr := os.Stat(missing); statErr == nil {
+		t.Error("the run directory was created despite the refusal")
+	}
+
+	// AND A RUN THAT EXISTS STILL WORKS. The check is existence, not a guess about what a run
+	// should contain, so a legitimately sparse run directory is never rejected.
+	real := filepath.Join(parent, "a-real-run")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := RegisterSeat(real, "red-merge-r1"); err != nil {
+		t.Errorf("an existing run directory was refused: %v", err)
+	}
+}

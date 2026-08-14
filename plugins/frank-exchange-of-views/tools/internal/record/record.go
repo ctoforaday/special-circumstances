@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
@@ -154,6 +155,34 @@ type Event struct {
 func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
+	}
+	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
+	//
+	// `setup` makes run directories; every seat is dispatched into one that is already there. So
+	// a run directory that does not exist is not an empty run — it is a seat pointed at the wrong
+	// place, and the only honest answer is to say so.
+	//
+	// MEASURED, and it cost a run's worth of work (#358). The run directory reaches a seat as a
+	// path it resolves against its OWN working directory. During
+	// research/2026-08-10_dual-read-vs-migration a seat whose shell cwd was the `tools/` directory
+	// resolved `research/<slug>/` from there, and this MkdirAll obligingly built a second
+	// blackboard: a full duplicate tree with the lane's entire 13.7 KB draft, its own shards,
+	// clock and locks. The real run's `blue/candidates/` was empty for the whole run, and TWO
+	// shards of one seat class existed in both places — the resolution differed per invocation,
+	// not per seat.
+	//
+	// Nothing announced it. The seat was told `registered red-merge-r1`. A seat's work landing
+	// outside the run is indistinguishable from a seat that produced nothing, and the record
+	// simply has fewer events in it — the plausible zero, built by a helpful mkdir.
+	//
+	// The check is CHEAP AND EXACT: does the run directory exist? It is not a guess about what a
+	// run should contain, so it cannot reject a legitimately sparse one, and it fires before any
+	// resolution or lock work.
+	if st, err := os.Stat(runDir); err != nil || !st.IsDir() {
+		abs, _ := filepath.Abs(runDir)
+		return "", "", feov.Errorf(feov.NotFound,
+			"record: no run directory at %s (resolved to %s) — a seat records into a run `setup` already made and never creates one. A RELATIVE --run resolves against YOUR working directory, which is how a seat once built a second blackboard beside the real run and reported success; pass the absolute path the engine gave you",
+			runDir, abs)
 	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
 	// resolving here means the root is bound (and its pointer written) before any event exists.
