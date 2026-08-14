@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // EVERY FLAG THAT NAMES SOMETHING THE TOOL HAS IS CHECKED AGAINST IT.
@@ -48,6 +52,8 @@ var referenceChecks = []struct {
 	against string // what the value is checked against, for the failure message
 	bogus   string // a well-SHAPED value that cannot exist
 	extra   []string
+	// needsRegistry stages a class registry first: the class check is advisory without one.
+	needsRegistry bool
 }{
 	{verb: []string{"merge", "close"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x", "--reason", "r"}},
@@ -57,8 +63,12 @@ var referenceChecks = []struct {
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"merge", "mint"}, flag: "--found-by", against: "the findings on the record", bogus: "L9-F9",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+	// NEEDS A REGISTRY STAGED. `validateClass` is ADVISORY when none is present, so this case
+	// silently passed over an unchecked class until the fixture seeded one — which is how the
+	// whole internal/cli suite had been running with class validation off.
 	{verb: []string{"merge", "mint"}, flag: "--class", against: "the class registry", bogus: "no-such-class-slug",
-		extra: []string{"--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		needsRegistry: true,
+		extra:         []string{"--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
 	{verb: []string{"merge", "mint"}, flag: "--location", against: "blue/report.md", bogus: "a sentence that is nowhere in the report",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
@@ -73,7 +83,7 @@ var referenceChecks = []struct {
 	{verb: []string{"blue", "manifest-row"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--row", "checked"}},
 	{verb: []string{"blue", "edit"}, flag: "--answers", against: "the board", bogus: "R9-9",
-		extra: []string{"--old", "A claim lives somewhere", "--new", "A claim lives elsewhere", "--reason", "r"}},
+		extra: []string{"--old", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
 	{verb: []string{"blue", "avenue"}, flag: "--id", against: "the avenues on the record", bogus: "A9",
 		extra: []string{"--status", "abandoned", "--reason", "r"}},
 	{verb: []string{"bench", "opinion"}, flag: "--id", against: "the board", bogus: "R9-9",
@@ -82,12 +92,65 @@ var referenceChecks = []struct {
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 }
 
+// stageClassRegistry writes a registry into the run's RESOLVED record directory.
+//
+// The class check is ADVISORY without one — `loadRegistry` returns nil and every slug is
+// accepted. The whole of internal/cli had been running that way, so a mint could name any class
+// and no test noticed. It goes to RecordsDir, not <run>/records, because the record may be
+// separated (FEOV_RECORD_ROOT) and writing to the run directory would stage it where nothing
+// reads.
+func stageClassRegistry(t *testing.T, runDir string) {
+	t.Helper()
+	recDir, err := record.RecordsDir(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(recDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"classes":[{"slug":"scope-creep"},{"slug":"read-surface"},{"slug":"citation-drift"}]}`
+	if err := os.WriteFile(filepath.Join(recDir, "class-registry.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A STAGED-BUT-BROKEN REGISTRY IS REFUSED, not waved through.
+//
+// `loadRegistry` returned nil on any read or parse failure, and nil means advisory — so a corrupt
+// registry accepted every class slug, silently, for the whole run. Absent stays advisory (a run
+// deliberately set up without one has nothing to validate against); present-and-unreadable does
+// not, because somebody staged it, which means somebody meant it to bind.
+func TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored(t *testing.T) {
+	runDir := seatRun(t)
+	recDir, err := record.RecordsDir(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(recDir, "class-registry.json"), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--class", "anything-at-all", "--check-kind", "document", "--check", "c",
+		"--likelihood", "low", "--impact", "low", "--problem", "p")
+	if err == nil {
+		t.Fatal("a mint was accepted against an unreadable class registry — every --class passes while it stays that way, and nothing says so")
+	}
+	if !strings.Contains(err.Error(), "unreadable") {
+		t.Errorf("the refusal must say the registry is the problem, or the seat re-reads its own --class: %v", err)
+	}
+}
+
 func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 	for _, c := range referenceChecks {
 		name := strings.Join(c.verb, " ") + " " + c.flag
 		t.Run(name, func(t *testing.T) {
 			runDir := seatRun(t)
 			mintGap(t, runDir, "a seeded gap", "read-surface")
+			// AFTER the seed mint: staging it first would bind that mint's --neighbor too, and
+			// the case under test is the bogus value, not the fixture's own class lineage.
+			if c.needsRegistry {
+				stageClassRegistry(t, runDir)
+			}
 
 			argv := append([]string{}, c.verb...)
 			argv = append(argv, "--run", runDir, "--seat-id", seatFor(c.verb[0]))

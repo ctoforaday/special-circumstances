@@ -359,7 +359,19 @@ func (r *runner) mint(seatID string) string {
 		// is grading v2's verified/suspected split; --key is mint's crash-retry idempotency
 		// handle; --reason is the prose channel. Four fields on the most consequential verb in
 		// the tool, none of them ever exercised by a run.
-		"--location", "§ fuzz — " + directive[:12],
+		// A QUOTE FROM THE SEEDED REPORT, not a composed label. Since 0.63.0 a mint's --location
+		// is matched against blue/report.md — the same rule `lens finding` has always been held
+		// to — so `"§ fuzz — " + directive[:12]` is refused. The sweep went to ZERO gaps the
+		// moment the check landed, and every gap-dependent verb (close, regrade, opinion,
+		// closing, manifest-row, reproduce) followed it to zero. The coverage gate caught that;
+		// the mint refusal alone would have looked like a quieter run.
+		//
+		// It quotes the ANCHOR sentence, not the cost sentence: the blue-edit drive swaps the
+		// cost sentence between two phrasings, so a mint quoting it fails once an edit has run —
+		// which is correct behaviour (red must quote text that is actually there) and useless as
+		// a fixture. The anchor sentence is stable, and the invisible anchor layer spliced into
+		// it is ignored by the match.
+		"--location", "A § fuzz sentence to anchor findings.",
 		"--existence", pick(r.rng, []string{"verified", "suspected"}),
 		"--reason", "fuzz: the argument for raising this"}
 	if !r.classMade {
@@ -2366,15 +2378,21 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				body = "console.log(Math.random());" // graded `observed`, and it will not re-run the same
 			}
 			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err == nil {
-				r.do("blue", "prove", seatID).
+				prove := r.do("blue", "prove", seatID).
 					set("--location", "§ fuzz").
 					set("--script", name).
 					set("--answers", id).
-					// The METHOD is cited and the instance computed — that pairing is the whole
-					// claim of the proof axis, and --cites was never passed.
-					on(50, "--cites", "c-fuzz").
-					set("--reason", "fuzz: computing rather than arguing").
-					run()
+					set("--reason", "fuzz: computing rather than arguing")
+				// The METHOD is cited and the instance computed — that pairing is the whole
+				// claim of the proof axis. It passed the FABRICATED label "c-fuzz", which named
+				// no citation on the record: a proof claiming a provenance it did not have, and
+				// the report rendered the link. `requireCitation` refuses it now, so this takes
+				// a real anchor off the record — the same discipline someFinding and someCitation
+				// already impose everywhere else a label is passed.
+				if anchor := r.someCitation(); anchor != "" && r.coin(50) {
+					prove.set("--cites", anchor)
+				}
+				prove.run()
 			}
 		case dirIgnore:
 			// Deliberately nothing. The oracle asserts NO edit answers this gap, which is what

@@ -1340,7 +1340,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	}
 	minted, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class-new", "some-class", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "sec 1", "--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
+		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low")
 	if err != nil {
 		t.Fatalf("mint: %v", err)

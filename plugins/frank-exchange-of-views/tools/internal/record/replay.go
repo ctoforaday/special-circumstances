@@ -492,28 +492,43 @@ type classRegistry struct {
 	Classes []registryClass `json:"classes"`
 }
 
-// loadRegistry degrades to advisory mode on ANY failure to read, resolution included: an
-// unreachable record root already fails loudly at MergedEvents, which every caller of this
-// reaches first, so erroring twice would only make the diagnosis harder to read.
-func loadRegistry(runDir string) *classRegistry {
+// loadRegistry reads the gap-class registry, and DISTINGUISHES "there is none" from "there is one
+// and it is broken".
+//
+// It used to return nil on any failure, and `validateClass` reads nil as advisory mode — so an
+// unparseable registry accepted every class slug ever passed, silently. That is this codebase's
+// recurring shape: the miss and the honest zero produce the same output, and a corrupt file turns
+// off the gate that keeps the class vocabulary honest without anything saying so.
+//
+// An ABSENT registry stays advisory. That is a deliberate, narrower tolerance: a run set up
+// before the registry existed, or one deliberately run without one, has nothing to validate
+// against, and refusing every mint would make those runs unusable. A registry that IS there and
+// cannot be read is different in kind — somebody staged it, so somebody meant it to bind.
+//
+// An unreachable record root is not this function's error to report: MergedEvents fails loudly on
+// it, and every caller reaches that first, so erroring twice only makes the diagnosis harder.
+func loadRegistry(runDir string) (*classRegistry, error) {
 	recDir, err := RecordsDir(runDir)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	p := filepath.Join(recDir, "class-registry.json")
 	b, err := os.ReadFile(p)
 	if err != nil {
-		return nil
+		return nil, nil // absent — advisory, see above
 	}
 	var reg classRegistry
 	if err := json.Unmarshal(b, &reg); err != nil {
-		return nil // unparseable registry degrades to advisory mode, as in the oracle
+		return nil, fmt.Errorf("record: the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file, or remove it to run without a registry deliberately", p, err)
 	}
-	return &reg
+	return &reg, nil
 }
 
 func validateClass(runDir string, p *Payload) error {
-	reg := loadRegistry(runDir)
+	reg, err := loadRegistry(runDir)
+	if err != nil {
+		return err
+	}
 	m, err := MergedEvents(runDir)
 	if err != nil {
 		return err

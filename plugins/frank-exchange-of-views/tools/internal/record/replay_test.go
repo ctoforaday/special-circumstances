@@ -823,11 +823,24 @@ func TestValidateClassRegistry(t *testing.T) {
 		}
 	})
 
-	t.Run("an unparseable registry degrades to advisory", func(t *testing.T) {
+	// AN UNPARSEABLE REGISTRY IS REFUSED. It used to degrade to advisory — accepting every class
+	// slug for the whole run, silently — and the reason recorded for that was "as in the oracle".
+	// The oracle is the JS engine retired in #121, so the justification outlived itself while the
+	// behaviour stayed: a corrupt file turning off the gate that keeps the class vocabulary
+	// honest, with nothing saying so.
+	//
+	// ABSENT stays advisory (the case above): a run with no registry has nothing to validate
+	// against. PRESENT-BUT-BROKEN is different in kind — somebody staged it, so somebody meant it
+	// to bind.
+	t.Run("an unparseable registry is refused, not waved through", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, "{not json")
-		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
-			t.Errorf("an unparseable registry made validation strict: %v", err)
+		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all")))
+		if err == nil {
+			t.Fatal("a corrupt registry accepted an arbitrary class — every --class passes while it stays that way, and the run reads as validated")
+		}
+		if !strings.Contains(err.Error(), "unreadable") {
+			t.Errorf("the refusal must name the REGISTRY as the problem, or a seat re-reads its own --class: %v", err)
 		}
 	})
 
