@@ -318,6 +318,16 @@ func drift(note string, written []string, within checkpoint.WithinRoot) string {
 
 	n := checkpoint.Parse(note)
 	body, _ := n.NonEmptySection("Validation loop")
+
+	// The seal is the LOUDEST moment to report a malformed label, and the closest
+	// to the agent that just wrote it: catching it here costs one line now instead
+	// of a silently unwatched check that a later session inherits (#219). Reported
+	// alongside drift and never fatal — a numbering slip must not wedge a seal.
+	if problems := checkpoint.LoopProblems(body); len(problems) > 0 {
+		return "sc-checkpoint-seal: the validation loop's numbering is off, so some checks are neither watched nor adjudicated — " +
+			strings.Join(problems, "; ")
+	}
+
 	checks := checkpoint.ParseValidationLoop(body)
 	if len(checks) == 0 {
 		return fmt.Sprintf("sc-checkpoint-seal: the note records NO validation loop, and this session wrote %d file(s) (%s). "+

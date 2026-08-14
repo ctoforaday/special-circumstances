@@ -92,3 +92,30 @@ func TestAnUnreadableStateFileIsNotOverwritten(t *testing.T) {
 		t.Errorf("nothing was reported to stderr; the reset would be silent again: %q", errb.String())
 	}
 }
+
+// #219: the re-arm hook is where a dropped entry actually costs something — a
+// check that is never re-armed, silently. It parses the same loop and said
+// nothing about it.
+func TestTheRearmHookReportsAMalformedLoop(t *testing.T) {
+	dir := project(t)
+	// Renumber the fixture note off-spec: a lettered sub-entry opens no check in
+	// either parser, so this loop silently holds fewer checks than it appears to.
+	bad := strings.Replace(note, "2. `qlty check`", "1b. `qlty check`", 1)
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), bad)
+
+	target := filepath.Join(dir, "tools", "internal", "x.go")
+	write(t, target, "package internal // edited\n")
+
+	in, _ := json.Marshal(hookInput{FilePath: target, Event: "change", SessionID: "s1"})
+	var out, errb bytes.Buffer
+	if got := run(nil, bytes.NewReader(in), &out, &errb, dir, noon); got != 0 {
+		t.Fatalf("exit = %d — a numbering slip must not stop a file watcher", got)
+	}
+	if !strings.Contains(errb.String(), `"1b."`) {
+		t.Errorf("the dropped entry was not reported: %q", errb.String())
+	}
+	// And the well-formed checks still work: reporting is not refusing.
+	if s := stateOf(t, dir); len(s.Rearmed) != 1 {
+		t.Errorf("attribution stopped because of a malformed sibling: %+v", s.Rearmed)
+	}
+}
