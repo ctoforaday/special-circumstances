@@ -145,16 +145,6 @@ var EnumFields = map[string][]EnumField{
 			},
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
 		},
-		{
-			Key: "existence", Flag: flags.Existence, Values: []EnumValue{
-				Ev("verified", "you CHECKED the defect at the leaf and it is there. An act of looking, never confidence in your own critique"),
-				Ev("suspected", "you inferred it and have not checked at the leaf. Honest, and it is what the axis is for"),
-			},
-			Why: "grading v2 SPLIT existence from consequence because v1's `certain` textual nits outweighed high-likelihood design flaws — likelihood now grades the consequence only, and this axis carries whether the defect was checked at the leaf at all. It was validated at the FLAG layer and nowhere else, so the record accepted whatever a non-flag write path put here and the record-level enum sweep never saw the field existed. A gap whose existence is unreadable is one whose grades cannot be interpreted: `medium likelihood` means something different for a defect confirmed at the leaf and one merely inferred",
-			// Optional: records written before the write-path shipped carry no existence, and a
-			// gap minted without it is a real (if incomplete) gap rather than a corrupt one.
-			Optional: true,
-		},
 	},
 	"reproduce": {{
 		Key: "soundness", Flag: flags.As, Values: []EnumValue{

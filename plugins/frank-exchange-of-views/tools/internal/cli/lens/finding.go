@@ -101,7 +101,7 @@ func newFinding() *cobra.Command {
 
 	c.Flags().String(flags.Key, "", "a stable local handle (your own F1, F2 …) making a retried finding idempotent; the TOOL assigns the run-unique label L{role}-F{N}")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
-	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
+	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
 	c.Flags().String(flags.Location, "", "REQUIRED — the EXACT text you are flagging, quoted from blue/report.md and nothing else. NOT a section heading plus a sentence: this whole string is matched against the report to place the finding-marker, so anything you prepend (a section name, a dash, a pipe) makes it match nothing. Name the section in --reason, where prose belongs")
 	return c

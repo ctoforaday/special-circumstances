@@ -133,10 +133,22 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
    **EXECUTED — #329, verified 2026-08-13.** debate.js emits `ruling: 'halt'` zero times and a
    halt goes through `bench halt`. This paragraph claimed the safety boundary was broken for as
    long as the fix had been in — see the note under this list.
-2. **existence → add `mint --existence`.** Wire the write-path (`verified|suspected`) so the
-   leaf-check axis lands on the record and dedups out of the envelope.
-   **EXECUTED — #331, verified 2026-08-13.** `existence` is on `GapJSON` and the assembled report
-   renders `existenceNote` per gap, which is grading v2's whole point.
+2. ~~**existence → add `mint --existence`.**~~ **REVERSED (#359, 2026-08-14) — the axis is
+   DELETED.** It was created to fix a real ranking bug: v1's `likelihood` carried two questions,
+   and since the board ranks by likelihood x impact, a `certain` typo outranked a `high` design
+   flaw. **The value was in emptying `likelihood`, and that half worked.** The receptacle the
+   other question went into never did any work — not required at mint, absent from `GapMass` so
+   it ranked nothing, named in one prompt and no constitution, and uncontestable.
+
+   And it was the last unanchored SELF-REPORT in a system that anchors everything else: a closure
+   names who checked what with which tool, a proof is re-run, a citation is re-fetched. `existence:
+   verified` was red's word about red's own diligence. The incident behind it — three gaps minted
+   `verified` at report sections that did not exist — is better explained by `mint --location`
+   having been unmatched, which 0.63.0 fixed.
+
+   Kept here rather than deleted, like the `certify` reversal above: a decision that shipped, did
+   nothing for six releases, and was removed is evidence about how these calls get made. This one
+   was taken as the tidy other half of a real fix, and nobody asked what the half would DO.
 3. **petition filing / spot-check / manifest-row → the record verb is the single source.** The verb
    event is canonical; the envelope carries a routing ref, not the data.
    **EXECUTED — #315 (petition filing), #317 (spot-check, with its W1.8 floor now computed from the

@@ -211,8 +211,6 @@ func placeholderFor(f *pflag.Flag, path []string) string {
 		return "medium"
 	case "check-kind":
 		return "document"
-	case "existence":
-		return "verified"
 	case "petition-class":
 		return "safety"
 	case "dimension":
@@ -249,7 +247,7 @@ func seatRunForContracts(t *testing.T) string {
 		"--problem", "p", "--fix", "f",
 		"--check", "c", "--check-kind", "document",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
-		"--existence", "verified", "--reason", "the gap a probe's --id names"); err != nil {
+		"--reason", "the gap a probe's --id names"); err != nil {
 		t.Fatalf("seed gap: %v", err)
 	}
 	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", "blue-respond-r1",

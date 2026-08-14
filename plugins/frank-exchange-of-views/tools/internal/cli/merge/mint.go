@@ -24,7 +24,7 @@ func newMint() *cobra.Command {
 	var supersedes, foundBy flags.CSV
 
 	c := seat.Prose(seat.New("mint",
-		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> --existence verified|suspected [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
+		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// Crash-retry idempotency: --key (the stable local label, e.g. the source
 			// lens finding) makes a retried mint return the EXISTING id.
@@ -123,15 +123,6 @@ func newMint() *cobra.Command {
 			seat.SetGrade(p, "likelihood", &likelihood)
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetGrade(p, "complexity_cost", &cx)
-			// The leaf-check axis lands on the board (viewjson reads it) and now on the report.
-			//
-			// It is a SET-SHAPED flag validated by the record's own enum table, like every other
-			// closed vocabulary here. It used to be a bespoke pflag.Value carrying its own copy of
-			// verified|suspected, which made THREE declarations of one two-word set — the flag
-			// type, debate.js's envelope schema, and (absent) the record — free to drift, with the
-			// record-level enum sweep unable to see the field existed at all (#331, and the same
-			// class as #329's halt).
-			seat.Set(cmd, p, "existence", flags.Existence)
 			seat.SetList(p, "supersedes", &supersedes)
 			seat.SetList(p, "found_by", &foundBy)
 
@@ -198,10 +189,9 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.Check, "", "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
 	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check — read a document, RUN a computation, or verify a source. A `computation` check cannot be closed by prose: it closes only when a proof answers this gap"))
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
-	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
+	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
 	c.Flags().Var(&cx, flags.Complexity, "complexity_cost — what fixing it costs, on the same scale")
-	enumhelp.Flag(c, flags.Existence, record.MustEnum("mint", "existence"), ("the leaf-check axis, ORTHOGONAL to the grades: verified (you checked the defect at the leaf) | suspected (inferred). Likelihood grades the CONSEQUENCE only, so this is what says whether the defect is known to be real"))
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
 	return c

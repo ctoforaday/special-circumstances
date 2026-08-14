@@ -749,10 +749,34 @@ import (
 //
 //	       A stale binary takes `--id NOPE` and answers a parse error in prose under --json.
 //
+//	0.65.0 `existence` IS DELETED — flag, enum, board field, report renderer and envelope entry.
+//
+//	       Archaeology, because the axis outlived its reason. It was created to fix a REAL ranking
+//	       bug (W2g, run-5 red-merge friction): v1's `likelihood` carried two questions — is the
+//	       defect there, and will the harm land — and since the board ranks by likelihood x impact,
+//	       a `certain` typo outranked a `high` design flaw. Trivia sorting above design flaws.
+//
+//	       THE VALUE WAS IN EMPTYING `likelihood`, and that half worked and stays. The receptacle
+//	       the other question went into never did any work: not required at mint, absent from
+//	       GapMass so it ranked nothing, named in one prompt and no constitution, and disputable by
+//	       nobody — the one graded assertion red made that blue could not contest (#359).
+//
+//	       It was also the last unanchored SELF-REPORT in a tool that anchors everything else. A
+//	       closure names who checked what with which tool; a proof is re-run; a citation is
+//	       re-fetched. `existence: verified` was red's word about red's own diligence, and the
+//	       incident that prompted the complaint — three gaps minted `verified` at report sections
+//	       that did not exist — is better explained by `mint --location` having been unmatched,
+//	       which 0.63.0 fixed.
+//
+//	       Old records keep the key in their mint payloads and nothing reads it; a payload is a
+//	       free-form map, so an unread key is inert rather than a migration.
+//
+//	       A stale binary offers `--existence` and renders a leaf-check note no seat can set.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.64.0"
+const Version = "0.65.0"
 
 func init() { record.ToolVersion = Version }
 
