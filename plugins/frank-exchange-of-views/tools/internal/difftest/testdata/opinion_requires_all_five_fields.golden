@@ -6,16 +6,16 @@ registered judge-r2 (shard nonce NONCE001)
 $ bench opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed
 exit 2
 stderr:
-feov-record: bench: record: opinion --id names gap R2-1, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
+feov-record: bench: record: the --id names gap R2-1, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 $ bench opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed --principle p --tension t
 exit 2
 stderr:
-feov-record: bench: record: opinion --id names gap R2-1, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
+feov-record: bench: record: the --id names gap R2-1, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl
-{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.63.0"},"role":"bench","round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
+{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.64.0"},"role":"bench","round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
 
 ═══ RENDERS ═══
 -- debate

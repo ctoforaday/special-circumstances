@@ -114,7 +114,7 @@ func newEdit() *cobra.Command {
 	c.Flags().String(flags.Key, "", "a stable local handle (your own F1, F2 …) making a retried edit idempotent")
 	c.Flags().String(flags.Old, "", "REQUIRED — the EXACT current span to replace (matched across the invisible anchor layer; rejected if absent or if it contains a finding-marker or a citation anchor)")
 	c.Flags().String(flags.New, "", "the replacement text")
-	c.Flags().String(flags.Answers, "", "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
 	return c
 }
 

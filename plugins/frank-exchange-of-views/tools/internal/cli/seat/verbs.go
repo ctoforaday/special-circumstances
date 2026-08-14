@@ -103,7 +103,7 @@ func Closing(help string) *cobra.Command {
 		}
 		return closingResult{ID: Str(cmd, flags.ID)}, nil
 	}))
-	c.Flags().String(flags.ID, "", "the gap id this closing argues")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
 	return c
 }
 

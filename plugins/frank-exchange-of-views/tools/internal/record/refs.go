@@ -27,6 +27,28 @@ import (
 // seat named something it had not yet created. This would have refused nothing.
 
 // requireGap refuses a reference to a gap no mint created.
+// THE EXPORTED FORMS, for flags that carry their own existence check.
+//
+// A typed flag declares what it is checked against (`flags.GapID().WithCheck(record.GapExists)`),
+// and seat.Begin runs it once the run directory is resolved. These are THIN WRAPPERS over the
+// same helpers `validate` uses — one implementation, two call sites — because validate remains
+// the enforcer: it is the single write path every caller goes through, and a rule the CLI held
+// alone would be one every other caller skips. Two enforcers drifting is the defect this
+// codebase keeps finding; two callers of one enforcer is not.
+//
+// The subject is named as the FLAG, not the verb: this refusal arrives while the seat is looking
+// at one command, so "--id names gap R9-9, which no mint event created" is the whole sentence it
+// needs. validate's copy keeps the verb too, because there it can be reached by any caller.
+func GapExists(runDir, id string) error { return requireGap(runDir, id, "the", "--id") }
+
+// AvenueExists resolves a line of inquiry.
+func AvenueExists(runDir, id string) error { return requireAvenue(runDir, id, "the", "--id") }
+
+// CitationExists resolves a citation anchor.
+func CitationExists(runDir, label string) error {
+	return requireCitation(runDir, label, "the", "--cites")
+}
+
 func requireGap(runDir, id, verb, flag string) error {
 	if id == "" {
 		return nil

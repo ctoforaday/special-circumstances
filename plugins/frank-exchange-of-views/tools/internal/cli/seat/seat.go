@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -255,7 +256,50 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if err := record.CheckSeatRole(s.Role, s.SeatID); err != nil {
 		return s, err
 	}
+	if err := CheckFlagReferences(cmd, s.RunDir); err != nil {
+		return s, err
+	}
 	return s, nil
+}
+
+// referenceChecker is what a typed flag implements when it knows what it is checked against.
+// Declared here rather than imported so the flags package keeps no dependency on this one.
+type referenceChecker interface {
+	Check(runDir string) error
+}
+
+// CheckFlagReferences resolves every flag that carries an existence check.
+//
+// # Why HERE and not in a cobra hook
+//
+// A pflag.Value cannot do it: parsing is ONE left-to-right pass over argv with the parent's
+// persistent flags merged in, so `close --id R1-1 --run <dir>` calls `--id`'s Set() before --run
+// is bound. Measured. The check has to run after parse.
+//
+// The obvious after-parse seam is PersistentPreRunE, and it is a trap: a command defining its own
+// SHADOWS the root's entirely, with no error and no warning — so a hook installed once at the
+// root stops running the moment any verb grows one, silently. Measured too.
+//
+// `Begin` has neither problem. It is a plain function at the top of the one hook-free RunE that
+// `New` wires for every seat verb, which is the shape this package already chose (see New): the
+// run directory is resolved, nothing chains, and a failure renders through the same Emit as any
+// other refusal. Coverage is DERIVED — a new verb is checked because it goes through Begin, not
+// because someone remembered to add it to a list.
+//
+// The checks themselves are record.GapExists and friends — thin wrappers over the helpers
+// `validate` uses. validate stays the enforcer, because it is the single write path every caller
+// goes through; this is the earlier, better-placed copy of the same refusal, not a second one.
+func CheckFlagReferences(cmd *cobra.Command, runDir string) error {
+	var err error
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if err != nil {
+			return
+		}
+		if c, ok := f.Value.(referenceChecker); ok {
+			err = c.Check(runDir)
+		}
+	})
+	return err
 }
 
 // Emit renders a verb's outcome. It is the ONE place both a success and a failure are

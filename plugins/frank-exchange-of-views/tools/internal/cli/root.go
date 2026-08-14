@@ -9,7 +9,9 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +20,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
@@ -722,10 +725,34 @@ import (
 //
 //	       A stale binary accepts a mint at a location no reader can find.
 //
+//	0.64.0 THE CHECK TRAVELS WITH THE FLAG. A reference flag is a typed value now
+//	       (`flags.GapID().WithCheck(record.GapExists)`) carrying BOTH halves: the shape pflag
+//	       refuses at parse, and the record lookup `seat.Begin` runs once the run directory is
+//	       resolved. Coverage stops being a list someone maintains — a new verb is checked
+//	       because Begin is wired by seat.New, and a test walks the tree to prove every
+//	       checker-carrying flag is actually driven. It found three on its first run.
+//
+//	       IT IS NOT A COBRA HOOK, and both alternatives were measured. A pflag.Value cannot do
+//	       the lookup: parsing is one left-to-right pass with the parent's persistent flags
+//	       merged in, so `close --id R1-1 --run <dir>` calls --id's Set() before --run is bound.
+//	       And PersistentPreRunE shadows silently — a command defining its own suppresses the
+//	       root's with no error — so a hook installed once at the root stops running the moment
+//	       any verb grows one. `Begin` has neither problem and renders through the same Emit as
+//	       every other refusal, which is the shape seat.New already chose.
+//
+//	       AND --json NOW GETS JSON WHEN THE FLAGS THEMSELVES ARE REFUSED. A parse-time refusal
+//	       never reached Emit, so `--json … --severity banana` printed a bare sentence on a
+//	       channel whose whole contract is that it is machine-readable. True since GradeValue
+//	       shipped; it surfaced when the id flags became typed and a case changed channel shape
+//	       without changing meaning. The test harness renders it the same way, or it would go on
+//	       measuring a shape the binary does not produce.
+//
+//	       A stale binary takes `--id NOPE` and answers a parse error in prose under --json.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.63.0"
+const Version = "0.64.0"
 
 func init() { record.ToolVersion = Version }
 
@@ -877,10 +904,61 @@ func Execute() {
 		os.Exit(2)
 	}
 	if err := root.Execute(); err != nil {
+		// A --json CALLER GETS JSON, INCLUDING WHEN THE FLAGS THEMSELVES ARE REFUSED.
+		//
+		// `seat.Emit` renders every refusal a HANDLER produces as a structured envelope. A
+		// refusal from flag PARSING never reaches it: pflag rejects the value and cobra returns
+		// the error straight out of Execute, so `--json merge mint --severity banana` printed a
+		// bare sentence on a channel whose entire contract is that it is machine-readable. A
+		// consumer parsing that channel gets a JSON error and cannot see which flag was wrong.
+		//
+		// It has been true since `GradeValue` shipped and nobody noticed, because the seats read
+		// the human line and the engine only parses the SUCCESS path. It surfaced when the id
+		// flags became typed: a case that used to fail inside the handler began failing at parse,
+		// and the same input changed channel shape without changing meaning.
+		//
+		// So the envelope is rendered here too. The verb and role are unknown at this point —
+		// parsing failed before cobra resolved which command owns the flag — and the envelope
+		// says so with empty fields rather than guessing a name from argv.
+		if EmitTopLevelError(os.Stdout, os.Args, err) {
+			os.Exit(2)
+		}
 		// Errors print bare, without cobra's usage dump: a validation refusal here
 		// is a TEACHING message a seat reads and acts on, and burying it under a
 		// flag listing is how it stops being read.
 		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
 		os.Exit(2)
 	}
+}
+
+// EmitTopLevelError renders an error that never reached seat.Emit, and reports whether it did.
+//
+// Exported because the TEST HARNESS must reproduce the binary here. It drives root.Execute()
+// directly and returns the error, so a fix living only inside Execute() would be invisible to
+// every test — the harness would go on measuring a shape the binary does not produce, which is
+// the same defect one layer up from the one this fixes.
+func EmitTopLevelError(w io.Writer, argv []string, err error) bool {
+	if !jsonRequested(argv) {
+		return false
+	}
+	_ = json.NewEncoder(w).Encode(struct {
+		OK    bool   `json:"ok"`
+		Code  string `json:"code"`
+		Error string `json:"error"`
+	}{OK: false, Code: string(feov.Validation), Error: err.Error()})
+	return true
+}
+
+// jsonRequested reads --json off the RAW ARGV.
+//
+// It cannot come from the parsed flag set: this runs on the path where parsing FAILED, so the
+// flag may never have been bound. Scanning argv is the only source that survives that, and the
+// flag is a plain boolean with no value form to confuse it.
+func jsonRequested(argv []string) bool {
+	for _, a := range argv {
+		if a == "--json" || a == "--json=true" {
+			return true
+		}
+	}
+	return false
 }

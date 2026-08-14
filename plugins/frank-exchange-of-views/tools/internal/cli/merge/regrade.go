@@ -35,7 +35,7 @@ func newRegrade() *cobra.Command {
 			return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil
 		})
 
-	c.Flags().String(flags.ID, "", "the gap id")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is (v2 grades consequence only, never existence)")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")

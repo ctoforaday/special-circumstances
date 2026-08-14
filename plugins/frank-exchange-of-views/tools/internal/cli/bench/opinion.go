@@ -36,7 +36,7 @@ func newOpinion() *cobra.Command {
 			return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
 		}))
 
-	c.Flags().String(flags.ID, "", "the gap being ruled on")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap being ruled on")
 	enumhelp.Flag(c, flags.As, record.MustEnum("opinion", "disposition"), ("REQUIRED — your ruling AND the gap's fate. Every value ends the gap except `carried`, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342"))
 	c.Flags().String(flags.Principle, "", "the principle applied — a ruling is an OPINION, not a disposition")
 	c.Flags().String(flags.Tension, "", "the values in tension (e.g. correctness vs economy)")
