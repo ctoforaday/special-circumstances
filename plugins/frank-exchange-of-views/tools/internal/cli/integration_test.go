@@ -49,7 +49,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", key, "--class-new", class,
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "§1 \"a quoted sentence\"", "--problem", "the defect", "--fix", "the fix",
+		"--location", "§1 first — a finding sits in sec 1 here.", "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low")
 	if err != nil {
