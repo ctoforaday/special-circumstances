@@ -484,6 +484,9 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireGap(runDir, p.Str("answers"), "blue prove", "--answers"); err != nil {
 			return err
 		}
+		if err := requireCitation(runDir, p.Str("cites"), "blue prove", "--cites"); err != nil {
+			return err
+		}
 	case "blue_edit":
 		// PROVENANCE IS A KEY, NOT A CONVENTION.
 		//
@@ -714,6 +717,13 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// written before the lifecycle existed carry none and no longer replay — deliberate:
 		// a compatibility path for one subsystem is an asymmetry every reader then has to
 		// learn, and the corpus it would preserve is six exploratory runs, not production.
+		// A MOVE names an avenue that exists. A proposal ASSIGNS the id, so only a move (which
+		// carries supersedes_status) is checked against the record.
+		if p.Str("supersedes_status") != "" {
+			if err := requireAvenue(runDir, p.Str("avenue_id"), "blue avenue", "--id"); err != nil {
+				return err
+			}
+		}
 		if p.Str("avenue_id") == "" {
 			return fmt.Errorf("record: avenue requires an id — the tool assigns one on a proposal and --id names it on a move; an avenue with no identity has no lifecycle and cannot be ruled on or revisited")
 		}

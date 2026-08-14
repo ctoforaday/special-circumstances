@@ -246,7 +246,7 @@ func seatRunForContracts(t *testing.T) string {
 	// fire before the flag-specific ones and this gate measures the wrong refusal.
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "contract-seed", "--class", "self-attestation",
-		"--location", `§1 "a quoted sentence"`, "--problem", "p", "--fix", "f",
+		"--problem", "p", "--fix", "f",
 		"--check", "c", "--check-kind", "document",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
 		"--existence", "verified", "--reason", "the gap a probe's --id names"); err != nil {

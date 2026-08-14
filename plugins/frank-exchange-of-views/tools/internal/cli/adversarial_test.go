@@ -61,7 +61,7 @@ type adversarialCase struct {
 func adversarialCases() []adversarialCase {
 	// The board every motion scenario argues over: one gap, minted by the merge.
 	mint := seatStep{"merge", "mint", "--seat-id", "red-merge-r1",
-		"--key", "k1", "--class", "self-attestation", "--location", "L", "--problem", "p",
+		"--key", "k1", "--class", "self-attestation", "--problem", "p",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--cx", "low",
 		"--existence", "verified", "--reason", "the board needs something to argue about"}

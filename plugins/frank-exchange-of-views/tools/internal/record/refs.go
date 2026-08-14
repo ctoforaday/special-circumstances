@@ -81,6 +81,52 @@ func requireFindings(runDir string, labels []string, verb, flag string) error {
 }
 
 // requireSeat refuses attribution to a seat that never registered.
+// requireCitation refuses a citation label that names no `blue cite` on the record.
+//
+// `blue prove --cites` names the METHOD a computation applies — "the source that says trial
+// division decides primality". It was set into the payload and never checked, so a proof could
+// cite a citation that does not exist and the assembled report would carry the link as though it
+// meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same
+// axis, one verb over.
+func requireCitation(runDir, label, verb, flag string) error {
+	if label == "" {
+		return nil
+	}
+	known, err := CitationLabels(runDir)
+	if err != nil {
+		return err
+	}
+	for _, k := range known {
+		if k == label {
+			return nil
+		}
+	}
+	return fmt.Errorf("record: %s %s=%s names no citation on the record — blue has cited %d source(s), and `show evidence` lists them by anchor. Cite the method with `blue cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
+		verb, flag, label, len(known))
+}
+
+// requireAvenue refuses a move against an avenue nobody proposed.
+//
+// `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
+// a status change for a line of inquiry that was never opened — and the lines-of-inquiry view
+// renders it, so the run shows a direction being abandoned that nothing ever proposed.
+func requireAvenue(runDir, id, verb, flag string) error {
+	if id == "" {
+		return nil
+	}
+	b, err := BoardState(runDir)
+	if err != nil {
+		return err
+	}
+	for _, a := range Avenues(b) {
+		if a != nil && a.ID == id {
+			return nil
+		}
+	}
+	return fmt.Errorf("record: %s %s=%s names no avenue on the record — `show lines-of-inquiry` lists every one with its id and fate. Propose it first (`blue avenue --line …`, which ASSIGNS the id); --id moves an avenue that already exists",
+		verb, flag, id)
+}
+
 func requireSeat(runDir, seatID, verb, flag string) error {
 	if seatID == "" {
 		return nil

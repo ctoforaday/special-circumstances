@@ -699,10 +699,33 @@ import (
 //
 //	       A stale binary answers `show --view changelog` and `--view citation-ledger`.
 //
+//	0.63.0 A VALUE THE TOOL CAN CHECK IS CHECKED. A sweep of every flag in the tree found four
+//	       that named something the record or the report holds and were taken on the seat's word.
+//
+//	       `merge mint --location` took PROSE, while `lens finding --location` has always been
+//	       refused on a mis-quote. Measured (#359): three gaps were minted naming report sections
+//	       that do not exist, two of them `--existence verified` — a seat asserting it had checked
+//	       a defect at the leaf, at a place the tool never confirmed was there. It is matched now,
+//	       and the refusal names the omission convention: quote the sentence where it SHOULD be,
+//	       which is how a lens finding already anchors an absence.
+//
+//	       `blue prove --cites` named the METHOD citation a computation applies and was written
+//	       straight into the payload — a proof could claim a provenance that did not exist and the
+//	       report rendered the link. `blue avenue --id` required an id to be PRESENT, not to name
+//	       anything, so a move could abandon a direction nobody proposed.
+//
+//	       AND A CORRUPT CLASS REGISTRY SILENTLY DISABLED THE CLASS GATE. `loadRegistry` returned
+//	       nil on any read or parse failure, and nil means advisory, so an unreadable file accepted
+//	       every slug for a whole run. The recorded reason was "as in the oracle" — the JS engine
+//	       retired in #121, so the justification outlived itself. An ABSENT registry stays advisory;
+//	       a staged one that cannot be read is refused.
+//
+//	       A stale binary accepts a mint at a location no reader can find.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.62.0"
+const Version = "0.63.0"
 
 func init() { record.ToolVersion = Version }
 

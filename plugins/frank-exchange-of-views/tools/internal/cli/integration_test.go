@@ -44,12 +44,17 @@ func seatRun(t *testing.T) string {
 }
 
 // mintGap mints through the merge seat and returns the tool-assigned id.
+//
+// It passes NO --location. Since 0.63.0 a mint's location is matched against blue/report.md, and
+// callers here seed different reports — a helper carrying one sentence would only work for the
+// callers whose report happens to contain it. Location is optional on mint; a test that means to
+// exercise it passes its own quote.
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", key, "--class-new", class,
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--location", "§1 \"a quoted sentence\"", "--problem", "the defect", "--fix", "the fix",
+		"--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low")
 	if err != nil {

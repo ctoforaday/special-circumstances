@@ -3,6 +3,7 @@ package merge
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -56,6 +57,32 @@ func newMint() *cobra.Command {
 				seat.Set(cmd, p, "class", flags.Class)
 			}
 			p.Set("class_new", seat.Given(cmd, flags.ClassNew))
+
+			// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
+			//
+			// `lens finding --location` is REFUSED on a mis-quote — the anchor cannot be spliced
+			// where the text is not. Mint's took prose, on the reasoning that a gap's location is
+			// "recorded for a reader". Measured (#359): three gaps were minted naming report
+			// sections that do not exist, two of them `--existence verified`. A seat asserted it
+			// had checked a defect at the leaf, at a place the tool never confirmed was there.
+			//
+			// A location a reader cannot find is not a location. It is refused now, by the same
+			// rule the lens has always been held to.
+			//
+			// AN OMISSION STILL HAS A PLACE. A gap about something MISSING has no span of its own
+			// — so quote the sentence where it should be, which is exactly what a lens finding
+			// about an omission already does. The refusal says so, because a seat that reads
+			// "not found in report.md" and has an omission on its hands would otherwise conclude
+			// the verb cannot express what it is holding.
+			if loc := seat.Str(cmd, flags.Location); strings.TrimSpace(loc) != "" {
+				report, err := record.ReadBlueReport(s.RunDir)
+				if err != nil {
+					return nil, err
+				}
+				if _, _, lerr := bluedoc.LocateUnique("merge mint --location", string(report), loc); lerr != nil {
+					return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission", lerr)
+				}
+			}
 			seat.SetSame(cmd, p, flags.Definition, flags.Neighbor, flags.Distinguisher, flags.Location)
 			p.Set("problem", problem)
 			seat.Set(cmd, p, "required_fix", flags.Fix)
@@ -163,7 +190,7 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.Definition, "", "what the new class is, in one line")
 	c.Flags().String(flags.Neighbor, "", "the existing class this one sits closest to")
 	c.Flags().String(flags.Distinguisher, "", "the tie-break question that tells the two apart")
-	c.Flags().String(flags.Location, "", "where the defect lives: a section heading plus a quoted sentence. Unlike `lens finding --location` this is NOT matched against the report — it is recorded for a reader, so prose is fine here")
+	c.Flags().String(flags.Location, "", "REQUIRED-IF-GIVEN — the EXACT sentence the defect lives at, quoted from blue/report.md and nothing else (matched, and refused if not found — for an omission, quote the sentence where it SHOULD be). Was prose until 0.63.0, when three gaps turned out to name sections that did not exist. against the report — it is recorded for a reader, so prose is fine here")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	c.Flags().String(flags.FixOld, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact current span you say is wrong (must be present and unique in blue/report.md — a proposal you cannot state legally is one blue cannot apply). Requires --fix-new")

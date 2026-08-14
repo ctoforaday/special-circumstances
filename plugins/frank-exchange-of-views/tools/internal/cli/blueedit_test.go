@@ -317,7 +317,7 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class-new", "overclaim", "--definition", "d", "--neighbor", "n",
-		"--distinguisher", "x", "--location", "§1", "--problem", "the defect",
+		"--distinguisher", "x", "--location", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
 		"--fix-old", "Five independent verification", "--fix-new", "Five verification"); err != nil {
@@ -393,7 +393,7 @@ const prescribedText = "Five verification approaches agree, all sharing one defi
 func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", key, "--class", "overclaim", "--location", "§1", "--problem", "the defect",
+		"--key", key, "--class", "overclaim", "--location", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--likelihood", "medium", "--impact", "medium",
 		"--fix-old", fixOld, "--fix-new", fixNew)
@@ -407,7 +407,8 @@ func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 // state that estops red.
 func seedProposalApplied(t *testing.T, runDir string) string {
 	t.Helper()
-	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	// TWO sentences: the second is UNRELATED text the estoppel case points at.
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n\nSieve costs grow with the bound.\n")
 	// A first gap so the class exists, then the one that carries the proposal.
 	mintGap(t, runDir, "G0", "overclaim")
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
@@ -499,7 +500,9 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 	seedProposalApplied(t, runDir)
 
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--key", "G2", "--class", "overclaim", "--location", "§4 \"an entirely different claim about sieve costs\"",
+		// UNRELATED, but PRESENT. Since 0.63.0 a mint's --location is matched against the report,
+		// so "text the guard should not cover" can no longer mean "text that does not exist".
+		"--key", "G2", "--class", "overclaim", "--location", "Sieve costs grow with the bound.",
 		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
