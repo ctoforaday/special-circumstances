@@ -224,9 +224,16 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
-  for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble']) {
+  // THE LENS IS IN THIS LIST NOW. It was the one seat class the clause was never appended to —
+  // found 2026-08-13 when the orphan gate reported `lens friction` as named nowhere a seat reads.
+  // Four lens seats per round were told to close a channel nobody had told them about.
+  for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble', 'red-lens-1-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
-    assert.ok(c.prompt.includes('friction verb') && c.prompt.includes("envelope's friction field"), `${seat} missing friction-report clause (envelope + verb)`)
+    // The COMMAND, not the phrase "friction verb": the clause names `<role> friction` now, so a
+    // seat can run what it is told to run. Asserting the old prose would pass over a clause that
+    // never shows the invocation — which is exactly how these verbs went uninstructed.
+    assert.ok(/\b(lens|merge|blue|bench) friction --none\b/.test(c.prompt) && c.prompt.includes("envelope's friction field"),
+      `${seat} missing friction-report clause (envelope + the role-qualified command)`)
   }
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
   assert.ok(lens.prompt.includes('MUST NOT write to') && lens.prompt.includes('debate.md'), 'lens must be transcript-forbidden')

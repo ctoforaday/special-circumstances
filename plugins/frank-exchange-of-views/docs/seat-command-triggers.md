@@ -53,7 +53,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 |---|---|---|---|
 | `merge mint` | a defect worth putting on the board | `RED_ENVELOPE.gaps[]` re-typed every open gap's prose every round | EXECUTED: the envelope carries routing refs and the board is read back with `show worklist` |
 | `merge close` | a gap answered, with an anchor naming who checked what with which tool | — | CLEAN |
-| `merge regrade` | change a gap's grade in place | debate.js prose "apply the new grade in the ledger" never named the verb, so a seat may re-mint or edit instead | NOT EXECUTED (#325). Zero mentions in debate.js or the constitutions — and the 2026-08-12 elicitation found seats did not list it among their options at all, which is *never perceived* rather than *weighed and declined* |
+| `merge regrade` | change a gap's grade in place | debate.js prose "apply the new grade in the ledger" never named the verb, so a seat may re-mint or edit instead | EXECUTED (#325, verified 2026-08-13): named in debate.js and in red-auditor.md. The 2026-08-12 elicitation then found a merge seat listing it unprompted — *"Regrade R1-1 without closing it — lower severity, keep it open until blue actually edits"* — which is the move from *never perceived* to *weighed* the naming was for |
 | `merge near-match` | before minting: is this gap already on the board, open or closed? | the archive read the merge would otherwise do by hand | CLEAN (read-only, records nothing). Same elicitation result as `regrade` — unnamed in the prompts, unlisted by the seats |
 | `merge spot-check` | the round archive spot-check duty | the envelope array is deleted | RESOLVED (#317): the verb is the single channel and its floor is computed from the board |
 | `merge position` | the round's RED narrative | a hand-written `### RED` section in debate.md | EXECUTED: the transcript is rendered from `position` events |
@@ -85,7 +85,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 |---|---|---|---|
 | `bench opinion` | ruling on a docketed item, with principle, tension and review-flag | — | CLEAN |
 | `bench outcome` | the run's terminal act | — | CLEAN. It carried no reasoning at all until a bench seat reached for `--reason`, found nothing, and filed the absence as friction — so `--reason` is required (#375): the verdict is derived, how the sitting ENDED is not |
-| `bench halt` | end the run on a safety boundary | `motion petition rule --as halt` | NOT EXECUTED (#329). This is the safety boundary, and the two channels still disagree |
+| `bench halt` | end the run on a safety boundary | `motion petition rule --as halt` | EXECUTED (#329, verified 2026-08-13): debate.js emits `ruling: 'halt'` zero times; the halt is `bench halt` and the petition enum rules `granted\|denied` only |
 | `bench certify` | asking a human to re-examine something at run end | — | CLEAN. The fold-into-`outcome` decision is REVERSED (#328): a certification and a verdict are different speech acts |
 | `bench assemble` | compose the final report from the record and blue's audited report | — | CLEAN |
 
@@ -130,12 +130,13 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
    ruling: debate.js routes a halt-on-petition through `bench halt` (carrying the opinion), and
    `petition-rule` records `granted|denied` only. *(Decided against aligning the enum to the driven
    path — halt is a first-class terminal act, distinct from a petition disposition.)*
-   **NOT EXECUTED — #329.** debate.js still emits `ruling: 'halt'` and the record enum still
-   refuses it, so a halt-on-petition fails to record. This is the safety boundary.
+   **EXECUTED — #329, verified 2026-08-13.** debate.js emits `ruling: 'halt'` zero times and a
+   halt goes through `bench halt`. This paragraph claimed the safety boundary was broken for as
+   long as the fix had been in — see the note under this list.
 2. **existence → add `mint --existence`.** Wire the write-path (`verified|suspected`) so the
    leaf-check axis lands on the record and dedups out of the envelope.
-   **HALF EXECUTED — #331.** The flag shipped and is driven; no gap in the report shows which it
-   is, which is grading v2's whole point.
+   **EXECUTED — #331, verified 2026-08-13.** `existence` is on `GapJSON` and the assembled report
+   renders `existenceNote` per gap, which is grading v2's whole point.
 3. **petition filing / spot-check / manifest-row → the record verb is the single source.** The verb
    event is canonical; the envelope carries a routing ref, not the data.
    **EXECUTED — #315 (petition filing), #317 (spot-check, with its W1.8 floor now computed from the
@@ -153,6 +154,22 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
    This one was taken on a tidy-looking symmetry — "a certification is part of the verdict" — and
    the code disagreed for a year without anyone noticing, because nothing reconciled the two.
 
+> **THREE OF THE ROWS BELOW WERE FALSE FOR WEEKS, AND EACH NAMED A CLOSED ISSUE.**
+>
+> Verified 2026-08-13: `#329` said the halt channel was broken ("this is the safety boundary");
+> `#331` said no gap shows verified-vs-suspected; `#325` said `regrade` had zero mentions. All
+> three were fixed, all three issues were CLOSED, and this file went on asserting the opposite.
+>
+> The mechanism was the section this note sits in. `scripts/decisions` checks that a tracked
+> verdict NAMES an issue — it never checked whether the issue was still open, so a tracker
+> discharged elsewhere left the claim standing with a valid-looking reference attached. A
+> reference is evidence that someone filed something, not that the thing is still true.
+>
+> `NOT EXECUTED` and `HALF EXECUTED` are tracked verdicts now, and the gate resolves each named
+> issue when `gh` is reachable — failing on a closed tracker beside an unexecuted claim. Where it
+> cannot reach the API it says so out loud rather than passing: an unchecked claim and a checked
+> one must not print the same line.
+
 ## Status of the collapses
 
 | collapse | state |
@@ -160,7 +177,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 | **Envelope round-trip** — the dominant token lever: the envelope carries refs, the tool re-derives from the record | PARTIAL. Done for grade disputes, manifest (#318) and the docket. `corroboration[]` (#326) and the petition ruling's opinion prose (#330) still round-trip. |
 | **observe/dispose → retire** | EXECUTED (#327, 2026-08-09). Re-opened after #320 gave observations a reader, then decided to retire regardless: the two verbs and their events are gone, and "undisposed" became "credited by no gap". **The cost is stated, not hidden — `checked-held` (a check red RAN and confirmed) has no successor vocabulary**, so the run can no longer record a confirmed negative outside the spot-check and proof paths. |
 | **revision / CHANGELOG.md** — the event is canonical; drop the file | NOT EXECUTED (#251). The last item of the record-tool plan's deletion list; the other four are done. |
-| **regrade → canonical; debate.js must name it** | NOT EXECUTED (#325). Zero mentions in debate.js or the constitutions. |
+| **regrade → canonical; debate.js must name it** | EXECUTED (#325, verified 2026-08-13). Named in debate.js and red-auditor.md, and a probed merge seat listed it among its options unprompted. |
 | **tldr / open_questions → drop from the envelope** | DONE. Now `CLEAN` in the table. |
 | Shipped before this section had trackers | the board `mint` duplication (#225), the retire detector (#226), the `undisposed_observations` metric (#227). |
 | **the three propose→rule exchanges → one `motion` group** | EXECUTED (#344, 2026-08-10). `blue dispute`, `merge dispute-respond`, `<seat> petition`, `bench petition-rule` and `merge avenue-rule` are GONE, and so is the `contests_ruling` field. They are `motion <subject> file|rule|appeal`, subgrouped by subject, joined on a minted id. **The rows above that name those verbs are HISTORY and are deliberately not rewritten** — they record what was decided when it was decided, and a ledger edited to match the present tense stops being evidence about how these calls get made. Read them against this row. Three consequences worth naming: `petition-rule`'s opinion round-trip (#330) is now a motion ruling's `opinion`; the `(gap_id, dimension)` join that row 50 calls CLEAN is superseded by the id, which is the only thing that ever fixed #312; and the dual-read of all five retired types is PERMANENT, not a migration window — a record is permanent, and this plugin cannot see an installing project's records to know when the old shapes are gone. |

@@ -152,32 +152,50 @@ func TelemetryJSONL(runDir string) ([]byte, error) {
 	return []byte(out), nil
 }
 
+// markdownViews is the set of markdown projections, and it is a TABLE so that the set can be
+// ENUMERATED rather than restated.
+//
+// It was a switch, and the test that exercised it carried its own hand-written list of names. The
+// two drifted the only way they could: `changelog` and `citation-ledger` lost their last caller
+// (one to the board collapse, one to `show evidence`), nothing wrote their files any more, and the
+// test went on rendering them — so the ONLY place those projections still existed was the test
+// proving the code could produce them. One of them was carefully extended, with a new column, six
+// releases after its last reader went away.
+//
+// MarkdownViews() is what a test iterates now. A renderer with no name in this table does not
+// compile in; a name here with no test is one the coverage walk reports.
+var markdownViews = map[string]func(b *record.Board, scope string) ([]byte, error){
+	"changes":          func(b *record.Board, scope string) ([]byte, error) { return changesMD(b, scope) },
+	"ledger":           func(b *record.Board, _ string) ([]byte, error) { return ledgerMD(b), nil },
+	"archive":          func(b *record.Board, _ string) ([]byte, error) { return archiveMD(b), nil },
+	"debate":           func(b *record.Board, _ string) ([]byte, error) { return debateMD(b), nil },
+	"lines-of-inquiry": func(b *record.Board, _ string) ([]byte, error) { return inquiryMD(b), nil },
+}
+
+// MarkdownViews returns the markdown projection names, sorted. Exported so a test iterates the
+// REAL set rather than a copy of it.
+func MarkdownViews() []string {
+	out := make([]string, 0, len(markdownViews))
+	for name := range markdownViews {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // Markdown returns one markdown projection, rendered in-memory from the record.
 // Byte-identical to what render.go formerly wrote to disk.
 // scope narrows a view that supports it (today: `changes`, by gap id). "" is unscoped.
 func Markdown(runDir, name, scope string) ([]byte, error) {
+	render, ok := markdownViews[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown markdown view %q (have: %s)", name, strings.Join(MarkdownViews(), ", "))
+	}
 	b, err := record.BoardState(runDir)
 	if err != nil {
 		return nil, err
 	}
-	switch name {
-	case "changes":
-		return changesMD(b, scope)
-	case "ledger":
-		return ledgerMD(b), nil
-	case "archive":
-		return archiveMD(b), nil
-	case "debate":
-		return debateMD(b), nil
-	case "changelog":
-		return changelogMD(b), nil
-	case "citation-ledger":
-		return citationLedgerMD(b), nil
-	case "lines-of-inquiry":
-		return inquiryMD(b), nil
-	default:
-		return nil, fmt.Errorf("unknown markdown view %q", name)
-	}
+	return render(b, scope)
 }
 
 // ledgerMD — open gaps + closure index. NB: no trailing newline (render.go parity).
@@ -521,18 +539,6 @@ func debateMD(b *record.Board) []byte {
 	return []byte(strings.Join(debateParts, "\n") + "\n")
 }
 
-// changelogMD — blue's per-round revision record. Trailing newline (render.go parity).
-func changelogMD(b *record.Board) []byte {
-	changelog := []string{"# blue CHANGELOG — RENDERED PROJECTION"}
-	for _, e := range b.Events {
-		if e.Type != "revision" {
-			continue
-		}
-		changelog = append(changelog, fmt.Sprintf("\n## Round %d\n%s", e.Round, e.Payload.Str("text")))
-	}
-	return []byte(strings.Join(changelog, "\n") + "\n")
-}
-
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(b *record.Board) []byte {
 	// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot avenue entries by
@@ -598,38 +604,4 @@ func inquiryMD(b *record.Board) []byte {
 			"an intention, not a choice._", "")
 	}
 	return []byte(strings.Join(inquiry, "\n") + "\n")
-}
-
-// citationLedgerMD — the claims RED CHECKED, with the source, the verdict, and which citation
-// it was about. Trailing newline (render.go parity).
-//
-// It reads `verify` events, not `cite`. Before the split (#341) both acts shared the `cite`
-// type, so this ledger rendered BLUE'S AUTHORED CITATIONS alongside red's verifications — and
-// blue's carry location/url/title rather than claim/reference/confidence, so each one rendered
-// as a row of undefined fields. The ledger red reads to decide what it need not re-fetch was
-// padded with blank rows for citations it had never checked.
-//
-// The verdict column USED to be a `trust` grade of high|medium|low, all three of which mean the
-// source supports the claim. A row saying the source did NOT could not be written, and this
-// file's reader — capture's assembly screen — scanned it for exactly that. It now renders the
-// `outcome`, whose negative half is the point, and the ANCHOR, so a human reading this file can
-// tell which citation each row adjudicates.
-func citationLedgerMD(b *record.Board) []byte {
-	cites := []string{"# red citation-ledger — RENDERED PROJECTION",
-		"", "_claim | source | verdict | confidence | citation | round | access date_", ""}
-	for _, e := range b.Events {
-		if e.Type != "verify" {
-			continue
-		}
-		anchor := e.Payload.Str("anchor")
-		if anchor == "" {
-			// The explicit negative, not a blank: red checked a source it found ITSELF, which
-			// never had an anchor to name. A blank cell would read as a missing field.
-			anchor = "(independent)"
-		}
-		cites = append(cites, fmt.Sprintf("%s | %s | %s | %s | %s | r%d | %s",
-			undefStr(e.Payload, "claim"), undefStr(e.Payload, "reference"), undefStr(e.Payload, "outcome"),
-			undefStr(e.Payload, "confidence"), anchor, e.Round, undefStr(e.Payload, "access_date")))
-	}
-	return []byte(strings.Join(cites, "\n") + "\n")
 }

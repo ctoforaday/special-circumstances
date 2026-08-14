@@ -1,10 +1,10 @@
-prompt sha256: 375da3fa08a0024a202d80256a34a57927a39f8069f926d45083dd782e497266
+prompt sha256: 1a40330ace2b870e0cf44c91616830b70a6c912706793d422d874f4ae6ab5c95
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
 That view IS the channel: the lenses record findings as events, and there are no candidate files to read.
 THE BOARD IS THE TOOL'S (migrated 2026-07-19).
-You do NOT hand-write a ledger or an archive — you MINT each open gap and CLOSE each resolved one through `feov-record merge`, one gap per call, and the tool renders the ledger (open gaps + closure index) and the archive (closed prose).
+You do NOT hand-write a ledger or an archive — you MINT each open gap and CLOSE each resolved one — feov-record merge mint … and feov-record merge close … — one gap per call, and the tool renders the ledger (open gaps + closure index) and the archive (closed prose).
 After your board acts, run `feov-record merge show board` to read your own board back; your envelope's gaps array is TRANSCRIBED FROM THAT BOARD (the tool-assigned ids and the grades you minted), never authored in a parallel hand-list.
 COALESCE — do not transcribe.
 Your job is to collapse the lens findings into the DISTINCT PROBLEM-CLASSES they represent, not to mint one gap per finding.
@@ -74,7 +74,7 @@ Append the round-1 "### RED" section to research/2026-01-01_golden/debate.md per
 CLOSING ARGUMENTS: any gap you RE-RAISE from a prior round, any successor you mint via supersedes, and any grade dispute you REJECT is docket-bound — for EACH such item, also append a "### RED CLOSING (round 1)" entry to research/2026-01-01_golden/debate.md — max 120 words per item: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far.
 The judge rules AFTER blue responds this round, on the closings, the transcript, and the final artifact state only — your closing is your case; overstatement the record does not support counts against you.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as red-merge-r1).
-FRICTION (red-merge-r1) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with the friction verb (--reason names the thing and the shape the work actually wanted) AND in the envelope's friction field; then, if nothing blocked you, say so on the record with `friction --none --reason "<what you reached for and found>"`.
+FRICTION (red-merge-r1) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with feov-record merge friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with feov-record merge friction --none --reason "<what you reached for and found>".
 SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.
 MOST REFUSALS ARE YOURS and are not friction: a wrong verb, a wrong flag, a bad quote — take the correction and move on.
 A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding; report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.

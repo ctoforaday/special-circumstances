@@ -1,4 +1,4 @@
-prompt sha256: c2e65319b2f3b58d43880b3ca6a391531f9e5d6b37c49b61ca7c1af0520c1f26
+prompt sha256: b5a82e7ac66570e26576240540645ff9497bf9e6ebdc4bcc3644efe4b768ab9c
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -24,7 +24,7 @@ REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your
 CLAIM UNIT (pinned — two honest merges differed 2x without it): claim_count = the number of CITED declarative claims (a sentence carrying at least one citation anchor counts once; uncited prose counts zero; a multi-citation sentence still counts once).
 Start research/2026-01-01_golden/blue/CHANGELOG.md with a Round 0 entry describing the synthesis and stating claim_count (the tracked copy of the envelope figure). round_record_appended: set TRUE only after the CHANGELOG Round 0 entry exists on disk.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-synthesize).
-FRICTION (blue-synthesize) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with the friction verb (--reason names the thing and the shape the work actually wanted) AND in the envelope's friction field; then, if nothing blocked you, say so on the record with `friction --none --reason "<what you reached for and found>"`.
+FRICTION (blue-synthesize) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with feov-record blue friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with feov-record blue friction --none --reason "<what you reached for and found>".
 SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.
 MOST REFUSALS ARE YOURS and are not friction: a wrong verb, a wrong flag, a bad quote — take the correction and move on.
 A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding; report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.

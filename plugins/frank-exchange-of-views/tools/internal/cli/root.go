@@ -689,10 +689,20 @@ import (
 //
 //	       A stale binary tells a seat to run `show --view board`.
 //
+//	0.62.0 THE LAST TWO MARKDOWN RENDERERS WITH NO CALLER ARE DELETED. `changelog` and
+//	       `citation-ledger` lost their readers to the board collapse and to `show evidence`, and
+//	       nothing wrote their files after the projections stopped being materialized. What kept
+//	       them green was a test iterating its own list of view names — so the only place either
+//	       projection still existed was the test proving the code could produce it, and one was
+//	       carefully given a new column six releases after its last reader went away. The name set
+//	       is a table now, and the test iterates the real one.
+//
+//	       A stale binary answers `show --view changelog` and `--view citation-ledger`.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.61.0"
+const Version = "0.62.0"
 
 func init() { record.ToolVersion = Version }
 

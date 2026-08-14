@@ -1,4 +1,4 @@
-prompt sha256: 67e0a9bbb8b33ef2dc852afd58718ec6eba130737ef67cc6c8564cbe5534335b
+prompt sha256: 8cdb2b6f6dd22742140155b85b4ec73cc0d9b1ed65f79d023542ee3179be8dd4
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 THE EVIDENCE LAYER — HOW YOU RESOLVE AN ANCHOR: research/2026-01-01_golden/red/citation-ledger.md first if it exists; a claim verified at HIGH confidence in a prior round stays verified — do not re-fetch it UNLESS research/2026-01-01_golden/blue/CHANGELOG.md shows its section changed this round, OR more than 2 rounds have elapsed since it was last verified, OR its recorded access date and source volatility suggest drift (living documents, issue trackers, README stats).
@@ -25,4 +25,9 @@ You MUST NOT write to research/2026-01-01_golden/debate.md — only red-merge re
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
+FRICTION (red-lens-r2-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with feov-record lens friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with feov-record lens friction --none --reason "<what you reached for and found>".
+SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.
+MOST REFUSALS ARE YOURS and are not friction: a wrong verb, a wrong flag, a bad quote — take the correction and move on.
+A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding; report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
+Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
 Return a 3-line synopsis.

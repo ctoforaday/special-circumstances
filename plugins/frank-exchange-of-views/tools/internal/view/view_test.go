@@ -219,7 +219,9 @@ func TestMarkdownOnAnEmptyRun(t *testing.T) {
 	if open != 0 || closed != 0 || anomalies != 0 {
 		t.Errorf("empty run reported open=%d closed=%d anomalies=%d", open, closed, anomalies)
 	}
-	for _, name := range []string{"ledger", "archive", "debate", "changelog", "lines-of-inquiry", "citation-ledger", "changes"} {
+	// THE REAL SET, not a copy of it. This loop used to carry its own list, which is how two
+	// renderers kept being exercised after their last caller went away.
+	for _, name := range MarkdownViews() {
 		if _, err := Markdown(runDir, name, ""); err != nil {
 			t.Errorf("projection %s errored on an empty run: %v", name, err)
 		}
@@ -519,7 +521,7 @@ func TestTelemetryUndefinedSeverityKey(t *testing.T) {
 	}
 }
 
-func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
+func TestMarkdownDebateAndInquiry(t *testing.T) {
 	runDir := t.TempDir()
 	merge := "red-merge-r1"
 	blue := "blue-lane-1"
@@ -558,11 +560,6 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 		}
 	}
 
-	changelog := md(t, runDir, "changelog")
-	if !strings.Contains(changelog, "## Round 1\nblue revised") {
-		t.Errorf("changelog is wrong:\n%s", changelog)
-	}
-
 	inquiry := md(t, runDir, "lines-of-inquiry")
 	pursuedAt := strings.Index(inquiry, "## pursued (1)")
 	abandonedAt := strings.Index(inquiry, "## abandoned (1)")
@@ -576,18 +573,10 @@ func TestMarkdownDebateChangelogInquiryAndCitations(t *testing.T) {
 		t.Errorf("an empty status produced a heading:\n%s", inquiry)
 	}
 
-	cites := md(t, runDir, "citation-ledger")
-	// The verdict column carries the OUTCOME, whose negative half is the point, and the citation
-	// column says which anchor the row adjudicates. Both were missing: the column was a
-	// supporting-only trust grade, and nothing said what the row was about.
-	if !strings.Contains(cites, "the claim | https://x | refutes | medium | c-abc | r1 | 2026-07-18") {
-		t.Errorf("citation row is wrong:\n%s", cites)
-	}
-	// A row with no anchor is red's own corroboration, and it says so — `(independent)` rather
-	// than a blank cell, which would read as a field that failed to render.
-	if !strings.Contains(cites, "undefined | https://y | undefined | undefined | (independent) | r1 | undefined") {
-		t.Errorf("a sparse citation must render its gaps as \"undefined\":\n%s", cites)
-	}
+	// THE CITATION-LEDGER ASSERTIONS ARE GONE WITH THEIR RENDERER. `citation-ledger` and
+	// `changelog` lost their last caller and kept passing here, which is what kept them looking
+	// alive — the only place either projection still existed was this test. The evidence layer is
+	// asserted where it is now read: record.EvidenceJSONOf, and `show evidence` end to end.
 }
 
 func TestMarkdownDebateSkipsEmptyRounds(t *testing.T) {
@@ -613,7 +602,7 @@ func TestMarkdownIsDeterministic(t *testing.T) {
 		ev(seatID, "aaaaaaaa", 1, 1, "mint", seatID+":mint:R1-2", record.NewPayload().
 			Set("gap_id", "R1-2").Set("problem", "q").Set("severity", "low")),
 	})
-	names := []string{"ledger", "archive", "debate", "changelog", "lines-of-inquiry", "citation-ledger"}
+	names := MarkdownViews()
 	first := map[string]string{}
 	for _, n := range names {
 		first[n] = md(t, runDir, n)

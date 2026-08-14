@@ -31,14 +31,27 @@
 // that names no issue. A decision with no issue is not resolved — it is recorded, which is a
 // different thing, and the difference is now mechanical.
 //
-// The gate deliberately does NOT check whether the issue is open, closed, or real. That would need
-// the network and would make the check unrunnable offline; and the point is not to police the
-// tracker, it is to make the absence of one impossible to write.
+// # And a reference is not a state
+//
+// The gate originally stopped there, on the reasoning that resolving the issue would need the
+// network and that the point was to make the ABSENCE of a tracker impossible to write.
+//
+// MEASURED 2026-08-13, and it is the same defect one layer further on. Three rows asserted NOT or
+// HALF EXECUTED — one of them saying the halt channel was broken, "this is the safety boundary" —
+// while all three trackers were CLOSED and all three claims were false. Naming an issue proved
+// someone had FILED something; it never proved the claim was still true, and a stale claim with a
+// valid-looking reference beside it reads more authoritative than one with none.
+//
+// So a verdict that says work is OUTSTANDING now has its tracker resolved through `gh`. Where the
+// API is unreachable the gate SAYS SO on stderr rather than passing quietly: an unchecked claim
+// and a checked one must not print the same line, or the check becomes decoration the moment the
+// network is absent. Offline runs still get the no-tracker check, which needs nothing.
 package main
 
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -51,7 +64,24 @@ const docPath = "plugins/frank-exchange-of-views/docs/seat-command-triggers.md"
 
 // tracked verdicts are the ones that assert a decision was taken. CLEAN asserts nothing beyond a
 // description of the present, so it needs no tracker.
-var tracked = []string{"COLLAPSE", "DECIDE", "RESOLVED"}
+// NOT EXECUTED and HALF EXECUTED are tracked too, and they are the ones that rotted: they assert
+// a decision was taken AND that it is still outstanding, which is a claim about the present that a
+// later fix can falsify without anyone touching this file.
+var tracked = []string{"COLLAPSE", "DECIDE", "RESOLVED", "NOT EXECUTED", "HALF EXECUTED"}
+
+// unexecuted verdicts additionally claim the work is STILL OUTSTANDING, so their tracker must
+// still be open. A closed issue beside "NOT EXECUTED" is a contradiction the document can be
+// asked about — and three of them sat here for weeks, one asserting the safety boundary was
+// broken months after it was fixed.
+var unexecuted = []string{"NOT EXECUTED", "HALF EXECUTED"}
+
+// row is one verdict cell claiming work is outstanding, with the trackers it names.
+type row struct {
+	line    int
+	verb    string
+	refs    []string
+	verdict string
+}
 
 // issueRef matches a GitHub issue reference: #123.
 var issueRef = regexp.MustCompile(`#\d+`)
@@ -67,6 +97,7 @@ func main() {
 	}
 
 	var untracked []string
+	var outstanding []row
 	rows, checked := 0, 0
 	inFence := false
 	for i, line := range strings.Split(string(b), "\n") {
@@ -79,7 +110,7 @@ func main() {
 		if inFence || !strings.HasPrefix(t, "|") || !strings.HasSuffix(t, "|") || strings.Contains(t, "---") {
 			continue
 		}
-		cells := strings.Split(strings.Trim(t, "|"), "|")
+		cells := splitCells(t)
 		if len(cells) < 2 {
 			continue
 		}
@@ -90,10 +121,14 @@ func main() {
 			continue
 		}
 		checked++
-		if issueRef.MatchString(verdict) {
+		refs := issueRef.FindAllString(verdict, -1)
+		if len(refs) == 0 {
+			untracked = append(untracked, fmt.Sprintf("  %s:%d  %s — %s", docPath, i+1, verb, firstWords(verdict)))
 			continue
 		}
-		untracked = append(untracked, fmt.Sprintf("  %s:%d  %s — %s", docPath, i+1, verb, firstWords(verdict)))
+		if claimsUnexecuted(verdict) {
+			outstanding = append(outstanding, row{line: i + 1, verb: verb, refs: refs, verdict: verdict})
+		}
 	}
 
 	if rows == 0 {
@@ -107,7 +142,106 @@ func main() {
 		fmt.Fprintln(os.Stderr, "months under a heading reading \"Resolved decisions\", and nothing reported it.")
 		os.Exit(1)
 	}
+	// THE HALF THAT WAS MISSING. Naming an issue proved someone had FILED something; it never
+	// proved the claim was still true. A reference is not a state.
+	if len(outstanding) > 0 {
+		closed, reachable := closedTrackers(outstanding)
+		switch {
+		case !reachable:
+			// LOUD, never silent. An unchecked claim and a checked one must not print the same
+			// line, or the gate becomes decoration the moment the API is unreachable.
+			fmt.Fprintf(os.Stderr, "decisions: NOT CHECKED — %d claim(s) of outstanding work name a tracker, and `gh` resolved none of them.\n", len(outstanding))
+			fmt.Fprintln(os.Stderr, "  Their trackers may be closed and the claims stale; this run did not find out.")
+		default:
+			var bad []string
+			for _, r := range outstanding {
+				for _, ref := range r.refs {
+					if closed[ref] {
+						bad = append(bad, fmt.Sprintf("  %s:%d  %s — claims outstanding, but %s is CLOSED\n      %s",
+							docPath, r.line, r.verb, ref, firstWords(r.verdict)))
+					}
+				}
+			}
+			if len(bad) > 0 {
+				fmt.Fprintf(os.Stderr, "decisions: %d row(s) claim work is outstanding while their tracker is closed:\n\n%s\n\n",
+					len(bad), strings.Join(bad, "\n"))
+				fmt.Fprintln(os.Stderr, "Either the work is done and the row is stale, or the issue was closed early. Both are worse")
+				fmt.Fprintln(os.Stderr, "than they look: this document is where a decision is recorded, and a false claim here sends")
+				fmt.Fprintln(os.Stderr, "the next reader to re-fix something — or to trust a boundary that is not there.")
+				os.Exit(1)
+			}
+		}
+	}
 	fmt.Printf("decisions: %d recorded decision(s) tracked, of %d rows\n", checked, rows)
+}
+
+// splitCells splits a markdown table row on UNESCAPED pipes.
+//
+// `strings.Split(row, "|")` was wrong in a way that could not be seen from its output. A verdict
+// naming an enum writes `granted\|denied` — the escape is required, or markdown ends the cell —
+// and a plain split cut there, so the "verdict" the gate read was the fragment after it
+// ("denied` only"). That fragment contains no verdict word, so the row was silently NOT CHECKED.
+//
+// Found while proving the closed-tracker check fires: it did not fire on the halt row, and the
+// reason was this, not the new code. The rows most likely to carry an escaped pipe are exactly the
+// ones about closed enum vocabularies — the subject matter of half this document.
+func splitCells(row string) []string {
+	var cells []string
+	var cur strings.Builder
+	esc := false
+	for _, r := range strings.Trim(row, "|") {
+		switch {
+		case esc:
+			// Keep the escaped character, drop the backslash: the cell's TEXT is what a verdict
+			// check reads, and `granted\|denied` means the words `granted|denied`.
+			cur.WriteRune(r)
+			esc = false
+		case r == '\\':
+			esc = true
+		case r == '|':
+			cells = append(cells, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	return append(cells, cur.String())
+}
+
+// claimsUnexecuted reports whether a verdict asserts the work has NOT been done.
+func claimsUnexecuted(verdict string) bool {
+	up := strings.ToUpper(verdict)
+	for _, v := range unexecuted {
+		if strings.Contains(up, v) {
+			return true
+		}
+	}
+	return false
+}
+
+// closedTrackers resolves each referenced issue's state through `gh`. reachable is false when the
+// CLI is absent or every lookup failed — the caller says so rather than treating it as clean.
+func closedTrackers(rows []row) (closed map[string]bool, reachable bool) {
+	closed = map[string]bool{}
+	seen := map[string]bool{}
+	for _, r := range rows {
+		for _, ref := range r.refs {
+			if seen[ref] {
+				continue
+			}
+			seen[ref] = true
+			out, err := exec.Command("gh", "issue", "view", strings.TrimPrefix(ref, "#"),
+				"--json", "state", "--jq", ".state").Output()
+			if err != nil {
+				continue
+			}
+			reachable = true
+			if strings.TrimSpace(string(out)) == "CLOSED" {
+				closed[ref] = true
+			}
+		}
+	}
+	return closed, reachable
 }
 
 // assertsADecision reports whether a verdict cell claims a decision was taken. Substring rather
