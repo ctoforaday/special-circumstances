@@ -169,10 +169,6 @@ const (
 	// CheckKind says what would SETTLE the acceptance check — read a document, run a
 	// computation, or verify a source. It is what lets red demand evidence prose cannot fake.
 	CheckKind = "check-kind"
-	// Existence is the leaf-check axis: was the defect VERIFIED present or SUSPECTED?
-	// Orthogonal to the grades (which score the consequence). The board reads it; this
-	// is the flag that writes it.
-	Existence = "existence"
 
 	// Lineage. Supersedes (a minted gap's ancestors) and SupersededBy (the claim that
 	// replaces a retired one) are different directions of a different relation on
@@ -257,7 +253,7 @@ func All() []string {
 		As, Notes, Status, None,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension, Confidence,
 		Class, PetitionClass, ClassNew, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Existence, FixOld, FixNew, Hypothesis, Script, Cites,
+		Problem, Fix, Check, CheckKind, FixOld, FixNew, Hypothesis, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool, Anchor, Independent,
 		Principle, Tension, ReviewFlag, Relief,

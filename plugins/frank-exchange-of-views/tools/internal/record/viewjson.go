@@ -106,15 +106,9 @@ type GapJSON struct {
 	// from whether fix_old/fix_new validated against the live report — never self-reported —
 	// so blue can tell a remedy red actually checked from one it guessed, and weight its
 	// response accordingly. Blue is NEVER obliged to apply: it may counter-edit or dispute.
-	FixBasis string `json:"fix_basis,omitempty"`
-	FixOld   string `json:"fix_old,omitempty"`
-	FixNew   string `json:"fix_new,omitempty"`
-	// Existence (verified|suspected — checked at the leaf vs inferred) and the lineage
-	// (found_by, supersedes) used to live ONLY inside the raw `mint` object, which also
-	// re-stated every field above — so each gap carried its prose twice. These are now
-	// first-class and the nested `mint` is gone: one copy, and the leaf-check axis a reader
-	// needs is no longer buried in a duplicate.
-	Existence  string   `json:"existence,omitempty"`
+	FixBasis   string   `json:"fix_basis,omitempty"`
+	FixOld     string   `json:"fix_old,omitempty"`
+	FixNew     string   `json:"fix_new,omitempty"`
 	FoundBy    []string `json:"found_by,omitempty"`
 	Supersedes []string `json:"supersedes,omitempty"`
 
@@ -178,7 +172,6 @@ func BoardJSONOf(b *Board) BoardJSON {
 			gj.FixBasis = g.Mint.Str("fix_basis")
 			gj.FixOld = g.Mint.Str("fix_old")
 			gj.FixNew = g.Mint.Str("fix_new")
-			gj.Existence = g.Mint.Str("existence")
 			gj.FoundBy = g.Mint.StrList("found_by")
 			gj.Supersedes = g.Mint.StrList("supersedes")
 		}

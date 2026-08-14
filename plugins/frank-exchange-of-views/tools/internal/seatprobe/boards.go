@@ -28,8 +28,6 @@ package seatprobe
 type Gap struct {
 	Key, Class, Location, Problem, Fix, Check, CheckKind string
 	Severity, Likelihood, Impact, Complexity             string
-	// Existence defaults to verified when empty.
-	Existence string
 	// Baits names the verb this gap should provoke, and Why is the argument a constitution would
 	// have to make for a seat to see it. Both are printed when a probe misses.
 	Baits, Why string

@@ -270,28 +270,6 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 	}
 }
 
-// GRADING V2 SPLIT EXISTENCE FROM CONSEQUENCE, and the split reached the reader on ONE half.
-// Likelihood rendered; existence rendered nowhere — so `likelihood: medium` was ambiguous in
-// exactly the way the split was designed to remove.
-func TestExistenceReachesTheReader(t *testing.T) {
-	v := existenceNote(record.NewPayload().Set("existence", "verified"))
-	if !strings.Contains(v, "verified") || !strings.Contains(v, "at the leaf") {
-		t.Errorf("a verified gap must say red checked the defect at the leaf: %q", v)
-	}
-	s := existenceNote(record.NewPayload().Set("existence", "suspected"))
-	if !strings.Contains(s, "suspected") || !strings.Contains(s, "conditional") {
-		t.Errorf("a suspected gap must say the grades are conditional on the defect being real: %q", s)
-	}
-	// A record written before the write-path shipped carries none, and inventing one would
-	// manufacture exactly the confidence the axis exists to report honestly.
-	if n := existenceNote(record.NewPayload()); n != "" {
-		t.Errorf("no recorded existence must produce no claim: %q", n)
-	}
-	if n := existenceNote(nil); n != "" {
-		t.Errorf("a nil mint must not panic or invent an axis: %q", n)
-	}
-}
-
 // A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
 // only the basis distinguishes one from an honest round-0 rewrite.
 func TestRemovalBasisReachesTheReader(t *testing.T) {

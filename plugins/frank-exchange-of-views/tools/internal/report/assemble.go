@@ -601,11 +601,10 @@ func redFindings(board *record.Board) string {
 			if fb := g.Mint.StrList("found_by"); len(fb) > 0 {
 				foundBy = "\nsurfaced by: " + strings.Join(fb, ", ")
 			}
-			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s\nrequired_fix: %s%s\nacceptance_check: %s%s",
+			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s%s\nacceptance_check: %s%s",
 				g.ID, g.Mint.Str("problem"),
 				g.Mint.Str("location"),
 				grade(g.Severity), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), grade(g.Mint.Str("class")),
-				existenceNote(g.Mint),
 				regraded,
 				g.Mint.Str("required_fix"),
 				fixProposal(g.Mint),
@@ -740,32 +739,6 @@ func archiveSpotChecks(board *record.Board) string {
 		fmt.Fprintf(&b, " (%s).** Those closures went un-re-examined; weigh the closure index accordingly.\n", strings.Join(rs, ", "))
 	}
 	return strings.TrimRight(b.String(), "\n")
-}
-
-// existenceNote says whether red CHECKED this defect at the leaf or inferred it.
-//
-// Grading v2 exists because v1 conflated two questions into one number: v1's `certain` textual
-// nits outweighed high-likelihood design flaws, because "certain" was being used to mean "I am
-// sure this exists" while the scale was supposed to grade harm. The repair split them —
-// likelihood grades the CONSEQUENCE ONLY, and `existence` carries whether the defect was
-// confirmed at the leaf.
-//
-// The split then reached the reader on ONE of its two halves. Likelihood renders; existence
-// rendered nowhere, so `likelihood: medium` was ambiguous in exactly the way the split was
-// designed to remove — it means something different for a defect someone confirmed and one
-// someone guessed at, and the report gave no way to tell which.
-func existenceNote(mint *record.Payload) string {
-	if mint == nil {
-		return ""
-	}
-	switch mint.Str("existence") {
-	case "verified":
-		return " | existence **verified** (red checked this defect at the leaf)"
-	case "suspected":
-		return " | existence **suspected** (inferred, not confirmed at the leaf — the grades below are conditional on the defect being real)"
-	default:
-		return ""
-	}
 }
 
 // fixProposal renders how a gap's required_fix was arrived at, and — where red stated one — the

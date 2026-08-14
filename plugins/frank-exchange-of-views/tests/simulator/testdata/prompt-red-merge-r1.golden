@@ -1,4 +1,4 @@
-prompt sha256: 1a40330ace2b870e0cf44c91616830b70a6c912706793d422d874f4ae6ab5c95
+prompt sha256: 0c66a43b06db3ace7a64e5325b8d1c0f72b6165796bcd895bae6eb55991e7276
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD (feov-record merge show findings) — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -12,7 +12,7 @@ Several findings that are the same defect at different sites are ONE gap.
 Separate genuine incidents; fold duplicates and near-duplicates together; mint SPARINGLY and deliberately, one considered gap at a time.
 A merge that mints a gap for every finding has not merged — it has transcribed, and it floods the docket with noise.
 There is no bulk mint and there is no markdown to dump into: the discipline is the point.
-Each gap you mint carries, in that one call, its class, location (section heading + quoted sentence), problem, required_fix, the acceptance_check red will RUN at re-audit, --check-kind (REQUIRED: document | computation | source — WHAT WOULD SETTLE that check), existence (pass `--existence verified|suspected` — leaf-checked vs inferred; it lands on the board, see `mint --help`), and severity/likelihood/impact/complexity.
+Each gap you mint carries, in that one call, its class, location (section heading + quoted sentence), problem, required_fix, the acceptance_check red will RUN at re-audit, --check-kind (REQUIRED: document | computation | source — WHAT WOULD SETTLE that check), and severity/likelihood/impact/complexity.
 YOUR TERMINAL ACT EACH ROUND: record your verdict — "null/feov-record" merge verdict --run research/2026-01-01_golden --seat-id <your SEAT_ID> --as PASS|FAIL.
 It is not ceremony.
 It CHECKPOINTS the whole event log to a recovery mirror outside the run directory (which is untracked-by-design until capture, and a stray git operation has deleted a live blackboard mid-round before), and it is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.

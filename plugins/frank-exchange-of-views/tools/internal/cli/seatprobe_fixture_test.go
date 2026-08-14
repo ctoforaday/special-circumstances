@@ -99,17 +99,12 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	}
 
 	for i, g := range b.Gaps {
-		existence := g.Existence
-		if existence == "" {
-			existence = "verified"
-		}
 		args := []string{"merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
 			"--location", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
 			"--severity", g.Severity, "--likelihood", g.Likelihood,
 			"--impact", g.Impact, "--cx", g.Complexity,
-			"--existence", existence,
 			"--reason", g.Problem + " (baits " + g.Baits + ": " + g.Why + ")"}
 		if _, err := run(t, args...); err != nil {
 			t.Fatalf("mint %s: %v", g.Key, err)

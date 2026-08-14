@@ -172,7 +172,7 @@ func TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 }
 
 // TestBoardJSONFlattensMintWithoutDuplicating pins the board de-duplication: a gap's lineage
-// (found_by, supersedes) and leaf-check axis (existence) used to live ONLY inside a nested `mint`
+// (found_by, supersedes) used to live ONLY inside a nested `mint`
 // object that ALSO re-stated every top-level field, so each gap carried its prose twice. They are
 // now first-class and the nested object is gone — one copy, and nothing a reader needs is buried.
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
@@ -192,7 +192,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	s := string(b)
 	// The lineage + leaf-check fields are promoted to the top level (their only home now).
 	// Tokens, not a compact substring — BoardJSONBytes pretty-prints.
-	for _, want := range []string{`"existence"`, `"verified"`, `"found_by"`, `"L1-F1"`, `"L5-F3"`, `"supersedes"`, `"R0-9"`} {
+	for _, want := range []string{`"found_by"`, `"L1-F1"`, `"L5-F3"`, `"supersedes"`, `"R0-9"`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
 		}

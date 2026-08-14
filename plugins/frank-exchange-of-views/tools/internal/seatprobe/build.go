@@ -51,17 +51,12 @@ func Build(runDir string, b Board, exec Exec) error {
 	}
 
 	for i, g := range b.Gaps {
-		existence := g.Existence
-		if existence == "" {
-			existence = "verified"
-		}
 		if _, err := exec("merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
 			"--location", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
 			"--severity", g.Severity, "--likelihood", g.Likelihood,
 			"--impact", g.Impact, "--cx", g.Complexity,
-			"--existence", existence,
 			"--reason", g.Problem+" (baits "+g.Baits+": "+g.Why+")"); err != nil {
 			return fmt.Errorf("mint %s: %w", g.Key, err)
 		}

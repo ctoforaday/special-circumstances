@@ -355,8 +355,8 @@ func (r *runner) mint(seatID string) string {
 	}
 	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
 		"--check", "acc", "--fix", directive, "--likelihood", r.g(), "--impact", r.g(),
-		// --location is the anchor ESTOPPEL keys on and the sweep never passed it; --existence
-		// is grading v2's verified/suspected split; --key is mint's crash-retry idempotency
+		// --location is the anchor ESTOPPEL keys on and the sweep never passed it; --key is
+		// mint's crash-retry idempotency
 		// handle; --reason is the prose channel. Four fields on the most consequential verb in
 		// the tool, none of them ever exercised by a run.
 		// A QUOTE FROM THE SEEDED REPORT, not a composed label. Since 0.63.0 a mint's --location
@@ -372,7 +372,6 @@ func (r *runner) mint(seatID string) string {
 		// a fixture. The anchor sentence is stable, and the invisible anchor layer spliced into
 		// it is ignored by the match.
 		"--location", "A § fuzz sentence to anchor findings.",
-		"--existence", pick(r.rng, []string{"verified", "suspected"}),
 		"--reason", "fuzz: the argument for raising this"}
 	if !r.classMade {
 		r.classMade = true
@@ -1843,8 +1842,6 @@ var reportExemptions = map[string]string{
 var basisFields = []struct{ evType, key, value, want string }{
 	{"outcome", "verdict_basis", "derived", "derived from the record"},
 	{"outcome", "verdict_basis", "asserted", "asserted by the bench"},
-	{"mint", "existence", "verified", "red checked this defect at the leaf"},
-	{"mint", "existence", "suspected", "the grades below are conditional on the defect being real"},
 	{"mint", "fix_basis", "verified", "with the text in front of it"},
 	{"mint", "fix_basis", "proposed", "nothing checked this demand"},
 	{"retire", "removal_basis", "verified", "the record shows it leaving"},

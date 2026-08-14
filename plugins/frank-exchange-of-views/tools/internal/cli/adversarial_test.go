@@ -64,7 +64,7 @@ func adversarialCases() []adversarialCase {
 		"--key", "k1", "--class", "self-attestation", "--problem", "p",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--cx", "low",
-		"--existence", "verified", "--reason", "the board needs something to argue about"}
+		"--reason", "the board needs something to argue about"}
 	fileGrade := seatStep{"motion", "grade", "file", "--seat-id", "blue-respond-r1",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"}
