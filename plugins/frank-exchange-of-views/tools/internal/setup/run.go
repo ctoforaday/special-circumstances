@@ -208,7 +208,11 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "gap-patterns-by-class.json"), b, 0o644)
 	}
 
-	rc := runConfig{Topic: topic, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes)}
+	absRun, absErr := filepath.Abs(cfg.RunDir)
+	if absErr != nil {
+		absRun = cfg.RunDir
+	}
+	rc := runConfig{Topic: topic, RunDir: absRun, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes)}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "run-config.json"), b, 0o644)
 	}
@@ -307,7 +311,21 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 }
 
 type runConfig struct {
-	Topic         string  `json:"topic"`
+	Topic string `json:"topic"`
+	// RunDir is the ABSOLUTE path of this run.
+	//
+	// It is recorded because the run directory reaches a seat as a STRING each seat resolves
+	// against its own working directory, and a relative one resolves differently per invocation.
+	// Measured (#358): a seat whose shell cwd was the `tools/` directory resolved
+	// `research/<slug>/` from there and built a second blackboard — the lane's entire draft, its
+	// own shards, clock and locks — while the real run's candidates directory stayed empty. Two
+	// shards of one seat class existed in both places.
+	//
+	// A seat can no longer CREATE a run directory (RegisterSeat refuses one that does not exist),
+	// which turns that failure loud. This field is the other half: the operator and every
+	// post-hoc reader can see which absolute path the run was set up at, rather than inferring it
+	// from wherever they happen to be standing.
+	RunDir        string  `json:"runDir"`
 	Model         string  `json:"model"`
 	JudgmentModel string  `json:"judgmentModel"`
 	MaxRounds     *string `json:"maxRounds"`

@@ -773,10 +773,34 @@ import (
 //
 //	       A stale binary offers `--existence` and renders a leaf-check note no seat can set.
 //
+//	0.66.0 A SEAT CANNOT CREATE A RUN DIRECTORY (#358). `register` refuses a --run that does not
+//	       exist, rather than building one.
+//
+//	       The run directory reaches a seat as a STRING it resolves against its own working
+//	       directory. Measured during research/2026-08-10_dual-read-vs-migration: a seat whose
+//	       shell cwd was the `tools/` directory resolved the relative `research/<slug>/` from
+//	       there, and the tool built a second blackboard — the lane's entire 13.7 KB draft, its
+//	       own shards, clock and locks — while the real run's blue/candidates stayed EMPTY for the
+//	       whole run. Two shards of one seat class existed in both places, so the resolution
+//	       differed per invocation rather than per seat. The seat was told `registered`.
+//
+//	       Nothing announced it, and nothing could: work landing outside the run is
+//	       indistinguishable from a seat that produced nothing, and the record simply has fewer
+//	       events in it. `setup` makes run directories; a seat is dispatched into one that is
+//	       already there, so a missing one is a seat pointed at the wrong place.
+//
+//	       Two more halves: setup records the ABSOLUTE run directory in inputs/run-config.json, so
+//	       there is a path to hand a seat rather than one it re-derives; and capture gains a
+//	       stray-records audit for shard trees that exist under no run at all — which is what the
+//	       refusal cannot see, since a wrongly-resolved directory that already exists is still
+//	       writable.
+//
+//	       A stale binary silently builds a blackboard wherever a relative path lands.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.65.0"
+const Version = "0.66.0"
 
 func init() { record.ToolVersion = Version }
 

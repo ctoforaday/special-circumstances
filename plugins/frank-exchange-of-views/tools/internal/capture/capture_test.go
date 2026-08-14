@@ -486,3 +486,43 @@ func TestAppendCostToReport(t *testing.T) {
 		t.Error("absent report.md should be a silent no-op")
 	}
 }
+
+// A STRAY IS A RECORDS TREE WITH NO RUN AROUND IT.
+//
+// Measured (#358): a seat resolved a relative --run against its own working directory and built a
+// second blackboard beside the real one — the lane's whole draft, its own shards and locks —
+// while the run it was dispatched into stayed empty. The run survived, which is why nothing
+// noticed: work landing outside the run is indistinguishable from a seat that produced nothing.
+func TestStrayRecordsAuditFindsShardsOutsideAnyRun(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, "plugins"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The run being captured.
+	runDir := filepath.Join(repo, "research", "the-run")
+	write(t, filepath.Join(runDir, "inputs", "run-config.json"), `{"topic":"t"}`)
+	write(t, filepath.Join(runDir, "records", "events-red-merge-r1-aaaaaaaa.jsonl"), "{}\n")
+
+	if got := StrayRecordsAudit(repo, runDir); got.Verdict != "PASS" {
+		t.Fatalf("a clean repo reported %s: %s", got.Verdict, got.Detail)
+	}
+
+	// A PAST RUN IS NOT A STRAY. Every run has records/, and reporting them would bury the
+	// finding under the corpus — the discriminator is whether anything SET THE DIRECTORY UP.
+	past := filepath.Join(repo, "research", "an-older-run")
+	write(t, filepath.Join(past, "inputs", "run-config.json"), `{"topic":"t"}`)
+	write(t, filepath.Join(past, "records", "events-blue-lane-1-bbbbbbbb.jsonl"), "{}\n")
+	if got := StrayRecordsAudit(repo, runDir); got.Verdict != "PASS" {
+		t.Fatalf("a past run was reported as a stray: %s", got.Detail)
+	}
+
+	// The measured shape: a records tree under tools/, from a relative path resolved there.
+	write(t, filepath.Join(repo, "plugins", "tools", "research", "the-run", "records", "events-blue-lane-1-cccccccc.jsonl"), "{}\n")
+	got := StrayRecordsAudit(repo, runDir)
+	if got.Verdict != "FAIL" {
+		t.Fatalf("a stray shard tree reported %s: %s", got.Verdict, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "tools/research/the-run/records") {
+		t.Errorf("the detail must name WHERE the stray is, or an operator cannot go and look: %s", got.Detail)
+	}
+}

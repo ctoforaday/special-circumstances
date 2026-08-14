@@ -15,6 +15,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -397,6 +398,96 @@ func AssemblyScreen(runDir string) Audit {
 }
 
 // ---- AUDIT 6: record parity ----
+
+// repoRootOf walks up from the run directory to the repository root — the directory holding
+// `plugins/`. Derived rather than passed: capture is invoked with a run directory and a
+// transcript directory, and threading a third path through every caller for one audit would be
+// more surface than the audit is worth.
+func repoRootOf(runDir string) string {
+	dir, err := filepath.Abs(runDir)
+	if err != nil {
+		return ""
+	}
+	for i := 0; i < 12; i++ {
+		if st, e := os.Stat(filepath.Join(dir, "plugins")); e == nil && st.IsDir() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+	return ""
+}
+
+// StrayRecordsAudit finds event shards written OUTSIDE any run directory.
+//
+// # What a stray is, and why it is not simply "another run"
+//
+// The repository holds many run directories, each with its own `records/`. What distinguishes a
+// STRAY is that its parent is not a run: no `inputs/run-config.json`, no `blue/`. Nothing set it
+// up; something wrote into it.
+//
+// Measured (#358): during research/2026-08-10_dual-read-vs-migration a seat whose shell cwd was
+// the `tools/` directory resolved the relative `research/<slug>/` from there, and the tool built
+// a whole second blackboard — the lane's entire 13.7 KB draft, its own shards, clock and locks —
+// while the real run's `blue/candidates/` stayed empty for the run. TWO shards of one seat class
+// existed in both places, so the resolution differed per INVOCATION, not per seat. The run
+// survived, which is the problem: work landing outside the run is indistinguishable from a seat
+// that produced nothing.
+//
+// `RegisterSeat` refuses a run directory that does not exist now, so the creation path is closed.
+// This audit covers what that cannot: a stray already on disk from an older binary, and the
+// narrower case where the wrongly-resolved directory happens to exist already.
+func StrayRecordsAudit(repoRoot, runDir string) Audit {
+	if repoRoot == "" {
+		return Audit{Check: "stray-records", Verdict: "SKIP", Detail: "no repository root to walk"}
+	}
+	captured, _ := filepath.Abs(runDir)
+	var strays []string
+	_ = filepath.WalkDir(repoRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil //nolint:nilerr // an unreadable subtree is not this audit's finding
+		}
+		switch d.Name() {
+		case ".git", "node_modules", "cache":
+			return filepath.SkipDir
+		case "records":
+		default:
+			return nil
+		}
+		parent := filepath.Dir(path)
+		if abs, _ := filepath.Abs(parent); abs == captured {
+			return filepath.SkipDir // the run being captured
+		}
+		// A REAL RUN DIRECTORY, just not this one. Every past run has records/, and reporting
+		// those would bury the finding under the corpus.
+		if _, e := os.Stat(filepath.Join(parent, "inputs", "run-config.json")); e == nil {
+			return filepath.SkipDir
+		}
+		if _, e := os.Stat(filepath.Join(parent, "blue")); e == nil {
+			return filepath.SkipDir
+		}
+		shards, _ := filepath.Glob(filepath.Join(path, "events-*.jsonl"))
+		if len(shards) > 0 {
+			rel, rerr := filepath.Rel(repoRoot, path)
+			if rerr != nil {
+				rel = path
+			}
+			strays = append(strays, fmt.Sprintf("%s (%d shard(s))", filepath.ToSlash(rel), len(shards)))
+		}
+		return filepath.SkipDir
+	})
+	sort.Strings(strays)
+	if len(strays) > 0 {
+		return Audit{Check: "stray-records", Verdict: "FAIL",
+			Detail: fmt.Sprintf("%d event shard tree(s) outside any run directory — seat work that did not reach the run it was dispatched into: %s. A relative --run resolves against the SEAT's working directory; the engine passes the absolute path recorded in inputs/run-config.json",
+				len(strays), strings.Join(strays, ", "))}
+	}
+	return Audit{Check: "stray-records", Verdict: "PASS",
+		Detail: "no event shards outside a run directory"}
+}
 
 // RecordParityAudit checks each red round has a blue sitting and a blue ROUND RECORD, floor
 // redRounds-1. redRounds/blueBlocks come from the debate view, read in-process.
@@ -1042,6 +1133,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 		FrictionAudit(friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
+		StrayRecordsAudit(repoRootOf(runDir), runDir),
 		RecordParityAudit(runDir, redRounds, blueBlocks),
 		RecordJoinAudit(runDir, transcriptDir, agentFiles),
 		AttestationAudit(runDir, transcriptDir, agentFiles, 5),
