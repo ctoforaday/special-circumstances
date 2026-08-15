@@ -726,3 +726,59 @@ The operational consequence: **do not act on §11.8's blanket "not written here"
 recoverable has to be read off the row, per session. The refusal to add a fallback path search stands
 unchanged — it was right for the reason given (a wrong file is a false citation), not because seats
 were unrecoverable.
+
+### 11.10 §11.9's correlate is wrong too, and the real one is the SEAT (measured 2026-08-15, #189)
+
+**Third axis, same method as the first two failed on: a property nobody had checked.** §11.8 said
+"not written in this environment"; §11.9 narrowed it to "the correlate is the session, not the
+clock". Both are wrong — and §11.9's own evidence was compatible with the right answer all along,
+because the row it quotes carries `agent_type: Explore` and every failing row it compares against
+carries none.
+
+Session `937047bc` — the same session §11.8 and §11.9 both call uniformly broken — now holds **both**
+populations, seconds apart:
+
+```
+2026-08-15T00:09:54Z  RESOLVED
+2026-08-15T00:09:55Z  unresolved
+2026-08-15T00:09:57Z  RESOLVED
+```
+
+All 69 `kind: "seat"` rows in that manifest:
+
+| | `agent_type` populated | `agent_type` empty |
+|---|---|---|
+| `resolved: true` | **19** | 0 |
+| `resolved: false` | 0 | **50** |
+
+**Zero exceptions.** So the unit is neither the environment nor the session. It is the seat.
+
+**Checked against disk, not against the flag.** The resolved ids were exactly the `agent-*.jsonl`
+files present — **0 resolved-but-missing**. One file was on disk whose own row recorded unresolved:
+it landed after its `stat`. The write race §11.8 refuted is therefore real, and accounts for **1 of
+16, not for the 50.** Both of §11.8's conclusions survive in scoped form: a race exists but explains
+almost nothing, and the missing files really are missing.
+
+Every row in both populations carries a non-empty `agent_id` — 69 distinct, 0 duplicates, 0 empty.
+The typeless events are not anonymous. They have an identity and no type, pointing at a file nobody
+wrote.
+
+**What Phase 0's acceptance criterion now means.** It is met for seats that carry a type and unmet
+for seats that do not, in the same session, at the same minute. "Read resolvability off the row" from
+§11.9 stands — but **per seat**, not per session, and it can now be read *without* a `stat`:
+`agent_type` empty ⟹ no transcript. Capture can classify a seat as uncapturable when the row is
+built, instead of emitting a filesystem error that reads like a transient one.
+
+**The refusal to add a fallback path search stands and is reinforced.** With 50 of 69 seats having no
+file at all, a fallback would be guessing three times in four.
+
+**What produced the typeless population is NOT determined.** Six probe agents — explicit
+`general-purpose`, explicit `claude`, explicit `Explore`, and `subagent_type` omitted — all carried a
+type and all resolved. An attempt to identify the others by searching the parent transcript for their
+ids was **contaminated and discarded**: printing the ids into diagnostics put them into the
+transcript, so the counts measured the analysis rather than the harness. Recorded rather than quietly
+dropped — a contaminated count that agrees with the hypothesis is exactly how §11.8 and §11.9 each
+got their axis wrong.
+
+Evidence and method: `plans/hook-surface-spike.md` §7a. The same measurement session closed #290's
+gate — `PreToolUse` carries `agent_id`, and it joins to `SubagentStop` on the same key (spike §7).

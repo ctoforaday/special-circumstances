@@ -29,6 +29,18 @@ import (
 // unforgeable, and never typed by the LLM. So the harness can inject the STRUCTURED facts and
 // the tool can stop inferring them.
 //
+// MEASURED 2026-08-15 (plans/hook-surface-spike.md §7, #290). That paragraph was a design premise
+// when written; the harness half of it is now observed. PreToolUse carries agent_id on subagent
+// tool calls — 9 of 9, across Bash, Read and Grep, from six agents; stable across an agent's calls;
+// distinct across concurrent agents; equal to the handle the dispatcher already holds; and
+// byte-identical to the id the same agent reports at SubagentStop, so the two hooks join on one
+// key. session_id and prompt_id are IDENTICAL across the main session and every concurrent
+// subagent, so agent_id is the ONLY field that discriminates one seat from another.
+//
+// AND THE PART THAT IS NOT TRUE YET, which this file's presence makes easy to misread: nothing
+// sets SeatVar or RoundVar anywhere in this repository. These constants have readers and no writer.
+// Every round in production is still the regex over the seat id, phantom archive included (#396).
+//
 // WHAT THIS DELIBERATELY DOES NOT TOUCH. The seat id remains the SHARD KEY and the concurrency
 // namespace. A lens index recovered from a seat name turned out to be exactly what made a
 // lock-free counter safe under parallel dispatch, and collapsing it once made 39 of 60 disposals

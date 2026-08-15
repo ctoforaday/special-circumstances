@@ -15,6 +15,8 @@ Two questions cannot be answered from inside a running session, because both are
 > - **Q1b: the answer CHANGED. A seat row resolved `true`** — 16,442 bytes, real per-seat file with
 >   `isSidechain: true` turns. #189's "never resolves / not written in this environment" is scoped to
 >   the old session, not the environment. Report on #189, gray-area §11.9.
+>   **SUPERSEDED 2026-08-15: the scope is the SEAT, not the session** — `resolved` ⟺ the payload
+>   carried an `agent_type`, 19/19 and 50/50 within one session. gray-area §11.10, spike §7a.
 > - **Q2: NOT answered, and NOT answerable from a `/clear` session.** The `/clear` this runbook
 >   prescribes is what disables the mechanism under test — see step 2's correction and
 >   `plans/context-checkpointing.md` §20. **Next runner: do NOT `/clear` if Q2 is the goal.** The
@@ -27,7 +29,19 @@ Two questions cannot be answered from inside a running session, because both are
 > Confirmed 2026-07-30T17:12Z: six firings, every row `resolved: true` with a real path. Keep the
 > procedure below — it is the check to re-run if the harness changes — but it is no longer open.
 
-### Q1b — does `agent_transcript_path` resolve? ~~**ANSWERED: no. Not a race**~~ **SOMETIMES — re-opened 2026-07-31** (#189, gray-area §11.8 → §11.9)
+### Q1b — does `agent_transcript_path` resolve? ~~**ANSWERED: no. Not a race**~~ ~~**SOMETIMES — re-opened 2026-07-31**~~ **ANSWERED 2026-08-15: per SEAT, and predictable without a `stat`** (#189, gray-area §11.8 → §11.9 → §11.10)
+
+> **The mechanism the note below calls "unknown" is now measured, and it is not the session.**
+> Across all 69 seat rows of session `937047bc`: `resolved: true` ⟺ the `SubagentStop` payload
+> carried an `agent_type`. 19/19 and 50/50, **zero exceptions**, both populations present in that
+> one session seconds apart. Verified against disk rather than the flag — the resolved ids were
+> exactly the files on disk, 0 resolved-but-missing; one file arrived after its own `stat`, so the
+> race is real and is **1 of 16, not 50 of 69**.
+>
+> **`agent_type` empty ⟹ no transcript.** That is the check to re-run, and it needs no filesystem
+> probe. What produces the typeless population is still not determined — six probe agents across
+> every `subagent_type` (and omitted) all carried a type and all resolved. Evidence:
+> `plans/hook-surface-spike.md` §7a, `plans/gray-area.md` §11.10.
 
 > **The "no" below held for 10 rows in session `937047bc` and is FALSE as a general claim.** Re-run
 > on 2026-07-31 produced `resolved: true` on the first attempt in a new session: a real 16,442-byte

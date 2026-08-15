@@ -53,6 +53,12 @@ transcript, whose lines carry `agentId` and `attributionAgent: general-purpose`.
 opening it. This is the claim the whole capture design rests on, and it holds: the seat's own
 trajectory is handed over by path, per seat, at the moment it finishes.
 
+> **SCOPED by §7a (2026-08-15).** It holds *for a seat whose `SubagentStop` payload carries an
+> `agent_type`* — as this one did, which is why the spike saw only the good case from a sample of
+> one. Measured across 69 seats: the file exists for all 19 that carry a type and for **none** of
+> the 50 that do not. Read the resolvability off the row, per seat; the path is announced either
+> way. #189.
+
 **Unbudgeted find: `background_tasks` and `session_crons`.** The memento design lists in-flight
 handles as a *mandatory, hand-authored* checkpoint field, promoted from candidate to mandatory by a
 field report where a detached download survived a compaction. The harness supplies them. Both were
@@ -359,7 +365,12 @@ writer consolidation is the fix; a lock would be the alternative.
 
 | Claim | Status |
 |---|---|
-| `SubagentStop` hands over a usable per-seat transcript path | **VERIFIED** — file opened and parsed |
+| ~~`SubagentStop` hands over a usable per-seat transcript path~~ | **VERIFIED for seats carrying `agent_type`; the file does not exist for seats without one** — 19/19 vs 50/50, §7a. The original reading below held for the one agent this spike ran, which carried a type |
+| **`PreToolUse` carries `agent_id`** | **VERIFIED** — 9/9 subagent calls, 6 agents, 3 tool types (§7). This row previously read NOT MEASURED and had once been asserted as measured; it is the gate on #290 |
+| **`agent_id` is stable per agent and distinct across concurrent agents** | **VERIFIED** — attributed by marker string, not by timing (§7) |
+| **`agent_id` joins `PreToolUse` to `SubagentStop`** | **VERIFIED** — byte-identical for 6/6 (§7) |
+| **`session_id` / `prompt_id` can namespace a seat** | **REFUTED** — identical across the main session and all concurrent subagents (§7) |
+| **A hook change in `settings.local.json` needs a session restart** | **REFUTED** — live on the next tool call (§7) |
 | `PostCompact` receives the summary | **VERIFIED** — 3 summaries, 692–11,882 chars |
 | **`PostCompact` can inject that summary back into context** | **REFUTED** — absent from the output union; stdout goes to the user; marker `NOT-SEEN` end-to-end (§3a) |
 | **`SessionStart(source=compact)` injects into the post-compaction context** | **VERIFIED** — `hook_additional_context` attachment, transcript line 42 (§3a) |
@@ -521,3 +532,102 @@ root, and keep hook state outside whatever is watched.
 carry it. `sc-checkpoint-seal` treats it as a fallback behind its explicit `-event` flag and
 documents it as unverified. The flag-first design stands (a stale `hooks.json` is still the only way
 to reach an unflagged invocation), but the fallback is now measured rather than hoped for.
+
+---
+
+## 7. `PreToolUse` carries `agent_id` — measured 2026-08-15
+
+**This closes the gate on #290**, which named exactly one unmeasured row as blocking the whole
+identity design, and which this record had previously asserted as measured when it was not.
+
+**Method.** A `PreToolUse` hook wired in `.claude/settings.local.json` with `matcher: "*"`, writing
+raw stdin to a file named by `mktemp` — unique **by construction**, never assembled from a timestamp
+and a pid, because concurrent hook processes destroying each other's records is a measured failure
+in this repo (#213) and a probe that loses payloads to a race reports a plausible zero. The probe
+always exits 0: a `PreToolUse` hook exiting 2 blocks the call, and a probe must not influence what it
+measures. Settings were backed up first and restored after; the probe is not in the tree.
+
+Session `937047bc…`, Claude Code on the web, managed container. **The hook took effect mid-session
+with no restart** — a change to `settings.local.json` was live on the next tool call.
+
+### The payload splits in two
+
+| field | main session | subagent |
+|---|---|---|
+| `agent_id` | **absent** | **present** |
+| `agent_type` | absent | present |
+| `effort` | present | absent |
+| `session_id` | `937047bc…` | **same** |
+| `prompt_id` | `844da5c2…` | **same** |
+| `transcript_path` | parent `.jsonl` | **same** (the parent's, not the seat's) |
+
+Main-session key set in full: `session_id`, `transcript_path`, `cwd`, `prompt_id`,
+`permission_mode`, `effort`, `hook_event_name`, `tool_name`, `tool_input`, `tool_use_id`. A subagent
+payload swaps `effort` for `agent_id` + `agent_type`.
+
+### The three properties the design needs, checked separately
+
+Six probe agents, each given commands carrying a unique marker string so payloads could be
+attributed by content rather than by timing.
+
+1. **Present on every subagent tool call, not only `Bash`** — 9 of 9, across `Bash`, `Read` and
+   `Grep`. The one-tool version of this claim would have been cheap and wrong.
+2. **Stable within an agent** — two agents given three separate commands each; all three of one
+   carried one id, all three of the other carried the other.
+3. **Distinct across concurrent agents, and equal to the parent's own handle** — those two ran
+   concurrently with no cross-contamination, and each id matched what the `Agent` tool returned to
+   the caller. The dispatcher therefore knows the key *before* the seat's first call, which is what
+   lets #290's step 1 write a settings file that step 3 can find.
+4. **The join to `SubagentStop` closes on the same key** — `gray-area-capture` records `agent_id` at
+   stop; for all six probes it is byte-identical to the one seen at `PreToolUse`.
+
+### The corollary, which matters more than the headline
+
+**`session_id` and `prompt_id` are identical across the main session and every concurrent subagent.**
+Neither can namespace a seat. `agent_id` is the only field on the payload that discriminates one seat
+from another — the empirical form of #290's *"`agent_id` is a collision-free identifier; if you need a
+UUID, it's that."*
+
+`agent_transcript_path` is literally `…/subagents/agent-<agent_id>.jsonl`. The harness derives it from
+the same key.
+
+### 7a. `agent_transcript_path`: the correlate is the SEAT, not the session (#189)
+
+§11.8 of `gray-area.md` said "not written in this environment". #189's first correction narrowed that
+to "the correlate is the session, not elapsed time". **Both are wrong**, and the third axis was found
+the same way as the first two — by checking a property nobody had checked.
+
+All 69 `kind: "seat"` rows of this session's trajectory manifest:
+
+| | `agent_type` populated | `agent_type` empty |
+|---|---|---|
+| `resolved: true` | **19** | 0 |
+| `resolved: false` | 0 | **50** |
+
+**Zero exceptions.** Both populations appear inside one session seconds apart (`00:09:54` resolved,
+`00:09:55` unresolved, `00:09:57` resolved), so neither "this environment" nor "this session" is the
+unit — the seat is.
+
+Checked against disk rather than trusting the flag: the resolved ids were exactly the `agent-*.jsonl`
+files present, **0 resolved-but-missing**. One file was on disk whose own row said unresolved — it
+landed after its `stat`. **So the write race is real and accounts for 1 of 16, not for the 50.**
+
+Every row in both populations carries a non-empty `agent_id` (69/69 distinct, 0 duplicates). The
+typeless events are not anonymous: they have an identity and no type, pointing at a file that was
+never written.
+
+**Operationally: `agent_type` empty ⟹ no transcript, predictable without a `stat`.** Capture can
+classify a seat as uncapturable when the row is built instead of reporting a filesystem error that
+reads like a transient one. The refusal to add a fallback path search **stands and is reinforced** —
+with 50 of 69 seats having no file, a fallback would be guessing three times in four.
+
+**What produced the typeless population is NOT determined.** All six probes — explicit
+`general-purpose`, explicit `claude`, explicit `Explore`, and `subagent_type` omitted — carried a type
+and resolved. An attempt to identify the others by looking for their ids in the parent transcript was
+**contaminated and discarded**: printing the ids into diagnostics put them into the transcript, so the
+counts measured the analysis, not the harness. Recorded rather than quietly dropped, because a
+contaminated count that agrees with the hypothesis is how this question got its axis wrong twice.
+
+§5's table carries these claims; it is the index, and this section is the evidence behind the rows
+added there. Kept in one place deliberately — a status duplicated in two tables drifts, and the
+stale copy is the one that gets read.
