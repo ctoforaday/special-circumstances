@@ -36,6 +36,55 @@ func TestDownloadArgsRefusesUnpinnable(t *testing.T) {
 	}
 }
 
+// THE ONE FAILURE EVERY OPERATOR ACTUALLY HITS must not be described as a network problem.
+//
+// Measured (#405): no plugin has a tag matching its own version — frank-exchange-of-views
+// ships 1.33.0 against a newest tag of 0.50.0, sleeper-service has no tag at all — so the
+// download asks for a tag that does not exist on every real invocation, and "release
+// download failed: <gh output>" told the operator to check their network.
+func TestFetchFailureNamesAMissingReleaseRatherThanBlamingTheNetwork(t *testing.T) {
+	const tag = "frank-exchange-of-views--v1.33.0"
+	for _, ghSays := range []string{
+		"release not found",
+		"HTTP 404: Not Found (https://api.github.com/repos/o/r/releases/tags/" + tag + ")",
+		"gh: Release Not Found\n",
+	} {
+		got := describeFetchFailure(tag, ghSays)
+		if !strings.Contains(got, "no release published") {
+			t.Errorf("gh said %q; message must name the condition, got: %s", ghSays, got)
+		}
+		if !strings.Contains(got, tag) {
+			t.Errorf("the message must name the tag that was asked for, got: %s", got)
+		}
+	}
+}
+
+// AND A MISS MUST DEGRADE TO THE TRUTH, NOT TO A GUESS. gh's wording is not a schema. If it
+// changes, this must fall back to reporting what gh actually said — never to claiming no
+// release exists, which would be a confident falsehood about a real network or auth failure.
+func TestAnUnrecognisedFetchFailureIsReportedVerbatim(t *testing.T) {
+	got := describeFetchFailure("p--v1.0.0", "  dial tcp: lookup api.github.com: no such host\n")
+	if strings.Contains(got, "no release published") {
+		t.Errorf("a DNS failure must not be reported as a missing release: %s", got)
+	}
+	if !strings.Contains(got, "dial tcp") || !strings.Contains(got, "p--v1.0.0") {
+		t.Errorf("an unrecognised failure must carry gh's own words and the tag: %s", got)
+	}
+}
+
+// The tag in the argv and the tag in the failure message come from one function, so they
+// cannot disagree about what was asked for.
+func TestTheReportedTagIsTheTagRequested(t *testing.T) {
+	b := binStatus{Name: "sc-doctor", Plugin: "gray-area", Version: "0.8.0"}
+	args, err := downloadArgs(b, "asset", "/tmp/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if args[2] != releaseTag(b) {
+		t.Errorf("argv tag %q != reported tag %q", args[2], releaseTag(b))
+	}
+}
+
 // The constructors are what make the refusal above latent rather than live, so they
 // are pinned too: if a future one can yield an empty Plugin or Version, this test is
 // where that shows up, instead of in an unpinned install in the field.

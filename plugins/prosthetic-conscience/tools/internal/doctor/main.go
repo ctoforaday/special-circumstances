@@ -332,9 +332,36 @@ func downloadArgs(b binStatus, asset, dir string) ([]string, error) {
 			b.Name, b.Plugin, b.Version)
 	}
 	return []string{
-		"release", "download", fmt.Sprintf("%s--v%s", b.Plugin, b.Version),
+		"release", "download", releaseTag(b),
 		"--repo", releaseRepo, "--pattern", asset, "--pattern", "SHA256SUMS", "--dir", dir,
 	}, nil
+}
+
+// releaseTag is the one place the tag is spelled, so the argv and the error message that
+// explains a failure cannot disagree about what was asked for.
+func releaseTag(b binStatus) string { return fmt.Sprintf("%s--v%s", b.Plugin, b.Version) }
+
+// describeFetchFailure turns gh's output into a sentence that names the condition.
+//
+// THE MESSAGE WAS WRONG FOR EVERY REAL INVOCATION. "release download failed: <gh output>"
+// reads as a network or auth problem — something a retry or a `gh auth login` might fix.
+// Measured 2026-08-15 (#405): NO plugin has a tag matching its own version. frank-exchange
+// -of-views ships 1.33.0 against a newest tag of 0.50.0, prosthetic-conscience 0.38.0
+// against 0.16.0, gray-area 0.8.0 against 0.2.0, sleeper-service has no tag at all. So the
+// download asks for a tag that does not exist EVERY time, and the operator was told the
+// wrong thing about why 100% of the time.
+//
+// A no-match returns the raw output rather than a guess, which is the honest degradation:
+// gh's wording is not a schema and this must not claim "no release exists" because a phrase
+// moved. The miss lands on today's behaviour, not on a confident falsehood.
+func describeFetchFailure(tag, ghOutput string) string {
+	out := strings.TrimSpace(ghOutput)
+	low := strings.ToLower(out)
+	if strings.Contains(low, "release not found") || strings.Contains(low, "404") {
+		return fmt.Sprintf("no release published for %s — this plugin's version has never been tagged, "+
+			"so there is no CI-built asset to fetch (not a network problem; see #405)", tag)
+	}
+	return fmt.Sprintf("release download failed for %s: %s", tag, out)
 }
 
 // fetchRelease downloads the CI-built asset for this platform, verifies its
@@ -356,7 +383,7 @@ func fetchRelease(b binStatus) error {
 	}
 	dl := exec.Command("gh", args...)
 	if msg, err := dl.CombinedOutput(); err != nil {
-		return fmt.Errorf("release download failed: %s", strings.TrimSpace(string(msg)))
+		return fmt.Errorf("%s", describeFetchFailure(releaseTag(b), string(msg)))
 	}
 	data, err := os.ReadFile(filepath.Join(tmp, asset))
 	if err != nil {
