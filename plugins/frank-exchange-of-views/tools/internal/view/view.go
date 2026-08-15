@@ -524,12 +524,47 @@ func debateMD(b *record.Board) []byte {
 		if len(disp) > 0 {
 			parts = append(parts, "### Grade disputes\n"+strings.Join(disp, "\n"))
 		}
+		// THE BENCH'S WHOLE OUTPUT, not only the part that moves a gap.
+		//
+		// This built ### LEAD from `opinion` events ALONE, so two of the bench's three acts were
+		// invisible on the surface a seat reads to catch up (#360, #361):
+		//
+		//   - a PETITION RULING, including granted relief meant to bind the next round. Measured:
+		//     a bench granted a petition in part, issued operative relief, and recorded in its own
+		//     friction that it had "issued a direction to red knowing it has no carrier".
+		//   - a DECLARATION, which has no gap to name by construction and so could never have
+		//     appeared in a list keyed on opinions.
+		//
+		// The bench is this system's ethical and safety boundary. A boundary whose rulings cannot
+		// reach the seat they bind is decoration, and an undelivered ruling is worse than an
+		// unread finding: an unread finding costs a reader, an undelivered ruling costs
+		// compliance, and nothing anywhere reported that it was not delivered.
 		var ops []string
 		for _, e := range re {
-			if e.Type == "opinion" {
+			switch e.Type {
+			case "opinion":
 				ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
 					e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
 					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("rationale")))
+			case "declare":
+				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+e.Payload.Str("holding"))
+			case "motion-rule", "petition-rule":
+				// Only the PETITION subject: a grade or direction ruling answers a motion the
+				// motions view already renders with its ask beside it. A petition ruling is the
+				// bench acting on the run itself, and its opinion is the operative part.
+				if e.Type == "motion-rule" && e.Payload.Str("subject") != "petition" {
+					continue
+				}
+				relief := ""
+				if r := e.Payload.Str("relief"); r != "" {
+					relief = "\nrelief: " + r
+				}
+				binds := ""
+				if b := e.Payload.Str("binds"); b != "" {
+					binds = " — binds **" + b + "**"
+				}
+				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s%s\n%s",
+					strings.ToUpper(e.Payload.Str("ruling")), binds, relief, e.Payload.Str("opinion")))
 			}
 		}
 		if len(ops) > 0 {

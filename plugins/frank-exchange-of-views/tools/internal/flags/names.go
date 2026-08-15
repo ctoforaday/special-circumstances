@@ -196,6 +196,12 @@ const (
 	Independent = "independent"
 
 	// The bench's vocabulary.
+	// Binds is the addressee of granted relief — set on a petition RULING, never on the filing.
+	// What a petitioner asks for and what the bench orders are different facts, and only the
+	// second binds anyone. Without it, relief was threaded into one hardcoded prompt and relief
+	// for any other seat reached nothing (#360).
+	Binds = "binds"
+
 	Principle  = "principle"
 	Tension    = "tension"
 	ReviewFlag = "review-flag"
@@ -256,7 +262,7 @@ func All() []string {
 		Problem, Fix, Check, CheckKind, FixOld, FixNew, Hypothesis, Script, Cites,
 		Supersedes, SupersededBy, Successor, FoundBy, CarriedFrom,
 		AnchorSeat, AnchorTarget, AnchorTool, Anchor, Independent,
-		Principle, Tension, ReviewFlag, Relief,
+		Principle, Tension, ReviewFlag, Relief, Binds,
 		Deadlocked, Exhausted,
 		Line, Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir,
