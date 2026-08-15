@@ -1,20 +1,40 @@
-prompt sha256: 63a53c53adbe27e0b4bbc704a1a2ebe57db13f60bc2038057916f0db26036701
+prompt sha256: d4174acea19aa377e59154683b1aaf611dd912c411eddc937b8e75e8108f80fe
 
-Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots).
+Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via `"/opt/feov/bin/feov-record" blue show lines-of-inquiry --run research/2026-01-01_golden` (the tool renders it fresh from the avenue events on the record).
+Blue's DECLINED and ABANDONED avenues are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
+Attack the reasons, not just the conclusions: a declined avenue whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong.
+RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually took must be the ones on the avenue record.
+A section built on a line of inquiry that was never proposed is undeclared scope; an avenue still sitting at proposed or pursued late in the run is a decision nobody made.
+Both are findings.
+Measured over six runs: 83 of 86 avenues were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it..
 Re-read the FULL living report through the tool — `lens show report` (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
 Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
-Record EACH finding as an event via the finding verb (--key <local F1> --severity/--likelihood/--impact --location --reason) — the TOOL assigns the run-unique label L6-F{N} (your lens number 6 is your ROLE, stable across rounds: L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so found_by stays comparable run-wide) and returns it.
+Record EACH finding as an event: "/opt/feov/bin/feov-record" lens finding --key <your own local F1, F2 …> --severity <g> --likelihood <g> --impact <g> --location "<section heading + quoted sentence>" --reason "<the finding>" — the TOOL assigns the run-unique label L6-F{N} (your lens number 6 is your ROLE, stable across rounds: L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so found_by stays comparable run-wide) and returns it.
 You do NOT invent a label, and there is NO candidate file: the record is the only channel.
 The stable R1-N gap ids remain the merge's to assign.
-You MUST NOT write to research/2026-01-01_golden/debate.md — only red-merge records the round's "### RED" narrative, via a position event.
+Only red-merge records the round's "### RED" narrative, via a position event.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-FRICTION (red-lens-r1-L6) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with feov-record lens friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with feov-record lens friction --none --reason "<what you reached for and found>".
+FRICTION (red-lens-r1-L6) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with "/opt/feov/bin/feov-record" lens friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with "/opt/feov/bin/feov-record" lens friction --none --reason "<what you reached for and found>".
 SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.
 MOST REFUSALS ARE YOURS and are not friction: a wrong verb, a wrong flag, a bad quote — take the correction and move on.
 A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding; report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
-Do not hand-write a friction.md; the verb IS the record (the pre-tool dual-write was retired 2026-07-19).
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  /opt/feov/bin/feov-record scorecard --run research/2026-01-01_golden --chair red  and read how this chair is doing on the question in front of you so far.
+It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
+Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
+SEAT_ID: red-lens-r1-L6.
+THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritative, not "under test"): every board act happens through "/opt/feov/bin/feov-record" lens, and the tool's board — read it back with `lens show board` (structured JSON) — is the ONLY source of truth for status.
+FIRST ACTION: "/opt/feov/bin/feov-record" lens register --run research/2026-01-01_golden --seat-id red-lens-r1-L6 — then the matching verb for each act.
+YOUR CONTRACT IS `feov-record lens --help` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you.
+READ THAT LIST BEFORE YOUR FIRST ACT, EVERY SITTING — do NOT work from memory, and do NOT assume a verb is named after the thing it writes.
+MEASURED: a seat read the projection "show lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "avenue".
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
+The projection names, this prompt's words for a concept, and the verb that writes it are three different vocabularies and they do not always agree — the help is the only authoritative one, and "show --help" now names the writing verb for every view.
+Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.
+If you need something the tool does not offer, record it with the friction verb: a missing capability is a finding about the tooling, never a reason to hand-write.
+Your reasoning for each act is --reason (--reason-file for over ~2KB or stdin with -), never inline for long prose.
+It is REQUIRED on every claim and ruling act (mint, close, motion file, motion rule, opinion, retire, halt, certify), it is the ONE prose field — there is no --file/--text/--comment/--basis any more — and the report renders it, so it is your argument to the other seats, on the record where they can answer it.
 Return a 3-line synopsis.
