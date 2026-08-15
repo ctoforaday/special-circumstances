@@ -34,9 +34,10 @@ is two script invocations.
 5. **Capture the run record** (mechanics — journal copy, transcript tarball, cost.md with the
    telemetry join, the mechanized post-hoc audits, and `.run-live` marker removal):
    `<path to the feov-record executable> capture <run directory> <transcript dir>`
-   `--bin` lets the record-backed audits (telemetry, record-parity, friction-parity) read the
-   run through the tool's views (`show debate --json`, and the operator's `friction` command) instead of a
-   markdown projection; always pass it — the three audits SKIP without it, which reads as three clean audits.
+   There is no `--bin`: the three record-backed audits (telemetry, record-parity,
+   friction-parity) read the record IN-PROCESS, because `capture` IS the record binary. The flag
+   existed in the retired mjs capture, where omitting it made all three SKIP — three clean-looking
+   audits that measured nothing. It has no Go analogue and passing it is an error.
    Relay `run-record-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
    finding (missing telemetry line, shard self-report diverging from disk, envelope friction
    that never reached the record) — report it like an UNVERIFIED: plainly, never smoothed over.
