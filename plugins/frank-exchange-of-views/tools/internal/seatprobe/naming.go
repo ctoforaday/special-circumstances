@@ -198,9 +198,9 @@ func NamesSurviving(text string, sf Surface) map[string]int {
 			q := regexp.QuoteMeta(v)
 			n := len(regexp.MustCompile(`\b(lens|merge|blue|bench)\s+`+q+`\b`).FindAllString(text, -1))
 			if strings.HasPrefix(v, "motion ") {
-				n = len(regexp.MustCompile(`\b` + q + `\b`).FindAllString(text, -1))
+				n = len(regexp.MustCompile(`\b`+q+`\b`).FindAllString(text, -1))
 			} else {
-				n += len(regexp.MustCompile("`" + q + "`").FindAllString(text, -1))
+				n += len(regexp.MustCompile("`"+q+"`").FindAllString(text, -1))
 			}
 			if n > 0 {
 				out[v] = n
