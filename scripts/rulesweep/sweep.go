@@ -157,21 +157,39 @@ type input struct {
 	files    []string
 	messages []string
 	classes  []string
+	// dirty is the set of files modified in the WORKING TREE but not committed.
+	// files above comes from `git diff base...HEAD`, which is committed-only, so a
+	// branch whose protocol edits are all uncommitted produced an empty files and
+	// the cheerful "nothing to sweep" — see unmeasurable below.
+	dirty []string
 }
 
 type verdict struct {
-	ok       bool
-	skipped  bool
-	reason   string
-	touched  []string
-	problems []string
-	named    []string
-	sweeps   []string
+	ok      bool
+	skipped bool
+	// unmeasurable marks the one state this gate cannot judge: protocol surfaces
+	// ARE modified, but only in the working tree. Trailers live in commit messages,
+	// so there is nothing to read yet. That is not a pass and it is not a failure —
+	// it is the gate saying it did not fire, which is the whole point (#409).
+	unmeasurable bool
+	reason       string
+	touched      []string
+	problems     []string
+	named        []string
+	sweeps       []string
 }
 
 func evaluate(in input) verdict {
 	touched := touchesProtocol(in.files)
 	if len(touched) == 0 {
+		if pending := touchesProtocol(in.dirty); len(pending) > 0 {
+			return verdict{
+				unmeasurable: true,
+				touched:      pending,
+				reason: "protocol surfaces are modified but UNCOMMITTED. Trailers are read from commit " +
+					"messages, so this gate has nothing to check yet — it did not pass, it did not run. Commit, then re-run.",
+			}
+		}
 		return verdict{ok: true, skipped: true, reason: "no protocol surface touched"}
 	}
 
@@ -223,23 +241,33 @@ func ranges(base string) (diff, log string) {
 // collect gathers evaluate's two inputs from a real repository. Separated from main so a
 // test can drive it against a scratch repo — range construction was previously unreachable
 // from any test, which is how the wrong range survived.
-func collect(base, dir string) (files, messages []string, err error) {
+func collect(base, dir string) (files, messages, dirty []string, err error) {
 	diffRange, logRange := ranges(base)
 
 	out, err := gitx.Run(dir, "diff", "--name-only", diffRange)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	files = gitx.Lines(out)
 
 	out, err = gitx.Run(dir, "log", "--format=%B%x00", logRange)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, m := range strings.Split(out, "\x00") {
 		if strings.TrimSpace(m) != "" {
 			messages = append(messages, m)
 		}
 	}
-	return files, messages, nil
+
+	// The working tree, staged and unstaged, against HEAD. This is NOT part of the
+	// sweep — trailers cannot exist for an uncommitted change. It exists so the gate
+	// can tell "nothing to sweep" apart from "cannot sweep yet" (#409).
+	out, err = gitx.Run(dir, "diff", "--name-only", "HEAD")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	dirty = gitx.Lines(out)
+
+	return files, messages, dirty, nil
 }
