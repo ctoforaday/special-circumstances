@@ -1,1 +1,0 @@
-{"round": 1, "mapping_version": "v1", "open_count": 17, "max_severity": "high", "new_mint": {"count": 17, "by_severity": {"high": 3, "medium-high": 1, "medium": 6, "low": 7}}, "mass": 73.5, "accepted_deltas": [], "realized_open": 0, "excluded_mass_memo": "", "found_by_summary": {"L1": 0, "L2": 10, "L3": 8, "overlap": 1}}

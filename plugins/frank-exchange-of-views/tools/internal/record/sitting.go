@@ -47,13 +47,30 @@ type SittingJSON struct {
 	// the dark — which is the difference this exists to make.
 	Complete    bool   `json:"complete"`
 	Outstanding []Duty `json:"outstanding"`
+	// Available is what this board AFFORDS, and it is deliberately not an obligation — see
+	// available.go. It never touches Complete: a seat reading it is being told what is open to
+	// it, not what it owes, and conflating the two is what the rule above forbids.
+	Available []Duty `json:"available"`
 }
 
 // SittingOf computes what the given seat still owes on this board.
 func SittingOf(b *Board, role, seatID string) SittingJSON {
-	s := SittingJSON{Seat: seatID, Role: role, Outstanding: []Duty{}}
+	s := SittingJSON{Seat: seatID, Role: role, Outstanding: []Duty{}, Available: []Duty{}}
 	if b == nil {
 		return s
+	}
+	// THE ARM IS READ ONCE, HERE. Unset is the shipped behaviour, which is what every call site
+	// outside the probe gets — asserted, not assumed, by TestDutyArmDefaultIsTheShippedSet.
+	arm := CurrentDutyArm()
+	if arm == DutyOff {
+		// The floor arm: no duties, no affordances. `Complete` then reports true, which is
+		// honest for this arm and would be a lie in any other — it is the whole point of the
+		// control that the seat is told nothing about what it owes.
+		s.Complete = true
+		return s
+	}
+	if arm == DutyAvailable || arm == DutyAvailableOnBoard {
+		s.Available = AvailableOf(b, role, seatID)
 	}
 	add := func(what, how string) { s.Outstanding = append(s.Outstanding, Duty{What: what, How: how}) }
 
@@ -101,6 +118,18 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified",
 				`verdict --as PASS|FAIL`)
 		}
+	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
+	//
+	// Checked 2026-08-15 rather than assumed: nothing refuses a sitting over a missing lens act,
+	// and the scorecard scores no lens parity duty. Under the rule stated at the top of this file
+	// — every duty is enforced at a write path or scored at capture — a lens duty would be an
+	// invented obligation, and `complete: false` on a seat no gate would hold is exactly the
+	// disagreement that teaches a seat to trust neither surface.
+	//
+	// Written down because the absence reads as an oversight to anyone who has just fixed the
+	// roleOf defect and is looking for more of it. The acts a lens genuinely has open to it —
+	// verifying a citation nobody checked, re-running a proof nobody re-ran — are AFFORDANCES,
+	// and they live in AvailableOf where they carry no claim about being finished.
 	case "bench":
 		for _, m := range AllMotions(b) {
 			if m != nil && !m.Ruled() && m.Subject == "petition" {

@@ -66,11 +66,48 @@ func PartyOf(e Event) string {
 	return roleOfSeat(e.SeatID)
 }
 
+// RequireDispatchedSeat asserts the seat id is one the engine created, with no claim about which
+// role it belongs to.
+//
+// It is the half of the role guard that survives where there is no role to enforce — the motion
+// commands, whose parent is their SUBJECT. Every seat may FILE any motion and that asymmetry is
+// deliberate; being a seat at all is not optional, and it was not being checked.
+func RequireDispatchedSeat(seatID string) error {
+	if roleOfSeat(seatID) != "" {
+		return nil
+	}
+	return feov.Errorf(feov.RoleViolation, "seat %q does not belong to any role namespace — "+
+		"the engine assigns the seat id; a hand-invented one records under an identity no dispatch created. "+
+		"Every seat may file a motion, but only a seat the engine created", seatID)
+}
+
 // CheckSeatRole enforces the binding at the CLI boundary.
+//
+// AN UNKNOWN ROLE STILL CHECKS THAT THE SEAT EXISTS, and it did not.
+//
+// `if !known { return nil }` was written for the commands that have no role — and it also caught
+// every MOTION, because a motion's command parent is its SUBJECT. `motion grade file` arrives with
+// role "grade", which is in no role table, so the whole guard returned nil.
+//
+// Measured 2026-08-15, on a real board:
+//
+//	blue position      --seat-id totally-invented   REFUSED  ("does not belong to any role namespace")
+//	motion grade file  --seat-id totally-invented   ACCEPTED ("motion M2 filed (grade)")
+//
+// Every seat may FILE any motion — that asymmetry is deliberate and this does not touch it. What
+// was lost is the other half of the same guard: that the seat id is one the engine created. A
+// motion attributed to an invented identity is rendered in the report, ruled on, and joined to a
+// gap, which is exactly the property the refusal's own message claims to protect ("a hand-invented
+// one records under an identity no dispatch created").
+//
+// The shape is this repository's recurring one, in a guard: a lookup MISS returned "fine". The
+// unknown-role case and the everything-is-in-order case were the same nil.
 func CheckSeatRole(role, seatID string) error {
 	prefixes, known := roleSeats[role]
 	if !known {
-		return nil
+		// No role to enforce, so enforce what is still true: the seat must belong to SOME
+		// namespace. This is the check `motion` needs and the one it silently skipped.
+		return RequireDispatchedSeat(seatID)
 	}
 	for _, p := range prefixes {
 		if strings.HasPrefix(seatID, p) {

@@ -348,14 +348,49 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
+// readTerminalVerdict answers from the RECORD, and from nothing else.
+//
+// IT WAS A REGEX OVER report.md, and then briefly a regex kept "as a last resort", which is not a
+// justification. The verdict is a FIELD on the `outcome` event — the bench's terminal act writes
+// it — so parsing it back out of the prose it was rendered into is the shape [[facts-are-fields]]
+// names, and keeping the parse as a fallback keeps the shape.
+//
+// WHAT THE FALLBACK ACTUALLY SERVED, measured across the 9 assembled runs in research/ rather than
+// assumed:
+//
+//	2  carry an `outcome` event — the record answers
+//	1  carries a round `verdict` event and no terminal act
+//	5  carry NO terminal act at all, and their reports say "UNVERIFIED"
+//	1  has no verdict in the report either
+//
+// Those five are pre-#289 artifacts, assembled before the terminal act was an event. Their
+// "UNVERIFIED" is backed by no record anywhere — so the fallback's job was to read a word out of
+// prose and hand it to an operator as the run's verdict, which is exactly the unbacked assertion
+// `basisNote` exists to keep out of the report. A fact that no record holds is not recovered by
+// finding it written down.
+//
+// The honest answer when the record cannot say is that the record cannot say, and the renderer
+// already says it well: an empty terminal verdict falls through to the round verdict off the
+// record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
+// different claim rather than the same claim from a worse source.
 func readTerminalVerdict(runDir string) string {
-	b, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+	b, err := record.BoardState(runDir)
 	if err != nil {
 		return ""
 	}
-	m := verdictRe.FindStringSubmatch(string(b))
-	if m != nil {
-		return m[1]
+	// The bench's own terminal act, latest wins.
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if b.Events[i].Type != "outcome" {
+			continue
+		}
+		if v := b.Events[i].Payload.Str("verdict"); v != "" {
+			return v
+		}
+	}
+	// Or what the record decides for itself. ok is false only where the record genuinely
+	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
+	if v, _, ok := record.DeriveVerdict(runDir); ok {
+		return v
 	}
 	return ""
 }

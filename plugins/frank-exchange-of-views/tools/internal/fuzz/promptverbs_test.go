@@ -38,6 +38,30 @@ import (
 // than it claims is the defect this suite keeps finding, so the boundary now admits both.
 var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|bench)\s+([a-z][a-z-]+)`)
 
+// AND THE MOTION PATHS, WHICH THIS GATE DID NOT COVER AT ALL.
+//
+// A motion's path has no role in it — `motion grade file` — so promptVerb cannot match one, and the
+// orphan check below skipped them through its `switch role` default. Seven live commands sat
+// outside the question the gate exists to ask, and the exclusion was never stated: the comment
+// there explains why `show` is skipped and is silent about these.
+//
+// THE BOUNDARY IS LOOSER HERE ON PURPOSE, and the looseness is the honest trade. Prompts write
+// motions both with the binary in front (`"${binDir}/feov-record" motion grade rule --id …`) and
+// without it (`"motion direction appeal --id <A1>"`), so anchoring on the binary would have covered
+// 3 of 7 while reporting on all seven — a gate silently measuring less than it claims, which is the
+// defect this file keeps finding. `motion <subject> <verb>` is specific enough that ordinary prose
+// does not hit it.
+var promptMotion = regexp.MustCompile(`\bmotion\s+(grade|petition|direction)\s+(file|rule|appeal)\b`)
+
+// AND CODE COMMENTS ARE NOT A SURFACE A SEAT READS.
+//
+// The corpus is scanned as raw bytes, so a verb named only inside a `//` comment in debate.js
+// counted as named. Those comments describe HISTORY — several name commands precisely because they
+// were retired or moved — and no seat has ever seen one. The enum gate below already strips them
+// for exactly this reason; the verb gates did not, so "named where a seat can read it" was decided
+// partly by text no seat can read.
+var jsComment = regexp.MustCompile(`(?m)^\s*//.*$`)
+
 // EVERY PROJECTION A PROMPT NAMES MUST EXIST — the read-surface twin of the rule above.
 //
 // The verb gate cannot see this: a projection is a flag VALUE, not a verb, so `show --view
@@ -128,7 +152,16 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, m := range promptVerb.FindAllStringSubmatch(string(b), -1) {
+		text := jsComment.ReplaceAllString(string(b), "")
+		// THE SAME BLIND SPOT, IN THE FORWARD DIRECTION. This gate asked whether a named verb
+		// exists and could not see a motion at all, so a prompt telling a seat to run
+		// `motion grade retract` would have passed it. Symmetric with the orphan gate below.
+		for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
+			if p := "motion " + m[1] + " " + m[2]; !real[p] {
+				bad = append(bad, site{filepath.Base(path), p})
+			}
+		}
+		for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
 			role, verb := m[1], m[2]
 			// `show` is reached with --view and needs no per-view check here; the view names
 			// have their own single-source gate (viewNames drives the help).
@@ -193,7 +226,9 @@ func TestEveryRecordingVerbIsNamedInAPrompt(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		corpus.Write(b)
+		// Stripped, for the reason jsComment states: a seat never reads a code comment, and
+		// several of these name commands that were retired.
+		corpus.WriteString(jsComment.ReplaceAllString(string(b), ""))
 		corpus.WriteString("\n")
 	}
 	text := corpus.String()
@@ -205,6 +240,9 @@ func TestEveryRecordingVerbIsNamedInAPrompt(t *testing.T) {
 	cmdNamed := map[string]bool{}
 	for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
 		cmdNamed[m[1]+" "+m[2]] = true
+	}
+	for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
+		cmdNamed["motion "+m[1]+" "+m[2]] = true
 	}
 	if len(cmdNamed) == 0 {
 		t.Fatal("the corpus names no commands at all — promptVerb no longer matches how prompts are written, and a scan that finds nothing reports every verb as an orphan")
@@ -221,6 +259,8 @@ func TestEveryRecordingVerbIsNamedInAPrompt(t *testing.T) {
 		// scorecard, verify, graph …) are run by the human or the engine, never asked of a seat.
 		switch role {
 		case "lens", "merge", "blue", "bench":
+		case "motion":
+			// Covered by promptMotion above. Excluded before, silently, by this default.
 		default:
 			continue
 		}

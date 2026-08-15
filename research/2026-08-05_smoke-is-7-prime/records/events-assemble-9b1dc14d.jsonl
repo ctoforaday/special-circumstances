@@ -1,2 +1,0 @@
-{"seq":0,"ts":"2026-08-06T03:32:49.369909100Z","seatId":"assemble","nonce":"9b1dc14d","round":0,"type":"register","key":"assemble:register:9b1dc14d","payload":{"tool_version":"0.34.0"}}
-{"seq":1,"ts":"2026-08-06T03:33:16.533356800Z","seatId":"assemble","nonce":"9b1dc14d","round":0,"type":"outcome","key":"assemble:outcome:#1","payload":{"verdict":"CEILING","deadlocked":false,"exhausted":true}}

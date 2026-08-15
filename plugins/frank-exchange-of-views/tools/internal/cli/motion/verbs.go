@@ -19,6 +19,13 @@ func newFile(subject string, required []string) *cobra.Command {
 		Short: "file a " + subject + " motion — the tool assigns its id",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
+			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
+			// never on this path. Measured: `motion grade file --seat-id totally-invented`
+			// recorded a motion, while `blue position` with the same id was refused.
+			if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
+				return err
+			}
 			basis, err := prose(cmd, "file", "the ASK in your own words — a motion with no argument is a demand, and the ruler has nothing to rule on")
 			if err != nil {
 				return err
@@ -101,6 +108,13 @@ func newRule(subject, ruler string) *cobra.Command {
 		Short: "rule on a " + subject + " motion (the " + ruler + " seat's)",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
+			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
+			// never on this path. Measured: `motion grade file --seat-id totally-invented`
+			// recorded a motion, while `blue position` with the same id was refused.
+			if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
+				return err
+			}
 			id := seat.Str(cmd, flags.ID)
 			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
 			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
@@ -162,6 +176,13 @@ func newAppeal(subject string) *cobra.Command {
 		Short: "press a " + subject + " motion after a ruling — a ruling is an argument, not a command",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
+			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
+			// never on this path. Measured: `motion grade file --seat-id totally-invented`
+			// recorded a motion, while `blue position` with the same id was refused.
+			if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
+				return err
+			}
 			id := seat.Str(cmd, flags.ID)
 			if err := record.RequireRuledMotion(s.RunDir, subject, id); err != nil {
 				return err

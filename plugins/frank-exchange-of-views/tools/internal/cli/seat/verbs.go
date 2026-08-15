@@ -328,7 +328,9 @@ func renderView(cmd *cobra.Command, want string) error {
 			cmd.OutOrStdout().Write(arc)
 			return nil
 		}
-		b, err := record.BoardJSONBytes(runDir)
+		// The role and seat are passed so the board CAN carry the sitting; whether it does is
+		// the duty arm's decision, and unset means the board is exactly what it always was.
+		b, err := record.BoardJSONBytesFor(runDir, role, Of(cmd).SeatID)
 		if err != nil {
 			return err
 		}
