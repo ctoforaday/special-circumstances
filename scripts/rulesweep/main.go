@@ -37,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	files, messages, err := collect(*base, root)
+	files, messages, dirty, err := collect(*base, root)
 	if err != nil {
 		// A gate that cannot read its range must FAIL, not pass. The .mjs original
 		// returned "" for any git error, so a bad base ref produced zero changed files
@@ -54,11 +54,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	result := evaluate(input{files: files, messages: messages, classes: knownClasses(string(registry))})
+	result := evaluate(input{files: files, messages: messages, dirty: dirty, classes: knownClasses(string(registry))})
 
 	if result.skipped {
 		fmt.Println("rule-sweep: no protocol surface touched — nothing to sweep")
 		return
+	}
+
+	// EXIT 3 = "this gate did not measure anything", distinct from 0 (measured, clean)
+	// and 1 (measured, failed). It is a code rather than a phrase on purpose: a runner
+	// keying on prose is the shape this whole gate set keeps finding (facts-are-fields).
+	// It cannot fire in CI, where the tree is always clean.
+	if result.unmeasurable {
+		fmt.Fprintf(os.Stderr, "rule-sweep: NOT MEASURED — %s\n\n", result.reason)
+		for _, f := range result.touched {
+			fmt.Fprintf(os.Stderr, "  %s\n", f)
+		}
+		os.Exit(3)
 	}
 	fmt.Printf("rule-sweep: %d protocol surface(s) changed:\n", len(result.touched))
 	for _, f := range result.touched {

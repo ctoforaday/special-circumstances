@@ -233,7 +233,7 @@ func TestCollectUsesTheBranchSideOnly(t *testing.T) {
 	git("commit", "-q", "-m", "fix: unrelated\n\nRule-Class: adjacent-seat-omission\nSibling-Sweep: checked every sibling seat, none carries this duty")
 	git("checkout", "-q", "feature")
 
-	files, messages, err := collect("main", dir)
+	files, messages, _, err := collect("main", dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestCollectUsesTheBranchSideOnly(t *testing.T) {
 
 	// And it must still pass when the trailers really are on the branch.
 	git("commit", "-q", "--allow-empty", "-m", "chore: sweep\n\nRule-Class: adjacent-seat-omission\nSibling-Sweep: checked the adjacent seats, none carries this duty")
-	files, messages, err = collect("main", dir)
+	files, messages, _, err = collect("main", dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +272,7 @@ func TestCollectFailsOnAnUnknownBase(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
-	if _, _, err := collect("no-such-ref", dir); err == nil {
+	if _, _, _, err := collect("no-such-ref", dir); err == nil {
 		t.Error("an unresolvable base ref must surface as an error, not as an empty (passing) range")
 	}
 }
@@ -284,4 +284,102 @@ func slicesContains(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+// THE FALSE GREEN THIS GATE GAVE (#409).
+//
+// `git diff base...HEAD` is committed-only. Run with a protocol edit still in the working
+// tree, collect returned zero changed files, evaluate short-circuited on "no protocol
+// surface touched", and main exited 0. `scripts/check` reported 26 gates passed; CI then
+// failed rule-sweep on the very same branch.
+//
+// The gate was not wrong about what it saw. It was wrong to call it a pass — the miss and
+// the honest zero were the same output, which is the class this repository keeps finding.
+func TestUncommittedProtocolEditsAreNotMeasured(t *testing.T) {
+	got := evaluate(input{
+		files: []string{"tools/internal/record/record.go"},
+		dirty: []string{"plugins/p/skills/s/SKILL.md", "tools/internal/record/record.go"},
+	})
+	if got.ok {
+		t.Error("an uncommitted protocol edit must NOT report ok — that is the false green")
+	}
+	if got.skipped {
+		t.Error("this is not 'nothing to sweep'; there IS something, it just cannot be read yet")
+	}
+	if !got.unmeasurable {
+		t.Fatal("expected the unmeasurable verdict")
+	}
+	if len(got.touched) != 1 || got.touched[0] != "plugins/p/skills/s/SKILL.md" {
+		t.Errorf("the pending surfaces must be named so the author knows what to commit: %v", got.touched)
+	}
+}
+
+// A dirty tree that touches NO protocol surface is an ordinary clean sweep, not a warning.
+// Without this, every `check` run mid-edit would cry wolf and the signal would be ignored.
+func TestUnrelatedDirtyFilesStillSkipQuietly(t *testing.T) {
+	got := evaluate(input{dirty: []string{"README.md", "tools/internal/cli/root.go"}})
+	if !got.skipped || got.unmeasurable {
+		t.Errorf("a dirty tree with no protocol surface is just 'nothing to sweep': %+v", got)
+	}
+}
+
+// Committed protocol surfaces are judged on their trailers even when the tree is also
+// dirty — the working tree must never mask a real, checkable sweep failure.
+func TestCommittedSurfacesWinOverADirtyTree(t *testing.T) {
+	got := evaluate(input{
+		files: []string{"plugins/p/agents/a.md"},
+		dirty: []string{"plugins/p/skills/s/SKILL.md"},
+	})
+	if got.unmeasurable {
+		t.Error("committed surfaces are measurable; the dirty tree must not divert the verdict")
+	}
+	if got.ok {
+		t.Error("no trailers were present — this must FAIL, loudly, as it always did")
+	}
+}
+
+// collect must actually report the working tree, or the verdict above can never fire in
+// production however well the pure function is tested.
+func TestCollectSeesTheWorkingTree(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	write := func(rel, body string) {
+		t.Helper()
+		full := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	git("init", "-q", "-b", "main")
+	write("seed.txt", "seed\n")
+	git("add", "-A")
+	git("commit", "-q", "-m", "seed")
+
+	// The edit that is NOT committed — exactly the state that produced the false green.
+	write("plugins/x/skills/y/SKILL.md", "protocol\n")
+	git("add", "-A")
+
+	files, _, dirty, err := collect("main", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(touchesProtocol(files)) != 0 {
+		t.Errorf("committed-only diff should be empty here: %v", files)
+	}
+	if !slicesContains(dirty, "plugins/x/skills/y/SKILL.md") {
+		t.Errorf("collect did not see the working tree: %v", dirty)
+	}
 }
