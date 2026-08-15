@@ -41,7 +41,7 @@ func has(s, sub string) bool { return strings.Contains(s, sub) }
 func TestBuildSkeletonCreatesStubsOnlyForFilesSomethingWrites(t *testing.T) {
 	dir := t.TempDir()
 	res := BuildSkeleton(dir, "test topic")
-	if len(res.Created) != 3 {
+	if len(res.Created) != 2 {
 		t.Fatalf("created = %d, want 3: %v", len(res.Created), res.Created)
 	}
 	if !has(read(t, filepath.Join(dir, "blue", "report.md")), "test topic") {
@@ -72,8 +72,8 @@ func TestBuildSkeletonIdempotent(t *testing.T) {
 	if !found {
 		t.Errorf("blue/report.md not reported skipped: %v", res.Skipped)
 	}
-	if len(res.Created) != 2 {
-		t.Errorf("created = %d, want 2", len(res.Created))
+	if len(res.Created) != 1 {
+		t.Errorf("created = %d, want 1", len(res.Created))
 	}
 	if read(t, filepath.Join(dir, "blue", "report.md")) != "PRE-STAGED CONTENT\n" {
 		t.Error("a pre-staged file was overwritten")

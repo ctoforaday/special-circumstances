@@ -825,10 +825,32 @@ import (
 //
 //	       A stale binary has no `declare`, takes no `--binds`, and renders neither.
 //
+//	0.68.0 THE HAND-WRITTEN CHANGELOG IS RETIRED (#251) — the last item on the record-tool
+//	       plan's deletion list, and the other four were done long ago.
+//
+//	       `blue/CHANGELOG.md` and the `revision` event held the SAME content: what changed this
+//	       round. The event was always the canonical half — capture counts `revision` events, and
+//	       the report renders them as its revision history — while eight prompt sites and both
+//	       blue constitutions demanded the file. So the audit read the channel nobody was told to
+//	       write: the 2026-08-05 run carried a 6,847-byte CHANGELOG and exactly ONE revision
+//	       event across three eligible blue seats, and the parity gap was scored against blue.
+//
+//	       0.62.0 fixed half of that by finally naming the verb in a prompt. This is the other
+//	       half: `setup` no longer lays the husk, no prompt or constitution asks for it, and the
+//	       round-record gate is satisfied by a `position` event AND a `revision` event — both on
+//	       the record, which is what "a revision is not on the record until the record carries it"
+//	       was supposed to mean and could not while one half lived in a file nothing validated.
+//
+//	       Red's citation staleness trigger read the file to decide what to re-fetch. It reads
+//	       `show changes` now — the diff stack, which is what blue actually edited rather than
+//	       blue's account of it, and strictly better evidence for the question being asked.
+//
+//	       A stale binary lays down a CHANGELOG husk nothing fills.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.67.0"
+const Version = "0.68.0"
 
 func init() { record.ToolVersion = Version }
 

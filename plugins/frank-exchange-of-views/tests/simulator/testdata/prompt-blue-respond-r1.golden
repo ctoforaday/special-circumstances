@@ -1,4 +1,4 @@
-prompt sha256: f51f728c79ab8220ed0b1ae780596fa34fe1629757dae40aca5b49fce6a25544
+prompt sha256: 8d82e07651d418ce5993aee74927b2a45240bd5607abc34a3e9cc570e41b0271
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -48,7 +48,7 @@ BEFORE drafting, read the transcript from the RECORD — the latest "### RED" se
 Address every open gap ADDITIVELY in research/2026-01-01_golden/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; compact and reorganize prose as clarity demands, edit by edit through `blue edit` (a span containing an anchor is fine — carry the anchor token across verbatim in --new; quote enough context that your --old matches exactly ONE place, or the tool refuses it as ambiguous rather than editing the wrong site) — but a CLAIM leaves only through the retire verb — feov-record blue retire --claim "<the claim as it stood>" --reason "<why it goes>" [--superseded-by "<what replaces it>"], never by quietly not being there any more; capture compares the claim_count fall against the retire events and an unaccounted drop is a detector hit.
 Propagate every correction to ALL sites that state the corrected claim, not only the flagged sentence (incomplete propagation was run 3's dominant blue failure class — 5 regressions in 5 rounds).
 Two locators, both cheap scans of your OWN report (not a whole-report re-read — that is the once-per-cycle working-set read you already did): for a CITED claim, the claim-index lists every site of each citation (see `blue claim-index --help`) — fix each; AND for an unfootnoted restatement a marker index cannot see (a bare corrected FIGURE), grep the corrected strings/figures report-wide.
-Log the sites checked in the CHANGELOG.
+Log the sites checked in your round record (`blue revision --reason`).
 ANCHOR PRESERVATION IS TOOL-ENFORCED (you no longer police it by hand): `blue edit` compares the anchors in --old against --new and REJECTS any edit that would drop, duplicate or invent one, so you cannot tamper with red's immortal audit record or your citation record even by accident (an anchor is BORN only from `lens finding`/`blue cite` and removed only by tool).
 You MAY rewrite an anchored sentence: include the anchor token in --old and copy it verbatim into --new.
 That is transit, not authorship — the tool checks the bytes.
@@ -59,8 +59,8 @@ THE MANIFEST (W2b — your self-audit's receipt; your constitution carries the f
 The ROW GOES ON THE RECORD, not in the envelope: it is your receipt, it is scored from the record at capture, and IT REACHES THE READER — the report carries your manifest, and a closed gap with no row is named there as a repair nobody audited, including its author.
 An unmanifested repair is unaudited by your own standard; the script rejects an EMPTY manifest array on a round with open gaps.
 CLAIM UNIT (pinned): claim_count = CITED declarative claims (a sentence carrying at least one citation anchor counts once; uncited prose counts zero).
-Log edits to research/2026-01-01_golden/blue/CHANGELOG.md (Round 1, including claim_count); append your "### BLUE" section for round 1 to research/2026-01-01_golden/debate.md.
-ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH the "### BLUE" round-1 section in debate.md AND the CHANGELOG Round 1 entry exist.
+Record the round — feov-record blue revision --reason "<what changed this round, including claim_count>"; append your "### BLUE" section for round 1 to research/2026-01-01_golden/debate.md.
+ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH the "### BLUE" round-1 section in debate.md AND your round-1 revision event exist.
 On false the script re-prompts you once for the round record and, failing that, logs friction and continues — the run is not discarded, but the parity gap is scored against you at capture; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-respond-r1).
 FRICTION (blue-respond-r1) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with feov-record blue friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with feov-record blue friction --none --reason "<what you reached for and found>".

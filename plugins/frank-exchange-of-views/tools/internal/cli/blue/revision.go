@@ -20,11 +20,11 @@ func newRevision() *cobra.Command {
 	// claim_count is NO LONGER carried here. It was hand-typed via --claim-count and
 	// stored on the revision event, a second source for a number that only mattered in
 	// the envelope (which debate.js reads to size dispatch); revision itself is not on
-	// the live path — the round narrative is a position event and the CHANGELOG is
-	// hand-written. #70 moved the count to the deterministic `count-claims` command and
+	// the live path — the round narrative is a position event and the round record was
+	// hand-written in a file (retired, #251). #70 moved the count to the deterministic `count-claims` command and
 	// dropped this flag, so there is exactly one way the number is produced.
 	return seat.Prose(seat.New("revision",
-		"the round-record event (the CHANGELOG entry body via --reason) — singleton per seat-round; emit AFTER your report edits land",
+		"the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {
