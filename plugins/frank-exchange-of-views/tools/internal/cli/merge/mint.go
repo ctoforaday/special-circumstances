@@ -35,7 +35,14 @@ func newMint() *cobra.Command {
 			if prior != "" {
 				return mintResult{GapID: prior, Idempotent: true}, nil
 			}
-			gapID, err := record.MintGapID(s.RunDir, record.RoundOf(s.SeatID))
+			// The round comes from the seat's CONTEXT, not from re-reading its id.
+			// Both answer the same today (Of passes record.RoundOf as the inference),
+			// but a gap id is the run's primary public identifier — it is printed in
+			// the report and referenced by --supersedes, --id and found_by — so it
+			// must be minted from the FACT the dispatcher supplies, not from a guess
+			// about a string's shape. The moment FEOV_ROUND is injected these diverge,
+			// and this call site would have kept the guess (#348).
+			gapID, err := record.MintGapID(s.RunDir, s.Round)
 			if err != nil {
 				return nil, err
 			}

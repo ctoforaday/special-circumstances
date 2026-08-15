@@ -589,20 +589,27 @@ func DebateJSONOf(b *Board) DebateJSON {
 
 	for _, r := range roundOrder {
 		re := byRound[r]
-		sec := func(typ, seatPrefix string) []Event {
+		// Party comes from PartyOf — the stamped field, with the id-prefix fallback
+		// only for pre-#348 records. This used to be strings.HasPrefix on the raw
+		// seat id, which PartyOf's own doc names as the pattern being retired: an id
+		// that failed to match its expected prefix rendered as the WRONG PARTY with
+		// nothing to notice. Note `frontier` is a blue seat that the old prefix test
+		// missed; it emits no position or closing, so this is behaviour-preserving
+		// today and correct if that ever changes.
+		sec := func(typ, party string) []Event {
 			var s []Event
 			for _, e := range re {
-				if e.Type == typ && strings.HasPrefix(e.SeatID, seatPrefix) {
+				if e.Type == typ && PartyOf(e) == party {
 					s = append(s, e)
 				}
 			}
 			return s
 		}
 		rj := DebateRoundJSON{Round: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
-		for _, p := range sec("position", "red-merge") {
+		for _, p := range sec("position", "merge") {
 			rj.Red = append(rj.Red, p.Payload.Str("text"))
 		}
-		for _, c := range sec("closing", "red-merge") {
+		for _, c := range sec("closing", "merge") {
 			rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("text")})
 		}
 		for _, p := range sec("position", "blue") {
