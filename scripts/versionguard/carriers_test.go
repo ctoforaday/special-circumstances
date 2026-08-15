@@ -8,10 +8,14 @@ import (
 	"testing"
 )
 
-// The guard's own claim is that a version fact cannot disagree with itself unnoticed. These
-// tests hold the three things that claim rests on: carriers are compared, a carrier that stops
-// matching is an ERROR rather than a pass, and a new version-shaped declaration must be
-// classified by a person.
+// The guard's claim is narrow: a KNOWN class of stale per-binary version constants cannot
+// grow. These tests hold the two things that rests on — the sweep sees the declaration forms
+// that actually occur, and a new one must be classified by a person rather than defaulted into
+// invisibility.
+//
+// The carrier-agreement tests that used to live here went with the machinery they covered:
+// guarding two carriers that already agreed policed a thing that was not broken. Generation is
+// the fix for that (#405), not a guard.
 
 func writeAt(t *testing.T, root, rel, body string) {
 	t.Helper()
@@ -33,52 +37,6 @@ func scratchTree(t *testing.T, goVersion, reqVersion string) string {
 	writeAt(t, dir, "plugins/frank-exchange-of-views/requirements.json",
 		"{\n  \"recordToolVersion\": \""+reqVersion+"\"\n}\n")
 	return dir
-}
-
-func TestCarriersAgreeIsClean(t *testing.T) {
-	if p := checkCarriers(scratchTree(t, "0.68.0", "0.68.0")); len(p) != 0 {
-		t.Errorf("agreeing carriers reported problems: %v", p)
-	}
-}
-
-// THE POINT OF THE FILE.
-func TestDisagreeingCarriersAreReported(t *testing.T) {
-	p := checkCarriers(scratchTree(t, "0.68.0", "0.67.0"))
-	if len(p) != 1 {
-		t.Fatalf("got %d problems, want 1: %v", len(p), p)
-	}
-	for _, want := range []string{"DISAGREE", "0.68.0", "0.67.0", "root.go", "requirements.json"} {
-		if !strings.Contains(p[0], want) {
-			t.Errorf("the message must name %q so it can be acted on:\n%s", want, p[0])
-		}
-	}
-}
-
-// A carrier whose declaration moved is NOT "no problem found". This is the failure mode the
-// whole guard exists to prevent, reappearing inside the guard.
-func TestACarrierThatStopsMatchingIsAnError(t *testing.T) {
-	dir := scratchTree(t, "0.68.0", "0.68.0")
-	// The constant is renamed — the file still exists and still parses.
-	writeAt(t, dir, "plugins/frank-exchange-of-views/tools/internal/cli/root.go",
-		"package cli\n\nconst ToolRelease = \"0.68.0\"\n")
-	p := checkCarriers(dir)
-	if len(p) == 0 {
-		t.Fatal("a carrier that no longer matches must be an ERROR — silently checking one " +
-			"carrier against itself is a guard that passes because it stopped looking")
-	}
-	if !strings.Contains(p[0], "no longer being checked") {
-		t.Errorf("the message must say the carrier is unchecked, not merely absent:\n%s", p[0])
-	}
-}
-
-func TestAMissingCarrierFileIsAnError(t *testing.T) {
-	dir := scratchTree(t, "0.68.0", "0.68.0")
-	if err := os.Remove(filepath.Join(dir, "plugins/frank-exchange-of-views/requirements.json")); err != nil {
-		t.Fatal(err)
-	}
-	if p := checkCarriers(dir); len(p) == 0 {
-		t.Error("a deleted carrier must be reported, not treated as agreement")
-	}
 }
 
 // ---- the sweep ----
@@ -142,10 +100,12 @@ func TestSweepIgnoresQualifiedAssignment(t *testing.T) {
 	}
 }
 
-// The declared carrier itself must not be flagged by the sweep — it is already checked.
-func TestSweepDoesNotDoubleReportADeclaredCarrier(t *testing.T) {
+// feov-record's own const Version is not a stale-at-birth constant — it moves, and
+// requirements.json restates it. Derivation is the fix (#405); the sweep must not drag it into
+// the frozen-binary class.
+func TestSweepLeavesTheFeovToolVersionAlone(t *testing.T) {
 	if p := sweepUnclassified(scratchTree(t, "0.68.0", "0.68.0")); len(p) != 0 {
-		t.Errorf("the declared carrier is checked by checkCarriers and must not also be swept: %v", p)
+		t.Errorf("feov-record's own version must not be swept into the stale class: %v", p)
 	}
 }
 

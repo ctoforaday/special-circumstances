@@ -1,32 +1,35 @@
 package main
 
-// A VERSION IS A FACT WITH MORE THAN ONE CARRIER, and nothing checked that the carriers agreed.
+// The per-binary version constants, and a gate that stops the class GROWING.
 //
-// This repository holds two version facts per plugin, not one, and the distinction is
-// deliberate — an earlier reading of this as "four numbers that drifted" was wrong (#405):
+// # What this is, and what it deliberately is not
 //
-//	TOOL version    tools/internal/cli/root.go `const Version`   +   requirements.json `recordToolVersion`
-//	PLUGIN version  .claude-plugin/plugin.json `version`         +   the git tag <plugin>--v<version>
+// It is not a guard over two hand-written copies of a version agreeing. That is what this
+// file did first, and it was wrong for a reason worth writing down: `const Version` and
+// requirements.json's recordToolVersion ALREADY AGREE, and the reason releases are
+// unreachable is that nothing has tagged since 0.50.0 (#405). Guarding the agreement policed
+// a thing that was not broken while the broken thing sat next to it — `facts-are-fields`
+// clause 2, "before blaming the format, find what actually produced the number", driven past
+// in the same change that cited the rule.
 //
-// The tool line is documented by a 67-entry changelog in root.go, and a `register` event
-// stamping the TOOL version is right: it is a fact about the binary that wrote the record.
+// The right fix for two carriers of one fact is to GENERATE one from the other and gate
+// staleness, the way scripts/golden does. A guard is what you build when generation is
+// impossible; it was not impossible here, and a guard whose own allowlist is hand-kept has
+// reproduced the defect one level up.
 //
-// What is NOT right is that each fact is typed into two files by hand. They happen to agree
-// today because the change that moved them moved both; nothing makes the next one do so, and a
-// disagreement is invisible until `setup` refuses a run at the preflight — in the field, on
-// someone else's machine.
+// # What survived, because it stands on its own evidence
 //
-// # Why this file also SWEEPS
+// Fifteen per-binary `const version` declarations across two plugins, every one frozen at the
+// value it was born with — 0.1.0 or 0.2.0 — while the plugins ship at 0.37.0 and 0.7.1. Only
+// two are reachable at all (`-version` is parsed in secretsgate and toolchainnudge); the rest
+// assert a version nothing can read, which is why nobody noticed.
 //
-// A guard with a hand-kept list of what to check drifts exactly like the list it replaces —
-// which is the whole finding this repo has been working through. So `carriers` is the
-// allowlist, `notVersions` is the explicit denial, and the sweep FAILS on any version-shaped
-// declaration in neither: a new one has to be classified by a person, not defaulted into
-// invisibility. Same shape as mjsparity and scripts/check's parity test, both written after
-// the same class recurred.
+// That is a known defect class with a count. This file exists to keep it from growing: the
+// fifteen are listed, counted and PRINTED on every run, and a sixteenth FAILS. No doctrine
+// required — a bug class that cannot grow while it waits for its real fix is worth a gate on
+// its own terms.
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,48 +38,16 @@ import (
 	"strings"
 )
 
-// carrier is one place a version fact is written down.
-type carrier struct {
-	path string         // repo-relative, under plugins/<plugin>/
-	re   *regexp.Regexp // must capture the version in group 1
-}
-
-// versionFact is one fact and every carrier that restates it.
-type versionFact struct {
-	name     string
-	plugin   string
-	carriers []carrier
-	why      string
-}
-
-var (
-	reGoConstVersion  = regexp.MustCompile(`(?m)^const Version = "([^"]+)"`)
-	reRecordToolVer   = regexp.MustCompile(`"recordToolVersion"\s*:\s*"([^"]+)"`)
-	reManifestVersion = regexp.MustCompile(`"version"\s*:\s*"([^"]+)"`)
-)
-
-// facts enumerates what must agree. Adding a plugin with a versioned tool means adding it
-// here — and the sweep below is what makes forgetting to a failure rather than a silence.
-var facts = []versionFact{{
-	name:   "feov-record tool version",
-	plugin: "frank-exchange-of-views",
-	carriers: []carrier{
-		{"plugins/frank-exchange-of-views/tools/internal/cli/root.go", reGoConstVersion},
-		{"plugins/frank-exchange-of-views/requirements.json", reRecordToolVer},
-	},
-	why: "setup preflights the running binary against requirements.json; a disagreement refuses " +
-		"the run at dispatch, in the field, rather than here",
-}}
-
-// notVersions are version-SHAPED declarations that are not a version fact, each with the
-// reason. Being on this list is a decision somebody made; being on neither list is a failure.
+// notVersions are version-SHAPED declarations that are not a version of anything shipped,
+// each with the reason. Being on this list is a decision somebody made; being on neither list
+// is a failure.
 var notVersions = map[string]string{
 	"MassMappingVersion": "a pinned SEMANTICS version for the mass mapping — changing it is a " +
 		"schema change, and it is deliberately not tied to any release",
 	"fetchUAVersion": "the User-Agent this tool sends; it identifies the fetcher to a server " +
 		"and has nothing to do with what is shipped",
 	"ToolVersion": "the mutable variable const Version is assigned INTO at init; the constant " +
-		"is the carrier, this is the destination",
+		"is the source, this is the destination",
 }
 
 // staleBinaryVersions are the per-binary `const version` declarations, one per hook binary,
@@ -132,50 +103,6 @@ var staleBinaryVersions = map[string]bool{
 // pattern against the forms that actually occur is what found it.
 var reVersionShaped = regexp.MustCompile(`(?m)^\s*(?:(?:const|var)\s+)?((?:[A-Za-z][A-Za-z0-9_]*)?[Vv]ersion[A-Za-z0-9_]*)\s*=\s*"([^"]*)"`)
 
-func readCarrier(root string, c carrier) (string, error) {
-	b, err := os.ReadFile(filepath.Join(root, c.path))
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", c.path, err)
-	}
-	m := c.re.FindSubmatch(b)
-	if m == nil {
-		// A carrier that stopped matching is NOT "no problem found" — it is a carrier this
-		// guard can no longer see, which is the failure mode it exists to prevent.
-		return "", fmt.Errorf("%s: no version matched %q — the declaration moved or changed shape, "+
-			"so this carrier is no longer being checked", c.path, c.re)
-	}
-	return string(m[1]), nil
-}
-
-// checkCarriers reports any fact whose carriers disagree.
-func checkCarriers(root string) []string {
-	var problems []string
-	for _, f := range facts {
-		seen := map[string][]string{}
-		for _, c := range f.carriers {
-			v, err := readCarrier(root, c)
-			if err != nil {
-				problems = append(problems, fmt.Sprintf("%s: %v", f.name, err))
-				continue
-			}
-			seen[v] = append(seen[v], c.path)
-		}
-		if len(seen) <= 1 {
-			continue
-		}
-		var lines []string
-		for v, paths := range seen {
-			sort.Strings(paths)
-			lines = append(lines, fmt.Sprintf("    %s = %s", strings.Join(paths, ", "), v))
-		}
-		sort.Strings(lines)
-		problems = append(problems, fmt.Sprintf(
-			"%s: carriers DISAGREE — one fact, %d different values:\n%s\n  %s",
-			f.name, len(seen), strings.Join(lines, "\n"), f.why))
-	}
-	return problems
-}
-
 // sweepUnclassified fails on any version-shaped declaration that is neither a known carrier nor
 // explicitly denied. This is what keeps `facts` from quietly falling behind the tree.
 //
@@ -187,12 +114,6 @@ func sweepUnclassified(root string) []string {
 }
 
 func sweepWithTolerated(root string) ([]string, int) {
-	known := map[string]bool{}
-	for _, f := range facts {
-		for _, c := range f.carriers {
-			known[filepath.ToSlash(c.path)] = true
-		}
-	}
 	var problems []string
 	tolerated := 0
 	err := filepath.WalkDir(filepath.Join(root, "plugins"), func(path string, d os.DirEntry, err error) error {
@@ -210,8 +131,11 @@ func sweepWithTolerated(root string) ([]string, int) {
 			if notVersions[name] != "" {
 				continue
 			}
-			if known[rel] && name == "Version" {
-				continue // a declared carrier, already checked by checkCarriers
+			if name == "Version" && strings.HasSuffix(rel, "/internal/cli/root.go") {
+				// feov-record's own version, the one requirements.json restates. Derivation
+				// is the fix (#405); until then it is not a stale-at-birth constant and does
+				// not belong in the class below.
+				continue
 			}
 			if name == "version" && staleBinaryVersions[rel] {
 				tolerated++
@@ -230,19 +154,4 @@ func sweepWithTolerated(root string) ([]string, int) {
 	}
 	sort.Strings(problems)
 	return problems, tolerated
-}
-
-// pluginVersionOf reads a plugin's manifest version, for the tag check below.
-func pluginVersionOf(root, plugin string) (string, error) {
-	b, err := os.ReadFile(filepath.Join(root, "plugins", plugin, ".claude-plugin", "plugin.json"))
-	if err != nil {
-		return "", err
-	}
-	var m struct {
-		Version string `json:"version"`
-	}
-	if json.Unmarshal(b, &m) != nil || m.Version == "" {
-		return "", fmt.Errorf("no version in %s's manifest", plugin)
-	}
-	return m.Version, nil
 }

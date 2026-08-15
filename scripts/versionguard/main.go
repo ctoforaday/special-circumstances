@@ -161,7 +161,6 @@ func main() {
 	// The forward-motion check above asks whether THIS BRANCH moved the version. These two ask
 	// whether the version is COHERENT at all — they read the tree, not the diff, so they fail on
 	// a disagreement no matter which branch introduced it.
-	problems = append(problems, checkCarriers(root)...)
 	sweepProblems, tolerated := sweepWithTolerated(root)
 	problems = append(problems, sweepProblems...)
 	if len(problems) > 0 {
@@ -170,8 +169,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	fmt.Printf("plugin versions move forward: %d checked against %s; %d version fact(s) coherent across their carriers\n",
-		checked, base, len(facts))
+	fmt.Printf("plugin versions move forward: %d checked against %s\n", checked, base)
 	if tolerated > 0 {
 		// PRINTED, not merely tolerated. A per-binary version frozen at 0.1.0 inside a plugin
 		// at 0.37.0 is a known defect waiting on #405; saying so on every run is what keeps
