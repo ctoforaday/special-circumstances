@@ -45,11 +45,9 @@ var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
 //
 //	report.md          `bench assemble`
 //	blue/report.md     the round-0 synthesizer, then every `blue edit`
-//	blue/CHANGELOG.md  blue, each round (#251 tracks its retirement)
 var stubs = [][2]string{
 	{"report.md", "report.md"},
 	{"blue/report.md", "blue report"},
-	{"blue/CHANGELOG.md", "blue CHANGELOG"},
 }
 
 // marshalJSON matches JS `JSON.stringify(x, null, 2) + '\n'`: two-space indent, a

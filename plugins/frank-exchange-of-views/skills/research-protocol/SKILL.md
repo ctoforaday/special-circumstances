@@ -53,7 +53,6 @@ research/<date>_<slug>/
 │                      #  the whole run)
 │   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
 │   │                  #   Authored prose, but every EDIT after round 0 goes through `blue edit`
-│   ├── CHANGELOG.md   # authored, and duplicated by the `revision` event — retirement is #251
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
 └── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
 

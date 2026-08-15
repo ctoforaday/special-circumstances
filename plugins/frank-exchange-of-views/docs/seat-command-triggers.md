@@ -70,7 +70,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `blue prove` | a claim a program settles, and the gaps whose `check_kind` is `computation` | prose asserting the computation happened | EXECUTED (#277): a computation gap CANNOT be closed on prose, and the tool runs the script twice and records which of reproducible/observed it produced |
 | `blue avenue` | a line of inquiry proposed, pursued, declined, abandoned or deferred | — | CLEAN |
 | `blue retire` | a claim leaving the report | a claim quietly not being there any more | EXECUTED (#226): capture compares the claim-count fall against the retire events, and an unaccounted drop is a detector hit |
-| `blue revision` | log a per-round revision | hand-written `blue/CHANGELOG.md` | NOT EXECUTED (#251). The event is canonical and the file is still authored beside it |
+| `blue revision` | the round record: what changed this round | ~~hand-written `blue/CHANGELOG.md`~~ | EXECUTED (#251): the file is gone from `setup`, from every prompt and from both blue constitutions. The event was always the canonical half — capture counted it, the report renders it as the revision history — while the prompts demanded the file, so the audit read the channel nobody was told to write |
 | `blue manifest-row` | the self-audit receipt for a repaired gap | envelope `manifest[]` array | RESOLVED (#318): the verb is the single source, the row is on the record, and a closed gap with no row is named in the report as a repair nobody audited |
 | `blue position` | the round's BLUE narrative | a hand-written `### BLUE` section | EXECUTED |
 | `blue closing` | a closing argument on a docketed item | — | CLEAN |
@@ -189,7 +189,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 |---|---|
 | **Envelope round-trip** — the dominant token lever: the envelope carries refs, the tool re-derives from the record | PARTIAL. Done for grade disputes, manifest (#318) and the docket. `corroboration[]` (#326) and the petition ruling's opinion prose (#330) still round-trip. |
 | **observe/dispose → retire** | EXECUTED (#327, 2026-08-09). Re-opened after #320 gave observations a reader, then decided to retire regardless: the two verbs and their events are gone, and "undisposed" became "credited by no gap". **The cost is stated, not hidden — `checked-held` (a check red RAN and confirmed) has no successor vocabulary**, so the run can no longer record a confirmed negative outside the spot-check and proof paths. |
-| **revision / CHANGELOG.md** — the event is canonical; drop the file | NOT EXECUTED (#251). The last item of the record-tool plan's deletion list; the other four are done. |
+| **revision / CHANGELOG.md** — the event is canonical; drop the file | EXECUTED (#251, 2026-08-15). The last item of the record-tool plan's deletion list; the other four were already done. |
 | **regrade → canonical; debate.js must name it** | EXECUTED (#325, verified 2026-08-13). Named in debate.js and red-auditor.md, and a probed merge seat listed it among its options unprompted. |
 | **tldr / open_questions → drop from the envelope** | DONE. Now `CLEAN` in the table. |
 | Shipped before this section had trackers | the board `mint` duplication (#225), the retire detector (#226), the `undisposed_observations` metric (#227). |
