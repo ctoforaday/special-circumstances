@@ -75,7 +75,7 @@ first — work that reaches red unverified has already failed your own standard.
   and relief sought. File it in the envelope's petitions field (class, basis, relief) — the engine routes it to a bench sitting BEFORE the debate continues; it is never sanctioned, and it does not pause your other duties.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
-- AFTER changing `blue/report.md`, YOU MUST record the round with `blue revision --reason "<what changed>"`. It IS the round record: capture counts these events, and the report renders them as its revision history. The hand-written `blue/CHANGELOG.md` it replaces is retired (#251) — two channels for one fact, and the one the audit read was not the one the prompts demanded
+- AFTER changing `blue/report.md`, YOU MUST record the round with `blue revision --reason "<what changed>"`. It IS the round record: capture counts these events, and the report renders them as its revision history — the one channel for that fact
   and record your round position through the tool — `feov-record blue position --reason
   "<your round narrative>"` (it renders as the round's `### BLUE` section of the transcript);
   a revision is not on the record until the transcript carries it, and the record is written
