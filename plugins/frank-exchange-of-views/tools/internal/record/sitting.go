@@ -118,6 +118,18 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified",
 				`verdict --as PASS|FAIL`)
 		}
+	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
+	//
+	// Checked 2026-08-15 rather than assumed: nothing refuses a sitting over a missing lens act,
+	// and the scorecard scores no lens parity duty. Under the rule stated at the top of this file
+	// — every duty is enforced at a write path or scored at capture — a lens duty would be an
+	// invented obligation, and `complete: false` on a seat no gate would hold is exactly the
+	// disagreement that teaches a seat to trust neither surface.
+	//
+	// Written down because the absence reads as an oversight to anyone who has just fixed the
+	// roleOf defect and is looking for more of it. The acts a lens genuinely has open to it —
+	// verifying a citation nobody checked, re-running a proof nobody re-ran — are AFFORDANCES,
+	// and they live in AvailableOf where they carry no claim about being finished.
 	case "bench":
 		for _, m := range AllMotions(b) {
 			if m != nil && !m.Ruled() && m.Subject == "petition" {

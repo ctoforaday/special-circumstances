@@ -93,8 +93,17 @@ and this data cannot separate those.
 
 Reach and MET are proxies. A seat reaching for more verbs has not thereby done better work.
 
-## Adjacent, and unfixed
+## Adjacent: the missing `lens` case is the rule holding, not a gap in it
 
-`SittingOf` has no `lens` case at all. After the role fix a lens seat still receives exactly one
-duty — friction — because the switch has arms for blue, merge and bench and none for the lens. That
-is not a delivery bug; it is a duty set nobody wrote.
+`SittingOf` has no `lens` arm, so after the role fix a lens seat still receives exactly one duty —
+friction. An earlier draft of this document called that "a duty set nobody wrote". That was wrong,
+and checking it rather than repeating it is the correction: nothing refuses a sitting over a missing
+lens act, and the scorecard scores no lens parity duty. Under this file's governing rule — every
+duty is enforced at a write path or scored at capture — a lens duty would be an invented obligation,
+and `complete: false` on a seat no gate would hold is precisely the disagreement that teaches a seat
+to trust neither surface.
+
+The acts a lens genuinely has open to it — verifying a citation nobody checked, re-running a proof
+nobody re-ran — are affordances, and they live in `AvailableOf`, where they carry no claim about
+being finished. The comment now says so at the switch, because the absence reads as an oversight to
+anyone who has just fixed the `roleOf` defect and is hunting for more of it.
