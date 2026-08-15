@@ -348,13 +348,44 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
+// readTerminalVerdict answers from the RECORD, and falls back to the rendered report only when
+// the record cannot say.
+//
+// IT WAS THE REGEX ALONE, over report.md. The verdict is a field on the `outcome` event — the
+// tool's own terminal act writes it — and this recovered it from the prose that field had already
+// been rendered into. That is the shape [[facts-are-fields]] names: a fact bypassing the record
+// that already holds it, recovered by a hope about string shape.
+//
+// The hope was load-bearing in a specific way. `assemble.basisNote` appends " — **derived from the
+// record**…" straight after the verdict word, so the pattern must stop at an em-dash — which
+// couples this reader to a sentence assemble.go is free to rewrite. Measured against the 9 real
+// assembled reports in research/: 8 matched. The ninth has no verdict at all, and produced exactly
+// the same "" as a drifted pattern would.
+//
+// The record is asked first and answers in two ways that this deliberately keeps apart:
+// the outcome event's own field (the bench recorded a terminal act), then DeriveVerdict (the
+// record decides for itself). The regex survives only for a run assembled before the event
+// existed, and its miss no longer hides behind the same "" as an honest absence — an unreadable
+// record and a missing verdict now say different things to the caller.
 func readTerminalVerdict(runDir string) string {
+	if b, err := record.BoardState(runDir); err == nil {
+		for i := len(b.Events) - 1; i >= 0; i-- {
+			if b.Events[i].Type == "outcome" {
+				if v := b.Events[i].Payload.Str("verdict"); v != "" {
+					return v
+				}
+			}
+		}
+	}
+	if v, _, ok := record.DeriveVerdict(runDir); ok {
+		return v
+	}
+	// LAST RESORT, and named as one: a run assembled before the terminal act was an event.
 	b, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 	if err != nil {
 		return ""
 	}
-	m := verdictRe.FindStringSubmatch(string(b))
-	if m != nil {
+	if m := verdictRe.FindStringSubmatch(string(b)); m != nil {
 		return m[1]
 	}
 	return ""
