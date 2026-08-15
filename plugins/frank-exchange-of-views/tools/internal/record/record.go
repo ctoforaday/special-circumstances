@@ -85,6 +85,18 @@ var roundRe = regexp.MustCompile(`-r(\d+)`)
 //
 // Deleting the fallback outright would make every un-injected caller round 0 silently, which is
 // the same failure with fewer witnesses. It goes when the hook injects on every path (#290).
+//
+// STATE OF THAT CONDITION, 2026-08-15. Read this before assuming the injected branch ever runs:
+// NOTHING in this repository sets FEOV_ROUND or FEOV_SEAT. A whole-tree sweep across Go, JS, JSON,
+// shell and Markdown finds only readers and comments. So in production the fallback is not a
+// fallback — it is the ONLY path, and judge-terminal still stamps round 0 on every append (#396).
+//
+// What DID change: #290's gate is no longer unmeasured. PreToolUse carries agent_id — 9 of 9
+// subagent calls across three tool types, stable within an agent, distinct across concurrent ones,
+// and byte-identical to the id that agent reports at SubagentStop (plans/hook-surface-spike.md §7).
+// Since session_id and prompt_id are IDENTICAL across the main session and every concurrent
+// subagent, agent_id is the only field that can namespace a seat at all. The mechanism to inject
+// on every path is therefore measured rather than hoped for; it is still unbuilt.
 func RoundOf(seatID string) int {
 	if raw := strings.TrimSpace(os.Getenv("FEOV_ROUND")); raw != "" {
 		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {

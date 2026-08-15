@@ -22,8 +22,15 @@
 // `claude -p` run — not one of the interactive reasons — so a seal matching only
 // `clear`/`logout`/`prompt_input_exit` never fires in exactly the sessions with
 // no human watching. A subagent finishing is the same seam one level down, and
-// `SubagentStop` is the only point where a seat's `agent_id` and its trajectory
-// are both in hand.
+// `SubagentStop` is where a seat's `agent_id` and its trajectory are both in hand.
+//
+// CORRECTION 2026-08-15 (spike §7, #290): this said "the ONLY point". `PreToolUse`
+// also carries `agent_id` — measured on 9 of 9 subagent calls across three tool
+// types, stable within an agent and distinct across concurrent ones, and
+// byte-identical to the id the same agent reports at `SubagentStop`. What is
+// unique to `SubagentStop` is the TRAJECTORY, not the identity. That distinction
+// is the whole mechanism #290 needs: a key known before a seat's first call, and
+// still valid when it finishes.
 //
 // One binary rather than three because it is one responsibility — seal the note
 // — at three trigger points, over identical snapshot, prune and note-location

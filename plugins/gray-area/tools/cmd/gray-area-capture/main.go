@@ -20,8 +20,26 @@
 //
 // Measured basis for the fields, from the Phase 0 spike
 // (plans/hook-surface-spike.md): SubagentStop carries agent_id, agent_type and
-// agent_transcript_path, and that path resolves to a real per-seat file distinct
-// from the parent transcript.
+// agent_transcript_path.
+//
+// SCOPED 2026-08-15 (spike §7a, #189): "and that path resolves to a real per-seat
+// file" is true of the seats that carry an agent_type and FALSE of the ones that
+// do not. Measured across 69 seat rows in one session: 19 carry a type and all 19
+// resolve; 50 carry none and none resolve — zero exceptions, both populations
+// interleaved seconds apart, so the correlate is the SEAT, not the session and not
+// the environment. The spike saw only the good case because its single subagent
+// carried a type.
+//
+// The path is announced either way, which is what makes this worth writing down:
+// agent_transcript_path being present says nothing about the file existing. Every
+// row carries a non-empty agent_id in both populations — the typeless events have
+// an identity and no type, pointing at a file nobody wrote.
+//
+// What produces the typeless population is NOT determined. Six probe agents across
+// every subagent_type available (and omitted) all carried a type and all resolved.
+// Do NOT add a fallback path search: with 50 of 69 seats having no file, that is
+// guessing three times in four, and a wrong file confidently attributed to a seat
+// is the false citation the adjudicator exists to refuse.
 package main
 
 import (
