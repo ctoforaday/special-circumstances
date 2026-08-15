@@ -90,6 +90,14 @@ func TestCapturesOneRowPerSeat(t *testing.T) {
 	if rows[1].Resolved || rows[1].CaptureError == "" {
 		t.Errorf("unresolved seat should be recorded with a reason: %+v", rows[1])
 	}
+	// And with the reason in a COUNTABLE form. This seat carried a type, so its transcript
+	// was expected — the alarming population, which must not be filed with the 72% of seats
+	// that never had one (#398).
+	if rows[1].CaptureCategory != captureMissing {
+		t.Errorf("capture_category = %q, want %q — a typed seat's missing transcript is the "+
+			"population worth an alarm, and prose cannot be counted",
+			rows[1].CaptureCategory, captureMissing)
+	}
 	if rows[1].AgentID != "a2" {
 		t.Errorf("lost the seat identity: %+v", rows[1])
 	}

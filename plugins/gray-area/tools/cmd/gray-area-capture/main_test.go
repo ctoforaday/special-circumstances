@@ -10,8 +10,14 @@ import (
 
 var noon = time.Date(2026, 7, 28, 13, 0, 0, 0, time.UTC)
 
-func okStat(int64) statFunc {
-	return func(string) (int64, error) { return 4242, nil }
+// okStat is a stat that always succeeds, reporting the size it was given. IT USED TO IGNORE
+// ITS ARGUMENT and return 4242 unconditionally, which made `okStat(12)` and `okStat(9)` read
+// like they set a size and quietly not: a parameter that looks meaningful and is inert is a
+// test lying about what it controls, and it took a real assertion (`SizeBytes != 42`) to
+// notice. The one assertion that needs a NON-ZERO size stats a real file, so honouring the
+// argument changed no existing expectation.
+func okStat(size int64) statFunc {
+	return func(string) (int64, error) { return size, nil }
 }
 
 // The row is an INDEX. Recording conversation content would spread it into a
@@ -42,16 +48,18 @@ func TestRowNeverCarriesConversationContent(t *testing.T) {
 // An unresolvable path is DATA, not a reason to lose the row. The miner must be
 // able to see that a seat's trajectory was missing rather than see nothing.
 func TestUnresolvablePathIsRecordedNotDropped(t *testing.T) {
+	missing := func(string) (int64, error) { return 0, errors.New("no such file") }
 	cases := []struct {
 		name     string
 		in       hookInput
 		stat     statFunc
 		resolved bool
 		errHas   string
+		category string
 	}{
 		{
 			name:     "resolves",
-			in:       hookInput{AgentTranscriptPath: "/t/a.jsonl"},
+			in:       hookInput{AgentTranscriptPath: "/t/a.jsonl", AgentType: "red-auditor"},
 			stat:     okStat(0),
 			resolved: true,
 		},
@@ -61,13 +69,27 @@ func TestUnresolvablePathIsRecordedNotDropped(t *testing.T) {
 			stat:     okStat(0),
 			resolved: false,
 			errHas:   "no agent_transcript_path",
+			category: captureNoPath,
 		},
 		{
-			name:     "path present but does not resolve",
-			in:       hookInput{AgentTranscriptPath: "/t/gone.jsonl"},
-			stat:     func(string) (int64, error) { return 0, errors.New("no such file") },
+			// THE ALARMING POPULATION: a seat that carried a type, so a transcript was
+			// expected. One file in 16 arrived AFTER its stat, so this stays visible.
+			name:     "typed seat whose transcript is missing",
+			in:       hookInput{AgentTranscriptPath: "/t/gone.jsonl", AgentType: "red-auditor"},
+			stat:     missing,
 			resolved: false,
 			errHas:   "did not resolve",
+			category: captureMissing,
+		},
+		{
+			// THE EXPECTED POPULATION, 50 of 69 seats. Byte-identical to the case above
+			// before #398, which is how it was read three times as a filesystem problem.
+			name:     "untyped seat, permanently uncapturable",
+			in:       hookInput{AgentTranscriptPath: "/t/subagents/agent-.jsonl"},
+			stat:     missing,
+			resolved: false,
+			errHas:   "did not resolve",
+			category: captureUntypedSeat,
 		},
 	}
 	for _, tc := range cases {
@@ -82,10 +104,61 @@ func TestUnresolvablePathIsRecordedNotDropped(t *testing.T) {
 			if tc.errHas != "" && !strings.Contains(r.CaptureError, tc.errHas) {
 				t.Errorf("capture_error = %q, want it to mention %q", r.CaptureError, tc.errHas)
 			}
+			if r.CaptureCategory != tc.category {
+				t.Errorf("capture_category = %q, want %q — the category is the field a counter "+
+					"reads; the error string is prose for a human and cannot be counted",
+					r.CaptureCategory, tc.category)
+			}
 			if r.Schema != schema || r.CapturedAt == "" {
 				t.Errorf("row lost its provenance: %+v", r)
 			}
 		})
+	}
+}
+
+// THE INVARIANT THAT MAKES ABSENCE MEAN SOMETHING. capture_category is omitempty, so a
+// reader can only treat a missing key as "this row resolved" if EVERY unresolved row carries
+// one. An unresolved row with no category is the plausible zero all over again, one field
+// further in.
+func TestEveryUnresolvedRowCarriesACategoryAndNoResolvedOneDoes(t *testing.T) {
+	missing := func(string) (int64, error) { return 0, errors.New("no such file") }
+	for _, in := range []hookInput{
+		{},
+		{AgentTranscriptPath: "/t/gone.jsonl"},
+		{AgentTranscriptPath: "/t/gone.jsonl", AgentType: "red-auditor"},
+		{AgentType: "red-auditor"},
+	} {
+		if r := buildRow(in, noon, missing); r.CaptureCategory == "" {
+			t.Errorf("unresolved row with no category: %+v", r)
+		}
+	}
+	if r := buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, noon, okStat(7)); r.CaptureCategory != "" {
+		t.Errorf("a resolved row has nothing to categorise, got %q", r.CaptureCategory)
+	}
+}
+
+// THE OBSERVATION BEATS THE PREDICTION. agent_type being empty correlated with an absent
+// transcript 50 times out of 50 — but that is one session's evidence, and what makes
+// agent_type empty is not determined. So the untyped seat is still STAT'ED: if a transcript
+// is there, the row says resolved, and the correlation is contradicted where it can be seen.
+// Short-circuiting on agent_type would have made this row unable to disagree.
+func TestAnUntypedSeatThatDoesResolveIsRecordedAsResolved(t *testing.T) {
+	r := buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, noon, okStat(42))
+	if !r.Resolved || r.SizeBytes != 42 {
+		t.Errorf("an untyped seat WITH a transcript must be recorded as resolved: %+v", r)
+	}
+	if r.CaptureCategory != "" {
+		t.Errorf("category = %q on a row that resolved — the prediction overrode the measurement",
+			r.CaptureCategory)
+	}
+}
+
+// The bump is load-bearing: without it a reader cannot tell an old binary's row (no category,
+// ever) from a new binary's resolved row (no category, correctly).
+func TestSchemaAnnouncesTheCategoryField(t *testing.T) {
+	if schema < 2 {
+		t.Errorf("schema = %d; capture_category is omitempty, so its absence only means "+
+			"something to a reader that can date the row", schema)
 	}
 }
 
