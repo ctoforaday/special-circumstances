@@ -1024,7 +1024,7 @@ func frictionLog(evs []record.Event) string {
 	return strings.TrimRight(out, "\n")
 }
 
-// revisionHistory is blue's per-round revision record (the CHANGELOG) folded into the report as
+// revisionHistory is blue's per-round revision record folded into the report as
 // bottom-of-document provenance — how the report evolved round by round. Composed from revision
 // events; a run with no revisions omits it. This is the report home the standalone changelog
 // projection lacked, which is why that view is retired.

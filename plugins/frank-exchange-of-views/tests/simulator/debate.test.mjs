@@ -613,11 +613,19 @@ test('multi-instance citation slices are assigned citation ownership', async () 
   for (const c of citation) assert.ok(c.prompt.includes('citation ownership follows the slice'))
 })
 
-test('claim_count is echoed to the tracked CHANGELOG at synthesis and every blue response', async () => {
+// claim_count reaches the ROUND RECORD at synthesis and every blue response.
+//
+// It used to say "the tracked CHANGELOG", and the assertion still passes for the right reason:
+// the number belongs in whatever carries the round record. That file is retired (#251) and the
+// carrier is the `revision` event — which capture already counted, while the prompts demanded
+// the file. Two channels for one fact, and the audit read the one nobody was told to write.
+test('claim_count reaches the round record at synthesis and every blue response', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  assert.ok(world.calls.find(c => c.opts.label.startsWith('blue-synthesize')).prompt.includes('stating claim_count'))
-  assert.ok(world.calls.find(c => c.opts.label.startsWith('blue-respond-r1')).prompt.includes('including claim_count'))
+  const synth = world.calls.find(c => c.opts.label.startsWith('blue-synthesize')).prompt
+  const respond = world.calls.find(c => c.opts.label.startsWith('blue-respond-r1')).prompt
+  assert.ok(synth.includes('claim_count') && synth.includes('blue revision'), 'synthesis records the round with claim_count')
+  assert.ok(respond.includes('claim_count') && respond.includes('blue revision'), 'each response records the round with claim_count')
 })
 
 test('lanes=5: the full roster deploys and disconfirming-first holds its redundancy-floor second seat', async () => {

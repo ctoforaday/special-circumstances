@@ -44,15 +44,17 @@ func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 	// and every `blue edit` fill, were suddenly reported as files nothing would ever write. The
 	// target of this check is a stub NOTHING fills; TestEveryStubHasAWriter owns the other half,
 	// and the two together are what keep an empty artifact from surviving to capture.
-	written := map[string]bool{"report.md": true, "blue/report.md": true, "blue/CHANGELOG.md": true}
+	written := map[string]bool{"report.md": true, "blue/report.md": true}
 
 	var offenders []string
 	err := filepath.WalkDir(runDir, func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
-		// Case-sensitively: blue/CHANGELOG.md is blue's own file and shares a name with the
-		// `changelog` VIEW. They are different artifacts and only one has a writer.
+		// Case-sensitivity mattered while blue/CHANGELOG.md existed: it shared a name with the
+		// retired `changelog` VIEW and only one of the two had a writer. Both are gone now — the
+		// file with #251, the view with the board collapse — and the rule is kept because the
+		// next artifact to share a name with a projection will need it.
 		rel, _ := filepath.Rel(runDir, p)
 		rel = filepath.ToSlash(rel)
 		if base := filepath.Base(p); rendered[base] && base == strings.ToLower(base) && !written[rel] {
@@ -77,9 +79,13 @@ func TestEveryStubHasAWriter(t *testing.T) {
 	runDir := t.TempDir()
 	res := setup.BuildSkeleton(runDir, "a topic")
 
-	// report.md ← `bench assemble`; blue/report.md ← the synthesizer, then every `blue edit`;
-	// blue/CHANGELOG.md ← blue, each round (#251 tracks its retirement).
-	want := map[string]bool{"report.md": true, "blue/report.md": true, "blue/CHANGELOG.md": true}
+	// report.md ← `bench assemble`; blue/report.md ← the synthesizer, then every `blue edit`.
+	//
+	// blue/CHANGELOG.md IS GONE (#251). Its writer was blue, by hand, each round — and the
+	// `revision` event held the same content, rendered as the report's revision history, and was
+	// what capture actually counted. Two channels for one fact, and the audit read the one the
+	// prompts did not demand: a run carried a 6,847-byte CHANGELOG and ONE revision event.
+	want := map[string]bool{"report.md": true, "blue/report.md": true}
 	got := map[string]bool{}
 	for _, c := range res.Created {
 		got[filepath.ToSlash(c)] = true
