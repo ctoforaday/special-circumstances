@@ -309,7 +309,7 @@ var executableMagic = [][]byte{
 	{0xca, 0xfe, 0xba, 0xbe}, // Mach-O universal
 }
 
-// committedBinaries reports every TRACKED file under plugins/ whose bytes are an executable.
+// committedBinaries reports every TRACKED file IN THE REPOSITORY whose bytes are an executable.
 //
 // WHY CONTENT AND NOT .gitignore ALONE. .gitignore already said these are "never committed"
 // and had done for a long time; it covered bin/ and tools/dist/ and not the path `go build`
@@ -320,10 +320,21 @@ var executableMagic = [][]byte{
 // Binaries reach an installing project through GitHub Releases (SHA256-verified) or a local
 // `go build` via doctor --fix. Neither route goes through git, so a tracked executable is
 // always an accident.
+//
+// SCOPE WIDENED FROM plugins/ TO THE WHOLE REPOSITORY. It scanned `ls-files plugins`, and the
+// reasoning above — "a tracked executable is always an accident" — was never about plugins/;
+// it is about git. The narrower scope was the accident: a 3.1 MB `scripts/check.exe` was
+// committed and sat on main, one directory outside what the guard looked at, while the guard
+// reported a clean board. That is `invariant-at-wrong-level` — the enforcement was real and
+// the altitude was wrong.
+//
+// Measured before widening rather than assumed safe: a content scan of every tracked file in
+// the repository found exactly one hit, the .exe itself. So the wider scope costs nothing and
+// needs no allowlist — and an allowlist is what would have reproduced the defect one level up.
 func committedBinaries(root string) []string {
-	out, err := gitx.Run(root, "ls-files", "plugins")
+	out, err := gitx.Run(root, "ls-files")
 	if err != nil {
-		return []string{fmt.Sprintf("cannot list tracked plugin files, so the committed-binary check did not run: %v", err)}
+		return []string{fmt.Sprintf("cannot list tracked files, so the committed-binary check did not run: %v", err)}
 	}
 	var problems []string
 	seen := 0
@@ -354,7 +365,7 @@ func committedBinaries(root string) []string {
 	// A check that reads nothing must SAY so rather than report success — the same failure
 	// mode the plugin-list guards above are written against.
 	if seen == 0 {
-		return []string{"the committed-binary check listed zero tracked files under plugins/, so it has been passing without reading anything."}
+		return []string{"the committed-binary check listed zero tracked files, so it has been passing without reading anything."}
 	}
 	return problems
 }

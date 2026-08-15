@@ -38,7 +38,15 @@ plugins/*/tools/dist/
 # and that is how a 6 MB feov-record reporting 0.17.0 sat tracked in this repo for nineteen
 # version bumps, read by nothing. The policy above already said "never committed" — it just
 # had no mechanism at the one path where the accident happens. scripts/pluginparity now
-# fails on ANY tracked executable under plugins/, which catches this regardless of name.
+# fails on ANY tracked executable ANYWHERE in the repository, which catches this regardless
+# of name or directory.
+#
+# "Anywhere" is not decoration. The guard was scoped to plugins/, and a 3.1 MB
+# scripts/check.exe was committed and reached main one directory outside what it read, while
+# it reported a clean board. `go build ./check` from scripts/ cannot make this mistake on
+# Linux — scripts/check is a DIRECTORY, so the build refuses — which is exactly why the file
+# that got through was a Windows .exe.
+*.exe
 plugins/*/tools/feov-record
 plugins/*/tools/sc-*
 plugins/*/tools/gray-area
