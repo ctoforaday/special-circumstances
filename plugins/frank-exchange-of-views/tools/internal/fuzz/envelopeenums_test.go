@@ -53,8 +53,13 @@ var envelopeEnumBinding = map[string]struct{ typ, key string }{
 	// The envelope still speaks in per-exchange schemas — PETITIONS, PETITION_RULING,
 	// DISPUTE_DIMENSION — because the ENGINE routes them separately; what collapsed is the
 	// RECORD's vocabulary, and this gate is precisely the check that the two still agree.
-	"PETITIONS.class":          {"motion:petition", "class"},
-	"PETITION_RULING.ruling":   {"motion:petition", "ruling"},
+	"PETITIONS.class":        {"motion:petition", "class"},
+	"PETITION_RULING.ruling": {"motion:petition", "ruling"},
+	// WHO GRANTED RELIEF BINDS. The engine routes the relief into that party's prompt, and the
+	// record stores the same word on the ruling — so a value the record would refuse must not be
+	// one the schema invites. This binding is the reason `binds` was added to MotionFields rather
+	// than left as a free string the engine alone understood.
+	"PETITION_RULING.binds":    {"motion:petition", "binds"},
 	"RED_ENVELOPE.response":    {"motion:grade", "ruling"},
 	"DISPUTE_DIMENSION.<self>": {"motion:grade", "dimension"},
 }

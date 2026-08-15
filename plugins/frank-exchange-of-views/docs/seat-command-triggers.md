@@ -87,6 +87,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `bench outcome` | the run's terminal act | — | CLEAN. It carried no reasoning at all until a bench seat reached for `--reason`, found nothing, and filed the absence as friction — so `--reason` is required (#375): the verdict is derived, how the sitting ENDED is not |
 | `bench halt` | end the run on a safety boundary | `motion petition rule --as halt` | EXECUTED (#329, verified 2026-08-13): debate.js emits `ruling: 'halt'` zero times; the halt is `bench halt` and the petition enum rules `granted\|denied` only |
 | `bench certify` | asking a human to re-examine something at run end | — | CLEAN. The fold-into-`outcome` decision is REVERSED (#328): a certification and a verdict are different speech acts |
+| `bench declare` | a holding that binds how the record is READ and moves no gap — a construction of a term, a correction of meaning, a rule offered for precedent | the petition ruling's opinion text, which is where declarations went for want of a verb | RESOLVED (#361): `opinion` demands an id and a fate, so a bench with a finding both seats needed had nowhere to put it. It renders under `### LEAD` beside the opinions |
 | `bench assemble` | compose the final report from the record and blue's audited report | — | CLEAN |
 
 ## Motion (`feov-record motion <subject> <act>`)

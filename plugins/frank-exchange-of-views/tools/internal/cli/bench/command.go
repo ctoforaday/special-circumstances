@@ -20,6 +20,7 @@ func NewCommand() *cobra.Command {
 		newOpinion(),
 		newHalt(),
 		newCertify(),
+		newDeclare(),
 		newOutcome(),
 		newAssemble(),
 		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),

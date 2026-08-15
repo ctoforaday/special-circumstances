@@ -797,10 +797,38 @@ import (
 //
 //	       A stale binary silently builds a blackboard wherever a relative path lands.
 //
+//	0.67.0 THE BENCH'S OUTPUT GETS A CARRIER. Two defects, both found BY A BENCH SEAT ruling a
+//	       real petition and filed in its own friction (#360, #361).
+//
+//	       `bench declare` is new: a holding that binds how the record is READ and moves no gap —
+//	       a construction of a term, a correction of meaning, a rule offered for precedent. Every
+//	       bench act changed something's fate, so a holding that changes none had no verb, and
+//	       `opinion` demands an id and a fate. The bench put its holding in a petition ruling's
+//	       opinion text instead: "the one channel both seats read was unavailable for the one
+//	       holding both seats most need."
+//
+//	       AND A GRANTED PETITION'S RELIEF NOW REACHES THE SEAT IT BINDS. Relief was threaded
+//	       into exactly ONE prompt — blue's — so relief addressed to red reached nothing, and the
+//	       bench recorded that it had "issued a direction to red knowing it has no carrier". The
+//	       ruling carries `--binds blue|red|both`, and the engine routes by it.
+//
+//	       Three carriers were missing and all three are closed: `show debate`'s ### LEAD built
+//	       from `opinion` alone (so petition rulings and declarations were both invisible on the
+//	       surface a seat reads to catch up), the assembled report's Bench disposition, and the
+//	       engine's petitionLog, which carried petitioner/class/ruling and dropped the OPINION —
+//	       the operative half — at the boundary.
+//
+//	       The bench is this system's ethical and safety boundary. A boundary whose rulings cannot
+//	       reach the seat they bind is decoration, and an undelivered ruling is worse than an
+//	       unread finding: an unread finding costs a reader, an undelivered one costs compliance,
+//	       and nothing reported the failure.
+//
+//	       A stale binary has no `declare`, takes no `--binds`, and renders neither.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.66.0"
+const Version = "0.67.0"
 
 func init() { record.ToolVersion = Version }
 
