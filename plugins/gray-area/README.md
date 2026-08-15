@@ -38,6 +38,10 @@ Lists every tool invocation as `file:line uuid seat tool target` — so a reader
 
 **An unresolvable path is data, not an error.** A seat whose trajectory could not be found is recorded as `resolved: false` with the reason. A miner must be able to see that a trajectory was missing, rather than see nothing and assume the seat never ran.
 
+**And *why* it was unresolvable is a field, not prose.** Every unresolved row carries a `capture_category` from a closed set, because two very different conditions used to produce byte-identical rows: a seat that carried no `agent_type` and was never going to have a transcript — measured at **50 of 69 seats in one session, with zero exceptions** — and a seat that should have one and does not. The first is unremarkable; the second is worth an alarm, and one transcript in sixteen arrived *after* its stat, so that race is real. `capture_error` still says it in English for a human reading one row; `capture_category` says it in a word a counter can add up.
+
+Rows are still stat'ed even when `agent_type` is empty. The correlation is one session's evidence and what makes a seat untyped is undetermined, so the row reports what it observed rather than what was predicted — a row that cannot contradict the expectation has stopped being a measurement.
+
 ## The line this plugin will not cross
 
 > **Exploration may summarize. Adjudication must cite.**

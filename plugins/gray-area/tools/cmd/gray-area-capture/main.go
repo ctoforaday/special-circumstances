@@ -40,6 +40,12 @@
 // Do NOT add a fallback path search: with 50 of 69 seats having no file, that is
 // guessing three times in four, and a wrong file confidently attributed to a seat
 // is the false citation the adjudicator exists to refuse.
+//
+// SAID IN A FIELD as of schema 2 (#398). Until then this comment was the only place
+// the distinction existed: the row itself reported both populations with one error
+// string, so a reader counting capture failures got a number that meant nothing and
+// three analyses read the permanent category as a transient filesystem error
+// (plans/gray-area.md §11.8, §11.9). A comment is not a schema — see capture_category.
 package main
 
 import (
@@ -56,7 +62,34 @@ const version = "0.1.0"
 
 // schema is the manifest row version. The transcript format is vendor-internal
 // and version-unstable, so every row records what produced it.
-const schema = 1
+//
+// 2 adds capture_category (#398). The bump is not ceremony: the field is omitempty, so a
+// reader cannot otherwise tell "an old binary wrote this row and had no category" from
+// "a new binary wrote it and the row resolved" — both omit the key. Gating on schema >= 2
+// is what makes the field's ABSENCE mean something, which is the whole point of adding it.
+const schema = 2
+
+// The closed set of reasons a row is unresolved. A counter downstream needs to separate the
+// expected population from the alarming one, and a prose error string cannot be counted:
+// `capture_error` says it in English for a human, this says it in a word for a machine.
+//
+// MEASURED (#398, #189): across 69 seats in one session, `agent_type` empty and
+// `resolved: false` coincided 50/50 with zero exceptions, and every one of the 19 typed
+// seats resolved. The uniform error text read as a filesystem problem — a path that might
+// come back on a retry — while it was a permanent property of the seat, knowable before
+// anything was stat'ed. That misreading cost three wrong answers (plans/gray-area.md §11.8,
+// §11.9) before the correlation was noticed.
+const (
+	// captureUntypedSeat: the seat carried no agent_type and no transcript appeared. This is
+	// the expected 72%, and it is NOT an alarm.
+	captureUntypedSeat = "seat-carries-no-agent-type"
+	// captureMissing: a TYPED seat's transcript did not stat. This is the alarming one — the
+	// population where a file is expected — and one file in 16 arrived after its stat, so the
+	// race is real here and must stay visible.
+	captureMissing = "typed-seat-transcript-missing"
+	// captureNoPath: the hook input carried no path at all, so nothing was even attempted.
+	captureNoPath = "hook-input-carried-no-path"
+)
 
 type backgroundTask struct {
 	ID     string `json:"id"`
@@ -100,6 +133,11 @@ type manifestRow struct {
 	SessionCronCount    int      `json:"session_cron_count"`
 	Effort              string   `json:"effort,omitempty"`
 	CaptureError        string   `json:"capture_error,omitempty"`
+	// CaptureCategory names WHY the row is unresolved, from the closed set above, so the
+	// expected population can be counted apart from the alarming one. Empty when Resolved —
+	// a resolved row has nothing to categorise. Present on EVERY unresolved row from
+	// schema 2 onward, which is what lets a reader treat its absence as meaningful.
+	CaptureCategory string `json:"capture_category,omitempty"`
 }
 
 // statFunc is the filesystem probe, injected so both the resolved and the
@@ -130,11 +168,26 @@ func buildRow(in hookInput, now time.Time, stat statFunc) manifestRow {
 	}
 	if in.AgentTranscriptPath == "" {
 		r.CaptureError = "hook input carried no agent_transcript_path"
+		r.CaptureCategory = captureNoPath
 		return r
 	}
+	// STAT EVEN THE UNTYPED SEATS, and categorise from what happened rather than from what
+	// was predicted. The 50/50 correlation is one session's evidence, not a law, and what
+	// makes agent_type empty is NOT determined — six probe agents across every subagent_type
+	// (and omitted) all carried a type and all resolved. Skipping the stat for untyped seats
+	// would turn a strong correlation into an assumption the row could never contradict, and
+	// a row that cannot be surprised has stopped being a measurement.
 	size, err := stat(in.AgentTranscriptPath)
 	if err != nil {
 		r.CaptureError = "agent_transcript_path did not resolve: " + err.Error()
+		if in.AgentType == "" {
+			// Permanent and expected: no trajectory was written for this seat and none will
+			// be. Said as a category so a counter can set it aside; the error text stays,
+			// because a human reading one row still wants the path and the errno.
+			r.CaptureCategory = captureUntypedSeat
+		} else {
+			r.CaptureCategory = captureMissing
+		}
 		return r
 	}
 	r.Resolved = true
