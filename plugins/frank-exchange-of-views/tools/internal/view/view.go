@@ -486,20 +486,23 @@ func debateMD(b *record.Board) []byte {
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: records/ event log)"}
 	for _, r := range roundOrder {
 		re := byRound[r]
-		sec := func(typ, seatPrefix string) []record.Event {
+		// Party from the stamped field, not the id's prefix — see the twin in
+		// record/viewjson.go. These two renderers derive from one replay and must
+		// not drift, so they answer "which party" the same way.
+		sec := func(typ, party string) []record.Event {
 			var out []record.Event
 			for _, e := range re {
-				if e.Type == typ && strings.HasPrefix(e.SeatID, seatPrefix) {
+				if e.Type == typ && record.PartyOf(e) == party {
 					out = append(out, e)
 				}
 			}
 			return out
 		}
 		parts := []string{fmt.Sprintf("\n## Round %d", r)}
-		for _, p := range sec("position", "red-merge") {
+		for _, p := range sec("position", "merge") {
 			parts = append(parts, "### RED\n"+p.Payload.Str("text"))
 		}
-		for _, c := range sec("closing", "red-merge") {
+		for _, c := range sec("closing", "merge") {
 			parts = append(parts, fmt.Sprintf("### RED CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("text")))
 		}
 		for _, p := range sec("position", "blue") {
