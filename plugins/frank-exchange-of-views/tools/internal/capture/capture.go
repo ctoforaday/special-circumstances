@@ -6,6 +6,9 @@
 //
 // The three record-backed audits (telemetry, friction-parity, record-parity) read the record
 // IN-PROCESS via record.BoardState → DebateJSONOf/FrictionJSONOf, never by spawning `merge show`.
+// The PRECEDENT HARVEST reads it too, as of #413 — it used to read the envelopes' self-reported
+// ruling arrays, which meant a bench that under-reported promoted less than it ruled and a bench
+// that reported nothing promoted nothing, indistinguishably from a run with nothing to promote.
 // The JS no-`--bin` SKIP path has no Go analogue: the binary always holds the record. Real runs
 // always passed --bin, so this is behavior-preserving — the differential in the port PR pins it.
 package capture
@@ -867,6 +870,10 @@ type HarvestResult struct {
 	Count   int
 	Path    string
 	Reason  string
+	// EnvelopeClaimed is how many rulings the SEATS said they made. It is a cross-check, not
+	// a source: a field rather than a sentence, so a reader can compare it to Count without
+	// parsing prose (facts-are-fields).
+	EnvelopeClaimed int
 }
 
 var (
@@ -884,30 +891,103 @@ type ruling struct {
 	kind, gapID, petitioner, disposition, rationale string
 }
 
-func HarvestPrecedents(runDir string, results []map[string]any, lawDir string) HarvestResult {
-	slug := slugOf(runDir)
-	var rulings []ruling
-	for _, r := range results {
-		if rs, ok := r["resolutions"].([]any); ok {
-			for _, x := range rs {
-				if m, ok := x.(map[string]any); ok {
-					rulings = append(rulings, ruling{kind: "docket", gapID: strOf(m["gap_id"]), disposition: strOf(m["resolution"]), rationale: strOf(m["rationale"])})
-				}
-			}
+// rulingsFromRecord reads the rulings THE RECORD HOLDS.
+//
+// It used to read them from the harness journal's envelopes — a seat's own account of what it
+// ruled, composed as free-text arrays at the end of its sitting and validated by nothing that
+// knows what happened. The record holds the same rulings as events, each written through a verb
+// that refused them if they were malformed. Asking the less reliable of the two was the defect
+// (#413).
+//
+// It failed the way this class always fails. A bench that ruled six gaps and listed four
+// promoted four, and nothing noticed. A bench that omitted the array promoted nothing, and
+// capture reported "precedent harvest: 0 ruling(s)" — the same bytes as an honest run where the
+// bench genuinely ruled nothing. And `bench declare` (#361), which has no envelope field at all,
+// was unharvestable by construction rather than by omission: the one verb whose entire purpose
+// is to state a holding could not reach the place holdings are promoted from.
+//
+// DELIBERATELY NOT HARVESTED: `motion-rule` on a grade or direction. Those are rulings, and a
+// grade holding ("disclosure does not lower likelihood") reads like a rule — but the harvest
+// template's `question:` would have to be the motion's ask, which lives on the separate `motion`
+// event, and promoting a ruling without the ask it answered is how a holding loses its scope.
+// That is a change to WHAT law/proposed contains, not to where the harvest reads; it wants its
+// own decision. Named here so the smaller scope is visible rather than silent.
+func rulingsFromRecord(board *record.Board) []ruling {
+	if board == nil {
+		return nil
+	}
+	// A petition ruling names the motion, not the filer. The filer is the seat that appended
+	// the `motion` event, which is the only place that fact exists.
+	filedBy := map[string]string{}
+	for _, e := range board.Events {
+		if e.Type == "motion" {
+			filedBy[e.Payload.Str("motion_id")] = e.SeatID
 		}
-		if rs, ok := r["rulings"].([]any); ok {
-			for _, x := range rs {
-				if m, ok := x.(map[string]any); ok {
-					rulings = append(rulings, ruling{kind: "petition", petitioner: strOf(m["petitioner"]), disposition: strOf(m["ruling"]), rationale: strOf(m["opinion"])})
-				}
+	}
+
+	var out []ruling
+	for _, e := range board.Events {
+		switch e.Type {
+		case "opinion":
+			out = append(out, ruling{
+				kind:        "docket",
+				gapID:       e.Payload.Str("gap_id"),
+				disposition: e.Payload.Str("disposition"),
+				rationale:   e.Payload.Str("rationale"),
+			})
+		case "declare":
+			// No gap and no fate — that is the point of the verb. The holding IS the ruling.
+			out = append(out, ruling{
+				kind:        "declaration",
+				disposition: "declared",
+				rationale:   e.Payload.Str("holding"),
+			})
+		case "petition-rule", "motion-rule":
+			if e.Type == "motion-rule" && e.Payload.Str("subject") != "petition" {
+				continue
+			}
+			out = append(out, ruling{
+				kind:        "petition",
+				petitioner:  filedBy[e.Payload.Str("motion_id")],
+				disposition: e.Payload.Str("ruling"),
+				rationale:   e.Payload.Str("opinion"),
+			})
+		}
+	}
+	return out
+}
+
+// rulingsClaimedByEnvelopes counts what the seats SAID they ruled. Kept only as a cross-check
+// against the record: a divergence is a finding about the envelopes, the way record-parity
+// already treats one. It is never the harvest's source.
+func rulingsClaimedByEnvelopes(results []map[string]any) int {
+	n := 0
+	for _, r := range results {
+		for _, key := range []string{"resolutions", "rulings"} {
+			if rs, ok := r[key].([]any); ok {
+				n += len(rs)
 			}
 		}
 	}
+	return n
+}
+
+func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, board *record.Board) HarvestResult {
+	slug := slugOf(runDir)
+	rulings := rulingsFromRecord(board)
+	claimed := rulingsClaimedByEnvelopes(results)
 	if len(rulings) == 0 {
+		// STATED, not implied. "0 rulings" used to be the output of both an honest quiet run
+		// and a harvest that could not see the rulings in front of it. If the envelopes claim
+		// rulings the record does not hold, that is exactly the second case and it says so.
+		if claimed > 0 {
+			return HarvestResult{Written: false, Count: 0, EnvelopeClaimed: claimed,
+				Reason: fmt.Sprintf("the record holds NO rulings while the envelopes claim %d — the record is the source, so nothing is promoted; this divergence is the finding", claimed)}
+		}
 		return HarvestResult{Written: false, Count: 0}
 	}
 	if _, err := os.Stat(lawDir); err != nil {
-		return HarvestResult{Written: false, Count: len(rulings), Reason: "no law/ dir at repo root"}
+		return HarvestResult{Written: false, Count: len(rulings), EnvelopeClaimed: claimed, Reason: "no law/ dir at repo root"}
 	}
 	_ = os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755)
 	out := filepath.Join(lawDir, "proposed", slug+".md")
@@ -932,9 +1012,13 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string) H
 		}, "\n"))
 	}
 	if err := os.WriteFile(out, []byte(strings.Join(body, "\n")), 0o644); err != nil {
-		return HarvestResult{Written: false, Count: len(rulings), Reason: "no law/ dir at repo root"}
+		// This branch is a WRITE failure, and it used to report "no law/ dir at repo root" —
+		// the reason from the branch above, copied. A reader chasing that message would go
+		// looking for a directory that exists.
+		return HarvestResult{Written: false, Count: len(rulings), EnvelopeClaimed: claimed,
+			Reason: "could not write " + out + ": " + err.Error()}
 	}
-	return HarvestResult{Written: true, Count: len(rulings), Path: out}
+	return HarvestResult{Written: true, Count: len(rulings), EnvelopeClaimed: claimed, Path: out}
 }
 
 // ---- scorecards ----
@@ -1144,12 +1228,20 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 
-	prec := HarvestPrecedents(runDir, results, filepath.Join(cwd, "law"))
+	prec := HarvestPrecedents(runDir, results, filepath.Join(cwd, "law"), board)
+	// The divergence has to REACH the report. Computing it and then printing "no rulings this
+	// run" would rebuild the same defect one level up: the miss folded back into the zero.
+	divergence := ""
+	if prec.EnvelopeClaimed != prec.Count {
+		divergence = fmt.Sprintf(" [the envelopes claim %d — the record is the source]", prec.EnvelopeClaimed)
+	}
 	switch {
 	case prec.Written:
-		lines = append(lines, fmt.Sprintf("precedent harvest: %d ruling(s) -> %s (PERSUASIVE, awaiting review)", prec.Count, prec.Path))
+		lines = append(lines, fmt.Sprintf("precedent harvest: %d ruling(s) -> %s (PERSUASIVE, awaiting review)%s", prec.Count, prec.Path, divergence))
 	case prec.Count > 0:
-		lines = append(lines, fmt.Sprintf("precedent harvest: %d ruling(s), %s", prec.Count, prec.Reason))
+		lines = append(lines, fmt.Sprintf("precedent harvest: %d ruling(s), %s%s", prec.Count, prec.Reason, divergence))
+	case prec.Reason != "":
+		lines = append(lines, "precedent harvest: "+prec.Reason)
 	default:
 		lines = append(lines, "precedent harvest: no rulings this run")
 	}
