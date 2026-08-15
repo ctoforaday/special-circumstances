@@ -36,6 +36,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
 )
 
+// exitNotMeasured is the shared contract with scripts/check: 0 measured-clean, 1 measured-failed,
+// 3 DID NOT MEASURE. A code rather than a phrase in the output — a runner matching on prose
+// reports a reword as a pass, which is the class this gate set keeps finding (#409, #423).
+const exitNotMeasured = 3
+
 type manifest struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
@@ -78,23 +83,35 @@ func versionAt(root, ref, path string) (string, bool) {
 // check reports every version problem on this branch, and how many plugins it compared.
 // Separated from main so the failure it exists to catch can be reproduced in a scratch
 // repository instead of being argued about.
-func check(root, base string) (problems []string, checked int, err error) {
+func check(root, base string) (problems []string, unmeasured []string, checked int, err error) {
 	// The merge-base, not the tip: the question is whether THIS branch moved the version,
 	// not whether it happens to match whatever landed on main since it branched.
 	mb, err := gitx.Run(root, "merge-base", base, "HEAD")
 	if err != nil {
-		return nil, 0, fmt.Errorf("cannot find the merge-base with %s: %w", base, err)
+		return nil, nil, 0, fmt.Errorf("cannot find the merge-base with %s: %w", base, err)
 	}
 	changed, err := gitx.Run(root, "diff", "--name-only", mb+"...HEAD")
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
+	}
+	// The WORKING TREE, staged and unstaged. Not part of the forward-motion question — an
+	// uncommitted change has no commit whose version could have moved — but the gate has to
+	// tell "no plugin content changed" apart from "I cannot see the change yet" (#423).
+	//
+	// `changed` above is committed-only, while `now.Version` below is read from the file on
+	// disk. That split is the bug: edit a plugin, run the local loop before committing, and
+	// `touched` is false for every plugin, so the version-must-move arm cannot fire and the
+	// gate prints a pass. Then CI, on a clean checkout of the same commits, fails it.
+	dirty, err := gitx.Run(root, "diff", "--name-only", "HEAD")
+	if err != nil {
+		return nil, nil, 0, err
 	}
 	manifests, err := filepath.Glob(filepath.Join(root, "plugins", "*", ".claude-plugin", "plugin.json"))
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	if len(manifests) == 0 {
-		return nil, 0, fmt.Errorf("no plugin manifests found at all — the glob is wrong, not the tree")
+		return nil, nil, 0, fmt.Errorf("no plugin manifests found at all — the glob is wrong, not the tree")
 	}
 	sort.Strings(manifests)
 
@@ -119,16 +136,21 @@ func check(root, base string) (problems []string, checked int, err error) {
 		}
 		checked++
 
-		touched := false
-		for _, f := range gitx.Lines(changed) {
-			if strings.HasPrefix(filepath.ToSlash(f), "plugins/"+plugin+"/") {
-				touched = true
-				break
+		under := func(files string) bool {
+			for _, f := range gitx.Lines(files) {
+				if strings.HasPrefix(filepath.ToSlash(f), "plugins/"+plugin+"/") {
+					return true
+				}
 			}
+			return false
 		}
+		touched := under(changed)
 
 		switch {
 		case semver(now.Version, was) < 0:
+			// Tree-based on both sides (the manifest on disk against the merge-base), so this
+			// arm is always answerable and always fires. A backwards version is a defect
+			// whether or not anything is committed yet.
 			problems = append(problems, fmt.Sprintf(
 				"%s: version went BACKWARDS, %s -> %s. `/plugin update` is version-gated, so a consumer already on %s "+
 					"receives NOTHING from this branch — the content ships and the version says it did not. "+
@@ -138,9 +160,17 @@ func check(root, base string) (problems []string, checked int, err error) {
 			problems = append(problems, fmt.Sprintf(
 				"%s: content changed under plugins/%s/ and the version stayed at %s. "+
 					"`/plugin update` ships nothing without a bump (CLAUDE.md).", plugin, plugin, was))
+		case !touched && under(dirty):
+			// The content is there, it is just not committed yet — so there is no commit whose
+			// version could have moved, and the forward-motion question has no answer. Saying
+			// "versions move forward" here would be reporting a pass for a check that did not
+			// run. Committed changes take precedence above: a real failure still fails.
+			unmeasured = append(unmeasured, fmt.Sprintf(
+				"%s: content is modified but UNCOMMITTED (version on disk %s). The version-must-move "+
+					"rule reads committed history, so it cannot be answered yet — commit, then re-run.", plugin, now.Version))
 		}
 	}
-	return problems, checked, nil
+	return problems, unmeasured, checked, nil
 }
 
 func main() {
@@ -153,7 +183,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "version-guard:", err)
 		os.Exit(1)
 	}
-	problems, checked, err := check(root, base)
+	problems, unmeasured, checked, err := check(root, base)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "version-guard:", err)
 		os.Exit(1)
@@ -168,6 +198,18 @@ func main() {
 			fmt.Fprintln(os.Stderr, p)
 		}
 		os.Exit(1)
+	}
+	// A REAL FAILURE OUTRANKS "could not measure" — everything above still fails first, because
+	// the tree-based arms answer regardless of what is committed. Only when nothing is actually
+	// wrong does an unanswerable question get reported as unanswered (exit 3), rather than
+	// printed as "versions move forward" for plugins this run never compared. See #423, and
+	// scripts/check for the exit-code contract.
+	if len(unmeasured) > 0 {
+		fmt.Fprintf(os.Stderr, "version-guard: NOT MEASURED — %d plugin(s) have uncommitted content:\n\n", len(unmeasured))
+		for _, u := range unmeasured {
+			fmt.Fprintln(os.Stderr, "  "+u)
+		}
+		os.Exit(exitNotMeasured)
 	}
 	fmt.Printf("plugin versions move forward: %d checked against %s\n", checked, base)
 	if tolerated > 0 {
