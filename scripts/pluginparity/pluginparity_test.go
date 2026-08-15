@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
 )
 
 // The always-on import list decides which rules load in EVERY session of every consuming
@@ -102,5 +104,84 @@ func TestDevOnlyMarkerIsHonouredByBothReaders(t *testing.T) {
 	if len(hits) == 0 {
 		t.Fatal("no cmd/ directory carries a DEV-ONLY marker — if the last dev harness was " +
 			"promoted or deleted, delete this mechanism too rather than leaving it passing vacuously")
+	}
+}
+
+// THE GUARD WAS REAL AND POINTED AT THE WRONG ALTITUDE.
+//
+// committedBinaries scanned `ls-files plugins`, while its own reasoning — "binaries reach a
+// consumer through Releases or a local build, never through git, so a tracked executable is
+// always an accident" — is about GIT, not about plugins/. A 3.1 MB `scripts/check.exe` was
+// committed and reached main one directory outside what the guard read, and the guard
+// reported a clean board throughout. `invariant-at-wrong-level`: the enforcement was real,
+// the altitude was wrong.
+//
+// This builds a throwaway repository so the check runs against a tree whose contents are the
+// test's own, rather than against whatever happens to be tracked here.
+func TestCommittedBinariesSeesOutsidePlugins(t *testing.T) {
+	if _, err := os.Stat(filepath.Join("..", "..", ".git")); err != nil {
+		t.Skip("not a git checkout")
+	}
+	root := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if out, err := gitx.Run(root, args...); err != nil {
+			t.Fatalf("git %v: %v (%s)", args, err, out)
+		}
+	}
+	run("init")
+	run("config", "user.email", "t@example.com")
+	run("config", "user.name", "t")
+
+	// A source file, a plugin-side executable, and one OUTSIDE plugins/ — the case that got
+	// through. Named `.txt` deliberately: the check is on CONTENT, so a name that reveals
+	// nothing must not help it hide.
+	write := func(rel string, body []byte) {
+		t.Helper()
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("plugins/x/tools/main.go", []byte("package main\n"))
+	write("plugins/x/tools/feov-record", []byte{0x7f, 'E', 'L', 'F', 0, 0})
+	write("scripts/notes.txt", []byte{'M', 'Z', 0x90, 0, 0})
+	run("add", "-A")
+
+	got := committedBinaries(root)
+	var sawPlugin, sawScripts bool
+	for _, p := range got {
+		if strings.Contains(p, "plugins/x/tools/feov-record") {
+			sawPlugin = true
+		}
+		if strings.Contains(p, "scripts/notes.txt") {
+			sawScripts = true
+		}
+		if strings.Contains(p, "main.go") {
+			t.Errorf("a Go source file was reported as an executable: %s", p)
+		}
+	}
+	if !sawPlugin {
+		t.Error("the original plugins/ case must still be caught")
+	}
+	if !sawScripts {
+		t.Error("a tracked executable OUTSIDE plugins/ was not reported — this is the exact " +
+			"miss that put a 3.1 MB scripts/check.exe on main while the guard read clean")
+	}
+}
+
+// A check that reads nothing must SAY so. An empty repository and a clean one are otherwise
+// the same output, which is the failure mode this whole file is written against.
+func TestCommittedBinariesRefusesToPassOnAnEmptyListing(t *testing.T) {
+	root := t.TempDir()
+	if _, err := gitx.Run(root, "init"); err != nil {
+		t.Skip("git unavailable")
+	}
+	got := committedBinaries(root)
+	if len(got) != 1 || !strings.Contains(got[0], "without reading anything") {
+		t.Errorf("a zero-file listing must be reported as unmeasured, not as a pass: %v", got)
 	}
 }
