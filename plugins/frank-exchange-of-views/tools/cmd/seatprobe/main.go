@@ -254,6 +254,16 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 	} else {
 		report += "**help use**: NOT MEASURED (no trajectory)\n"
 	}
+	// THE THIRD CHANNEL, BESIDE THE NAMING AND THE HELP. record.SittingOf hands a seat the
+	// situation AND the verb that discharges it, and it rides on `worklist` alone. Measured across
+	// the first naming matrix, worklist reads varied THREEFOLD with the arm — so a naming effect
+	// reported without this number has a rival explanation sitting underneath it, and the first
+	// version of that report was published before anyone asked.
+	if vr, err := seatprobe.ReadViewReads(trajectoryPath(runDir), filepath.Base(bin)); err == nil {
+		report += fmt.Sprintf("**duty delivery**: %s\n", vr.Line())
+	} else {
+		report += "**duty delivery**: NOT MEASURED (no trajectory)\n"
+	}
 	// The reasoning, where the seat produced any. It is the half a record cannot hold: the record
 	// says which verb was taken, and this says what the seat was weighing when it chose.
 	if recordRoot != "" {

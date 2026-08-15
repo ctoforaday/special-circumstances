@@ -289,6 +289,120 @@ func ReadHelpUse(trajectoryPath, binName string) (HelpUse, error) {
 	return u, sc.Err()
 }
 
+// ViewReads is which projections a seat actually opened.
+//
+// # Why a naming experiment has to measure this
+//
+// THE DUTY LIST IS A THIRD CHANNEL, AND IT WAS UNCONTROLLED. record.SittingOf derives a
+// Duty{What, How} for each live circumstance — the situation, its consequence, and the exact
+// command that discharges it — which is the same fact the constitution's naming carries, arriving
+// only when it applies. It rides on ONE projection: `worklist`. `show board` does not carry it.
+//
+// Measured 2026-08-15, across the 24 dispatches of the first naming matrix:
+//
+//	arm             worklist reads/cell   board reads/cell   surface reached
+//	none                   2.00                 4.00              8.83
+//	partial                0.67                 3.17              6.83
+//	complete               0.33                 4.33              8.33
+//	none+directive         1.83                 2.67              7.50
+//
+// So the channel did not merely go unmeasured — it CO-VARIED WITH THE TREATMENT, threefold, in an
+// experiment whose whole claim was about how a seat learns its surface. The reported `none` over
+// `partial` advantage sits on top of that difference and cannot be attributed to the constitution.
+// A covariate that moves with the arm is not a constant to be waved off; it is a rival explanation
+// wearing the result's clothes.
+//
+// It is NOT a clean mediator either, and this must not be swapped for the opposite over-claim:
+// `complete` had the FEWEST worklist reads and the second-highest reach, so "reading the worklist
+// raises reach" is refuted by the same table that raises the confound.
+//
+// The instrument's job is to stop any future run reporting a naming effect without the channel that
+// competes with it. Hence this, printed beside HelpUse on every probe report.
+//
+// AND THE DESIGN FINDING IS INDEPENDENT OF THE EXPERIMENT: `board` is described in this tool's own
+// words as "the form a seat acts on" and is read 2.7–4.3 times a sitting; `worklist` carries every
+// duty and is read 0.33–2.00 times. The one channel that delivers situation-plus-verb at the moment
+// it applies is the one the tool steers seats away from.
+type ViewReads struct {
+	// ByView counts each projection the seat opened. A bare `show` resolves to the role's
+	// default, which is `worklist` for every role, and is counted as such.
+	ByView map[string]int
+	// Worklist is the duty-carrying read; Board is the one seats reach for instead.
+	Worklist, Board, Total int
+}
+
+// showCall matches a projection read. The bare form (`<role> show` with flags or nothing after it)
+// is the seat's pending work — the worklist — so a token starting with a dash is not a view name.
+var showCall = regexp.MustCompile(`(?:lens|merge|blue|bench)\s+show(?:\s+([a-z][a-z-]*))?`)
+
+// ReadViewReads extracts which projections were opened, from a captured trajectory.
+func ReadViewReads(trajectoryPath, binName string) (ViewReads, error) {
+	v := ViewReads{ByView: map[string]int{}}
+	f, err := os.Open(trajectoryPath)
+	if err != nil {
+		return v, err
+	}
+	defer f.Close()
+
+	want := strings.TrimSuffix(strings.ToLower(binName), ".exe")
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 1<<20), 1<<24)
+	for sc.Scan() {
+		var ev struct {
+			Message struct {
+				Content []struct {
+					Type  string `json:"type"`
+					Name  string `json:"name"`
+					Input struct {
+						Command string `json:"command"`
+					} `json:"input"`
+				} `json:"content"`
+			} `json:"message"`
+		}
+		if json.Unmarshal(sc.Bytes(), &ev) != nil {
+			continue
+		}
+		for _, blk := range ev.Message.Content {
+			if blk.Type != "tool_use" || blk.Name != "Bash" {
+				continue
+			}
+			cmd := blk.Input.Command
+			if !invokesBin(cmd, want) {
+				continue
+			}
+			m := showCall.FindStringSubmatch(cmd)
+			if m == nil {
+				continue
+			}
+			view := m[1]
+			if view == "" {
+				// The bare form is the role default, and that default is the worklist for
+				// every role. Counting it as "unknown" would undercount the one channel this
+				// measurement exists for.
+				view = "worklist"
+			}
+			v.ByView[view]++
+			v.Total++
+			switch view {
+			case "worklist":
+				v.Worklist++
+			case "board":
+				v.Board++
+			}
+		}
+	}
+	return v, sc.Err()
+}
+
+// Line renders the duty-delivery result for the probe report.
+func (v ViewReads) Line() string {
+	if v.Total == 0 {
+		return "no projection opened at all — the duty list reached this seat through no channel"
+	}
+	return fmt.Sprintf("worklist×%d (the ONLY carrier of the duty list), board×%d, %d projection reads total",
+		v.Worklist, v.Board, v.Total)
+}
+
 func invokesBin(command, want string) bool {
 	for _, f := range strings.Fields(strings.NewReplacer("\"", " ", "'", " ").Replace(command)) {
 		if strings.TrimSuffix(strings.ToLower(filepath.Base(f)), ".exe") == want {
