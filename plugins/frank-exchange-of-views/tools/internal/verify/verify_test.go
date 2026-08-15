@@ -78,23 +78,46 @@ func TestDialecticRefsResolve(t *testing.T) {
 	}
 }
 
+// CORRECTED: this test used to build `{Type: "outcome", verdict: "PASS"}` and assert the gate
+// fired. It passed — against an implementation that read `outcome` events — and BOTH were wrong
+// about the tree they describe.
+//
+// An `outcome` event's vocabulary is VERIFIED|CEILING|HALTED|UNVERIFIED, validated at the write.
+// It can never carry "PASS"; PASS lives on a `verdict` event. So the board this test constructed
+// was one the tool cannot produce, the implementation was reading a field that never held the
+// value it compared against, and the two agreed with each other while the gate ran on nothing.
+//
+// A hand-built board is the right tool for testing an after-the-fact verifier — that is the
+// whole point of one — but building it past a validation the real writer enforces turns the test
+// into a mirror of the implementation. The fixture has to be a state the WRITER could reach.
 func TestPassClosesAllGaps(t *testing.T) {
 	openUnderPass := &record.Board{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []record.Event{{Type: "outcome", Payload: p("verdict", "PASS")}},
+		Events:   []record.Event{{Type: "verdict", Payload: p("verdict", "PASS")}},
 	}
 	if c := find(t, Run(openUnderPass), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
 	}
-	// A non-PASS verdict makes the gate inapplicable — an open gap is fine.
+	// A FAIL verdict makes the gate inapplicable — an open gap is expected there.
+	failed := &record.Board{
+		GapOrder: []string{"G1"},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
+		Events:   []record.Event{{Type: "verdict", Payload: p("verdict", "FAIL")}},
+	}
+	if c := find(t, Run(failed), "pass-closes-all-gaps"); !c.OK {
+		t.Error("a FAIL verdict must not trip the PASS gate")
+	}
+	// And a terminal CEILING outcome, which is a different event and a different question.
+	// Whether outcome=VERIFIED with open gaps should ALSO be a violation is a live design
+	// question, not something this fix decided — see the issue at passClosesAllGaps.
 	ceiling := &record.Board{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 		Events:   []record.Event{{Type: "outcome", Payload: p("verdict", "CEILING")}},
 	}
 	if c := find(t, Run(ceiling), "pass-closes-all-gaps"); !c.OK {
-		t.Error("a CEILING verdict must not trip the PASS gate")
+		t.Error("a CEILING outcome must not trip the PASS gate")
 	}
 }
 
@@ -146,5 +169,96 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 	}
 	if s.Verdict != "CEILING" {
 		t.Errorf("verdict not read: %q", s.Verdict)
+	}
+}
+
+// THE AFTER-THE-FACT GATE, which had never run.
+//
+// passClosesAllGaps scanned `outcome` events for verdict "PASS". An outcome's vocabulary is
+// VERIFIED|CEILING|HALTED|UNVERIFIED, validated at the write, so the comparison could not match
+// and the check reported "gate not applicable" on every run ever recorded.
+//
+// The board is built DIRECTLY here rather than through the CLI, and that is the point: the live
+// gate in record.Append refuses `merge verdict --as PASS` while a gap is open, so the
+// contradiction cannot be produced the normal way. A record assembled some other way — a
+// hand-edited shard, a legacy run, a regressed live gate — is the only thing this check is for,
+// and it is what a test of it has to construct.
+func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
+	b := &record.Board{
+		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		GapOrder: []string{"R1-1"},
+		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+	}
+	got := passClosesAllGaps(b)
+	if got.OK {
+		t.Fatalf("a PASS verdict with R1-1 still open must FAIL the gate; got ok with detail %q", got.Detail)
+	}
+	if len(got.Violations) != 1 || got.Violations[0] != "R1-1" {
+		t.Errorf("the violation must name the open gap, got %v", got.Violations)
+	}
+}
+
+func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
+	b := &record.Board{
+		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		GapOrder: []string{"R1-1"},
+		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: false}},
+	}
+	if got := passClosesAllGaps(b); !got.OK {
+		t.Errorf("a PASS with every gap closed must pass; got %q %v", got.Detail, got.Violations)
+	}
+}
+
+// A FAIL verdict is not the gate's business, and neither is a terminal `outcome` — reading the
+// latter is what made the check dead. Both must leave it inapplicable rather than firing.
+func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
+	for _, ev := range []record.Event{
+		{Type: "verdict", Payload: record.NewPayload().Set("verdict", "FAIL")},
+		{Type: "outcome", Payload: record.NewPayload().Set("verdict", "VERIFIED")},
+	} {
+		b := &record.Board{
+			Events:   []record.Event{ev},
+			GapOrder: []string{"R1-1"},
+			Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+		}
+		if got := passClosesAllGaps(b); !got.OK {
+			t.Errorf("%s/%s must leave the gate inapplicable, not fire it: %q",
+				ev.Type, ev.Payload.Str("verdict"), got.Detail)
+		}
+	}
+}
+
+// THE CLASS, not the instance.
+//
+// `verdict` and `outcome` events both carry their word under the payload key "verdict", and
+// their vocabularies are disjoint — PASS|FAIL against VERIFIED|CEILING|HALTED|UNVERIFIED. So
+// reading the wrong event type is a type error the compiler cannot see, and it does not fail
+// loudly: the comparison simply never matches and the gate reports "not applicable" forever.
+// A check that can only ever be inapplicable is indistinguishable from a check that holds.
+//
+// This asserts the PAIR against enums.go, which is where the vocabulary is actually declared.
+// Re-point the gate at `outcome`, or rename PASS, and this fails — instead of the gate going
+// quietly dark the way it already did once.
+func TestPassVerdictIsAWordItsEventTypeCanActuallyCarry(t *testing.T) {
+	declared, found := record.Enum(passVerdictType, "verdict")
+	if !found {
+		t.Fatalf("no declared vocabulary for (%s, verdict) — the gate switches on a word "+
+			"nothing validates at the write", passVerdictType)
+	}
+	if !declared.Allows(passVerdictWord) {
+		var have []string
+		for _, v := range declared.Values {
+			have = append(have, v.Name)
+		}
+		t.Errorf("%s events cannot carry %q (they carry %v), so the gate's comparison can "+
+			"NEVER match and it reports 'not applicable' on every run",
+			passVerdictType, passVerdictWord, have)
+	}
+	// And the event type it was wrongly pointed at must still be the wrong one — if the two
+	// vocabularies ever converge, the confusion this guards against stops being detectable
+	// and this test needs rewriting rather than silently continuing to pass.
+	if other, ok := record.Enum("outcome", "verdict"); ok && other.Allows(passVerdictWord) {
+		t.Errorf("`outcome` now also allows %q; the two vocabularies have converged and this "+
+			"guard no longer distinguishes the event types", passVerdictWord)
 	}
 }
