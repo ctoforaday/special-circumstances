@@ -34,6 +34,9 @@ type BoardJSON struct {
 	// three rounds reporting a board that was wrong by six gaps with nothing to show for
 	// it. A seat that can see them can petition about them.
 	Anomalies []string `json:"anomalies"`
+	// Sitting rides here only under the carriage arm (see BoardJSONBytesFor). A nil pointer
+	// omits the key entirely, so the shipped board JSON is byte-identical to what it was.
+	Sitting *SittingJSON `json:"sitting,omitempty"`
 }
 
 type CountsJSON struct {
@@ -258,11 +261,31 @@ func payloadMap(p *Payload) map[string]any {
 // BoardJSONBytes renders the board as indented JSON. Indented because a seat reads this in
 // a terminal transcript and a single 40KB line is unreadable to the thing consuming it.
 func BoardJSONBytes(runDir string) ([]byte, error) {
+	return BoardJSONBytesFor(runDir, "", "")
+}
+
+// BoardJSONBytesFor is the board, optionally carrying the seat's sitting.
+//
+// THE CARRIAGE ARM. `board` is described in this package's own words as "the form a seat acts on"
+// and was read 2.7-4.3 times a sitting across 24 probe dispatches; `worklist`, which carries every
+// duty and affordance, was read 0.33-2.00 times. A list that rides only on the projection a seat
+// rarely opens mostly does not arrive, and its silence reads exactly like having nothing to say.
+//
+// Under DutyAvailableOnBoard the sitting travels with the board as well. It is a SEPARATE arm from
+// the content change on purpose: "the list was too short" and "the list was in the wrong place" are
+// different diagnoses with different fixes, and an experiment that moved both at once could not
+// tell them apart.
+func BoardJSONBytesFor(runDir, role, seatID string) ([]byte, error) {
 	b, err := BoardState(runDir)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(BoardJSONOf(b), "", "  ")
+	bj := BoardJSONOf(b)
+	if role != "" && CurrentDutyArm() == DutyAvailableOnBoard {
+		s := SittingOf(b, role, seatID)
+		bj.Sitting = &s
+	}
+	out, err := json.MarshalIndent(bj, "", "  ")
 	if err != nil {
 		return nil, err
 	}

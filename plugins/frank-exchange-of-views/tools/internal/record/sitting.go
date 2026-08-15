@@ -47,13 +47,30 @@ type SittingJSON struct {
 	// the dark — which is the difference this exists to make.
 	Complete    bool   `json:"complete"`
 	Outstanding []Duty `json:"outstanding"`
+	// Available is what this board AFFORDS, and it is deliberately not an obligation — see
+	// available.go. It never touches Complete: a seat reading it is being told what is open to
+	// it, not what it owes, and conflating the two is what the rule above forbids.
+	Available []Duty `json:"available"`
 }
 
 // SittingOf computes what the given seat still owes on this board.
 func SittingOf(b *Board, role, seatID string) SittingJSON {
-	s := SittingJSON{Seat: seatID, Role: role, Outstanding: []Duty{}}
+	s := SittingJSON{Seat: seatID, Role: role, Outstanding: []Duty{}, Available: []Duty{}}
 	if b == nil {
 		return s
+	}
+	// THE ARM IS READ ONCE, HERE. Unset is the shipped behaviour, which is what every call site
+	// outside the probe gets — asserted, not assumed, by TestDutyArmDefaultIsTheShippedSet.
+	arm := CurrentDutyArm()
+	if arm == DutyOff {
+		// The floor arm: no duties, no affordances. `Complete` then reports true, which is
+		// honest for this arm and would be a lie in any other — it is the whole point of the
+		// control that the seat is told nothing about what it owes.
+		s.Complete = true
+		return s
+	}
+	if arm == DutyAvailable || arm == DutyAvailableOnBoard {
+		s.Available = AvailableOf(b, role, seatID)
 	}
 	add := func(what, how string) { s.Outstanding = append(s.Outstanding, Duty{What: what, How: how}) }
 
