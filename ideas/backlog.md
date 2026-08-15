@@ -147,7 +147,12 @@ consumers already built or wanted:
   did against the tool calls it actually made, because production-by-the-party
   propagates the lie and party-demanded discovery encourages fabrication
 - capture's attestation-integrity audit and record-join audit, both of which
-  reduce to trajectory mining with a different question
+  reduce to trajectory mining with a different question — **record-join was
+  deleted 2026-08-15 (#223)**, and its deletion is evidence FOR this entry, not
+  against it: a bespoke regex over Bash command strings had five independent
+  ways to be wrong, and the one real signal it carried (back-fill) turned out
+  not to need the trajectory at all. Trajectory mining that is worth building
+  joins on an id both sides were handed, not on a string one side reassembled
 - E0.5a's attestation audit and E0.5e's friction mining, done BY HAND over
   transcripts and never tooled
 - context-use telemetry, cost audit, and the wall-clock forensics

@@ -209,6 +209,13 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
   zero-FAIL.
 - Back-fill vacuity (transcribe-at-end defeats parity): med x med x med — the
   tail-cluster detector in record-join, WARN tier, human-reviewed.
+  **RE-GROUNDED 2026-08-15 (#223): the detector survives, its host does not.**
+  record-join was deleted — five independent ways to be wrong, one of which
+  fabricated invocations and could mask a real orphan. Back-fill is now
+  `BackfillAudit`, measured from the record's own `ts` (register → first write
+  → last write) and needing no transcript at all. Different instrument, same
+  phenomenon: the old one measured POSITION among a seat's tool calls, this one
+  measures ELAPSED TIME, and neither can see what the other can.
 - Tool-arg mangling on prose payloads: med (documented recurrence, reproduced
   during this plan's own authoring) x low x low — --file/stdin mandatory over
   2KB.
@@ -224,8 +231,13 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
   validation refusals, render fixtures) and the full simulator suite green.
 - `node plugins/frank-exchange-of-views/skills/research-protocol/scripts/record-parity-check.mjs <runDir>`
   — spec in III/R2.5; exit 2 on divergence; runs at the parity run's capture.
-- The record-join audit runs in every capture from R2 on; its verdict line
-  lands in run-record-audit.md (PASS / FLAGGED list / back-fill WARN).
+- ~~The record-join audit runs in every capture from R2 on; its verdict line
+  lands in run-record-audit.md (PASS / FLAGGED list / back-fill WARN).~~
+  **RETIRED 2026-08-15 (#223).** Seat bypass by hand-appended events was the
+  threat this answered; it was never the threat it could answer, because
+  `feov-record` is the sole validated writer and an event exists only because
+  the command ran. What replaced it in the audit list is `backfill`, which
+  keeps the WARN tier and the verdict line.
 - Smoke (`/research --smoke`) after R2 and after R3: one round exercising every
   seat CLI end-to-end; capture audits green.
 - The R3 constitutional-deletion PR diff IS the review surface: every deleted
