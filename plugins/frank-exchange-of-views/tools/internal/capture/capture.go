@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -521,144 +522,138 @@ func RecordParityAudit(runDir string, redRounds, blueBlocks int) Audit {
 			redRounds, blueBlocks, clRounds)}
 }
 
-// ---- AUDIT 7: record-join ----
+// ---- AUDIT 7: back-fill ----
 
-type recEvent struct {
-	SeatID string
-	Type   string
-	Key    string
-}
-
-var (
-	reInvocBin = regexp.MustCompile(`feov-record"?\s+(?:lens|merge|blue|bench)\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)`)
-	reInvocMjs = regexp.MustCompile(`(?:red-lens|red-merge|blue|bench)\.mjs\s+([a-z-]+)[\s\S]*?--seat-id\s+(\S+)`)
+// BackfillAudit asks whether a seat RECORDED AS IT WORKED or narrated at the end, and it asks the
+// RECORD, not a transcript.
+//
+// WHAT THIS REPLACES, AND WHY IT IS A DELETION RATHER THAN A REWRITE. `RecordJoinAudit` scraped
+// Bash command strings out of agent transcripts with a regex and flagged every event whose
+// (seat, verb) pair it failed to reconstruct. It had FIVE independent ways to be wrong (#223):
+// `motion` was missing from its role alternation, so 100% of the adjudication mechanism was
+// invisible; `(\S+)` captured `--seat-id "x"` with the quotes; FindStringSubmatch saw only the
+// first invocation in a batched command, which debate.js encourages; the event type is not the
+// verb for six types (friction-none, anchor, blue_edit, the two motion subcommands, and friction
+// when emitted as a side effect of mint/prove/cite); and `[\s\S]*?` spanned invocations, so one
+// call's verb could pair with another call's seat and MANUFACTURE an invocation that never
+// happened — masking a genuine orphan. Four modes fail loudly; the fifth fails silently, which is
+// the one that matters.
+//
+// The check it was straining for could not pay for that. `feov-record` is the sole validated
+// writer, so an event exists only because the command ran — fabrication is not a reachable state,
+// and the join spent all its complexity re-deriving from prose what the record already holds as
+// fields. This is `facts-are-fields`: the fact was composed into a command string at one end and
+// recovered by regex at the other, and the recovery failed silently in both directions.
+//
+// WHAT SURVIVED. Exactly one signal: back-fill. A seat that does its work and then dumps every
+// record call in a burst at the end has produced a retrospective narration, and any audit that
+// treats those events as contemporaneous evidence is reading a story. That signal does not need
+// the transcript, because `ts` is stamped BY THE TOOL at write time (nextStamp) and `register` is
+// every seat's first record action — so the record already knows when a seat started and when it
+// wrote.
+//
+// AND IT IS NOT THE SAME INSTRUMENT, WHICH IS STATED HERE RATHER THAN GLOSSED. The old warning
+// measured POSITION among a seat's tool calls ("all its record calls are in the final block");
+// this measures ELAPSED TIME between registering and recording. They detect the same behaviour
+// from different evidence, and this one is blind to a seat that back-filled inside a window too
+// short to resolve. It is also blind in the other direction the old one was not: a seat that made
+// no non-record tool calls at all looks identical to a seat that worked and narrated. Where the
+// two disagree, believe neither without looking at the run.
+const (
+	// backfillMinEvents mirrors the old check's floor: below a handful of events, "clustered"
+	// and "this seat only had three things to say" are the same shape.
+	backfillMinEvents = 5
+	// backfillSpanRatio is the fraction of a seat's lifetime its recording burst must fit
+	// inside before the burst reads as narration rather than as work. A seat that registers,
+	// works for nine minutes and records for one is at 0.1.
+	backfillSpanRatio = 0.15
 )
 
-func verbOf(t string) string {
-	if t == "class-new" {
-		return "mint"
-	}
-	return t
-}
-
-func RecordJoinAudit(runDir, transcriptDir string, agentFiles []string) Audit {
-	// A RUN WHOSE RECORD CANNOT BE RESOLVED IS NOT A PRE-RECORD RUN. The SKIP below says "this
-	// run predates the record tool" — an accurate, benign reading that a separated run with a
-	// lost root would silently borrow, retiring the join audit on exactly the runs it exists for.
-	recDir, err := record.RecordsDir(runDir)
+func BackfillAudit(runDir string) Audit {
+	board, err := record.BoardState(runDir)
 	if err != nil {
-		return Audit{Check: "record-join", Verdict: "FAIL", Detail: err.Error()}
+		// ABSENT IS NOT CLEAN. A run whose record cannot be read has not been audited, and
+		// saying so is the whole point — the shape this audit replaced reported a plausible
+		// zero when its input went missing.
+		return Audit{Check: "backfill", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	entries, err := os.ReadDir(recDir)
-	if err != nil {
-		return Audit{Check: "record-join", Verdict: "SKIP", Detail: "no records/ (pre-record-tool run)"}
+	type seatSpan struct {
+		registered            time.Time
+		firstWrite, lastWrite time.Time
+		n                     int
 	}
-	var events []recEvent
-	for _, e := range entries {
-		n := e.Name()
-		if !strings.HasPrefix(n, "events-") || !strings.HasSuffix(n, ".jsonl") {
+	seats := map[string]*seatSpan{}
+	order := []string{}
+	unparsed := 0
+	for _, e := range board.Events {
+		ts, perr := record.ParseStamp(e.TS)
+		if perr != nil {
+			unparsed++
 			continue
 		}
-		b, err := os.ReadFile(filepath.Join(recDir, n))
-		if err != nil {
+		s := seats[e.SeatID]
+		if s == nil {
+			s = &seatSpan{}
+			seats[e.SeatID] = s
+			order = append(order, e.SeatID)
+		}
+		if e.Type == "register" {
+			// A seat can register more than once — a re-dispatch rotates the nonce
+			// (RegisterSeat). The EARLIEST register is when this seat first existed.
+			if s.registered.IsZero() || ts.Before(s.registered) {
+				s.registered = ts
+			}
 			continue
 		}
-		for _, l := range strings.Split(string(b), "\n") {
-			if l == "" {
-				continue
-			}
-			var ev map[string]any
-			if json.Unmarshal([]byte(l), &ev) != nil {
-				continue
-			}
-			if strOf(ev["type"]) == "register" {
-				continue
-			}
-			events = append(events, recEvent{SeatID: strOf(ev["seatId"]), Type: strOf(ev["type"]), Key: strOf(ev["key"])})
+		if s.firstWrite.IsZero() || ts.Before(s.firstWrite) {
+			s.firstWrite = ts
 		}
+		if ts.After(s.lastWrite) {
+			s.lastWrite = ts
+		}
+		s.n++
 	}
-	if len(events) == 0 {
-		return Audit{Check: "record-join", Verdict: "SKIP", Detail: "records/ empty"}
+	if len(seats) == 0 {
+		return Audit{Check: "backfill", Verdict: "SKIP", Detail: "no events on the record"}
 	}
-	invocations := map[string]bool{}
-	var tailWarns []string
-	for _, f := range agentFiles {
-		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
-		if err != nil {
+	var warns []string
+	measured := 0
+	for _, id := range order {
+		s := seats[id]
+		if s.n < backfillMinEvents || s.registered.IsZero() {
 			continue
 		}
-		var cmds []int
-		toolCallCount := 0
-		for _, l := range strings.Split(string(b), "\n") {
-			if !strings.Contains(l, "tool_use") {
-				continue
-			}
-			var j map[string]any
-			if json.Unmarshal([]byte(l), &j) != nil {
-				continue
-			}
-			m, _ := j["message"].(map[string]any)
-			if m == nil {
-				continue
-			}
-			content, ok := m["content"].([]any)
-			if !ok {
-				continue
-			}
-			for _, ci := range content {
-				c, ok := ci.(map[string]any)
-				if !ok || strOf(c["type"]) != "tool_use" {
-					continue
-				}
-				toolCallCount++
-				cmd := ""
-				if inp, ok := c["input"].(map[string]any); ok {
-					cmd = strOf(inp["command"])
-				}
-				var mm []string
-				if mm = reInvocBin.FindStringSubmatch(cmd); mm == nil {
-					mm = reInvocMjs.FindStringSubmatch(cmd)
-				}
-				if mm != nil {
-					invocations[mm[2]+"::"+mm[1]] = true
-					cmds = append(cmds, toolCallCount)
-				}
-			}
+		lifetime := s.lastWrite.Sub(s.registered)
+		if lifetime <= 0 {
+			continue
 		}
-		if len(cmds) > 5 && cmds[0] > toolCallCount-len(cmds)-2 {
-			tailWarns = append(tailWarns, fmt.Sprintf("%s: %d record invocations all tail-clustered (back-fill pattern — parity may be vacuous for this seat)", f, len(cmds)))
+		measured++
+		burst := s.lastWrite.Sub(s.firstWrite)
+		if float64(burst) <= backfillSpanRatio*float64(lifetime) {
+			warns = append(warns, fmt.Sprintf("%s: %d event(s) written in %s at the end of a %s sitting — recorded after the fact, so these events are narration, not contemporaneous evidence",
+				id, s.n, burst.Round(time.Millisecond), lifetime.Round(time.Millisecond)))
 		}
 	}
-	var orphans []recEvent
-	for _, e := range events {
-		if !invocations[e.SeatID+"::"+verbOf(e.Type)] {
-			orphans = append(orphans, e)
-		}
+	parts := []string{fmt.Sprintf("%d seat(s) on the record; %d with enough events (>=%d) and a known start to measure", len(seats), measured, backfillMinEvents)}
+	if unparsed > 0 {
+		// Loud, not folded into the pass: an unparseable stamp means this audit did not see
+		// that event at all, and a quieter version of this line is how a broken clock reads
+		// as a clean board.
+		parts = append(parts, fmt.Sprintf("NOT MEASURED: %d event(s) carried an unparseable ts", unparsed))
 	}
-	parts := []string{fmt.Sprintf("%d event(s) across shards; %d distinct (seat, verb) invocations in transcripts", len(events), len(invocations))}
-	if len(orphans) > 0 {
-		lim := orphans
-		if len(lim) > 10 {
-			lim = lim[:10]
-		}
-		ol := make([]string, len(lim))
-		for i, e := range lim {
-			ol[i] = fmt.Sprintf("    - %s %s (%s)", e.SeatID, e.Type, e.Key)
-		}
-		parts = append(parts, fmt.Sprintf("FLAGGED %d event(s) with no matching transcript invocation:\n%s", len(orphans), strings.Join(ol, "\n")))
-	} else {
-		parts = append(parts, "every event traces to a transcript invocation")
-	}
-	for _, w := range tailWarns {
-		parts = append(parts, "WARN "+w)
+	switch {
+	case len(warns) > 0:
+		parts = append(parts, warns...)
+	case measured == 0:
+		parts = append(parts, "nothing to measure — no seat wrote enough events to distinguish a burst from a short sitting")
+	default:
+		parts = append(parts, "every measured seat recorded across its sitting rather than in a closing burst")
 	}
 	v := "PASS"
-	if len(orphans) > 0 {
-		v = "FAIL"
-	} else if len(tailWarns) > 0 {
+	if len(warns) > 0 {
 		v = "WARN"
 	}
-	return Audit{Check: "record-join", Verdict: v, Detail: strings.Join(parts, "\n  ")}
+	return Audit{Check: "backfill", Verdict: v, Detail: strings.Join(parts, "\n  ")}
 }
 
 // ---- AUDIT 8: attestation integrity ----
@@ -1135,7 +1130,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 		AssemblyScreen(runDir),
 		StrayRecordsAudit(repoRootOf(runDir), runDir),
 		RecordParityAudit(runDir, redRounds, blueBlocks),
-		RecordJoinAudit(runDir, transcriptDir, agentFiles),
+		BackfillAudit(runDir),
 		AttestationAudit(runDir, transcriptDir, agentFiles, 5),
 		ModelTierAudit(runDir, transcriptDir, agentFiles),
 	}

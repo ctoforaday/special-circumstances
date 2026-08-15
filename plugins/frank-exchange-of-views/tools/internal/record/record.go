@@ -305,6 +305,17 @@ func stamp() string { return Now().Format(stampLayout) }
 
 const stampLayout = "2006-01-02T15:04:05.000000000Z"
 
+// ParseStamp reads an event's TS back as a time.
+//
+// Exported so a reader does not have to know the layout. That is the point: a caller that
+// re-declares the format string has forked the schema, and the fork is invisible until a stamp
+// changes width and one side starts failing to parse while the other keeps writing. The error is
+// returned rather than swallowed to a zero time for the same reason — a caller that cannot tell
+// "unparseable" from "the epoch" will report the epoch.
+func ParseStamp(ts string) (time.Time, error) {
+	return time.Parse(stampLayout, strings.TrimSpace(ts))
+}
+
 // nextStamp issues a stamp that is STRICTLY GREATER than the last one issued for this run.
 //
 // Precision alone still leaves ordering to luck: it narrows the window in which two events
