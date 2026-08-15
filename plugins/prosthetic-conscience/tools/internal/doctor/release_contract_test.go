@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -179,6 +180,7 @@ func TestEveryPublishedPlatformCompiles(t *testing.T) {
 	if testing.Short() {
 		t.Skip("cross-compiling every platform is slow; -short skips it")
 	}
+	requireCrossCompileHost(t)
 	root := repoRoot(t)
 	pairs := publishedPairs(t, workflowSource(t))
 
@@ -216,6 +218,7 @@ func TestSHA256SUMSCoversEveryContractedName(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds; -short skips it")
 	}
+	requireCrossCompileHost(t)
 	if _, err := exec.LookPath("sha256sum"); err != nil {
 		// LOUD, not folded into a pass: on a machine without sha256sum this check did not run.
 		t.Skip("sha256sum not on PATH — the SHA256SUMS half of the contract was NOT checked here")
@@ -237,14 +240,25 @@ func TestSHA256SUMSCoversEveryContractedName(t *testing.T) {
 		want = append(want, asset)
 	}
 
-	sums := exec.Command("sh", "-c", "cd "+dist+" && sha256sum * > SHA256SUMS")
-	if out, err := sums.CombinedOutput(); err != nil {
-		t.Fatalf("checksumming: %v\n%s", err, out)
-	}
-	body, err := os.ReadFile(filepath.Join(dist, "SHA256SUMS"))
+	// NO SHELL. The first version of this ran `sh -c "cd <dist> && sha256sum * > SHA256SUMS"`,
+	// which failed on the Windows runner — not because sha256sum is missing (Git Bash ships
+	// it, so the LookPath guard above did not fire) but because an interpolated Windows path
+	// went through a shell that ate its backslashes: `cd C:UsersRUNNER~1AppData...`.
+	//
+	// Running the tool directly with cmd.Dir and capturing stdout removes the shell from the
+	// test entirely. It is also closer to what is being verified: the release job's `sha256sum
+	// * > SHA256SUMS` differs from this only in who expands the glob, and the bytes sha256sum
+	// emits are the same either way.
+	sums := exec.Command("sha256sum", want...)
+	sums.Dir = dist
+	stdout, err := sums.Output()
 	if err != nil {
+		t.Fatalf("checksumming: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dist, "SHA256SUMS"), stdout, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	body := stdout
 
 	for _, asset := range want {
 		digest := ""
@@ -265,6 +279,24 @@ func TestSHA256SUMSCoversEveryContractedName(t *testing.T) {
 	}
 	if t.Failed() {
 		t.Log(fmt.Sprintf("dist/ contained: %v", want))
+	}
+}
+
+// requireCrossCompileHost keeps the build-heavy checks on ONE host.
+//
+// `go build` for windows/arm64 produces the same answer whether it runs on Linux or on
+// Windows — cross-compilation does not depend on the host — so running these on both CI legs
+// costs minutes and buys nothing. The Windows leg took 150s on the doctor package for exactly
+// that duplicated work.
+//
+// Skipping is stated rather than silent, and the pure contract tests (the asset name, the
+// .exe rule, the SHA256SUMS format) still run on EVERY platform, which is where a
+// platform-specific naming bug would actually show up.
+func requireCrossCompileHost(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skipf("cross-compile checks run on the linux leg only (host is %s); the output does "+
+			"not depend on the host, so a second leg would duplicate ~66 builds", runtime.GOOS)
 	}
 }
 
