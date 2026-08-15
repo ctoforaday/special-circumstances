@@ -50,6 +50,28 @@ func exeSuffix() string {
 	return ""
 }
 
+// AssetName is THE CONTRACT between the release job and this program, in one function.
+//
+// The release workflow cross-compiles into `dist/${name}_${os}_${arch}${ext}` and checksums
+// the directory; `fetchRelease` then asks GitHub for an asset by name and looks that name up
+// in SHA256SUMS. Two programs, one string, and until this existed nothing joined them: the
+// naming lived as a shell expansion in a workflow and as a Sprintf here, and a rename on
+// either side would have failed SILENTLY at install time, on a user's machine — the release
+// job would publish `sc-doctor_linux_amd64`, this would ask for something else, `gh` would
+// match no asset, and the fetch would fall back to building from source as though no release
+// existed.
+//
+// Taking goos/goarch as ARGUMENTS rather than reading runtime is what makes it testable: the
+// contract has to hold for all six published pairs, not just the one the test happens to run
+// on. release_contract_test.go reads the workflow and checks every pair against this.
+func AssetName(name, goos, goarch string) string {
+	ext := ""
+	if goos == "windows" {
+		ext = ".exe"
+	}
+	return fmt.Sprintf("%s_%s_%s%s", name, goos, goarch, ext)
+}
+
 // binariesOf lists every command under a plugin root's tools/cmd and whether
 // bin/<name> exists.
 func binariesOf(root, plugin, version string) []binStatus {
@@ -322,7 +344,7 @@ func fetchRelease(b binStatus) error {
 		return fmt.Errorf("gh not on PATH")
 	}
 	root, name := b.Root, b.Name
-	asset := fmt.Sprintf("%s_%s_%s%s", name, runtime.GOOS, runtime.GOARCH, exeSuffix())
+	asset := AssetName(name, runtime.GOOS, runtime.GOARCH)
 	tmp, err := os.MkdirTemp("", "sc-doctor-fetch-")
 	if err != nil {
 		return err
