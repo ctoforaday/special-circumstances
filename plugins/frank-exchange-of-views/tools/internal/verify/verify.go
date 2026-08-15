@@ -178,16 +178,42 @@ func supersedesResolve(b *record.Board) Check {
 		"a gap's lineage names an ancestor that is not on the record", bad)
 }
 
+// passVerdict is the word this gate switches on, and the EVENT TYPE that can carry it. Both
+// are read back out of enums.go rather than written here, because writing them here is the
+// defect this constant exists to prevent.
+//
+// The check read `e.Type == "outcome"`. An outcome's vocabulary is
+// VERIFIED|CEILING|HALTED|UNVERIFIED — validated at the write, so it can never hold "PASS".
+// Two event types share the payload key `verdict` with DISJOINT vocabularies, so the wrong
+// one is a plain type error that Go cannot see: the comparison never matched, the check took
+// the "gate not applicable" branch on every run ever recorded, and said so in words that read
+// like a considered judgement — "verdict is VERIFIED — gate not applicable".
+//
+// Severity, stated honestly rather than inflated: the LIVE gate works. record.Append refuses
+// `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: R1-1"), so the
+// contradiction cannot arise through the tool. What was lost is the after-the-fact half — the
+// one that exists for a record assembled some OTHER way: a hand-edited shard, a legacy run, or
+// a live gate that itself regressed. That is precisely the case a verifier is for, and it was
+// the case that never ran.
+//
+// TestPassVerdictIsAWordItsEventTypeCanActuallyCarry asserts the pair against the schema, so
+// re-pointing this at the wrong event type — or renaming the word — FAILS instead of going
+// quietly not-applicable. That is the part that generalises; the fix below is one instance.
+const (
+	passVerdictType = "verdict"
+	passVerdictWord = "PASS"
+)
+
 // passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open gap is
 // a contradiction — the record says the run resolved everything, and it did not.
 func passClosesAllGaps(b *record.Board) Check {
 	verdict := ""
 	for _, e := range b.Events {
-		if e.Type == "outcome" {
+		if e.Type == passVerdictType {
 			verdict = e.Payload.Str("verdict")
 		}
 	}
-	if verdict != "PASS" {
+	if verdict != passVerdictWord {
 		return ok("pass-closes-all-gaps", fmt.Sprintf("verdict is %s — gate not applicable", nonEmpty(verdict, "unrecorded")))
 	}
 	var open []string
