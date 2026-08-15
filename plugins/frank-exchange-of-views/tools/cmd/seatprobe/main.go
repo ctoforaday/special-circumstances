@@ -87,8 +87,15 @@ func main() {
 		keep       = flag.Bool("keep", false, "keep an existing board directory instead of rebuilding it")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
+		naming     = flag.String("naming", string(seatprobe.NamingPartial), "how much of the verb surface the constitution states: `none` (names redacted), `partial` (as it ships — the condition every prior probe ran under), or `complete` (the whole surface, generated from the tree)")
+		directive  = flag.Bool("help-directive", false, "append production's `read --help before your first act` instruction, which debate.js carries and the probe prompt never has")
 	)
 	flag.Parse()
+
+	arm, err := seatprobe.ParseNaming(*naming)
+	if err != nil {
+		fail("%v", err)
+	}
 
 	if *dir == "" {
 		fail("-dir is required: seatprobe writes real run directories and will not guess where")
@@ -125,7 +132,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				return
@@ -137,7 +144,7 @@ func main() {
 
 	fmt.Println("# Seat probe")
 	fmt.Println()
-	fmt.Printf("%d board(s), model %s. What each seat CHOSE, of what its role offers.\n\n", len(names), *model)
+	fmt.Printf("%d board(s), model %s, naming arm %s, help-directive %t. What each seat CHOSE, of what its role offers.\n\n", len(names), *model, arm, *directive)
 	for _, r := range results {
 		fmt.Println(r)
 	}
@@ -153,7 +160,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, arm seatprobe.Naming, directive bool) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -202,7 +209,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		if err := seatprobe.Build(runDir, b, run); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, ask); err != nil {
+		if err := dispatch(b, runDir, bin, constDir, model, ask, arm, directive, surface); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
@@ -238,6 +245,15 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 	if err != nil {
 		return "", err
 	}
+	// THE ARM, ON THE RESULT. A choice report that does not say which treatment produced it is a
+	// number waiting to be compared against a number from a different condition — which is how the
+	// "4 of 14" figure came to be cited as a fact about seats rather than about one arm.
+	report += fmt.Sprintf("\n**arm**: naming=%s help-directive=%t\n", arm, directive)
+	if hu, err := seatprobe.ReadHelpUse(trajectoryPath(runDir), filepath.Base(bin)); err == nil {
+		report += fmt.Sprintf("**help use**: %s\n", hu.Line())
+	} else {
+		report += "**help use**: NOT MEASURED (no trajectory)\n"
+	}
 	// The reasoning, where the seat produced any. It is the half a record cannot hold: the record
 	// says which verb was taken, and this says what the seat was weighing when it chose.
 	if recordRoot != "" {
@@ -250,7 +266,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, arm seatprobe.Naming, directive bool, sf seatprobe.Surface) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -261,6 +277,13 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool) 
 		return fmt.Errorf("board %q names seat %q, which is not one this harness registers", b.Name, b.Seat)
 	}
 	constitution, err := constitutionFor(role, constDir)
+	if err != nil {
+		return err
+	}
+	// THE ARM IS APPLIED TO A COPY, NEVER TO THE SHIPPED FILE. An experiment that edits the
+	// artifact it measures cannot be run a second time, and the second run is the one that says
+	// whether the first was variance.
+	constitution, err = armConstitution(constitution, runDir, sf, role, arm, directive)
 	if err != nil {
 		return err
 	}
@@ -342,6 +365,32 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 		return fmt.Errorf("claude: %w (trajectory in %s)", err, out.Name())
 	}
 	return nil
+}
+
+// armConstitution writes the arm's constitution beside the trajectory and returns its path.
+//
+// It lands OUTSIDE the run directory, for the same reason the trajectory does: a seat that can read
+// the treatment applied to it is a seat reading the experiment rather than the board. The `partial`
+// arm with no directive is passed through untouched, so the status quo is byte-for-byte the file
+// every earlier probe used and the ladder has a real baseline rather than a re-rendered one.
+func armConstitution(src, runDir string, sf seatprobe.Surface, role string, arm seatprobe.Naming, directive bool) (string, error) {
+	if arm == seatprobe.NamingPartial && !directive {
+		return src, nil
+	}
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return "", err
+	}
+	out := seatprobe.Constitution(b, sf, role, arm, directive)
+	dir := filepath.Dir(trajectoryPath(runDir))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	p := filepath.Join(dir, fmt.Sprintf("%s-constitution-%s.md", filepath.Base(runDir), arm))
+	if err := os.WriteFile(p, out, 0o644); err != nil {
+		return "", err
+	}
+	return p, nil
 }
 
 // constitutionFor finds the agent definition a seat actually runs under.

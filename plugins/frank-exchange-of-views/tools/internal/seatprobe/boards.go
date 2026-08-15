@@ -130,7 +130,7 @@ The remaining cases are out of scope.
 		Gaps: []Gap{
 			{
 				Key: "sum", Class: "figure-recount-fails",
-				Location: `## Findings — "The corpus holds 340 records across 12 sources."`,
+				Location: `The corpus holds 340 records across 12 sources. Broken down by source`,
 				Problem:  "The stated total does not match the per-source figures, which sum to something else.",
 				Fix:      "Recompute the total from the per-source table and correct whichever is wrong.",
 				Check:    "The stated total equals the sum of the per-source rows.", CheckKind: "computation",
@@ -142,7 +142,7 @@ The remaining cases are out of scope.
 			},
 			{
 				Key: "forecast", Class: "derivation-status-overclaim",
-				Location: `## Findings — "At the observed monthly growth rate the corpus reaches 800 records within a year."`,
+				Location: `At the observed monthly growth rate the corpus reaches 800 records within a year.`,
 				Problem:  "A forecast stated as a result, with no model, no rate, and no arithmetic anybody can re-run.",
 				Fix:      "Show the model and the rate it was run at, or drop the projection.",
 				Check:    "The projection is reproducible from a stated rate and a stated starting figure.", CheckKind: "computation",
@@ -153,7 +153,7 @@ The remaining cases are out of scope.
 			},
 			{
 				Key: "attestation", Class: "self-attestation",
-				Location: `## Method — "Each figure was independently checked."`,
+				Location: `Each figure was independently checked.`,
 				Problem:  "The checking is asserted and nothing records that it happened.",
 				Fix:      "Record what was checked and how, or drop the claim.",
 				Check:    "The report names the artifact each check ran against.", CheckKind: "document",
@@ -165,7 +165,7 @@ The remaining cases are out of scope.
 			},
 			{
 				Key: "universal", Class: "false-universal",
-				Location: `## Limits — "The remaining cases are out of scope."`,
+				Location: `The remaining cases are out of scope.`,
 				Problem:  "The out-of-scope set is named and never enumerated, so its size is unknown.",
 				Fix:      "Enumerate the excluded cases or state why the count cannot be had.",
 				Check:    "The excluded set has a stated size or a stated reason it cannot be counted.", CheckKind: "document",
@@ -214,7 +214,7 @@ Each claim below rests on a cited source.
 		Gaps: []Gap{
 			{
 				Key: "unsourced", Class: "citation-status-drift",
-				Location: `## Findings — "Deletion before the floor is forbidden in all jurisdictions."`,
+				Location: `Deletion before the floor is forbidden in all jurisdictions.`,
 				Problem:  "A universal legal claim with no source behind it.",
 				Fix:      "Attach the provision that says so to the claim, through the citation channel.",
 				Check:    "The claim carries a citation to the provision.", CheckKind: "source",
@@ -225,7 +225,7 @@ Each claim below rests on a cited source.
 			},
 			{
 				Key: "stale", Class: "claim-contradicts-own-record",
-				Location: `## Findings — "An earlier draft of this report claimed the floor was 90 days."`,
+				Location: `An earlier draft of this report claimed the floor was 90 days.`,
 				Problem:  "A superseded claim is still stated in the report as though it stands.",
 				Fix:      "Remove the claim through the accounted channel so the claim count reconciles.",
 				Check:    "The 90-day claim is gone AND its removal is on the record.", CheckKind: "document",
@@ -237,7 +237,7 @@ Each claim below rests on a cited source.
 			},
 			{
 				Key: "propagate", Class: "incomplete-repair-propagation",
-				Location: `## TL;DR — "The standard mandates a 30-day retention floor for every record class"`,
+				Location: `The standard mandates a 30-day retention floor for every record class, and forbids deletion`,
 				Problem:  "The same figure is stated in two places and a correction to one would leave the other.",
 				Fix:      "Correct every site that states the figure, not only the flagged one.",
 				Check:    "No site states a figure the others contradict.", CheckKind: "document",
@@ -282,7 +282,7 @@ Reversibility under load was not tested.
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "derivation-status-overclaim",
-				Location: `## TL;DR — "The migration is reversible in principle and has never been reversed in practice."`,
+				Location: `The migration is reversible in principle and has never been reversed in practice.`,
 				Problem:  "Reversibility in principle is presented beside the absence of any reversal as though the two support each other.",
 				Fix:      "Separate the design claim from the operational one.",
 				Check:    "The two claims are stated apart, each with its own basis.", CheckKind: "document",
@@ -293,7 +293,7 @@ Reversibility under load was not tested.
 			},
 			{
 				Key: "contested", Class: "verification-scope-blindspot",
-				Location: `## Limits — "Reversibility under load was not tested."`,
+				Location: `Reversibility under load was not tested.`,
 				Problem:  "The untested case is named and its risk is not graded.",
 				Fix:      "Grade the untested case or say why it cannot be graded.",
 				Check:    "The limitation carries a stated risk.", CheckKind: "document",
@@ -351,7 +351,7 @@ Figures were read from the deployed configuration.
 		Gaps: []Gap{
 			{
 				Key: "contradiction", Class: "cross-section-contradiction",
-				Location: `## Findings — "The access log retains for 45 days."`,
+				Location: `The access log retains for 45 days.`,
 				Problem:  "The stated universal and this figure cannot both hold.",
 				Fix:      "Reconcile the universal with the per-class figures.",
 				Check:    "No two sections state incompatible retention figures.", CheckKind: "document",
@@ -362,7 +362,7 @@ Figures were read from the deployed configuration.
 			},
 			{
 				Key: "settled", Class: "figure-recount-fails",
-				Location: `## Findings — "The audit log retains for 30 days."`,
+				Location: `The audit log retains for 30 days.`,
 				Problem:  "A figure that was wrong and has since been repaired.",
 				Fix:      "Confirm the repair at the leaf.",
 				Check:    "The figure matches the deployed configuration.", CheckKind: "document",
@@ -375,7 +375,7 @@ Figures were read from the deployed configuration.
 			},
 			{
 				Key: "overgraded", Class: "metric-conflation",
-				Location: `## TL;DR — "Retention is 30 days across every class, and the figures below agree."`,
+				Location: `Retention is 30 days across every class, and the figures below agree.`,
 				Problem:  "Two different measurements are presented as one figure.",
 				Fix:      "Separate the two measurements.",
 				Check:    "Each figure names what it measures.", CheckKind: "document",
@@ -430,7 +430,7 @@ Figures were read from the deployed configuration at the pinned revision.
 		Gaps: []Gap{
 			{
 				Key: "overgraded", Class: "metric-conflation",
-				Location: `## TL;DR — "Retention is 30 days for the audit log and 45 for the access log; the earlier universal was wrong."`,
+				Location: `Retention is 30 days for the audit log and 45 for the access log; the earlier universal was wrong.`,
 				Problem:  "Two different measurements are presented as one figure.",
 				Fix:      "Separate the two measurements.",
 				Check:    "Each figure names what it measures.", CheckKind: "document",
@@ -442,7 +442,7 @@ Figures were read from the deployed configuration at the pinned revision.
 			},
 			{
 				Key: "reraised", Class: "incomplete-repair-propagation",
-				Location: `## Findings — "The access log retains for 45 days."`,
+				Location: `The access log retains for 45 days.`,
 				Problem:  "The figure was corrected here and not at the two other sites that state it.",
 				Fix:      "Correct every site.",
 				Check:    "No site states a contradicting figure.", CheckKind: "document",
@@ -524,7 +524,7 @@ No material downside was identified.
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "risk-coverage-omission",
-				Location: `## Findings — "No material downside was identified."`,
+				Location: `No material downside was identified.`,
 				Problem:  "An absence of findings is reported as an absence of risk.",
 				Fix:      "State what was searched, or withdraw the claim.",
 				Check:    "The claim names the search that produced it.", CheckKind: "document",
@@ -581,7 +581,7 @@ The combined effect is largest when the two are applied together.
 		Gaps: []Gap{
 			{
 				Key: "consent", Class: "doctrine-vs-implementation",
-				Location: `## Findings — "Reducing the prominence of the decline control raises completion further."`,
+				Location: `Reducing the prominence of the decline control raises completion further.`,
 				Problem:  "The recommendation optimises a consent gate for the outcome consent exists to leave open.",
 				Fix:      "Withdraw the recommendation or state the ethical position it requires.",
 				Check:    "The report does not recommend degrading a consent affordance to raise a conversion metric.", CheckKind: "document",
@@ -627,7 +627,7 @@ The comparison rests on the operator's own cost model, which is not published.
 		Gaps: []Gap{
 			{
 				Key: "unpublished", Class: "unverified-composition",
-				Location: `## Findings — "The comparison rests on the operator's own cost model, which is not published."`,
+				Location: `The comparison rests on the operator's own cost model, which is not published.`,
 				Problem:  "The load-bearing input cannot be inspected by anyone reading this report.",
 				Fix:      "State in the report that the cost comparison was independently verified against the operator's model.",
 				Check:    "The report asserts the comparison was verified against the model.", CheckKind: "source",
