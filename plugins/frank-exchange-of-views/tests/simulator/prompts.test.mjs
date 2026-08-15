@@ -61,7 +61,8 @@ function assertLossless(name, prompt) {
 const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url))
 // model + judgmentModel are REQUIRED (#111) — the script throws without both before emitting any
 // prompt. They set dispatch opts, not prompt text, so the goldens are unchanged.
-const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_golden', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet' }
+const BIN_DIR = '/opt/feov/bin'
+const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_golden', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet', binDir: BIN_DIR }
 
 // A debate that reaches every seat class: round 1 FAILs with a docketed gap (so
 // the bench sits), blue responds, round 2 PASSes, assembly runs. claim_count is
@@ -69,19 +70,18 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // delta, which is what exercises W2i's consolidated seat.
 // THE VARIANT THAT SHIPS WAS NEVER RECORDED (#302).
 //
-// Every prompt in debate.js is built with `${binDir ? <record-mode> : <legacy>}` ternaries,
-// and this suite never set binDir — so for its whole life it captured only the LEGACY branch,
-// the prompt set used when resuming a pre-record run. Every real run passes binDir. The
-// prompts seats actually read had never been diff-reviewed.
+// Every prompt in debate.js used to be built with `${binDir ? <record-mode> : <legacy>}`
+// ternaries, and this suite never set binDir — so for its whole life it captured only the
+// LEGACY branch, the prompt set used when resuming a pre-record run. Every real run passes
+// binDir. The prompts seats actually read had never been diff-reviewed.
 //
 // Measured when it was found: a change re-pointing the lanes off blue/frontier.md moved NO
 // golden at all, and the lane golden went on recording the retired instruction. This is also
 // why the goldens missed #280 — the merge prompt naming a verb that does not exist — because
-// that text lives in the record-mode branch these files did not render.
+// that text lived in the record-mode branch these files did not render.
 //
-// Both variants are captured now. The legacy set stays because that path is still live code;
-// when it is retired, this collapses back to one.
-const BIN_DIR = '/opt/feov/bin'
+// binDir is REQUIRED now and the ternaries are collapsed, so there is one prompt set and it is
+// the one that ships. What used to be the `.bindir` variant is simply the golden.
 
 async function fullRun(args = ARGS) {
   const world = makeWorld(makeResponder({
@@ -121,8 +121,8 @@ const SEATS = [
   ['assemble', (l) => l.startsWith('assemble')],
 ]
 
-// captureSeats records one golden per seat class for a given world, under a suffix.
-async function captureSeats(world, suffix) {
+// captureSeats records one golden per seat class for a given world.
+async function captureSeats(world) {
   const missing = []
   for (const [name, match] of SEATS) {
     const call = world.calls.find((c) => match(c.opts.label))
@@ -131,38 +131,22 @@ async function captureSeats(world, suffix) {
       continue
     }
     assertLossless(name, call.prompt)
-    assertGolden(import.meta.url, `prompt-${name}${suffix}`, goldenBody(call.prompt))
+    assertGolden(import.meta.url, `prompt-${name}`, goldenBody(call.prompt))
   }
-  assert.deepEqual(missing, [], `a seat class vanished from dispatch${suffix} — the golden set no longer covers the engine`)
+  assert.deepEqual(missing, [], `a seat class vanished from dispatch — the golden set no longer covers the engine`)
 }
 
 test('seat prompt goldens: every seat class carries exactly its recorded contract', async () => {
-  await captureSeats(await fullRun(), '')
+  await captureSeats(await fullRun())
 })
 
-// THE VARIANT EVERY REAL RUN USES. With binDir set, each prompt takes its record-mode branch:
-// the seat is told its role, handed the verb set, and pointed at `show --view …` instead of a
-// markdown path. That is the product surface, and until now none of it was recorded.
-test('seat prompt goldens (record mode): the prompts every real run actually uses', async () => {
-  await captureSeats(await fullRun({ ...ARGS, binDir: BIN_DIR }), '.bindir')
-})
-
-// The two variants must genuinely DIFFER. If a future refactor collapsed the ternaries — or if
-// binDir stopped reaching the prompt builder — both sets would record the same bytes and this
-// suite would look twice as thorough while covering exactly as much as before.
-test('the record-mode prompts are not the legacy prompts', async () => {
-  const legacy = await fullRun()
-  const record = await fullRun({ ...ARGS, binDir: BIN_DIR })
-  let differing = 0
-  for (const [name, match] of SEATS) {
-    const l = legacy.calls.find((c) => match(c.opts.label))
-    const r = record.calls.find((c) => match(c.opts.label))
-    if (l && r && l.prompt !== r.prompt) differing++
-  }
-  assert.ok(differing >= SEATS.length - 1,
-    `only ${differing} of ${SEATS.length} seat prompts differ between legacy and record mode — binDir is not reaching the prompt builder, so the .bindir goldens are recording the legacy text under a new name`)
-  const anyBin = record.calls.some((c) => c.prompt.includes(BIN_DIR))
-  assert.ok(anyBin, 'no record-mode prompt names the binary directory — binDir was dropped somewhere between the args and the prompt')
+// binDir must actually REACH the prompt text, not merely be accepted by the arg gate. The gate
+// throws on an absent binDir, which proves the arg arrived — not that any prompt names the
+// binary. If it stopped reaching the builder the goldens would move, but this says why.
+test('the binary directory reaches the prompts', async () => {
+  const world = await fullRun()
+  assert.ok(world.calls.some((c) => c.prompt.includes(BIN_DIR)),
+    'no prompt names the binary directory — binDir was dropped between the args and the prompt builder')
 })
 
 test('seat roster: the dispatched seat set itself is pinned', async () => {

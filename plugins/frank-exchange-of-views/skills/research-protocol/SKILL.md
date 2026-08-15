@@ -47,10 +47,10 @@ research/<date>_<slug>/
 ├── report.md          # final deliverable — assembled LAST, by union (authored)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
-│                      # (frontier.md is GONE — the opening hypotheses are AVENUES on the record;
-│                      #  read them with `show lines-of-inquiry`. A hypothesis in a file is
-│                      #  one red cannot rule too-thin or out-of-scope, and the round-0 ones shape
-│                      #  the whole run)
+│                      # (the opening hypotheses are AVENUES on the record, not a file — read
+│                      #  them with `show lines-of-inquiry`. A hypothesis in a file is one red
+│                      #  cannot rule too-thin or out-of-scope, and the round-0 ones shape the
+│                      #  whole run)
 │   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
 │   │                  #   Authored prose, but every EDIT after round 0 goes through `blue edit`
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
@@ -80,10 +80,12 @@ trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
                     + agent-transcripts.tar.gz (gitignored)
 ```
 
-`setup` lays down a few empty stubs so a human opening a fresh run sees the shape. **A stub
-is not an artifact**: measured in the 2026-08-05 run, `debate.md` finished at 36 bytes and
-`red/citation-ledger.md` at 46 while the record held 122 events. Reading either from disk
-returns the plausible zero. Read them with `show <name>`.
+`setup` lays down exactly two stubs — `report.md` and `blue/report.md` — because those are the
+two a later seat actually fills. **A stub is not an artifact**, and a stub nobody fills is worse
+than an absent file: it reads as an empty artifact rather than a missing one. Measured in the
+2026-08-05 run, stubs for the transcript and the citation ledger finished at 36 and 46 bytes
+while the record held 122 events; both are projections now, with no writer and no stub. Anything
+under RECORD above has no file at all — read it with `show <name>`.
 
 **Termination is judged, and the standing practice is stop-and-resume**: `maxRounds` is a cost
 ceiling, never the terminator of record. Red owns PASS/FAIL — *is it defensible*. **The bench

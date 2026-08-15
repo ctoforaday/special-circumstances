@@ -8,7 +8,10 @@ const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/
 // model + judgmentModel are REQUIRED (#111): debate.js throws without both, so the shared ARGS
 // carries them and every run/spread inherits them. Tests that exercise the unset-tier THROW build
 // their own model-less args explicitly rather than spreading ARGS.
-const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet' }
+// binDir is REQUIRED now: omitting it used to select a legacy prompt set that told seats to
+// hand-write debate.md, red/citation-ledger.md and blue/CHANGELOG.md — files setup no longer
+// creates and nothing reads, producing a run that recorded nothing with every gate green.
+const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet', binDir: '/opt/feov/bin' }
 const isJudgmentSeat = (l) => /^(blue-synthesize|red-merge|judge|assemble)/.test(l)
 
 // ---- Founding regressions (runs 1-2) ----
@@ -236,8 +239,14 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
       `${seat} missing friction-report clause (envelope + the role-qualified command)`)
   }
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
-  assert.ok(lens.prompt.includes('MUST NOT write to') && lens.prompt.includes('debate.md'), 'lens must be transcript-forbidden')
-  assert.ok(lens.prompt.includes('L1-F') && lens.prompt.includes('finding verb'), 'lens records findings via the verb with a tool-assigned role-scoped label (L1-F{N})')
+  // Transcript-forbidden, stated POSITIVELY: the clause used to prohibit writing to debate.md,
+  // a file setup no longer creates. The contract it was protecting is who owns the round's
+  // narrative — one seat, through one verb — and that is the form a lens can actually act on.
+  assert.ok(/Only red-merge records the round's "### RED" narrative, via a position event/.test(lens.prompt),
+    'a lens is not a debate party — the round narrative is the merge\'s, via the position verb')
+  // The COMMAND again, not the phrase "finding verb" — same reason as the friction clause above.
+  assert.ok(/lens finding --key /.test(lens.prompt) && lens.prompt.includes('L1-F'),
+    'lens records findings via the verb with a tool-assigned role-scoped label (L1-F{N})')
 })
 
 // ---- Run-3 docket rows 6/7: lane diversity + floor ----
@@ -716,7 +725,9 @@ test('W1.6: pinned claim unit reaches synthesis and response prompts', async () 
   await world.run(script, ARGS)
   for (const seat of ['blue-synthesize', 'blue-respond-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
-    assert.ok(c.prompt.includes('CLAIM UNIT') && c.prompt.includes('CITED'), `${seat} missing pinned claim unit`)
+    // `CITED` was the LEGACY arm's wording. The record arm names the command that computes the
+    // number — which is the point of pinning it: two honest merges differed 2x by hand.
+    assert.ok(c.prompt.includes('CLAIM UNIT') && c.prompt.includes('count-claims'), `${seat} missing pinned claim unit`)
   }
 })
 
@@ -852,7 +863,11 @@ test('W2b: telemetry spec and gap records carry the new fields in the merge prom
   assert.ok(respond.prompt.includes('THE MANIFEST') && respond.prompt.includes('manifest array'), 'manifest demanded at respond')
 })
 
-test('R2g dual-mode: binDir arms SEAT_ID + the record contract on every seat; omitting it leaves prompts untouched', async () => {
+// THE RECORD CONTRACT IS UNCONDITIONAL. This was a DUAL-MODE test: binDir armed the record
+// clause and omitting it 'left prompts untouched' — a legacy set that told seats to hand-write
+// debate.md, red/citation-ledger.md and blue/CHANGELOG.md. setup stopped creating those files,
+// so that mode produced a run recording nothing with every gate green. binDir is required now.
+test('the record contract arms SEAT_ID and the binary path on every seat', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
@@ -880,10 +895,6 @@ test('R2g dual-mode: binDir arms SEAT_ID + the record contract on every seat; om
   assert.ok(lens.includes('feov-record lens --help'), 'the seat is pointed at its own contract')
   assert.ok(/does not exist for you/.test(lens), 'absence is stated as absence')
   assert.ok(/friction verb/.test(lens), 'the escalation path is named')
-
-  const legacy = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
-  await legacy.run(script, ARGS)
-  assert.ok(!legacy.calls.some((c) => c.prompt.includes('SEAT_ID:')), 'no binDir -> no clause')
 })
 
 // ---- W2c: the petition short-circuit + judicial halt ----
@@ -1045,10 +1056,18 @@ test('priors-are-poison half-2 (binDir): the in-run self-read runs `feov-record 
   assert.ok(!blue.includes('repair_regression_ratio 0.63'), 'the cross-run seed is still not injected')
 })
 
-test('W2h: no scorecards -> no clause (a first run is not told it scored nothing)', async () => {
+// The in-run scorecard is computed from THIS run's record by `feov-record scorecard`; the
+// `scorecards` arg is operator analytics and feeds no prompt (priors-are-poison). So a first
+// run — no priors to pass — still gets the clause, and is never told a number it did not earn.
+test('W2h: no scorecards arg -> the chair still gets its in-run scorecard, with no prior numbers in it', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  assert.ok(!world.calls.some((c) => /SCORECARD/.test(c.prompt)), 'absent scorecards leave prompts untouched')
+  const chairs = world.calls.filter((c) => /YOUR IN-RUN SCORECARD/.test(c.prompt))
+  assert.ok(chairs.length > 0, 'the clause does not depend on the scorecards arg')
+  for (const c of chairs) {
+    assert.ok(/feov-record scorecard --run/.test(c.prompt), 'it is the tool that computes it')
+    assert.ok(!/\d+\.\d\d/.test(c.prompt.match(/YOUR IN-RUN SCORECARD[^.]*\./)[0]), 'no prior number is seeded')
+  }
 })
 
 // ---- memory-as-duty: the class join delivers patterns to the repair, not the seat ----
@@ -1125,11 +1144,15 @@ test('lines of inquiry: every blue seat is told to record avenues; red L5/L6 aud
   assert.ok(/expansions and alternatives-considered/.test(p('assemble')), 'the avenues reach the report as the expansions (pursued) and the alternatives considered (abandoned/declined)')
 })
 
-test('lines of inquiry: no record tool -> no clause (the verb is the mechanism)', async () => {
+// THE VERB IS ALWAYS THERE, so the duty is always instructed. This asserted the INVERSE — that
+// without the record tool the clause is absent — which was the honest shape while a toolless run
+// existed. It does not: binDir is required, so an uninstructed lines-of-inquiry duty would now be
+// a capability nobody is told about rather than a duty nobody could discharge.
+test('lines of inquiry: the duty is instructed, because the verb that discharges it exists', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  assert.ok(!world.calls.some((c) => /LINES OF INQUIRY|STEELMAN DUTY/.test(c.prompt)),
-    'without the verb there is nothing to instruct — an unrecordable duty is the dead letter we are removing')
+  assert.ok(world.calls.some((c) => /LINES OF INQUIRY|STEELMAN DUTY/.test(c.prompt)),
+    'the avenue verb exists on every run, so the duty must be stated somewhere a seat reads')
 })
 
 // ---- integrity inspection: the bench may read trajectories, on two conditions ----

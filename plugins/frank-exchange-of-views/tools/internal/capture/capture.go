@@ -1022,7 +1022,8 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 
 // appendCostToReport folds the per-seat-round cost table from cost.md into report.md as a ## Cost
 // section, so the final report carries the cost breakdown. No-op (returns "") when report.md is
-// absent (a pre-record run), already carries a ## Cost section (idempotent across re-runs), or
+// absent (a run that never reached assembly), already carries a ## Cost section (idempotent
+// across re-runs), or
 // cost.md has no table. cost.md itself is left byte-identical.
 func appendCostToReport(reportPath, costPath string) string {
 	report, err := os.ReadFile(reportPath)
