@@ -79,11 +79,51 @@ func Of(cmd *cobra.Command) Context {
 // roleOf reads the role from the command's POSITION in the tree: a verb's parent is its
 // role node (Role sets the node's Use to the role name), so `merge mint`'s role is `merge`
 // without anyone threading the string. Role is structure, not an argument.
+// roleOf answers WHICH SEAT is running this command, by walking up to the nearest ancestor that is
+// a role.
+//
+// IT WAS `cmd.Parent().Name()`, AND THAT WAS TRUE ONLY WHILE EVERY VERB'S PARENT WAS ITS ROLE.
+// `show` became a GROUP, so the parent of `blue show worklist` is `show` — and every projection
+// read has since reported its role as the string "show".
+//
+// MEASURED 2026-08-15, and it is a live defect rather than a cosmetic one. record.SittingOf
+// switches on the role to decide what a seat still owes. With "show" arriving, the switch matched
+// NOTHING, so the only duty any seat has received since the group landed is the friction line —
+// which sits above the switch. Blue was never told about a computation gap it had not proved or a
+// round record it had not filed; the merge was never told about an open gap or an unruled motion;
+// the bench was never told about an unruled petition.
+//
+// And the second half is worse than the first. `complete` is `len(Outstanding) == 0`, so once a
+// seat filed friction the worklist told it `complete: true` — while `verdict --as PASS` went on
+// refusing it over the open gaps the same view had just declined to mention. That is precisely the
+// failure sitting.go's own doctrine names: "a seat told it was finished by one surface and refused
+// by another learns to trust neither."
+//
+// Nothing reported it because a role string is read for a SWITCH, and a switch that matches nothing
+// falls through silently. The absent duties and an honestly empty duty list are the same bytes.
 func roleOf(cmd *cobra.Command) string {
+	for c := cmd.Parent(); c != nil; c = c.Parent() {
+		if isRoleName(c.Name()) {
+			return c.Name()
+		}
+	}
+	// The nearest parent, as before, for anything mounted outside a role group — the operator
+	// commands have no seat and must not be reported as one of the four.
 	if p := cmd.Parent(); p != nil {
 		return p.Name()
 	}
 	return ""
+}
+
+// isRoleName is the party set as the tree mounts it. It is stated here rather than imported
+// because internal/record derives roles from SEAT IDS, which is a different question with a
+// different answer, and reaching for that one would bind two vocabularies that only look alike.
+func isRoleName(s string) bool {
+	switch s {
+	case "lens", "merge", "blue", "bench":
+		return true
+	}
+	return false
 }
 
 // InferRunDir answers "which run am I in?" from the live-run marker instead of
