@@ -43,7 +43,14 @@
 // Usage:
 //
 //	go run ./golden             compare (what CI runs)
-//	go run ./golden -update     re-record, then print the change report
+//	go run ./golden -review     verify, show each proposed golden diff, accept nothing
+//	go run ./golden -review -accept a.golden,b.golden    keep those, revert the rest
+//	go run ./golden -review -accept-all -reason "..."    keep all, with the reason stated
+//	go run ./golden -update     re-record everything, then print the change report
+//
+// PREFER -review. `-update` rewrites every golden without ever showing you a failing test,
+// which is how a semantics regression rides in inside a format change — see review.go for
+// the measured case where the regenerate command had been written down as the check itself.
 package main
 
 import (
@@ -69,28 +76,13 @@ var goModules = []string{
 	"plugins/frank-exchange-of-views/tools",
 }
 
-// run executes one leg, streaming its output, and reports whether it failed.
-func run(label, dir, name string, args []string, update bool) bool {
-	fmt.Printf("\n── %s\n", label)
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	cmd.Env = append(os.Environ(), "UPDATE_GOLDENS="+map[bool]string{true: "1", false: ""}[update])
-	return cmd.Run() != nil
-}
-
-func main() {
-	update := flag.Bool("update", false, "re-record goldens, then print the change report")
-	flag.Parse()
-
-	root, err := gitx.Root()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "golden:", err)
-		os.Exit(1)
-	}
-
+// runLegs drives every golden-carrying suite in both languages and reports whether any
+// failed. Extracted so -review can run the SAME legs twice — once to verify, once to
+// re-verify after accepting — instead of a second code path that could drift from the one
+// CI runs.
+func runLegs(root string, update bool) bool {
 	suffix := ""
-	if *update {
+	if update {
 		suffix = " (recording)"
 	}
 	failed := false
@@ -109,7 +101,7 @@ func main() {
 			// keeps a missing toolchain from reading as a behavioural change.
 			fmt.Fprintf(os.Stderr, "\n── mjs goldens: node not on PATH — cannot verify %d suite(s)\n", len(present))
 			failed = true
-		} else if run("mjs goldens"+suffix, root, node, append([]string{"--test"}, present...), *update) {
+		} else if run("mjs goldens"+suffix, root, node, append([]string{"--test"}, present...), update) {
 			failed = true
 		}
 	} else {
@@ -124,10 +116,50 @@ func main() {
 		// caught goldens this runner had just claimed to update. A check satisfiable
 		// without doing the work is not a check.
 		if run(fmt.Sprintf("go goldens in %s%s", mod, suffix), filepath.Join(root, mod),
-			"go", []string{"test", "-count=1", "./..."}, *update) {
+			"go", []string{"test", "-count=1", "./..."}, update) {
 			failed = true
 		}
 	}
+	return failed
+}
+
+// run executes one leg, streaming its output, and reports whether it failed.
+func run(label, dir, name string, args []string, update bool) bool {
+	fmt.Printf("\n── %s\n", label)
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	cmd.Env = append(os.Environ(), "UPDATE_GOLDENS="+map[bool]string{true: "1", false: ""}[update])
+	return cmd.Run() != nil
+}
+
+func main() {
+	update := flag.Bool("update", false, "re-record goldens, then print the change report")
+	review := flag.Bool("review", false, "verify first, then show each proposed golden diff; accepts nothing unless told to")
+	accept := flag.String("accept", "", "with -review: comma-separated goldens to keep (bare filename is enough); everything else is reverted")
+	acceptAll := flag.Bool("accept-all", false, "with -review: keep every proposal; requires -reason")
+	reason := flag.String("reason", "", "with -accept-all: why this whole batch is a deliberate contract change")
+	flag.Parse()
+
+	root, err := gitx.Root()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "golden:", err)
+		os.Exit(1)
+	}
+
+	if *review {
+		if *update {
+			fmt.Fprintln(os.Stderr, "golden: -review and -update are different postures — -review verifies before it rewrites, -update does not. Pick one.")
+			os.Exit(2)
+		}
+		os.Exit(reviewMode(root, *accept, *acceptAll, *reason))
+	}
+	if *accept != "" || *acceptAll || *reason != "" {
+		fmt.Fprintln(os.Stderr, "golden: -accept/-accept-all/-reason only mean anything with -review; without it nothing would be reviewed before being accepted.")
+		os.Exit(2)
+	}
+
+	failed := runLegs(root, *update)
 
 	// ---- change report: git is the review surface, so ask git what moved ----
 	if *update {

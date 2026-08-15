@@ -9,6 +9,7 @@
 package goldentest
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,8 +46,60 @@ func Assert(t *testing.T, name, got string) {
 	// is rendered with LF. The difftest harness does the same, so the two golden loops agree.
 	want := strings.ReplaceAll(string(wantBytes), "\r\n", "\n")
 	if want != got {
-		t.Errorf("%s differs from its golden. If this change is INTENTIONAL, regenerate with "+
-			"UPDATE_GOLDENS=1 go test ./... and review the testdata diff on its own.\n"+
-			"--- got ---\n%s\n--- want ---\n%s", name, got, want)
+		t.Errorf("%s differs from its golden.\n%s\n"+
+			"To review this properly: `go run ./golden -review` from scripts/ — it verifies first, "+
+			"shows each proposed diff, and accepts NOTHING unless you name it. "+
+			"`UPDATE_GOLDENS=1` rewrites every golden without ever showing you this failure.",
+			name, firstDivergence(want, got))
 	}
+}
+
+// firstDivergence renders the mismatch as the first differing line plus its neighbours,
+// rather than dumping both artifacts whole.
+//
+// THE DUMP WAS THE PROBLEM. Printing `got` and `want` in full turns one changed line in a
+// rendered HTML page into hundreds of lines of identical output, and the reader's cheapest
+// move becomes "regenerate and move on" — which is the review erosion the golden tooling
+// exists to prevent, reintroduced by its own failure message. Showing WHERE they part makes
+// reading the diff cheaper than skipping it.
+func firstDivergence(want, got string) string {
+	w, g := strings.Split(want, "\n"), strings.Split(got, "\n")
+	n := len(w)
+	if len(g) < n {
+		n = len(g)
+	}
+	at := -1
+	for i := 0; i < n; i++ {
+		if w[i] != g[i] {
+			at = i
+			break
+		}
+	}
+	if at == -1 {
+		// Identical up to the shorter one: the difference is length alone, which a
+		// line-by-line scan would otherwise report as "no difference found".
+		return fmt.Sprintf("  identical for %d line(s), then the length differs: golden has %d line(s), got %d",
+			n, len(w), len(g))
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "  first difference at line %d:\n", at+1)
+	for i := at - 2; i <= at+2; i++ {
+		if i < 0 {
+			continue
+		}
+		if i == at {
+			if i < len(w) {
+				fmt.Fprintf(&b, "  - golden %4d| %s\n", i+1, w[i])
+			}
+			if i < len(g) {
+				fmt.Fprintf(&b, "  + got    %4d| %s\n", i+1, g[i])
+			}
+			continue
+		}
+		if i < len(w) && i < len(g) && w[i] == g[i] {
+			fmt.Fprintf(&b, "    same   %4d| %s\n", i+1, w[i])
+		}
+	}
+	fmt.Fprintf(&b, "  (%d golden line(s) vs %d got)", len(w), len(g))
+	return b.String()
 }
