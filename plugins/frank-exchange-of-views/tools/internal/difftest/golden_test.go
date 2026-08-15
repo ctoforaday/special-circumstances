@@ -27,7 +27,12 @@ import (
 // contract — a diff in a golden is a deliberate semantics change, and must be
 // justified in the commit that regenerates it.
 //
-//	go test ./internal/difftest -run TestGolden -update
+//	go run ./golden -review          (from scripts/ — verify, review each diff, accept what you read)
+//
+// NOT a -update FLAG: this line used to read `go test ./internal/difftest -run TestGolden
+// -update`, and no such flag is declared here — see the env-var note below. A documented
+// command that cannot run is worse than none: it sends the reader looking for the mechanism
+// somewhere other than where it lives.
 
 // Updating is driven by an ENV VAR rather than a test flag so that one command
 // can drive both languages: a Go test flag is package-scoped (passing -update to
