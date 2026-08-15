@@ -722,6 +722,19 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
 					ruling, subject, strings.Join(Names(allowed), " | "))
 			}
+			// AND THE SUBJECT'S ENUMERATED FIELDS ON THE RULING SIDE.
+			//
+			// The filing's copy of this loop has always existed; the ruling's did not, because
+			// until `binds` there was no enumerated field on a ruling to check. The enum-coverage
+			// gate caught the gap the moment one appeared — a flag advertising a closed set that
+			// nothing enforced, which is how a near-miss reaches the log and every downstream
+			// consumer compares it literally.
+			for key, allowed := range MotionFields[subject] {
+				v := p.Str(key)
+				if v != "" && !Allows(allowed, v) {
+					return fmt.Errorf("record: %q is not a %s for a %s ruling — one of %s", v, key, subject, strings.Join(Names(allowed), " | "))
+				}
+			}
 		}
 	case "retire":
 		// A removal with no stated reason is the failure this verb exists to make

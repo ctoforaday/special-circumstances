@@ -133,6 +133,7 @@ Usage:
 Available Commands:
   assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
   certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
+  declare     state a holding that binds how the record is READ without moving any gap: --reason "<the construction, correction or holding>"
   friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
   opinion     a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
@@ -275,6 +276,7 @@ Usage:
 Available Commands:
   assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
   certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
+  declare     state a holding that binds how the record is READ without moving any gap: --reason "<the construction, correction or holding>"
   friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
   opinion     a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>

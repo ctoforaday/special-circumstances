@@ -125,6 +125,10 @@ func newRule(subject, ruler string) *cobra.Command {
 			}
 			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).
 				Set("ruling", seat.Str(cmd, flags.As)).Set("opinion", opinion)
+			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
+			// because a denial binds nobody — and a grant that names no addressee is exactly the
+			// state the bench filed friction about: a direction issued knowing it had no carrier.
+			seat.Set(cmd, p, "binds", flags.Binds)
 			if _, err := record.Append(s.RunDir, s.SeatID, "motion-rule", p); err != nil {
 				return err
 			}
@@ -134,6 +138,9 @@ func newRule(subject, ruler string) *cobra.Command {
 	seat.Prose(c)
 	c.Flags().String(flags.ID, "", refHelp(subject))
 	enumhelp.Flag(c, flags.As, e, "REQUIRED — your ruling")
+	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
+		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
+	}
 	return c
 }
 

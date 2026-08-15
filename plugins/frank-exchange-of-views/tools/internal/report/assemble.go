@@ -949,6 +949,12 @@ func debate(evs []record.Event) string {
 			disp = append(disp, "**HALT** — "+e.Payload.Str("opinion"))
 		case "certify":
 			disp = append(disp, "**Certification** — "+e.Payload.Str("statement"))
+		case "declare":
+			// A DECLARATION BINDS HOW THE RECORD IS READ, so it belongs in the artifact the
+			// record produces, not only in the transcript view. It moves no gap and names none —
+			// which is why it could never have appeared in the per-gap dispositions above, and
+			// why the bench that needed one had nowhere to put it (#361).
+			disp = append(disp, "**Declared** — "+e.Payload.Str("holding"))
 		case "petition":
 			filed++
 		case "petition-rule":

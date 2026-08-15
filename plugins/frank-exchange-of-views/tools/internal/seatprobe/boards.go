@@ -539,11 +539,15 @@ No material downside was identified.
 			Relief: "strike the requirement to assert a search that was never run, or name the search",
 			Basis:  "the gap's required_fix asks the report to state what was searched, and no search was run; writing one would be asserting what I believe false",
 		}},
-		Task: "This is your terminal sitting. There is a contested gap in front of you to dispose of, a filing awaiting your ruling, and the run is ending: everything a run needs from the bench at its close is yours to do.",
+		Task: "This is your terminal sitting. There is a contested gap in front of you to dispose of, a filing awaiting your ruling, and the run is ending: everything a run needs from the bench at its close is yours to do. One thing in front of you is not about any single gap: the filing disputes what a required_fix MEANS — whether it can license an assertion the run cannot support. Say what you hold, in whatever form the contract offers.",
 		Expect: []Expectation{
 			{Seat: "judge-r1", Verb: "opinion", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing. A gap that reaches the bench and gets no opinion is a docket item nobody disposed of."},
 			{Seat: "judge-r1", Verb: "motion petition rule", Because: "A petition is heard BEFORE the debate continues, so an unruled one stops the run rather than waiting. The bench holds this gavel alone."},
 			{Seat: "judge-r1", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
+			{Seat: "judge-r1", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
+				"license an assertion the run cannot support. That construction binds how every gap on the board is read and " +
+				"moves none of them, so `opinion` (which demands an id and a fate) cannot carry it. Measured: a bench with " +
+				"exactly this holding put it in a petition ruling's opinion text, the channel least likely to be read (#361)."},
 			{Seat: "judge-r1", Verb: "outcome", Because: "The run's terminal determination, distinct from red's verdict. CEILING in particular carries the caveat that this is NOT a judged failure to verify, and the stamp loses that if the word is wrong."},
 			{Seat: "judge-r1", Verb: "friction", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: `opinion` requires an id and a fate-changing disposition (#361). A real bench found this and recorded it here; a bench that instead buries the holding in a ruling's prose has put it on the channel least likely to be read."},
 		},

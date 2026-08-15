@@ -70,6 +70,12 @@ var enforcedElsewhere = map[string]string{
 	// an exemption.
 	"rule --as": "record.validate, keyed on (SUBJECT, ruling); help generated from record.MotionVerdictEnum — the same table, so the two cannot drift",
 
+	// The addressee of granted relief, keyed on (SUBJECT, key) like the filing's fields — and
+	// checked in the same loop, on the ruling side, which did not exist until a ruling first
+	// carried an enumerated field. This gate is what found that: `--binds` advertised a closed
+	// set the write path did not check, on the day it was added.
+	"rule --binds": "record.validate's MotionFields loop on the motion-rule arm; help generated from record.MotionFieldEnum — the same table",
+
 	// The ONE set already solved the other way, and correctly: flags.GradeValue is a
 	// pflag.Value, so a bad grade is refused BEFORE the payload is built, and both the
 	// help and the refusal are generated from flags.GradeNames(). A second enforcement in

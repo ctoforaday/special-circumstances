@@ -257,9 +257,16 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		// RUN, on its own channel (#329) — both can be true, and the petition does not stop
 		// being answered because the bench also ended the run.
 		id, _ := p["motion"].(string)
-		_, _ = r.exec("motion", "petition", "rule", "--seat-id", seatID, "--id", id,
-			"--as", ruling, "--reason", opinion)
-		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "relief": opinion})
+		// A GRANT NAMES WHO IT BINDS. Relief with no addressee is what #360 measured — the engine
+		// threaded it into one hardcoded prompt, so relief for any other seat reached nothing.
+		binds := pick(r.rng, []string{"blue", "red", "both"})
+		args := []string{"motion", "petition", "rule", "--seat-id", seatID, "--id", id,
+			"--as", ruling, "--reason", opinion}
+		if ruling == "granted" {
+			args = append(args, "--binds", binds)
+		}
+		_, _ = r.exec(args...)
+		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "relief": opinion, "binds": binds})
 	}
 	r.petitioned = nil
 	if rulings == nil {
@@ -844,6 +851,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// run-end certification statement — the bench's, additive (a recorded opinion).
 		r.maybe(45, func() {
 			r.do("bench", "certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
+		})
+		// A DECLARATION MOVES NO GAP, which is why it takes no --id and why the coverage walk
+		// would otherwise never reach it: every other bench act names something.
+		r.maybe(35, func() {
+			r.do("bench", "declare", seatID).
+				set("--reason", "fuzz holding: a term is construed this way for the rest of the run").run()
 		})
 	}
 }
@@ -1691,7 +1704,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
 	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
-	"manifest-row", "verdict", "spot-check", "certify", "halt",
+	"manifest-row", "verdict", "spot-check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
@@ -1789,7 +1802,7 @@ var dialecticProseKey = map[string]string{
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
 	// Run-level voices.
-	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement",
+	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement", "declare": "holding",
 	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint
 	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
 	// whether the seats looked and said so, or never used the channel. Those were the same
