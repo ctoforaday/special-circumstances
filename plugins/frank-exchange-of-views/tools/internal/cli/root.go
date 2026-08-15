@@ -847,10 +847,35 @@ import (
 //
 //	       A stale binary lays down a CHANGELOG husk nothing fills.
 //
+//	0.69.0 THE PRECEDENT HARVEST READS THE RECORD (#413), not the harness journal's envelopes.
+//
+//	       `law/proposed/` is how one run's rulings become the next run's precedent, and it was
+//	       fed by each seat's OWN ACCOUNT of what it ruled — free-text `resolutions`/`rulings`
+//	       arrays composed at the end of a sitting, validated by nothing that knew what happened.
+//	       The record holds the same rulings as events, each written through a verb that refused
+//	       them if they were malformed. The harvest asked the less reliable of the two.
+//
+//	       A bench that ruled six gaps and listed four promoted four. A bench that omitted the
+//	       array promoted nothing, and capture reported "0 ruling(s)" — the same bytes as an
+//	       honest run where nobody ruled. And `bench declare` (0.67.0, #361) has no envelope
+//	       field at all, so the ONE verb whose entire purpose is stating a holding could not
+//	       reach the place holdings are promoted from: unharvestable by construction.
+//
+//	       Rulings now come from `opinion`, `declare`, `petition-rule` and `motion-rule` on a
+//	       petition subject. A petition's filer is joined from the `motion` event, which is the
+//	       only place that fact exists. Grade and direction rulings are deliberately NOT
+//	       harvested — promoting one without the ask it answered strips its scope, and that is a
+//	       decision about what law/proposed contains rather than about where the harvest reads.
+//
+//	       The envelope arrays survive as a CROSS-CHECK: `HarvestResult.EnvelopeClaimed` is a
+//	       field, and capture states any divergence rather than folding it into the zero.
+//
+//	       A stale binary harvests from envelopes and reports a plausible count.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.68.0"
+const Version = "0.69.0"
 
 func init() { record.ToolVersion = Version }
 
