@@ -339,6 +339,9 @@ func TestModelTierAudit(t *testing.T) {
 	}
 }
 
+// The harvest reads THE RECORD. It used to read the harness journal's envelopes — a seat's own
+// account of what it ruled — so an under-reported ruling was silently un-harvestable and the
+// miss returned the same "0 rulings" as an honest quiet run (#413).
 func TestHarvestPrecedents(t *testing.T) {
 	repo := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(repo, "law"), 0o755); err != nil {
@@ -352,14 +355,33 @@ func TestHarvestPrecedents(t *testing.T) {
 	if len(longRationale) <= 600 {
 		t.Fatal("fixture must exceed the old 600-char cap")
 	}
-	results := []map[string]any{
-		{"resolutions": []any{map[string]any{"gap_id": "R2-3", "resolution": "risk_accepted", "rationale": "complexity exceeds bounded likelihood x impact"}}},
-		{"rulings": []any{map[string]any{"petitioner": "blue-respond-r2", "ruling": "granted", "opinion": "scope narrowed to shipped artifacts"}}},
-		{"resolutions": []any{map[string]any{"gap_id": "R1-9", "resolution": "carried", "rationale": longRationale}}},
-	}
-	r := HarvestPrecedents(runDir, results, filepath.Join(repo, "law"))
-	if r.Count != 3 {
-		t.Fatalf("want 3 rulings harvested, got %d", r.Count)
+	board := &record.Board{Events: []record.Event{
+		{Round: 2, Type: "opinion", SeatID: "judge-r2", Payload: record.NewPayload().
+			Set("gap_id", "R2-3").Set("disposition", "risk_accepted").
+			Set("rationale", "complexity exceeds bounded likelihood x impact")},
+		// The petition's FILER is on the motion event, not on the ruling — the ruling names
+		// only the motion. Harvesting the petitioner means joining the two.
+		{Round: 2, Type: "motion", SeatID: "blue-respond-r2", Payload: record.NewPayload().
+			Set("motion_id", "M4").Set("subject", "petition").Set("basis", "the demand buries a hazard")},
+		{Round: 2, Type: "petition-rule", SeatID: "judge-r2", Payload: record.NewPayload().
+			Set("motion_id", "M4").Set("ruling", "granted").
+			Set("opinion", "scope narrowed to shipped artifacts")},
+		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().
+			Set("gap_id", "R1-9").Set("disposition", "carried").Set("rationale", longRationale)},
+		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
+		// construction — the one verb whose whole purpose is stating a holding.
+		{Round: 2, Type: "declare", SeatID: "judge-r2", Payload: record.NewPayload().
+			Set("holding", "verified means an act of looking, never confidence in the critique")},
+		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
+		// answered would strip its scope. If this ever starts appearing, it was a decision.
+		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().
+			Set("motion_id", "M1").Set("subject", "grade").Set("ruling", "refused").
+			Set("opinion", "disclosure does not lower likelihood")},
+	}}
+
+	r := HarvestPrecedents(runDir, nil, filepath.Join(repo, "law"), board)
+	if r.Count != 4 {
+		t.Fatalf("want 4 rulings harvested (2 opinions, 1 petition, 1 declaration), got %d", r.Count)
 	}
 	out, err := os.ReadFile(r.Path)
 	if err != nil {
@@ -381,10 +403,57 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "TRAILING_ACTIONABLE_TAIL") {
 		t.Errorf("full rationale preserved — no truncation")
 	}
+	if !strings.Contains(body, "petition by blue-respond-r2") {
+		t.Errorf("the petitioner is joined from the motion event, not left blank:\n%s", body)
+	}
+	if !strings.Contains(body, "verified means an act of looking") {
+		t.Errorf("a declared holding must reach the harvest (#361):\n%s", body)
+	}
+	if strings.Contains(body, "disclosure does not lower likelihood") {
+		t.Errorf("a grade ruling is out of scope by decision — if that changed, change this test deliberately")
+	}
+
 	// No law/ dir → not written, reason names law.
-	noLaw := HarvestPrecedents(runDir, results, filepath.Join(repo, "absent"))
+	noLaw := HarvestPrecedents(runDir, nil, filepath.Join(repo, "absent"), board)
 	if noLaw.Written || !strings.Contains(noLaw.Reason, "law") {
 		t.Errorf("absent law dir: want not-written with law reason, got %+v", noLaw)
+	}
+}
+
+// THE FAILURE THAT READ AS SUCCESS. Envelopes claiming rulings the record does not hold used to
+// be indistinguishable from a run where nobody ruled: both printed "0 ruling(s)". The divergence
+// is now stated, and carried in a FIELD so a reader compares numbers rather than parsing prose.
+func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
+	runDir := filepath.Join(t.TempDir(), "2026-08-15_divergence")
+	claimed := []map[string]any{
+		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "closed", "rationale": "fixed"}}},
+		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "opinion": "no"}}},
+	}
+
+	r := HarvestPrecedents(runDir, claimed, filepath.Join(t.TempDir(), "law"), &record.Board{})
+	if r.Written || r.Count != 0 {
+		t.Fatalf("the record holds nothing, so nothing is promoted: %+v", r)
+	}
+	if r.EnvelopeClaimed != 2 {
+		t.Errorf("the envelopes' claim is a field, not a sentence: want 2, got %d", r.EnvelopeClaimed)
+	}
+	if !strings.Contains(r.Reason, "envelopes claim 2") {
+		t.Errorf("the divergence must be stated, not folded into the zero: %q", r.Reason)
+	}
+
+	// The honest quiet run: no record rulings AND no envelope claims. Silent, as it should be.
+	quiet := HarvestPrecedents(runDir, nil, filepath.Join(t.TempDir(), "law"), &record.Board{})
+	if quiet.Reason != "" || quiet.EnvelopeClaimed != 0 {
+		t.Errorf("a genuinely quiet run must not be reported as a divergence: %+v", quiet)
+	}
+}
+
+// A nil board is the harvest having no record to read at all. It must not panic and must not
+// promote anything — the caller passes the same board the record-backed audits use.
+func TestHarvestWithNoBoardPromotesNothing(t *testing.T) {
+	r := HarvestPrecedents(filepath.Join(t.TempDir(), "2026-08-15_nil"), nil, t.TempDir(), nil)
+	if r.Written || r.Count != 0 {
+		t.Errorf("no board, no promotion: %+v", r)
 	}
 }
 
