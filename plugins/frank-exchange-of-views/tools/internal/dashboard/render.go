@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,8 +12,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
-
-var verdictRe = regexp.MustCompile(`\*\*Verdict:\*\*\s*([^\s—\n]+)`)
 
 // sevCode: grade codes for phone-width tables. sevRank orders them high→low for a stable,
 // sensible mint-breakdown render (JS used insertion order; structural equivalence lets us

@@ -37,16 +37,23 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	}
 }
 
-// AND THE FALLBACK STILL WORKS, so a run assembled before the terminal act was an event is not
-// silently blanked by the fix.
-func TestTerminalVerdictFallsBackToTheReportWhenTheRecordCannotSay(t *testing.T) {
+// AND WHEN THE RECORD CANNOT SAY, NOTHING IS INVENTED FROM THE PROSE.
+//
+// Measured across the 9 assembled runs in research/: five carry no terminal act at all while their
+// reports read "UNVERIFIED" — a word backed by no record anywhere, written by a pre-#289 assembler.
+// The old fallback's job was to hand that word to an operator as the run's verdict.
+//
+// Empty is the honest answer and the renderer already uses it well: it falls through to the round
+// verdict off the record and relabels "final verdict" as "latest verdict (rN)", so the operator is
+// shown a different claim rather than the same claim from a worse source.
+func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 	runDir := t.TempDir()
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	if err := os.WriteFile(filepath.Join(runDir, "report.md"),
-		[]byte("# report\n\n**Verdict:** CEILING-TERMINATED — the run hit its round ceiling.\n"), 0o644); err != nil {
+		[]byte("# report\n\n**Verdict:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := readTerminalVerdict(runDir); got != "CEILING-TERMINATED" {
-		t.Errorf("readTerminalVerdict = %q, want \"CEILING-TERMINATED\" from the report fallback", got)
+	if got := readTerminalVerdict(runDir); got != "" {
+		t.Errorf("readTerminalVerdict = %q from a run whose record carries no terminal act — the word was read out of prose no record backs", got)
 	}
 }

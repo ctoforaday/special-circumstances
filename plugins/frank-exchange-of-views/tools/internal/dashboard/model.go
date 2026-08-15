@@ -348,45 +348,49 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
-// readTerminalVerdict answers from the RECORD, and falls back to the rendered report only when
-// the record cannot say.
+// readTerminalVerdict answers from the RECORD, and from nothing else.
 //
-// IT WAS THE REGEX ALONE, over report.md. The verdict is a field on the `outcome` event — the
-// tool's own terminal act writes it — and this recovered it from the prose that field had already
-// been rendered into. That is the shape [[facts-are-fields]] names: a fact bypassing the record
-// that already holds it, recovered by a hope about string shape.
+// IT WAS A REGEX OVER report.md, and then briefly a regex kept "as a last resort", which is not a
+// justification. The verdict is a FIELD on the `outcome` event — the bench's terminal act writes
+// it — so parsing it back out of the prose it was rendered into is the shape [[facts-are-fields]]
+// names, and keeping the parse as a fallback keeps the shape.
 //
-// The hope was load-bearing in a specific way. `assemble.basisNote` appends " — **derived from the
-// record**…" straight after the verdict word, so the pattern must stop at an em-dash — which
-// couples this reader to a sentence assemble.go is free to rewrite. Measured against the 9 real
-// assembled reports in research/: 8 matched. The ninth has no verdict at all, and produced exactly
-// the same "" as a drifted pattern would.
+// WHAT THE FALLBACK ACTUALLY SERVED, measured across the 9 assembled runs in research/ rather than
+// assumed:
 //
-// The record is asked first and answers in two ways that this deliberately keeps apart:
-// the outcome event's own field (the bench recorded a terminal act), then DeriveVerdict (the
-// record decides for itself). The regex survives only for a run assembled before the event
-// existed, and its miss no longer hides behind the same "" as an honest absence — an unreadable
-// record and a missing verdict now say different things to the caller.
+//	2  carry an `outcome` event — the record answers
+//	1  carries a round `verdict` event and no terminal act
+//	5  carry NO terminal act at all, and their reports say "UNVERIFIED"
+//	1  has no verdict in the report either
+//
+// Those five are pre-#289 artifacts, assembled before the terminal act was an event. Their
+// "UNVERIFIED" is backed by no record anywhere — so the fallback's job was to read a word out of
+// prose and hand it to an operator as the run's verdict, which is exactly the unbacked assertion
+// `basisNote` exists to keep out of the report. A fact that no record holds is not recovered by
+// finding it written down.
+//
+// The honest answer when the record cannot say is that the record cannot say, and the renderer
+// already says it well: an empty terminal verdict falls through to the round verdict off the
+// record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
+// different claim rather than the same claim from a worse source.
 func readTerminalVerdict(runDir string) string {
-	if b, err := record.BoardState(runDir); err == nil {
-		for i := len(b.Events) - 1; i >= 0; i-- {
-			if b.Events[i].Type == "outcome" {
-				if v := b.Events[i].Payload.Str("verdict"); v != "" {
-					return v
-				}
-			}
-		}
-	}
-	if v, _, ok := record.DeriveVerdict(runDir); ok {
-		return v
-	}
-	// LAST RESORT, and named as one: a run assembled before the terminal act was an event.
-	b, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+	b, err := record.BoardState(runDir)
 	if err != nil {
 		return ""
 	}
-	if m := verdictRe.FindStringSubmatch(string(b)); m != nil {
-		return m[1]
+	// The bench's own terminal act, latest wins.
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if b.Events[i].Type != "outcome" {
+			continue
+		}
+		if v := b.Events[i].Payload.Str("verdict"); v != "" {
+			return v
+		}
+	}
+	// Or what the record decides for itself. ok is false only where the record genuinely
+	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
+	if v, _, ok := record.DeriveVerdict(runDir); ok {
+		return v
 	}
 	return ""
 }
