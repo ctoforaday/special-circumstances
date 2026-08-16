@@ -24,7 +24,10 @@ func newFinding() *cobra.Command {
 	var severity, likelihood, impact flags.GradeValue
 
 	c := seat.Prose(seat.New("finding",
-		`a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>"`,
+		`a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>". `+
+			`THE CHANNEL FOR ANY DEFECT IN THE TEXT, including the ones the evidence verbs cannot reach: a claim resting on NO citation and no proof, `+
+			"an assertion whose source you cannot obtain, a figure with no derivation. `verify` and `reproduce` judge evidence that EXISTS; "+
+			`this raises the claim that has none.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {

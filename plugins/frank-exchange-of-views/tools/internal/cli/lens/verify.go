@@ -72,7 +72,10 @@ import (
 // explicit negative is a fact; an empty field is a question.
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify",
-		`adjudicate ONE citation: --anchor c-<hex> (from `+"`show evidence`"+`) or --independent, --claim "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>"`,
+		`adjudicate ONE citation: --anchor c-<hex> (from `+"`show evidence`"+`) or --independent, --claim "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
+			`THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `+"`absent`"+` — `+
+			"`absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, "+
+			`which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			anchor := strings.TrimSpace(seat.Str(cmd, flags.Anchor))
 			independent, _ := cmd.Flags().GetBool(flags.Independent)
