@@ -31,7 +31,7 @@ func newRevision() *cobra.Command {
 				return nil, err
 			}
 			p := record.NewPayload().Set("text", text)
-			if _, err := record.Append(s.RunDir, s.SeatID, "revision", p); err != nil {
+			if _, err := record.Append(s.Identity(), "revision", p); err != nil {
 				return nil, err
 			}
 			// THE DEBT IS NAMED WHERE THE SITTING ENDS. `revision` is emitted after blue's

@@ -59,7 +59,7 @@ func newClose() *cobra.Command {
 						seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
 				}
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "close", p); err != nil {
+			if _, err := record.Append(s.Identity(), "close", p); err != nil {
 				return nil, err
 			}
 			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: class}, nil

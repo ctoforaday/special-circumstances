@@ -36,7 +36,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"red-merge-r1", "blue-r1", "judge-terminal"} {
-		if _, _, err := record.RegisterSeat(runDir, s); err != nil {
+		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundOf(s)}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -46,10 +46,10 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		Set("problem", "the sentence flagged here <!--fx:f-leak12--> is wrong").
 		Set("location", "§1").Set("required_fix", "fix it").Set("acceptance_check", "recheck").Set("check_kind", "document").
 		Set("class", "correctness").Set("severity", "high").Set("likelihood", "high").Set("impact", "high")
-	if _, err := record.Append(runDir, "red-merge-r1", "mint", p); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "mint", p); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(runDir, "judge-terminal", "outcome", record.NewPayload().Set("verdict", "CEILING").Set("prose", "the round ceiling arrived before red could pass the final revision")); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, "outcome", record.NewPayload().Set("verdict", "CEILING").Set("prose", "the round ceiling arrived before red could pass the final revision")); err != nil {
 		t.Fatal(err)
 	}
 

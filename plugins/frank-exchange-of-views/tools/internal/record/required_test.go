@@ -30,14 +30,14 @@ func seatFor(typ string) string {
 func runWithGap(t *testing.T) string {
 	t.Helper()
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
 		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
@@ -136,7 +136,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 // offers it exactly where a seat that cannot produce an anchor will read it.
 func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
@@ -145,7 +145,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	}
 	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
-	if _, err := Append(runDir, "red-merge-r1", "mint", mint); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", mint); err != nil {
 		t.Fatal(err)
 	}
 
@@ -167,19 +167,19 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 // And a GENUINE carry still works: close once with an anchor, then restate it.
 func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
 		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().Set("gap_id", id).
 		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
 		Set("prose", "verified and holds")); err != nil {
 		t.Fatal(err)

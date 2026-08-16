@@ -83,7 +83,7 @@ func newOutcome() *cobra.Command {
 			if basisWhy != "" {
 				p.Set("verdict_why", basisWhy)
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "outcome", p); err != nil {
+			if _, err := record.Append(s.Identity(), "outcome", p); err != nil {
 				return nil, err
 			}
 			return outcomeResult{Verdict: verdict, Deadlocked: deadlocked, Exhausted: exhausted}, nil

@@ -25,8 +25,18 @@ import (
 // question is answered in trajectory_test.go, from the cobra tree and what the harness
 // execution tally — neither of them a hand-written list of what exists.
 
-// appendCall matches `record.Append(runDir, seatID, "type"` and the in-package `Append(...)`.
-var appendCall = regexp.MustCompile(`\bAppend\([^,)]+,\s*[^,)]+,\s*"([a-z_-]+)"`)
+// appendCall matches the event type in `record.Append(s.Identity(), "type", …)` and the
+// in-package `Append(id, "type", …)`.
+//
+// It used to be `Append\([^,)]+,\s*[^,)]+,\s*"…"` — two comma-free arguments before the type,
+// from when the signature was `Append(runDir, seatID, typ, p)`. #396 collapsed the first two
+// into one `Identity`, whose literal form CONTAINS commas and braces, so the old pattern matched
+// nothing. `.*?` is non-greedy and `.` does not cross newlines, so it stops at the first quoted
+// argument on the call's own line.
+//
+// The walk's own emptiness guard below is what caught this. Without it the gate would have gone
+// on reporting every event type as covered while matching zero call sites.
+var appendCall = regexp.MustCompile(`\bAppend\(.*?,\s*"([a-z_-]+)"`)
 
 // TestEveryAppendableEventTypeIsInTheCoverageGate walks internal/ for every event type the
 // tool can write and fails if the sweep's list does not name it.

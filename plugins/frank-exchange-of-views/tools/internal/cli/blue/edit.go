@@ -102,7 +102,7 @@ func newEdit() *cobra.Command {
 					p.Set("applied_verbatim", true)
 				}
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "blue_edit", p); err != nil {
+			if _, err := record.Append(s.Identity(), "blue_edit", p); err != nil {
 				return nil, err
 			}
 			if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {

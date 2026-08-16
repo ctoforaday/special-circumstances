@@ -110,7 +110,7 @@ func newAvenue() *cobra.Command {
 			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "avenue", p); err != nil {
+			if _, err := record.Append(s.Identity(), "avenue", p); err != nil {
 				return nil, err
 			}
 			return avenueResult{ID: id, Status: status, Line: line, Moved: moving}, nil

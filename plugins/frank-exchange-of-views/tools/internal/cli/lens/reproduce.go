@@ -79,7 +79,7 @@ func newReproduce() *cobra.Command {
 			if p.Str("note") == "" {
 				return nil, fmt.Errorf("lens reproduce requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace")
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "reproduce", p); err != nil {
+			if _, err := record.Append(s.Identity(), "reproduce", p); err != nil {
 				return nil, err
 			}
 			return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil

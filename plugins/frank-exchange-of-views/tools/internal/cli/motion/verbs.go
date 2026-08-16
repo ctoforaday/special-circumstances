@@ -48,7 +48,7 @@ func newFile(subject string, required []string) *cobra.Command {
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				p.Set("relief", r)
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "motion", p); err != nil {
+			if _, err := record.Append(s.Identity(), "motion", p); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, filed{ID: id, Subject: subject}, nil)
@@ -143,7 +143,7 @@ func newRule(subject, ruler string) *cobra.Command {
 			// because a denial binds nobody — and a grant that names no addressee is exactly the
 			// state the bench filed friction about: a direction issued knowing it had no carrier.
 			seat.Set(cmd, p, "binds", flags.Binds)
-			if _, err := record.Append(s.RunDir, s.SeatID, "motion-rule", p); err != nil {
+			if _, err := record.Append(s.Identity(), "motion-rule", p); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, ruled{ID: id, Ruling: seat.Str(cmd, flags.As)}, nil)
@@ -195,7 +195,7 @@ func newAppeal(subject string) *cobra.Command {
 				return err
 			}
 			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("reason", reason)
-			if _, err := record.Append(s.RunDir, s.SeatID, "motion-appeal", p); err != nil {
+			if _, err := record.Append(s.Identity(), "motion-appeal", p); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, appealed{ID: id}, nil)
