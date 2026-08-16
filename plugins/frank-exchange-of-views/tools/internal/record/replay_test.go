@@ -159,32 +159,44 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		}
 	})
 
-	t.Run("with no terminal event, the latest mtime wins", func(t *testing.T) {
+	// WITH NO TERMINAL EVENT, THE RECORD'S OWN STAMP DECIDES — AND IT BEATS THE FILESYSTEM.
+	//
+	// This used to assert "the latest mtime wins", and mtime is metadata about the CARRIER rather
+	// than a fact on the record: a git checkout, an rsync, a container copy or a restore from the
+	// recovery mirror all rewrite it. It was also undecidable where two shards share an mtime,
+	// which is what Windows produces for two writes in the same tick — measured 2026-08-16, the
+	// same commit green on ubuntu and red on windows-latest.
+	//
+	// THE MTIMES ARE DELIBERATELY INVERTED HERE: the shard that must win is the OLDER file. A
+	// selection that still consults the filesystem cannot pass this.
+	t.Run("with no terminal event, the latest recorded stamp wins over the newer file", func(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "red-lens-r1-L1"
-		older := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-			ev(seatID, "aaaaaaaa", 0, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("text", "older")),
-		})
-		newer := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
-			ev(seatID, "bbbbbbbb", 0, 1, "finding", seatID+":finding:F2", NewPayload().Set("label", "F2").Set("text", "newer")),
-		})
-		old := time.Now().Add(-time.Hour)
-		if err := os.Chtimes(older, old, old); err != nil {
-			t.Fatal(err)
-		}
+		early := ev(seatID, "aaaaaaaa", 0, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("text", "older"))
+		early.TS = "2026-01-01T00:00:00.000000000Z"
+		late := ev(seatID, "bbbbbbbb", 0, 1, "finding", seatID+":finding:F2", NewPayload().Set("label", "F2").Set("text", "newer"))
+		late.TS = "2026-01-01T00:00:00.000000001Z" // one nanosecond, which is what nextStamp issues on a tie
+		loser := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{early})
+		winner := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{late})
+
 		now := time.Now()
-		if err := os.Chtimes(newer, now, now); err != nil {
+		if err := os.Chtimes(loser, now, now); err != nil { // the LOSER is the newest file
 			t.Fatal(err)
 		}
+		old := now.Add(-time.Hour)
+		if err := os.Chtimes(winner, old, old); err != nil {
+			t.Fatal(err)
+		}
+
 		m, err := MergedEvents(runDir)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(m.Events) != 1 || m.Events[0].Payload.Str("text") != "newer" {
-			t.Errorf("mtime fallback picked the wrong shard: %+v", m.Events)
+			t.Errorf("the shard with the later RECORDED stamp must win even though its file is older — the record owns this ordering, not the filesystem: %+v", m.Events)
 		}
-		if len(m.Anomalies) != 1 || !strings.Contains(m.Anomalies[0], "by mtime fallback") {
-			t.Errorf("anomaly must state the mtime fallback, got %v", m.Anomalies)
+		if len(m.Anomalies) != 1 || !strings.Contains(m.Anomalies[0], "by latest recorded event") {
+			t.Errorf("anomaly must state the selection basis, got %v", m.Anomalies)
 		}
 	})
 

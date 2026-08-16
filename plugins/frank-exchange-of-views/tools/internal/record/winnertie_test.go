@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// TWO SITTINGS WHOSE SHARDS SHARE AN MTIME MUST RESOLVE THE SAME WAY EVERY TIME.
+// TWO SITTINGS THE RECORD CANNOT SEPARATE MUST RESOLVE THE SAME WAY EVERY TIME.
 //
 // MEASURED 2026-08-16: TestDiscardedEventsAudit passed on ubuntu-latest and FAILED on
 // windows-latest at the same commit. Two shards written back to back land on distinct mtimes under
@@ -79,7 +79,7 @@ func TestAnMtimeTieResolvesDeterministically(t *testing.T) {
 		t.Errorf("winner = %q, want \"bbbbbbbb\" — on a tie the greater nonce wins, which is arbitrary but stable, and it is what keeps a tied record resolving the same way on every filesystem", winnerAB)
 	}
 
-	if !strings.Contains(note, "TIE") {
+	if !strings.Contains(note, "TIED") {
 		t.Errorf("the anomaly does not disclose that the mtimes tied, so it reports a decision the clock never made:\n%s", note)
 	}
 }
