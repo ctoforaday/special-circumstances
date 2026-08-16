@@ -444,6 +444,37 @@ func repoRootOf(runDir string) string {
 // `RegisterSeat` refuses a run directory that does not exist now, so the creation path is closed.
 // This audit covers what that cannot: a stray already on disk from an older binary, and the
 // narrower case where the wrongly-resolved directory happens to exist already.
+// DiscardedEventsAudit fails a run whose replay threw away work.
+//
+// Multi-nonce is normal and must stay allowed: a `register` rotates the nonce so a crash
+// re-dispatch writes a fresh shard, and the retry rewrites the same idempotency keys, so nothing
+// is lost. The replay already reported both cases in one sentence — "multi-nonce seat X: N
+// dispatches" — and NOTHING GATED ON IT, so a run that lost a whole bench sitting reported
+// success (#394).
+//
+// The distinguishing fact is not how many shards a seat has; it is whether a losing shard held
+// event keys that survive nowhere. record.MergedEvents computes exactly that, and this reads the
+// count rather than the sentence.
+func DiscardedEventsAudit(runDir string) Audit {
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		return Audit{Check: "discarded-events", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
+	}
+	if len(board.Discarded) == 0 {
+		return Audit{Check: "discarded-events", Verdict: "PASS", Detail: "no seat's replay discarded recorded work"}
+	}
+	var parts []string
+	lost := 0
+	for _, d := range board.Discarded {
+		lost += len(d.Keys)
+		parts = append(parts, fmt.Sprintf("%s (%d dispatches, winner %s) lost %d: %s",
+			d.SeatID, d.Dispatches, d.Winner, len(d.Keys), strings.Join(d.Keys, ", ")))
+	}
+	return Audit{Check: "discarded-events", Verdict: "FAIL", Detail: fmt.Sprintf(
+		"%d event(s) across %d seat(s) were written, then dropped by replay winner selection and survive nowhere — "+
+			"one seat id was used for more than one sitting: %s", lost, len(board.Discarded), strings.Join(parts, "; "))}
+}
+
 func StrayRecordsAudit(repoRoot, runDir string) Audit {
 	if repoRoot == "" {
 		return Audit{Check: "stray-records", Verdict: "SKIP", Detail: "no repository root to walk"}
@@ -1214,6 +1245,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
 		StrayRecordsAudit(repoRootOf(runDir), runDir),
+		DiscardedEventsAudit(runDir),
 		RecordParityAudit(runDir, redRounds, blueBlocks),
 		BackfillAudit(runDir),
 		AttestationAudit(runDir, transcriptDir, agentFiles, 5),

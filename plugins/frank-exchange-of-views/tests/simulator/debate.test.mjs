@@ -1234,3 +1234,39 @@ test('the bench is told the docket premise may be stale and to re-check the live
   assert.ok(/AS IT NOW STANDS/.test(judgePrompt), 'rule on the artifact as it stands, not as the docket describes it')
   assert.ok(/DOCUMENT-PROBE acceptance check/.test(judgePrompt), 'and re-run the checks that can be re-run')
 })
+
+// #394: ONE SEAT ID NAMES ONE SITTING.
+//
+// hearPetitions used to dispatch every sitting as the literal `judge-petition` — once after
+// synthesis and twice per round. Each register rotates the nonce, so N sittings meant N shards
+// under one seat id, and replay keeps one: a petition sitting writes no `verdict` and no
+// `revision`, so the terminal pool is empty and selection falls to latest mtime. Every earlier
+// sitting's rulings were dropped while the run reported success.
+test('W2c: each petition sitting gets its own seat id, derived from the petitioner', async () => {
+  const petition = [{ class: 'constitutional', basis: 'b', relief: 'r' }]
+  const world = makeWorld(makeResponder({
+    // Three sittings in one run: after synthesis, after the round-1 merge, after the round-1
+    // response. Under the old id all three were `judge-petition`.
+    blueSynth: [blueEnv({ petitions: petition })],
+    red: [redEnv({ gaps: [gap('R1-1')], petitions: petition }), redEnv({ verdict: 'PASS' })],
+    blueRespond: [blueEnv({ petitions: petition })],
+  }))
+  await world.run(script, ARGS)
+
+  const sittings = world.calls.filter((c) => c.opts.label.startsWith('judge-petition'))
+  assert.ok(sittings.length >= 2, `want multiple sittings to have something to collide, got ${sittings.length}`)
+
+  const ids = sittings.map((c) => c.opts.label.replace(/ · .*$/, ''))
+  assert.equal(new Set(ids).size, ids.length, `every sitting needs its OWN id, got ${JSON.stringify(ids)}`)
+  assert.ok(!ids.includes('judge-petition'), 'the bare id is the collision — it must not be dispatched')
+
+  // The id names its petitioner, which is what makes it unique by construction rather than by a
+  // counter. And it is the SEAT_ID the prompt hands the seat, not merely a display label.
+  for (const c of sittings) {
+    const id = c.opts.label.replace(/ · .*$/, '')
+    assert.ok(c.prompt.includes(`SEAT_ID: ${id}`), `the record contract must carry the same id: ${id}`)
+  }
+  assert.ok(ids.some((i) => i === 'judge-petition-blue-synthesize'), `the pre-round sitting names its filer: ${JSON.stringify(ids)}`)
+  assert.ok(ids.some((i) => /^judge-petition-(red-merge|blue-respond)-r1$/.test(i)),
+    `an in-round sitting carries the round in a position RoundOf reads: ${JSON.stringify(ids)}`)
+})

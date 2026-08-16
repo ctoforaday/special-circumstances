@@ -27,7 +27,12 @@ import (
 //	lens   red-lens-r<N>-L<M>
 //	merge  red-merge-r<N>
 //	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
-//	bench  judge-r<N>, judge-petition, judge-terminal, assemble
+//	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
+//
+// The petition sitting carries its PETITIONER because one id must name one sitting: it used to
+// be the bare `judge-petition` for all of them, and replay kept one shard per seat id, so every
+// earlier sitting's rulings were dropped (#394). The prefix match is unaffected — `judge-` is
+// still position 0 — and `judge-petition-red-merge-r1` now reads as round 1 rather than 0.
 var roleSeats = map[string][]string{
 	"lens":  {"red-lens-"},
 	"merge": {"red-merge-"},

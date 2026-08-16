@@ -1033,3 +1033,94 @@ func TestMASSKeysAreExactlyTheCanonicalGrades(t *testing.T) {
 		}
 	}
 }
+
+// #394: MULTI-NONCE IS NORMAL; DISCARDING WORK IS NOT, AND THE TWO LOOKED IDENTICAL.
+//
+// A register rotates the nonce so a crash re-dispatch writes a fresh shard (8/50 in run 5). The
+// retry rewrites the same idempotency keys, so nothing is lost. But when one seat id was used for
+// two different SITTINGS, the losing shard held work that survives nowhere — and the replay said
+// "multi-nonce seat X: 2 dispatches" for both cases, in the same words, with nothing gating on it.
+func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
+	shard := func(t *testing.T, dir, seatID, nonce string, evs []Event) {
+		t.Helper()
+		var lines []string
+		for _, e := range evs {
+			b, err := MarshalEvent(e)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines = append(lines, string(b))
+		}
+		p := filepath.Join(dir, "records", "events-"+seatID+"-"+nonce+".jsonl")
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reg := func(seat, nonce string) Event {
+		return Event{TS: "2026-01-01T00:00:00Z", SeatID: seat, Nonce: nonce, Type: "register", Key: seat + ":register:" + nonce, Payload: NewPayload()}
+	}
+
+	t.Run("a crash re-dispatch loses nothing", func(t *testing.T) {
+		dir := t.TempDir()
+		// Both shards carry the SAME work keys; only the register nonce differs. That is what a
+		// retry looks like, and it must stay silent — otherwise the signal fires on the one case
+		// it exists to permit.
+		work := Event{TS: "2026-01-01T00:00:01Z", SeatID: "red-merge-r1", Type: "mint", Key: "red-merge-r1:mint:R1-1", Payload: NewPayload()}
+		a, b := work, work
+		a.Nonce, b.Nonce = "aaaaaaaa", "bbbbbbbb"
+		shard(t, dir, "red-merge-r1", "aaaaaaaa", []Event{reg("red-merge-r1", "aaaaaaaa"), a})
+		shard(t, dir, "red-merge-r1", "bbbbbbbb", []Event{reg("red-merge-r1", "bbbbbbbb"), b})
+
+		m, err := MergedEvents(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(m.Anomalies) != 1 {
+			t.Fatalf("multi-nonce is still reported: %v", m.Anomalies)
+		}
+		if len(m.Discarded) != 0 {
+			t.Errorf("a retry rewrites the same keys — nothing is lost: %+v", m.Discarded)
+		}
+		if strings.Contains(m.Anomalies[0], "DISCARDED") {
+			t.Errorf("a healthy retry must not be described as a loss: %q", m.Anomalies[0])
+		}
+	})
+
+	t.Run("two sittings under one id lose the earlier one", func(t *testing.T) {
+		dir := t.TempDir()
+		// The #394 shape: distinct work under one seat id, and no terminal event, so selection
+		// falls to mtime and the earlier sitting's rulings vanish.
+		first := Event{TS: "2026-01-01T00:00:01Z", SeatID: "judge-petition", Nonce: "aaaaaaaa", Type: "petition-rule",
+			Key: "judge-petition:petition-rule:M1", Payload: NewPayload()}
+		second := Event{TS: "2026-01-01T00:00:02Z", SeatID: "judge-petition", Nonce: "bbbbbbbb", Type: "petition-rule",
+			Key: "judge-petition:petition-rule:M2", Payload: NewPayload()}
+		shard(t, dir, "judge-petition", "aaaaaaaa", []Event{reg("judge-petition", "aaaaaaaa"), first})
+		shard(t, dir, "judge-petition", "bbbbbbbb", []Event{reg("judge-petition", "bbbbbbbb"), second})
+
+		m, err := MergedEvents(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(m.Discarded) != 1 {
+			t.Fatalf("the earlier sitting's ruling is gone and must be reported: %+v", m.Discarded)
+		}
+		d := m.Discarded[0]
+		if d.SeatID != "judge-petition" || d.Dispatches != 2 {
+			t.Errorf("the loss names its seat and dispatch count: %+v", d)
+		}
+		if len(d.Keys) != 1 {
+			t.Fatalf("exactly the one ruling is lost — the register is excluded: %v", d.Keys)
+		}
+		for _, k := range d.Keys {
+			if strings.Contains(k, ":register:") {
+				t.Errorf("a register key must never be counted as lost work: %q", k)
+			}
+		}
+		if !strings.Contains(m.Anomalies[0], "DISCARDED") {
+			t.Errorf("the anomaly line says so too, for a human: %q", m.Anomalies[0])
+		}
+	})
+}
