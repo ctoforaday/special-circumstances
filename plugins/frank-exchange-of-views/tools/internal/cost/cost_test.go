@@ -116,10 +116,19 @@ func TestTierMismatch(t *testing.T) {
 	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "not declared") {
 		t.Errorf("undeclared = %+v", out)
 	}
-	// An other/unknown seat is not tier-bound.
+	// AN UNIDENTIFIABLE SEAT WARNS — it is not exempt, it is unnamed.
+	//
+	// This case used to assert the opposite ("an other/unknown seat is not tier-bound") and its
+	// fixture is the trap: a seat on `fable`, the dearest tier, which the first assertion in this
+	// very test calls the fable trap. Asserting ZERO findings for it meant the audit's own test
+	// pinned the silence on precisely the run it exists to catch.
+	//
+	// Every seat in SeatClass has a tier, so ClassOf returns "" for exactly one input: the `other`
+	// ClassifySeat reports when no needle matched the prompt head. That is a drift between
+	// debate.js's wording and internal/seatclass, not an exemption.
 	out = TierMismatch([]Row{{Seat: "other", Round: 0, T: "fable"}}, "haiku", "haiku")
-	if len(out) != 0 {
-		t.Errorf("other = %+v", out)
+	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "could not be identified") {
+		t.Errorf("unidentifiable = %+v", out)
 	}
 	// A judgment seat is measured against judgmentModel, not model.
 	out = TierMismatch([]Row{{Seat: "red-merge", Round: 2, T: "opus"}}, "opus", "haiku")

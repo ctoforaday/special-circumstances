@@ -193,7 +193,25 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 	for _, row := range rows {
 		cls := seatclass.ClassOf(row.Seat)
 		if cls == "" {
-			continue // other/unknown seat — not tier-bound
+			// AN UNCLASSIFIABLE SEAT IS NOT AN UNBOUND ONE, and skipping it here made the two
+			// the same silence.
+			//
+			// Every seat in SeatClass has a tier, so ClassOf returns "" for exactly one input:
+			// `other`, which is what ClassifySeat reports when NO needle matched the prompt head.
+			// The comment that used to sit here said "not tier-bound", describing a category that
+			// does not exist — the row is not exempt from the tier check, it is a row whose seat
+			// nobody could name.
+			//
+			// The cost of the silence is the audit's whole purpose. TierMismatch is the fable
+			// trap: a judgment seat quietly running on a dearer model. A prompt-wording drift in
+			// debate.js sends that seat to `other`, and it then spent whatever it spent with no
+			// finding raised. seatclass's own doc promises the opposite — "`other` … a visible
+			// bucket, never folded away, so a prompt-wording drift is spottable" — and this is
+			// where it was folded away. The precedent is in that same doc: cost-audit once lacked
+			// the terminal-disposition case and misattributed that seat's spend.
+			out = append(out, Finding{Seat: row.Seat, Round: row.Round, Cls: "", Actual: row.T, Expected: "", Verdict: "WARN",
+				Why: fmt.Sprintf("a transcript's seat could not be identified from its prompt head, so its tier was NOT checked (it ran on %s, %d turn(s)). ClassifySeat matched no needle, which means debate.js's prompt wording and internal/seatclass have drifted apart — not that this seat is exempt", row.T, row.Turns)})
+			continue
 		}
 		configured := model
 		if cls == "judgment" {
