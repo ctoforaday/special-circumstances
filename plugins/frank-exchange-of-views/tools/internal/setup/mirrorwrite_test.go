@@ -1,8 +1,10 @@
 package setup
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -38,5 +40,60 @@ func TestTheMirrorDoesNotClaimFilesItDidNotWrite(t *testing.T) {
 	}
 	if r.Files != 1 {
 		t.Errorf("Files = %d, want 1 — the count is what a caller believes about delivery", r.Files)
+	}
+}
+
+// THE CLASS JOIN IS THE DELIVERY CHANNEL, AND ITS WRITE USED TO BE UNCHECKED.
+//
+// The engine hands a repairing seat only the patterns whose class matches the gap in front of it,
+// via inputs/gap-patterns-by-class.json. That write was
+// `if b, err := marshalJSON(...); err == nil { os.WriteFile(...) }` — the marshal error skipped
+// the write, and the write error was discarded. The setup summary then printed
+// `gap-pattern index: N class(es) -> inputs/gap-patterns-by-class.json` either way, because N is
+// the length of the in-memory index and is never read back off disk.
+//
+// So a run with no join and a run with a perfect join printed the same line, and red would open
+// the run with no patterns at all. Setup already refuses a run whose corpus is mostly
+// unclassified, for exactly this reason stated in exactly these words — "red would open this run
+// substantially blind while its memory directory looks full" — so a failed join must refuse too,
+// or the gate guards the corpus and not the channel that carries it.
+//
+// The failure is induced the only way that does not depend on running as an unprivileged user:
+// `inputs` is made a FILE, so MkdirAll and WriteFile cannot succeed at that path.
+func TestAFailedClassJoinWriteRefusesTheRun(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	mem := filepath.Join(t.TempDir(), "patterns")
+	if err := os.MkdirAll(mem, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mem, "good.md"),
+		[]byte("---\nclasses: [figure-recount-fails]\ndescription: a hook\n---\n# t\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg.MemoryDir = mem
+
+	// Stage the run directory with `inputs` occupied by a regular file.
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "inputs"), []byte("not a directory\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out, errb bytes.Buffer
+	code := Run(cfg, &out, &errb)
+
+	if code == 0 {
+		t.Fatalf("exit 0 — the class join could not be written and the run proceeded anyway.\n"+
+			"stdout:\n%s\nstderr:\n%s", out.String(), errb.String())
+	}
+	if !strings.Contains(errb.String(), "class join") {
+		t.Errorf("the refusal does not name the class join, so an operator cannot tell this from any "+
+			"other setup failure:\nstderr:\n%s", errb.String())
+	}
+	// The summary line must not claim a delivery that did not happen.
+	if strings.Contains(out.String(), "gap-pattern index:") {
+		t.Errorf("setup printed the index summary for a join it failed to write — that line is the "+
+			"whole reason the miss was invisible:\nstdout:\n%s", out.String())
 	}
 }

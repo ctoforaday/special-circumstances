@@ -204,8 +204,36 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// The index was built and GATED above, before any run state existed; this only mirrors the
 	// files into the run and writes the class join the engine hands to a repairing seat.
 	mirror := MirrorGapPatterns(memDirs, cfg.RunDir)
-	if b, err := marshalJSON(patternIndex.ByClass); err == nil {
-		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "gap-patterns-by-class.json"), b, 0o644)
+
+	// THE CLASS JOIN IS THE DELIVERY CHANNEL, so a failure to write it is the same condition the
+	// unclassified gate forty lines up refuses the run over: red opens blind while its memory
+	// looks full.
+	//
+	// This used to be `if b, err := marshalJSON(...); err == nil { os.WriteFile(...) }` — the
+	// marshal error skipped the write silently, and the write error was discarded outright. The
+	// summary below then printed `gap-pattern index: N class(es) -> inputs/gap-patterns-by-class.json`
+	// regardless, because N comes from the in-memory index and never from the file. A run whose
+	// join never landed and a run whose join landed perfectly printed the same line.
+	//
+	// Same defect, same package, one commit apart: MirrorGapPatterns returned `Written: true,
+	// Files: 55` on a discarded write error. That one was caught by reusing it somewhere the
+	// caller had not already created `inputs/`; this one sits on the line that actually feeds a
+	// seat, and nothing was reusing it.
+	joinPath := filepath.Join(cfg.RunDir, "inputs", "gap-patterns-by-class.json")
+	b, err := marshalJSON(patternIndex.ByClass)
+	if err != nil {
+		fmt.Fprintf(stderr, "run-setup: could not encode the gap-pattern class join: %v\n", err)
+		fmt.Fprintln(stderr, "  Delivery is class-indexed, so without this file red opens the run with no patterns at all.")
+		return 2
+	}
+	if err := os.MkdirAll(filepath.Dir(joinPath), 0o755); err != nil {
+		fmt.Fprintf(stderr, "run-setup: could not create inputs/ for the gap-pattern class join: %v\n", err)
+		return 2
+	}
+	if err := os.WriteFile(joinPath, b, 0o644); err != nil {
+		fmt.Fprintf(stderr, "run-setup: could not write the gap-pattern class join to %s: %v\n", joinPath, err)
+		fmt.Fprintln(stderr, "  Delivery is class-indexed, so without this file red opens the run with no patterns at all.")
+		return 2
 	}
 
 	absRun, absErr := filepath.Abs(cfg.RunDir)
