@@ -170,6 +170,54 @@ are the ones that quietly keep pointing at it.
 - **Distinguisher**: is the call's TARGET gone/relocated (port-retarget), or
   present-but-never-consumed (staged-not-delivered)?
 
+### misattributed-enforcement
+A surface tells a reader — a seat, or a human auditing coverage — that X enforces
+this duty, while the enforcement actually lives at Y, or nowhere. Nothing breaks.
+The rule holds, the gate refuses, the run completes. What is wrong is the reader's
+model of WHERE the refusal comes from, and that is load-bearing: a seat calibrates
+how much to trust each surface, and an audit counts checks.
+- **The harm is double-counting**, which is why it survives review. The write and
+  the named reader look like two independent checks. There is one. Coverage reads
+  as 2/2 while the second is dead, unrun, or answering a different question — and
+  removing the live one then looks safe.
+- **Instances**, all measured 2026-08-15 in `debate.js` and its prompts (#417):
+  - `found_by`: the red-merge prompt said *"verify checks each names a recorded
+    finding"*. `requireFindings` refuses it AT THE WRITE, in the seat's face.
+    Enforcer real, credited to the wrong component.
+  - `supersedes`: the engine declined to fail a `closed_with_regression` closure
+    with no successor, stating *"`verify`'s supersedes-resolve runs over the board
+    at capture"*. Wrong twice — nothing runs it at capture, and
+    supersedes-resolve asks whether a NAMED ancestor exists, not whether anything
+    names this closure. Even where it runs it does not answer this question.
+  - the archive spot-check floor: the prompt said verify *"fails the run"*.
+    `record.SpotCheckAudit` reaches the REPORT, which renders the debt
+    deliberately — `assemble.go` says so in its own words — and nothing fails.
+- **Sweep question**: for each surface that names a checker, does that checker
+  RUN on this path, and does it check THIS? Both halves, separately: a checker
+  that runs and answers a neighbouring question is still this class.
+- **Neighbour**: `policy-without-mechanism` — there nothing enforces the rule at
+  all; here something does, and the text credits something else.
+- **Neighbour**: `port-retarget` — there a live INVOCATION names a target that
+  moved, and it breaks or misfires. Here nothing is invoked: the text is a
+  CITATION, so there is no failure to observe, only a wrong belief.
+- **Distinguisher**: is anything enforcing this today? Nothing →
+  `policy-without-mechanism`. Something, and the text is a call to it →
+  `port-retarget`. Something, and the text merely NAMES a different component →
+  this.
+- **The pattern the sweep found, worth carrying**: across `debate.js`, the three
+  agent constitutions and the protocol skill, every claim naming THE WRITE was
+  true and every claim naming an after-the-fact reader was false. Where a prompt
+  names a checker, that checker was sound exactly when it was `record.Append`.
+  Start the sweep there.
+- **Caution, from getting this wrong while filing it.** The audit for this class
+  is itself prone to under-counting: #415 was published claiming `verify` was
+  invoked nowhere, because the search covered importers of the package and
+  invocations in `.md`/`.js`/`.mjs`/`.yml`. `internal/fuzz` invokes it as its
+  primary oracle by shelling out to the built binary from a `_test.go` — a
+  mechanism the search did not enumerate. Before concluding a checker is unrun,
+  enumerate the INVOCATION MECHANISMS (import, subprocess from a test, shell, CI
+  step, prompt text), not the ones that came to mind.
+
 ## Minting a new class
 
 Same discipline as the gap registry: a new class needs a slug, a one-line
