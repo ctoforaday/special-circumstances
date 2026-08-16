@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -66,15 +67,21 @@ func newVerify() *cobra.Command {
 func printReport(cmd *cobra.Command, checks []verify.Check, s verify.Stats) {
 	w := cmd.OutOrStdout()
 	fmt.Fprintln(w, "invariants:")
+	// THREE STATES, NOT TWO (#411). A check that did not apply is not a check that held, and
+	// printing both as `[ok  ]` is how `pass-closes-all-gaps` sat inapplicable on every run
+	// ever recorded while its line read like a considered judgement. The status word comes
+	// from the Check itself so this renderer and the report section cannot disagree.
 	for _, c := range checks {
-		mark := "ok  "
-		if !c.OK {
-			mark = "FAIL"
-		}
-		fmt.Fprintf(w, "  [%s] %s — %s\n", mark, c.Name, c.Detail)
+		fmt.Fprintf(w, "  [%-4s] %s — %s\n", c.Status(), c.Name, c.Detail)
 		for _, v := range c.Violations {
 			fmt.Fprintf(w, "         · %s\n", v)
 		}
+	}
+	if na := verify.NotApplicable(checks); len(na) > 0 {
+		// Named again, together, because one `n/a` in a list of seven is easy to read past —
+		// and a gate that is n/a on EVERY run is the thing worth noticing.
+		fmt.Fprintf(w, "\n  %d invariant(s) did not apply to this run: %s\n",
+			len(na), strings.Join(namesOf(na), ", "))
 	}
 	fmt.Fprintf(w, "\nrecord (verdict %s):\n", nonEmpty(s.Verdict, "unrecorded"))
 	fmt.Fprintf(w, "  gaps: %d total · %d open · %d closed\n", s.GapsTotal, s.GapsOpen, s.GapsClosed)
@@ -116,4 +123,13 @@ func nonEmpty(s, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+// namesOf is the check names, for a one-line summary.
+func namesOf(cs []verify.Check) []string {
+	out := make([]string, len(cs))
+	for i, c := range cs {
+		out[i] = c.Name
+	}
+	return out
 }
