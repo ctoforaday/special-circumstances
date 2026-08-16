@@ -83,7 +83,7 @@ func newEdit() *cobra.Command {
 			seat.Set(cmd, p, "answers", flags.Answers)
 			p.Set("old", oldStr)
 			p.Set("new", newStr)
-			p.Set("text", reason)
+			p.Set("reason", reason)
 			// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
 			//
 			// If blue applied red's own proposed text EXACTLY, there is nothing left for red to

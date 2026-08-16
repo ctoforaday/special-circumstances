@@ -79,13 +79,13 @@ func TestAssembleEndToEnd(t *testing.T) {
 	add("red-merge-r1", "mint", "gap_id", "R1-1", "problem", "eviction races the reader", "location", "cache.go:88",
 		"class", "correctness", "likelihood", "medium", "impact", "high",
 		"acceptance_check", "race the eviction under -race", "check_kind", "document", "required_fix", "take the read lock in evict")
-	add("red-merge-r1", "position", "text", "gap R1-1 stands until the race is shown impossible")
-	add("blue-r1", "position", "text", "R1-1 is repaired by ordering the invalidation before the store")
+	add("red-merge-r1", "position", "reason", "gap R1-1 stands until the race is shown impossible")
+	add("blue-r1", "position", "reason", "R1-1 is repaired by ordering the invalidation before the store")
 	add("blue-r1", "avenue", "avenue_id", "A1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
 	add("blue-r1", "avenue", "avenue_id", "A2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
 	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
-		"tension", "cost vs certainty", "review_flag", "false", "rationale", "a model-check is owed before this closes")
-	add("judge-terminal", "outcome", "verdict", "CEILING", "prose", "the round ceiling arrived before red could pass the final revision")
+		"tension", "cost vs certainty", "review_flag", "false", "reason", "a model-check is owed before this closes")
+	add("judge-terminal", "outcome", "verdict", "CEILING", "reason", "the round ceiling arrived before red could pass the final revision")
 
 	path, err := Assemble(runDir)
 	if err != nil {

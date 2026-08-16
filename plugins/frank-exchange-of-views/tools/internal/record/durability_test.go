@@ -53,7 +53,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F1").Set("text", "must not start"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F1").Set("reason", "must not start"))
 		done <- err
 	}()
 
@@ -86,7 +86,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 	if len(after) != len(before)+1 {
 		t.Fatalf("shard has %d events after release, want %d", len(after), len(before)+1)
 	}
-	if got := after[len(after)-1].Payload.Str("text"); got != "must not start" {
+	if got := after[len(after)-1].Payload.Str("reason"); got != "must not start" {
 		t.Errorf("the released event landed as %q", got)
 	}
 }
@@ -224,7 +224,7 @@ func TestAppendHealsATornFinalLine(t *testing.T) {
 	}
 	f.Close()
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F1").Set("text", "intact")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F1").Set("reason", "intact")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -249,11 +249,11 @@ func TestAppendHealsATornFinalLine(t *testing.T) {
 		t.Fatalf("ReadShard recovered %d events, want 2 (the fragment must stay inert)", len(evs))
 	}
 	last := evs[len(evs)-1]
-	if last.Type != "finding" || last.Payload.Str("text") != "intact" {
+	if last.Type != "finding" || last.Payload.Str("reason") != "intact" {
 		t.Errorf("the event appended after a tear did not survive whole: %+v", last)
 	}
 	// A further append must not add a second heal: the file now ends in a newline.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F2").Set("text", "second")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F2").Set("reason", "second")); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = os.ReadFile(shard)
@@ -297,7 +297,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "position", NewPayload().Set("text", "first instance")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "position", NewPayload().Set("reason", "first instance")); err != nil {
 		t.Fatal(err)
 	}
 	n2, s2, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)})
@@ -327,7 +327,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 		t.Errorf("stale shard has %d events, want 2 — a re-register must not rewrite it", len(old))
 	}
 	// The new instance writes to the new shard, starting its own sequence.
-	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "position", NewPayload().Set("text", "second instance"))
+	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "position", NewPayload().Set("reason", "second instance"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 func TestAppendImplicitlyRegistersWhenThePointerIsAbsent(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "blue-lane-1"
-	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "friction", NewPayload().Set("text", "no register first"))
+	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "friction", NewPayload().Set("reason", "no register first"))
 	if err != nil {
 		t.Fatal(err)
 	}

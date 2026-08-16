@@ -156,7 +156,7 @@ func Avenues(b *Board) []*Avenue {
 			if !ok {
 				continue
 			}
-			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("opinion"), e.Round
+			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("reason"), e.Round
 		}
 	}
 	out := make([]*Avenue, 0, len(order))

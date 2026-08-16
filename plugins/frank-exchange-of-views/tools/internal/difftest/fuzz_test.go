@@ -227,7 +227,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					"--dimension", "likelihood", "--proposed", pick(rng, fuzzGrades), "--reason", "why"}
 			}
 		case "bench":
-			args = []string{"opinion", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
+			args = []string{"reason", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
 				"--as", "carried", "--principle", "p", "--tension", "t", "--reason", "the ruling", "--review-flag", "r"}
 			if rng.Intn(4) == 0 {
 				args = args[:len(args)-2] // drop the review flag: the validation path

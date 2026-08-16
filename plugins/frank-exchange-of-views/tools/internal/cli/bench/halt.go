@@ -20,7 +20,7 @@ func newHalt() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.Identity(), "halt", record.NewPayload().Set("opinion", text)); err != nil {
+			if _, err := record.Append(s.Identity(), "halt", record.NewPayload().Set("reason", text)); err != nil {
 				return nil, err
 			}
 			return seat.Msg{Message: "JUDICIAL HALT recorded — capture relays this verbatim"}, nil

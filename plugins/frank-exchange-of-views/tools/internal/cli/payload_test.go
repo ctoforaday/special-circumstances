@@ -30,7 +30,7 @@ func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--reason-file - : %v (%s)", err, out)
 	}
-	if got := lastOfType(t, runDir, "friction").Payload.Str("text"); got != hostile {
+	if got := lastOfType(t, runDir, "friction").Payload.Str("reason"); got != hostile {
 		t.Errorf("the payload did not survive stdin.\n got: %q\nwant: %q", got, hostile)
 	}
 }
@@ -60,10 +60,10 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		typ  string
 		args []string
 	}{
-		{"merge regrade", "basis", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
-		{"motion grade rule", "opinion", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
-		{"motion grade file", "basis", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"motion petition file", "basis", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
+		{"merge regrade", "reason", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
+		{"motion grade rule", "reason", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
+		{"motion grade file", "reason", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"motion petition file", "reason", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// The path is however many leading non-flag words the case supplies.
@@ -164,7 +164,7 @@ func TestReasonFileReadsStdinThroughTheDashConvention(t *testing.T) {
 		t.Fatalf("--reason-file -: %v", err)
 	}
 	ev := lastOfType(t, runDir, "friction")
-	if got := ev.Payload.Str("text"); got != hostile {
+	if got := ev.Payload.Str("reason"); got != hostile {
 		t.Errorf("text = %q, want the stdin content intact", got)
 	}
 }

@@ -50,22 +50,22 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 	// time. Values are placeholders — validate checks presence, not meaning.
 	full := map[string]map[string]any{
 		"mint":            {"acceptance_check": "c", "class": "scope-creep"},
-		"close":           {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x", "prose": "p"},
-		"closing":         {"gap_id": "R1-1", "text": "t"},
-		"regrade":         {"basis": "b"},
-		"dispute":         {"gap_id": "R1-1", "evidence": "e"},
-		"dispute-respond": {"gap_id": "R1-1", "rationale": "r"},
+		"close":           {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x", "reason": "p"},
+		"closing":         {"gap_id": "R1-1", "reason": "t"},
+		"regrade":         {"reason": "b"},
+		"dispute":         {"gap_id": "R1-1", "reason": "e"},
+		"dispute-respond": {"gap_id": "R1-1", "reason": "r"},
 		"retire":          {"claim": "c", "reason": "r"},
 		"avenue":          {"status": "pursued", "line": "l"},
-		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "rationale": "r"},
-		"halt":            {"opinion": "o"},
-		"certify":         {"statement": "s"},
-		"outcome":         {"verdict": "VERIFIED", "prose": "p"},
+		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "reason": "r"},
+		"halt":            {"reason": "o"},
+		"certify":         {"reason": "s"},
+		"outcome":         {"verdict": "VERIFIED", "reason": "p"},
 		"finding":         {"label": "L1-F1"},
 		"observe":         {"label": "L1-O1"},
 		// The verb that took no required flag at all: a bare `lens verify` recorded an event and
 		// counted as red's audit volume. `outcome` is the payload key behind --as.
-		"verify": {"claim": "c", "outcome": "supports", "confidence": "high", "text": "what the source says"},
+		"verify": {"claim": "c", "outcome": "supports", "confidence": "high", "reason": "what the source says"},
 	}
 
 	for typ, required := range RequiredFields {
@@ -99,14 +99,14 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 // case while telling us nothing.
 func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 	for typ, p := range map[string]*Payload{
-		"regrade": NewPayload().Set("basis", "b"),
+		"regrade": NewPayload().Set("reason", "b"),
 		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
 		// avenue_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate
 		// requires it and no flag sets it, so it is not in RequiredFields but must be present
 		// for a complete payload.
 		"avenue": NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "l"),
 		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("rationale", "r"),
+			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("reason", "r"),
 	} {
 		dir := t.TempDir()
 		if typ == "opinion" {
@@ -124,7 +124,7 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 // defects in this codebase have come from treating a falsy value as an absent one.
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	p := NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-		Set("principle", "p").Set("tension", "t").Set("review_flag", false).Set("rationale", "r")
+		Set("principle", "p").Set("tension", "t").Set("review_flag", false).Set("reason", "r")
 	if err := validate(runWithGap(t), "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	// Anchored, it goes through — the escape hatch is closed, not the door.
 	anchored := NewPayload().Set("gap_id", id).
 		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
-		Set("prose", "verified and holds")
+		Set("reason", "verified and holds")
 	if err := validate(runDir, "red-merge-r1", "close", anchored); err != nil {
 		t.Errorf("an anchored closure must still be accepted: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	}
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().Set("gap_id", id).
 		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
-		Set("prose", "verified and holds")); err != nil {
+		Set("reason", "verified and holds")); err != nil {
 		t.Fatal(err)
 	}
 	if err := validate(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {

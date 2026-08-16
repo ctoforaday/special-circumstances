@@ -73,10 +73,10 @@ func newReproduce() *cobra.Command {
 				// copy of the same bytes on the record. What the reader needs is what CHANGED.
 				p.Set("recorded_output", truncateOutput(want)).Set("observed_output", truncateOutput(got))
 			}
-			if err := seat.SetReason(cmd, p, "note"); err != nil {
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
 			}
-			if p.Str("note") == "" {
+			if p.Str("reason") == "" {
 				return nil, fmt.Errorf("lens reproduce requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace")
 			}
 			if _, err := record.Append(s.Identity(), "reproduce", p); err != nil {

@@ -181,7 +181,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 			t.Errorf("closure lost %s; an unanchored closure is mechanically unauditable (payload had %v)", want, keys)
 		}
 	}
-	if !keys["prose"] {
+	if !keys["reason"] {
 		t.Error("closure lost its prose record")
 	}
 }

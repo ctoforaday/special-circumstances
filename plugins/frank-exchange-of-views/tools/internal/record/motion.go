@@ -214,7 +214,7 @@ func Motions(b *Board) []*Motion {
 				order = append(order, id)
 			}
 			m.Subject, m.Filer, m.Round = e.Payload.Str("subject"), e.SeatID, e.Round
-			m.Basis, m.Relief = e.Payload.Str("basis"), e.Payload.Str("relief")
+			m.Basis, m.Relief = e.Payload.Str("reason"), e.Payload.Str("relief")
 			for _, k := range []string{"gap_id", "dimension", "proposed", "class", "avenue_id"} {
 				if v := e.Payload.Str(k); v != "" {
 					m.Fields[k] = v
@@ -266,7 +266,7 @@ func Motions(b *Board) []*Motion {
 		switch e.Type {
 		case "motion-rule":
 			m.Ruling, m.RulingBy, m.RulingRound = e.Payload.Str("ruling"), e.SeatID, e.Round
-			m.Opinion = e.Payload.Str("opinion")
+			m.Opinion = e.Payload.Str("reason")
 		case "motion-appeal":
 			m.Appealed, m.AppealReason = true, e.Payload.Str("reason")
 		}

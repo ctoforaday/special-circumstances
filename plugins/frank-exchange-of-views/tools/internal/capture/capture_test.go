@@ -256,7 +256,7 @@ func screenRun(t *testing.T, outcome, url string) string {
 		record.NewPayload().Set("label", "c-1").Set("url", url).Set("title", "A Source"))
 	seed("red-lens-r1-L1", "30000000", 0, "verify",
 		record.NewPayload().Set("anchor", "c-1").Set("claim", "a claim").
-			Set("outcome", outcome).Set("confidence", "high").Set("text", "read it at the leaf"))
+			Set("outcome", outcome).Set("confidence", "high").Set("reason", "read it at the leaf"))
 	return dir
 }
 
@@ -274,7 +274,7 @@ func seedRevisions(t *testing.T, runDir string, rounds int) {
 		seat := "blue-respond-r" + itoa(r)
 		nonce := "2000000" + string("0123456789abcdef"[r%16])
 		e := record.Event{Seq: 0, SeatID: seat, Nonce: nonce, Round: r, Type: "revision",
-			Key: seat + ":revision", Payload: record.NewPayload().Set("text", "round "+itoa(r)+" edits")}
+			Key: seat + ":revision", Payload: record.NewPayload().Set("reason", "round "+itoa(r)+" edits")}
 		line, err := record.MarshalEvent(e)
 		if err != nil {
 			t.Fatal(err)
@@ -358,16 +358,16 @@ func TestHarvestPrecedents(t *testing.T) {
 	board := &record.Board{Events: []record.Event{
 		{Round: 2, Type: "opinion", SeatID: "judge-r2", Payload: record.NewPayload().
 			Set("gap_id", "R2-3").Set("disposition", "risk_accepted").
-			Set("rationale", "complexity exceeds bounded likelihood x impact")},
+			Set("reason", "complexity exceeds bounded likelihood x impact")},
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
 		{Round: 2, Type: "motion", SeatID: "blue-respond-r2", Payload: record.NewPayload().
-			Set("motion_id", "M4").Set("subject", "petition").Set("basis", "the demand buries a hazard")},
+			Set("motion_id", "M4").Set("subject", "petition").Set("reason", "the demand buries a hazard")},
 		{Round: 2, Type: "petition-rule", SeatID: "judge-r2", Payload: record.NewPayload().
 			Set("motion_id", "M4").Set("ruling", "granted").
-			Set("opinion", "scope narrowed to shipped artifacts")},
+			Set("reason", "scope narrowed to shipped artifacts")},
 		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().
-			Set("gap_id", "R1-9").Set("disposition", "carried").Set("rationale", longRationale)},
+			Set("gap_id", "R1-9").Set("disposition", "carried").Set("reason", longRationale)},
 		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
 		// construction — the one verb whose whole purpose is stating a holding.
 		{Round: 2, Type: "declare", SeatID: "judge-r2", Payload: record.NewPayload().
@@ -376,7 +376,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
 		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().
 			Set("motion_id", "M1").Set("subject", "grade").Set("ruling", "refused").
-			Set("opinion", "disclosure does not lower likelihood")},
+			Set("reason", "disclosure does not lower likelihood")},
 	}}
 
 	r := HarvestPrecedents(runDir, nil, filepath.Join(repo, "law"), board)
@@ -426,8 +426,8 @@ func TestHarvestPrecedents(t *testing.T) {
 func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	runDir := filepath.Join(t.TempDir(), "2026-08-15_divergence")
 	claimed := []map[string]any{
-		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "closed", "rationale": "fixed"}}},
-		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "opinion": "no"}}},
+		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "closed", "reason": "fixed"}}},
+		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
 	}
 
 	r := HarvestPrecedents(runDir, claimed, filepath.Join(t.TempDir(), "law"), &record.Board{})

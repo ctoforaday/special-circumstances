@@ -24,7 +24,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, "outcome",
-		record.NewPayload().Set("verdict", "HALTED").Set("prose", "ended on safety grounds")); err != nil {
+		record.NewPayload().Set("verdict", "HALTED").Set("reason", "ended on safety grounds")); err != nil {
 		t.Fatal(err)
 	}
 	// The rendered artifact says something else. It is the derived carrier; the event is the fact.

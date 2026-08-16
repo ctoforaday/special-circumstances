@@ -219,7 +219,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 		if o.Payload != nil {
 			oj.ID = o.Payload.Str("finding_id")
 			oj.Label = o.Payload.Str("label")
-			oj.Text = o.Payload.Str("text")
+			oj.Text = o.Payload.Str("reason")
 		}
 		oj.Credited = oj.Label != "" && credited[oj.Label]
 		if !oj.Credited {
@@ -544,7 +544,7 @@ func FindingsJSONOf(b *Board) FindingsJSON {
 			Round:    e.Round,
 			Role:     RoleOf(e.SeatID),
 			Location: e.Payload.Str("location"),
-			Text:     e.Payload.Str("text"),
+			Text:     e.Payload.Str("reason"),
 		}
 		if v, ok := e.Payload.Get("severity"); ok {
 			fj.Severity = v
@@ -606,9 +606,9 @@ func FrictionJSONOf(b *Board) FrictionJSON {
 	for _, e := range b.Events {
 		switch e.Type {
 		case "friction":
-			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
+			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("reason")})
 		case "friction-none":
-			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("text")})
+			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("reason")})
 		}
 	}
 	out.Counts.Total = len(out.Friction)
@@ -719,34 +719,34 @@ func DebateJSONOf(b *Board) DebateJSON {
 		}
 		rj := DebateRoundJSON{Round: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
 		for _, p := range sec("position", "merge") {
-			rj.Red = append(rj.Red, p.Payload.Str("text"))
+			rj.Red = append(rj.Red, p.Payload.Str("reason"))
 		}
 		for _, c := range sec("closing", "merge") {
-			rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("text")})
+			rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("reason")})
 		}
 		for _, p := range sec("position", "blue") {
-			rj.Blue = append(rj.Blue, p.Payload.Str("text"))
+			rj.Blue = append(rj.Blue, p.Payload.Str("reason"))
 		}
 		for _, c := range sec("closing", "blue") {
-			rj.BlueClosings = append(rj.BlueClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("text")})
+			rj.BlueClosings = append(rj.BlueClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("reason")})
 		}
 		for _, e := range re {
 			switch e.Type {
 			case "dispute":
 				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
 					Kind: "dispute", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),
-					Dimension: e.Payload.Str("dimension"), Proposed: e.Payload.Str("proposed"), Evidence: e.Payload.Str("evidence"),
+					Dimension: e.Payload.Str("dimension"), Proposed: e.Payload.Str("proposed"), Evidence: e.Payload.Str("reason"),
 				})
 			case "dispute-respond":
 				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
 					Kind: "dispute-respond", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),
-					Response: e.Payload.Str("response"), Rationale: e.Payload.Str("rationale"),
+					Response: e.Payload.Str("response"), Rationale: e.Payload.Str("reason"),
 				})
 			case "opinion":
 				rj.Lead = append(rj.Lead, DebateOpinionJSON{
 					GapID: e.Payload.Str("gap_id"), Disposition: e.Payload.Str("disposition"),
 					Principle: e.Payload.Str("principle"), Tension: e.Payload.Str("tension"),
-					ReviewFlag: e.Payload.Str("review_flag"), Rationale: e.Payload.Str("rationale"),
+					ReviewFlag: e.Payload.Str("review_flag"), Rationale: e.Payload.Str("reason"),
 				})
 			}
 		}

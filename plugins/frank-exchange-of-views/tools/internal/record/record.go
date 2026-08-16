@@ -599,7 +599,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// blue may write anything that is not the name of a real open question it is
 		// answering without saying so.
 		if p.Str("answers") == "" {
-			named, err := gapNamedIn(runDir, p.Str("text"))
+			named, err := gapNamedIn(runDir, p.Str("reason"))
 			if err != nil {
 				return err
 			}
@@ -684,7 +684,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// refusal (an unauditable closure) leads when both are absent, and EXEMPT for a
 		// carry — a --carried-from close restates an earlier closure that already stated
 		// its reason, so demanding a fresh one would be asking the same argument twice.
-		if !p.Has("carried_from") && (!p.Has("prose") || p.Str("prose") == "") {
+		if !p.Has("carried_from") && (!p.Has("reason") || p.Str("reason") == "") {
 			return fmt.Errorf("record: close requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
 		}
 	case "closing", "manifest-row":
@@ -697,7 +697,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireGap(runDir, p.Str("gap_id"), typ, "--id"); err != nil {
 			return err
 		}
-		if typ == "closing" && p.Str("text") == "" {
+		if typ == "closing" && p.Str("reason") == "" {
 			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
 		}
 	case "finding":
@@ -718,11 +718,11 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
 			return err
 		}
-		if !p.Has("basis") || p.Str("basis") == "" {
+		if !p.Has("reason") || p.Str("reason") == "" {
 			return fmt.Errorf("record: regrade requires --reason (grade movement is recorded with its reason)")
 		}
 	case "motion":
-		if !p.Has("subject") || p.Str("basis") == "" {
+		if !p.Has("subject") || p.Str("reason") == "" {
 			return fmt.Errorf("record: a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
 		}
 		// The subject's enumerated fields, checked at the WRITE as well as at parse. The CLI's
@@ -852,11 +852,11 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 	case "halt":
 		// The safety boundary reaches the human as the words the bench chose, relayed
 		// verbatim — so a halt with no written opinion cannot do its one job.
-		if p.Str("opinion") == "" {
+		if p.Str("reason") == "" {
 			return fmt.Errorf("record: halt requires --reason (the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause)")
 		}
 	case "certify":
-		if p.Str("statement") == "" {
+		if p.Str("reason") == "" {
 			return fmt.Errorf("record: certify requires --reason (what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity)")
 		}
 	case "outcome":
@@ -868,7 +868,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended by judged deadlock nothing else records it — DeriveVerdict says so
 		// itself, that the determination "is not on the record (#289)".
-		if p.Str("prose") == "" {
+		if p.Str("reason") == "" {
 			return fmt.Errorf("record: outcome requires --reason (how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have)")
 		}
 	case "verify":
@@ -891,7 +891,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if p.Str("confidence") == "" {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
-		if p.Str("text") == "" {
+		if p.Str("reason") == "" {
 			return fmt.Errorf("record: verify requires --reason (what the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replace)")
 		}
 	case "opinion":
@@ -903,7 +903,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f))
 			}
 		}
-		if p.Str("rationale") == "" {
+		if p.Str("reason") == "" {
 			return fmt.Errorf("record: opinion requires --reason (the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default)")
 		}
 		// A verb that owns an act must OWN it. petition_rule.go states the safety

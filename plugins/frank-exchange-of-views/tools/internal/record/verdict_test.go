@@ -59,8 +59,8 @@ func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 // against the bound setup wrote, so nobody has to be told.
 func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
 	dir := runWith(t, "2", []Event{
-		vev("red-merge-r1", "position", 1, 0, NewPayload().Set("text", "x")),
-		vev("red-merge-r2", "position", 2, 0, NewPayload().Set("text", "y")),
+		vev("red-merge-r1", "position", 1, 0, NewPayload().Set("reason", "x")),
+		vev("red-merge-r2", "position", 2, 0, NewPayload().Set("reason", "y")),
 	})
 	got, why, ok := DeriveVerdict(dir)
 	if !ok || got != "CEILING" {
@@ -73,7 +73,7 @@ func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
 func TestHaltOutranksAPass(t *testing.T) {
 	dir := runWith(t, "3", []Event{
 		vev("red-merge-r1", "verdict", 1, 0, NewPayload().Set("verdict", "PASS")),
-		vev("judge-r1", "halt", 1, 0, NewPayload().Set("opinion", "consent gate")),
+		vev("judge-r1", "halt", 1, 0, NewPayload().Set("reason", "consent gate")),
 	})
 	got, _, ok := DeriveVerdict(dir)
 	if !ok || got != "HALTED" {
@@ -85,7 +85,7 @@ func TestHaltOutranksAPass(t *testing.T) {
 // ends early with no pass and no halt ended on a judged deadlock — a determination that lives
 // only in the bench's envelope and leaves no independent trace (#289).
 func TestAJudgedDeadlockIsNotDerivable(t *testing.T) {
-	dir := runWith(t, "5", []Event{vev("red-merge-r1", "position", 1, 0, NewPayload().Set("text", "x"))})
+	dir := runWith(t, "5", []Event{vev("red-merge-r1", "position", 1, 0, NewPayload().Set("reason", "x"))})
 	got, why, ok := DeriveVerdict(dir)
 	if ok {
 		t.Errorf("derived %q from a record that cannot decide — the deadlock case must stay honest", got)
@@ -98,7 +98,7 @@ func TestAJudgedDeadlockIsNotDerivable(t *testing.T) {
 // An absent or unparseable ceiling degrades CEILING to underivable rather than inventing a
 // bound — the same posture as InferRunDir's "say nothing rather than guess".
 func TestNoConfiguredCeilingMeansNoCeilingVerdict(t *testing.T) {
-	dir := runWith(t, "", []Event{vev("red-merge-r9", "position", 9, 0, NewPayload().Set("text", "x"))})
+	dir := runWith(t, "", []Event{vev("red-merge-r9", "position", 9, 0, NewPayload().Set("reason", "x"))})
 	if _, _, ok := DeriveVerdict(dir); ok {
 		t.Error("a ceiling verdict was derived with no configured ceiling")
 	}

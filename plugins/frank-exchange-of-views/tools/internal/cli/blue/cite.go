@@ -62,7 +62,7 @@ func newCite() *cobra.Command {
 			sha, _, _, err := fetchcache.Resolve(s.RunDir, url, fetchcache.Default)
 			if err != nil {
 				msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
-				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("text", msg)); ferr != nil {
+				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", msg)); ferr != nil {
 					return nil, ferr
 				}
 				return nil, errors.New(msg)

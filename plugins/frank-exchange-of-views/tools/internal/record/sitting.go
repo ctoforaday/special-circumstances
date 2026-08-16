@@ -108,7 +108,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 					`close --id `+id+` --as <disposition> --reason "..."   (or verdict --as FAIL)`)
 			}
 		}
-		for _, m := range AllMotions(b) {
+		for _, m := range Motions(b) {
 			if m != nil && !m.Ruled() {
 				add("motion "+m.ID+" was filed and never ruled — PASS is refused while it stands",
 					`show motions   then   motion `+m.Subject+` rule --id `+m.ID+` --as <verdict> --reason "..."`)
@@ -131,7 +131,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	// verifying a citation nobody checked, re-running a proof nobody re-ran — are AFFORDANCES,
 	// and they live in AvailableOf where they carry no claim about being finished.
 	case "bench":
-		for _, m := range AllMotions(b) {
+		for _, m := range Motions(b) {
 			if m != nil && !m.Ruled() && m.Subject == "petition" {
 				add("petition "+m.ID+" is unruled, and petitions are heard BEFORE the debate continues",
 					`show motions   then   motion petition rule --id `+m.ID+` --as granted|denied --reason "..."`)
