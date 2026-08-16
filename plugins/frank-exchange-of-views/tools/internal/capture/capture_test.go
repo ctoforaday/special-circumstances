@@ -595,3 +595,65 @@ func TestStrayRecordsAuditFindsShardsOutsideAnyRun(t *testing.T) {
 		t.Errorf("the detail must name WHERE the stray is, or an operator cannot go and look: %s", got.Detail)
 	}
 }
+
+// #394: a run whose replay threw away recorded work must not report clean.
+//
+// The replay already reported "multi-nonce seat X: N dispatches" for BOTH a healthy crash
+// re-dispatch and a seat id used for two sittings, in the same words — and nothing gated on
+// either, so a run that lost a whole bench sitting finished with every audit green.
+func TestDiscardedEventsAudit(t *testing.T) {
+	shard := func(t *testing.T, runDir, name string, lines ...string) {
+		t.Helper()
+		write(t, filepath.Join(runDir, "records", name), strings.Join(lines, "\n")+"\n")
+	}
+	ev := func(seat, nonce, typ, key string) string {
+		e := record.Event{TS: "2026-01-01T00:00:00Z", SeatID: seat, Nonce: nonce, Type: typ, Key: key, Payload: record.NewPayload()}
+		b, err := record.MarshalEvent(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+
+	t.Run("two sittings under one seat id FAIL", func(t *testing.T) {
+		runDir := t.TempDir()
+		shard(t, runDir, "events-judge-petition-aaaaaaaa.jsonl",
+			ev("judge-petition", "aaaaaaaa", "register", "judge-petition:register:aaaaaaaa"),
+			ev("judge-petition", "aaaaaaaa", "petition-rule", "judge-petition:petition-rule:M1"))
+		shard(t, runDir, "events-judge-petition-bbbbbbbb.jsonl",
+			ev("judge-petition", "bbbbbbbb", "register", "judge-petition:register:bbbbbbbb"),
+			ev("judge-petition", "bbbbbbbb", "petition-rule", "judge-petition:petition-rule:M2"))
+
+		a := DiscardedEventsAudit(runDir)
+		if a.Verdict != "FAIL" {
+			t.Fatalf("lost work must FAIL the run record: %+v", a)
+		}
+		if !strings.Contains(a.Detail, "judge-petition") || !strings.Contains(a.Detail, "petition-rule:M1") {
+			t.Errorf("the detail must name the seat and the lost keys, so it is actionable: %q", a.Detail)
+		}
+	})
+
+	t.Run("a crash re-dispatch PASSES", func(t *testing.T) {
+		runDir := t.TempDir()
+		// Same work key in both shards; only the register nonce differs.
+		shard(t, runDir, "events-red-merge-r1-aaaaaaaa.jsonl",
+			ev("red-merge-r1", "aaaaaaaa", "register", "red-merge-r1:register:aaaaaaaa"),
+			ev("red-merge-r1", "aaaaaaaa", "mint", "red-merge-r1:mint:R1-1"))
+		shard(t, runDir, "events-red-merge-r1-bbbbbbbb.jsonl",
+			ev("red-merge-r1", "bbbbbbbb", "register", "red-merge-r1:register:bbbbbbbb"),
+			ev("red-merge-r1", "bbbbbbbb", "mint", "red-merge-r1:mint:R1-1"))
+
+		if a := DiscardedEventsAudit(runDir); a.Verdict != "PASS" {
+			t.Errorf("a retry is the case this audit must permit, not punish: %+v", a)
+		}
+	})
+
+	t.Run("a single-shard run PASSES", func(t *testing.T) {
+		runDir := t.TempDir()
+		shard(t, runDir, "events-blue-synthesize-aaaaaaaa.jsonl",
+			ev("blue-synthesize", "aaaaaaaa", "register", "blue-synthesize:register:aaaaaaaa"))
+		if a := DiscardedEventsAudit(runDir); a.Verdict != "PASS" {
+			t.Errorf("the ordinary run must stay quiet: %+v", a)
+		}
+	})
+}

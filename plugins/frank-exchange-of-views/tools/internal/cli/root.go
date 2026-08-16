@@ -872,10 +872,39 @@ import (
 //
 //	       A stale binary harvests from envelopes and reports a plausible count.
 //
+//	0.70.0 A REPLAY THAT THREW WORK AWAY NOW FAILS THE RUN RECORD (#394).
+//
+//	       `register` rotates the nonce so a crash re-dispatch writes a fresh shard, and replay
+//	       keeps one shard per seat id: the one carrying a TERMINAL event (`verdict`/`revision`),
+//	       else the latest by mtime. That is correct, and it rests on an invariant nothing
+//	       enforced — ONE SEAT ID NAMES ONE SEAT CONTRACT.
+//
+//	       `hearPetitions` broke it. Every sitting dispatched as the literal `judge-petition`,
+//	       once after synthesis and twice per round, so a 3-round run held up to seven sittings
+//	       under one id. A petition sitting writes no `verdict` and no `revision`, so the terminal
+//	       pool was empty, selection fell to mtime, and every earlier sitting's rulings were
+//	       dropped from the replay while the run reported success.
+//
+//	       The only trace was `multi-nonce seat judge-petition: 7 dispatches` — the SAME sentence
+//	       a healthy crash retry produces, and nothing gated on either.
+//
+//	       Two halves, because the id fix alone leaves the discard path silent for the next reuse:
+//
+//	         - the sitting's id derives from its PETITIONER (`judge-petition-red-merge-r1`), so it
+//	           is unique by construction rather than by a counter. `RoundOf` reads the first
+//	           `-r<N>`, so an in-round sitting now stamps its real round instead of 0, and the
+//	           pre-round sitting keeps no round because it genuinely precedes round 1.
+//	         - `Merged.Discarded` (and `Board.Discarded`) reports every event key a losing shard
+//	           held that survives nowhere, and the new `discarded-events` capture audit FAILS on
+//	           it. `register` is excluded: its key carries the nonce, so counting it would fire on
+//	           every healthy re-dispatch — the signal going off on the case it exists to permit.
+//
+//	       A stale binary reports a lossy replay as a clean run.
+//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.69.0"
+const Version = "0.70.0"
 
 func init() { record.ToolVersion = Version }
 

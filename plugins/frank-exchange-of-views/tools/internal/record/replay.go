@@ -84,6 +84,30 @@ type shardInfo struct {
 type Merged struct {
 	Events    []Event
 	Anomalies []string
+	// Discarded names every seat where losing shards carried events the winner does not.
+	//
+	// Multi-nonce is NORMAL: a register rotates the nonce so a crash re-dispatch is a fresh
+	// shard, measured at 8/50 in run 5. On a re-dispatch the retry rewrites the SAME keys, so
+	// the loser contributes nothing the winner lacks and this stays empty.
+	//
+	// It is NOT empty when one seat id was used for two different sittings, because then the
+	// losing shard holds work that happened and no longer exists anywhere downstream. The
+	// anomaly string said "multi-nonce seat X: 7 dispatches" for both cases — the healthy one
+	// and the lossy one, in the same words, and nothing gated on either (#394). This is the
+	// field that tells them apart.
+	Discarded []DiscardedShard
+}
+
+// DiscardedShard is one seat's lost work: how many event keys existed in a losing shard and
+// survive nowhere. A COUNT, not a sentence — a caller decides with it instead of matching prose
+// (facts-are-fields).
+type DiscardedShard struct {
+	SeatID     string
+	Dispatches int
+	Winner     string
+	// Keys are the discarded event keys, in shard order. Bounded in practice by one sitting's
+	// output, and worth carrying whole: "which rulings vanished" is the actionable half.
+	Keys []string
 }
 
 var shardRe = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)
@@ -139,6 +163,7 @@ func MergedEvents(runDir string) (Merged, error) {
 	}
 
 	var anomalies []string
+	var discarded []DiscardedShard
 	var winners []Event
 	for _, seatID := range seatOrder {
 		shards := bySeat[seatID]
@@ -176,8 +201,44 @@ func MergedEvents(runDir string) (Merged, error) {
 		if len(terminal) > 0 {
 			by = "terminal event"
 		}
-		anomalies = append(anomalies, fmt.Sprintf("multi-nonce seat %s: %d dispatches (%s); winner %s by %s",
-			seatID, len(shards), strings.Join(nonces, ", "), winner.nonce, by))
+
+		// WHAT DID THE LOSERS HOLD THAT THE WINNER DOES NOT? A crash re-dispatch rewrites the
+		// same idempotency keys, so the answer is normally nothing and this is silent. A seat id
+		// reused for a second SITTING has no overlap at all, and every key here is work that
+		// happened and survives nowhere.
+		//
+		// `register` IS EXCLUDED, and the check is worthless without that: its key is
+		// `<seat>:register:<nonce>` (record.go:227), so the loser's register can never match the
+		// winner's. Counting it would report one discarded event for every healthy crash
+		// re-dispatch — the signal firing on precisely the case it exists to permit.
+		kept := make(map[string]bool, len(winner.events))
+		for _, e := range winner.events {
+			kept[e.Key] = true
+		}
+		var lost []string
+		for _, s := range shards {
+			if s.nonce == winner.nonce {
+				continue
+			}
+			for _, e := range s.events {
+				if e.Type == "register" {
+					continue
+				}
+				if !kept[e.Key] {
+					lost = append(lost, e.Key)
+				}
+			}
+		}
+
+		note := fmt.Sprintf("multi-nonce seat %s: %d dispatches (%s); winner %s by %s",
+			seatID, len(shards), strings.Join(nonces, ", "), winner.nonce, by)
+		if len(lost) > 0 {
+			note += fmt.Sprintf(" — %d event(s) DISCARDED, surviving nowhere: %s", len(lost), strings.Join(lost, ", "))
+			discarded = append(discarded, DiscardedShard{
+				SeatID: seatID, Dispatches: len(shards), Winner: winner.nonce, Keys: lost,
+			})
+		}
+		anomalies = append(anomalies, note)
 		winners = append(winners, winner.events...)
 	}
 
@@ -204,7 +265,7 @@ func MergedEvents(runDir string) (Merged, error) {
 		seen[e.Key] = true
 		events = append(events, e)
 	}
-	return Merged{Events: events, Anomalies: anomalies}, nil
+	return Merged{Events: events, Anomalies: anomalies, Discarded: discarded}, nil
 }
 
 // Gap is the replayed state of one board gap.
@@ -299,8 +360,11 @@ type Observation struct {
 
 // Board is the replayed board: gaps in mint order, observations in event order.
 type Board struct {
-	Events       []Event
-	Anomalies    []string
+	Events    []Event
+	Anomalies []string
+	// Discarded is MergedEvents' loss report, carried onto the board so every consumer of a
+	// board can gate on it without re-running the replay.
+	Discarded    []DiscardedShard
 	GapOrder     []string
 	Gaps         map[string]*Gap
 	Observations []*Observation
@@ -311,7 +375,7 @@ func BoardState(runDir string) (*Board, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Board{Events: m.Events, Anomalies: m.Anomalies, Gaps: map[string]*Gap{}}
+	b := &Board{Events: m.Events, Anomalies: m.Anomalies, Discarded: m.Discarded, Gaps: map[string]*Gap{}}
 
 	// ORDERED BY WHEN IT HAPPENED, not by what the shard file is called.
 	//
