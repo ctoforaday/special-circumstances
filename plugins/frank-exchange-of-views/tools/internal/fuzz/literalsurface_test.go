@@ -63,6 +63,17 @@ func TestNoStringLiteralNamesARetiredSurface(t *testing.T) {
 		if strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
+		// capability.go is a HISTORY, and the same exemption applies for the same reason (#407).
+		// Its entries say what a binary AT AN OLD VERSION cannot do, and they are printed by
+		// setup's preflight to an operator whose binary IS at that version — where `--view` and
+		// `show ledger` still exist. Naming them is accurate for the only reader who sees them.
+		//
+		// This guard's own remedy ("move the wording into a comment") is right for a literal
+		// EMITTED AT a seat and wrong here: the wording is the payload, and burying it in a
+		// comment is exactly the unreachable prose #407 removed.
+		if strings.HasSuffix(filepath.ToSlash(path), "internal/record/capability.go") {
+			return nil
+		}
 		fset := token.NewFileSet()
 		f, perr := parser.ParseFile(fset, path, nil, 0)
 		if perr != nil {
