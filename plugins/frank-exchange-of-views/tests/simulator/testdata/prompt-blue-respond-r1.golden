@@ -1,4 +1,4 @@
-prompt sha256: 13d5dec99c11b1f49034f2e4ad1bc5071079a09995b73e82cc9dff23021b5eb1
+prompt sha256: 5060f57ed21ec20b805bda15039779d5bf290d2e161ea5a0e63aaefeb6e2d1e2
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -67,7 +67,9 @@ IT IS THE ROUND RECORD, and it renders as the report's revision history.
 Capture counts these events, and always did: the 2026-08-05 run carried a 6,847-byte hand-written CHANGELOG and exactly ONE revision event across three eligible blue seats, so the parity gap was scored against blue for a verb no prompt had ever named.
 The file is retired (#251); the event is the record.
 On false the script re-prompts you once for the round record and, failing that, logs friction and continues — the run is not discarded, but the parity gap is scored against you at capture; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).
-LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), with --status pursued (it became your spine), abandoned (you tried it and it died), or declined (you weighed it and did not take it), and for the latter two a --reason.
+LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), and its fate goes in the status flag: --status pursued (it became your spine — say what you learned in --reason), --status deferred (worth taking, and NOT BY THIS RUN — --reason says what a later run should pick it up FOR), --status declined (you weighed it and did not take it), or --status abandoned (you tried it and it died).
+Every fate but the first two REQUIRES a --reason, and all four reach the report under their own heading — pursued, deferred, and considered-or-rejected are three sections a reader sees, not one list of winners.
+A line you have not decided yet stays at `proposed`, which is a real state and not a failure to type one: it renders under "Still undecided" and the tool asks you to settle it each round.
 The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-respond-r1).

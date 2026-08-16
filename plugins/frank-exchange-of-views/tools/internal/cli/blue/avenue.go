@@ -119,7 +119,17 @@ func newAvenue() *cobra.Command {
 	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "an avenue you already proposed (A1, A2 …) whose fate you are MOVING; omit to propose a new one")
 	c.Flags().String(flags.Line, "", "the question or approach you are proposing — what you are going to try")
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
-	enumhelp.Flag(c, flags.Status, record.MustEnum("avenue", "status"), ("proposed (put forward, undecided — the default) | pursued (being followed) | declined (considered, not taken) | abandoned (pursued, then died)"))
+	// THE VALUES ARE NOT RE-LISTED HERE, and this was the one enumhelp.Flag caller of twelve
+	// that re-listed them. The hand-written line carried FOUR of the five statuses — `deferred`
+	// had been added to AvenueStatuses and never to this string — and glossed the four it did
+	// carry differently from the enum ("put forward, undecided" against "put forward and not yet
+	// resolved — the default, and the state that owes a move"). Two copies of one enum in a
+	// single `--help`, and a seat reading the usage line rather than the Enumerated values block
+	// below it could not learn that `deferred` exists at all.
+	//
+	// enumhelp renders every value with its own meaning from the record, so the usage line's job
+	// is to say what the FIELD is for. That is what the other eleven callers do.
+	enumhelp.Flag(c, flags.Status, record.MustEnum("avenue", "status"), "the fate of this line of inquiry — omit on a fresh proposal (it defaults to `proposed`); REQUIRED when moving one with --id. Re-recording `pursued` with what you learned is a reaffirmation and settles the line for this round")
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }

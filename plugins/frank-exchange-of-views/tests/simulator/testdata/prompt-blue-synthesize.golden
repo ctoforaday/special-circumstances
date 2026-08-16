@@ -1,4 +1,4 @@
-prompt sha256: c368ef80f15d47b53e949a61564ec1121ca90d21cd45afc3b76e2cc339ad8d6e
+prompt sha256: 850f21e5133224d8a8c147e663e4f965376638b2277ecf7b72026ab91ecfd1a0
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -24,7 +24,9 @@ REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your
 CLAIM UNIT (pinned — two honest merges differed 2x without it): claim_count = what "/opt/feov/bin/feov-record" count-claims --run research/2026-01-01_golden prints — run it after report.md is written and relay its integer into the envelope; never hand-count it, that command is the ONE deterministic source.
 RECORD THE ROUND — "/opt/feov/bin/feov-record" blue revision --run research/2026-01-01_golden --seat-id <your SEAT_ID> --reason "<what this synthesis did, and its claim_count>".
 It is the round record, it renders as the report's revision history, and capture COUNTS these events. round_record_appended: set TRUE only after that event exists.
-LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), with --status pursued (it became your spine), abandoned (you tried it and it died), or declined (you weighed it and did not take it), and for the latter two a --reason.
+LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), and its fate goes in the status flag: --status pursued (it became your spine — say what you learned in --reason), --status deferred (worth taking, and NOT BY THIS RUN — --reason says what a later run should pick it up FOR), --status declined (you weighed it and did not take it), or --status abandoned (you tried it and it died).
+Every fate but the first two REQUIRES a --reason, and all four reach the report under their own heading — pursued, deferred, and considered-or-rejected are three sections a reader sees, not one list of winners.
+A line you have not decided yet stays at `proposed`, which is a real state and not a failure to type one: it renders under "Still undecided" and the tool asks you to settle it each round.
 The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-synthesize).

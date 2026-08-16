@@ -637,9 +637,10 @@ func inquiryMD(b *record.Board) []byte {
 			ids[i] = a.ID
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
-			"_Still `proposed` or `pursued`: "+strings.Join(ids, ", ")+". Each owes a move or a",
-			"reaffirmation before the run closes — an avenue declared once and never revisited records",
-			"an intention, not a choice._", "")
+			"_Unsettled and not moved this round: "+strings.Join(ids, ", ")+". Each owes a move or a",
+			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this round just",
+			"as a fate does; an avenue declared once and never revisited records an intention, not a",
+			"choice. `declined`, `abandoned` and `deferred` are settled and never appear here._", "")
 	}
 	return []byte(strings.Join(inquiry, "\n") + "\n")
 }

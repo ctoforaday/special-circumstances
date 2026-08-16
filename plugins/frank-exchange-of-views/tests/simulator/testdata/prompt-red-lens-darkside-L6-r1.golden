@@ -1,11 +1,12 @@
-prompt sha256: d4174acea19aa377e59154683b1aaf611dd912c411eddc937b8e75e8108f80fe
+prompt sha256: cd5c123b5b65e7847dccee2dc838d93c1092e6afec2e2a547226708d4663d83b
 
 Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via `"/opt/feov/bin/feov-record" blue show lines-of-inquiry --run research/2026-01-01_golden` (the tool renders it fresh from the avenue events on the record).
 Blue's DECLINED and ABANDONED avenues are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
 Attack the reasons, not just the conclusions: a declined avenue whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong.
 RECONCILE THE RECORD AGAINST THE DOCUMENT: the directions the report actually took must be the ones on the avenue record.
-A section built on a line of inquiry that was never proposed is undeclared scope; an avenue still sitting at proposed or pursued late in the run is a decision nobody made.
+A section built on a line of inquiry that was never proposed is undeclared scope; an avenue still at `proposed`, or at `pursued` and NOT moved this round, is a decision nobody made.
 Both are findings.
+Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and settles the line for that round — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 Measured over six runs: 83 of 86 avenues were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it..
 Re-read the FULL living report through the tool — `lens show report` (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
 Anchor every finding to a section heading plus a quoted sentence — the quoted text in --location MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md: the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).

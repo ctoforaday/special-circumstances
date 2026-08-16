@@ -1,6 +1,7 @@
 package report
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -121,20 +122,72 @@ func TestAvenuesSplitByFate(t *testing.T) {
 	}
 }
 
-// EVERY STATUS REACHES A SECTION. `proposed` and `deferred` matched neither predicate and
-// vanished from the report entirely — a direction blue put forward and never resolved, and one
-// it explicitly kept for a later run, both absent from the section whose whole job is the roads
-// not taken.
-func TestNoAvenueStatusVanishesFromTheReport(t *testing.T) {
-	for _, status := range record.AvenueStatuses {
+// EVERY STATUS LANDS WHERE ITS FATE SAYS — three sections, and one deliberate exclusion.
+//
+// # This test never looked at a status
+//
+// It ranged over `record.AvenueStatuses`, which is `[]EnumValue`, and passed the STRUCT to
+// `Set("status", status)`. `Payload.Str` returns "" for a non-string, so `a.Status` was the empty
+// string on all five iterations. With `rejected` defined as the complement of `accepted`, "" fell
+// into alternatives every time and `in != inAlt` held — so it passed, five times, having exercised
+// no status at all. A test whose entire subject is "every status reaches a section" had never seen
+// one. Found 2026-08-16 while adding the third section. It ranges over AvenueStatusNames() now.
+//
+// # The model this asserts: the lifecycle of a research topic through the report
+//
+//	pursued              The expansions — a topic followed, and what it yielded
+//	deferred             its own section — KEPT for a later run or a deeper context, which is a
+//	                     decision. Filing it under "Alternatives considered" said the opposite of
+//	                     its fate, and only the `[deferred]` tag on the row contradicted the
+//	                     heading above it.
+//	declined, abandoned  Alternatives considered — weighed and not taken, or tried and died
+//	proposed             "Still undecided — proposed and never resolved". Its own section, phrased
+//	                     to state the ABSENCE of a decision rather than imply one. A first cut
+//	                     excluded it from every section on the argument that a heading announces a
+//	                     fate; TestFuzzDebate failed six seeds with `avenue prose absent from
+//	                     report`, and that invariant wins — a seat's recorded reasoning must reach
+//	                     the report, and a run ending with topics undecided is a finding.
+//
+// EVERY status lands in EXACTLY ONE section, so a sixth that matches no predicate fails here
+// rather than vanishing the way `proposed` and `deferred` once did.
+func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
+	section := map[string]string{
+		"pursued":   "expansions",
+		"deferred":  "deferred",
+		"declined":  "alternatives",
+		"abandoned": "alternatives",
+		"proposed":  "undecided",
+	}
+	for _, status := range record.AvenueStatusNames() {
+		want, known := section[status]
+		if !known {
+			t.Errorf("status %q is in the enum and this test has no expectation for it — decide which section it "+
+				"belongs to (or that it belongs to none, like `proposed`) rather than letting it match a complement "+
+				"by accident", status)
+			continue
+		}
 		board := &record.Board{Events: []record.Event{{Type: "avenue", SeatID: "blue-r1",
 			Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", status).Set("line", "the only line")}}}
-		exp, alt := avenues(board, "The expansions", accepted), avenues(board, "Alternatives considered", rejected)
-		in := strings.Contains(exp, "the only line")
-		inAlt := strings.Contains(alt, "the only line")
-		if in == inAlt {
-			t.Errorf("status %q lands in %d section(s); every avenue belongs to exactly one, or the reader never sees it:\nEXPANSIONS\n%s\nALTERNATIVES\n%s",
-				status, map[bool]int{true: 2, false: 0}[in], exp, alt)
+		in := map[string]bool{
+			"expansions":   strings.Contains(avenues(board, "The expansions", accepted), "the only line"),
+			"deferred":     strings.Contains(avenues(board, "Deferred", deferred), "the only line"),
+			"undecided":    strings.Contains(avenues(board, "Still undecided", undecided), "the only line"),
+			"alternatives": strings.Contains(avenues(board, "Alternatives considered", rejected), "the only line"),
+		}
+		var got []string
+		for name, present := range in {
+			if present {
+				got = append(got, name)
+			}
+		}
+		sort.Strings(got)
+		switch {
+		case len(got) != 1:
+			t.Errorf("status %q rendered under %v, want exactly [%s] — an avenue in two sections is an alternative to "+
+				"itself, and one in NONE loses the seat's recorded prose entirely (TestFuzzDebate's A1-A3 class "+
+				"caught exactly that when `proposed` was excluded)", status, got, want)
+		case got[0] != want:
+			t.Errorf("status %q rendered under %q, want %q", status, got[0], want)
 		}
 	}
 }

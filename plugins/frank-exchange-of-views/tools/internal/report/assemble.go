@@ -127,7 +127,10 @@ func Assemble(runDir string) (string, error) {
 
 	// Tool-composed from the record.
 	p(riskMatrix(bj))
+	// THE LIFECYCLE OF A RESEARCH TOPIC, one section per fate. See the fate predicates below.
 	p(avenues(board, "The expansions", accepted))
+	p(avenues(board, "Deferred — for a later run or a deeper context", deferred))
+	p(avenues(board, "Still undecided — proposed and never resolved", undecided))
 	p(avenues(board, "Alternatives considered", rejected))
 	p(sectionOr(blue, "Open questions"))
 	// The embed carries ONLY blue content not already composed above — its lifted synthesis
@@ -483,18 +486,51 @@ func concise(s string) string {
 	return s
 }
 
-// avenue fate: the user's mapping — an avenue PURSUED is a concept expansion accepted;
-// anything else is an alternative considered, its reason the counter.
+// avenue fate: THE LIFECYCLE OF A RESEARCH TOPIC, in the three buckets the report is meant to
+// carry — what we pursued, what we deferred to a later run or a deeper context, and what we
+// considered and did not take. All three stay in the document; that is the point of tracking a
+// topic rather than only its winners.
 //
-// `rejected` is the COMPLEMENT of `pursued`, not a list. It used to be {abandoned, declined},
-// which left `proposed` and `deferred` matching NEITHER predicate: an avenue blue put forward
-// and never resolved, and one it explicitly kept for a later run, both vanished from the report
-// entirely. That is the exact failure the status enum's own Why warns about ("it silently
-// vanishes from the section that exists to show the roads not taken") — the enum was complete
-// and the reader's two buckets did not cover it. A complement cannot develop that hole again
-// when a sixth status is added.
-func accepted(status string) bool { return status == "pursued" }
-func rejected(status string) bool { return !accepted(status) }
+// # It rendered TWO buckets, and the missing one made the report say something false
+//
+// `rejected` was the complement of `pursued`, so `deferred` and `proposed` both landed under
+// "Alternatives considered". The complement was itself a fix — the predicate pair used to be
+// {abandoned, declined}, which made those two statuses vanish from the report entirely, the
+// exact failure the status enum's own Why warns about ("it silently vanishes from the section
+// that exists to show the roads not taken"). Trading "vanishes" for "misfiled" was a real
+// improvement and still wrong in a way a reader cannot detect:
+//
+//	deferred   is "worth taking, and not by THIS run" — a direction KEPT, filed under a heading
+//	           that says it was weighed and declined. The `[deferred]` tag on the row was the
+//	           only thing contradicting the heading above it.
+//	proposed   is "put forward and not yet resolved" — reported as an alternative blue
+//	           considered and did not take, when in fact blue never decided. That is not a
+//	           rendering nicety; it is the report asserting a choice nobody made.
+//
+// So `deferred` gets the section its fate always described, and `proposed` gets one too.
+//
+// # `proposed` was briefly excluded from every section, and the fuzzer refused it
+//
+// The first cut of this change dropped `proposed` from all sections on the argument that an
+// undecided line has no fate and a heading announces one — leaving record.StaleAvenues to ask
+// blue to decide. TestFuzzDebate failed six seeds with `prose-not-rendered (A1-A3 class):
+// blue-respond-r1/avenue prose absent from report`, and it was right: a seat's recorded
+// reasoning must reach the report, and that invariant outranks the heading argument. An avenue
+// blue proposed and never resolved is not nothing — on a run that ends with topics still
+// undecided, saying so IS the finding, exactly as the lines-of-inquiry projection already says
+// ("a report with no roads-not-taken is indistinguishable from one that never looked").
+//
+// The heading therefore states the absence of a decision rather than implying one.
+//
+// `rejected` stays a complement so a sixth status cannot silently match nothing — it is now the
+// complement of {pursued, deferred, proposed} rather than of {pursued} alone.
+func accepted(status string) bool  { return status == "pursued" }
+func deferred(status string) bool  { return status == "deferred" }
+func undecided(status string) bool { return status == "proposed" }
+
+func rejected(status string) bool {
+	return !accepted(status) && !deferred(status) && !undecided(status)
+}
 
 // avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
 // avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a

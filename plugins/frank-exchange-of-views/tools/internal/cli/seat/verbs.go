@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
@@ -314,7 +315,19 @@ func renderView(cmd *cobra.Command, want string) error {
 		// The markdown arm is what `ledger` and `archive` rendered: the open board for a human
 		// verification pass, then the closure archive with its prose. Both were separate views
 		// of data this JSON already carries whole.
-		if f, _ := cmd.Flags().GetString(flags.Format); f == "markdown" || f == "md" {
+		// AN UNKNOWN --format IS REFUSED, NOT ROUNDED TO JSON.
+		//
+		// This read `if f == "markdown" || f == "md"` with no else, so every other value —
+		// including a typo, and including `dot`, which `graph --format` accepts — fell through to
+		// the JSON arm and exited 0. A seat that asked for a rendering it did not get had no way
+		// to find out: `--format banana` and `--format json` produced identical bytes.
+		//
+		// Found 2026-08-16 by widening setInHelp in the enum-help gate. The usage line spells
+		// `json (…) | markdown (…)`, which is a closed-set promise, and nothing was keeping it.
+		switch f, _ := cmd.Flags().GetString(flags.Format); f {
+		case "", "json":
+			// The default arm, below.
+		case "markdown", "md":
 			led, err := view.Markdown(runDir, "ledger", "")
 			if err != nil {
 				return err
@@ -327,6 +340,9 @@ func renderView(cmd *cobra.Command, want string) error {
 			cmd.OutOrStdout().Write([]byte("\n"))
 			cmd.OutOrStdout().Write(arc)
 			return nil
+		default:
+			return feov.Errorf(feov.Validation, "show board: unknown --format %q (json | markdown) — "+
+				"an unrecognised format used to render JSON and exit 0, so a seat could not tell a typo from the default", f)
 		}
 		// The role and seat are passed so the board CAN carry the sitting; whether it does is
 		// the duty arm's decision, and unset means the board is exactly what it always was.

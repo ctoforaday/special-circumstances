@@ -1,4 +1,4 @@
-prompt sha256: 1d5b9e60e9636519a8910c22fad39ff0f194bc10494d665f3d5f19d803634e2d
+prompt sha256: 67d63a008f471bd19e9c3f9c3b09b1923839d7814ed503e837fa6bf131257692
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — "/opt/feov/bin/feov-record" blue show lines-of-inquiry --run research/2026-01-01_golden — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
@@ -7,7 +7,9 @@ Your assigned METHOD LENS: adversarial-disconfirming-first (hunt evidence AGAINS
 SOURCE NOTES (not footnotes): a lane drafts candidates, it does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
 Do NOT mint footnote labels; citations are tool-managed at synthesis and hand-typed labels are retired.
 Write your full candidate draft to research/2026-01-01_golden/blue/candidates/lane-1.md.
-LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), with --status pursued (it became your spine), abandoned (you tried it and it died), or declined (you weighed it and did not take it), and for the latter two a --reason.
+LINES OF INQUIRY: record each genuinely distinct approach you considered with the avenue verb — the approach itself goes in --line "<the question or approach>" (NOT --avenue, which is not a flag), and its fate goes in the status flag: --status pursued (it became your spine — say what you learned in --reason), --status deferred (worth taking, and NOT BY THIS RUN — --reason says what a later run should pick it up FOR), --status declined (you weighed it and did not take it), or --status abandoned (you tried it and it died).
+Every fate but the first two REQUIRES a --reason, and all four reach the report under their own heading — pursued, deferred, and considered-or-rejected are three sections a reader sees, not one list of winners.
+A line you have not decided yet stays at `proposed`, which is a real state and not a failure to type one: it renders under "Still undecided" and the tool asks you to settle it each round.
 The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.

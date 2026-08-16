@@ -185,15 +185,73 @@ func RequireAvenueRef(runDir, id string) error {
 	return fmt.Errorf("record: --id names avenue %s, which no avenue event proposed — a dangling reference is accepted here and dropped at replay", id)
 }
 
-// StaleAvenues returns the avenues still sitting at `proposed` or `pursued` — the ones blue
-// owes a decision on. It is what makes the revisit duty checkable rather than hoped for: the
-// measured failure was not that blue chose badly, it is that nothing ever asked it to choose
-// again once the round-0 plan was written.
+// CurrentRound is the highest round any event on this board reached.
+//
+// There was no shared accessor for it, which is part of why the predicate below drifted: a
+// round-aware check had nothing to be aware WITH, so two callers wrote a status-only test and
+// described it in prose as though it looked at the round.
+func CurrentRound(b *Board) int {
+	max := 0
+	for _, e := range b.Events {
+		if e.Round > max {
+			max = e.Round
+		}
+	}
+	return max
+}
+
+// StaleAvenues returns the avenues that owe blue a decision THIS ROUND — the single predicate
+// behind the revisit duty, the affordance, and the projection's stale notice.
+//
+// # It was written twice, both copies status-only, both described as round-aware
+//
+// This function and `AvailableOf`'s blue case each carried `Status == "proposed" || Status ==
+// "pursued"` and nothing else. The affordance's text says an avenue "has no fate THIS ROUND";
+// this one's said "an avenue still open LATE IN A RUN" and "nothing ever asked blue to choose
+// again once the round-0 plan was written". Neither read a round. `Avenue.Round` was populated
+// on every event and consulted nowhere.
+//
+// So an avenue blue moved to `pursued` this round, with a --reason saying what it learned, and
+// one nobody had touched since round 0 produced the IDENTICAL line. The diligent case and the
+// neglected case were the same bytes — and the fix is one predicate rather than two corrected
+// copies, because two copies is how this got here.
+//
+// # `pursued` is not an unresolved state, and treating it as one inverted the intent
+//
+// The enum defines `pursued` as "you are following it, OR YOU FOLLOWED IT; say what you learned
+// in --reason". It is where a line that paid off comes to rest. Firing on it unconditionally
+// meant recording exactly the right thing never cleared the duty, and the only statuses that
+// did — `declined`, `abandoned`, `deferred` — all mean STOP. The channel could express giving
+// up and could not express carrying on, which is the reverse of what it exists for.
+//
+// # The rule, and the round check applies to ONE status rather than to all of them
+//
+//	proposed    ALWAYS owes a move. The enum defines it as "put forward and not yet resolved —
+//	            the default, AND THE STATE THAT OWES A MOVE". No round condition: a topic nobody
+//	            has decided is undecided whenever you ask. A first draft of this fix also
+//	            round-gated `proposed`, which made an avenue proposed and abandoned within a
+//	            single round invisible for that round — caught by
+//	            TestOpenAvenuesAreSurfacedAsOwingADecision, which was right and this was wrong.
+//	proposed    is therefore surfaced from the moment it exists. It is an AFFORDANCE and blocks
+//	            nothing, so surfacing early costs a line and buys the reminder.
+//	pursued     owes a move only when it has not moved THIS round. This is where the round check
+//	            belongs and the only place it ever did: re-recording `pursued` with what you
+//	            learned is a reaffirmation, and it settles the line for the round.
+//	declined,
+//	abandoned,
+//	deferred    settled, never surfaced. `deferred` is a DECISION ("worth taking, and not by THIS
+//	            run"), not an omission.
 func StaleAvenues(b *Board) []*Avenue {
+	now := CurrentRound(b)
 	var out []*Avenue
 	for _, a := range Avenues(b) {
-		if a.Status == "proposed" || a.Status == "pursued" {
+		switch a.Status {
+		case "proposed":
 			out = append(out, a)
+		case "pursued":
+			if a.Round < now {
+				out = append(out, a)
+			}
 		}
 	}
 	return out
