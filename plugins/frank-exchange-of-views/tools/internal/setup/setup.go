@@ -615,9 +615,20 @@ func PreflightRecordBinary(expectVersion, bin string, run ExecFunc) Preflight {
 	}
 	got := lastField(strings.TrimSpace(r.Stdout))
 	if expectVersion != "" && got != "" && got != expectVersion {
+		// NAME WHAT THE OPERATOR LOSES, not just the two numbers (#407). "yours is 0.66.0, the
+		// plugin expects 0.68.0" is true and useless — it does not say whether to care. The
+		// capability deltas answer exactly that, and they used to be unreachable prose in
+		// root.go's changelog.
+		reason := fmt.Sprintf("%s is %s, the plugin expects %s — a skewed binary writes events under a different contract", bin, got, expectVersion)
+		if missing := record.DeltasBetween(got, expectVersion); len(missing) > 0 {
+			reason += fmt.Sprintf("\n  what yours cannot do (%d change(s) behind):", len(missing))
+			for _, m := range missing {
+				reason += "\n    - " + m
+			}
+		}
 		return Preflight{
 			OK:     false,
-			Reason: fmt.Sprintf("%s is %s, the plugin expects %s — a skewed binary writes events under a different contract", bin, got, expectVersion),
+			Reason: reason,
 			Remedy: "refresh it with /prosthetic-conscience:doctor --fix (never mid-run)",
 		}
 	}
