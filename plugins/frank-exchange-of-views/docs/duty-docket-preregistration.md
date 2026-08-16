@@ -156,3 +156,51 @@ Nothing about the constitution's naming, the duty list, or
 started this work — whether naming verbs in a constitution helps or hurts a seat — remains
 unanswered, now across three experiments and 120 dispatches. What the work produced instead is seven
 fixed defects of one class, and that was never what it was looking for.
+
+
+## WHY it was not supported — the measure, not the question
+
+A null must not be read as "the duty list makes no difference". This one is a statement about the
+instrument, and the numbers say which.
+
+`docket` declares five expectations. Across the 39 analysed dispatches:
+
+| expectation | `off` | `shipped` |
+|---|---|---|
+| `avenue` | 20/20 | 19/19 |
+| `position` | **20/20** | **15/19** |
+| `closing` | 1/20 | 2/19 |
+| `motion grade appeal` | **0** | **0** |
+| `motion direction appeal` | **0** | **0** |
+
+Two expectations never fire in either arm. Two more sit at ceiling. **Every unit of measured
+variance comes from one expectation** — which is why the control arm's standard deviation is 0.218
+across nineteen identical values. "Expectations MET" was a constant 2 plus noise on `position`.
+
+Power says the same thing from the other side: the observed effect is d = −0.364, which needs
+**n ≈ 93 per arm** for 80% power one-sided. This run had 20. **A null here is not evidence of no
+effect; it is an experiment that could not have found one.**
+
+So the three readings, ranked by what the data supports:
+
+- **"It does not matter which we choose" — UNSUPPORTED**, and it is the reading to guard against.
+  It is the plausible zero at the scale of a whole experiment: an instrument that cannot see and a
+  world with nothing to see produce the same p-value.
+- **"There is an effect" — also unsupported.** Three runs, direction consistently negative, never
+  clearing a threshold.
+- **"The measure has one degree of freedom out of five" — SUPPORTED**, by the table above.
+
+The pre-registered closure stands: this design is retired rather than re-run at n = 93, because
+spending 186 dispatches on a measure that is 80% ceiling and floor would buy a number about
+`position` and call it a number about duties.
+
+## The one signal, and it is a hypothesis
+
+`position` is met 20/20 under `off` and 15/19 under `shipped`, and `position` is NOT on the duty
+list. That points somewhere different from the original story: not "the duty list makes a seat do
+less" but "the duty list redirects effort toward listed duties and away from unlisted acts."
+
+That is a POST-HOC observation from a run designed to test something else, which makes it exactly
+the kind of claim this document exists to refuse. It is written here as a candidate, with its
+measure named in advance for whoever picks it up: the rate of LISTED versus UNLISTED acts, not a
+count of expectations — and declared before any data, like this one was.
