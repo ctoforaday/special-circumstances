@@ -20,7 +20,7 @@ func seatFor(typ string) string {
 	switch typ {
 	case "opinion", "petition-rule", "halt", "certify":
 		return "judge-r1"
-	case "retire", "avenue", "dispute", "manifest-row", "revision", "confidence":
+	case "retire", "line-of-inquiry", "dispute", "manifest-row", "revision", "confidence":
 		return "blue-respond-r1"
 	default:
 		return "red-merge-r1"
@@ -56,7 +56,7 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"dispute":         {"gap_id": "R1-1", "evidence": "e"},
 		"dispute-respond": {"gap_id": "R1-1", "rationale": "r"},
 		"retire":          {"claim": "c", "reason": "r"},
-		"avenue":          {"status": "pursued", "line": "l"},
+		"line-of-inquiry": {"status": "pursued", "line": "l"},
 		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "rationale": "r"},
 		"halt":            {"opinion": "o"},
 		"certify":         {"statement": "s"},
@@ -101,10 +101,10 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 	for typ, p := range map[string]*Payload{
 		"regrade": NewPayload().Set("basis", "b"),
 		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
-		// avenue_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate
+		// inquiry_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate
 		// requires it and no flag sets it, so it is not in RequiredFields but must be present
 		// for a complete payload.
-		"avenue": NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "l"),
+		"line-of-inquiry": NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "l"),
 		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
 			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("rationale", "r"),
 	} {

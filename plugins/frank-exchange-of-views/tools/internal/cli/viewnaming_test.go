@@ -14,11 +14,11 @@ import (
 //
 //	FEOV blue show --view lines-of-inquiry     <- it read the projection
 //	FEOV blue line-of-inquiry --id A1 --decision pursued --conclusion "..."   <- INVENTED
-//	FEOV blue avenue --id A1 --decision pursued --conclusion "..."            <- invented flags
-//	FEOV blue avenue --help                    <- only NOW did it read the contract
+//	FEOV blue line-of-inquiry --id A1 --decision pursued --conclusion "..."            <- invented flags
+//	FEOV blue line of inquiry --help                    <- only NOW did it read the contract
 //
 // It built a verb name out of the VIEW name, singularised, and invented two flags to go with it.
-// The verb is `avenue`; nothing in the projection it had just read says so. In 32 tool calls that
+// The verb is `line of inquiry`; nothing in the projection it had just read says so. In 32 tool calls that
 // seat read `--help` exactly once, and only after two invented calls failed — so the working
 // theory that a seat learns its surface from `<role> --help` is false in practice. It learns it
 // from what the tool prints back.
@@ -29,7 +29,7 @@ import (
 // # What this test does and does not claim
 //
 // It does NOT require the view and the verb to share a name — `lines-of-inquiry` is the right
-// word for the reader of a report and `avenue` is the right word for the seat proposing one, and
+// word for the reader of a report and `line of inquiry` is the right word for the seat proposing one, and
 // collapsing them would cost more than it saves. It requires only that the view's own help SAY
 // which verb fills it, so the seat that reads the projection has the verb in the same breath.
 
@@ -51,7 +51,7 @@ var viewWriters = map[string][]string{
 	// All four, because the view answers two different questions with one table: what blue
 	// offered as backing (`cite`, `prove`) and what red made of it (`verify`, `reproduce`).
 	"evidence":         {"cite", "prove", "verify", "reproduce"},
-	"lines-of-inquiry": {"avenue"},
+	"lines-of-inquiry": {"line-of-inquiry"},
 	"telemetry":        {},
 	"board":            {"mint", "close", "regrade", "retire"},
 }

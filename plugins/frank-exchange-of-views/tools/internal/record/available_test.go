@@ -128,56 +128,56 @@ func mentions(ds []Duty, want string) bool {
 	return false
 }
 
-// avenueAt builds one `avenue` event, so a test can place a line at a status in a round.
-func avenueAt(id, status string, round int) Event {
+// inquiryAt builds one `line of inquiry` event, so a test can place a line at a status in a round.
+func inquiryAt(id, status string, round int) Event {
 	return Event{
-		Type:    "avenue",
+		Type:    "line-of-inquiry",
 		Round:   round,
 		SeatID:  "blue-respond-r" + string(rune('0'+round)),
-		Payload: NewPayload().Set("avenue_id", id).Set("status", status).Set("line", "a line"),
+		Payload: NewPayload().Set("inquiry_id", id).Set("status", status).Set("line", "a line"),
 	}
 }
 
 // A REAFFIRMED LINE STOPS NAGGING; A NEGLECTED ONE DOES NOT. They used to be the same bytes.
 //
-// StaleAvenues and AvailableOf each carried `Status == "proposed" || Status == "pursued"` and
-// nothing else, while the affordance's text said an avenue "has no fate THIS ROUND" and
-// StaleAvenues' own doc said "an avenue still open LATE IN A RUN". Neither read `Avenue.Round`,
+// StaleInquiries and AvailableOf each carried `Status == "proposed" || Status == "pursued"` and
+// nothing else, while the affordance's text said a line of inquiry "has no fate THIS ROUND" and
+// StaleInquiries' own doc said "a line of inquiry still open LATE IN A RUN". Neither read `Inquiry.Round`,
 // which was populated on every event.
 //
 // So blue moving a line to `pursued` this round with what it learned — the enum's own definition
 // of that status, "you are following it, OR YOU FOLLOWED IT" — produced the identical line to a
 // line untouched since round 0. The only statuses that DID clear it were `declined`, `abandoned`
 // and `deferred`, all of which mean stop: the channel could express giving up and not carrying on.
-func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
+func TestAPursuedInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-		avenueAt("A1", "proposed", 0),
-		avenueAt("A1", "pursued", 0),
-		avenueAt("A2", "pursued", 0),
-		avenueAt("A2", "pursued", 2), // reaffirmed in the current round
-		avenueAt("A3", "pursued", 0), // never revisited
-		avenueAt("A4", "deferred", 0),
-		avenueAt("A5", "abandoned", 0),
-		avenueAt("A6", "proposed", 2), // undecided, and `proposed` owes a move whenever asked
-		avenueAt("Z", "pursued", 2),   // carries the round forward
+		inquiryAt("Q1", "proposed", 0),
+		inquiryAt("Q1", "pursued", 0),
+		inquiryAt("Q2", "pursued", 0),
+		inquiryAt("Q2", "pursued", 2), // reaffirmed in the current round
+		inquiryAt("Q3", "pursued", 0), // never revisited
+		inquiryAt("Q4", "deferred", 0),
+		inquiryAt("Q5", "abandoned", 0),
+		inquiryAt("Q6", "proposed", 2), // undecided, and `proposed` owes a move whenever asked
+		inquiryAt("Z", "pursued", 2),   // carries the round forward
 	}}
 
 	stale := map[string]bool{}
-	for _, a := range StaleAvenues(b) {
+	for _, a := range StaleInquiries(b) {
 		stale[a.ID] = true
 	}
 
-	if stale["A2"] {
+	if stale["Q2"] {
 		t.Error("A2 was reaffirmed as `pursued` in the current round and is still reported as owing a decision — " +
 			"recording exactly what the enum asks for must settle the line, or the only way to clear it is to abandon it")
 	}
-	if !stale["A3"] {
+	if !stale["Q3"] {
 		t.Error("A3 has sat at `pursued` since round 0 and is NOT reported — that is the neglect this exists to catch")
 	}
-	if !stale["A6"] {
+	if !stale["Q6"] {
 		t.Error("A6 is `proposed` — the enum calls that \"the state that owes a move\", with no round condition")
 	}
-	for _, settled := range []string{"A4", "A5"} {
+	for _, settled := range []string{"Q4", "Q5"} {
 		if stale[settled] {
 			t.Errorf("%s is at a settled fate and is reported as owing a decision — `deferred` in particular is a "+
 				"DECISION (worth taking, not by this run), not an omission", settled)

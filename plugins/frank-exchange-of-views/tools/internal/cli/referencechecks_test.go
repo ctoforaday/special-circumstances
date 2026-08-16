@@ -33,8 +33,8 @@ import (
 //	blue prove --cites      named the METHOD citation a computation applies, and was written
 //	                        straight into the payload. A proof could cite a citation that does not
 //	                        exist and the report would render the provenance.
-//	blue avenue --id        required an id to be PRESENT, not to name anything. A move against an
-//	                        unknown avenue renders as a direction being abandoned that nothing
+//	blue line-of-inquiry --id        required an id to be PRESENT, not to name anything. A move against an
+//	                        unknown line of inquiry renders as a direction being abandoned that nothing
 //	                        proposed.
 //	lens verify --anchor    (fixed 0.60.0, listed for the shape) — the citation being adjudicated.
 //
@@ -88,7 +88,7 @@ var referenceChecks = []struct {
 		extra: []string{"--row", "checked"}},
 	{verb: []string{"blue", "edit"}, flag: "--answers", against: "the board", bogus: "R9-9",
 		extra: []string{"--old", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
-	{verb: []string{"blue", "avenue"}, flag: "--id", against: "the avenues on the record", bogus: "A9",
+	{verb: []string{"blue", "line-of-inquiry"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--status", "abandoned", "--reason", "r"}},
 	{verb: []string{"bench", "opinion"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "false", "--reason", "r"}},

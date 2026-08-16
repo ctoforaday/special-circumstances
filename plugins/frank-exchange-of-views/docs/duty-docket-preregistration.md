@@ -167,11 +167,11 @@ instrument, and the numbers say which.
 
 | expectation | `off` | `shipped` |
 |---|---|---|
-| `avenue` | 20/20 | 19/19 |
+| `line-of-inquiry` | 20/20 | 19/19 |
 | `position` | **20/20** | **15/19** |
 | `closing` | 1/20 | 2/19 |
 | `motion grade appeal` | **0** | **0** |
-| `motion direction appeal` | **0** | **0** |
+| `motion inquiry appeal` | **0** | **0** |
 
 Two expectations never fire in either arm. Two more sit at ceiling. **Every unit of measured
 variance comes from one expectation** — which is why the control arm's standard deviation is 0.218

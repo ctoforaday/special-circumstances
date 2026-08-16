@@ -433,7 +433,7 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	total := 0
 	var thinLines []string
 	for _, r := range results {
-		avs, ok := r["avenues"].([]any)
+		avs, ok := r["inquiries"].([]any)
 		if !ok {
 			continue
 		}
@@ -470,10 +470,10 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 			Joint: "reads WITH the report: breadth means nothing if the pursued line was chosen before the others were weighed"})
 	} else {
 		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
-			Note: "no avenues recorded — think-around-problem is back to self-attested for this run"})
+			Note: "no inquiries recorded — think-around-problem is back to self-attested for this run"})
 	}
 
-	// thin_avenue_reasons
+	// thin_inquiry_reasons
 	thinNote := ""
 	if len(thinLines) > 0 {
 		n := thinLines
@@ -482,7 +482,7 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 		}
 		thinNote = strings.Join(n, "; ")
 	}
-	rows = append(rows, Row{Clause: "Alternatives explored", Metric: "thin_avenue_reasons", Cls: "detector",
+	rows = append(rows, Row{Clause: "Alternatives explored", Metric: "thin_inquiry_reasons", Cls: "detector",
 		Value: len(thinLines), Note: thinNote})
 
 	// `confidence_vs_survival` IS GONE (0.54.0). It reported "BLOCKED until per-claim confidence

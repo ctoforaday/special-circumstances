@@ -126,7 +126,7 @@ var views = []struct {
 	// EVERY DESCRIPTION NAMES THE VERB THAT FILLS THE VIEW, and that is a contract
 	// (viewnaming_test.go), not a convention. A seat navigates by what the tool PRINTS: measured
 	// on a probe, one read `--view lines-of-inquiry` and then typed `blue line-of-inquiry`, a verb
-	// that does not exist, because nothing in the projection it had just read said `avenue`. It
+	// that does not exist, because nothing in the projection it had just read said `line of inquiry`. It
 	// found the right verb by failing twice. The next seat may instead conclude the capability is
 	// missing and write prose, which loses it for the whole run and is reported nowhere.
 	// THE ARTIFACT THE WHOLE DEBATE IS ABOUT, and the last thing a seat still opened by hand.
@@ -140,7 +140,7 @@ var views = []struct {
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
 	{"evidence", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
-	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned. Written by `avenue` (propose and move) and `motion direction rule` (red's ruling)", ""},
+	{"lines-of-inquiry", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", ""},
 	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
 }
 
@@ -156,7 +156,7 @@ var views = []struct {
 //
 // Measured on a probe: a haiku seat read `--view lines-of-inquiry`, had no way to learn which verb
 // writes into it, and invented `blue line-of-inquiry` — a verb that does not exist. It found
-// `avenue` by failing twice. The next seat may instead conclude the capability is missing and
+// `line of inquiry` by failing twice. The next seat may instead conclude the capability is missing and
 // write prose, which loses it for the run and is reported nowhere.
 //
 // A field declared and never read is the shape this suite keeps finding: it reads as documented

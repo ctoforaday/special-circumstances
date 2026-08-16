@@ -201,27 +201,27 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		what string
 		has  func(Board) bool
 	}{
-		"motion grade rule":     {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
-		"motion petition rule":  {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
-		"motion direction rule": {"a proposed avenue", func(b Board) bool { return len(b.Avenues) > 0 }},
-		"motion grade appeal":   {"a RULED grade motion", func(b Board) bool { return hasMotion(b, "grade", true) }},
-		"motion direction appeal": {"a RULED avenue", func(b Board) bool {
-			for _, a := range b.Avenues {
+		"motion grade rule":    {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
+		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
+		"motion inquiry rule":  {"a proposed line of inquiry", func(b Board) bool { return len(b.Inquiries) > 0 }},
+		"motion grade appeal":  {"a RULED grade motion", func(b Board) bool { return hasMotion(b, "grade", true) }},
+		"motion inquiry appeal": {"a RULED line of inquiry", func(b Board) bool {
+			for _, a := range b.Inquiries {
 				if a.Ruled != "" {
 					return true
 				}
 			}
 			return false
 		}},
-		"reproduce":   {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
-		"regrade":     {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"close":       {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"closing":     {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
-		"claim-index": {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
-		"verify":      {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
-		"retire":      {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
-		"avenue":      {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
+		"reproduce":       {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
+		"regrade":         {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"close":           {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"closing":         {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"spot-check":      {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
+		"claim-index":     {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
+		"verify":          {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
+		"retire":          {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
+		"line-of-inquiry": {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
 	}
 
 	for name, b := range Boards() {
@@ -265,21 +265,21 @@ func hasMotion(b Board, subject string, ruled bool) bool {
 // somewhere it could not see. It was right: Build stamped every ruling "ruled <verdict> on the line
 // as it was proposed".
 //
-// Boards demand `motion grade appeal` and `motion direction appeal` — acts that are judgements
+// Boards demand `motion grade appeal` and `motion inquiry appeal` — acts that are judgements
 // about the ARGUMENT behind a refusal. Scoring whether a seat appealed a verdict it could not read
 // is scoring a coin flip, and no acting probe could ever report it, because a content-free reason
 // and a considered one produce identical events.
 func TestEveryRuledFixtureCarriesTheArgumentForItsRuling(t *testing.T) {
 	for name, b := range Boards() {
-		for i, a := range b.Avenues {
+		for i, a := range b.Inquiries {
 			if a.Ruled == "" {
 				continue
 			}
 			if strings.TrimSpace(a.RuledWhy) == "" {
-				t.Errorf("board %q avenue %d is ruled %q with no RuledWhy — a seat asked whether to appeal it is guessing", name, i+1, a.Ruled)
+				t.Errorf("board %q line of inquiry %d is ruled %q with no RuledWhy — a seat asked whether to appeal it is guessing", name, i+1, a.Ruled)
 				continue
 			}
-			assertNotRestatement(t, name, "avenue", a.Ruled, a.RuledWhy)
+			assertNotRestatement(t, name, "line-of-inquiry", a.Ruled, a.RuledWhy)
 		}
 		for i, m := range b.Motions {
 			if m.Ruled == "" {

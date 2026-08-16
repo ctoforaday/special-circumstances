@@ -9,7 +9,7 @@ Research that survives an adversary.
 
 ## Protocol
 
-- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as an AVENUE (`blue avenue --line "<the approach>" --hypothesis "<what would be true if it pays off>"`); searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
+- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY (`blue line-of-inquiry --line "<the approach>" --hypothesis "<what would be true if it pays off>"`); searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
 - During writing, YOU MUST add every citation with the TOOL — `blue cite --location "<the exact sentence>" --url <u> --title <t>` — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged as friction.
@@ -19,7 +19,7 @@ Research that survives an adversary.
 ## The exchange is TOOL-MEDIATED
 
 Everything the two sides exchange — findings, closures, citations, proofs, revisions,
-avenues, disputes, friction, opinions — is an **event on the record**, written through a
+lines of inquiry, disputes, friction, opinions — is an **event on the record**, written through a
 verb that can refuse it, and read back through a projection. This is the governing clause
 of the protocol, not a storage preference: a hand-written file is an exchange nothing
 validated, and a fact recovered from a filename or a prose substring is one only pretending
@@ -47,7 +47,7 @@ research/<date>_<slug>/
 ├── report.md          # final deliverable — assembled LAST, by union (authored)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
-│                      # (the opening hypotheses are AVENUES on the record, not a file — read
+│                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
 │                      #  them with `show lines-of-inquiry`. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the round-0 ones shape the
 │                      #  whole run)
@@ -67,7 +67,7 @@ RECORD — no file; read through the tool:
                     re-run, and red's verified claims with trust grades. How you resolve an anchor
   show motions    the docket: every ask in the filer's words, and its ruling if it has one
   show changes    the diff stack: what red prescribed, what blue applied, and the decline rate
-  show lines-of-inquiry   the avenues, their hypotheses, and their fates
+  show lines-of-inquiry   the lines of inquiry, their hypotheses, and their fates
   show debate     the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
                     ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the bench
                     rules on the closings, the transcript, and the final artifact state only)

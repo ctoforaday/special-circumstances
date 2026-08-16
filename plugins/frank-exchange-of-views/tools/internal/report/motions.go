@@ -10,14 +10,14 @@ import (
 // ONE SECTION FOR EVERY ADJUDICATED EXCHANGE, joined on the motion id (#344).
 //
 // It replaces three renderers that had to be written, and fixed, separately. #315 found the
-// petition FILING unrendered while the avenue RULING was found unrendered in the same sweep,
+// petition FILING unrendered while the line of inquiry RULING was found unrendered in the same sweep,
 // because nothing said they were one mechanism. And #320 had to render filings and rulings SIDE
 // BY SIDE rather than joined, because `petition-rule` carried no id and pairing two filings by
 // one seat in one round would have been a guess. A motion has an id, so an ask and its answer are
 // one row.
 //
 // It reads through record.AllMotions, which is the DUAL-READ: a pre-collapse record renders here
-// too, from its dispute/petition/avenue-rule events. A consumer calling record.Motions directly
+// too, from its dispute/petition/line of inquiry-rule events. A consumer calling record.Motions directly
 // would render NOTHING for an old record and look exactly like a run that had no disputes and no
 // petitions — the plausible zero this stage exists to remove.
 func motions(board *record.Board) string {
@@ -80,8 +80,8 @@ func motionHead(m *record.Motion) string {
 		return fmt.Sprintf("grade of %s (%s to %s)", m.Fields["gap_id"], m.Fields["dimension"], m.Fields["proposed"])
 	case "petition":
 		return "petition (" + m.Fields["class"] + ")"
-	case "direction":
-		return "direction " + m.Fields["avenue_id"]
+	case "inquiry":
+		return "direction " + m.Fields["inquiry_id"]
 	default:
 		return m.Subject
 	}

@@ -113,11 +113,11 @@ var EnumFields = map[string][]EnumField{
 		},
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
 	}},
-	"avenue": {{
-		Key: "status", Flag: flags.Status, Values: AvenueStatuses,
+	"line-of-inquiry": {{
+		Key: "status", Flag: flags.Status, Values: InquiryStatuses,
 		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	// dispute, dispute-respond, petition, petition-rule and avenue-rule ARE ABSENT AND THAT IS
+	// dispute, dispute-respond, petition, petition-rule and line of inquiry-rule ARE ABSENT AND THAT IS
 	// DELIBERATE (#344). EnumFields is checked at the WRITE, and nothing writes those types any
 	// more — the verbs are gone. Their READ paths are permanent (record/compat.go), but a reader
 	// does not re-validate: a record written in 2026 under a set that has since changed is still

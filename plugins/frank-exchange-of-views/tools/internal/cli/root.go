@@ -136,8 +136,8 @@ import (
 //	       REQUIRED, and requirePriorDispute matches the PAIR rather than the gap, so answering
 //	       a grade nobody contested is refused by the same rule that already refused answering
 //	       a gap nobody disputed. A stale binary records unaddressed answers.
-//	0.41.0 an avenue ruling has a RECORDED consequence (#246 remainder). Red's ruling and the
-//	       avenue's fate were both on the record and joined NOWHERE, so blue pursuing a line
+//	0.41.0 a line of inquiry ruling has a RECORDED consequence (#246 remainder). Red's ruling and the
+//	       line of inquiry's fate were both on the record and joined NOWHERE, so blue pursuing a line
 //	       red called out-of-scope looked exactly like pursuing one red endorsed. The design
 //	       says a ruling is an ARGUMENT blue may contest "the way we would any other dispute" —
 //	       and there is no such channel: blue dispute --id A1 is refused outright, because
@@ -180,7 +180,7 @@ import (
 //	       "execute the assembly step"), so red could only ask whether the report SAYS
 //	       something, and a full round went on R1-2/R2-2 refusing an asserted test that three
 //	       lines of trial division settle. An OPTIONAL field would have been answered the way
-//	       avenue --hypothesis was before it was required, which is not at all. A `computation`
+//	       line of inquiry --hypothesis was before it was required, which is not at all. A `computation`
 //	       gap now CANNOT be closed until a proof answers it: `blue prove --answers <gap>` is
 //	       the join, checked against the board at write time like every other reference. A
 //	       stale binary rejects --check-kind outright, and its mints are refused for the
@@ -235,20 +235,20 @@ import (
 //	       compares: the one audit that does not end in believing bytes someone else chose.
 //	       It is the citation model with the last mile walked — cite the METHOD, compute the
 //	       INSTANCE. A stale binary lacks both verbs.
-//	0.33.0 the avenue LIFECYCLE (#246): an avenue was a one-shot append — measured over 86
+//	0.33.0 the line of inquiry LIFECYCLE (#246): a line of inquiry was a one-shot append — measured over 86
 //	       events in six runs, ZERO lines were recorded twice, ZERO statuses ever changed, and
 //	       83 of 86 landed in round 0. So "pursued" meant "I intend to", nothing could falsify
 //	       it, and a direction that died mid-run had no way to say so; the rejection rate that
 //	       produced measured only what blue could rule out BEFORE STARTING. Now: the tool
 //	       assigns an id (A1, A2 …), `--hypothesis` states what would be true if the line pays
-//	       off, and `blue avenue --id A1 --status <new> --reason` MOVES it — the move is the
-//	       evidence of choosing the old shape could not record. New `merge rule-avenue --id
+//	       off, and `blue line-of-inquiry --id A1 --status <new> --reason` MOVES it — the move is the
+//	       evidence of choosing the old shape could not record. New `merge rule-line-of-inquiry --id
 //	       --ruling endorsed|out-of-scope|too-thin --reason` is red's fate for a proposed
 //	       direction (red rejected NONE of 86 across six runs because it had no verb to); a
 //	       ruling is an argument blue may contest through `blue dispute`, never a command, and
 //	       red still never PROPOSES — that is a gap's required_fix. lines-of-inquiry renders
-//	       the path and the ruling, and surfaces avenues still owing a decision. A stale binary
-//	       lacks rule-avenue and the move form.
+//	       the path and the ruling, and surfaces inquiries still owing a decision. A stale binary
+//	       lacks rule-line of inquiry and the move form.
 //	0.32.0 ESTOPPEL (#267 stage 4, the last): red is bound by the fix it prescribed. `blue edit`
 //	       records applied_verbatim when its old/new are byte-identical to the answered gap's
 //	       fix_old/fix_new — the tool comparing bytes, never a seat claiming it. `merge mint`
@@ -375,14 +375,14 @@ import (
 //	       arrives beside the three exchanges it will replace: a grade dispute, a petition, and a
 //	       ruling on a proposed direction were three verb pairs with three vocabularies and no
 //	       shared identity. A motion has an id, and the ask and its answer join on it. `direction`
-//	       has no `file` verb — the proposal is the filing (`blue avenue`), so it joins on the
-//	       avenue's own id. BOTH VOCABULARIES ARE LIVE at this version: nothing is deleted, the
+//	       has no `file` verb — the proposal is the filing (`blue line of inquiry`), so it joins on the
+//	       line of inquiry's own id. BOTH VOCABULARIES ARE LIVE at this version: nothing is deleted, the
 //	       prompts still call the old verbs, and record.AllMotions reads either. The dual-read is
 //	       PERMANENT, not a migration window — a record is permanent, and this plugin cannot see
 //	       an installing project's records to know when the old shapes are gone.
 //
 //	0.49.0 THE OLD ADJUDICATION VERBS ARE GONE (#344), the destructive half. `blue dispute`,
-//	       `merge dispute-respond`, `<seat> petition`, `bench petition-rule`, `merge avenue-rule`
+//	       `merge dispute-respond`, `<seat> petition`, `bench petition-rule`, `merge line of inquiry-rule`
 //	       and the `contests_ruling` field no longer exist: file and rule through
 //	       `motion <subject> file|rule|appeal`. A binary at this version CANNOT WRITE the five
 //	       retired event types, and it still READS them — the dual-read is permanent.
@@ -714,7 +714,7 @@ import (
 //
 //	       `blue prove --cites` named the METHOD citation a computation applies and was written
 //	       straight into the payload — a proof could claim a provenance that did not exist and the
-//	       report rendered the link. `blue avenue --id` required an id to be PRESENT, not to name
+//	       report rendered the link. `blue line-of-inquiry --id` required an id to be PRESENT, not to name
 //	       anything, so a move could abandon a direction nobody proposed.
 //
 //	       AND A CORRUPT CLASS REGISTRY SILENTLY DISABLED THE CLASS GATE. `loadRegistry` returned

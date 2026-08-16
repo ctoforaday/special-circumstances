@@ -77,7 +77,7 @@ duty and is read 0.33–2.00 times. The one channel that delivers situation-plus
 applies is the one the tool steers seats away from — and `SittingOf` can name only 4 of blue's 17
 verbs, 5 of merge's 17, 3 of bench's 14, 2 of lens's 10, because a duty is derived only where
 omission already carries a mechanical consequence (a refusal, or a capture score). Every verb whose
-omission is merely a quality loss — `avenue`, `manifest-row`, `spot-check`, `verify`, `reproduce`,
+omission is merely a quality loss — `line-of-inquiry`, `manifest-row`, `spot-check`, `verify`, `reproduce`,
 `closing`, `regrade` — gets no line, and those are the verbs the probe boards were built to bait.
 
 ## What it says

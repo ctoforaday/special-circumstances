@@ -196,10 +196,10 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	mintGap(t, runDir, "shared-record", "one-record")
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--line", "considered rewriting the parser", "--status", "declined",
 		"--reason", "the input grammar is not stable enough to justify it this round"); err != nil {
-		t.Logf("blue avenue shape rejected: %v", err)
+		t.Logf("blue line of inquiry shape rejected: %v", err)
 	}
 
 	seats := map[string]bool{}

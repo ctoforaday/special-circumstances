@@ -179,7 +179,7 @@ func TestMustEnumPanicsRatherThanRenderingAnEmptySet(t *testing.T) {
 // unrepresentable. The test survives inverted: it fails if a second declaration of either
 // vocabulary ever reappears in EnumFields, which is how the duplication would come back.
 func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
-	for _, typ := range []string{"petition", "petition-rule", "dispute", "dispute-respond", "avenue-rule"} {
+	for _, typ := range []string{"petition", "petition-rule", "dispute", "dispute-respond", "line-of-inquiry-rule"} {
 		if _, ok := EnumFields[typ]; ok {
 			t.Errorf("EnumFields still declares sets for %q — that event type is retired (#344) and its vocabulary lives in record/motion.go. A second declaration is how the drift this test used to police comes back", typ)
 		}

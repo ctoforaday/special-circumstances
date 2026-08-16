@@ -1,9 +1,9 @@
-prompt sha256: 4f45c83f8b148e83c94a9e6107b2ae78f7c8c31113f0e48820b1aa037876e4e6
+prompt sha256: 8bc3e2b3ce4b2961605051fd8dae6ea479567b6aa3ed1eacac369fa542056d55
 
 Research debate opening for topic: "the seat prompt contract".
-Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN AVENUE with "/opt/feov/bin/feov-record" blue avenue --run research/2026-01-01_golden --seat-id <your SEAT_ID> --line "<the approach or question you would follow>" --hypothesis "<what would be true if it pays off>" --status proposed.
-ONE avenue per hypothesis, and the tool assigns each an id (A1, A2 …).
-THEY ARE AVENUES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too-thin or out-of-scope, and cannot hold you to when the run drifts.
+Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY with "/opt/feov/bin/feov-record" blue line-of-inquiry --run research/2026-01-01_golden --seat-id <your SEAT_ID> --line "<the approach or question you would follow>" --hypothesis "<what would be true if it pays off>" --status proposed.
+ONE line of inquiry per hypothesis, and the tool assigns each an id (Q1, Q2 …).
+THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too-thin or out-of-scope, and cannot hold you to when the run drifts.
 On the record it has an id, a fate, and an argument.
 The hypotheses opening a run are the ones that shape everything downstream and were until now the only ones nobody could contest.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
@@ -17,7 +17,7 @@ THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritati
 FIRST ACTION: "/opt/feov/bin/feov-record" blue register --run research/2026-01-01_golden --seat-id frontier — then the matching verb for each act.
 YOUR CONTRACT IS `feov-record blue --help` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you.
 READ THAT LIST BEFORE YOUR FIRST ACT, EVERY SITTING — do NOT work from memory, and do NOT assume a verb is named after the thing it writes.
-MEASURED: a seat read the projection "show lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "avenue".
+MEASURED: a seat read the projection "show lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "line of inquiry".
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
 The projection names, this prompt's words for a concept, and the verb that writes it are three different vocabularies and they do not always agree — the help is the only authoritative one, and "show --help" now names the writing verb for every view.
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.

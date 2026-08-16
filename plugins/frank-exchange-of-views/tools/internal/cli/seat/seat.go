@@ -246,7 +246,7 @@ type Handler func(Context, *cobra.Command) (Result, error)
 // what fills them.
 //
 // A REQUIRED FIELD IS NOT A REQUIRED FLAG, and conflating them produced help that contradicted
-// itself in one line: `blue avenue --status` read "REQUIRED — proposed (put forward, undecided —
+// itself in one line: `blue line of inquiry --status` read "REQUIRED — proposed (put forward, undecided —
 // the default)". Required, and also the default. A seat reading that supplies a value it did not
 // need to choose, and the one state the field exists to express — a direction PUT FORWARD and not
 // yet resolved — is the one a seat is least likely to type.
@@ -254,7 +254,7 @@ type Handler func(Context, *cobra.Command) (Result, error)
 // Caught by TestEveryRequiredFlagIsActuallyRefused, which ran the verb without the flag and it
 // worked.
 var suppliedByTheVerb = map[string]string{
-	"avenue.status": "a fresh proposal defaults to `proposed` in the verb — the state the old shape could not express, and the one a seat would not think to type. A MOVE still requires it, and the move's own refusal says so",
+	"line-of-inquiry.status": "a fresh proposal defaults to `proposed` in the verb — the state the old shape could not express, and the one a seat would not think to type. A MOVE still requires it, and the move's own refusal says so",
 }
 
 func markRequired(c *cobra.Command, verb string) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -74,16 +75,30 @@ func Build(runDir string, b Board, exec Exec) error {
 		}
 	}
 
-	for i, a := range b.Avenues {
-		if _, err := exec("blue", "avenue", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--line", a.Line, "--hypothesis", a.Hypothesis); err != nil {
-			return fmt.Errorf("avenue %d: %w", i+1, err)
+	for i, a := range b.Inquiries {
+		// THE ID COMES BACK FROM THE TOOL; IT IS NOT RECOMPOSED HERE.
+		//
+		// This used to propose the line, throw the output away, and rebuild the id as
+		// `fmt.Sprintf("A%d", i+1)` — a guess that the minter counts the same things this loop
+		// does. It held only while both agreed, and it stopped holding the moment the id moved
+		// from A<n> to Q<n>: every probe board with a ruled line failed to build, and the probe
+		// reports a failed board as a harness fault rather than as a fixture speaking a retired
+		// model. That is `facts-are-fields` in a fixture — the record MINTS the id and says so on
+		// stdout, and composing it from a loop index is a hope about someone else's counter.
+		out, err := exec("blue", "line-of-inquiry", "--run", runDir, "--seat-id", "blue-respond-r1",
+			"--line", a.Line, "--hypothesis", a.Hypothesis)
+		if err != nil {
+			return fmt.Errorf("line of inquiry %d: %w", i+1, err)
 		}
 		if a.Ruled == "" {
 			continue
 		}
-		id := fmt.Sprintf("A%d", i+1)
-		if _, err := exec("motion", "direction", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		id := mintedInquiryID(out)
+		if id == "" {
+			return fmt.Errorf("line of inquiry %d: the tool did not report a minted id in %q — the ruling "+
+				"below needs the id the RECORD assigned, and guessing one is how this broke before", i+1, out)
+		}
+		if _, err := exec("motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--id", id, "--as", a.Ruled,
 			"--reason", rulingReason(a.RuledWhy, a.Ruled)); err != nil {
 			return fmt.Errorf("rule %s: %w", id, err)
@@ -158,3 +173,16 @@ func rulingReason(why, verdict string) string {
 	}
 	return why
 }
+
+// mintedInquiryID reads the id out of the propose verb's own confirmation
+// ("line of inquiry Q1 recorded (proposed): …"). It returns "" rather than guessing, so a
+// changed message surfaces as the explicit failure above instead of a wrong id reaching a ruling.
+func mintedInquiryID(out string) string {
+	m := mintedID.FindStringSubmatch(out)
+	if len(m) < 2 {
+		return ""
+	}
+	return m[1]
+}
+
+var mintedID = regexp.MustCompile(`\b(Q\d+)\b`)

@@ -90,20 +90,20 @@ const (
 	// happened to open --reason with the gap id, and 7 did not. Prose that usually carries
 	// a fact is not a join key, and every measurement in #267 needs one.
 	Answers = "answers"
-	// An avenue's ABSTRACT: what would be true if this line of inquiry pays off (#246).
+	// A line of inquiry's ABSTRACT: what would be true if this line of inquiry pays off (#246).
 	// Distinct from --problem (a defect) and --reason (the argument for an act) because it
-	// is a forward claim, and it is what makes a later abandonment checkable — an avenue
+	// is a forward claim, and it is what makes a later abandonment checkable — a line of inquiry
 	// abandoned against its own stated hypothesis is evidence of choosing; one abandoned on
 	// a shrug is not.
 	Hypothesis = "hypothesis"
 	// The proof axis (#277). --script is the program that settles a claim; --cites names the
 	// METHOD citation it applies. Separate words from --url/--title (a document's identity)
 	// because a computation and a source are different things a claim can rest on — and
-	// deliberately NOT --method, which already means "the source class an avenue belonged to".
+	// deliberately NOT --method, which already means "the source class a line of inquiry belonged to".
 	Script = "script"
 	Cites  = "cites"
 	// Red's fate for a proposed direction. A separate word from --as (an observation's
-	// disposal) and --status (an avenue's own lifecycle state) because it is a different
+	// disposal) and --status (a line of inquiry's own lifecycle state) because it is a different
 	// party ruling on a different question: is this worth the run's time at all.
 	// A CONCRETE proposed fix (#267 stage 3): the exact span red says is wrong and the exact
 	// text it should become. Distinct words from --old/--new, which are the edit blue APPLIES;

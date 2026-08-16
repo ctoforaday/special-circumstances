@@ -114,15 +114,15 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	verbRole := map[string]string{
 		"mint": "merge", "close": "merge", "regrade": "merge",
 		"closing": "merge",
-		"retire":  "blue", "avenue": "blue",
+		"retire":  "blue", "line-of-inquiry": "blue",
 		"opinion": "bench", "halt": "bench", "certify": "bench", "outcome": "bench",
 		"finding": "lens", "observe": "lens", "verify": "lens",
 	}
 	// A FIELD THE VERB SUPPLIES IS NOT A FLAG THE SEAT MUST TYPE, and marking it produced help
-	// that contradicted itself: `blue avenue --status` read "REQUIRED — proposed (… the default)".
+	// that contradicted itself: `blue line of inquiry --status` read "REQUIRED — proposed (… the default)".
 	// seat.suppliedByTheVerb is the one statement of that distinction; this mirrors its keys so
 	// the two gates cannot disagree about the same flag.
-	suppliedByTheVerb := map[string]bool{"avenue/status": true}
+	suppliedByTheVerb := map[string]bool{"line-of-inquiry/status": true}
 
 	for verb, required := range record.RequiredFields {
 		role, ok := verbRole[verb]

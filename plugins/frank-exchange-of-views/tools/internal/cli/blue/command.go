@@ -23,7 +23,7 @@ func NewCommand() *cobra.Command {
 		newProve(),
 		newRevision(),
 		newRetire(),
-		newAvenue(),
+		newInquiry(),
 		newManifestRow(),
 		newClaimIndex(),
 		seat.Position("the round's ### BLUE section (prose via --reason)"),

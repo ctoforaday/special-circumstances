@@ -824,7 +824,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 	}
 }
 
-// blue's verbs refuse the removals and empty avenues the engine cares about.
+// blue's verbs refuse the removals and empty inquiries the engine cares about.
 func TestBlueVerbContracts(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "blue-lane-1"
@@ -842,18 +842,18 @@ func TestBlueVerbContracts(t *testing.T) {
 		}
 	})
 
-	t.Run("a declined avenue needs its reason", func(t *testing.T) {
-		if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seatID,
+	t.Run("a declined line of inquiry needs its reason", func(t *testing.T) {
+		if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seatID,
 			"--status", "declined", "--line", "the road not taken"); err == nil {
-			t.Error("a declined avenue with no reason was accepted — that is decoration")
+			t.Error("a declined line of inquiry with no reason was accepted — that is decoration")
 		}
-		if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seatID,
+		if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seatID,
 			"--status", "pursued", "--line", "the road taken"); err != nil {
-			t.Errorf("a pursued avenue needs no reason: %v", err)
+			t.Errorf("a pursued line of inquiry needs no reason: %v", err)
 		}
-		if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seatID,
+		if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seatID,
 			"--status", "invented", "--line", "l", "--reason", "r"); err == nil {
-			t.Error("an undefined avenue status was accepted; the render groups BY status")
+			t.Error("an undefined line of inquiry status was accepted; the render groups BY status")
 		}
 	})
 

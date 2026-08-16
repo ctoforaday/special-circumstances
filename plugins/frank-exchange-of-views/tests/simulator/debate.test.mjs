@@ -1121,7 +1121,7 @@ test('memory-as-duty: patterns are deduped across gaps sharing a class', async (
 
 // ---- Lines of Inquiry: exploration becomes a record, and a surface for red ----
 
-test('lines of inquiry: every blue seat is told to record avenues; red L5/L6 audit them', async () => {
+test('lines of inquiry: every blue seat is told to record lines of inquiry; red L5/L6 audit them', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
@@ -1129,7 +1129,7 @@ test('lines of inquiry: every blue seat is told to record avenues; red L5/L6 aud
   const p = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
 
   for (const seat of ['blue-lane-1', 'blue-synthesize', 'blue-respond-r1']) {
-    assert.ok(/LINES OF INQUIRY/.test(p(seat)), `${seat} records avenues`)
+    assert.ok(/LINES OF INQUIRY/.test(p(seat)), `${seat} records lines of inquiry`)
     assert.ok(/abandoned/.test(p(seat)), `${seat} is told the abandoned ones matter most`)
   }
 
@@ -1141,7 +1141,7 @@ test('lines of inquiry: every blue seat is told to record avenues; red L5/L6 aud
   assert.ok(!/STEELMAN DUTY/.test(p('red-lens-1-r1')), 'citation slices verify sources, not arguments')
 
   // The exploration space reaches the reader, not just the record.
-  assert.ok(/expansions and alternatives-considered/.test(p('assemble')), 'the avenues reach the report as the expansions (pursued) and the alternatives considered (abandoned/declined)')
+  assert.ok(/expansions and alternatives-considered/.test(p('assemble')), 'the lines of inquiry reach the report as the expansions (pursued) and the alternatives considered (abandoned/declined)')
 })
 
 // THE VERB IS ALWAYS THERE, so the duty is always instructed. This asserted the INVERSE — that
@@ -1152,7 +1152,7 @@ test('lines of inquiry: the duty is instructed, because the verb that discharges
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   assert.ok(world.calls.some((c) => /LINES OF INQUIRY|STEELMAN DUTY/.test(c.prompt)),
-    'the avenue verb exists on every run, so the duty must be stated somewhere a seat reads')
+    'the line of inquiry verb exists on every run, so the duty must be stated somewhere a seat reads')
 })
 
 // ---- integrity inspection: the bench may read trajectories, on two conditions ----

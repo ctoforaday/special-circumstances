@@ -183,7 +183,7 @@ func seatFor(role string) string {
 // token.
 func placeholderFor(f *pflag.Flag, path []string) string {
 	// AN ID MUST NAME SOMETHING THAT EXISTS, or the reference check fires first and masks the
-	// refusal under test. Which id depends on what the verb points AT — a gap, an avenue, or a
+	// refusal under test. Which id depends on what the verb points AT — a gap, a line of inquiry, or a
 	// motion — and getting that wrong made this gate report every bench-opinion flag as
 	// unnamed when the real refusal was about a gap called "placeholder".
 	if f.Name == "script" {
@@ -193,7 +193,7 @@ func placeholderFor(f *pflag.Flag, path []string) string {
 		joined := strings.Join(path, " ")
 		switch {
 		case strings.HasPrefix(joined, "motion direction"):
-			return "A1"
+			return "Q1"
 		case strings.HasPrefix(joined, "motion") && !strings.HasSuffix(joined, "file"):
 			return "M1"
 		case joined == "lens reproduce":
@@ -250,9 +250,9 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "the gap a probe's --id names"); err != nil {
 		t.Fatalf("seed gap: %v", err)
 	}
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--line", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
-		t.Fatalf("seed avenue: %v", err)
+		t.Fatalf("seed line of inquiry: %v", err)
 	}
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",

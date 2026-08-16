@@ -21,7 +21,7 @@ package record
 // event schema and a flag is a word a seat types, and they move on different schedules.
 //
 // ONLY UNCONDITIONAL REQUIREMENTS BELONG HERE. A rule like "closed_with_regression
-// requires --successor" or "a declined avenue requires --reason" depends on another
+// requires --successor" or "a declined line of inquiry requires --reason" depends on another
 // field's value, so it cannot be a static annotation and stays as logic in validate. Those
 // are documented in the flag's own description instead, where the condition can be stated.
 // KEYS ARE PAYLOAD KEYS. The prose key differs per verb — a close stores `prose`, a
@@ -35,14 +35,14 @@ var RequiredFields = map[string][]string{
 	// finding's label is TOOL-assigned now (not seat-provided), so it is not listed
 	// here — same as mint's gap_id, which validate requires but no flag sets. validate
 	// still enforces the finding-label INVARIANT; the table lists only seat-set fields.
-	"close":   {"gap_id", "prose"},
-	"closing": {"text"},
-	"regrade": {"basis"},
-	"retire":  {"claim", "reason"},
-	"avenue":  {"status", "line"},
-	"opinion": {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
-	"halt":    {"opinion"},
-	"certify": {"statement"},
+	"close":           {"gap_id", "prose"},
+	"closing":         {"text"},
+	"regrade":         {"basis"},
+	"retire":          {"claim", "reason"},
+	"line-of-inquiry": {"status", "line"},
+	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
+	"halt":            {"opinion"},
+	"certify":         {"statement"},
 	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
 	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
 	// ENDED is not, and on a judged deadlock nothing else records it.

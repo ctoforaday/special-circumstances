@@ -1,2 +1,0 @@
-{"seq":0,"ts":"2026-08-10T02:29:58.044845200Z","seatId":"judge-r1","nonce":"acc416fd","round":1,"role":"bench","type":"register","key":"judge-r1:register:acc416fd","payload":{"tool_version":"0.47.0"}}
-{"seq":1,"ts":"2026-08-10T02:29:58.338001900Z","seatId":"judge-r1","nonce":"acc416fd","round":1,"role":"bench","type":"petition-rule","key":"judge-r1:petition-rule:#1","payload":{"petitioner":"red-merge-r1","class":"integrity","ruling":"granted","opinion":"the objection is sound; the demand is struck"}}

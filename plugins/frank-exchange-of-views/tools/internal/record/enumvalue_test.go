@@ -43,8 +43,8 @@ func TestEveryEnumValueSaysWhatItIsFor(t *testing.T) {
 			check("MotionFields["+subject+"]."+key, vs)
 		}
 	}
-	check("AvenueStatuses", AvenueStatuses)
-	check("AvenueRulings", AvenueRulings)
+	check("InquiryStatuses", InquiryStatuses)
+	check("InquiryRulings", InquiryRulings)
 	check("ClosureClasses", ClosureClasses)
 }
 

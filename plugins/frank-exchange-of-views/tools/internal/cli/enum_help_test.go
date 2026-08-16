@@ -38,7 +38,7 @@ import (
 //
 //	proposed (put forward, undecided — the default) | pursued (being followed) | …
 //
-// Every separator there is preceded by `)`. `blue avenue --status` carried that string, spelling
+// Every separator there is preceded by `)`. `blue line of inquiry --status` carried that string, spelling
 // four of its five statuses, and neither gate below ever saw it as set-shaped — so the flag that
 // most needed this check was the one flag it could not see. Measured 2026-08-16, by mutating the
 // string back and watching a gate written to catch it pass anyway.
@@ -265,13 +265,13 @@ func TestEveryDeclaredSetBelongsToARealFlag(t *testing.T) {
 // the command's enumerated-values section instead and ITS USAGE LINE GOES SHORT." That was intent
 // with nothing holding it, and exactly one flag of twelve broke it.
 //
-// MEASURED 2026-08-16. `blue avenue --status` read:
+// MEASURED 2026-08-16. `blue line of inquiry --status` read:
 //
 //	proposed (put forward, undecided — the default) | pursued (being followed) |
 //	declined (considered, not taken) | abandoned (pursued, then died)
 //
 // FOUR of five. `deferred` — "worth taking, and not by THIS run", the fate that had no name until
-// someone gave it one — was added to AvenueStatuses and never to this string. The four it did
+// someone gave it one — was added to InquiryStatuses and never to this string. The four it did
 // carry were glossed differently from the record ("put forward, undecided" against "put forward
 // and not yet resolved — the default, and the state that owes a move"). Two statements of one
 // enum in a single `--help`, disagreeing, and the one a seat reads first was the incomplete one.
@@ -294,7 +294,7 @@ func TestNoEnumhelpFlagAlsoSpellsItsSetInItsUsage(t *testing.T) {
 			if setInHelp.MatchString(f.Usage) {
 				t.Errorf("%s --%s is enumhelp-registered AND spells a set in its usage line — that is a "+
 					"hand-kept copy of the %d values the Enumerated block already renders from the record, and it "+
-					"drifts the way `avenue --status` did (4 of 5, never learned `deferred`). Say what the FIELD is "+
+					"drifts the way `line of inquiry --status` did (4 of 5, never learned `deferred`). Say what the FIELD is "+
 					"for and let the record list the values.\nusage: %s", c.Name(), f.Name, len(registered[f.Name]), f.Usage)
 			}
 		})

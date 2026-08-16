@@ -12,7 +12,7 @@
 //     writes them. A missing one is FLAGGED, never filled in.
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
-//     matrix (the board), the expansions and alternatives (avenue events by fate), the red
+//     matrix (the board), the expansions and alternatives (line of inquiry events by fate), the red
 //     findings (the board's gaps), and the debate transcript (position/closing/dispute/
 //     opinion/petition-rule/halt/certify events). The event log is the source of truth; the
 //     rendered projection .md files are in-run artifacts for the seats, NOT read here.
@@ -128,10 +128,10 @@ func Assemble(runDir string) (string, error) {
 	// Tool-composed from the record.
 	p(riskMatrix(bj))
 	// THE LIFECYCLE OF A RESEARCH TOPIC, one section per fate. See the fate predicates below.
-	p(avenues(board, "The expansions", accepted))
-	p(avenues(board, "Deferred — for a later run or a deeper context", deferred))
-	p(avenues(board, "Still undecided — proposed and never resolved", undecided))
-	p(avenues(board, "Alternatives considered", rejected))
+	p(inquiries(board, "The expansions", accepted))
+	p(inquiries(board, "Deferred — for a later run or a deeper context", deferred))
+	p(inquiries(board, "Still undecided — proposed and never resolved", undecided))
+	p(inquiries(board, "Alternatives considered", rejected))
 	p(sectionOr(blue, "Open questions"))
 	// The embed carries ONLY blue content not already composed above — its lifted synthesis
 	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
@@ -486,7 +486,7 @@ func concise(s string) string {
 	return s
 }
 
-// avenue fate: THE LIFECYCLE OF A RESEARCH TOPIC, in the three buckets the report is meant to
+// line of inquiry fate: THE LIFECYCLE OF A RESEARCH TOPIC, in the three buckets the report is meant to
 // carry — what we pursued, what we deferred to a later run or a deeper context, and what we
 // considered and did not take. All three stay in the document; that is the point of tracking a
 // topic rather than only its winners.
@@ -512,10 +512,10 @@ func concise(s string) string {
 // # `proposed` was briefly excluded from every section, and the fuzzer refused it
 //
 // The first cut of this change dropped `proposed` from all sections on the argument that an
-// undecided line has no fate and a heading announces one — leaving record.StaleAvenues to ask
+// undecided line has no fate and a heading announces one — leaving record.StaleInquiries to ask
 // blue to decide. TestFuzzDebate failed six seeds with `prose-not-rendered (A1-A3 class):
-// blue-respond-r1/avenue prose absent from report`, and it was right: a seat's recorded
-// reasoning must reach the report, and that invariant outranks the heading argument. An avenue
+// blue-respond-r1/line of inquiry prose absent from report`, and it was right: a seat's recorded
+// reasoning must reach the report, and that invariant outranks the heading argument. A line of inquiry
 // blue proposed and never resolved is not nothing — on a run that ends with topics still
 // undecided, saying so IS the finding, exactly as the lines-of-inquiry projection already says
 // ("a report with no roads-not-taken is indistinguishable from one that never looked").
@@ -532,8 +532,8 @@ func rejected(status string) bool {
 	return !accepted(status) && !deferred(status) && !undecided(status)
 }
 
-// avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
-// avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
+// inquiries renders the line of inquiry LIFECYCLE under the given heading — replayed state, one row per
+// line of inquiry, not one row per event. Reading raw events double-listed every line of inquiry that MOVED: a
 // line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
 // and as an alternative to itself.
 //
@@ -542,9 +542,9 @@ func rejected(status string) bool {
 // red ruled out-of-scope or too-thin — the fact that it did so against that ruling. Red's ruling
 // is an argument, not a command, so blue may pursue anyway; the disagreement is the substance,
 // and until now the report showed the line with no trace that anyone had contested it.
-func avenues(board *record.Board, heading string, want func(string) bool) string {
+func inquiries(board *record.Board, heading string, want func(string) bool) string {
 	var rows []string
-	for _, a := range record.Avenues(board) {
+	for _, a := range record.Inquiries(board) {
 		if !want(a.Status) {
 			continue
 		}

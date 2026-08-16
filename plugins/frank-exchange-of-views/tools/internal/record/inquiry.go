@@ -2,10 +2,10 @@ package record
 
 import "fmt"
 
-// AVENUES HAVE A LIFECYCLE NOW, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
+// LINES OF INQUIRY HAVE A LIFECYCLE NOW, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
 //
-// MEASURED, over 86 avenue events across six runs: ZERO lines were ever recorded twice and
-// ZERO statuses ever changed. There was no id, no key, no update path — `avenue` was a
+// MEASURED, over 86 line of inquiry events across six runs: ZERO lines were ever recorded twice and
+// ZERO statuses ever changed. There was no id, no key, no update path — `line of inquiry` was a
 // one-shot append. 83 of the 86 landed in round 0.
 //
 // That makes the corpus's headline number mean something other than it appeared to. 68
@@ -16,10 +16,10 @@ import "fmt"
 //
 // The goal is that blue finds several plausible directions, picks the best, and is SEEN TO
 // HAVE DONE SO IN EVIDENCE. A one-shot append records the plan; it cannot record the
-// choosing. So an avenue gets what a gap has — an id, a status that moves with a stated
+// choosing. So a line of inquiry gets what a gap has — an id, a status that moves with a stated
 // reason, and an adjudicator.
 
-// AvenueStatuses are the states an avenue may hold. `proposed` is the new one: a direction
+// InquiryStatuses are the states a line of inquiry may hold. `proposed` is the new one: a direction
 // blue has put forward and not yet resolved, which is the state the old shape could not
 // express at all (everything had to be declared already-pursued or already-dead).
 // `deferred` is the fate that had no name: a direction worth taking, and not by THIS run.
@@ -27,7 +27,7 @@ import "fmt"
 // and it is the carrier for bootstrapping a later run. Deliberately a PROPOSAL for a human
 // to select rather than a seed: a run that queues its own successor is a loop with no human
 // in it.
-var AvenueStatuses = []EnumValue{
+var InquiryStatuses = []EnumValue{
 	Ev("proposed", "put forward and not yet resolved — the default, and the state that owes a move"),
 	Ev("pursued", "you are following it, or you followed it; say what you learned in --reason"),
 	Ev("declined", "considered and judged not worth this run's time"),
@@ -35,44 +35,44 @@ var AvenueStatuses = []EnumValue{
 	Ev("deferred", "worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed"),
 }
 
-// AvenueStatusNames is the bare vocabulary, for readers that only need the words.
-func AvenueStatusNames() []string { return Names(AvenueStatuses) }
+// InquiryStatusNames is the bare vocabulary, for readers that only need the words.
+func InquiryStatusNames() []string { return Names(InquiryStatuses) }
 
-// AvenueRulings are red's fates for a proposed direction. Red AUDITS and RULES; it never
+// InquiryRulings are red's fates for a proposed direction. Red AUDITS and RULES; it never
 // proposes one — directing research is what a gap's required_fix already does, and a second
 // spelling for it is the aliasing this vocabulary exists to prevent.
-var AvenueRulings = []EnumValue{
+var InquiryRulings = []EnumValue{
 	Ev("endorsed", "worth this run's time — blue should take it up"),
 	Ev("out-of-scope", "a real question, but not THIS question"),
 	Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
 }
 
-// AvenueRulingNames is the bare vocabulary.
-func AvenueRulingNames() []string { return Names(AvenueRulings) }
+// InquiryRulingNames is the bare vocabulary.
+func InquiryRulingNames() []string { return Names(InquiryRulings) }
 
-// MintAvenueID assigns the next run-unique avenue id (A1, A2 …).
+// MintInquiryID assigns the next run-unique line-of-inquiry id (Q1, Q2 …).
 //
-// Run-unique rather than round-scoped, unlike a gap: an avenue OUTLIVES the round that
+// Run-unique rather than round-scoped, unlike a gap: a line of inquiry OUTLIVES the round that
 // proposed it — that is the whole point of giving it a lifecycle — so a round-scoped id
 // would have to be re-minted to survive, which is the bug this replaces.
-func MintAvenueID(runDir string) (string, error) {
+func MintInquiryID(runDir string) (string, error) {
 	m, err := MergedEvents(runDir)
 	if err != nil {
 		return "", err
 	}
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == "avenue" && e.Payload.Str("avenue_id") != "" && e.Payload.Str("supersedes_status") == "" {
+		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") != "" && e.Payload.Str("supersedes_status") == "" {
 			n++
 		}
 	}
-	return fmt.Sprintf("A%d", n+1), nil
+	return fmt.Sprintf("Q%d", n+1), nil
 }
 
-// Avenue is one direction's state after replay: its latest status, with the history that
+// Inquiry is one direction's state after replay: its latest status, with the history that
 // produced it. The history is kept because "chose to abandon this at round 2, having
 // pursued it at round 0" is the evidence of choosing, and only the sequence carries it.
-type Avenue struct {
+type Inquiry struct {
 	ID         string
 	Line       string
 	Hypothesis string
@@ -85,25 +85,25 @@ type Avenue struct {
 	Ruling     string   // red's fate, if ruled
 	RulingWhy  string
 	RuledRound int
-	// Contests is the ruling blue moved AGAINST, recorded by `blue avenue` at the moment of
+	// Contests is the ruling blue moved AGAINST, recorded by `blue line of inquiry` at the moment of
 	// the move. Read from the field rather than re-derived from (status, ruling): the write
 	// path already decided what counts as contesting, and a second derivation downstream is a
 	// second definition that can disagree with it.
 	Contests string
 }
 
-// Avenues replays the avenue events into current state, in proposal order.
-func Avenues(b *Board) []*Avenue {
-	byID := map[string]*Avenue{}
+// Inquiries replays the line of inquiry events into current state, in proposal order.
+func Inquiries(b *Board) []*Inquiry {
+	byID := map[string]*Inquiry{}
 	var order []string
 	for _, e := range b.Events {
-		id := e.Payload.Str("avenue_id")
+		id := e.Payload.Str("inquiry_id")
 		if id == "" {
-			// A direction motion carries the avenue's id under `motion_id`, because to the
+			// A direction motion carries the line of inquiry's id under `motion_id`, because to the
 			// motion machinery it IS the motion's id — the proposal is the filing, so there is
-			// no second identity to mint. Keying only on `avenue_id` dropped every ruling made
+			// no second identity to mint. Keying only on `inquiry_id` dropped every ruling made
 			// through the new verb before it reached the switch below.
-			if e.Type == "motion-rule" && e.Payload.Str("subject") == "direction" {
+			if e.Type == "motion-rule" && e.Payload.Str("subject") == "inquiry" {
 				id = e.Payload.Str("motion_id")
 			}
 			if id == "" {
@@ -111,10 +111,10 @@ func Avenues(b *Board) []*Avenue {
 			}
 		}
 		switch e.Type {
-		case "avenue":
+		case "line-of-inquiry":
 			a, ok := byID[id]
 			if !ok {
-				a = &Avenue{ID: id}
+				a = &Inquiry{ID: id}
 				byID[id] = a
 				order = append(order, id)
 			}
@@ -132,24 +132,16 @@ func Avenues(b *Board) []*Avenue {
 			a.Status, a.Reason, a.Round, a.SeatID = e.Payload.Str("status"), e.Payload.Str("reason"), e.Round, e.SeatID
 			a.Contests = e.Payload.Str("contests_ruling")
 			a.History = append(a.History, fmt.Sprintf("r%d %s", e.Round, a.Status))
-		case "avenue-rule":
-			// The PRE-#344 spelling. Permanent: a stored record written under it must still
-			// render its rulings (record/compat.go).
-			a, ok := byID[id]
-			if !ok {
-				continue
-			}
-			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("reason"), e.Round
 		case "motion-rule":
 			// THE CURRENT SPELLING, and reading it here is not optional.
 			//
-			// A direction motion joins on the avenue's own id, so `motion direction rule` writes
+			// A direction motion joins on the line of inquiry's own id, so `motion direction rule` writes
 			// a motion-rule whose motion_id IS an A-number. Until this arm existed, a ruling
 			// made through the new verb never reached `--view lines-of-inquiry` — the projection
 			// blue reads to decide whether to pursue, comply or drop. The line simply stayed
 			// "Awaiting a decision", which is what an unruled line looks like, so red's ruling
 			// was indistinguishable from red not having sat.
-			if e.Payload.Str("subject") != "direction" {
+			if e.Payload.Str("subject") != "inquiry" {
 				continue
 			}
 			a, ok := byID[id]
@@ -159,17 +151,17 @@ func Avenues(b *Board) []*Avenue {
 			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("opinion"), e.Round
 		}
 	}
-	out := make([]*Avenue, 0, len(order))
+	out := make([]*Inquiry, 0, len(order))
 	for _, id := range order {
 		out = append(out, byID[id])
 	}
 	return out
 }
 
-// requireAvenue refuses a reference to an avenue no proposal created — the same discipline
+// requireInquiry refuses a reference to a line of inquiry no proposal created — the same discipline
 // every other cross-reference gets (refs.go), for the same reason: a dangling reference is
 // accepted at write time and dropped at replay.
-func RequireAvenueRef(runDir, id string) error {
+func RequireInquiryRef(runDir, id string) error {
 	if id == "" {
 		return nil
 	}
@@ -178,11 +170,11 @@ func RequireAvenueRef(runDir, id string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.Type == "avenue" && e.Payload.Str("avenue_id") == id {
+		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") == id {
 			return nil
 		}
 	}
-	return fmt.Errorf("record: --id names avenue %s, which no avenue event proposed — a dangling reference is accepted here and dropped at replay", id)
+	return fmt.Errorf("record: --id names line of inquiry %s, which no line of inquiry event proposed — a dangling reference is accepted here and dropped at replay", id)
 }
 
 // CurrentRound is the highest round any event on this board reached.
@@ -200,18 +192,18 @@ func CurrentRound(b *Board) int {
 	return max
 }
 
-// StaleAvenues returns the avenues that owe blue a decision THIS ROUND — the single predicate
+// StaleInquiries returns the inquiries that owe blue a decision THIS ROUND — the single predicate
 // behind the revisit duty, the affordance, and the projection's stale notice.
 //
 // # It was written twice, both copies status-only, both described as round-aware
 //
 // This function and `AvailableOf`'s blue case each carried `Status == "proposed" || Status ==
-// "pursued"` and nothing else. The affordance's text says an avenue "has no fate THIS ROUND";
-// this one's said "an avenue still open LATE IN A RUN" and "nothing ever asked blue to choose
-// again once the round-0 plan was written". Neither read a round. `Avenue.Round` was populated
+// "pursued"` and nothing else. The affordance's text says a line of inquiry "has no fate THIS ROUND";
+// this one's said "a line of inquiry still open LATE IN A RUN" and "nothing ever asked blue to choose
+// again once the round-0 plan was written". Neither read a round. `Inquiry.Round` was populated
 // on every event and consulted nowhere.
 //
-// So an avenue blue moved to `pursued` this round, with a --reason saying what it learned, and
+// So a line of inquiry blue moved to `pursued` this round, with a --reason saying what it learned, and
 // one nobody had touched since round 0 produced the IDENTICAL line. The diligent case and the
 // neglected case were the same bytes — and the fix is one predicate rather than two corrected
 // copies, because two copies is how this got here.
@@ -229,9 +221,9 @@ func CurrentRound(b *Board) int {
 //	proposed    ALWAYS owes a move. The enum defines it as "put forward and not yet resolved —
 //	            the default, AND THE STATE THAT OWES A MOVE". No round condition: a topic nobody
 //	            has decided is undecided whenever you ask. A first draft of this fix also
-//	            round-gated `proposed`, which made an avenue proposed and abandoned within a
+//	            round-gated `proposed`, which made a line of inquiry proposed and abandoned within a
 //	            single round invisible for that round — caught by
-//	            TestOpenAvenuesAreSurfacedAsOwingADecision, which was right and this was wrong.
+//	            TestOpenInquiriesAreSurfacedAsOwingADecision, which was right and this was wrong.
 //	proposed    is therefore surfaced from the moment it exists. It is an AFFORDANCE and blocks
 //	            nothing, so surfacing early costs a line and buys the reminder.
 //	pursued     owes a move only when it has not moved THIS round. This is where the round check
@@ -241,10 +233,10 @@ func CurrentRound(b *Board) int {
 //	abandoned,
 //	deferred    settled, never surfaced. `deferred` is a DECISION ("worth taking, and not by THIS
 //	            run"), not an omission.
-func StaleAvenues(b *Board) []*Avenue {
+func StaleInquiries(b *Board) []*Inquiry {
 	now := CurrentRound(b)
-	var out []*Avenue
-	for _, a := range Avenues(b) {
+	var out []*Inquiry
+	for _, a := range Inquiries(b) {
 		switch a.Status {
 		case "proposed":
 			out = append(out, a)
@@ -257,30 +249,24 @@ func StaleAvenues(b *Board) []*Avenue {
 	return out
 }
 
-// AvenueRuling returns red's most recent ruling on an avenue, or "" if it never ruled.
+// InquiryRuling returns red's most recent ruling on a line of inquiry, or "" if it never ruled.
 //
-// The ruling and the avenue's fate were both on the record and joined NOWHERE, so blue
+// The ruling and the line of inquiry's fate were both on the record and joined NOWHERE, so blue
 // pursuing a line red called out-of-scope looked exactly like blue pursuing one red endorsed.
 // Red's ruling is an argument rather than a command — blue may pursue anyway — but the
 // disagreement should be a fact, not something a reader reconstructs from two lists.
-func AvenueRuling(runDir, avenueID string) string {
+func InquiryRuling(runDir, inquiryID string) string {
 	b, err := BoardState(runDir)
 	if err != nil {
 		return ""
 	}
-	// BOTH SPELLINGS, most recent wins. The events are ordered by timestamp across shards, so
-	// "last one seen" is the latest ruling regardless of which vocabulary wrote it.
+	// MOST RECENT WINS. Events are ordered by timestamp across shards, so "last one seen" is the
+	// latest ruling. There was a second arm here for the pre-#344 `line of inquiry-rule` spelling; nothing
+	// has written it since the motion collapse and the dual-read that justified reading it is gone.
 	ruling := ""
 	for _, e := range b.Events {
-		switch e.Type {
-		case "avenue-rule":
-			if e.Payload.Str("avenue_id") == avenueID {
-				ruling = e.Payload.Str("ruling")
-			}
-		case "motion-rule":
-			if e.Payload.Str("subject") == "direction" && e.Payload.Str("motion_id") == avenueID {
-				ruling = e.Payload.Str("ruling")
-			}
+		if e.Type == "motion-rule" && e.Payload.Str("subject") == "inquiry" && e.Payload.Str("motion_id") == inquiryID {
+			ruling = e.Payload.Str("ruling")
 		}
 	}
 	return ruling
