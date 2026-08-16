@@ -54,8 +54,27 @@ func newMint() *cobra.Command {
 			if problem == "" {
 				problem = text
 			}
-
+			// RED'S ARGUMENT IS KEPT WHEN IT IS NOT THE PROBLEM STATEMENT ITSELF.
+			//
+			// It was discarded. `--reason` fell back to `--problem` only when problem was empty,
+			// so the ordinary mint — which supplies both — recorded the problem and threw the
+			// reasoning away, while `--reason`'s own help promises "the substance the report
+			// renders and the other side answers". The write returned "minted R1-4" either way.
+			//
+			// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
+			// a required_fix may demand, it reported first among its missing things: "Red's closing
+			// or reasoning — Why did red mint this gap? Do they believe blue DID run a search and
+			// just didn't describe it? The gap's problem statement is clear, but red's intent for
+			// the fix isn't visible to me." It was adjudicating red's intent with red's intent
+			// unrecorded.
+			//
+			// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
+			// answers and a bench weighs. Stored only when the two differ, so a mint that passed
+			// its problem through --reason does not carry it twice.
 			p := record.NewPayload().Set("gap_id", gapID)
+			if text != "" && text != problem {
+				p.Set("mint_reason", text)
+			}
 			seat.Set(cmd, p, "mint_key", flags.Key)
 			// --class-new both names the class and mints it, so it wins over --class.
 			if seat.Given(cmd, flags.ClassNew) {

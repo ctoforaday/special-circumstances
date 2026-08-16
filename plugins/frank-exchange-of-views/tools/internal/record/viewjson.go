@@ -78,9 +78,13 @@ type GapJSON struct {
 	Impact         any `json:"impact"`
 	ComplexityCost any `json:"complexity_cost"`
 
-	Class          string `json:"class,omitempty"`
-	Location       string `json:"location,omitempty"`
-	Problem        string `json:"problem,omitempty"`
+	Class    string `json:"class,omitempty"`
+	Location string `json:"location,omitempty"`
+	Problem  string `json:"problem,omitempty"`
+	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
+	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
+	// find it; mint was accepting --reason and discarding it. See merge/mint.go.
+	MintReason     string `json:"mint_reason,omitempty"`
 	RequiredFix    string `json:"required_fix,omitempty"`
 	AcceptanceGate string `json:"acceptance_check,omitempty"`
 	// CheckKind says what KIND of evidence settles the acceptance check, and it is the field
@@ -168,6 +172,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 			gj.Class = g.Mint.Str("class")
 			gj.Location = g.Mint.Str("location")
 			gj.Problem = g.Mint.Str("problem")
+			gj.MintReason = g.Mint.Str("mint_reason")
 			gj.RequiredFix = g.Mint.Str("required_fix")
 			gj.AcceptanceGate = g.Mint.Str("acceptance_check")
 			gj.CheckKind = g.Mint.Str("check_kind")
