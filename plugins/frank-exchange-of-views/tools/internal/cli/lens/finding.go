@@ -88,7 +88,7 @@ func newFinding() *cobra.Command {
 			seat.SetGrade(p, "likelihood", &likelihood)
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetSame(cmd, p, flags.Location)
-			p.Set("text", text)
+			p.Set("reason", text)
 			if _, err := record.Append(s.Identity(), "finding", p); err != nil {
 				return nil, err
 			}

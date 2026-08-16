@@ -58,7 +58,7 @@ func newProve() *cobra.Command {
 				// A proof that will not run is not evidence, and the failure is a capability
 				// signal — the same treatment `blue cite` gives an unreachable source.
 				msg := err.Error()
-				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("text", msg)); ferr != nil {
+				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", msg)); ferr != nil {
 					return nil, ferr
 				}
 				return nil, err
@@ -92,7 +92,7 @@ func newProve() *cobra.Command {
 			seat.Set(cmd, p, "proof_key", flags.Key)
 			seat.Set(cmd, p, "answers", flags.Answers)
 			seat.Set(cmd, p, "cites", flags.Cites)
-			if err := seat.SetReason(cmd, p, "text"); err != nil {
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
 			}
 			if _, err := record.Append(s.Identity(), "proof", p); err != nil {

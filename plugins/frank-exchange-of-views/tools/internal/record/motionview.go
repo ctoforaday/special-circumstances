@@ -69,7 +69,7 @@ type MotionsJSON struct {
 // MotionsJSONOf projects every motion on the record, current vocabulary and legacy alike.
 func MotionsJSONOf(b *Board) MotionsJSON {
 	out := MotionsJSON{Motions: []MotionJSON{}}
-	for _, m := range AllMotions(b) {
+	for _, m := range Motions(b) {
 		if m == nil {
 			continue
 		}

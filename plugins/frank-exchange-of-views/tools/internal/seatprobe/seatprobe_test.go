@@ -46,7 +46,7 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("text", "the round's narrative")},
+		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "the round's narrative")},
 	})
 
 	c, err := Read(surface(), runDir, "blue-respond-r1")
@@ -83,7 +83,7 @@ func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 		payload   *record.Payload
 	}{
 		{seat: "blue-respond-r1", typ: "blue_edit", payload: record.NewPayload().
-			Set("old", "a").Set("new", "b").Set("prose", "why")},
+			Set("old", "a").Set("new", "b").Set("reason", "why")},
 	})
 	c, err := Read(surface(), runDir, "blue-respond-r1")
 	if err != nil {
@@ -114,7 +114,7 @@ func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 			seat, typ string
 			payload   *record.Payload
 		}{"blue-respond-r1", "blue_edit", record.NewPayload().
-			Set("old", "a").Set("new", "b").Set("prose", "why")})
+			Set("old", "a").Set("new", "b").Set("reason", "why")})
 	}
 	runDir := writeRun(t, evs)
 
@@ -140,7 +140,7 @@ func TestNoFrictionIsNotReportedAsACleanBoard(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("text", "n")},
+		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "n")},
 	})
 	out, err := Report(surface(), runDir, []string{"blue-respond-r1"}, nil, nil)
 	if err != nil {

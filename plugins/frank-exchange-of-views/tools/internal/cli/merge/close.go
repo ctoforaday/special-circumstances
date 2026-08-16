@@ -37,7 +37,7 @@ func newClose() *cobra.Command {
 			// --file read and so was the only prose-bearing verb with no --text at all —
 			// the same shape as the --prose-file divergence, one layer down: a verb that
 			// opts out of the shared helper drifts from it by construction.
-			if err := seat.SetReason(cmd, p, "prose"); err != nil {
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
 			}
 			// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.

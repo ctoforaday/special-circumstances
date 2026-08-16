@@ -92,7 +92,7 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("text", "n")},
+		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "n")},
 	})
 
 	attempts := map[string]map[string]int{"blue-respond-r1": {"show": 9}}

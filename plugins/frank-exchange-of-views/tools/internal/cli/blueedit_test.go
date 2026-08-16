@@ -80,8 +80,8 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	if ev.Payload.Str("old") != "rising over time" || ev.Payload.Str("new") != "climbing sharply" {
 		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.Payload.Str("old"), ev.Payload.Str("new"))
 	}
-	if ev.Payload.Str("text") != "sharper phrasing" {
-		t.Errorf("reason not recorded: %q", ev.Payload.Str("text"))
+	if ev.Payload.Str("reason") != "sharper phrasing" {
+		t.Errorf("reason not recorded: %q", ev.Payload.Str("reason"))
 	}
 }
 
@@ -162,7 +162,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	p.Set("edit_key", "E1")
 	p.Set("old", "rising fast")
 	p.Set("new", "climbing fast")
-	p.Set("text", "r")
+	p.Set("reason", "r")
 	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundOf(blueSeat)}, "blue_edit", p); err != nil {
 		t.Fatal(err)
 	}

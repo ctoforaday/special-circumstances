@@ -21,7 +21,7 @@ import (
 // would render NOTHING for an old record and look exactly like a run that had no disputes and no
 // petitions — the plausible zero this stage exists to remove.
 func motions(board *record.Board) string {
-	ms := record.AllMotions(board)
+	ms := record.Motions(board)
 	if len(ms) == 0 {
 		return ""
 	}

@@ -321,10 +321,10 @@ func TestMarkdownSurfacesAnomaliesAndUncreditedFindings(t *testing.T) {
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []record.Event{
 		ev(lens, "aaaaaaaa", 0, 1, "finding", lens+":finding:F1", record.NewPayload().
-			Set("label", "F1").Set("text", strings.Repeat("long prose ", 40))),
+			Set("label", "F1").Set("reason", strings.Repeat("long prose ", 40))),
 	})
 	writeShard(t, runDir, lens, "bbbbbbbb", []record.Event{
-		ev(lens, "bbbbbbbb", 0, 1, "finding", lens+":finding:F2", record.NewPayload().Set("label", "F2").Set("text", "short")),
+		ev(lens, "bbbbbbbb", 0, 1, "finding", lens+":finding:F2", record.NewPayload().Set("label", "F2").Set("reason", "short")),
 	})
 	_, _, anomalies, err := Counts(runDir)
 	if err != nil {
@@ -528,12 +528,12 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	judge := "judge-r1"
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, merge, "aaaaaaaa", []record.Event{
-		ev(merge, "aaaaaaaa", 0, 1, "position", merge+":position", record.NewPayload().Set("text", "red says so")),
-		ev(merge, "aaaaaaaa", 1, 1, "closing", merge+":closing:R1-1", record.NewPayload().Set("gap_id", "R1-1").Set("text", "red closes")),
+		ev(merge, "aaaaaaaa", 0, 1, "position", merge+":position", record.NewPayload().Set("reason", "red says so")),
+		ev(merge, "aaaaaaaa", 1, 1, "closing", merge+":closing:R1-1", record.NewPayload().Set("gap_id", "R1-1").Set("reason", "red closes")),
 	})
 	writeShard(t, runDir, blue, "bbbbbbbb", []record.Event{
-		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", record.NewPayload().Set("text", "blue says otherwise")),
-		ev(blue, "bbbbbbbb", 1, 1, "revision", blue+":revision", record.NewPayload().Set("text", "blue revised")),
+		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", record.NewPayload().Set("reason", "blue says otherwise")),
+		ev(blue, "bbbbbbbb", 1, 1, "revision", blue+":revision", record.NewPayload().Set("reason", "blue revised")),
 		ev(blue, "bbbbbbbb", 2, 1, "avenue", blue+":avenue:a1", record.NewPayload().
 			Set("avenue_id", "A1").Set("status", "abandoned").Set("line", "try the archive").
 			Set("method", "full-text search").Set("reason", "the archive is offline")),
@@ -543,7 +543,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	writeShard(t, runDir, judge, "cccccccc", []record.Event{
 		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", record.NewPayload().
 			Set("gap_id", "R1-1").Set("disposition", "upheld").Set("principle", "correctness first").
-			Set("tension", "economy").Set("review_flag", "none").Set("rationale", "because")),
+			Set("tension", "economy").Set("review_flag", "none").Set("reason", "because")),
 	})
 	writeShard(t, runDir, lens, "dddddddd", []record.Event{
 		ev(lens, "dddddddd", 0, 1, "verify", lens+":verify:https://x", record.NewPayload().
@@ -583,7 +583,7 @@ func TestMarkdownDebateSkipsEmptyRounds(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r3-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []record.Event{
-		ev(lens, "aaaaaaaa", 0, 3, "friction", lens+":friction:#1", record.NewPayload().Set("text", "not debate content")),
+		ev(lens, "aaaaaaaa", 0, 3, "friction", lens+":friction:#1", record.NewPayload().Set("reason", "not debate content")),
 	})
 	debate := md(t, runDir, "debate")
 	if strings.Contains(debate, "## Round 3") {

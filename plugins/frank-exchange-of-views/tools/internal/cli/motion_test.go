@@ -38,7 +38,7 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ms := record.AllMotions(b)
+	ms := record.Motions(b)
 	if len(ms) != 1 {
 		t.Fatalf("one exchange, one motion; got %d", len(ms))
 	}

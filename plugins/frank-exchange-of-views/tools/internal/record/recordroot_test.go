@@ -253,7 +253,7 @@ func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := Append(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "friction", NewPayload().Set("note", "the verb I wanted was not there")); err != nil {
+	if _, err := Append(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "friction", NewPayload().Set("reason", "the verb I wanted was not there")); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	t.Setenv(RecordRootEnv, "")

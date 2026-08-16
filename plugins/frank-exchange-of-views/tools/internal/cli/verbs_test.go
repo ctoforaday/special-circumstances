@@ -94,7 +94,7 @@ func TestVerbPayloads(t *testing.T) {
 			// The flag is --access-date; the payload key is access_date, and the
 			// citation render reads the payload key. --as lands under `outcome`.
 			want: map[string]string{"claim": "the claim", "reference": "https://example.test/a",
-				"outcome": "supports", "confidence": "high", "text": "read at the leaf", "access_date": "2026-07-18"},
+				"outcome": "supports", "confidence": "high", "reason": "read at the leaf", "access_date": "2026-07-18"},
 			says: "independent source https://example.test/a verified: supports",
 		},
 		{
@@ -113,7 +113,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  "motion-rule",
 			want: map[string]string{"motion_id": "M1", "subject": "grade", "ruling": "rejected",
-				"opinion": "the evidence does not reach it"},
+				"reason": "the evidence does not reach it"},
 			says: "motion M1 ruled rejected",
 		},
 		{
@@ -122,7 +122,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
 			typ:  "motion",
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
-				"proposed": "low", "basis": "§4 says otherwise", "subject": "grade"},
+				"proposed": "low", "reason": "§4 says otherwise", "subject": "grade"},
 			says: "filed (grade)",
 		},
 		{
@@ -158,7 +158,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  "motion-rule",
 			want: map[string]string{"motion_id": "M2", "subject": "petition",
-				"ruling": "granted", "opinion": "the written opinion"},
+				"ruling": "granted", "reason": "the written opinion"},
 			says: "motion M2 ruled granted",
 		},
 		{
@@ -166,7 +166,7 @@ func TestVerbPayloads(t *testing.T) {
 			role: "bench", seatID: "judge-terminal",
 			args: []string{"--reason", "the run must stop, and here is why"},
 			typ:  "halt",
-			want: map[string]string{"opinion": "the run must stop, and here is why"},
+			want: map[string]string{"reason": "the run must stop, and here is why"},
 			says: "JUDICIAL HALT recorded — capture relays this verbatim",
 		},
 		{
@@ -174,7 +174,7 @@ func TestVerbPayloads(t *testing.T) {
 			role: "bench", seatID: "assemble",
 			args: []string{"--reason", "what I would want a human to re-examine"},
 			typ:  "certify",
-			want: map[string]string{"statement": "what I would want a human to re-examine"},
+			want: map[string]string{"reason": "what I would want a human to re-examine"},
 			says: "certification recorded",
 		},
 	}
@@ -295,7 +295,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	if got := ev.Payload.Str("severity"); got != "certain" {
 		t.Errorf("severity = %q", got)
 	}
-	if got := ev.Payload.Str("basis"); got != "new evidence in §4" {
+	if got := ev.Payload.Str("reason"); got != "new evidence in §4" {
 		t.Errorf("basis = %q", got)
 	}
 	// The grades NOT passed must be absent, so the replay leaves them alone.
@@ -326,10 +326,10 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 		role, verb, seatID, key string
 		extra                   []string
 	}{
-		{"bench", "halt", "judge-terminal", "opinion", nil},
-		{"bench", "certify", "assemble", "statement", nil},
-		{"blue", "revision", "blue-lane-1", "text", nil},
-		{"merge", "closing", "red-merge-r1", "text", []string{"--id", "R1-1"}},
+		{"bench", "halt", "judge-terminal", "reason", nil},
+		{"bench", "certify", "assemble", "reason", nil},
+		{"blue", "revision", "blue-lane-1", "reason", nil},
+		{"merge", "closing", "red-merge-r1", "reason", []string{"--id", "R1-1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", []string{"--id", "R1-1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"

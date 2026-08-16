@@ -100,7 +100,7 @@ func TestEvidence_ReproduceJoinsItsProofAndKeepsTheAxesApart(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent("proof", 1, "blue-r1", "proof_id", "p-1", "sha256", "s1"),
 		evidenceEvent("reproduce", 2, "lens-r2", "proof_sha", "s1", "reproduced", true,
-			"soundness", "unsound", "note", "it prints its conclusion"),
+			"soundness", "unsound", "reason", "it prints its conclusion"),
 	)
 	got := EvidenceJSONOf(b)
 	v := got.Proofs[0].Verified
@@ -124,7 +124,7 @@ func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "https://example.org/p"),
 		evidenceEvent("verify", 1, "lens-r1", "anchor", "c-1", "claim", "seven is prime",
-			"reference", "example.org/p", "outcome", "supports", "confidence", "high", "text", "the abstract says it"),
+			"reference", "example.org/p", "outcome", "supports", "confidence", "high", "reason", "the abstract says it"),
 	)
 	got := EvidenceJSONOf(b)
 	if len(got.Sources) != 1 || len(got.Sources[0].Verified) != 1 {
@@ -145,7 +145,7 @@ func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "https://example.org/p"),
 		evidenceEvent("verify", 1, "lens-r1", "claim", "seven is prime",
-			"reference", "a textbook I found", "outcome", "supports", "text", "chapter 2"),
+			"reference", "a textbook I found", "outcome", "supports", "reason", "chapter 2"),
 	)
 	got := EvidenceJSONOf(b)
 	if len(got.Independent) != 1 {
@@ -176,7 +176,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 		b := evidenceBoard(
 			evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "u"),
 			evidenceEvent("verify", 2, "lens-r2", "anchor", "c-1", "claim", "x",
-				"outcome", outcome, "text", "read it"),
+				"outcome", outcome, "reason", "read it"),
 		)
 		got := EvidenceJSONOf(b)
 		if got.Counts.SourcesRefuted != 1 {
@@ -190,7 +190,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 	// And the supporting half is NOT counted as found-against.
 	b := evidenceBoard(
 		evidenceEvent("cite", 1, "blue-r1", "label", "c-1", "url", "u"),
-		evidenceEvent("verify", 2, "lens-r2", "anchor", "c-1", "claim", "x", "outcome", "weak", "text", "thin"),
+		evidenceEvent("verify", 2, "lens-r2", "anchor", "c-1", "claim", "x", "outcome", "weak", "reason", "thin"),
 	)
 	if got := EvidenceJSONOf(b); got.Counts.SourcesRefuted != 0 {
 		t.Errorf("`weak` counted as refuted — thin support is not contradiction, and conflating them turns a grading nuance into an assembly failure")

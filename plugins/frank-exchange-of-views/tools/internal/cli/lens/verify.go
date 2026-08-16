@@ -106,7 +106,7 @@ func newVerify() *cobra.Command {
 			} else {
 				p.Set("independent", true)
 			}
-			if err := seat.SetReason(cmd, p, "text"); err != nil {
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
 			}
 			if _, err := record.Append(s.Identity(), "verify", p); err != nil {

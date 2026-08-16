@@ -232,7 +232,7 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 		}
 		verified[e.Payload.Str("proof_sha")] = &ProofVerification{
 			SeatID: e.SeatID, Round: e.Round, Reproduced: rep,
-			Sound: e.Payload.Str("soundness") == "sound", Note: e.Payload.Str("note"),
+			Sound: e.Payload.Str("soundness") == "sound", Note: e.Payload.Str("reason"),
 			Recorded: e.Payload.Str("recorded_output"), Observed: e.Payload.Str("observed_output"),
 		}
 	}
@@ -256,7 +256,7 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 			Script: e.Payload.Str("script"),
 			Exit:   exit,
 			Cites:  e.Payload.Str("cites"),
-			Reason: e.Payload.Str("text"),
+			Reason: e.Payload.Str("reason"),
 			Drift:  e.Payload.Str("drift"),
 			// nil when nobody re-ran it, which the report states rather than omits.
 			Verified: verified[e.Payload.Str("sha256")],

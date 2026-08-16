@@ -31,12 +31,12 @@ func seedChanges(t *testing.T, runDir string) {
 	writeShard(t, runDir, "blue-respond-r1", "bbbbbbbb", []record.Event{
 		ev("blue-respond-r1", "bbbbbbbb", 0, 1, "blue_edit", "blue-respond-r1:blue_edit:e1", pay(
 			"answers", "R1-1", "old", "five independent approaches",
-			"new", "five approaches", "text", "drop the independence claim")),
+			"new", "five approaches", "reason", "drop the independence claim")),
 		ev("blue-respond-r1", "bbbbbbbb", 1, 1, "blue_edit", "blue-respond-r1:blue_edit:e2", pay(
 			"answers", "R1-1", "old", "They agree.",
-			"new", "They agree, sharing one definition of primality.", "text", "name the shared definition")),
+			"new", "They agree, sharing one definition of primality.", "reason", "name the shared definition")),
 		ev("blue-respond-r1", "bbbbbbbb", 2, 1, "blue_edit", "blue-respond-r1:blue_edit:e3", pay(
-			"old", "cost ,", "new", "cost,", "text", "punctuation repair")),
+			"old", "cost ,", "new", "cost,", "reason", "punctuation repair")),
 	})
 }
 

@@ -245,7 +245,7 @@ func ledgerMD(b *record.Board) []byte {
 			if name == "" {
 				name = o.Key
 			}
-			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Payload.Str("text"), 120))
+			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Payload.Str("reason"), 120))
 		}
 		notesFooter = "\n## lens findings credited by no gap (each is work the merge has not yet weighed)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
@@ -267,7 +267,7 @@ func ledgerMD(b *record.Board) []byte {
 		}
 		regraded := ""
 		if n := len(g.Regrades); n > 0 {
-			regraded = fmt.Sprintf("\nregraded x%d (history in the event log; latest basis: %s)", n, g.Regrades[n-1].Str("basis"))
+			regraded = fmt.Sprintf("\nregraded x%d (history in the event log; latest basis: %s)", n, g.Regrades[n-1].Str("reason"))
 		}
 		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
 			g.ID, truncate(g.Mint.Str("problem"), 100),
@@ -500,25 +500,25 @@ func debateMD(b *record.Board) []byte {
 		}
 		parts := []string{fmt.Sprintf("\n## Round %d", r)}
 		for _, p := range sec("position", "merge") {
-			parts = append(parts, "### RED\n"+p.Payload.Str("text"))
+			parts = append(parts, "### RED\n"+p.Payload.Str("reason"))
 		}
 		for _, c := range sec("closing", "merge") {
-			parts = append(parts, fmt.Sprintf("### RED CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("text")))
+			parts = append(parts, fmt.Sprintf("### RED CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("reason")))
 		}
 		for _, p := range sec("position", "blue") {
-			parts = append(parts, "### BLUE\n"+p.Payload.Str("text"))
+			parts = append(parts, "### BLUE\n"+p.Payload.Str("reason"))
 		}
 		for _, c := range sec("closing", "blue") {
-			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("text")))
+			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("reason")))
 		}
 		var disp []string
 		for _, e := range re {
 			switch e.Type {
 			case "dispute":
 				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s",
-					e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("evidence")))
+					e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("reason")))
 			case "dispute-respond":
-				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("rationale")))
+				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("reason")))
 			}
 		}
 		if len(disp) > 0 {
@@ -545,7 +545,7 @@ func debateMD(b *record.Board) []byte {
 			case "opinion":
 				ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
 					e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
-					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("rationale")))
+					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("reason")))
 			case "declare":
 				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+e.Payload.Str("holding"))
 			case "motion-rule", "petition-rule":
@@ -564,7 +564,7 @@ func debateMD(b *record.Board) []byte {
 					binds = " — binds **" + b + "**"
 				}
 				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s%s\n%s",
-					strings.ToUpper(e.Payload.Str("ruling")), binds, relief, e.Payload.Str("opinion")))
+					strings.ToUpper(e.Payload.Str("ruling")), binds, relief, e.Payload.Str("reason")))
 			}
 		}
 		if len(ops) > 0 {

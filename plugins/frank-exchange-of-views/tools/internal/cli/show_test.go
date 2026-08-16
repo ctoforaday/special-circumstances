@@ -164,7 +164,7 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	// NAMES FROM ViewNames(), not a hand-kept list: `friction` sat here after it stopped being a
 	// view, and the assertion went on passing — it demands an error, and an unknown view is an
 	// error too. A stale name in a list like this checks nothing while reading as coverage.
-	for _, v := range []string{"board", "findings", "worklist", "motions", "evidence", "telemetry"} {
+	for _, v := range []string{"board", "findings", "worklist", "motions", "reason", "telemetry"} {
 		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}
