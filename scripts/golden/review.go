@@ -300,11 +300,32 @@ func reviewMode(root, accept string, acceptAll bool, reason string) int {
 	// ---- 5. re-verify, and be honest about a partial accept ----
 	fmt.Print("\n══ RE-VERIFY ══\n")
 	if runLegs(root, false) {
-		fmt.Fprintf(os.Stderr, "\ngolden: STILL FAILING — expected while %d proposal(s) stay reverted.\n"+
-			"Accept them too, or fix the code so they stop being proposed.\n", len(reverted))
+		fmt.Fprint(os.Stderr, reVerifyFailure(len(accepted), len(reverted), len(props)))
 		return 1
 	}
 	fmt.Print("\ngolden: OK — every accepted golden is recorded and the suite is green.\n" +
 		"Commit the testdata change ON ITS OWN, separately from the code that caused it.\n")
 	return 0
+}
+
+// reVerifyFailure is what to say when the suite still fails after an accept — and it is a
+// function so both branches can be tested, which the message that shipped could not be.
+//
+// TWO DIFFERENT FAILURES, AND THEY MUST NOT SHARE A MESSAGE (#432). A partial accept leaves
+// goldens deliberately stale, so a failing suite afterwards is EXPECTED and the reverted count
+// explains it. With nothing reverted there is no such explanation, and printing one names a
+// cause that is not the cause. Measured: an accept of 9 of 9 reported "STILL FAILING — expected
+// while 0 proposal(s) stay reverted" — self-contradictory — while the real cause was a
+// network-blocked test elsewhere in the same suite.
+//
+// `misattributed-enforcement`, in the tool this repo reviews its own goldens with.
+func reVerifyFailure(accepted, reverted, total int) string {
+	if reverted > 0 {
+		return fmt.Sprintf("\ngolden: STILL FAILING — expected while %d proposal(s) stay reverted.\n"+
+			"Accept them too, or fix the code so they stop being proposed.\n", reverted)
+	}
+	return fmt.Sprintf("\ngolden: every proposal was accepted (%d of %d) and the suite STILL fails.\n"+
+		"That is NOT a stale golden — the goldens now match what the code renders. Something else\n"+
+		"in the suite is failing; read the RE-VERIFY output above for the real cause.\n",
+		accepted, total)
 }
