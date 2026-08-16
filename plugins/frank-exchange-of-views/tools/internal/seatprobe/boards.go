@@ -42,6 +42,19 @@ type Avenue struct {
 	// Ruled, when set, is the fate red has already given it — which is what makes an appeal or a
 	// move the seat's next act rather than a fresh proposal.
 	Ruled string
+	// RuledWhy is red's ARGUMENT for that fate, and a board is not honest without it.
+	//
+	// MEASURED 2026-08-16, by asking a seat instead of watching one. A blue seat on `docket` read
+	// `show motions` twice and `show debate` once and then reported: "the `ruling` field just says
+	// 'endorsed' or 'too-thin' or 'rejected', but there might be elaboration in a red seat's
+	// transcript that I can't see from here." It was RIGHT. Build wrote every ruling with
+	// "ruled <verdict> on the line as it was proposed" — a reason that restates the verdict.
+	//
+	// Boards ask a seat to APPEAL, ACCEPT or press a ruling, and every one of those is a judgement
+	// about the ARGUMENT behind it. Handing a seat a verdict with no argument and then scoring
+	// whether it appealed is scoring a coin flip — and the miss is invisible, because a
+	// content-free reason and a considered one occupy the same field.
+	RuledWhy string
 }
 
 // Motion is an adjudication already on the board — an ask a seat must answer, or an answered one
@@ -60,6 +73,9 @@ type Motion struct {
 	// Ruled, when set, is the verdict the ruler has already given — which is what makes an
 	// APPEAL the seat's next move rather than a fresh filing.
 	Ruled string
+	// RuledWhy is the ruler's argument. See Avenue.RuledWhy for why a board without one is not a
+	// board: a seat asked whether to appeal a refusal it cannot read is being scored on a guess.
+	RuledWhy string
 }
 
 // Proof is a recorded computation, so a lens has something to re-run.
@@ -309,10 +325,19 @@ Reversibility under load was not tested.
 			Dimension: "likelihood", Proposed: "low",
 			Basis: "the untested case is disclosed in the report's own Limits section, so the consequence is bounded by a reader who has been told",
 			Ruled: "rejected",
+			RuledWhy: "disclosure bounds what a reader is SURPRISED by, not what the system does under load. " +
+				"The likelihood axis grades the consequence landing, and nothing here has been run — so the " +
+				"grade stands until there is a measurement, not until there is a sentence in Limits.",
 		}},
 		Avenues: []Avenue{
-			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed"},
-			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too-thin"},
+			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
+				RuledWhy: "this is the one line here that PRODUCES a fact rather than an opinion about a fact. " +
+					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
+					"it narrows R1-2 rather than closing it."},
+			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too-thin",
+				RuledWhy: "the hypothesis is that a standard form exists, and a survey that finds no standard " +
+					"form cannot distinguish `there is none` from `we looked in the wrong places`. Name the three " +
+					"systems and what specifically would count as documenting a reversal, and it stops being thin."},
 		},
 		Task: "Red's gaps are heading to the bench, red has ruled on the lines of inquiry you proposed, and one grade you contested was refused. Deal with all three. Where you still disagree, decide what to do about it.",
 		Expect: []Expectation{
