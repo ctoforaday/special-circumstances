@@ -187,10 +187,38 @@ func MergedEvents(runDir string) (Merged, error) {
 		if len(pool) == 0 {
 			pool = shards
 		}
+		// LATEST MTIME, WITH A STATED TIE-BREAK — because `After` alone left the answer to
+		// directory order.
+		//
+		// MEASURED 2026-08-16: TestDiscardedEventsAudit passed on ubuntu and FAILED on
+		// windows-latest, on the same commit, because the two shards it writes back to back land
+		// on distinct mtimes under Linux and on IDENTICAL ones under Windows' coarser timestamp
+		// resolution. With `s.mtime.After(winner.mtime)` a tie leaves pool[0] standing, so the
+		// surviving sitting was whichever shard os.ReadDir happened to yield first.
+		//
+		// That is a property of the RECORD, not of the test: on any filesystem whose clock cannot
+		// separate two sittings, which one's work survived was arbitrary while the anomaly line
+		// went on saying "winner <nonce> by mtime fallback" — a sentence claiming the clock
+		// decided something it had not.
+		//
+		// The nonce tie-break is ARBITRARY AND STABLE, and it is not a claim about which sitting
+		// came later: nonces are random, so the greater one is not the newer one. Determinism is
+		// the whole of what it buys. The honest half is `by`, which now says a tie happened, so a
+		// reader is told the clock abstained rather than being shown a decision it did not make.
 		winner := pool[0]
 		for _, s := range pool[1:] {
-			if s.mtime.After(winner.mtime) { // reduce((a,b) => b.mtime > a.mtime ? b : a)
+			switch {
+			case s.mtime.After(winner.mtime):
 				winner = s
+			case s.mtime.Equal(winner.mtime) && s.nonce > winner.nonce:
+				winner = s
+			}
+		}
+		tied := false
+		for _, s := range pool {
+			if s.nonce != winner.nonce && s.mtime.Equal(winner.mtime) {
+				tied = true
+				break
 			}
 		}
 		nonces := make([]string, len(shards))
@@ -230,6 +258,9 @@ func MergedEvents(runDir string) (Merged, error) {
 			}
 		}
 
+		if tied && len(terminal) == 0 {
+			by = "mtime TIE broken by nonce — the clock could not separate these sittings"
+		}
 		note := fmt.Sprintf("multi-nonce seat %s: %d dispatches (%s); winner %s by %s",
 			seatID, len(shards), strings.Join(nonces, ", "), winner.nonce, by)
 		if len(lost) > 0 {
