@@ -29,7 +29,7 @@ func newRegrade() *cobra.Command {
 			if err := seat.SetReason(cmd, p, "basis"); err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "regrade", p); err != nil {
+			if _, err := record.Append(s.Identity(), "regrade", p); err != nil {
 				return nil, err
 			}
 			return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil

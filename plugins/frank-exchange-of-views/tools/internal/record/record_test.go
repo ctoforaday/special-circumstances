@@ -1,6 +1,8 @@
 package record
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -58,10 +60,10 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(runDir, "red-lens-r1-L1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(runDir, "red-lens-r1-L1", "observe", NewPayload().Set("label", "L1-O1"))
+	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, "observe", NewPayload().Set("label", "L1-O1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,13 +88,13 @@ func TestStampsStrictlyIncreaseUnderAFrozenClock(t *testing.T) {
 	Now = func() time.Time { return frozen }
 
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(runDir, "red-lens-r1-L1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}); err != nil {
 		t.Fatal(err)
 	}
 
 	var stamps []string
 	for i := 0; i < 10; i++ {
-		ev, err := Append(runDir, "red-lens-r1-L1", "observe", NewPayload().Set("label", string(rune('a'+i))))
+		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, "observe", NewPayload().Set("label", string(rune('a'+i))))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -118,13 +120,13 @@ func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
 	}
 
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(runDir, "red-lens-r1-L1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}); err != nil {
 		t.Fatal(err)
 	}
 
 	var stamps []string
 	for i := 0; i < 6; i++ {
-		ev, err := Append(runDir, "red-lens-r1-L1", "observe", NewPayload().Set("label", string(rune('a'+i))))
+		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, "observe", NewPayload().Set("label", string(rune('a'+i))))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -134,5 +136,70 @@ func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
 		if stamps[i] <= stamps[i-1] {
 			t.Fatalf("a backwards-running clock produced non-increasing stamps: %s then %s. The stamps may drift from wall time — that is the accepted trade — but they must never lie about WHAT CAME FIRST", stamps[i-1], stamps[i])
 		}
+	}
+}
+
+// #396: THE ROUND IS CARRIED TO THE WRITE, NOT RECOVERED AT IT.
+//
+// `Append` used to stamp `Round: RoundOf(seatID)` — a regex over the seat id, 0 on a miss —
+// while the caller had already resolved the round as a field and `Begin` had already refused an
+// unresolvable seat. The fact was in hand and thrown away one frame later.
+//
+// This is the regression guard for that seam: if the write ever goes back to deriving, the
+// injected round stops arriving and this fails. `judge-terminal` is the right probe because it
+// carries no `-r<N>`, so the two answers are distinguishable — the derivation says 0.
+func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if RoundOf("judge-terminal") != 0 {
+		t.Fatal("fixture assumption: the seat id derivation answers 0 for judge-terminal")
+	}
+
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, "friction", NewPayload().Set("text", "a capability gap"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.Round != 7 {
+		t.Errorf("the event must carry the round it was GIVEN, not the one its id looks like: got %d, want 7", ev.Round)
+	}
+	// And the register the append triggered carries it too — both write sites take the seam.
+	evs, err := ReadShard(filepath.Join(dir, "records", "events-judge-terminal-"+ev.Nonce+".jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range evs {
+		if e.Round != 7 {
+			t.Errorf("%s event stamped round %d, want 7 — RegisterSeat must take the same seam as Append", e.Type, e.Round)
+		}
+	}
+	// Party is NOT taken from the caller: it stays derived from the seat id, because the
+	// caller's Role answers which command group is running, not who is writing.
+	if ev.Role != "bench" {
+		t.Errorf("the party is the seat's, derived from its id: got %q, want bench", ev.Role)
+	}
+}
+
+// -1 IS A REAL VALUE ON THIS SEAM and it means unknown, which is not round 0. Nothing produces
+// it today: every verb reached through `Begin` has a resolved round, and the three `motion`
+// verbs — which deliberately skip `Begin` (see cli/motion/verbs.go) — still resolve one whenever
+// a seat id is present. It becomes reachable only when an injected identity CONFLICTS with a
+// typed --seat-id, and nothing sets FEOV_SEAT yet (#290).
+//
+// Pinned so the behaviour is a decision rather than a discovery: an unknown round is written as
+// unknown. It is NOT quietly converted to 0, which is synthesis and a real round — the
+// conflation that produced the phantom archive in #327.
+func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, "friction", NewPayload().Set("text", "a capability gap"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.Round != -1 {
+		t.Errorf("unknown must stay unknown on the record: got %d, want -1", ev.Round)
 	}
 }

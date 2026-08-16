@@ -163,7 +163,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	p.Set("old", "rising fast")
 	p.Set("new", "climbing fast")
 	p.Set("text", "r")
-	if _, err := record.Append(runDir, blueSeat, "blue_edit", p); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundOf(blueSeat)}, "blue_edit", p); err != nil {
 		t.Fatal(err)
 	}
 	// Retry with the same key → reconcile forward.

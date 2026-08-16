@@ -30,7 +30,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 		go func(s int) {
 			defer wg.Done()
 			seatID := fmt.Sprintf("red-lens-r1-L%d", s)
-			if _, _, err := RegisterSeat(runDir, seatID); err != nil {
+			if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
 				errs <- err
 				return
 			}
@@ -39,7 +39,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 					Set("label", fmt.Sprintf("L%d-F%d", s, i)).
 					Set("severity", "medium").Set("likelihood", "medium").Set("impact", "high").
 					Set("text", strings.Repeat("finding prose ", 20))
-				if _, err := Append(runDir, seatID, "finding", p); err != nil {
+				if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", p); err != nil {
 					errs <- err
 					continue
 				}
@@ -105,7 +105,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	// An empty lock file for the per-seat pointer lock an append acquires, as a crashed
@@ -115,7 +115,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	if _, err := Append(runDir, "red-merge-r1", "finding", NewPayload().Set("label", "F1").Set("text", "over an abandoned lock")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "finding", NewPayload().Set("label", "F1").Set("text", "over an abandoned lock")); err != nil {
 		t.Fatalf("append over an abandoned lock file: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > lockWait {

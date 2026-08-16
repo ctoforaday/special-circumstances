@@ -45,7 +45,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
-			if _, _, err := record.RegisterSeat(runDir, "judge-r1"); err != nil {
+			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundOf("judge-r1")}); err != nil {
 				t.Fatal(err)
 			}
 			// Identity comes from the injection, as it does in a real run: --run and --seat-id
@@ -92,12 +92,12 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	runDir := t.TempDir()
 	for _, s := range []string{"judge-r1", "red-merge-r1"} {
-		if _, _, err := record.RegisterSeat(runDir, s); err != nil {
+		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundOf(s)}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// A PASS on the record makes VERIFIED derivable, with a stated basis.
-	if _, err := record.Append(runDir, "red-merge-r1", "verdict", record.NewPayload().Set("verdict", "PASS")); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "verdict", record.NewPayload().Set("verdict", "PASS")); err != nil {
 		t.Fatal(err)
 	}
 	c := NewCommand()

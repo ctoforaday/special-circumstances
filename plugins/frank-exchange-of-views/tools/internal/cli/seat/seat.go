@@ -55,6 +55,16 @@ type Context struct {
 	Round int
 }
 
+// Identity is what a record write needs to know about who is writing: the run, the seat, and the
+// ROUND AS A FACT rather than a regex over the id. Every `record.Append` goes through this, so
+// when the dispatcher starts injecting a round (#290) it lands in one place instead of 32.
+//
+// Role is not carried. See record.Event.Role: the party on an event is derived from the seat id,
+// and this Context's Role answers a different question — which command group the verb sits under.
+func (c Context) Identity() record.Identity {
+	return record.Identity{RunDir: c.RunDir, SeatID: c.SeatID, Round: c.Round}
+}
+
 // Of reads the seat context from the inherited persistent flags, inferring the run
 // directory when the flag is absent.
 // It stays error-free by design: the resolution that CAN fail (an injected run directory

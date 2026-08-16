@@ -149,14 +149,52 @@ type Event struct {
 	SeatID string `json:"seatId"`
 	Nonce  string `json:"nonce"`
 	Round  int    `json:"round"`
-	// Role is the seat's ROLE as a field (#348). Readers used to recover it with
+	// Role is the seat's PARTY as a field (#348). Readers used to recover it with
 	// strings.HasPrefix(e.SeatID, "red-merge") — including the branch deciding whether a
 	// position renders as RED or BLUE — so a seat id that failed to match its expected prefix
-	// rendered as the wrong party, silently. Stamped once at the write; never re-derived.
+	// rendered as the wrong party, silently. Stamped ONCE, at the write, and never recomputed by
+	// a reader: that is the property #348 bought, and it is real.
+	//
+	// IT IS STILL DERIVED, and the comment here used to say "never re-derived", which was false
+	// in a way that read as verified (#396). `roleOfSeat(seatID)` prefix-matches the seat id at
+	// the write. One derivation instead of four is the whole gain; it does not make the value a
+	// fact.
+	//
+	// seat.Context.Role IS NOT THE SUBSTITUTE, and reaching for it would be a regression. It
+	// answers which command GROUP a verb is mounted under, not which party is writing — see
+	// isRoleName in cli/seat, which says so deliberately. `motion grade file` run by
+	// `blue-respond-r1` is party `blue` and command-group `grade`; threading the context's Role
+	// would relabel every motion event's author. What would make this a fact is the dispatcher
+	// injecting the party the way it will inject the round (#290), and nothing does yet.
 	Role    string   `json:"role,omitempty"`
 	Type    string   `json:"type"`
 	Key     string   `json:"key"`
 	Payload *Payload `json:"payload"`
+}
+
+// Identity is WHO IS WRITING, carried to the write instead of recovered at it.
+//
+// Round used to be re-derived here by running a regex over the seat id — `RoundOf(seatID)`,
+// returning 0 on a miss — even though the caller had already resolved it as a field on
+// seat.Context and `Begin` had already refused an unresolvable seat. The fact was in hand at the
+// call site and thrown away one frame later (#396, and #348 closed on the read half of it).
+//
+// Threading it changes no value today: for any seat that reached a verb body, `Begin` has proved
+// SeatID is non-empty, so `Context.Round` came through the same path this used to call. That is
+// exactly why it is safe to land first — it puts the fact ON THE SEAM, so when the dispatcher
+// injects a round (#290) it arrives once here rather than at 32 call sites.
+//
+// ROLE IS DELIBERATELY NOT A FIELD HERE. See the note on Event.Role: the role stamped on an event
+// is the PARTY, derived from the seat id, and seat.Context.Role answers a different question —
+// which command group the verb is mounted under. They disagree: `motion grade file` run by
+// `blue-respond-r1` is party `blue` and command-group `grade`. Passing the wrong one would
+// silently re-label who wrote every motion event.
+type Identity struct {
+	RunDir string
+	SeatID string
+	// Round is the seat's round as resolved by its caller. -1 means unknown, which is NOT round
+	// 0 — round 0 is synthesis, and conflating them produced the phantom-archive bug in #327.
+	Round int
 }
 
 // RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
@@ -164,7 +202,8 @@ type Event struct {
 // ROTATES the nonce: a re-dispatched seat writes its own shard and the stale
 // instance's shard stays inert. Two registers for one seatId are themselves an
 // event, visible to the join audit and the render anomaly footer.
-func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
+func RegisterSeat(id Identity) (nonce, shard string, err error) {
+	runDir, seatID := id.RunDir, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
@@ -223,7 +262,7 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 	// says so in its own record instead of producing events whose difference
 	// nobody can explain afterwards.
 	ev := Event{
-		Seq: 0, TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
+		Seq: 0, TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: id.Round, Role: roleOfSeat(seatID),
 		Type: "register", Key: seatID + ":register:" + nonce,
 		Payload: NewPayload().Set("tool_version", ToolVersion),
 	}
@@ -235,11 +274,11 @@ func RegisterSeat(runDir, seatID string) (nonce, shard string, err error) {
 
 // activeNonce reads the seat pointer, implicitly registering when absent —
 // deliberately tolerant, matching the oracle.
-func activeNonce(runDir, recDir, seatID string) (string, error) {
-	b, err := os.ReadFile(pointerPath(recDir, seatID))
+func activeNonce(id Identity, recDir string) (string, error) {
+	b, err := os.ReadFile(pointerPath(recDir, id.SeatID))
 	if err != nil {
 		if os.IsNotExist(err) {
-			n, _, rerr := RegisterSeat(runDir, seatID)
+			n, _, rerr := RegisterSeat(id)
 			return n, rerr
 		}
 		return "", err
@@ -362,7 +401,8 @@ func nextStamp(recDir string) string {
 	return out
 }
 
-func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
+func Append(id Identity, typ string, p *Payload) (Event, error) {
+	runDir, seatID := id.RunDir, id.SeatID
 	if p == nil {
 		p = NewPayload()
 	}
@@ -370,7 +410,7 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 	if err != nil {
 		return Event{}, err
 	}
-	nonce, err := activeNonce(runDir, recDir, seatID)
+	nonce, err := activeNonce(id, recDir)
 	if err != nil {
 		return Event{}, err
 	}
@@ -391,7 +431,7 @@ func Append(runDir, seatID, typ string, p *Payload) (Event, error) {
 		return Event{}, err
 	}
 	ev := Event{
-		Seq: len(events), TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID), Role: roleOfSeat(seatID),
+		Seq: len(events), TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: id.Round, Role: roleOfSeat(seatID),
 		Type: typ, Key: deriveKey(seatID, typ, p, events), Payload: p,
 	}
 	if err := appendLine(shard, ev); err != nil {

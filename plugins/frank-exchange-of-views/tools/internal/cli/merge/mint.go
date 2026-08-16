@@ -162,20 +162,20 @@ func newMint() *cobra.Command {
 						Set("text", msg).
 						Set(record.FrictionKindKey, record.FrictionKindEstoppel).
 						Set("estopped_by", prior)
-					if _, ferr := record.Append(s.RunDir, s.SeatID, "friction", fr); ferr != nil {
+					if _, ferr := record.Append(s.Identity(), "friction", fr); ferr != nil {
 						return nil, ferr
 					}
 					return nil, errors.New(msg)
 				}
 			}
 
-			if _, err := record.Append(s.RunDir, s.SeatID, "mint", p); err != nil {
+			if _, err := record.Append(s.Identity(), "mint", p); err != nil {
 				return nil, err
 			}
 			if seat.Given(cmd, flags.ClassNew) {
 				cn := record.NewPayload().Set("slug", seat.Str(cmd, flags.ClassNew))
 				seat.SetSame(cmd, cn, flags.Definition, flags.Neighbor, flags.Distinguisher)
-				if _, err := record.Append(s.RunDir, s.SeatID, "class-new", cn); err != nil {
+				if _, err := record.Append(s.Identity(), "class-new", cn); err != nil {
 					return nil, err
 				}
 			}

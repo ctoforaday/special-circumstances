@@ -86,13 +86,13 @@ func newFinding() *cobra.Command {
 			seat.SetGrade(p, "impact", &impact)
 			seat.SetSame(cmd, p, flags.Location)
 			p.Set("text", text)
-			if _, err := record.Append(s.RunDir, s.SeatID, "finding", p); err != nil {
+			if _, err := record.Append(s.Identity(), "finding", p); err != nil {
 				return nil, err
 			}
 			// The anchor event is EXPECTED for the immortal-marker detector: "finding
 			// <id> has a marker at <location>". Keyed on the id (idempotent per finding).
 			ap := record.NewPayload().Set("id", findingID).Set("location", location)
-			if _, err := record.Append(s.RunDir, s.SeatID, "anchor", ap); err != nil {
+			if _, err := record.Append(s.Identity(), "anchor", ap); err != nil {
 				return nil, err
 			}
 			// The LABEL leads: it is the run-unique identity a gap's found_by names.
