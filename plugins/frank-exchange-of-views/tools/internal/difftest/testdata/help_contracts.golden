@@ -135,12 +135,12 @@ Usage:
   feov-record lens [command]
 
 Available Commands:
-  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>"
+  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>". THE CHANNEL FOR ANY DEFECT IN THE TEXT, including the ones the evidence verbs cannot reach: a claim resting on NO citation and no proof, an assertion whose source you cannot obtain, a figure with no derivation. `verify` and `reproduce` judge evidence that EXISTS; this raises the claim that has none.
   friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   register    FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
   reproduce   re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | worklist | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  verify      adjudicate ONE citation: --anchor c-<hex> (from `show evidence`) or --independent, --claim "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>"
+  verify      adjudicate ONE citation: --anchor c-<hex> (from `show evidence`) or --independent, --claim "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.
 
 Flags:
   -h, --help   help for lens

@@ -90,6 +90,27 @@ type gate struct {
 	why   string
 }
 
+// noCache is the difference between running the suite and reading a memory of it, and it is
+// the one flag here that CI does NOT pass — deliberately, because CI cannot need it.
+//
+// A GREEN CACHE AND A GREEN SUITE ARE THE SAME BYTES. Go caches a test package's PASS keyed on
+// the inputs it can see, and a test that shells out to a built binary — which is what the help
+// and golden contracts do — has inputs the cache cannot see. Change the help text in
+// `internal/cli`, and `go test ./internal/difftest/` still answers `ok (cached)`.
+//
+// Measured 2026-08-16, and it is why this flag exists rather than being an abundance of caution:
+// `go test ./...` in `plugins/frank-exchange-of-views/tools` reported the whole module green,
+// exit 0. The same package under `-count=1` FAILED on a stale help golden that a commit three
+// back had invalidated. The green was reported to a human as verification.
+//
+// CI never sees this because every job runs on a fresh runner with an empty cache and
+// `cache: false` on setup-go — so a stale PASS is structurally impossible there and structurally
+// available here. That asymmetry is precisely the drift this whole command was built to remove;
+// leaving it in place would mean the local gate set can pass where CI fails, which is the
+// original defect wearing this tool's name. parity_test.go compares gate IDENTITY (which module,
+// which race scope, which tool), not argv, so declaring it here claims no coverage CI lacks.
+const noCache = "-count=1"
+
 // modules are the four Go modules. Enumerated rather than globbed for the same reason CI
 // enumerates them: a glob that matches nothing is a silent pass.
 var modules = []struct{ dir, ciJob string }{
@@ -149,12 +170,12 @@ func gateSet() []gate {
 				why: "vet catches what compiles and cannot be right"},
 			gate{id: m.ciJob + ":fmt", kind: kindFmt, dir: m.dir, ciJob: m.ciJob,
 				why: "unformatted Go keeps reaching CI (#352)"},
-			gate{id: m.ciJob + ":test", kind: kindTest, dir: m.dir, args: []string{"test", "./..."}, ciJob: m.ciJob,
+			gate{id: m.ciJob + ":test", kind: kindTest, dir: m.dir, args: []string{"test", noCache, "./..."}, ciJob: m.ciJob,
 				why: "the suite"},
 		)
 		if scope, ok := raceScope[m.dir]; ok {
 			gs = append(gs, gate{id: m.ciJob + ":race", kind: kindRace, dir: m.dir,
-				args: append([]string{"test", "-race"}, scope...), ciJob: m.ciJob,
+				args: append([]string{"test", "-race", noCache}, scope...), ciJob: m.ciJob,
 				why: "the concurrency guards are the ones that fail in production, not in a suite"})
 		}
 	}
