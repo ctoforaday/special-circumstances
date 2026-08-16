@@ -262,3 +262,72 @@ func TestPassVerdictIsAWordItsEventTypeCanActuallyCarry(t *testing.T) {
 			"guard no longer distinguishes the event types", passVerdictWord)
 	}
 }
+
+// THE THIRD STATE (#411). `pass-closes-all-gaps` was inapplicable on every run ever recorded
+// and printed as `[ok  ]`, which reads as a check that held. These pin the distinction.
+func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
+	// A REGISTERED seat, because this test also asserts the whole run has no failures — and a
+	// bare event with no seat id trips register-before-append, which would make the assertion
+	// pass or fail for a reason that has nothing to do with the third state.
+	b := &record.Board{
+		Events: []record.Event{
+			{Type: "register", SeatID: "red-merge-r1"},
+			{Type: "verdict", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("verdict", "FAIL")},
+		},
+		GapOrder: []string{"R1-1"},
+		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+	}
+	got := find(t, Run(b), "pass-closes-all-gaps")
+	if !got.NA {
+		t.Errorf("a FAIL verdict leaves the PASS gate inapplicable; NA must say so: %+v", got)
+	}
+	if got.Status() != "n/a" {
+		t.Errorf("Status() = %q, want n/a", got.Status())
+	}
+	// The exit code must not move. An inapplicable check is not a violation — a legitimately
+	// halted run leaves this gate inapplicable and that is correct.
+	if !got.OK {
+		t.Error("an inapplicable check must not read as failed; the exit code is for violations")
+	}
+	if len(Failed(Run(b))) != 0 {
+		t.Error("an inapplicable check must not appear in Failed()")
+	}
+	if na := NotApplicable(Run(b)); len(na) != 1 || na[0].Name != "pass-closes-all-gaps" {
+		t.Errorf("NotApplicable() = %+v, want exactly the PASS gate", na)
+	}
+	if got.Detail == "" {
+		t.Error("an unexplained 'did not apply' is the unreadable zero this state exists to remove")
+	}
+}
+
+// A check that HELD must not be marked n/a — the distinction has to cut both ways or it is
+// decoration.
+func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
+	b := &record.Board{
+		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		GapOrder: []string{"R1-1"},
+		Gaps: map[string]*record.Gap{
+			"R1-1": {ID: "R1-1", Open: false, Closure: p("closure_class", "closed")},
+		},
+	}
+	got := find(t, Run(b), "pass-closes-all-gaps")
+	if got.NA {
+		t.Errorf("a PASS that closed everything HELD; it did not fail to apply: %+v", got)
+	}
+	if got.Status() != "ok" {
+		t.Errorf("Status() = %q, want ok", got.Status())
+	}
+}
+
+// A violated check reports FAIL, and is neither n/a nor ok.
+func TestAViolatedCheckReportsFail(t *testing.T) {
+	b := &record.Board{
+		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		GapOrder: []string{"R1-1"},
+		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+	}
+	got := find(t, Run(b), "pass-closes-all-gaps")
+	if got.OK || got.NA || got.Status() != "FAIL" {
+		t.Errorf("a PASS over an open gap must be FAIL, got %+v (status %q)", got, got.Status())
+	}
+}

@@ -21,13 +21,51 @@ import (
 // Check is one invariant's result. Violations lists the specific offenders (gap ids, refs)
 // so a failure points at what to fix, not merely that something is wrong.
 type Check struct {
-	Name       string   `json:"name"`
-	OK         bool     `json:"ok"`
+	Name string `json:"name"`
+	OK   bool   `json:"ok"`
+	// NA marks a check that DID NOT APPLY, as distinct from one that held. Both have OK
+	// true — deliberately, so the exit code and every existing consumer of `ok` are
+	// unchanged — but they are not the same fact, and rendering them the same way is how a
+	// dead gate hides.
+	//
+	// MEASURED: `pass-closes-all-gaps` read `outcome` events for the word PASS, which that
+	// vocabulary cannot hold, so it took its inapplicable branch on EVERY run ever recorded
+	// and printed "[ok  ] … gate not applicable" — a line that reads like a considered
+	// judgement. A check that can only ever be inapplicable is indistinguishable from one
+	// that holds, unless the two are marked differently (#411).
+	//
+	// An inapplicable check is NEVER a failure: a run that halts legitimately leaves the
+	// PASS gate inapplicable, and that is correct, not a defect.
+	NA         bool     `json:"na,omitempty"`
 	Detail     string   `json:"detail"`
 	Violations []string `json:"violations,omitempty"`
 }
 
 func ok(name, detail string) Check { return Check{Name: name, OK: true, Detail: detail} }
+
+// notApplicable records that the check did not fire, and WHY. The reason is required by
+// construction — an unexplained "did not apply" is the same unreadable zero the state exists
+// to remove.
+func notApplicable(name, why string) Check {
+	return Check{Name: name, OK: true, NA: true, Detail: why}
+}
+
+// Applicable reports whether the check actually examined anything. Kept as a method so a
+// renderer asks the Check rather than re-deriving the rule from its Detail string.
+func (c Check) Applicable() bool { return !c.NA }
+
+// Status is the word a renderer prints: "ok", "n/a" or "FAIL". One definition, so the report
+// section and the CLI cannot drift into disagreeing about what a result means.
+func (c Check) Status() string {
+	switch {
+	case c.NA:
+		return "n/a"
+	case c.OK:
+		return "ok"
+	default:
+		return "FAIL"
+	}
+}
 
 func result(name, okDetail, badDetail string, violations []string) Check {
 	if len(violations) == 0 {
@@ -75,6 +113,19 @@ func archiveSpotCheckFloor(b *record.Board) Check {
 		"every round that entered with a non-empty archive sampled it",
 		"the archive spot-check floor was not met — a closure index is only as good as the last time anyone looked, and these rounds did not look",
 		violations)
+}
+
+// NotApplicable returns the checks that did not fire. Separate from Failed because they are
+// separate facts: Failed drives the exit code, this drives what a reader is told. A run where
+// every check is n/a exits 0 and has verified nothing, and only this can say so.
+func NotApplicable(checks []Check) []Check {
+	var out []Check
+	for _, c := range checks {
+		if c.NA {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // Failed returns the checks that did not hold — the exit-code signal for a caller.
@@ -214,7 +265,7 @@ func passClosesAllGaps(b *record.Board) Check {
 		}
 	}
 	if verdict != passVerdictWord {
-		return ok("pass-closes-all-gaps", fmt.Sprintf("verdict is %s — gate not applicable", nonEmpty(verdict, "unrecorded")))
+		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdict, "unrecorded")))
 	}
 	var open []string
 	for _, id := range b.GapOrder {

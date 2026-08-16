@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
 )
 
 // Assemble writes <runDir>/report.md and returns its path. It reads the board once (which
@@ -151,6 +152,9 @@ func Assemble(runDir string) (string, error) {
 	if r := revisionHistory(evs); r != "" {
 		p(r)
 	}
+	// The record's own invariant check, rendered for the human the report is for. See
+	// recordVerification: a section, never a gate.
+	p(recordVerification(board))
 
 	// Strip finding-markers from the WHOLE composed report, not just blue's lifted
 	// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
@@ -1075,4 +1079,71 @@ func collapseBlanks(s string) string {
 		s = strings.ReplaceAll(s, "\n\n\n", "\n\n")
 	}
 	return strings.TrimRight(s, "\n") + "\n"
+}
+
+// recordVerification renders the record's own invariant check into the deliverable.
+//
+// WHY HERE, AND NOT ONLY IN A VERB. `verify` is the operator's instrument and the fuzzer's
+// oracle; both are real, and neither is read by the person the report is for. Meanwhile the
+// engine declined to fail a lineage gap on the stated grounds that "the record is authoritative
+// and already checked there" (#415, #417) — a claim that was not true of any surface a human
+// sees. Rendering the result here makes it true in the register the sentence meant: the record
+// IS checked, and the check is visible to the reader deciding how much to trust it.
+//
+// This follows the precedent one section above rather than inventing one. archiveSpotChecks
+// already renders a verify-class invariant computed by replay, and says why it renders instead
+// of gating: "the DEBT is rendered beside the discharges rather than left to the exit code,
+// because a reader deciding how much to trust the closure index needs to know which rounds
+// checked it and which did not." Same reasoning, applied to the other six.
+//
+// IT IS A SECTION, NOT A GATE. Nothing here changes an exit code. `verify` keeps its non-zero
+// exit for CI and the fuzzer; assembly reports. A new failure mode in the bench's terminal act
+// is a different decision from making a fact visible, and only the second is being made.
+//
+// THREE STATES (#411). A check that did not apply is not a check that held. Printing both the
+// same way is exactly how pass-closes-all-gaps sat inapplicable on every run ever recorded
+// while reading as a considered judgement, so `n/a` is its own mark and carries its reason.
+func recordVerification(board *record.Board) string {
+	checks := verify.Run(board)
+	if len(checks) == 0 {
+		// Not reachable today, and said out loud rather than rendered as a clean board: an
+		// empty check set and a sound record must never be the same output.
+		return "## Record verification\n\nNo invariants ran, so this run's record is **unverified**. " +
+			"That is not the same as sound."
+	}
+
+	var b strings.Builder
+	b.WriteString("## Record verification\n\n")
+	b.WriteString("Computed by replaying the event record, not reported by any seat. " +
+		"These are the invariants that must hold if the record is internally consistent.\n\n")
+
+	held, na, failed := 0, 0, 0
+	for _, c := range checks {
+		switch {
+		case c.NA:
+			na++
+		case c.OK:
+			held++
+		default:
+			failed++
+		}
+		fmt.Fprintf(&b, "- **%s** — `%s` — %s\n", c.Status(), c.Name, c.Detail)
+		for _, v := range c.Violations {
+			fmt.Fprintf(&b, "    - %s\n", v)
+		}
+	}
+
+	fmt.Fprintf(&b, "\n**%d held · %d did not apply · %d violated.**", held, na, failed)
+	if failed > 0 {
+		b.WriteString(" A violated invariant is a record-integrity finding: the report's " +
+			"content may still be sound, but the record it was assembled from contradicts itself, " +
+			"so treat every count derived from it as suspect until the violation is explained.")
+	}
+	if na > 0 {
+		// The whole point of the third state. An invariant that never applies is not evidence
+		// of health, and a reader comparing runs is the one who can notice it never does.
+		b.WriteString(" An invariant that did not apply checked NOTHING — it is not a pass, and " +
+			"one that never applies across runs is a gate worth questioning rather than a clean bill.")
+	}
+	return b.String()
 }

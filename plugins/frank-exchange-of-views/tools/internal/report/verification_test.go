@@ -1,0 +1,104 @@
+package report
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+)
+
+func pl(kv ...string) *record.Payload {
+	p := record.NewPayload()
+	for i := 0; i+1 < len(kv); i += 2 {
+		p.Set(kv[i], kv[i+1])
+	}
+	return p
+}
+
+// THE SECTION EXISTS SO A HUMAN SEES THE ANSWER (#415). `verify` is the operator's verb and the
+// fuzzer's oracle; neither is read by the person the report is for, while the engine declined to
+// fail a lineage gap on the grounds that "the record is authoritative and already checked there".
+// This is what makes that sentence true in the register it meant.
+func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
+	b := &record.Board{
+		Events: []record.Event{
+			{Type: "register", SeatID: "red-merge-r1"},
+			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
+		},
+		GapOrder: []string{"R1-1"},
+		Gaps: map[string]*record.Gap{
+			"R1-1": {ID: "R1-1", Open: false, Closure: pl("closure_class", "closed")},
+		},
+	}
+	got := recordVerification(b)
+	if !strings.HasPrefix(got, "## Record verification") {
+		t.Fatalf("missing heading:\n%s", got)
+	}
+	for _, want := range []string{"gaps-disposed", "pass-closes-all-gaps", "register-before-append"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("invariant %q is not named in the section:\n%s", want, got)
+		}
+	}
+	if !strings.Contains(got, "held") || !strings.Contains(got, "violated") {
+		t.Errorf("the section must carry a summary count:\n%s", got)
+	}
+	// It says where the answer came from. A reader must be able to tell this from a seat's
+	// self-report, which is the distinction the whole record model rests on.
+	if !strings.Contains(got, "replaying the event record") {
+		t.Errorf("the section must say it is computed, not reported:\n%s", got)
+	}
+}
+
+// A VIOLATION MUST READ AS ONE. The section is not a gate, so the only thing standing between a
+// contradictory record and a reader who believes it is this text.
+func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
+	b := &record.Board{
+		Events: []record.Event{
+			{Type: "register", SeatID: "red-merge-r1"},
+			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
+		},
+		GapOrder: []string{"R1-1"},
+		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+	}
+	got := recordVerification(b)
+	if !strings.Contains(got, "**FAIL**") {
+		t.Errorf("a PASS over an open gap must render as FAIL:\n%s", got)
+	}
+	if !strings.Contains(got, "R1-1") {
+		t.Errorf("the offender must be named, not merely counted:\n%s", got)
+	}
+	if !strings.Contains(got, "1 violated") {
+		t.Errorf("the summary must count the violation:\n%s", got)
+	}
+	if !strings.Contains(got, "record-integrity finding") {
+		t.Errorf("a violation must tell the reader what it means for the counts:\n%s", got)
+	}
+}
+
+// THE THIRD STATE, AND THE REASON IT IS LOAD-BEARING HERE (#411). An inapplicable invariant
+// checked nothing. Rendering it as a pass is exactly how pass-closes-all-gaps stayed invisible
+// for its whole life, and a report is read by someone who cannot inspect the code.
+func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
+	b := &record.Board{
+		Events: []record.Event{
+			{Type: "register", SeatID: "red-merge-r1"},
+			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "FAIL")},
+		},
+		GapOrder: []string{"R1-1"},
+		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+	}
+	got := recordVerification(b)
+	if !strings.Contains(got, "**n/a**") {
+		t.Errorf("an inapplicable invariant must be marked n/a, not ok:\n%s", got)
+	}
+	if !strings.Contains(got, "1 did not apply") {
+		t.Errorf("the summary must separate did-not-apply from held:\n%s", got)
+	}
+	if !strings.Contains(got, "checked NOTHING") {
+		t.Errorf("the reader must be told an n/a is not a pass:\n%s", got)
+	}
+	// And it must NOT be counted among the ones that held.
+	if strings.Contains(got, "7 held") {
+		t.Errorf("an n/a invariant was counted as held:\n%s", got)
+	}
+}
