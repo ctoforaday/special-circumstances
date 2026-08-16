@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -84,7 +85,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		id := fmt.Sprintf("A%d", i+1)
 		if _, err := exec("motion", "direction", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--id", id, "--as", a.Ruled,
-			"--reason", "ruled "+a.Ruled+" on the line as it was proposed"); err != nil {
+			"--reason", rulingReason(a.RuledWhy, a.Ruled)); err != nil {
 			return fmt.Errorf("rule %s: %w", id, err)
 		}
 	}
@@ -107,7 +108,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r1"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", runDir, "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
-			"--reason", "ruled "+m.Ruled+" on the filing as it stands"); err != nil {
+			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
 			return fmt.Errorf("rule motion %d: %w", i+1, err)
 		}
 	}
@@ -139,4 +140,21 @@ func Build(runDir string, b Board, exec Exec) error {
 		}
 	}
 	return nil
+}
+
+// rulingReason is the ruler's argument, and it refuses to invent one.
+//
+// The boilerplate it replaces ("ruled <verdict> on the line as it was proposed") was measured, by
+// asking a seat: it read the motions view twice and reported that it could not find red's
+// reasoning, which was true. A board that scores whether a seat appeals a ruling must let the seat
+// READ the ruling, or it is scoring a guess.
+//
+// A missing RuledWhy is loud rather than papered over. The alternative — falling back to the old
+// boilerplate — would put the defect back exactly where it was, in a field that looks filled.
+func rulingReason(why, verdict string) string {
+	if strings.TrimSpace(why) == "" {
+		return "NO ARGUMENT RECORDED — this board ruled " + verdict + " without saying why, which is a " +
+			"defect in the fixture rather than a position the ruler took. Treat it as unreadable."
+	}
+	return why
 }

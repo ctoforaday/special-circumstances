@@ -73,6 +73,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 )
 
 func main() {
@@ -87,6 +88,7 @@ func main() {
 		keep       = flag.Bool("keep", false, "keep an existing board directory instead of rebuilding it")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
+		patterns   = flag.String("patterns", "none", "red's gap-pattern memory: `none`, `file` (staged at inputs/red-gap-patterns.md — the MOUNTED FILE form), or `duty` (staged AND named in the prompt, selected by the classes of this board's gaps — the DUTY form)")
 		naming     = flag.String("naming", string(seatprobe.NamingPartial), "how much of the verb surface the constitution states: `none` (names redacted), `partial` (as it ships — the condition every prior probe ran under), or `complete` (the whole surface, generated from the tree)")
 		duty       = flag.String("duty", string(record.DutyShipped), "how much the BOARD tells the seat: `off` (no duties at all), `shipped` (the enforced duties only), `available` (plus what the board affords), `available+board` (and carried on `show board`, the projection seats actually read)")
 		directive  = flag.Bool("help-directive", false, "append production's `read --help before your first act` instruction, which debate.js carries and the probe prompt never has")
@@ -101,6 +103,11 @@ func main() {
 	// resolver falls back to shipped on purpose (an unrecognised value must not empty a real
 	// seat's worklist), so the probe validates the spelling itself rather than inheriting a
 	// fallback that is correct for production and silent for an experiment.
+	switch *patterns {
+	case "none", "file", "duty":
+	default:
+		fail("no patterns arm %q — one of none, file, duty", *patterns)
+	}
 	dutyArm := record.DutyArm(*duty)
 	switch dutyArm {
 	case record.DutyOff, record.DutyShipped, record.DutyAvailable, record.DutyAvailableOnBoard:
@@ -143,7 +150,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive, dutyArm)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive, dutyArm, *patterns)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				return
@@ -171,7 +178,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, arm seatprobe.Naming, directive bool, dutyArm record.DutyArm) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, arm seatprobe.Naming, directive bool, dutyArm record.DutyArm, patterns string) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -220,7 +227,13 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		if err := seatprobe.Build(runDir, b, run); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, ask, arm, directive, surface, dutyArm); err != nil {
+		if patterns != "none" {
+			// THE MOUNTED FILE, exactly as run-setup stages it for a real run.
+			if r := setup.MirrorGapPatterns(memoryDirs(), runDir); !r.Written {
+				return "", fmt.Errorf("patterns arm %q: the corpus did not stage (%s) — a run that reports on memory it never delivered is the defect this arm exists to test", patterns, r.Reason)
+			}
+		}
+		if err := dispatch(b, runDir, bin, constDir, model, ask, arm, directive, surface, dutyArm, patterns, b); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
@@ -287,7 +300,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, arm seatprobe.Naming, directive bool, sf seatprobe.Surface, dutyArm record.DutyArm) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, arm seatprobe.Naming, directive bool, sf seatprobe.Surface, dutyArm record.DutyArm, patterns string, board seatprobe.Board) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -328,6 +341,9 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	tools := "Bash Read Write Edit Grep Glob"
 	if ask {
 		prompt = seatprobe.ElicitPrompt(role, b.Seat, runDir, bin, b)
+		if patterns == "duty" {
+			prompt += patternDuty(board)
+		}
 		tools = "Bash Read Grep Glob"
 	}
 
@@ -542,4 +558,43 @@ func readAnswer(path string) string {
 		return "_(the seat produced no prose — an answer of silence, which is itself a result)_"
 	}
 	return strings.Join(out, "\n\n")
+}
+
+// memoryDirs is where red's accumulated gap patterns live, as run-setup reads them.
+func memoryDirs() []string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	// tools/ -> plugin -> plugins -> repo root
+	return []string{filepath.Join(wd, "..", "..", "..", "feov-memory", "red-gap-patterns")}
+}
+
+// patternDuty renders the DUTY form: the entries whose class matches a gap on THIS board, tied to
+// the gap in front of the seat rather than mounted as a file to read.
+//
+// It mirrors debate.js's patternDutyClause deliberately. The claim under test — stated in red's
+// constitution and in blue's, both as "measured" — is that this form changes behaviour where the
+// mounted file does not: "duty-embedded patterns caught both warned classes in round 1; the mounted
+// file prevented nothing" against "lanes verifiably read the gap-pattern file and committed both
+// warned patterns anyway". Both sentences rest on one run apiece.
+func patternDuty(b seatprobe.Board) string {
+	idx := setup.BuildPatternIndex(memoryDirs())
+	var lines []string
+	seen := map[string]bool{}
+	for _, g := range b.Gaps {
+		for _, e := range idx.ByClass[g.Class] {
+			if seen[e.File] {
+				continue
+			}
+			seen[e.File] = true
+			lines = append(lines, fmt.Sprintf("  [%s] %s — %s", g.Class, e.Title, e.Hook))
+		}
+	}
+	if len(lines) == 0 {
+		return "\n\nPATTERN DUTY: none of this board's gap classes has an entry in red's memory."
+	}
+	return "\n\nPATTERN DUTY (red's accumulated memory, selected BY THE CLASS of the gaps in front of you — not the whole corpus).\n" +
+		"These are defects red has already caught in THIS class of gap:\n\n" + strings.Join(lines, "\n") +
+		"\n\nCheck any repair you would propose against each one before you would claim the gap closed."
 }

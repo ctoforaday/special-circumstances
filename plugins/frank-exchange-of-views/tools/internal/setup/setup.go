@@ -201,7 +201,27 @@ func MirrorGapPatterns(memoryDirs []string, runDir string) MirrorResult {
 	if len(parts) == 0 {
 		return MirrorResult{Written: false, Reason: "memory dir empty"}
 	}
-	os.WriteFile(out, []byte("# red gap-pattern inventory (mirrored at run setup — read-only copy)\n"+strings.Join(parts, "\n")), 0o644)
+	// THE DIRECTORY IS MADE HERE, AND THE WRITE IS CHECKED.
+	//
+	// It was neither. `out` is <runDir>/inputs/red-gap-patterns.md and nothing in this function
+	// created `inputs/`; the write's error was discarded; and the function then returned
+	// {Written: true, Files: 55} having written nothing at all.
+	//
+	// In a real run it is masked, because BuildSkeleton happens to create inputs/ earlier in
+	// run.go. Any other caller — a probe, a test, a reordering of setup — silently loses red's
+	// entire accumulated memory while the result says it staged fifty-five files. MEASURED
+	// 2026-08-16: found by reusing this function from seatprobe, where the directory does not
+	// exist; every dispatch reported a staged corpus and no file was ever on disk.
+	//
+	// This is the defect class the corpus itself catalogues: a write that fails, reports success,
+	// and hands back a count of work it did not do. A caller cannot tell the difference, which is
+	// why the count was believable.
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		return MirrorResult{Written: false, Reason: "could not create inputs/: " + err.Error()}
+	}
+	if err := os.WriteFile(out, []byte("# red gap-pattern inventory (mirrored at run setup — read-only copy)\n"+strings.Join(parts, "\n")), 0o644); err != nil {
+		return MirrorResult{Written: false, Reason: "could not write the mirror: " + err.Error()}
+	}
 	return MirrorResult{Written: true, Files: len(parts), Sources: len(present)}
 }
 

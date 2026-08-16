@@ -3,6 +3,7 @@ package record
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -89,6 +90,70 @@ func TestTheMarkerNamesNoPathBecauseTheSeatReadsIt(t *testing.T) {
 	// reads this directory, which is the entire reason the record left it.
 	if strings.Contains(string(b), root) {
 		t.Fatalf("the marker hands the record root back to anyone reading the run directory:\n%s", b)
+	}
+}
+
+// THE MARKER MUST NOT COMPOSE A COMMAND IT CANNOT MAKE RUNNABLE.
+//
+// It used to open with `feov-record <role> show board --run <this directory>`. The tool is not
+// on PATH — every dispatch hands the seat an absolute path — so that line was a command that
+// cannot execute, written by the one file whose job is to unblock a seat that cannot see a board.
+//
+// Measured 2026-08-16, six blue seats at one board: three copied this form, two recovered by
+// hunting for the binary, and one took `command not found` as "that tool isn't available" and
+// answered the whole sitting against a board it had never read. That output is indistinguishable
+// from a sitting that read the board — same structure, same confidence, gaps invented from the
+// pattern corpus instead of quoted. A read that misses and a read that succeeds produced the
+// same bytes, which is the class this repository keeps finding.
+//
+// The fix is not to write the path (the separation exists to withhold it) but to stop composing
+// the invocation at all: name the shape, point at the handle the dispatch gave, and say out loud
+// what `command not found` does and does not mean. This test holds that line — it fails on any
+// bare occurrence of the binary name that is followed by something that reads as arguments, and
+// passes the two places the text must still SAY the name: the quoted error string it is teaching
+// the seat to interpret, and the `find` command for recovering the path.
+func TestTheMarkerComposesNoInvocationTheSeatCannotRun(t *testing.T) {
+	isolate(t)
+	run, root := t.TempDir(), filepath.Join(t.TempDir(), "elsewhere")
+	t.Setenv(RecordRootEnv, root)
+	if _, err := RecordsDir(run); err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+	b, err := os.ReadFile(filepath.Join(run, separatedMarker))
+	if err != nil {
+		t.Fatalf("no marker in the run directory: %v", err)
+	}
+	text := string(b)
+
+	// The two legitimate mentions, removed before the scan so the check below is about
+	// invocations only. Both are ABOUT the name rather than uses of it.
+	allowed := []string{
+		`"feov-record: command not found"`,   // the error the seat is being taught to read
+		"`find / -name feov-record -type f`", // how to recover the handle it lost
+	}
+	scan := text
+	for _, a := range allowed {
+		if !strings.Contains(scan, a) {
+			t.Fatalf("the marker no longer contains %q — if it was reworded, reword this gate with it,\n"+
+				"but do not delete the clause: a seat that reads `command not found` as a missing\n"+
+				"capability writes a report against a board it never saw.\nmarker:\n%s", a, text)
+		}
+		scan = strings.ReplaceAll(scan, a, "")
+	}
+
+	// Anything left that names the binary and is followed by a word is a command form.
+	bare := regexp.MustCompile(`\bfeov-record\b[ \t]+\S`)
+	if m := bare.FindString(scan); m != "" {
+		t.Fatalf("the marker composes a bare invocation (%q) — the tool is not on PATH, so this is a\n"+
+			"command the seat cannot run, offered by the file that exists to unblock it.\n"+
+			"Name the shape and point at the dispatch's path instead.\nmarker:\n%s", m, text)
+	}
+
+	// And the clause that makes the miss loud must still be there in substance.
+	if !strings.Contains(text, "does NOT mean the") {
+		t.Fatalf("the marker no longer tells the seat that a failed lookup is not a missing record —\n"+
+			"that sentence is the whole fix; without it the marker is silent on the case that\n"+
+			"actually happened.\nmarker:\n%s", text)
 	}
 }
 

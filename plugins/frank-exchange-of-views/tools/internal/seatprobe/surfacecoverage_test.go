@@ -256,3 +256,56 @@ func hasMotion(b Board, subject string, ruled bool) bool {
 	}
 	return false
 }
+
+// A RULING A SEAT CANNOT READ IS NOT A RULING.
+//
+// MEASURED 2026-08-16 BY ASKING, which is the only way this was ever going to surface. A blue seat
+// on `docket` called `show motions` twice and `show debate` once, then reported that the ruling
+// field "just says 'endorsed' or 'too-thin' or 'rejected'" and that red's reasoning must be
+// somewhere it could not see. It was right: Build stamped every ruling "ruled <verdict> on the line
+// as it was proposed".
+//
+// Boards demand `motion grade appeal` and `motion direction appeal` — acts that are judgements
+// about the ARGUMENT behind a refusal. Scoring whether a seat appealed a verdict it could not read
+// is scoring a coin flip, and no acting probe could ever report it, because a content-free reason
+// and a considered one produce identical events.
+func TestEveryRuledFixtureCarriesTheArgumentForItsRuling(t *testing.T) {
+	for name, b := range Boards() {
+		for i, a := range b.Avenues {
+			if a.Ruled == "" {
+				continue
+			}
+			if strings.TrimSpace(a.RuledWhy) == "" {
+				t.Errorf("board %q avenue %d is ruled %q with no RuledWhy — a seat asked whether to appeal it is guessing", name, i+1, a.Ruled)
+				continue
+			}
+			assertNotRestatement(t, name, "avenue", a.Ruled, a.RuledWhy)
+		}
+		for i, m := range b.Motions {
+			if m.Ruled == "" {
+				continue
+			}
+			if strings.TrimSpace(m.RuledWhy) == "" {
+				t.Errorf("board %q motion %d is ruled %q with no RuledWhy — a seat asked whether to press it is guessing", name, i+1, m.Ruled)
+				continue
+			}
+			assertNotRestatement(t, name, "motion", m.Ruled, m.RuledWhy)
+		}
+	}
+}
+
+// assertNotRestatement refuses the shape the boilerplate had: a "reason" whose whole content is the
+// verdict it is supposedly explaining. An empty field is caught by the caller; this catches the
+// field that LOOKS filled, which is the version that survives review.
+func assertNotRestatement(t *testing.T, board, kind, verdict, why string) {
+	t.Helper()
+	trimmed := strings.TrimSpace(why)
+	if len(trimmed) < 60 {
+		t.Errorf("board %q %s: the argument for ruling %q is %d characters — too short to be an argument, and a reason that only restates the verdict is what a seat reported as unreadable",
+			board, kind, verdict, len(trimmed))
+	}
+	// "ruled too-thin on the line as it was proposed" — the verdict, wrapped in filler.
+	if stripped := strings.TrimSpace(strings.ReplaceAll(strings.ToLower(trimmed), strings.ToLower(verdict), "")); len(stripped) < 40 {
+		t.Errorf("board %q %s: remove the verdict %q from its own reason and almost nothing is left — that is a restatement, not an argument", board, kind, verdict)
+	}
+}

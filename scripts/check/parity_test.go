@@ -211,6 +211,34 @@ func TestEverySkippedGateSaysWhy(t *testing.T) {
 
 // Ids must be unique — -only matches on them, and two gates sharing an id means selecting one
 // silently runs the other.
+// EVERY SUITE GATE DEFEATS THE TEST CACHE, because the local run is the only one that has one.
+//
+// CI runs on a fresh runner with `cache: false`, so a stale PASS cannot happen there. Locally it
+// can, and it did: `go test ./...` in the feov module reported the whole module green while the
+// same package under `-count=1` failed on a help golden a commit three back had invalidated. The
+// contract tests shell out to a built binary, so the inputs that changed are inputs the cache
+// cannot see.
+//
+// Without this, `go run ./check` can pass where CI fails — which is the exact drift the command
+// exists to remove, reproduced inside it.
+func TestEverySuiteGateDefeatsTheTestCache(t *testing.T) {
+	for _, g := range gateSet() {
+		if g.kind != kindTest && g.kind != kindRace {
+			continue
+		}
+		var found bool
+		for _, a := range g.args {
+			if a == noCache {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("gate %q runs %v without %s — a cached PASS is byte-identical to a real one, "+
+				"and only the local run has a cache to be fooled by", g.id, g.args, noCache)
+		}
+	}
+}
+
 func TestGateIDsAreUnique(t *testing.T) {
 	seen := map[string]bool{}
 	for _, g := range gateSet() {

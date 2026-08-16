@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -78,9 +79,13 @@ type GapJSON struct {
 	Impact         any `json:"impact"`
 	ComplexityCost any `json:"complexity_cost"`
 
-	Class          string `json:"class,omitempty"`
-	Location       string `json:"location,omitempty"`
-	Problem        string `json:"problem,omitempty"`
+	Class    string `json:"class,omitempty"`
+	Location string `json:"location,omitempty"`
+	Problem  string `json:"problem,omitempty"`
+	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
+	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
+	// find it; mint was accepting --reason and discarding it. See merge/mint.go.
+	MintReason     string `json:"mint_reason,omitempty"`
 	RequiredFix    string `json:"required_fix,omitempty"`
 	AcceptanceGate string `json:"acceptance_check,omitempty"`
 	// CheckKind says what KIND of evidence settles the acceptance check, and it is the field
@@ -168,6 +173,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 			gj.Class = g.Mint.Str("class")
 			gj.Location = g.Mint.Str("location")
 			gj.Problem = g.Mint.Str("problem")
+			gj.MintReason = g.Mint.Str("mint_reason")
 			gj.RequiredFix = g.Mint.Str("required_fix")
 			gj.AcceptanceGate = g.Mint.Str("acceptance_check")
 			gj.CheckKind = g.Mint.Str("check_kind")
@@ -312,6 +318,39 @@ type WorklistJSON struct {
 		Open   int `json:"open"`
 		Closed int `json:"closed"`
 	} `json:"counts"`
+	// Counterparty answers "has the other side acted, and on what" — a question the record could
+	// always answer and no view would.
+	Counterparty CounterpartyJSON `json:"counterparty"`
+}
+
+// CounterpartyJSON is what the OTHER party has done in this run, for a seat that has to decide
+// whether to wait, act, or dispose.
+//
+// MEASURED 2026-08-16 BY ASKING THE MERGE. Dropped onto a board with three gaps, two open, it
+// reported: "The absence of any `blue edit` record suggests blue hasn't even tried. But I should
+// check the worklist again — does it say anything about blue's next move?" It then listed the
+// three readings it could not choose between: blue is repairing in sequence and I should wait,
+// blue fixed one and missed two, or blue has no idea how to fix these.
+//
+// Those want different acts — wait, dispose, or escalate — and the seat had nothing to separate
+// them with. "No edit on the record" was carrying two meanings at once: nothing has happened YET,
+// and nothing is going to. This is the absence-reads-as-evidence shape from the seat's side of the
+// tool rather than a gate's, and the fix is the same one: make the two states different bytes.
+//
+// It is DERIVED, not a new record — every field here is counted off events the run already has.
+type CounterpartyJSON struct {
+	// Role is whose activity this describes: the party this seat is waiting on or disposing of.
+	Role string `json:"role"`
+	// Acts is how many substantive events that party has recorded in the whole run, and
+	// ActsThisRound how many in the round this seat is sitting in. Zero for both is "has not
+	// started"; zero this round with a positive total is "worked earlier, not yet here".
+	Acts          int `json:"acts"`
+	ActsThisRound int `json:"acts_this_round"`
+	// LastRound is the last round that party recorded anything in, or 0 if never.
+	LastRound int `json:"last_round"`
+	// Reading states, in words, which of the situations this is — because a reader that has to
+	// derive it from three integers will derive it differently each time.
+	Reading string `json:"reading"`
 }
 
 // WorklistGapJSON is an open gap in its lean form: the grades a merge weighs, its class and
@@ -402,6 +441,55 @@ func WorklistJSONOf(b *Board) WorklistJSON {
 
 // WorklistJSONBytes renders the worklist as indented JSON (a seat reads it in a terminal
 // transcript), mirroring BoardJSONBytes.
+// counterpartyOf counts what the OTHER party has done, so a seat can tell "not yet" from "not
+// coming". See CounterpartyJSON for the seat testimony that produced it.
+//
+// The pairing is the adversarial one: the merge waits on blue and blue waits on the merge. A lens
+// or the bench is told so plainly rather than being handed a zero it would read as inactivity.
+func counterpartyOf(b *Board, role string, round int) CounterpartyJSON {
+	other := map[string]string{"merge": "blue", "blue": "merge"}[role]
+	if other == "" {
+		return CounterpartyJSON{Reading: "this seat waits on no single party — the lens and the bench read the board itself"}
+	}
+	c := CounterpartyJSON{Role: other}
+	for _, e := range b.Events {
+		if PartyOf(e) != other {
+			continue
+		}
+		switch e.Type {
+		case "register", "friction-none":
+			continue // arriving is not acting
+		}
+		c.Acts++
+		if e.Round > c.LastRound {
+			c.LastRound = e.Round
+		}
+		if e.Round == round {
+			c.ActsThisRound++
+		}
+	}
+	switch {
+	case c.Acts == 0:
+		c.Reading = other + " has recorded NOTHING in this run — it has not started, which is different from having tried and failed"
+	case c.ActsThisRound > 0:
+		c.Reading = fmt.Sprintf("%s is ACTIVE in this round (%d act(s)) — work may still be landing, so an absence on any one gap is not yet a refusal", other, c.ActsThisRound)
+	default:
+		c.Reading = fmt.Sprintf("%s worked in round %d and has recorded nothing in this one — it has stopped, or has not yet begun here", other, c.LastRound)
+	}
+	return c
+}
+
+// roundOfSeatOnBoard is the round this seat is sitting in, taken from its own latest event.
+func roundOfSeatOnBoard(b *Board, seatID string) int {
+	r := 0
+	for _, e := range b.Events {
+		if e.SeatID == seatID && e.Round > r {
+			r = e.Round
+		}
+	}
+	return r
+}
+
 func WorklistJSONBytes(runDir, role, seatID string) ([]byte, error) {
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -409,6 +497,7 @@ func WorklistJSONBytes(runDir, role, seatID string) ([]byte, error) {
 	}
 	w := WorklistJSONOf(b)
 	w.Sitting = SittingOf(b, role, seatID)
+	w.Counterparty = counterpartyOf(b, role, roundOfSeatOnBoard(b, seatID))
 	out, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return nil, err

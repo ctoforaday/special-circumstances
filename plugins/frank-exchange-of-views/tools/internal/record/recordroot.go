@@ -55,9 +55,20 @@ const markerText = `This run's event record was written OUTSIDE this directory.
 The path is deliberately not recorded here: seats read this directory, and the separation
 exists so that a seat reaches the record through the tool rather than through the filesystem.
 
-Read the board the way a seat does:  feov-record <role> show board --run <this directory>
-If that reports the record is unreachable, the resolver's pointer has been lost (a cleaned
-cache, or a copied run directory). Re-declare the root:  ` + RecordRootEnv + `=<path> feov-record ...
+Read the board the way a seat does, using THE RECORD TOOL PATH YOUR DISPATCH GAVE YOU:
+
+    <that path> <role> show board --run <this directory>
+
+The bare name is deliberately not written above. The tool is not installed on PATH, so
+"feov-record: command not found" means you used the wrong handle — it does NOT mean the
+record is unreachable and it does NOT mean you have no way to read the board. If you have
+lost the path, find it (` + "`find / -name feov-record -type f`" + `) rather than proceeding without
+the board: a report written against a board you never read is the failure this run exists
+to catch.
+
+If the tool RUNS and reports the record is unreachable, that is a different fault — the
+resolver's pointer has been lost (a cleaned cache, or a copied run directory). Re-declare
+the root:  ` + RecordRootEnv + `=<path> <that path> ...
 `
 
 // THIS FILE IS AN AGENT-FACING SURFACE, and it went stale like every other one.
@@ -71,6 +82,26 @@ cache, or a copied run directory). Re-declare the root:  ` + RecordRootEnv + `=<
 // It is the same rename, the same class, and the fourth carrier of it — after the prompts, the
 // help text, and `lens reproduce`'s error message. A surface a seat reads is agent-facing
 // wherever it lives, and this one lives in a const.
+//
+// AND IT WENT WRONG A SECOND TIME, in a way the first fix did not cover, because the first fix
+// corrected the VERB and left the HEAD of the command alone.
+//
+// The marker said `feov-record <role> show board --run <dir>`. The tool is not installed on
+// PATH — every dispatch prompt hands the seat an ABSOLUTE path (`"${binDir}/feov-record"`) — so
+// the bare name in this file was an invocation that cannot run. Measured on the 2026-08-16
+// elicitation probe, six blue seats at one board: three copied the marker's form, two recovered
+// by hunting for the binary, and one read `command not found` as "that tool isn't available",
+// then answered the entire sitting — options, costs, completion criteria — against a board it
+// had never seen, re-deriving the report's arithmetic by hand and guessing at red's gaps from
+// the pattern corpus. Nothing in its output said it was guessing; it read as a competent sitting.
+//
+// This is [[facts-are-fields]] at a marker: the invocation was COMPOSED into prose here, from a
+// fact this package does not hold, and recovered by a seat that had the real path in its prompt
+// and believed the file over it. The marker cannot carry the path (it does not know it, and
+// writing it would hand back exactly what separation withholds), so it must not compose the
+// command at all — it names the shape and points at the handle the seat was actually given.
+// The `command not found` case is now called out by name, because that miss was silent: a seat
+// with no board and a seat with a clean board both produce a confident report.
 
 // RecordsDir resolves where a run's events live, and REFUSES rather than guessing.
 //
