@@ -3,13 +3,40 @@
 Three questions were asked of the corpus, and they have three different answers. Keeping them
 apart matters, because the corpus is good and that is not the same as the corpus working.
 
-## 1. Is the corpus any good? — YES, and this is not in doubt
+## 1. Is the corpus any good? — YES, but the first answer here was reached badly
 
-55 of 57 curated gap records carry a class; 36 distinct classes; entries name a mechanism and a
-dated instance rather than a verdict, which is the shape `red-auditor.md` asks for (memory carries
-QUESTIONS, never ANSWERS). Nothing below is a criticism of the material.
+**The retracted method.** This section originally read "55 of 57 carry a class; 36 distinct
+classes; entries name a mechanism and a dated instance" and concluded *good*. That is a coverage
+number and a shape check standing in for a judgement about whether an entry helps red decide
+anything — the same substitution `CLAUDE.md` warns about where `internal/secrets` reported 100% of
+statements while two of eight patterns could be deleted with the suite green. Classification
+coverage cannot see instructional value. The verdict happened to survive re-reading; the method
+would not have caught it if it hadn't.
 
-## 2. Is it delivered? — NOW YES, AND IT WAS NOT
+**What re-reading the entries actually shows.** They are not a log of what red did. Almost every
+one is a conditional with an ordered procedure — *"for each 'inherited/shared' cell in a
+net-new-surface table, ask (1) was the baseline remediated since the cited incident? (2) does the
+bespoke design restore authority the remediation removed? If yes to both, reclassify as net-new."*
+That is decision guidance, and it is falsifiable at each step.
+
+**What they are NOT, and this is the useful distinction.** The corpus is not guidance on how to
+analyse an incoming report, and is not meant to be — the README says it is a source *compiled into
+duty lines*. Red's analysis method lives in its constitution: leaf-node verification, graded trust,
+`--check-kind`, estoppel, class-not-instance fix specs. The corpus is a set of pre-loaded
+hypotheses to test, joined by class to the gap actually in front of a seat. Judging it as guidance
+is a category error; the honest question is whether the join delivers.
+
+**One measured caution about reach.** 41 of the 55 trigger clauses fire on a fresh report rather
+than requiring a prior round — an earlier draft of this note claimed the opposite and was wrong.
+But the subject matter is narrow: security controls, gates and guards, citation ledgers,
+cost/token measurement, allowlists, deployment rungs, git state. All of it harvested from runs 2–5,
+which audited this repo's tooling and security architecture. For a report outside that family the
+class join returns little, and nothing measures how often that happens.
+
+## 2. Is it delivered? — NOW YES, AND IT WAS NOT, TWICE
+
+**Two unchecked writes, one commit apart, in one package.** Delivery is the part that was broken,
+and the corpus's quality was never the issue.
 
 `setup.MirrorGapPatterns` discarded the error from `os.WriteFile` and returned
 `Written: true, Files: 55` having written nothing when `inputs/` did not exist. Production was
@@ -19,6 +46,19 @@ directory. Any caller that did not was told 55 files were mirrored into a path w
 The same class as everything else in this sweep: the failure and the success return the same
 bytes. Fixed at 1.52.0 with a test that fails both ways (written-with-no-file, and
 not-written-with-a-file).
+
+**And the one that actually matters, found afterwards.** The mirror writes the flat file;
+`inputs/gap-patterns-by-class.json` is the CLASS JOIN, which is what the engine hands a repairing
+seat. Its write was `if b, err := marshalJSON(...); err == nil { os.WriteFile(...) }` — marshal
+error skips the write, write error discarded — while the setup summary printed
+`gap-pattern index: N class(es) -> inputs/gap-patterns-by-class.json` regardless, because N is the
+in-memory index length and is never read back off disk. A run with no join and a run with a perfect
+join printed the same line.
+
+Setup already refuses a run whose corpus is mostly unclassified, in exactly these words: *"red
+would open this run substantially blind while its memory directory looks full."* The gate guarded
+the corpus and not the channel carrying it. Fixed at 1.54.0; the test is proven to fail against the
+old code (exit 0, run built).
 
 ## 3. Does it change what a seat checks? — ONE RUN, n = 2 PER ARM, AND IT IS NOT ENOUGH
 
@@ -62,6 +102,20 @@ set it aside: *"a catalogue of pitfalls … not a fixing instruction for this re
 So the corpus's failure mode, when it is present as a FILE, is that it is good enough to
 reconstruct a plausible board from — which is exactly what a seat that cannot reach the real board
 will do with it.
+
+### The `file` arm was testing a form already documented as failed
+
+This is the sharpest limit on the run and it was not stated when the results were first written up.
+`README.md` in the corpus directory says, of the flat mirror: *"run 4's 'read red's accumulated gap
+patterns' clause was unsatisfiable at four blue seats, and run 5 was worse — lanes verifiably READ
+the file and committed both warned patterns anyway."* The `file` arm re-derived that. Presenting it
+as a finding overstated it; only the mechanism is new — that a seat which cannot reach its board
+uses the corpus to reconstruct a plausible one.
+
+It also means the arm was not testing production. Production's operative channel is the class join,
+which hands a seat only the patterns matching the gap in front of it; the flat mirror is the
+secondary artifact. A three-arm comparison of `none` / flat-file / duty leaves the shipped channel
+untested.
 
 ### What this does NOT support
 
@@ -108,9 +162,20 @@ Gated by `TestTheMarkerComposesNoInvocationTheSeatCannotRun`, which fails agains
 ## Recommendation
 
 **Do not build blue a second corpus on this evidence.** The one signal in favour of memory is a
-single cell, and the strongest thing this run showed about the FILE form is that a seat which
-cannot reach its board will use the corpus to fabricate one.
+single cell; the FILE arm re-derived a result the corpus README already records; and the shipped
+channel — the class join — was not in the experiment at all.
 
-Before spending on a blue corpus, the cheaper question is whether blue reaches its board reliably
-at all — this run says 4 of 6, with a now-fixed cause. Re-run the arms after the marker fix and
-the comparison is at least about memory rather than about navigation.
+Two cheaper questions come first, both of which this work turned up:
+
+1. **Does blue reach its board reliably?** 4 of 6 here, with a now-fixed cause. A memory comparison
+   run before that is measuring navigation.
+2. **How often does the class join return nothing?** The corpus is narrow by construction — runs
+   2–5, all auditing this repo's tooling and security architecture. For a report outside that
+   family the join is thin or empty, and no instrument reports it. Setup refuses a corpus that is
+   mostly unclassified; nothing notices a corpus that is fully classified and entirely
+   inapplicable. That is the same shape one level out: an empty join and a well-matched join both
+   produce a run that starts.
+
+The thing red demonstrably has and blue lacked was never the corpus — it is a constitution dense
+with method. Blue now has one. Whether either needs a second memory is a question worth asking
+after the join is measured, not before.
