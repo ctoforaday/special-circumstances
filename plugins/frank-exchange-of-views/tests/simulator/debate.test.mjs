@@ -1270,3 +1270,39 @@ test('W2c: each petition sitting gets its own seat id, derived from the petition
   assert.ok(ids.some((i) => /^judge-petition-(red-merge|blue-respond)-r1$/.test(i)),
     `an in-round sitting carries the round in a position RoundOf reads: ${JSON.stringify(ids)}`)
 })
+
+// #361: THE DECLARE VERB REACHES THE SEATS THAT RULE.
+//
+// `bench declare` shipped with a prompt clause — in `assemble` only, the one bench seat that
+// rules on nothing. All three RULING sittings were silent about it, including the petition
+// sitting whose failure the verb was built for: a bench with a construction both parties needed,
+// `opinion` demanding an id and a fate it did not want to move, and the holding going into a
+// petition ruling's opinion text where red never read it.
+//
+// The carrier set is the one every bench-wide duty uses — whatever carries lawClause.
+test('W2e: every bench sitting that RULES is told it can declare, not just the assembler', async () => {
+  const world = makeWorld(makeResponder({
+    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    blueSynth: [blueEnv({ petitions: [{ class: 'ethical', basis: 'b', relief: 'r' }] })],
+  }))
+  await world.run(script, { ...ARGS, maxRounds: 4 })
+
+  // The three that rule. `judge-terminal` only sits when disputes survive the exit boundary, so
+  // it is asserted through the same law-clause carrier rather than by forcing a fourth scenario.
+  for (const seat of ['judge-petition', 'judge-r']) {
+    const c = world.calls.find((x) => x.opts.label.startsWith(seat))
+    assert.ok(c, `${seat} sat`)
+    assert.ok(/DECLARE:/.test(c.prompt), `${seat} is not told the declare verb exists`)
+    assert.ok(c.prompt.includes('bench declare --reason'), `${seat} gets the command, not just the concept`)
+    assert.ok(/binds how the record is READ/.test(c.prompt), `${seat} is told what distinguishes it from an opinion`)
+  }
+
+  // Every seat carrying the law clause carries this one: they are the bench's ruling sittings,
+  // and a duty that travels with one must travel with the other or the set drifts.
+  const lawSeats = world.calls.filter((c) => c.prompt.includes('PRECEDENT IS ARGUMENT, NOT EVIDENCE'))
+  assert.ok(lawSeats.length >= 2, 'the law clause must reach at least the two sittings above')
+  for (const c of lawSeats) {
+    assert.ok(/DECLARE:/.test(c.prompt),
+      `${c.opts.label} carries the law clause but not the declare clause — the bench-wide carrier set has drifted`)
+  }
+})

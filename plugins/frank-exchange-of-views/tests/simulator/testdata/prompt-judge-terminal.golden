@@ -1,9 +1,13 @@
-prompt sha256: 7cd73f967e7529e3c8637650fb7d721ab3f09cf9b87f4fca8a8437057e61bd0f
+prompt sha256: 883c86c56a2f2ffa7593ef117cf1e03db5ec9f4939106523c9a31f3743cb4a50
 
 Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
 Undisposed grade disputes: [{"gap_id":"R1-1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
 Read the transcript in full from the RECORD (feov-record bench show debate --run research/2026-01-01_golden), and pull the board through the tool: feov-record bench show board --run research/2026-01-01_golden --format markdown.
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
+DECLARE: when you need to state something that binds how the record is READ without moving any gap's fate — a construction of a term, a correction of what the record MEANS rather than what it contains, or a holding you would offer for promotion to precedent — that is its own act: "/opt/feov/bin/feov-record" bench declare --reason "<the construction, correction or holding>".
+It takes no --id and no disposition, because it disposes of nothing; the opinion verb is for a docketed gap and demands both.
+A declaration renders under "### LEAD" beside your opinions, so both parties read it, and the precedent harvest can see it.
+Do NOT fold a declaration into a petition ruling's opinion or an unrelated gap's rationale to get it on the record — that is where the one this verb was built for went unread.
 The resolution set at a terminal exit EXCLUDES carried — rule each dispute grade_adjusted (state the corrected grade in the rationale; assembly records the delta) or unresolved (the contested grade ships, recorded as contested in the report). deadlock: false.
 Record your terminal ruling as an opinion event (feov-record bench opinion --id <gap> ...) — it renders as "### LEAD (terminal disputes)" from the record.
 FRICTION (judge-terminal) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with "/opt/feov/bin/feov-record" bench friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with "/opt/feov/bin/feov-record" bench friction --none --reason "<what you reached for and found>".
