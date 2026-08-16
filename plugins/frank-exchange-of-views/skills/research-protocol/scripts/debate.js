@@ -619,15 +619,38 @@ const reliefFor = (party) => {
 }
 let halted = false
 let haltOpinion = null
+// ONE SEAT ID NAMES ONE SITTING. It used to be the literal `judge-petition` for all of them —
+// once after synthesis and twice per round, so a 3-round run held up to SEVEN sittings under one
+// id. Each sitting's register rotates the nonce (deliberately, for crash re-dispatch), so that is
+// seven shards for one seat, and replay keeps ONE: a petition sitting writes no `verdict` and no
+// `revision`, so the terminal pool is empty and selection falls to latest mtime. Every earlier
+// sitting's rulings were dropped from the replay while the run reported success (#394).
+//
+// Deriving the id from the PETITIONER makes it unique by construction rather than by a counter
+// someone has to remember to increment — the filer already identifies the occasion, because each
+// of `blue-synthesize`, `red-merge-rN` and `blue-respond-rN` petitions at most once.
+//
+// It also fixes the round stamp for free. `RoundOf` matches the FIRST `-r<N>` in the id, so
+// `judge-petition-red-merge-r1` reads as round 1 instead of the round 0 every sitting used to
+// carry, and `judge-petition-blue-synthesize` has no round because it genuinely precedes round 1.
+const petitionSeatID = (who) => `judge-petition-${who}`
+
 async function hearPetitions(env, who) {
   const petitions = (env && env.petitions) || []
   if (!petitions.length) return false
+  const seatID = petitionSeatID(who)
   log(`petition(s) filed by ${who} (${petitions.map((x) => x.class).join(', ')}) — bench sitting before the debate continues`)
   const sitting = await agent(
-    `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. TWO THINGS, AND THEY GO TO DIFFERENT PLACES (#330): your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and it goes ON THE RECORD via the petition-rule verb's --reason, where the report renders it beside the filing it answers. The envelope's \`relief\` is the OPERATIVE part of a granted ruling: the instruction as it will BIND the coming seats, stated so a seat can act on it without reading your argument. Write the relief as a directive, not a summary of your opinion. A denied ruling carries no relief. Read the transcript for context ("${binDir}/feov-record" bench show debate --run ${runDir}); each ruling is recorded via the petition-rule verb — that IS the record. A HALT IS NOT A RULING ON A PETITION, AND IT IS NOT RECORDED WITH petition-rule — it is you ending the run, it is your own first-class terminal act, and it has its own verb: where continuing would compromise safety, consent gates, corpus integrity, or participant integrity, run "${binDir}/feov-record" bench halt --run ${runDir} --seat-id <your SEAT_ID> --reason "<your opinion, in full>" AND return the envelope's \`halt\` object carrying that same opinion, which is what stops the engine. Rule the petition itself granted or denied as the merits require — halting is a separate decision about the RUN, and both can be true. Your halt opinion is relayed to the human VERBATIM and is never summarized or smoothed, so write it to be read by them.${lawClause}${inspectionClause}${frictionClause('judge-petition', 'bench')}${speedClause}${recordClause('judge-petition', 'bench')} Return the petition-ruling envelope.`,
-    { ...judgment, label: `judge-petition · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
+    `Petition sitting, topic "${topic}". ${who} has petitioned the bench: ${JSON.stringify(petitions)}. Petitions are heard BEFORE the debate continues; they are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. TWO THINGS, AND THEY GO TO DIFFERENT PLACES (#330): your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and it goes ON THE RECORD via the petition-rule verb's --reason, where the report renders it beside the filing it answers. The envelope's \`relief\` is the OPERATIVE part of a granted ruling: the instruction as it will BIND the coming seats, stated so a seat can act on it without reading your argument. Write the relief as a directive, not a summary of your opinion. A denied ruling carries no relief. Read the transcript for context ("${binDir}/feov-record" bench show debate --run ${runDir}); each ruling is recorded via the petition-rule verb — that IS the record. A HALT IS NOT A RULING ON A PETITION, AND IT IS NOT RECORDED WITH petition-rule — it is you ending the run, it is your own first-class terminal act, and it has its own verb: where continuing would compromise safety, consent gates, corpus integrity, or participant integrity, run "${binDir}/feov-record" bench halt --run ${runDir} --seat-id <your SEAT_ID> --reason "<your opinion, in full>" AND return the envelope's \`halt\` object carrying that same opinion, which is what stops the engine. Rule the petition itself granted or denied as the merits require — halting is a separate decision about the RUN, and both can be true. Your halt opinion is relayed to the human VERBATIM and is never summarized or smoothed, so write it to be read by them.${lawClause}${inspectionClause}${frictionClause(seatID, 'bench')}${speedClause}${recordClause(seatID, 'bench')} Return the petition-ruling envelope.`,
+    // The label spells `judge-petition-` OUT rather than interpolating seatID, and that is
+    // load-bearing: TestDebateDispatchBindsToSeatClass reads this file as SOURCE and prefix-
+    // matches the label template's literal head against the SeatClass map to prove every
+    // dispatch spreads its seat's model tier. A bare `${seatID}` has no literal head, so the
+    // gate resolved nothing and failed — correctly. Keep the prefix literal; it is the same
+    // string petitionSeatID builds.
+    { ...judgment, label: `judge-petition-${who} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
   if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
-  takeFriction('judge-petition', sitting)
+  takeFriction(seatID, sitting)
   for (const r of sitting.rulings) {
     // The log is a ROUTING record: who petitioned, on what class, how it was ruled — and, since
     // #360, the OPINION, which is the operative half. It was dropped at this boundary while the
