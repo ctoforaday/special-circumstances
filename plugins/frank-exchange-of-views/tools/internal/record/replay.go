@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
 
 // marshalEvent serializes exactly as JSON.stringify does.
@@ -76,7 +75,6 @@ type shardInfo struct {
 	nonce  string
 	file   string
 	events []Event
-	mtime  time.Time
 }
 
 // Merged is the deterministic replay: winner selection per seat, global ordering,
@@ -152,14 +150,10 @@ func MergedEvents(runDir string) (Merged, error) {
 		if err != nil {
 			return Merged{}, err
 		}
-		st, err := os.Stat(full)
-		if err != nil {
-			return Merged{}, err
-		}
 		if _, seen := bySeat[seatID]; !seen {
 			seatOrder = append(seatOrder, seatID)
 		}
-		bySeat[seatID] = append(bySeat[seatID], shardInfo{nonce: nonce, file: full, events: evs, mtime: st.ModTime()})
+		bySeat[seatID] = append(bySeat[seatID], shardInfo{nonce: nonce, file: full, events: evs})
 	}
 
 	var anomalies []string
@@ -173,7 +167,7 @@ func MergedEvents(runDir string) (Merged, error) {
 		}
 		// Multi-nonce: the winner is the nonce whose shard carries the seat's
 		// TERMINAL event (verdict or revision — the last verb of a seat contract);
-		// with neither terminal, fall EXPLICITLY to latest mtime.
+		// with neither terminal, fall EXPLICITLY to the latest RECORDED event stamp.
 		var terminal []shardInfo
 		for _, s := range shards {
 			for _, e := range s.events {
@@ -187,17 +181,63 @@ func MergedEvents(runDir string) (Merged, error) {
 		if len(pool) == 0 {
 			pool = shards
 		}
+		// THE RECORD'S OWN CLOCK DECIDES, NOT THE FILESYSTEM'S.
+		//
+		// This was `s.mtime.After(winner.mtime)` — the shard FILE's modification time — and it
+		// was wrong twice over.
+		//
+		// MEASURED 2026-08-16: TestDiscardedEventsAudit passed on ubuntu-latest and FAILED on
+		// windows-latest at the same commit, while main's own run was green. Two shards written
+		// back to back land on distinct mtimes under Linux and on IDENTICAL ones under Windows'
+		// coarser timestamp resolution, so nothing was ever `After` anything and pool[0] stood.
+		// Which sitting's work survived was decided by a clock the record does not own.
+		//
+		// AND NO BETTER CLOCK WOULD HAVE FIXED IT, because mtime is metadata about the CARRIER
+		// rather than a fact on the record. A `git checkout`, an rsync, a container copy or a
+		// restore from the recovery mirror all rewrite it, and every one of those would silently
+		// change which sitting won — on a filesystem with all the resolution in the world.
+		//
+		// The record already issues exactly the clock this needs. `nextStamp` takes a lock, reads
+		// `.clock`, and returns `prev + 1ns` whenever the wall clock has not advanced, so every
+		// event's TS is STRICTLY INCREASING across seats and processes within a run — built that
+		// way precisely because "wall clock from many short-lived processes is not monotonic and
+		// can go backwards" (see the global ordering below). stampLayout is fixed-width, zero-
+		// padded and UTC, so string order is time order.
+		//
+		// The nonce tie-break remains underneath, and is ARBITRARY AND STABLE rather than a claim
+		// about which sitting came later: nonces are random. nextStamp makes a tie unreachable
+		// within one run, so it is the answer to a corrupt or hand-written record, not to a race.
+		latest := func(s shardInfo) string {
+			out := ""
+			for _, e := range s.events {
+				if e.TS > out {
+					out = e.TS
+				}
+			}
+			return out
+		}
 		winner := pool[0]
 		for _, s := range pool[1:] {
-			if s.mtime.After(winner.mtime) { // reduce((a,b) => b.mtime > a.mtime ? b : a)
+			switch a, b := latest(s), latest(winner); {
+			case a > b:
+				winner = s
+			case a == b && s.nonce > winner.nonce:
 				winner = s
 			}
 		}
+		tied := false
+		for _, s := range pool {
+			if s.nonce != winner.nonce && latest(s) == latest(winner) {
+				tied = true
+				break
+			}
+		}
+
 		nonces := make([]string, len(shards))
 		for i, s := range shards {
 			nonces[i] = s.nonce
 		}
-		by := "mtime fallback"
+		by := "latest recorded event"
 		if len(terminal) > 0 {
 			by = "terminal event"
 		}
@@ -230,6 +270,9 @@ func MergedEvents(runDir string) (Merged, error) {
 			}
 		}
 
+		if tied && len(terminal) == 0 {
+			by = "recorded stamps TIED, broken by nonce — no event separates these sittings"
+		}
 		note := fmt.Sprintf("multi-nonce seat %s: %d dispatches (%s); winner %s by %s",
 			seatID, len(shards), strings.Join(nonces, ", "), winner.nonce, by)
 		if len(lost) > 0 {

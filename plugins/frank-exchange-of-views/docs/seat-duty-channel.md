@@ -107,3 +107,49 @@ The acts a lens genuinely has open to it — verifying a citation nobody checked
 nobody re-ran — are affordances, and they live in `AvailableOf`, where they carry no claim about
 being finished. The comment now says so at the switch, because the absence reads as an oversight to
 anyone who has just fixed the `roleOf` defect and is hunting for more of it.
+
+## REPLICATION: the effect does not hold (2026-08-16)
+
+The `shipped` − `off` contrast above was the only |t| > 2 either matrix produced, so it was the one
+worth replicating. 32 dispatches, `off` and `shipped` only, 2 boards × 8 replicates, n = 16 per arm,
+naming held at `partial`, binaries built from merged `main`.
+
+Delivery verified per cell first, and it is not uniform:
+
+| arm | board | cells with a non-empty `outstanding` |
+|---|---|---|
+| `off` | docket | 0/8 |
+| `shipped` | docket | **7/8** |
+| `off` | lens-audit | 0/8 |
+| `shipped` | lens-audit | **2/8** |
+
+`docket` separates cleanly; `lens-audit` barely does, because a lens seat's only duty is the
+friction line and its seats rarely open the projection that carries it. That board is a weak
+instrument for this contrast and should not have carried half the weight.
+
+| arm | n | reach | MET | tool calls | refusals |
+|---|---|---|---|---|---|
+| `off` | 16 | 7.19 | 1.75 | 16.7 | 2.50 |
+| `shipped` | 16 | 7.06 | 1.62 | 16.8 | 3.75 |
+
+| contrast | n = 6 | n = 16 |
+|---|---|---|
+| reach | −0.83 (t = −0.62) | **−0.12 (t = −0.17)** |
+| MET | **−1.33 (t = −2.48)** | **−0.12 (t = −0.50)** |
+
+**The effect is gone.** An 11× drop in effect size on the measure that carried the original claim.
+The n = 6 result was noise, and the tool-call gap that made it look mechanical (15.8 against 20.2)
+is also gone: 16.8 against 16.7.
+
+**What is left, and why it is not a finding.** Split by board, `docket` alone still runs negative on
+MET — −0.50 (t = −2.26), the board where the treatment actually delivered — while `lens-audit` runs
++0.25 (t = +0.60). Selecting the surviving subgroup after the pooled test fails is how a null
+becomes a result, and naming that is the point of writing it here rather than reporting the split.
+It is a hypothesis for a run designed around `docket` from the start, with the arms declared before
+the data, and nothing more.
+
+**The cross-channel claim above is withdrawn.** "A short authoritative list is associated with the
+seat doing less than no list" rested on two legs pointing the same way. This was one of them, and it
+does not replicate. The constitution-naming leg remains confounded by the duty channel and was never
+independent evidence. There is no measured support for changing the naming, the duty list, or the
+gate — and `TestEveryRecordingVerbIsNamedInAPrompt` stays exactly where it is.
