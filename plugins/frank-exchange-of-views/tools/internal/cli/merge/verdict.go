@@ -30,7 +30,7 @@ func newVerdict() *cobra.Command {
 		"the seat's terminal act: --as "+record.MustEnum("verdict", "verdict").Spelling()+" — checkpoints records/ to the recovery mirror",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
-			if _, err := record.Append(s.RunDir, s.SeatID, "verdict", p); err != nil {
+			if _, err := record.Append(s.Identity(), "verdict", p); err != nil {
 				return nil, err
 			}
 			open, closed, _, err := view.Counts(s.RunDir)

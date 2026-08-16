@@ -142,17 +142,17 @@ certification recorded
 
 ═══ EVENTS ═══
 -- events-blue-respond-r1-NONCE002.jsonl
-{"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.70.0"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":0,"ts":4,"type":"register"}
+{"key":"blue-respond-r1:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.71.0"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":0,"ts":4,"type":"register"}
 {"key":"blue-respond-r1:position","nonce":"NONCE002","payload":{"text":"blue's round position"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":1,"ts":5,"type":"position"}
 {"key":"blue-respond-r1:closing:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","text":"blue's closing"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":2,"ts":6,"type":"closing"}
 {"key":"blue-respond-r1:revision","nonce":"NONCE002","payload":{"text":"repairs landed"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":3,"ts":7,"type":"revision"}
 {"key":"blue-respond-r1:manifest-row:R1-1","nonce":"NONCE002","payload":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"role":"blue","round":1,"seatId":"blue-respond-r1","seq":4,"ts":8,"type":"manifest-row"}
 -- events-judge-r1-NONCE003.jsonl
-{"key":"judge-r1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.70.0"},"role":"bench","round":1,"seatId":"judge-r1","seq":0,"ts":9,"type":"register"}
+{"key":"judge-r1:register:NONCE003","nonce":"NONCE003","payload":{"tool_version":"0.71.0"},"role":"bench","round":1,"seatId":"judge-r1","seq":0,"ts":9,"type":"register"}
 {"key":"judge-r1:opinion:R1-1","nonce":"NONCE003","payload":{"disposition":"carried","gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","tension":"thoroughness vs cost"},"role":"bench","round":1,"seatId":"judge-r1","seq":1,"ts":10,"type":"opinion"}
 {"key":"judge-r1:certify:#1","nonce":"NONCE003","payload":{"statement":"what a human should re-examine"},"role":"bench","round":1,"seatId":"judge-r1","seq":2,"ts":11,"type":"certify"}
 -- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.70.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.71.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"text":"red's round position"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 {"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","text":"red's closing"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"closing"}

@@ -26,7 +26,7 @@ import (
 
 func Register(help string) *cobra.Command {
 	return New("register", help, func(s Context, _ *cobra.Command) (Result, error) {
-		nonce, _, err := record.RegisterSeat(s.RunDir, s.SeatID)
+		nonce, _, err := record.RegisterSeat(s.Identity())
 		if err != nil {
 			return nil, err
 		}
@@ -61,12 +61,12 @@ func Friction(help string) *cobra.Command {
 		if none {
 			// An empty discharge that does not say what you looked for is indistinguishable
 			// from a skipped duty — the same rule spot-check applies to its own --none.
-			if _, err := record.Append(s.RunDir, s.SeatID, "friction-none", record.NewPayload().Set("text", text)); err != nil {
+			if _, err := record.Append(s.Identity(), "friction-none", record.NewPayload().Set("text", text)); err != nil {
 				return nil, err
 			}
 			return Msg{Message: "recorded: nothing blocked this sitting"}, nil
 		}
-		if _, err := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", text)); err != nil {
+		if _, err := record.Append(s.Identity(), "friction", record.NewPayload().Set("text", text)); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "friction recorded"}, nil
@@ -83,7 +83,7 @@ func Position(help string) *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := record.Append(s.RunDir, s.SeatID, "position", record.NewPayload().Set("text", text)); err != nil {
+		if _, err := record.Append(s.Identity(), "position", record.NewPayload().Set("text", text)); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "position recorded"}, nil
@@ -98,7 +98,7 @@ func Closing(help string) *cobra.Command {
 		}
 		p := Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 		p.Set("text", text)
-		if _, err := record.Append(s.RunDir, s.SeatID, "closing", p); err != nil {
+		if _, err := record.Append(s.Identity(), "closing", p); err != nil {
 			return nil, err
 		}
 		return closingResult{ID: Str(cmd, flags.ID)}, nil

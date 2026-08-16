@@ -62,7 +62,7 @@ func newCite() *cobra.Command {
 			sha, _, _, err := fetchcache.Resolve(s.RunDir, url, fetchcache.Default)
 			if err != nil {
 				msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
-				if _, ferr := record.Append(s.RunDir, s.SeatID, "friction", record.NewPayload().Set("text", msg)); ferr != nil {
+				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("text", msg)); ferr != nil {
 					return nil, ferr
 				}
 				return nil, errors.New(msg)
@@ -102,7 +102,7 @@ func newCite() *cobra.Command {
 			if claim := seat.Str(cmd, flags.Claim); strings.TrimSpace(claim) != "" {
 				p.Set("claim", claim)
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "cite", p); err != nil {
+			if _, err := record.Append(s.Identity(), "cite", p); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: label, URL: url, Sha256: sha}, nil

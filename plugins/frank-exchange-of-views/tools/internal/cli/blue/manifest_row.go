@@ -27,7 +27,7 @@ func newManifestRow() *cobra.Command {
 			}
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 			p.Set("row", row)
-			if _, err := record.Append(s.RunDir, s.SeatID, "manifest-row", p); err != nil {
+			if _, err := record.Append(s.Identity(), "manifest-row", p); err != nil {
 				return nil, err
 			}
 			return manifestRowResult{GapID: seat.Str(cmd, flags.ID)}, nil

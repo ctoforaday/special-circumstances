@@ -394,7 +394,7 @@ func TestGapMassAndGradeStr(t *testing.T) {
 func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
-	if _, _, err := RegisterSeat(runDir, seatID); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
 		t.Fatal(err)
 	}
 	for i := 1; i <= 3; i++ {
@@ -405,14 +405,14 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 		if want := fmt.Sprintf("R1-%d", i); got != want {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
-		if _, err := Append(runDir, seatID, "mint", NewPayload().
+		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "mint", NewPayload().
 			Set("gap_id", got).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// A new round restarts the counter; the id namespace is per-round.
 	seat2 := "red-merge-r2"
-	if _, _, err := RegisterSeat(runDir, seat2); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seat2, Round: RoundOf(seat2)}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := MintGapID(runDir, 2)
@@ -429,10 +429,10 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 func TestExistingMintByKey(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
-	if _, _, err := RegisterSeat(runDir, seatID); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(runDir, seatID, "mint", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "mint", NewPayload().
 		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -648,14 +648,14 @@ func TestValidateVerbContracts(t *testing.T) {
 func opinionRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(runDir, "red-merge-r1"); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(runDir, "red-merge-r1", "mint", NewPayload().Set("gap_id", id).
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
 		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)

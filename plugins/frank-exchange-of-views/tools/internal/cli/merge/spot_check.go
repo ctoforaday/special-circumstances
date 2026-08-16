@@ -38,7 +38,7 @@ func newSpotCheck() *cobra.Command {
 				p.Set("none", true)
 				seat.SetSame(cmd, p, flags.Reason)
 			}
-			if _, err := record.Append(s.RunDir, s.SeatID, "spot-check", p); err != nil {
+			if _, err := record.Append(s.Identity(), "spot-check", p); err != nil {
 				return nil, err
 			}
 			if none {

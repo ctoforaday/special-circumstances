@@ -20,10 +20,10 @@ import (
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := t.TempDir()
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	if _, _, err := record.RegisterSeat(runDir, "judge-terminal"); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(runDir, "judge-terminal", "outcome",
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, "outcome",
 		record.NewPayload().Set("verdict", "HALTED").Set("prose", "ended on safety grounds")); err != nil {
 		t.Fatal(err)
 	}

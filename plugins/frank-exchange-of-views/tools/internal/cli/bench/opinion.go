@@ -30,7 +30,7 @@ func newOpinion() *cobra.Command {
 			seat.SetSame(cmd, p, flags.Principle, flags.Tension)
 			seat.Set(cmd, p, "review_flag", flags.ReviewFlag)
 			p.Set("rationale", text)
-			if _, err := record.Append(s.RunDir, s.SeatID, "opinion", p); err != nil {
+			if _, err := record.Append(s.Identity(), "opinion", p); err != nil {
 				return nil, err
 			}
 			return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil

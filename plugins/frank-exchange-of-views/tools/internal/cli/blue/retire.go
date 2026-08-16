@@ -68,7 +68,7 @@ func newRetire() *cobra.Command {
 			}
 			p.Set("removal_basis", basis)
 
-			if _, err := record.Append(s.RunDir, s.SeatID, "retire", p); err != nil {
+			if _, err := record.Append(s.Identity(), "retire", p); err != nil {
 				return nil, err
 			}
 			return retireResult{Claim: seat.Str(cmd, flags.Claim)}, nil
