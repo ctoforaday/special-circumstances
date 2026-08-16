@@ -148,7 +148,7 @@ func Inquiries(b *Board) []*Inquiry {
 			if !ok {
 				continue
 			}
-			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("opinion"), e.Round
+			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("reason"), e.Round
 		}
 	}
 	out := make([]*Inquiry, 0, len(order))
@@ -261,7 +261,7 @@ func InquiryRuling(runDir, inquiryID string) string {
 		return ""
 	}
 	// MOST RECENT WINS. Events are ordered by timestamp across shards, so "last one seen" is the
-	// latest ruling. There was a second arm here for the pre-#344 `line of inquiry-rule` spelling; nothing
+	// latest ruling. There was a second arm here for the pre-#344 `avenue-rule` spelling; nothing
 	// has written it since the motion collapse and the dual-read that justified reading it is gone.
 	ruling := ""
 	for _, e := range b.Events {

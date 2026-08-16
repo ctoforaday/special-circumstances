@@ -157,7 +157,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 		t.Fatal("fixture assumption: the seat id derivation answers 0 for judge-terminal")
 	}
 
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, "friction", NewPayload().Set("text", "a capability gap"))
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, "friction", NewPayload().Set("reason", "a capability gap"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, "friction", NewPayload().Set("text", "a capability gap"))
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, "friction", NewPayload().Set("reason", "a capability gap"))
 	if err != nil {
 		t.Fatal(err)
 	}

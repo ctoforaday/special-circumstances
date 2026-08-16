@@ -27,7 +27,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "motion", NewPayload().
-		Set("motion_id", "M1").Set("subject", "grade").Set("basis", basis).
+		Set("motion_id", "M1").Set("subject", "grade").Set("reason", basis).
 		Set("gap_id", "R1-1").Set("dimension", "severity").Set("proposed", "medium")); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "motion-rule", NewPayload().
-		Set("motion_id", "M1").Set("subject", "grade").Set("ruling", "rejected").Set("opinion", "the grades stand")); err != nil {
+		Set("motion_id", "M1").Set("subject", "grade").Set("ruling", "rejected").Set("reason", "the grades stand")); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(runDir)
@@ -93,7 +93,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "motion", NewPayload().
-		Set("motion_id", "M1").Set("subject", "grade").Set("basis", "b").Set("gap_id", "R1-1").
+		Set("motion_id", "M1").Set("subject", "grade").Set("reason", "b").Set("gap_id", "R1-1").
 		Set("dimension", "severity").Set("proposed", "low")); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().
 		Set("gap_id", "R1-1").Set("disposition", "closed").
 		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "blue/report.md").
-		Set("prose", "verified at the leaf")); err != nil {
+		Set("reason", "verified at the leaf")); err != nil {
 		t.Fatal(err)
 	}
 

@@ -182,7 +182,7 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 			Anchor:     e.Payload.Str("anchor"),
 			Outcome:    e.Payload.Str("outcome"),
 			Confidence: e.Payload.Str("confidence"),
-			Text:       e.Payload.Str("text"),
+			Text:       e.Payload.Str("reason"),
 			Reference:  e.Payload.Str("reference"),
 			AccessDate: e.Payload.Str("access_date"),
 			SeatID:     e.SeatID,
@@ -211,7 +211,7 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 		reruns[e.Payload.Str("proof_sha")] = &EvidenceReproductionJSON{
 			Reproduced: rep,
 			Sound:      e.Payload.Str("soundness") == "sound",
-			Note:       e.Payload.Str("note"),
+			Note:       e.Payload.Str("reason"),
 			SeatID:     e.SeatID,
 			Round:      e.Round,
 		}

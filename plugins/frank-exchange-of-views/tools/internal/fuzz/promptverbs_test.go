@@ -16,7 +16,7 @@ import (
 // EVERY VERB A PROMPT NAMES MUST EXIST.
 //
 // MEASURED, and it nearly shipped: the merge prompt told red to run `merge rule-line of inquiry`
-// while the verb is `line of inquiry-rule`. The rename landed in four Go files and missed the one
+// while the verb is `avenue-rule`. The rename landed in four Go files and missed the one
 // surface an agent actually reads. Nothing caught it — the fuzzer drives verbs DIRECTLY, so
 // it exercised the real verb and the prompt's dead name went unexercised behind a green
 // sweep. It surfaced only because a human asked whether the installed engine matched source.

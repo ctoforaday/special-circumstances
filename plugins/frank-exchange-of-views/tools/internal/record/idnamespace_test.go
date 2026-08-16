@@ -196,7 +196,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 		return err
 	case "motion":
 		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "motion", NewPayload().
-			Set("motion_id", id).Set("subject", "petition").Set("basis", "b").Set("class", "safety"))
+			Set("motion_id", id).Set("subject", "petition").Set("reason", "b").Set("class", "safety"))
 		return err
 	case "finding":
 		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "finding", NewPayload().

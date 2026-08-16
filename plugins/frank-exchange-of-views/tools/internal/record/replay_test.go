@@ -51,7 +51,7 @@ func TestReadShardDropsUnparseableLinesWithoutLosingTheRest(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "events-red-lens-r1-L1-aaaaaaaa.jsonl")
 	good := `{"seq":0,"seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"type":"register","key":"k0","payload":{}}`
-	good2 := `{"seq":2,"seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"type":"finding","key":"k2","payload":{"text":"kept"}}`
+	good2 := `{"seq":2,"seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"type":"finding","key":"k2","payload":{"reason":"kept"}}`
 	content := strings.Join([]string{
 		good,
 		`{"seq":1,"seatId":"red-lens`, // torn mid-line
@@ -70,7 +70,7 @@ func TestReadShardDropsUnparseableLinesWithoutLosingTheRest(t *testing.T) {
 	if len(evs) != 3 {
 		t.Fatalf("recovered %d events, want 3 (two whole plus the sparse one)", len(evs))
 	}
-	if evs[0].Type != "register" || evs[2].Payload.Str("text") != "kept" {
+	if evs[0].Type != "register" || evs[2].Payload.Str("reason") != "kept" {
 		t.Errorf("surviving events are wrong: %+v", evs)
 	}
 	// The file is NOT rewritten: the fragment stays visible on disk.
@@ -121,7 +121,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		})
 		withoutTerminal := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
 			ev(seatID, "bbbbbbbb", 0, 1, "register", seatID+":register:bbbbbbbb", nil),
-			ev(seatID, "bbbbbbbb", 1, 1, "position", seatID+":position", NewPayload().Set("text", "loser")),
+			ev(seatID, "bbbbbbbb", 1, 1, "position", seatID+":position", NewPayload().Set("reason", "loser")),
 		})
 		// Make the NON-terminal shard newer, so mtime alone would pick the wrong one.
 		old := time.Now().Add(-time.Hour)
@@ -138,7 +138,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, e := range m.Events {
-			if e.Payload.Str("text") == "loser" {
+			if e.Payload.Str("reason") == "loser" {
 				t.Error("the shard WITHOUT the terminal event won despite being newer")
 			}
 		}
@@ -172,9 +172,9 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 	t.Run("with no terminal event, the latest recorded stamp wins over the newer file", func(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "red-lens-r1-L1"
-		early := ev(seatID, "aaaaaaaa", 0, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("text", "older"))
+		early := ev(seatID, "aaaaaaaa", 0, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "older"))
 		early.TS = "2026-01-01T00:00:00.000000000Z"
-		late := ev(seatID, "bbbbbbbb", 0, 1, "finding", seatID+":finding:F2", NewPayload().Set("label", "F2").Set("text", "newer"))
+		late := ev(seatID, "bbbbbbbb", 0, 1, "finding", seatID+":finding:F2", NewPayload().Set("label", "F2").Set("reason", "newer"))
 		late.TS = "2026-01-01T00:00:00.000000001Z" // one nanosecond, which is what nextStamp issues on a tie
 		loser := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{early})
 		winner := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{late})
@@ -192,7 +192,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(m.Events) != 1 || m.Events[0].Payload.Str("text") != "newer" {
+		if len(m.Events) != 1 || m.Events[0].Payload.Str("reason") != "newer" {
 			t.Errorf("the shard with the later RECORDED stamp must win even though its file is older — the record owns this ordering, not the filesystem: %+v", m.Events)
 		}
 		if len(m.Anomalies) != 1 || !strings.Contains(m.Anomalies[0], "by latest recorded event") {
@@ -204,10 +204,10 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "blue-lane-1"
 		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-			ev(seatID, "aaaaaaaa", 0, 0, "revision", seatID+":revision", NewPayload().Set("text", "won")),
+			ev(seatID, "aaaaaaaa", 0, 0, "revision", seatID+":revision", NewPayload().Set("reason", "won")),
 		})
 		writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
-			ev(seatID, "bbbbbbbb", 0, 0, "friction", seatID+":friction:#1", NewPayload().Set("text", "lost")),
+			ev(seatID, "bbbbbbbb", 0, 0, "friction", seatID+":friction:#1", NewPayload().Set("reason", "lost")),
 		})
 		m, err := MergedEvents(runDir)
 		if err != nil {
@@ -269,8 +269,8 @@ func TestMergedEventsDedupByKeyExceptRegister(t *testing.T) {
 	seatID := "red-lens-r1-L1"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 		ev(seatID, "aaaaaaaa", 0, 1, "register", seatID+":register:aaaaaaaa", nil),
-		ev(seatID, "aaaaaaaa", 1, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("text", "first")),
-		ev(seatID, "aaaaaaaa", 2, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("text", "duplicate")),
+		ev(seatID, "aaaaaaaa", 1, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "first")),
+		ev(seatID, "aaaaaaaa", 2, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "duplicate")),
 	})
 	m, err := MergedEvents(runDir)
 	if err != nil {
@@ -280,8 +280,8 @@ func TestMergedEventsDedupByKeyExceptRegister(t *testing.T) {
 	for _, e := range m.Events {
 		if e.Type == "finding" {
 			findings++
-			if e.Payload.Str("text") != "first" {
-				t.Errorf("dedup kept the LATER duplicate: %q", e.Payload.Str("text"))
+			if e.Payload.Str("reason") != "first" {
+				t.Errorf("dedup kept the LATER duplicate: %q", e.Payload.Str("reason"))
 			}
 		}
 	}
@@ -469,7 +469,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 			Set("gap_id", "R1-2").Set("problem", "p2").Set("severity", "high")),
 		// A regrade moves ONLY the keys it carries.
 		ev(seatID, "aaaaaaaa", 2, 1, "regrade", seatID+":regrade:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("severity", "certain").Set("basis", "new evidence")),
+			Set("gap_id", "R1-1").Set("severity", "certain").Set("reason", "new evidence")),
 		ev(seatID, "aaaaaaaa", 3, 1, "close", seatID+":close:R1-2", NewPayload().
 			Set("gap_id", "R1-2").Set("closure_class", "closed")),
 		// A regrade and a close of an UNKNOWN gap are ignored, not fatal.
@@ -521,8 +521,8 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []Event{
-		ev(lens, "aaaaaaaa", 0, 1, "finding", lens+":finding:F1", NewPayload().Set("label", "F1").Set("text", "first")),
-		ev(lens, "aaaaaaaa", 1, 1, "finding", lens+":finding:F2", NewPayload().Set("label", "F2").Set("text", "second")),
+		ev(lens, "aaaaaaaa", 0, 1, "finding", lens+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "first")),
+		ev(lens, "aaaaaaaa", 1, 1, "finding", lens+":finding:F2", NewPayload().Set("label", "F2").Set("reason", "second")),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -576,7 +576,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 	}
 	// An ABSENT graded field is fine; only a present-and-wrong one is refused.
-	if err := validate(t.TempDir(), "red-merge-r1", "regrade", NewPayload().Set("basis", "b")); err != nil {
+	if err := validate(t.TempDir(), "red-merge-r1", "regrade", NewPayload().Set("reason", "b")); err != nil {
 		t.Errorf("absent grades were refused: %v", err)
 	}
 }
@@ -595,7 +595,7 @@ func TestValidateVerbContracts(t *testing.T) {
 
 		{"close without --id", "close", NewPayload(), "close requires --id"},
 		{"regrade without --basis", "regrade", NewPayload(), "regrade requires --reason"},
-		{"regrade complete", "regrade", NewPayload().Set("basis", "b"), ""},
+		{"regrade complete", "regrade", NewPayload().Set("reason", "b"), ""},
 
 		{"retire without --claim", "retire", NewPayload().Set("reason", "r"), "retire requires --claim"},
 		{"retire without --reason", "retire", NewPayload().Set("claim", "c"), "retire requires --reason"},
@@ -708,7 +708,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		}
 		p.Set(f, "x")
 	}
-	p.Set("rationale", "the ruling's reasoning")
+	p.Set("reason", "the ruling's reasoning")
 	// disposition is a CLOSED set since #342 — a placeholder is no longer a legal value.
 	p.Set("disposition", "closed")
 	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
@@ -721,7 +721,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	for _, f := range all {
 		q.Set(f, "")
 	}
-	q.Set("rationale", "the ruling's reasoning")
+	q.Set("reason", "the ruling's reasoning")
 	// DISPOSITION IS THE EXCEPTION TO THE EXCEPTION (#342). The Has-not-empty rule exists for
 	// fields like --review-flag, where "false" is a legitimate ruling. It never applied to the
 	// disposition: an EMPTY disposition rules nothing, and it was only ever accepted because
@@ -773,7 +773,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	anchored := func() *Payload {
 		return NewPayload().Set("gap_id", "R1-1").
 			Set("anchor_seat", "L1").Set("anchor_tool", "git show").Set("anchor_target", "7bc501e:path").
-			Set("prose", "verified against the ref; the claim now holds")
+			Set("reason", "verified against the ref; the claim now holds")
 	}
 	cases := []struct {
 		name    string

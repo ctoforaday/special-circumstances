@@ -20,7 +20,7 @@ func newCertify() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.Identity(), "certify", record.NewPayload().Set("statement", text)); err != nil {
+			if _, err := record.Append(s.Identity(), "certify", record.NewPayload().Set("reason", text)); err != nil {
 				return nil, err
 			}
 			return seat.Msg{Message: "certification recorded"}, nil

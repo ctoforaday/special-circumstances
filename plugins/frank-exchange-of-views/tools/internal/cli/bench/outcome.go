@@ -75,7 +75,7 @@ func newOutcome() *cobra.Command {
 				Set("deadlocked", deadlocked).
 				Set("exhausted", exhausted)
 			if reason != "" {
-				p.Set("prose", reason)
+				p.Set("reason", reason)
 			}
 			// THE DERIVATION'S OWN REASONING, recorded rather than discarded. It was computed on
 			// every call and used only to phrase an error, so the report stamped a verdict and

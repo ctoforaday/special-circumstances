@@ -30,7 +30,7 @@ func newRevision() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			p := record.NewPayload().Set("text", text)
+			p := record.NewPayload().Set("reason", text)
 			if _, err := record.Append(s.Identity(), "revision", p); err != nil {
 				return nil, err
 			}

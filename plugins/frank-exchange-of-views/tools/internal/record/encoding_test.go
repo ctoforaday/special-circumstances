@@ -19,13 +19,13 @@ func TestMarshalEventNeverEscapesHTML(t *testing.T) {
 		name string
 		p    *Payload
 	}{
-		{"angle brackets in prose", NewPayload().Set("text", "a <seat scratchpad> tag")},
-		{"ampersand in prose", NewPayload().Set("text", "this & that")},
-		{"all three at once", NewPayload().Set("text", "<a> & <b>")},
+		{"angle brackets in prose", NewPayload().Set("reason", "a <seat scratchpad> tag")},
+		{"ampersand in prose", NewPayload().Set("reason", "this & that")},
+		{"all three at once", NewPayload().Set("reason", "<a> & <b>")},
 		{"in a payload KEY", NewPayload().Set("k<x>&", "v")},
 		{"inside a nested payload", NewPayload().Set("by_severity", NewPayload().Set("<undefined>", 1))},
 		{"inside a string list", NewPayload().Set("supersedes", []string{"<R1-2>", "a&b"})},
-		{"markdown fence with a diff fragment", NewPayload().Set("text", "```diff\n- <old>\n+ <new>\n```")},
+		{"markdown fence with a diff fragment", NewPayload().Set("reason", "```diff\n- <old>\n+ <new>\n```")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestMarshalCompactNeverEscapesHTML(t *testing.T) {
 // The characters JSON *must* escape are still escaped: turning off HTML escaping
 // is not turning off escaping.
 func TestMarshalEventStillEscapesWhatJSONRequires(t *testing.T) {
-	p := NewPayload().Set("text", "quote \" backslash \\ newline \n tab \t")
+	p := NewPayload().Set("reason", "quote \" backslash \\ newline \n tab \t")
 	b, err := marshalEvent(Event{Payload: p})
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ func TestMarshalEventStillEscapesWhatJSONRequires(t *testing.T) {
 	if err := json.Unmarshal(b, &back); err != nil {
 		t.Fatal(err)
 	}
-	if got := back.Payload.Str("text"); got != p.Str("text") {
+	if got := back.Payload.Str("reason"); got != p.Str("reason") {
 		t.Errorf("text did not round-trip: %q", got)
 	}
 }

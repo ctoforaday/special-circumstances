@@ -599,7 +599,7 @@ func nextInquiryStatus() string {
 	return inquiryStatus[int(inquiryTick.Add(1)-1)%len(inquiryStatus)]
 }
 
-var obsKind = []string{"note", "checked-held"}
+var obsKind = []string{"reason", "checked-held"}
 
 // disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
 var disputeDims = []string{"severity", "likelihood", "impact", "complexity_cost"}
@@ -635,7 +635,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// non-pursuit is the decoration this verb exists to refuse). Without it two of the
 		// three statuses were rejected on every call, so only `pursued` ever reached the
 		// record while the verb gate read as covered. Found by the execution tally
-		// (blue line of inquiry: 48 of 72 calls refused).
+		// (blue line-of-inquiry: 48 of 72 calls refused).
 		// A FATE-CARRYING LINE IS BORN `proposed`, so the ruling cycle can run on it: red rules
 		// it, blue answers. Creating one directly as `pursued` or `declined` skips the cycle
 		// entirely — which the oracle caught, reporting endorsed inquiries that "ended declined"
@@ -661,7 +661,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// NO line of inquiry DRIVE HERE: the lens role has no line of inquiry verb (register/finding/
 		// cite/friction/show). This called it 183 times per sweep, every one refused, while
 		// the verb gate stayed green on blue's line of inquiry events — a dead drive that read as
-		// coverage. Found by the execution tally (lens line of inquiry: 183 of 183 refused).
+		// coverage. Found by the execution tally (lens line-of-inquiry: 183 of 183 refused).
 	case "merge":
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
@@ -1007,7 +1007,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", disp,
 					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
 			}
-			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "rationale": "fuzz"})
+			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "reason": "fuzz"})
 		}
 		return map[string]any{"resolutions": res, "deadlock": false, "friction": arr()}
 
@@ -1791,18 +1791,18 @@ func tallyDialectic(board *record.Board) map[string]int {
 // FAILS. A new verb cannot be added without deciding, in writing, what its reader gets.
 var dialecticProseKey = map[string]string{
 	// The debate proper.
-	"position": "text", "closing": "text", "opinion": "rationale",
+	"position": "reason", "closing": "reason", "opinion": "reason",
 	// Motions: the ASK and the ANSWER, on one id. `petition-rule` alone used to be the half-dialog — the
 	// reader got the bench's ruling with no question attached.
 	// The board.
-	"mint": "problem", "finding": "text", "regrade": "basis",
+	"mint": "problem", "finding": "reason", "regrade": "reason",
 	// Directions: the line, red's ruling on it, and blue's reason for its fate.
 	"line-of-inquiry": "line",
 	// The lens's below-the-bar work and the fate the merge gave it.
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
 	// Run-level voices.
-	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement", "declare": "holding",
+	"friction": "reason", "revision": "reason", "halt": "reason", "certify": "reason", "declare": "holding",
 	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint
 	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
 	// whether the seats looked and said so, or never used the channel. Those were the same
@@ -1814,7 +1814,7 @@ var dialecticProseKey = map[string]string{
 	"manifest-row": "row",
 	// The motion group. `basis` is the ASK, `opinion` the answer, `reason` the appeal — all three
 	// render in the report's one Motions section, joined on the motion id (#344).
-	"motion":        "basis",
+	"motion":        "reason",
 	"motion-rule":   "opinion",
 	"motion-appeal": "reason",
 	// Red re-reading its own closure archive. `notes` is what the sample FOUND — the whole
@@ -1832,7 +1832,7 @@ var reportExemptions = map[string]string{
 	"class-new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
-	"reproduce": "note",
+	"reproduce": "reason",
 	"verify":    "red adjudicating ONE citation. It reaches the reader through the evidence view rather than the report body: the report carries BLUE's citations (woven into the bibliography), and red's verdict on them is audit provenance rather than a claim the reader acts on. It IS surfaced — attached to the source it names in `show evidence`, in the board's citations count, and, for `refutes` and `absent`, as an assembly-screen FAILURE if the report still cites what red found against",
 	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
 	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
@@ -2247,7 +2247,7 @@ func directionRuling(b *record.Board, runDir, inquiryID string) string {
 	if v := record.InquiryRuling(runDir, inquiryID); v != "" {
 		return v
 	}
-	for _, m := range record.AllMotions(b) {
+	for _, m := range record.Motions(b) {
 		if m.Subject == "inquiry" && m.Fields["inquiry_id"] == inquiryID && m.Ruled() {
 			return m.Ruling
 		}

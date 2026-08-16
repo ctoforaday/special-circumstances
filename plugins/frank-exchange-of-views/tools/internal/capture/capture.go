@@ -964,7 +964,7 @@ func rulingsFromRecord(board *record.Board) []ruling {
 				kind:        "docket",
 				gapID:       e.Payload.Str("gap_id"),
 				disposition: e.Payload.Str("disposition"),
-				rationale:   e.Payload.Str("rationale"),
+				rationale:   e.Payload.Str("reason"),
 			})
 		case "declare":
 			// No gap and no fate — that is the point of the verb. The holding IS the ruling.
@@ -981,7 +981,7 @@ func rulingsFromRecord(board *record.Board) []ruling {
 				kind:        "petition",
 				petitioner:  filedBy[e.Payload.Str("motion_id")],
 				disposition: e.Payload.Str("ruling"),
-				rationale:   e.Payload.Str("opinion"),
+				rationale:   e.Payload.Str("reason"),
 			})
 		}
 	}

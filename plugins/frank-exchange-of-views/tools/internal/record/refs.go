@@ -337,7 +337,7 @@ func requirePassClosesAllGaps(runDir string) error {
 	// The gate counts what is on the RECORD, both vocabularies, because a pre-collapse record
 	// replayed under this binary must be judged by the same standard it was written to.
 	var unruled []string
-	for _, m := range AllMotions(b) {
+	for _, m := range Motions(b) {
 		if !m.Ruled() {
 			unruled = append(unruled, m.ID)
 		}

@@ -16,12 +16,13 @@ import (
 // one seat in one round would have been a guess. A motion has an id, so an ask and its answer are
 // one row.
 //
-// It reads through record.AllMotions, which is the DUAL-READ: a pre-collapse record renders here
-// too, from its dispute/petition/line of inquiry-rule events. A consumer calling record.Motions directly
-// would render NOTHING for an old record and look exactly like a run that had no disputes and no
-// petitions — the plausible zero this stage exists to remove.
+// It reads through record.Motions, which is now the only vocabulary. This used to go through an
+// `AllMotions` dual-read that also translated the pre-collapse `dispute`/`petition`/`avenue-rule`
+// events, so an archived record would not render NOTHING and look exactly like a run that had no
+// disputes and no petitions. That compatibility layer is gone — see the note above record.Motions
+// for why its premise did not hold and what it costs if that judgement was wrong.
 func motions(board *record.Board) string {
-	ms := record.AllMotions(board)
+	ms := record.Motions(board)
 	if len(ms) == 0 {
 		return ""
 	}

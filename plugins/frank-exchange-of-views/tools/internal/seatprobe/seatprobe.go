@@ -168,7 +168,7 @@ func Read(sf Surface, runDir, seatID string) (*Choices, error) {
 		}
 		c.Used[verb]++
 		if e.Type == "friction" {
-			c.Friction = append(c.Friction, e.Payload.Str("text"))
+			c.Friction = append(c.Friction, e.Payload.Str("reason"))
 		}
 	}
 	if c.Role == "" {

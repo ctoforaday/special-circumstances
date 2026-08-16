@@ -368,7 +368,7 @@ func verdictWhy(o *record.Payload) string {
 	if why := strings.TrimSpace(o.Str("verdict_why")); why != "" {
 		out += " (" + why + ")"
 	}
-	if r := strings.TrimSpace(o.Str("prose")); r != "" {
+	if r := strings.TrimSpace(o.Str("reason")); r != "" {
 		out += "\n\n> **The deadlock, in the bench's words:** " + r
 	}
 	return out
@@ -420,11 +420,11 @@ func orientation(board *record.Board, evs []record.Event) string {
 	for _, e := range evs {
 		switch e.Type {
 		case "certify":
-			if s := e.Payload.Str("statement"); s != "" {
+			if s := e.Payload.Str("reason"); s != "" {
 				b.WriteString("**The bench asks a human to re-examine:** " + s + "\n\n")
 			}
 		case "halt":
-			if s := e.Payload.Str("opinion"); s != "" {
+			if s := e.Payload.Str("reason"); s != "" {
 				b.WriteString("**The bench HALTED this run:** " + s + "\n\n")
 			}
 		}
@@ -835,7 +835,7 @@ func regradeHistory(g *record.Gap) string {
 		if moved == "" {
 			moved = "regraded"
 		}
-		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, r.Str("basis")))
+		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, r.Str("reason")))
 	}
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
@@ -878,7 +878,7 @@ func unmintedFindings(board *record.Board) string {
 			head, loc,
 			grade(e.Payload.Str("severity")), grade(e.Payload.Str("likelihood")), grade(e.Payload.Str("impact")),
 			e.SeatID,
-			e.Payload.Str("text")))
+			e.Payload.Str("reason")))
 	}
 	if len(rows) == 0 {
 		return ""
@@ -908,13 +908,13 @@ func debate(evs []record.Event) string {
 		for _, e := range re {
 			switch {
 			case e.Type == "position" && record.PartyOf(e) == "merge":
-				round = append(round, "### RED\n"+e.Payload.Str("text"))
+				round = append(round, "### RED\n"+e.Payload.Str("reason"))
 			case e.Type == "closing" && record.PartyOf(e) == "merge":
-				round = append(round, fmt.Sprintf("### RED CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
+				round = append(round, fmt.Sprintf("### RED CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("reason")))
 			case e.Type == "position" && record.PartyOf(e) == "blue":
-				round = append(round, "### BLUE\n"+e.Payload.Str("text"))
+				round = append(round, "### BLUE\n"+e.Payload.Str("reason"))
 			case e.Type == "closing" && record.PartyOf(e) == "blue":
-				round = append(round, fmt.Sprintf("### BLUE CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("text")))
+				round = append(round, fmt.Sprintf("### BLUE CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("reason")))
 			}
 		}
 		// Grade disputes and their answers — the claim-level alternative and its counter.
@@ -922,9 +922,9 @@ func debate(evs []record.Event) string {
 		for _, e := range re {
 			switch e.Type {
 			case "dispute":
-				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s", e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("evidence")))
+				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s", e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("reason")))
 			case "dispute-respond":
-				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("rationale")))
+				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("reason")))
 			}
 		}
 		if len(disp) > 0 {
@@ -950,13 +950,13 @@ func debate(evs []record.Event) string {
 				if class != "" {
 					class = " (" + class + ")"
 				}
-				row := fmt.Sprintf("- **%s petitions the bench%s**: %s", e.SeatID, class, e.Payload.Str("basis"))
+				row := fmt.Sprintf("- **%s petitions the bench%s**: %s", e.SeatID, class, e.Payload.Str("reason"))
 				if r := e.Payload.Str("relief"); r != "" {
 					row += "\n  - relief sought: " + r
 				}
 				pets = append(pets, row)
 			case "petition-rule":
-				pets = append(pets, fmt.Sprintf("- ruled **%s** on %s's petition — %s", e.Payload.Str("ruling"), e.Payload.Str("petitioner"), e.Payload.Str("opinion")))
+				pets = append(pets, fmt.Sprintf("- ruled **%s** on %s's petition — %s", e.Payload.Str("ruling"), e.Payload.Str("petitioner"), e.Payload.Str("reason")))
 			}
 		}
 		if len(pets) > 0 {
@@ -970,7 +970,7 @@ func debate(evs []record.Event) string {
 			}
 			lead = append(lead, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
 				e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
-				e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("rationale")))
+				e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("reason")))
 		}
 		if len(lead) > 0 {
 			round = append(round, "### LEAD\n"+strings.Join(lead, "\n"))
@@ -986,9 +986,9 @@ func debate(evs []record.Event) string {
 	for _, e := range evs {
 		switch e.Type {
 		case "halt":
-			disp = append(disp, "**HALT** — "+e.Payload.Str("opinion"))
+			disp = append(disp, "**HALT** — "+e.Payload.Str("reason"))
 		case "certify":
-			disp = append(disp, "**Certification** — "+e.Payload.Str("statement"))
+			disp = append(disp, "**Certification** — "+e.Payload.Str("reason"))
 		case "declare":
 			// A DECLARATION BINDS HOW THE RECORD IS READ, so it belongs in the artifact the
 			// record produces, not only in the transcript view. It moves no gap and names none —
@@ -1031,7 +1031,7 @@ func debate(evs []record.Event) string {
 func frictionLog(evs []record.Event) string {
 	var rows, attested []string
 	for _, e := range evs {
-		t := strings.TrimSpace(e.Payload.Str("text"))
+		t := strings.TrimSpace(e.Payload.Str("reason"))
 		if t == "" {
 			continue
 		}
@@ -1074,7 +1074,7 @@ func revisionHistory(evs []record.Event) string {
 		if e.Type != "revision" {
 			continue
 		}
-		if t := strings.TrimSpace(e.Payload.Str("text")); t != "" {
+		if t := strings.TrimSpace(e.Payload.Str("reason")); t != "" {
 			rows = append(rows, fmt.Sprintf("### Round %d — %s\n\n%s", e.Round, e.SeatID, t))
 		}
 	}

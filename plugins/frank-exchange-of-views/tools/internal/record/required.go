@@ -35,24 +35,24 @@ var RequiredFields = map[string][]string{
 	// finding's label is TOOL-assigned now (not seat-provided), so it is not listed
 	// here — same as mint's gap_id, which validate requires but no flag sets. validate
 	// still enforces the finding-label INVARIANT; the table lists only seat-set fields.
-	"close":           {"gap_id", "prose"},
-	"closing":         {"text"},
-	"regrade":         {"basis"},
+	"close":           {"gap_id", "reason"},
+	"closing":         {"reason"},
+	"regrade":         {"reason"},
 	"retire":          {"claim", "reason"},
 	"line-of-inquiry": {"status", "line"},
-	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "rationale"},
-	"halt":            {"opinion"},
-	"certify":         {"statement"},
+	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "reason"},
+	"halt":            {"reason"},
+	"certify":         {"reason"},
 	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
 	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
 	// ENDED is not, and on a judged deadlock nothing else records it.
-	"outcome": {"prose"},
+	"outcome": {"reason"},
 	// A VERIFICATION OF NOTHING WAS RECORDABLE. `lens verify` required no flag at all: the bare
 	// verb printed "source verified:" and appended an event, which then counted as red's audit
 	// volume. The four fields here are what makes the row mean something — WHICH citation
 	// (or an explicit --independent), WHAT the source did for the claim, HOW SURE red is of that
 	// (a separate question), and the reading behind the verdict.
-	"verify": {"claim", "outcome", "confidence", "text"},
+	"verify": {"claim", "outcome", "confidence", "reason"},
 }
 
 // THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its

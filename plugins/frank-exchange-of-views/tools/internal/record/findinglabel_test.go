@@ -61,7 +61,7 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 	}
 
 	// Record one under key F1 with label L1-F1.
-	p := NewPayload().Set("label", "L1-F1").Set("finding_key", "F1").Set("text", "x")
+	p := NewPayload().Set("label", "L1-F1").Set("finding_key", "F1").Set("reason", "x")
 	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}, "finding", p); err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 
 func mustFinding(t *testing.T, runDir, seat, label string) {
 	t.Helper()
-	p := NewPayload().Set("label", label).Set("finding_key", label).Set("text", "x")
+	p := NewPayload().Set("label", label).Set("finding_key", label).Set("reason", "x")
 	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}, "finding", p); err != nil {
 		t.Fatal(err)
 	}

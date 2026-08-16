@@ -161,7 +161,7 @@ func (m Motion) Ruled() bool { return m.Ruling != "" }
 // Motions replays the motion events into current state, in filing order.
 //
 // It reads the `motion` types only. Pre-collapse records carry `dispute`/`dispute-respond`,
-// `petition`/`petition-rule` and `line of inquiry-rule` instead, and those are handled by the DUAL-READ in
+// `petition`/`petition-rule` and `avenue-rule` instead, and those are handled by the DUAL-READ in
 // compat.go — deliberately separate, so the shape of a motion is not bent to accommodate the
 // three shapes it replaced.
 func Motions(b *Board) []*Motion {
@@ -214,7 +214,7 @@ func Motions(b *Board) []*Motion {
 				order = append(order, id)
 			}
 			m.Subject, m.Filer, m.Round = e.Payload.Str("subject"), e.SeatID, e.Round
-			m.Basis, m.Relief = e.Payload.Str("basis"), e.Payload.Str("relief")
+			m.Basis, m.Relief = e.Payload.Str("reason"), e.Payload.Str("relief")
 			for _, k := range []string{"gap_id", "dimension", "proposed", "class", "inquiry_id"} {
 				if v := e.Payload.Str(k); v != "" {
 					m.Fields[k] = v
@@ -239,7 +239,7 @@ func Motions(b *Board) []*Motion {
 				// dominated by lines nobody was ever going to rule on, and the one signal that
 				// message exists to carry (a sitting that did not happen) would have drowned in it.
 				//
-				// compat.go builds the legacy direction motion the same way, from `line of inquiry-rule`.
+				// compat.go builds the legacy direction motion the same way, from `avenue-rule`.
 				// One shape for both vocabularies, which is what makes the dual-read a translation
 				// rather than a second model.
 				m := &Motion{ID: id, Subject: "inquiry", Fields: map[string]string{"inquiry_id": id}}
@@ -266,7 +266,7 @@ func Motions(b *Board) []*Motion {
 		switch e.Type {
 		case "motion-rule":
 			m.Ruling, m.RulingBy, m.RulingRound = e.Payload.Str("ruling"), e.SeatID, e.Round
-			m.Opinion = e.Payload.Str("opinion")
+			m.Opinion = e.Payload.Str("reason")
 		case "motion-appeal":
 			m.Appealed, m.AppealReason = true, e.Payload.Str("reason")
 		}
@@ -412,25 +412,23 @@ func MotionVerdictEnum(subject string) EnumField {
 	}
 }
 
-// AllMotions returns every motion on the record.
-//
-// # It used to be a DUAL-READ, and the dual-read is gone
+// THE DUAL-READ IS GONE, and this is where it was.
 //
 // Before the motion collapse (#344) the three exchanges were written as `dispute`/`dispute-respond`,
-// `petition`/`petition-rule` and `line of inquiry`/`line of inquiry-rule`. `compat.go` translated those retired
-// shapes so a stored pre-collapse record would not render `0 filed / 0 ruled` — a plausible zero
-// indistinguishable from a run that genuinely had no disputes.
+// `petition`/`petition-rule` and `avenue`/`avenue-rule`. `compat.go` translated those retired shapes
+// through an `AllMotions` seam so a stored pre-collapse record would not render `0 filed / 0 ruled`
+// — a plausible zero indistinguishable from a run that genuinely had no disputes.
 //
 // That reasoning was sound and its PREMISE was not. It declared itself permanent on the grounds
 // that "stored runs are re-read" and that installing projects hold records this repo cannot see.
-// Checked 2026-08-16 rather than assumed: the only records anywhere carrying the retired types
-// were `internal/record/testdata/pre-motion-run` and `pre-motion-real-run` — two fixtures created
-// to exercise the dual-read — plus one research run referenced solely in code comments. The
+// Checked 2026-08-16 rather than assumed: the only records anywhere carrying the retired types were
+// `internal/record/testdata/pre-motion-run` and `pre-motion-real-run` — two fixtures created to
+// exercise the dual-read — plus one research run referenced solely in code comments. The
 // compatibility code's entire evidence base was the fixtures written to justify it.
 //
-// So it went, with its fixtures. THE COST IF THAT PREMISE IS WRONG, stated plainly rather than
-// left for someone to discover: a record written before #344 now renders an empty motions section
-// and `0 filed / 0 ruled`, exactly the plausible zero compat.go existed to prevent. Restoring it
-// is `git revert` on this commit. It is deleted on the owner's explicit instruction that there is
-// nothing to be compatible with, and that judgement is theirs to make.
-func AllMotions(b *Board) []*Motion { return Motions(b) }
+// Two sessions reached that conclusion independently on the same instruction and deleted it in
+// parallel; the merge kept `Motions` as the single read and dropped the `AllMotions` seam with it.
+//
+// THE COST IF THE PREMISE IS WRONG, stated rather than left to be discovered: a record written
+// before #344 renders an empty motions section and `0 filed / 0 ruled`, exactly the plausible zero
+// compat.go existed to prevent.

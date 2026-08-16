@@ -87,7 +87,7 @@ JUDICIAL HALT recorded — capture relays this verbatim
 ═══ EVENTS ═══
 -- events-judge-petition-NONCE001.jsonl
 {"key":"judge-petition:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.71.0"},"role":"bench","round":0,"seatId":"judge-petition","seq":0,"ts":0,"type":"register"}
-{"key":"judge-petition:halt:#1","nonce":"NONCE001","payload":{"opinion":"continuing would compromise the consent gate"},"role":"bench","round":0,"seatId":"judge-petition","seq":1,"ts":1,"type":"halt"}
+{"key":"judge-petition:halt:#1","nonce":"NONCE001","payload":{"reason":"continuing would compromise the consent gate"},"role":"bench","round":0,"seatId":"judge-petition","seq":1,"ts":1,"type":"halt"}
 
 ═══ RENDERS ═══
 -- debate

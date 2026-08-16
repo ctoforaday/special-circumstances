@@ -61,7 +61,7 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 			answers = "answers **" + id + "**"
 		}
 		out = append(out, fmt.Sprintf("- **#%d** `%s` %s · %s — %s",
-			n, e.SeatID, answers, delta(e.Payload.Str("old"), e.Payload.Str("new")), e.Payload.Str("text")))
+			n, e.SeatID, answers, delta(e.Payload.Str("old"), e.Payload.Str("new")), e.Payload.Str("reason")))
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
@@ -171,7 +171,7 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 		out = append(out,
 			fmt.Sprintf("### %d. Round %d · `%s` · %s", i+1, e.Round, e.SeatID, delta(e.Payload.Str("old"), e.Payload.Str("new"))),
 			"",
-			"**Blue's reason**: "+e.Payload.Str("text"),
+			"**Blue's reason**: "+e.Payload.Str("reason"),
 			"",
 			"```diff",
 			"- "+oneLine(e.Payload.Str("old")),

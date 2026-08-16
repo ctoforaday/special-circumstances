@@ -67,7 +67,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	}
 
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "friction-none",
-		NewPayload().Set("text", "read the board and my verb list; every refusal was my own error")); err != nil {
+		NewPayload().Set("reason", "read the board and my verb list; every refusal was my own error")); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(runDir)
@@ -160,7 +160,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().
 		Set("gap_id", "R1-2").Set("disposition", "risk_accepted").
 		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "x").
-		Set("prose", "the demand outweighed the defect")); err != nil {
+		Set("reason", "the demand outweighed the defect")); err != nil {
 		t.Fatal(err)
 	}
 	if owed := GapsAwaitingProof(runDir); len(owed) != 0 {

@@ -19,13 +19,13 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	blue2 := "blue-lane-2"
 
 	writeShard(t, runDir, merge, "aaaaaaaa", []Event{
-		ev(merge, "aaaaaaaa", 0, 1, "position", merge+":position", NewPayload().Set("text", "red r1")),
-		ev(merge, "aaaaaaaa", 1, 1, "closing", merge+":closing:R1-1", NewPayload().Set("gap_id", "R1-1").Set("text", "red closes r1")),
+		ev(merge, "aaaaaaaa", 0, 1, "position", merge+":position", NewPayload().Set("reason", "red r1")),
+		ev(merge, "aaaaaaaa", 1, 1, "closing", merge+":closing:R1-1", NewPayload().Set("gap_id", "R1-1").Set("reason", "red closes r1")),
 	})
 	writeShard(t, runDir, blue, "bbbbbbbb", []Event{
-		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", NewPayload().Set("text", "blue r1")),
+		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", NewPayload().Set("reason", "blue r1")),
 		ev(blue, "bbbbbbbb", 1, 1, "confidence", blue+":confidence:C1", NewPayload().Set("label", "claim one").Set("grade", "medium")),
-		ev(blue, "bbbbbbbb", 2, 1, "dispute", blue+":dispute:R1-1", NewPayload().Set("gap_id", "R1-1").Set("dimension", "likelihood").Set("proposed", "low").Set("evidence", "blue evidence")),
+		ev(blue, "bbbbbbbb", 2, 1, "dispute", blue+":dispute:R1-1", NewPayload().Set("gap_id", "R1-1").Set("dimension", "likelihood").Set("proposed", "low").Set("reason", "blue evidence")),
 	})
 	writeShard(t, runDir, judge, "cccccccc", []Event{
 		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", NewPayload().
@@ -34,7 +34,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).
 	writeShard(t, runDir, merge2, "dddddddd", []Event{
-		ev(merge2, "dddddddd", 0, 2, "position", merge2+":position", NewPayload().Set("text", "red r2")),
+		ev(merge2, "dddddddd", 0, 2, "position", merge2+":position", NewPayload().Set("reason", "red r2")),
 	})
 	// A blue seat that recorded nothing in round 2 (present in the run, silent this round).
 	writeShard(t, runDir, blue2, "eeeeeeee", []Event{})
@@ -97,7 +97,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	runDir := t.TempDir()
 	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []Event{
-		ev("red-merge-r1", "aaaaaaaa", 0, 1, "position", "red-merge-r1:position", NewPayload().Set("text", "red")),
+		ev("red-merge-r1", "aaaaaaaa", 0, 1, "position", "red-merge-r1:position", NewPayload().Set("reason", "red")),
 	})
 	out, err := DebateJSONBytes(runDir)
 	if err != nil {
@@ -217,8 +217,8 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	s := "red-lens-r1-L1"
 	m := "red-merge-r1"
 	writeShard(t, runDir, s, "aaaaaaaa", []Event{
-		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("text", "credited")),
-		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("text", "never credited")),
+		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("reason", "credited")),
+		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("reason", "never credited")),
 	})
 	writeShard(t, runDir, m, "bbbbbbbb", []Event{
 		ev(m, "bbbbbbbb", 0, 1, "mint", m+":mint:k", NewPayload().Set("gap_id", "R1-1").Set("found_by", []string{"L1-F1"})),

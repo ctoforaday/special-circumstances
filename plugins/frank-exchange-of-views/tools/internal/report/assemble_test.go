@@ -223,7 +223,7 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 		// IS the line's own id — the proposal is the filing, so there is no second identity. The
 		// fixture used to write the retired `avenue-rule` type, which nothing has written since
 		// the motion collapse and which no longer has a read arm.
-		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("subject", "inquiry").Set("motion_id", "Q1").Set("ruling", "out-of-scope").Set("opinion", "a real question, not THIS run's")},
+		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("subject", "inquiry").Set("motion_id", "Q1").Set("ruling", "out-of-scope").Set("reason", "a real question, not THIS run's")},
 		{Round: 1, Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("contests_ruling", "out-of-scope")},
 	}}
 	exp := inquiries(board, "The expansions", accepted)
@@ -236,18 +236,18 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 
 func TestDebateTranscriptFromEvents(t *testing.T) {
 	evs := []record.Event{
-		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("text", "gap A stands")},
-		{Round: 1, Type: "position", SeatID: "blue-r1", Payload: record.NewPayload().Set("text", "gap A repaired")},
+		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("reason", "gap A stands")},
+		{Round: 1, Type: "position", SeatID: "blue-r1", Payload: record.NewPayload().Set("reason", "gap A repaired")},
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		{Round: 1, Type: "dispute", SeatID: "blue-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("dimension", "impact").Set("proposed", "low").Set("evidence", "trivial harm")},
-		{Round: 1, Type: "dispute-respond", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("response", "rejected").Set("rationale", "harm compounds")},
-		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("rationale", "needs a probe")},
-		{Round: 1, Type: "petition", SeatID: "blue", Payload: record.NewPayload().Set("class", "integrity").Set("basis", "the instruction would require asserting what I believe false").Set("relief", "strike the demand from the docket")},
-		{Round: 1, Type: "petition-rule", SeatID: "judge-petition", Payload: record.NewPayload().Set("petitioner", "blue").Set("ruling", "granted").Set("opinion", "relief warranted")},
-		{Round: 0, Type: "halt", SeatID: "judge-terminal", Payload: record.NewPayload().Set("opinion", "safety gate tripped")},
-		{Round: 0, Type: "certify", SeatID: "judge-terminal", Payload: record.NewPayload().Set("statement", "re-examine the cost model")},
+		{Round: 1, Type: "dispute", SeatID: "blue-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("dimension", "impact").Set("proposed", "low").Set("reason", "trivial harm")},
+		{Round: 1, Type: "dispute-respond", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("response", "rejected").Set("reason", "harm compounds")},
+		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("reason", "needs a probe")},
+		{Round: 1, Type: "petition", SeatID: "blue", Payload: record.NewPayload().Set("class", "integrity").Set("reason", "the instruction would require asserting what I believe false").Set("relief", "strike the demand from the docket")},
+		{Round: 1, Type: "petition-rule", SeatID: "judge-petition", Payload: record.NewPayload().Set("petitioner", "blue").Set("ruling", "granted").Set("reason", "relief warranted")},
+		{Round: 0, Type: "halt", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "safety gate tripped")},
+		{Round: 0, Type: "certify", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "re-examine the cost model")},
 	}
 	d := debate(evs)
 	for _, want := range []string{
@@ -348,13 +348,13 @@ func TestRemovalBasisReachesTheReader(t *testing.T) {
 // nothing would make it indistinguishable from a run that had no petitions at all.
 func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	filed := []record.Event{{Round: 1, Type: "petition", SeatID: "red-merge-r1",
-		Payload: record.NewPayload().Set("class", "safety").Set("basis", "the demand would bury a hazard")}}
+		Payload: record.NewPayload().Set("class", "safety").Set("reason", "the demand would bury a hazard")}}
 	d := debate(filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
 	}
 	answered := append(filed, record.Event{Round: 1, Type: "petition-rule", SeatID: "judge-r1",
-		Payload: record.NewPayload().Set("petitioner", "red-merge-r1").Set("ruling", "denied").Set("opinion", "the hazard is graded, not buried")})
+		Payload: record.NewPayload().Set("petitioner", "red-merge-r1").Set("ruling", "denied").Set("reason", "the hazard is graded, not buried")})
 	if d := debate(answered); strings.Contains(d, "received no ruling") {
 		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
 	}
@@ -424,7 +424,7 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 		},
 	}
 	evs := []record.Event{
-		{Type: "certify", Payload: record.NewPayload().Set("statement", "re-examine the cost model before shipping")},
+		{Type: "certify", Payload: record.NewPayload().Set("reason", "re-examine the cost model before shipping")},
 	}
 	o := orientation(board, evs)
 	// The bench's certify is promoted to the top.
@@ -454,9 +454,9 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 			"R1-1": {ID: "R1-1", Mint: record.NewPayload().Set("found_by", []string{"L5-F1", "L6-F2"})},
 		},
 		Events: []record.Event{
-			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F1").Set("text", "minted — omit")},
-			{Type: "finding", SeatID: "red-lens-r1-L6", Payload: record.NewPayload().Set("label", "L6-F2").Set("text", "also minted — omit")},
-			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F3").Set("location", "§H1").Set("text", "un-minted red reasoning kept for the record")},
+			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F1").Set("reason", "minted — omit")},
+			{Type: "finding", SeatID: "red-lens-r1-L6", Payload: record.NewPayload().Set("label", "L6-F2").Set("reason", "also minted — omit")},
+			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F3").Set("location", "§H1").Set("reason", "un-minted red reasoning kept for the record")},
 		},
 	}
 	got := redFindings(board)
@@ -473,8 +473,8 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 
 func TestFrictionRendered(t *testing.T) {
 	evs := []record.Event{
-		{Type: "friction", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("text", "the --cx flag is missing from help")},
-		{Type: "friction", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("text", "manifest cap fights methodology gaps")},
+		{Type: "friction", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("reason", "the --cx flag is missing from help")},
+		{Type: "friction", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("reason", "manifest cap fights methodology gaps")},
 		{Type: "mint", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("problem", "not friction")},
 	}
 	f := frictionLog(evs)
@@ -499,9 +499,9 @@ func TestCellEscapesTableBreakers(t *testing.T) {
 
 func TestRevisionHistoryFromEvents(t *testing.T) {
 	evs := []record.Event{
-		{Round: 1, Type: "revision", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("text", "expanded the caching section; retired the stale figure")},
-		{Round: 2, Type: "revision", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("text", "addressed R2-1 in the analysis")},
-		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("text", "not a revision")},
+		{Round: 1, Type: "revision", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("reason", "expanded the caching section; retired the stale figure")},
+		{Round: 2, Type: "revision", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("reason", "addressed R2-1 in the analysis")},
+		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("reason", "not a revision")},
 	}
 	got := revisionHistory(evs)
 	if !strings.Contains(got, "## Report revision history") {

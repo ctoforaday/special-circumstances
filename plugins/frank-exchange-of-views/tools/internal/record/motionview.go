@@ -69,7 +69,7 @@ type MotionsJSON struct {
 // MotionsJSONOf projects every motion on the record, current vocabulary and legacy alike.
 func MotionsJSONOf(b *Board) MotionsJSON {
 	out := MotionsJSON{Motions: []MotionJSON{}}
-	for _, m := range AllMotions(b) {
+	for _, m := range Motions(b) {
 		if m == nil {
 			continue
 		}
@@ -86,7 +86,7 @@ func MotionsJSONOf(b *Board) MotionsJSON {
 		out.Motions = append(out.Motions, mj)
 	}
 	// Filing order is the order they must be answered in, and replay order is filing order —
-	// but AllMotions concatenates the current vocabulary with the legacy one, so a run holding
+	// but Motions reads the one live vocabulary, so a run holding
 	// both would otherwise present two interleaved sequences as one.
 	sort.SliceStable(out.Motions, func(i, j int) bool {
 		if out.Motions[i].Round != out.Motions[j].Round {

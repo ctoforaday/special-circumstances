@@ -13,7 +13,7 @@ func TestAnUnruledMotionIsReported(t *testing.T) {
 	b := &record.Board{Events: []record.Event{{
 		Round: 1, Type: "motion", SeatID: "blue-respond-r1",
 		Payload: record.NewPayload().Set("motion_id", "M1").Set("subject", "petition").
-			Set("class", "safety").Set("basis", "the demand would bury a hazard"),
+			Set("class", "safety").Set("reason", "the demand would bury a hazard"),
 	}}}
 	out := motions(b)
 	if !strings.Contains(out, "NOT RULED") || !strings.Contains(out, "1 motion(s) received no ruling") {

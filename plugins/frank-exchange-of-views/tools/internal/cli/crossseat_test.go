@@ -110,7 +110,7 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	if got := ev.Payload.Str("severity"); got != "low" {
 		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", got)
 	}
-	if !payloadKeys(ev)["basis"] {
+	if !payloadKeys(ev)["reason"] {
 		t.Error("the regrade lost its basis; grade movement without a stated reason is the silent regrading this channel exists to prevent")
 	}
 }

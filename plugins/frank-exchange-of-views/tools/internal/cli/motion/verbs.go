@@ -41,7 +41,7 @@ func newFile(subject string, required []string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("basis", basis)
+			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("reason", basis)
 			for _, f := range required {
 				p.Set(payloadKey(f), seat.Str(cmd, f))
 			}
@@ -138,7 +138,7 @@ func newRule(subject, ruler string) *cobra.Command {
 				return err
 			}
 			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).
-				Set("ruling", seat.Str(cmd, flags.As)).Set("opinion", opinion)
+				Set("ruling", seat.Str(cmd, flags.As)).Set("reason", opinion)
 			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
 			// because a denial binds nobody — and a grant that names no addressee is exactly the
 			// state the bench filed friction about: a direction issued knowing it had no carrier.

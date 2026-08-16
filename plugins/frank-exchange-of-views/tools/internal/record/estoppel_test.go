@@ -23,7 +23,7 @@ func board(t *testing.T, gapFix map[string]string, evs []Event) *Board {
 const prescribed = "Five verification approaches agree, all sharing one definition of primality."
 
 func edit(gapID string, verbatim bool) Event {
-	p := NewPayload().Set("answers", gapID).Set("old", "x").Set("new", "y").Set("text", "r")
+	p := NewPayload().Set("answers", gapID).Set("old", "x").Set("new", "y").Set("reason", "r")
 	if verbatim {
 		p.Set("applied_verbatim", true)
 	}
@@ -131,7 +131,7 @@ func TestDisputeCountsAsADecline(t *testing.T) {
 func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 	fr := func(text string) Event {
 		return Event{Type: "friction", SeatID: "red-merge-r2", Round: 2, Payload: NewPayload().
-			Set("text", text).
+			Set("reason", text).
 			Set(FrictionKindKey, FrictionKindEstoppel).
 			Set("estopped_by", "R1-3")}
 	}
@@ -151,7 +151,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 	b := board(t, nil, []Event{
 		{Type: "friction", SeatID: "blue-respond-r2", Round: 2, Payload: NewPayload().
-			Set("text", "merge mint: estoppel — I hit this and could not proceed")},
+			Set("reason", "merge mint: estoppel — I hit this and could not proceed")},
 	})
 	if got := EstoppelRejections(b); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0 — a seat QUOTING the refusal did not cause one", got)
@@ -162,7 +162,7 @@ func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 // fire" rather than "the detector is broken".
 func TestNoRejectionsCountsZero(t *testing.T) {
 	b := board(t, nil, []Event{
-		{Type: "friction", SeatID: "red-merge-r1", Round: 1, Payload: NewPayload().Set("text", "the fetch cache refused an unreachable url")},
+		{Type: "friction", SeatID: "red-merge-r1", Round: 1, Payload: NewPayload().Set("reason", "the fetch cache refused an unreachable url")},
 	})
 	if got := EstoppelRejections(b); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0", got)

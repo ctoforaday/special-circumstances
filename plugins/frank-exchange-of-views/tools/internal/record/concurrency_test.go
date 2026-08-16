@@ -38,7 +38,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 				p := NewPayload().
 					Set("label", fmt.Sprintf("L%d-F%d", s, i)).
 					Set("severity", "medium").Set("likelihood", "medium").Set("impact", "high").
-					Set("text", strings.Repeat("finding prose ", 20))
+					Set("reason", strings.Repeat("finding prose ", 20))
 				if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", p); err != nil {
 					errs <- err
 					continue
@@ -115,7 +115,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "finding", NewPayload().Set("label", "F1").Set("text", "over an abandoned lock")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "finding", NewPayload().Set("label", "F1").Set("reason", "over an abandoned lock")); err != nil {
 		t.Fatalf("append over an abandoned lock file: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > lockWait {

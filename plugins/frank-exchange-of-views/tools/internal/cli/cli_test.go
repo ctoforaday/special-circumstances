@@ -346,7 +346,7 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if got := ev.Payload.Str("severity"); got != "high" {
 		t.Errorf("severity = %q", got)
 	}
-	if got := ev.Payload.Str("text"); got != "the finding prose" {
+	if got := ev.Payload.Str("reason"); got != "the finding prose" {
 		t.Errorf("text = %q", got)
 	}
 	if ev.Round != 1 {
@@ -370,7 +370,7 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 		t.Fatal(err)
 	}
 	keys := payloadKeys(lastOfType(t, runDir, "finding"))
-	if !keys["label"] || !keys["severity"] || !keys["text"] {
+	if !keys["label"] || !keys["severity"] || !keys["reason"] {
 		t.Errorf("a passed flag is missing from the payload: %v", keys)
 	}
 	for _, absent := range []string{"likelihood", "impact"} {
@@ -590,7 +590,7 @@ func TestProseChannelResolution(t *testing.T) {
 		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1", "--reason-file", f); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastOfType(t, runDir, "position").Payload.Str("text"); got != body {
+		if got := lastOfType(t, runDir, "position").Payload.Str("reason"); got != body {
 			t.Errorf("text = %q, want the file's content without its terminator %q", got, body)
 		}
 	})
@@ -635,12 +635,12 @@ func TestProseChannelResolution(t *testing.T) {
 			t.Fatal(err)
 		}
 		ev := lastOfType(t, runDir, "position")
-		if got := ev.Payload.Str("text"); got != "" {
+		if got := ev.Payload.Str("reason"); got != "" {
 			t.Errorf("text = %q, want empty", got)
 		}
 		// text is set unconditionally on a prose verb, so the key is present.
-		if !payloadKeys(ev)["text"] {
-			t.Error("the text key is absent from a prose verb's payload")
+		if !payloadKeys(ev)["reason"] {
+			t.Error("the reason key is absent from a prose verb's payload")
 		}
 	})
 
@@ -768,7 +768,7 @@ func TestCloseFile(t *testing.T) {
 		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--reason-file", f); err != nil {
 		t.Fatal(err)
 	}
-	if got := lastOfType(t, runDir, "close").Payload.Str("prose"); got != "the whole closure record" {
+	if got := lastOfType(t, runDir, "close").Payload.Str("reason"); got != "the whole closure record" {
 		t.Errorf("prose = %q", got)
 	}
 
@@ -863,7 +863,7 @@ func TestBlueVerbContracts(t *testing.T) {
 			t.Fatal(err)
 		}
 		ev := lastOfType(t, runDir, "revision")
-		if got := ev.Payload.Str("text"); got != "what changed" {
+		if got := ev.Payload.Str("reason"); got != "what changed" {
 			t.Errorf("text = %q", got)
 		}
 	})
@@ -914,7 +914,7 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 	if !strings.Contains(out, "opinion recorded: R1-1 carried") {
 		t.Errorf("opinion said %q", out)
 	}
-	if got := lastOfType(t, runDir, "opinion").Payload.Str("rationale"); got != "the rationale" {
+	if got := lastOfType(t, runDir, "opinion").Payload.Str("reason"); got != "the rationale" {
 		t.Errorf("rationale = %q", got)
 	}
 }
@@ -940,11 +940,11 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 				t.Errorf("friction said %q", out)
 			}
 			ev := lastOfType(t, runDir, "friction")
-			if got := ev.Payload.Str("text"); got != "the capability I needed" {
+			if got := ev.Payload.Str("reason"); got != "the capability I needed" {
 				t.Errorf("text = %q", got)
 			}
-			if keys := payloadKeys(ev); len(keys) != 1 || !keys["text"] {
-				t.Errorf("the friction payload is not just text: %v", keys)
+			if keys := payloadKeys(ev); len(keys) != 1 || !keys["reason"] {
+				t.Errorf("the friction payload is not just the reason: %v", keys)
 			}
 		})
 	}
@@ -1006,7 +1006,7 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 	for _, e := range events(t, runDir) {
 		if e.Type == "position" {
 			positions++
-			if got := e.Payload.Str("text"); got != "first" {
+			if got := e.Payload.Str("reason"); got != "first" {
 				t.Errorf("the surviving position is %q, want the first", got)
 			}
 		}
@@ -1345,7 +1345,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 		"--reason-file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
 	}
-	if !payloadKeys(lastOfType(t, runDir, "close"))["prose"] {
+	if !payloadKeys(lastOfType(t, runDir, "close"))["reason"] {
 		t.Error("the prose from --file must reach the event")
 	}
 }
