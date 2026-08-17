@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -131,12 +132,61 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		if len(args) == 0 {
 			return seat.RefuseAndTeach(cmd, "you named no command, so nothing ran. The commands below are the whole surface.")
 		}
-		return seat.RefuseAndTeach(cmd, fmt.Sprintf(
-			"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", args[0]))
+		return seat.RefuseAndTeach(cmd, unknownCommandRefusal(cmd.Root(), args[0]))
 	}
 
 	enumhelp.Install(root)
 	return root
+}
+
+// whereItLives finds the full paths a bare verb name is reachable at, so a refusal can say WHERE
+// rather than only NO.
+//
+// MEASURED 2026-08-17, and it is the sharpest evidence this file has for the slip it already
+// documents. A red-merge seat, holding a worklist duty that named `inquiry-support`, typed
+//
+//	feov-record inquiry-support --help
+//
+// and was told `no command named "inquiry-support" exists`. It believed that — reasonably, the
+// message is unambiguous — went hunting, and settled on `motion inquiry rule`, which is a DIFFERENT
+// ACT: whether the direction is worth the run's time, not whether the report still carries it. The
+// seat did not lose a turn; it landed on the wrong verb with confidence.
+//
+// The refusal was false in the way that matters. `inquiry-support` exists, on the merge seat, one
+// word away. The role-level refusal already says this well — "it exists, on the blue seat, but not
+// for you. That is a wrong-seat error rather than a missing capability" — and the ROOT level, which
+// is where a seat dropping the prefix actually lands, said the opposite.
+//
+// It searches one level under each role group, which is where seat verbs live. `motion <subject>
+// <verb>` is deliberately not searched: `rule` and `file` are generic enough that pointing at all
+// three subjects would be noise rather than an answer.
+func whereItLives(root *cobra.Command, name string) []string {
+	var out []string
+	for _, group := range root.Commands() {
+		if !group.HasSubCommands() {
+			continue
+		}
+		for _, verb := range group.Commands() {
+			if verb.Name() == name || verb.HasAlias(name) {
+				out = append(out, group.Name()+" "+verb.Name())
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// unknownCommandRefusal is the ONE statement of what a bare unknown name is told, so the two sites
+// that answer it cannot drift into saying different things about the same miss.
+func unknownCommandRefusal(root *cobra.Command, name string) string {
+	if at := whereItLives(root, name); len(at) > 0 {
+		return fmt.Sprintf("%q is not a top-level command — it is a SEAT verb, and it exists at: %s. "+
+			"That is a wrong-address error, not a missing capability: run it with its role in front "+
+			"(`%s --help`). The commands below are the whole top-level surface.",
+			name, strings.Join(at, ", "), at[0])
+	}
+	return fmt.Sprintf(
+		"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", name)
 }
 
 // refuseUnknownCommandFirst answers the WRONG COMMAND before cobra can answer the wrong flag.
@@ -181,8 +231,7 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string) error {
 			return nil
 		}
 	}
-	return seat.RefuseAndTeach(root, fmt.Sprintf(
-		"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", name))
+	return seat.RefuseAndTeach(root, unknownCommandRefusal(root, name))
 }
 
 // Execute runs the CLI. Abort-safety is armed first: a seat killed mid-command
