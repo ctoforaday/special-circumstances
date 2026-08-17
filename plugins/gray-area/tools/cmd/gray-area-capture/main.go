@@ -56,9 +56,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-)
 
-const version = "0.1.0"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
+)
 
 // schema is the manifest row version. The transcript format is vendor-internal
 // and version-unstable, so every row records what produced it.
@@ -268,7 +268,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0 // a bad flag is never worth costing a subagent its turn
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "gray-area-capture", version)
+		fmt.Fprintln(stdout, buildid.Line("gray-area-capture"))
 		return 0
 	}
 

@@ -19,12 +19,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 )
-
-const version = "0.2.0"
 
 type hookInput struct {
 	ToolInput struct {
@@ -208,7 +207,7 @@ func Main() int {
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 	if *showVersion {
-		fmt.Println("sc-push-freeze-guard", version)
+		fmt.Println(buildid.Line("sc-push-freeze-guard"))
 		return 0
 	}
 

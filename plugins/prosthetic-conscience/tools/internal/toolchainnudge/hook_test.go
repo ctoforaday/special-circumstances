@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
@@ -149,7 +150,7 @@ func TestVersionFlag(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.Contains(out, "sc-toolchain-nudge") || !strings.Contains(out, version) {
+	if !strings.Contains(out, "sc-toolchain-nudge") || !strings.Contains(out, buildid.Revision()) {
 		t.Fatalf("version output = %q", out)
 	}
 	if strings.Contains(out, "LIVE") || strings.Contains(out, "qlty") {

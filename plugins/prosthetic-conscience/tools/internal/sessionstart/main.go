@@ -39,14 +39,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpointrestore"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchainnudge"
 )
-
-const version = "0.1.0"
 
 type hookOutput struct {
 	HookSpecificOutput struct {
@@ -82,7 +81,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0 // a bad flag never wedges a session start
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-sessionstart", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-sessionstart"))
 		return 0
 	}
 

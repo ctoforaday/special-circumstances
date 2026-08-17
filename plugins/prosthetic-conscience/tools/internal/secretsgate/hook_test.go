@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 // call drives the gate exactly as the harness does: bytes in, bytes out, exit code.
@@ -129,8 +131,8 @@ func TestVersionFlag(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.Contains(stdout, "sc-secrets-gate") || !strings.Contains(stdout, version) {
-		t.Fatalf("version output = %q; want the name and %s", stdout, version)
+	if !strings.Contains(stdout, "sc-secrets-gate") || !strings.Contains(stdout, buildid.Revision()) {
+		t.Fatalf("version output = %q; want the name and %s", stdout, buildid.Revision())
 	}
 }
 

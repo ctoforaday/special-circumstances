@@ -73,12 +73,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 )
-
-const version = "0.1.0"
 
 // maxDigest bounds what is injected. The note is the tattoo, not the
 // autobiography: past this, a digest competes with the harness summary for
@@ -484,7 +483,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0 // a bad flag never wedges a session start
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-checkpoint-restore", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-checkpoint-restore"))
 		return 0
 	}
 

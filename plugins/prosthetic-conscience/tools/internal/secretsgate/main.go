@@ -18,11 +18,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secrets"
 )
-
-const version = "0.1.0"
 
 type hookInput struct {
 	ToolName  string          `json:"tool_name"`
@@ -120,7 +119,7 @@ func deny(reason string) decision {
 // exit code is ALWAYS 0 — the block travels in the JSON, never in the status.
 func run(args []string, stdin io.Reader, stdout io.Writer) int {
 	if len(args) > 0 && args[0] == "-version" {
-		fmt.Fprintln(stdout, "sc-secrets-gate", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-secrets-gate"))
 		return 0
 	}
 

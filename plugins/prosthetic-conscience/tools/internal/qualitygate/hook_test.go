@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 // logPath is where the hook's instrumentation lands under a project dir.
@@ -379,7 +381,7 @@ func TestVersionFlagPrintsAndSkipsTheGate(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.Contains(stdout, "sc-quality-gate") || !strings.Contains(stdout, version) {
+	if !strings.Contains(stdout, "sc-quality-gate") || !strings.Contains(stdout, buildid.Revision()) {
 		t.Fatalf("version output = %q", stdout)
 	}
 	if stderr != "" {

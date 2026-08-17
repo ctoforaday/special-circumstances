@@ -46,11 +46,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 )
-
-const version = "0.1.0"
 
 // The state format lives in internal/checkpoint, shared with the restore hook
 // that reads it back. It sits BESIDE the checkpoint rather than inside it: the
@@ -129,7 +128,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-filechanged-rearm", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-filechanged-rearm"))
 		return 0
 	}
 

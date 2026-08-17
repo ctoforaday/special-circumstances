@@ -81,12 +81,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
 )
-
-const version = "0.1.0"
 
 // keepSnapshots bounds the snapshot directory. Recovery reads the newest; older
 // ones are history, and an unbounded collection is the resource-ballooning failure
@@ -447,7 +446,7 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		return 0 // a bad flag is never worth wedging a compaction over
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-checkpoint-seal", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-checkpoint-seal"))
 		return 0
 	}
 
