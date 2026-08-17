@@ -170,14 +170,45 @@ func table(tools []toolchain.Status, bins []binStatus) string {
 			fmt.Fprintf(&sb, "%-18s ✗ (%s) install: %s\n", t.Name, t.Tier, t.Install[runtime.GOOS])
 		}
 	}
+	// BUILT IS NOT THE SAME QUESTION AS CURRENT (#450). A binary that exists but predates its
+	// source runs, exits 0, and does exactly what it did when it was built — so "✓ built" was the
+	// same report for a working hook and for one whose fix merged weeks ago and never shipped.
+	// Measured: sc-filechanged-rearm ran 23 commits behind its source while reporting ✓.
+	//
+	// The revision is read from the binary's own VCS stamp, which the Go toolchain writes on every
+	// build with no flags — see builtfrom.go for why that is read rather than a stamp of our own.
+	// ONLY ASKED WHERE IT MEANS SOMETHING. "Is this binary older than its source" is a question
+	// about a DEVELOPMENT CHECKOUT. A consumer installs the plugin from a release asset into a
+	// directory that is not a git tree at all: HEAD is unknowable there, every binary would be
+	// annotated, and the one line that matters would drown in fourteen that do not. So an
+	// unknowable HEAD means the check DOES NOT APPLY and is silent — not that everything is
+	// suspect. (The consumer's version of this question is answered by the plugin version.)
+	head := ""
+	if len(bins) > 0 {
+		head = HeadCommit(bins[0].Root)
+	}
 	for _, b := range bins {
 		mark := "✓ built"
-		if !b.Built {
+		switch {
+		case !b.Built:
 			mark = "✗ not built (run -fix)"
+		case head == "":
+			// Not a checkout: staleness is not a question here, so say nothing about it.
+		default:
+			// Only the non-current states earn extra words.
+			if s := ReadBuildStamp(binPath(b)); Compare(s, head) != Current {
+				v := Compare(s, head)
+				mark = fmt.Sprintf("! %s — %s", v, Describe(v, s, head))
+			}
 		}
 		fmt.Fprintf(&sb, "%-18s %s\n", b.Name, mark)
 	}
 	return sb.String()
+}
+
+// binPath is where a binStatus's executable lives, matching binariesOf.
+func binPath(b binStatus) string {
+	return filepath.Join(b.Root, "bin", b.Name+exeSuffix())
 }
 
 // versionOf best-effort runs a check command and returns its first output line.
