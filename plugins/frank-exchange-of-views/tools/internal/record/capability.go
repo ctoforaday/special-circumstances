@@ -31,6 +31,7 @@ import (
 // capability change") rather than by absence — an absent entry and an unremarkable release
 // must not be the same bytes.
 var capabilityDeltas = map[string]string{
+	"0.72.0": "A stale binary has no `merge inquiry-support`, so red cannot vote that the report still carries a line of inquiry — and it does NOT refuse `verdict --as PASS` over an unvoted line, so a run passes with its own account of what it investigated unchecked.",
 	"0.10.0": "A stale binary silently produces the duplicated, contradicted report the preflight must now refuse.",
 	"0.12.0": "A stale binary produces the graph-less, prose-dropping report the record now expects.",
 	"0.14.0": "A stale binary renders a debate view missing the dispute argument the bench now rules on from the record.",

@@ -31,14 +31,28 @@
 |---|---|---|---|---|
 | <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `risk_accepted` + rationale> |
 
-## The expansions                       <!-- [RECORD] avenues PURSUED — a concept expansion accepted -->
+## The expansions                       <!-- [RECORD] lines of inquiry PURSUED — a research topic followed, and what it yielded -->
 
-## Alternatives considered              <!-- [RECORD] every avenue NOT pursued — abandoned, declined, deferred, or still
-                                              merely proposed — each with its reason (the counter), the history that
-                                              produced its status, RED'S RULING on the direction, and, where blue took a
-                                              line red ruled out-of-scope or too-thin, the fact that it did so against
-                                              that ruling. A ruling is an argument, not a command; the disagreement is
-                                              the substance. -->
+## Deferred — for a later run or a deeper context
+                                        <!-- [RECORD] lines of inquiry DEFERRED — kept, not rejected: worth taking and not by THIS
+                                              run. --reason says what a later run should pick it up FOR. It reaches the
+                                              report as a proposal a human selects, never an automatic seed. This is its
+                                              OWN section because filing it under "Alternatives considered" said the
+                                              opposite of its fate. -->
+
+## Still undecided — proposed and never resolved
+                                        <!-- [RECORD] lines of inquiry still PROPOSED — put forward and never resolved. Phrased to
+                                              state the absence of a decision rather than imply one. A run that ends with
+                                              topics undecided should SAY so: a report with no roads-not-taken is
+                                              indistinguishable from one that never looked. -->
+
+## Alternatives considered              <!-- [RECORD] lines of inquiry DECLINED (weighed, not taken) and ABANDONED (tried, died) —
+                                              each with its reason (the counter), the history that produced its status,
+                                              RED'S RULING on the direction, and, where blue took a line red ruled
+                                              out-of-scope or too-thin, the fact that it did so against that ruling. A
+                                              ruling is an argument, not a command; the disagreement is the substance.
+                                              A line of inquiry still merely PROPOSED has its own section above; the
+                                              stale-line duty also asks blue to decide it. -->
 
 ## Open questions                       <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
 

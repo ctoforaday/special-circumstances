@@ -11,7 +11,7 @@ import (
 
 // TestAssembleEndToEnd drives a minimal but real run through the record API and asserts the
 // assembled report.md combines the two ownership classes correctly: blue's audited sections
-// are lifted verbatim, and the verdict, findings, avenues and debate are composed from the
+// are lifted verbatim, and the verdict, findings, inquiries and debate are composed from the
 // event log. It is the driveable check the unit tests around each composer cannot give.
 func TestAssembleEndToEnd(t *testing.T) {
 	runDir := t.TempDir()
@@ -73,16 +73,16 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Red mints a gap; the parties take positions; blue records one pursued avenue (an
-	// expansion) and one abandoned avenue (an alternative considered); the bench opines;
+	// Red mints a gap; the parties take positions; blue records one pursued line of inquiry (an
+	// expansion) and one abandoned line of inquiry (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
 	add("red-merge-r1", "mint", "gap_id", "R1-1", "problem", "eviction races the reader", "location", "cache.go:88",
 		"class", "correctness", "likelihood", "medium", "impact", "high",
 		"acceptance_check", "race the eviction under -race", "check_kind", "document", "required_fix", "take the read lock in evict")
 	add("red-merge-r1", "position", "reason", "gap R1-1 stands until the race is shown impossible")
 	add("blue-r1", "position", "reason", "R1-1 is repaired by ordering the invalidation before the store")
-	add("blue-r1", "avenue", "avenue_id", "A1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
-	add("blue-r1", "avenue", "avenue_id", "A2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
+	add("blue-r1", "line-of-inquiry", "inquiry_id", "Q1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
+	add("blue-r1", "line-of-inquiry", "inquiry_id", "Q2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
 	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
 		"tension", "cost vs certainty", "review_flag", "false", "reason", "a model-check is owed before this closes")
 	add("judge-terminal", "outcome", "verdict", "CEILING", "reason", "the round ceiling arrived before red could pass the final revision")
@@ -106,7 +106,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"Does the eviction path hold under a clock step?",
 		// Composed from the record.
 		"**Verdict:** CEILING-TERMINATED",
-		"## The expansions",
+		"## Research areas",
 		"model-check the two-writer interleaving",
 		"## Alternatives considered",
 		"rewrite the cache lock-free",
@@ -136,10 +136,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Fate is not crossed: the pursued avenue is an expansion, not an alternative.
+	// Fate is not crossed: the pursued line of inquiry is an expansion, not an alternative.
 	alt := got[strings.Index(got, "## Alternatives considered"):]
 	alt = alt[:strings.Index(alt, "## Open questions")]
 	if strings.Contains(alt, "model-check the two-writer") {
-		t.Errorf("a pursued avenue leaked into Alternatives considered:\n%s", alt)
+		t.Errorf("a pursued line of inquiry leaked into Alternatives considered:\n%s", alt)
 	}
 }

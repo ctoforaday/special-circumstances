@@ -7,12 +7,12 @@ import (
 
 // THE UNIT IS THE CHOICE, NOT THE ENTRY (#246).
 //
-// Measured over 86 avenue events in six runs: zero lines recorded twice, zero statuses ever
+// Measured over 86 line of inquiry events in six runs: zero lines recorded twice, zero statuses ever
 // changed, 83 of 86 minted in round 0. "Pursued" meant "I intend to", nothing could falsify
 // it, and a direction that died mid-run had no way to say so. These pin the lifecycle that
 // replaces that.
 
-func avenueSeat(t *testing.T, runDir string) string {
+func inquirySeat(t *testing.T, runDir string) string {
 	t.Helper()
 	const seat = "blue-respond-r1"
 	if _, err := run(t, "blue", "register", "--run", runDir, "--seat-id", seat); err != nil {
@@ -23,19 +23,19 @@ func avenueSeat(t *testing.T, runDir string) string {
 
 // A proposal gets a tool-assigned id and starts undecided — the state the old shape could
 // not express, which forced blue to declare a fate before it had one.
-func TestAvenueProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
+func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 
-	out, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat,
+	out, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat,
 		"--line", "trial division by hand", "--hypothesis", "if 7 has no divisor in 2..6 it is prime")
 	if err != nil {
 		t.Fatalf("propose: %v", err)
 	}
-	if !strings.Contains(out, "A1") {
+	if !strings.Contains(out, "Q1") {
 		t.Errorf("the tool must assign the id, not the seat: %q", out)
 	}
-	ev := lastOfType(t, runDir, "avenue")
+	ev := lastOfType(t, runDir, "line-of-inquiry")
 	if got := ev.Payload.Str("status"); got != "proposed" {
 		t.Errorf("status = %q, want proposed — a fresh proposal has no fate yet", got)
 	}
@@ -45,15 +45,15 @@ func TestAvenueProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 }
 
 // THE MOVE IS THE POINT: a direction that dies mid-run can now say so.
-func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
+func TestInquiryStatusMovesAndKeepsItsSubstance(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat,
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat,
 		"--line", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat,
-		"--id", "A1", "--status", "abandoned", "--reason", "every implementation agrees at n=7; the hypothesis is dead"); err != nil {
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat,
+		"--id", "Q1", "--status", "abandoned", "--reason", "every implementation agrees at n=7; the hypothesis is dead"); err != nil {
 		t.Fatalf("move: %v", err)
 	}
 
@@ -61,7 +61,7 @@ func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"A1", "survey primality libraries", "implementations disagree", "the hypothesis is dead", "r1 proposed -> r1 abandoned"} {
+	for _, want := range []string{"Q1", "survey primality libraries", "implementations disagree", "the hypothesis is dead", "r1 proposed -> r1 abandoned"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the projection lost %q — the PATH is the evidence of choosing:\n%s", want, out)
 		}
@@ -69,15 +69,15 @@ func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
 }
 
 // A move that says nothing is the unfalsifiable status this replaces.
-func TestAvenueMoveRequiresWhatChanged(t *testing.T) {
+func TestInquiryMoveRequiresWhatChanged(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat, "--line", "a line"); err != nil {
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat, "--line", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat, "--id", "A1", "--status", "abandoned")
+	_, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--status", "abandoned")
 	if err == nil {
-		t.Fatal("an avenue slid to abandoned with no stated reason")
+		t.Fatal("a line of inquiry slid to abandoned with no stated reason")
 	}
 	if !strings.Contains(err.Error(), "--reason") {
 		t.Errorf("the refusal must name what is missing: %v", err)
@@ -85,45 +85,45 @@ func TestAvenueMoveRequiresWhatChanged(t *testing.T) {
 }
 
 // A dangling reference is refused at the write, like every other (refs.go).
-func TestAvenueMoveRefusesAnUnknownID(t *testing.T) {
+func TestInquiryMoveRefusesAnUnknownID(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
-	_, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat,
-		"--id", "A9", "--status", "pursued", "--reason", "why")
+	seat := inquirySeat(t, runDir)
+	_, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat,
+		"--id", "Q9", "--status", "pursued", "--reason", "why")
 	if err == nil {
-		t.Fatal("a move against an avenue nobody proposed was accepted")
+		t.Fatal("a move against a line of inquiry nobody proposed was accepted")
 	}
-	if !strings.Contains(err.Error(), "A9") {
+	if !strings.Contains(err.Error(), "Q9") {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
 }
 
 // --id MOVES and --line PROPOSES; both together is ambiguous and refused rather than guessed.
-func TestAvenueRefusesTheAmbiguousBothForm(t *testing.T) {
+func TestInquiryRefusesTheAmbiguousBothForm(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat, "--line", "a line"); err != nil {
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat, "--line", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat,
-		"--id", "A1", "--line", "another line", "--status", "pursued", "--reason", "r"); err == nil {
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat,
+		"--id", "Q1", "--line", "another line", "--status", "pursued", "--reason", "r"); err == nil {
 		t.Fatal("--id and --line together was accepted; the tool guessed which the seat meant")
 	}
 }
 
-// RED RULES AND NEVER PROPOSES. Across the corpus red rejected zero avenues because it had
+// RED RULES AND NEVER PROPOSES. Across the corpus red rejected zero inquiries because it had
 // no verb to; this is that verb.
-func TestRedRulesOnAProposedAvenue(t *testing.T) {
+func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat,
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat,
 		"--line", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
 		t.Fatal(err)
 	}
-	// A direction motion joins on the AVENUE's own id: it has no `file` verb because the
+	// A direction motion joins on the LINE's own id: it has no `file` verb because the
 	// proposal IS the filing, which is why A1 works here and no M-number is minted.
-	if _, err := run(t, "motion", "direction", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "A1", "--as", "out-of-scope",
+	if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "Q1", "--as", "out-of-scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
@@ -139,20 +139,20 @@ func TestRedRulesOnAProposedAvenue(t *testing.T) {
 // A ruling is an argument, not a command — so it must carry one.
 func TestRulingRequiresAReason(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat, "--line", "a line"); err != nil {
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat, "--line", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "avenue-rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "A1", "--ruling", "too-thin"); err == nil {
+	if _, err := run(t, "merge", "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "Q1", "--ruling", "too-thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
 }
 
 // BLUE HAS NO BOARD VERBS AND RED HAS NO PROPOSAL VERB. The role boundary is the engine.
-func TestRedCannotProposeAnAvenue(t *testing.T) {
+func TestRedCannotProposeALineOfInquiry(t *testing.T) {
 	runDir := t.TempDir()
-	if _, err := run(t, "merge", "avenue", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "merge", "line-of-inquiry", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--line", "red's own direction"); err == nil {
 		t.Fatal("red proposed a research direction; directing research is what a gap's required_fix does")
 	}
@@ -160,17 +160,17 @@ func TestRedCannotProposeAnAvenue(t *testing.T) {
 
 // The awaiting-a-decision block is what makes the revisit duty checkable rather than hoped
 // for — the measured failure was that nothing ever asked blue to choose again after round 0.
-func TestOpenAvenuesAreSurfacedAsOwingADecision(t *testing.T) {
+func TestOpenInquiriesAreSurfacedAsOwingADecision(t *testing.T) {
 	runDir := t.TempDir()
-	seat := avenueSeat(t, runDir)
-	if _, err := run(t, "blue", "avenue", "--run", runDir, "--seat-id", seat, "--line", "still open"); err != nil {
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seat, "--line", "still open"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := run(t, "blue", "show", "--run", runDir, "--seat-id", seat, "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "Awaiting a decision") || !strings.Contains(out, "A1") {
-		t.Errorf("an undecided avenue was not surfaced as owing a decision:\n%s", out)
+	if !strings.Contains(out, "Awaiting a decision") || !strings.Contains(out, "Q1") {
+		t.Errorf("an undecided line of inquiry was not surfaced as owing a decision:\n%s", out)
 	}
 }

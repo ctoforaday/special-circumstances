@@ -1,4 +1,4 @@
-prompt sha256: 9e195ddbcc53389a65620a185e65d017de08de79554a8d46cde7958212500cfd
+prompt sha256: 9a95c3e80c4e5fea0b369f2bce93b9043141b078ff751d05b9dc6c98fbdd1f7c
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -48,7 +48,7 @@ THE RECORD TOOL IS THE CONTRACT (migrated 2026-07-19 — the tool is authoritati
 FIRST ACTION: "/opt/feov/bin/feov-record" lens register --run research/2026-01-01_golden --seat-id red-lens-r1-L1 — then the matching verb for each act.
 YOUR CONTRACT IS `feov-record lens --help` and each verb's own --help: what is listed you may do, what is NOT listed does not exist for you.
 READ THAT LIST BEFORE YOUR FIRST ACT, EVERY SITTING — do NOT work from memory, and do NOT assume a verb is named after the thing it writes.
-MEASURED: a seat read the projection "show lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "avenue".
+MEASURED: a seat read the projection "show lines-of-inquiry", assumed the verb matched the projection, typed "blue line-of-inquiry", and only read the help after two invented calls failed; the verb is "line of inquiry".
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
 The projection names, this prompt's words for a concept, and the verb that writes it are three different vocabularies and they do not always agree — the help is the only authoritative one, and "show --help" now names the writing verb for every view.
 Do NOT improvise a flag, invent a verb, or hand-write a board artifact the tool renders (ledger, archive, findings) — routing around the tool into markdown is the exact failure this migration removes.

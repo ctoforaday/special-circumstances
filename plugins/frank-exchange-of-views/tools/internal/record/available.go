@@ -97,13 +97,18 @@ func AvailableOf(b *Board, role, seatID string) []Duty {
 	switch role {
 	case "blue":
 		// A line proposed and never revisited records an intention rather than a choice.
-		// Measured over six runs: 83 of 86 avenues were declared in round 0 and not one was
+		// Measured over six runs: 83 of 86 inquiries were declared in round 0 and not one was
 		// ever moved.
-		for _, a := range Avenues(b) {
-			if a.Status == "proposed" || a.Status == "pursued" {
-				add(fmt.Sprintf("avenue %s is at %q and has no fate this round — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status),
-					fmt.Sprintf(`avenue --id %s --status pursued|declined|abandoned|deferred --reason "<what you learned that changed its fate>"`, a.ID))
-			}
+		//
+		// THE PREDICATE IS StaleInquiries, NOT A SECOND COPY OF IT. This block used to inline
+		// `Status == "proposed" || Status == "pursued"`, which is what StaleInquiries also said,
+		// so the two drifted together and were wrong together: neither read the round, though
+		// both texts promised one. The `How` also named a status set that excluded `pursued`,
+		// which is where a followed line comes to REST — so a seat that did the right thing
+		// was told to abandon or defer it. Both are fixed at the single predicate now.
+		for _, a := range StaleInquiries(b) {
+			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since round %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Round),
+				fmt.Sprintf(`line-of-inquiry --id %s --status pursued|declined|abandoned|deferred --reason "<what you learned, or why its fate changed>"`, a.ID))
 		}
 		// A repair with no receipt is one nobody audited, including its author.
 		for _, id := range gapsEditedWithoutManifest(b, seatID) {

@@ -579,24 +579,24 @@ func debateMD(b *record.Board) []byte {
 
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(b *record.Board) []byte {
-	// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot avenue entries by
-	// status. An avenue now has an id, a hypothesis, a status that MOVES with a stated
+	// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot line of inquiry entries by
+	// status. A line of inquiry now has an id, a hypothesis, a status that MOVES with a stated
 	// reason, and red's ruling — so the projection renders the DECISION: what was proposed,
 	// what became of it, why, and what red said about it. That sequence is the evidence of
 	// choosing; a flat list by final status records only the outcome.
 	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
-	avs := record.Avenues(b)
+	avs := record.Inquiries(b)
 	if len(avs) == 0 {
-		inquiry = append(inquiry, "_No avenues recorded. On a run past round 0 that is itself a finding: the exploration",
+		inquiry = append(inquiry, "_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
 			"indistinguishable from one that never looked._", "")
 		return []byte(strings.Join(inquiry, "\n"))
 	}
-	byStatus := map[string][]*record.Avenue{}
+	byStatus := map[string][]*record.Inquiry{}
 	for _, a := range avs {
 		byStatus[a.Status] = append(byStatus[a.Status], a)
 	}
-	for _, status := range record.AvenueStatusNames() {
+	for _, status := range record.InquiryStatusNames() {
 		rows := byStatus[status]
 		if len(rows) == 0 {
 			continue
@@ -628,18 +628,19 @@ func inquiryMD(b *record.Board) []byte {
 		}
 		inquiry = append(inquiry, "")
 	}
-	// The revisit duty, made visible: an avenue still open late in a run is one nobody has
+	// The revisit duty, made visible: a line of inquiry still open late in a run is one nobody has
 	// decided. The measured failure was not bad choosing, it was that nothing ever asked
 	// blue to choose again after round 0.
-	if stale := record.StaleAvenues(b); len(stale) > 0 {
+	if stale := record.StaleInquiries(b); len(stale) > 0 {
 		ids := make([]string, len(stale))
 		for i, a := range stale {
 			ids[i] = a.ID
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
-			"_Still `proposed` or `pursued`: "+strings.Join(ids, ", ")+". Each owes a move or a",
-			"reaffirmation before the run closes — an avenue declared once and never revisited records",
-			"an intention, not a choice._", "")
+			"_Unsettled and not moved this round: "+strings.Join(ids, ", ")+". Each owes a move or a",
+			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this round just",
+			"as a fate does; a line of inquiry declared once and never revisited records an intention, not a",
+			"choice. `declined`, `abandoned` and `deferred` are settled and never appear here._", "")
 	}
 	return []byte(strings.Join(inquiry, "\n") + "\n")
 }

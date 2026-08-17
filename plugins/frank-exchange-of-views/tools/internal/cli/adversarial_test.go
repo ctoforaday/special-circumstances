@@ -71,7 +71,7 @@ func adversarialCases() []adversarialCase {
 	filePetition := seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1",
 		"--petition-class", "safety", "--relief", "halt before the next round",
 		"--reason", "continuing would require asserting a consent gate that does not exist"}
-	propose := seatStep{"blue", "avenue", "--seat-id", "blue-respond-r1",
+	propose := seatStep{"blue", "line-of-inquiry", "--seat-id", "blue-respond-r1",
 		"--line", "a line worth taking", "--hypothesis", "it would settle the open question"}
 
 	return []adversarialCase{
@@ -141,16 +141,16 @@ func adversarialCases() []adversarialCase {
 				"satisfy is removed by the first person it blocks.",
 		},
 		{
-			name:    "a direction ruling names an avenue that exists",
-			act:     seatStep{"motion", "direction", "rule", "--seat-id", "red-merge-r1", "--id", "A9", "--as", "endorsed", "--reason", "ruling a line nobody proposed"},
-			refused: "which no avenue event proposed",
-			guards: "A direction joins on the AVENUE's own id, so the dangling-reference discipline " +
+			name:    "a direction ruling names a line of inquiry that exists",
+			act:     seatStep{"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q9", "--as", "endorsed", "--reason", "ruling a line nobody proposed"},
+			refused: "which no line of inquiry event proposed",
+			guards: "A direction joins on the LINE's own id, so the dangling-reference discipline " +
 				"has to reach a different id space than the other two subjects.",
 		},
 		{
 			name:  "any seat may appeal, not only the filer",
-			setup: []seatStep{propose, {"motion", "direction", "rule", "--seat-id", "red-merge-r1", "--id", "A1", "--as", "out-of-scope", "--reason", "not this question"}},
-			act:   seatStep{"motion", "direction", "appeal", "--seat-id", "red-lens-r1-L1", "--id", "A1", "--reason", "a lens presses a direction blue proposed"},
+			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q1", "--as", "out-of-scope", "--reason", "not this question"}},
+			act:   seatStep{"motion", "inquiry", "appeal", "--seat-id", "red-lens-r1-L1", "--id", "Q1", "--reason", "a lens presses a direction blue proposed"},
 			guards: "STANDING IS OPEN ON PURPOSE and this pins it. A motion belongs to the run, not " +
 				"to its filer — a lens files a safety petition and it is BLUE the granted relief " +
 				"binds. The code comment used to say `the filer` while the code checked nobody, so " +

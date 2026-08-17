@@ -67,7 +67,7 @@ import (
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.
-const Version = "0.71.0"
+const Version = "0.72.0"
 
 func init() { record.ToolVersion = Version }
 

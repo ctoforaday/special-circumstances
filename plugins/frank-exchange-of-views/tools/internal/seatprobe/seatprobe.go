@@ -27,7 +27,7 @@
 // the thing a constitution has to teach, and therefore the thing worth testing.
 //
 // MEASURED WITH HAIKU, 2026-08-10, on the four-gap board Boards()["mixed-repair"] builds: the
-// seat used 4 of its 14 verbs — register, edit, avenue, position. It never reached `prove`, on a
+// seat used 4 of its 14 verbs — register, edit, line of inquiry, position. It never reached `prove`, on a
 // board whose first gap is `--check-kind computation` precisely because a computation check
 // cannot be closed by prose. It answered the `self-attestation` gap by writing a NEW self-
 // attestation: "The per-source totals were summed and verified to equal the stated total". No
@@ -64,7 +64,7 @@ import (
 // That is a fact about the tool rather than about the tree shape, and it is the one thing here the
 // tree cannot say — so it is stated once, next to the derivation that makes everything else
 // automatic.
-var motionRuler = map[string]string{"grade": "merge", "petition": "bench", "direction": "merge"}
+var motionRuler = map[string]string{"grade": "merge", "petition": "bench", "inquiry": "merge"}
 
 type Surface struct{ byRole map[string][]string }
 

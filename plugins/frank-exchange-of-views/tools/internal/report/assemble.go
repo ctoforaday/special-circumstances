@@ -12,7 +12,7 @@
 //     writes them. A missing one is FLAGGED, never filled in.
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
-//     matrix (the board), the expansions and alternatives (avenue events by fate), the red
+//     matrix (the board), the three research areas (line-of-inquiry events by fate), the red
 //     findings (the board's gaps), and the debate transcript (position/closing/dispute/
 //     opinion/petition-rule/halt/certify events). The event log is the source of truth; the
 //     rendered projection .md files are in-run artifacts for the seats, NOT read here.
@@ -127,8 +127,10 @@ func Assemble(runDir string) (string, error) {
 
 	// Tool-composed from the record.
 	p(riskMatrix(bj))
-	p(avenues(board, "The expansions", accepted))
-	p(avenues(board, "Alternatives considered", rejected))
+	// THREE DESCRIPTIVE AREAS, and every line of inquiry lands in exactly one. See below.
+	p(inquiries(board, "Research areas", accepted))
+	p(inquiries(board, "Future research directions", deferred))
+	p(inquiries(board, "Alternatives considered", rejected))
 	p(sectionOr(blue, "Open questions"))
 	// The embed carries ONLY blue content not already composed above — its lifted synthesis
 	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
@@ -138,8 +140,7 @@ func Assemble(runDir string) (string, error) {
 	}
 	p(redFindings(board))
 	p(debate(evs))
-	// Every adjudicated exchange, joined on its id (#344). Reads through the dual-read, so a
-	// pre-collapse record renders here from its old vocabulary rather than silently as nothing.
+	// Every adjudicated exchange, joined on its id (#344).
 	if m := motions(board); m != "" {
 		p(m)
 	}
@@ -483,21 +484,43 @@ func concise(s string) string {
 	return s
 }
 
-// avenue fate: the user's mapping — an avenue PURSUED is a concept expansion accepted;
-// anything else is an alternative considered, its reason the counter.
+// THE LIFECYCLE OF A RESEARCH TOPIC, in the three descriptive areas a reader gets:
 //
-// `rejected` is the COMPLEMENT of `pursued`, not a list. It used to be {abandoned, declined},
-// which left `proposed` and `deferred` matching NEITHER predicate: an avenue blue put forward
-// and never resolved, and one it explicitly kept for a later run, both vanished from the report
-// entirely. That is the exact failure the status enum's own Why warns about ("it silently
-// vanishes from the section that exists to show the roads not taken") — the enum was complete
-// and the reader's two buckets did not cover it. A complement cannot develop that hole again
-// when a sixth status is added.
-func accepted(status string) bool { return status == "pursued" }
-func rejected(status string) bool { return !accepted(status) }
+//	Research areas               `pursued` — followed, and what it yielded. AND `proposed`: a line
+//	                             put forward and not yet resolved is research this run has taken
+//	                             on, and its row carries the undecided state so the heading does
+//	                             not have to lie about it.
+//	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not
+//	                             rejected. --reason says what a later run should pick it up FOR,
+//	                             and it reaches the report as a proposal a human selects.
+//	Alternatives considered      `declined` (weighed, not taken) and `abandoned` (tried, died).
+//
+// # It rendered TWO, and the missing ones made the report say something false
+//
+// `rejected` was the complement of `pursued`, so `deferred` AND `proposed` both landed under
+// "Alternatives considered". That complement was itself a fix — the pair used to be {abandoned,
+// declined}, which made those two vanish from the report entirely, the exact failure the status
+// enum's own Why warns about ("it silently vanishes from the section that exists to show the roads
+// not taken"). Trading "vanishes" for "misfiled" was an improvement and still wrong in a way no
+// reader could detect: only the `[deferred]` tag on the row contradicted the heading above it.
+//
+// # `proposed` is a research area, and both alternatives were worse
+//
+// A first cut excluded `proposed` from every section, arguing a heading announces a fate and an
+// undecided line has none. TestFuzzDebate failed six seeds with `avenue prose absent from report`,
+// and that invariant wins: a seat's recorded reasoning must reach the reader. A second cut gave it
+// a fourth section. Three is the decision — a line blue put forward IS an area this run is
+// researching, and red's per-round support verdict is what stops it sitting there undecided,
+// rather than a heading that describes the omission.
+//
+// `rejected` stays a COMPLEMENT so a sixth status cannot silently match nothing.
+func accepted(status string) bool { return status == "pursued" || status == "proposed" }
+func deferred(status string) bool { return status == "deferred" }
 
-// avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
-// avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
+func rejected(status string) bool { return !accepted(status) && !deferred(status) }
+
+// inquiries renders the line of inquiry LIFECYCLE under the given heading — replayed state, one row per
+// line of inquiry, not one row per event. Reading raw events double-listed every line of inquiry that MOVED: a
 // line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
 // and as an alternative to itself.
 //
@@ -506,9 +529,9 @@ func rejected(status string) bool { return !accepted(status) }
 // red ruled out-of-scope or too-thin — the fact that it did so against that ruling. Red's ruling
 // is an argument, not a command, so blue may pursue anyway; the disagreement is the substance,
 // and until now the report showed the line with no trace that anyone had contested it.
-func avenues(board *record.Board, heading string, want func(string) bool) string {
+func inquiries(board *record.Board, heading string, want func(string) bool) string {
 	var rows []string
-	for _, a := range record.Avenues(board) {
+	for _, a := range record.Inquiries(board) {
 		if !want(a.Status) {
 			continue
 		}
@@ -521,12 +544,22 @@ func avenues(board *record.Board, heading string, want func(string) bool) string
 			reason = " — " + a.Reason
 		}
 		status := ""
-		if !accepted(a.Status) {
+		// THE ROW CARRIES THE STATUS WHENEVER THE HEADING DOES NOT SETTLE IT. `pursued` is what
+		// "Research areas" means, so it is left off; `proposed` shares that heading and must say
+		// so, or the reader cannot tell a line this run FOLLOWED from one it merely named.
+		if a.Status != "pursued" {
 			status = fmt.Sprintf(" [%s]", a.Status) // abandoned vs declined vs deferred is the shape of the counter
 		}
 		row := fmt.Sprintf("- **%s**%s%s%s (%s)", a.Line, method, status, reason, a.SeatID)
 		if len(a.History) > 1 {
 			row += fmt.Sprintf("\n  - history: %s", strings.Join(a.History, " → "))
+		}
+		// RED'S SUPPORT VERDICT, ON THE ROW. The claim it answers is this line, so the answer
+		// belongs beside it: a reader weighing "we pursued X" sees in the same breath whether red
+		// found X in the document this round, and what red read there.
+		if a.Support != "" {
+			row += fmt.Sprintf("\n  - red read the report at this line (r%d): **%s** — %s",
+				a.SupportRound, a.Support, a.SupportWhy)
 		}
 		if a.Ruling != "" {
 			ruled := fmt.Sprintf("\n  - red ruled **%s** (r%d)", a.Ruling, a.RuledRound)

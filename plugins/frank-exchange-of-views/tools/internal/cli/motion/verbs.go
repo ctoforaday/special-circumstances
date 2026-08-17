@@ -207,12 +207,12 @@ func newAppeal(subject string) *cobra.Command {
 }
 
 // refHelp names WHICH id the subject joins on. `direction` has no filing verb, so its id is the
-// avenue's; saying "the motion id" there would send a seat looking for an M-number that does not
+// line of inquiry's; saying "the motion id" there would send a seat looking for an M-number that does not
 // exist, and a seat that cannot find the id it was told to pass logs friction and works around the
 // verb — losing the capability for the run rather than reporting a wrong flag.
 func refHelp(subject string) string {
-	if subject == "direction" {
-		return "REQUIRED — the AVENUE id (A1, A2 …): a direction's filing is the proposal, so it joins on the avenue's own id, not an M-number"
+	if subject == "inquiry" {
+		return "REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
 	}
 	return "REQUIRED — the motion id (M1, M2 …)"
 }

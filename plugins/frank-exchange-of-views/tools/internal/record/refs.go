@@ -41,8 +41,8 @@ import (
 // needs. validate's copy keeps the verb too, because there it can be reached by any caller.
 func GapExists(runDir, id string) error { return requireGap(runDir, id, "the", "--id") }
 
-// AvenueExists resolves a line of inquiry.
-func AvenueExists(runDir, id string) error { return requireAvenue(runDir, id, "the", "--id") }
+// InquiryExists resolves a inquiry.
+func InquiryExists(runDir, id string) error { return requireInquiry(runDir, id, "the", "--id") }
 
 // CitationExists resolves a citation anchor.
 func CitationExists(runDir, label string) error {
@@ -127,12 +127,12 @@ func requireCitation(runDir, label, verb, flag string) error {
 		verb, flag, label, len(known))
 }
 
-// requireAvenue refuses a move against an avenue nobody proposed.
+// requireInquiry refuses a move against a line of inquiry nobody proposed.
 //
-// `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
+// `blue line-of-inquiry --id` required only that an id be PRESENT. A move naming an unknown line of inquiry wrote
 // a status change for a line of inquiry that was never opened — and the lines-of-inquiry view
 // renders it, so the run shows a direction being abandoned that nothing ever proposed.
-func requireAvenue(runDir, id, verb, flag string) error {
+func requireInquiry(runDir, id, verb, flag string) error {
 	if id == "" {
 		return nil
 	}
@@ -140,12 +140,12 @@ func requireAvenue(runDir, id, verb, flag string) error {
 	if err != nil {
 		return err
 	}
-	for _, a := range Avenues(b) {
+	for _, a := range Inquiries(b) {
 		if a != nil && a.ID == id {
 			return nil
 		}
 	}
-	return fmt.Errorf("record: %s %s=%s names no avenue on the record — `show lines-of-inquiry` lists every one with its id and fate. Propose it first (`blue avenue --line …`, which ASSIGNS the id); --id moves an avenue that already exists",
+	return fmt.Errorf("record: %s %s=%s names no line of inquiry on the record — `show lines-of-inquiry` lists every one with its id and fate. Propose it first (`blue line of inquiry --line …`, which ASSIGNS the id); --id moves a line of inquiry that already exists",
 		verb, flag, id)
 }
 
@@ -353,6 +353,31 @@ func requirePassClosesAllGaps(runDir string) error {
 			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`. "+
 			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
 			len(unruled), strings.Join(unruled, ", "))
+	}
+	// AND EVERY LINE OF INQUIRY VOTED THIS ROUND.
+	//
+	// The report's account of its own research — "we pursued X", "we deferred Y", "we abandoned Z"
+	// — reaches the reader as a row `assemble` GENERATES from the record. It carries no citation
+	// anchor, so `lens verify` cannot reach it and the ordinary adversarial route does not apply.
+	// Without this gate it is the one class of claim in the document that nothing could refuse.
+	//
+	// PER ROUND, not once: the report is regenerated every round, so a verdict cast before this
+	// round's edits answers a question about a document that no longer exists. That is the whole
+	// content of "red verifies every turn" — a carried-forward vote would be a stale read wearing
+	// the shape of a fresh one, which is this repository's recurring defect rather than a fix for
+	// it.
+	if unvoted := UnvotedInquiries(b); len(unvoted) != 0 {
+		ids := make([]string, len(unvoted))
+		for i, a := range unvoted {
+			ids[i] = a.ID
+		}
+		sort.Strings(ids)
+		return fmt.Errorf("record: verdict PASS refused — %d line(s) of inquiry have no support verdict this round: %s. "+
+			"Read them with `show lines-of-inquiry`, then for EACH one read the report at that line and vote: "+
+			"`inquiry-support --id <id> --as supported|weakened|unsupported|absent --reason \"<what the report says there>\"`. "+
+			"A PASS claims the report is sound, and its account of what this run investigated is part of the report; "+
+			"vote them, or issue `--as FAIL`",
+			len(ids), strings.Join(ids, ", "))
 	}
 	return nil
 }

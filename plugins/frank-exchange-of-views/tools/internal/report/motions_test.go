@@ -7,9 +7,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// THE RENDERER MUST SHOW A PRE-COLLAPSE RECORD'S EXCHANGES.
-//
-
 // AN UNRULED MOTION IS SAID, not omitted. A filing with no answer means the sitting did not
 // happen, and silence there reads identically to a run that never asked.
 func TestAnUnruledMotionIsReported(t *testing.T) {

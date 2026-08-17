@@ -34,7 +34,7 @@ func has(s, sub string) bool { return strings.Contains(s, sub) }
 // twice for the same reason, and the reason is worth keeping: an artifact that moved onto the
 // record leaves a stub behind, and the stub outlives its writer silently.
 //
-//	6 -> 5  blue/frontier.md (#297) — the frontier hypotheses became AVENUES, which carry an id,
+//	6 -> 5  blue/frontier.md (#297) — the frontier hypotheses became LINES OF INQUIRY, which carry an id,
 //	        a fate and an argument red can rule on, as a markdown file never could
 //	5 -> 3  debate.md and red/citation-ledger.md — rendered projections since the record
 //	        migration, stubbed for months after the last writer went away

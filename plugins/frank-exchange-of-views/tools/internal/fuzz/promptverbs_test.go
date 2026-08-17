@@ -15,7 +15,7 @@ import (
 
 // EVERY VERB A PROMPT NAMES MUST EXIST.
 //
-// MEASURED, and it nearly shipped: the merge prompt told red to run `merge rule-avenue`
+// MEASURED, and it nearly shipped: the merge prompt told red to run `merge rule-line of inquiry`
 // while the verb is `avenue-rule`. The rename landed in four Go files and missed the one
 // surface an agent actually reads. Nothing caught it — the fuzzer drives verbs DIRECTLY, so
 // it exercised the real verb and the prompt's dead name went unexercised behind a green
@@ -51,7 +51,14 @@ var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|benc
 // 3 of 7 while reporting on all seven — a gate silently measuring less than it claims, which is the
 // defect this file keeps finding. `motion <subject> <verb>` is specific enough that ordinary prose
 // does not hit it.
-var promptMotion = regexp.MustCompile(`\bmotion\s+(grade|petition|direction)\s+(file|rule|appeal)\b`)
+// AND THE SUBJECT LIST IS BUILT FROM record.MotionSubjects, NOT RETYPED.
+//
+// It was `(grade|petition|direction)`, a hand-written copy of that slice. When `direction` became
+// `inquiry` the copy stayed, so `motion inquiry rule` and `motion inquiry appeal` matched nothing
+// and the gate reported two live verbs as named nowhere — while the prompts named them plainly.
+// A gate that holds prompts to the command tree cannot hold its own vocabulary by hand.
+var promptMotion = regexp.MustCompile(
+	`\bmotion\s+(` + strings.Join(record.MotionSubjects, "|") + `)\s+(file|rule|appeal)\b`)
 
 // AND CODE COMMENTS ARE NOT A SURFACE A SEAT READS.
 //

@@ -143,14 +143,14 @@ func TestVerbPayloads(t *testing.T) {
 			says: "retired: the claim as it stood",
 		},
 		{
-			name: "blue avenue records a dead end and what killed it",
+			name: "blue line of inquiry records a dead end and what killed it",
 			role: "blue", seatID: "blue-lane-1",
 			args: []string{"--line", "search the offline archive", "--status", "abandoned",
 				"--reason", "the archive is unreachable", "--method", "full-text search"},
-			typ: "avenue",
+			typ: "line-of-inquiry",
 			want: map[string]string{"line": "search the offline archive", "status": "abandoned",
 				"reason": "the archive is unreachable", "method": "full-text search"},
-			says: "avenue A1 recorded (abandoned): search the offline archive",
+			says: "line of inquiry Q1 recorded (abandoned): search the offline archive",
 		},
 		{
 			name: "motion petition rule records the ruling and its opinion",
@@ -183,9 +183,20 @@ func TestVerbPayloads(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			seedReferents(t, runDir)
+			// THE VERB COMES FROM `typ`, NOT FROM THE TEST'S PROSE NAME.
+			//
+			// It was `strings.SplitN(tc.name, " ", 3)[1]` — the second word of a human-readable
+			// case name. Renaming the `avenue` verb to `line-of-inquiry` renamed the case with
+			// it, and the runner then invoked `blue line`, which does not exist. The failure
+			// arrived as "no verb \"line\" exists on any seat", pointing at the tool rather than
+			// at the harness that had composed a verb out of a sentence.
+			//
+			// Every case that relies on this default has verb == typ, so the event type IS the
+			// verb name and there is nothing to recover: a case whose path differs states it in
+			// `path`, as three already do.
 			path := tc.path
 			if path == nil {
-				path = []string{tc.role, strings.SplitN(tc.name, " ", 3)[1]}
+				path = []string{tc.role, tc.typ}
 			}
 			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
 			args = append(args, tc.args...)

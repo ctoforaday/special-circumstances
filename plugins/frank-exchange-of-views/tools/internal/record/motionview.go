@@ -86,7 +86,7 @@ func MotionsJSONOf(b *Board) MotionsJSON {
 		out.Motions = append(out.Motions, mj)
 	}
 	// Filing order is the order they must be answered in, and replay order is filing order —
-	// but AllMotions concatenates the current vocabulary with the legacy one, so a run holding
+	// but Motions reads the one live vocabulary, so a run holding
 	// both would otherwise present two interleaved sequences as one.
 	sort.SliceStable(out.Motions, func(i, j int) bool {
 		if out.Motions[i].Round != out.Motions[j].Round {

@@ -75,6 +75,14 @@ type ShapedValue struct {
 	set   bool
 }
 
+// Shape is the pattern this value accepts, so a caller can ASK rather than restate it.
+//
+// It exists because internal/record's id-namespace matrix carried its own hand-written copy of
+// every shape — `^A\d+$` and four siblings — which is the shape of defect that matrix exists to
+// prevent, one level up. Measured 2026-08-16: the line-of-inquiry id moved A -> Q here and the
+// copy stayed, so the gate reported the MINTER as wrong against a pattern nobody had updated.
+func (v *ShapedValue) Shape() *regexp.Regexp { return v.re }
+
 // Check resolves this flag's value against the record, or returns nil when the flag was not
 // passed or carries no checker. The value is checked ONLY when set: an absent optional reference
 // is not a dangling one.
@@ -138,13 +146,17 @@ func CitationAnchor() *ShapedValue {
 		hint: "a citation anchor is the c-<hex> inside a `<!--cite:c-…-->` token in the report — `f-` is a finding and `p-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
-// avenueIDShape is A<n>, the id assigned when a line of inquiry is proposed.
-var avenueIDShape = regexp.MustCompile(`^A\d+$`)
+// inquiryIDShape is Q<n>, the id assigned when a line of inquiry is proposed.
+//
+// It was A<n>, for "line of inquiry" — the word this concept no longer uses. Q is for the QUESTION the
+// line asks, which is what `--line` holds ("the question or approach you are proposing"), and it
+// was the only free letter: R is a gap, L a lens finding, M a motion.
+var inquiryIDShape = regexp.MustCompile(`^Q\d+$`)
 
-// AvenueID refuses anything that is not A<n>.
-func AvenueID() *ShapedValue {
-	return &ShapedValue{kind: "avenue-id", re: avenueIDShape,
-		hint: "an avenue id looks like A1 and is ASSIGNED when you propose the line; `show lines-of-inquiry` lists every one with its fate"}
+// InquiryID refuses anything that is not Q<n>.
+func InquiryID() *ShapedValue {
+	return &ShapedValue{kind: "inquiry-id", re: inquiryIDShape,
+		hint: "a line-of-inquiry id looks like Q1 and is ASSIGNED when you propose the line; `show lines-of-inquiry` lists every one with its fate"}
 }
 
 // FindingLabel refuses anything that is not L<lens>-F<n>.

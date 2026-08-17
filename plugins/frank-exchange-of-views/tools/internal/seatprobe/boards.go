@@ -36,8 +36,8 @@ type Gap struct {
 	Closed bool
 }
 
-// Avenue is a proposed line of inquiry, and red's ruling on it if there is one.
-type Avenue struct {
+// Inquiry is a proposed line of inquiry, and red's ruling on it if there is one.
+type Inquiry struct {
 	Line, Hypothesis string
 	// Ruled, when set, is the fate red has already given it — which is what makes an appeal or a
 	// move the seat's next act rather than a fresh proposal.
@@ -73,7 +73,7 @@ type Motion struct {
 	// Ruled, when set, is the verdict the ruler has already given — which is what makes an
 	// APPEAL the seat's next move rather than a fresh filing.
 	Ruled string
-	// RuledWhy is the ruler's argument. See Avenue.RuledWhy for why a board without one is not a
+	// RuledWhy is the ruler's argument. See Inquiry.RuledWhy for why a board without one is not a
 	// board: a seat asked whether to appeal a refusal it cannot read is being scored on a guess.
 	RuledWhy string
 }
@@ -88,10 +88,10 @@ type Board struct {
 	Name string
 	// Seat is who the board is FOR. A board is built for one seat's sitting; the others are
 	// present only as the authors of the state it inherits.
-	Seat    string
-	Report  string
-	Gaps    []Gap
-	Avenues []Avenue
+	Seat      string
+	Report    string
+	Gaps      []Gap
+	Inquiries []Inquiry
 	// Claims are cited claims already on the record, so a seat has something to re-cite, retire,
 	// or index rather than having to author one first.
 	Claims []string
@@ -329,7 +329,7 @@ Reversibility under load was not tested.
 				"The likelihood axis grades the consequence landing, and nothing here has been run — so the " +
 				"grade stands until there is a measurement, not until there is a sentence in Limits.",
 		}},
-		Avenues: []Avenue{
+		Inquiries: []Inquiry{
 			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
 				RuledWhy: "this is the one line here that PRODUCES a fact rather than an opinion about a fact. " +
 					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
@@ -343,8 +343,8 @@ Reversibility under load was not tested.
 		Expect: []Expectation{
 			{Seat: "blue-respond-r1", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
 			{Seat: "blue-respond-r1", Verb: "motion grade appeal", Because: "The grade is contestable and, once refused, the appeal is the ONE accounted way to press it. `contests_ruling` used to record only disagreement that won; the appeal records the argument whether or not it prevails."},
-			{Seat: "blue-respond-r1", Verb: "avenue", Because: "Two lines are ruled and neither has a fate. Every avenue at proposed or pursued owes a move each round, and a line declared once and never revisited records an intention rather than a choice."},
-			{Seat: "blue-respond-r1", Verb: "motion direction appeal", Because: "One line was ruled too-thin. If blue still believes in it, the appeal is where that argument lives — and it is filed whether or not blue also pursues the line, which is the whole point of separating it from the status move."},
+			{Seat: "blue-respond-r1", Verb: "line-of-inquiry", Because: "Two lines are ruled and neither has a fate. Every line of inquiry at proposed or pursued owes a move each round, and a line declared once and never revisited records an intention rather than a choice."},
+			{Seat: "blue-respond-r1", Verb: "motion inquiry appeal", Because: "One line was ruled too-thin. If blue still believes in it, the appeal is where that argument lives — and it is filed whether or not blue also pursues the line, which is the whole point of separating it from the status move."},
 			{Seat: "blue-respond-r1", Verb: "position", Because: "The round's narrative renders as the report's BLUE section from the record. A round with no position leaves the transcript with a hole where blue's account should be."},
 		},
 	}
@@ -411,7 +411,7 @@ Figures were read from the deployed configuration.
 					"number is a channel with no consequence, which is what the regrade verb exists to close.",
 			},
 		},
-		Avenues: []Avenue{
+		Inquiries: []Inquiry{
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Task: "This is your audit sitting. Sweep the artifact: raise what is wrong, dispose of what is settled, and discharge the duties your role owes at a round boundary. The board already carries some earlier work of yours.",
@@ -477,7 +477,7 @@ Figures were read from the deployed configuration at the pinned revision.
 					"re-raise with no closing leaves the bench ruling on blue's account alone.",
 			},
 		},
-		Avenues: []Avenue{
+		Inquiries: []Inquiry{
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Motions: []Motion{{
@@ -489,7 +489,8 @@ Figures were read from the deployed configuration at the pinned revision.
 		Expect: []Expectation{
 			{Seat: "red-merge-r1", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
 			{Seat: "red-merge-r1", Verb: "regrade", Because: "Accepting a grade motion does not move the grade — saying so is not doing it. The regrade verb is the only channel; re-minting forks the gap's identity and editing prose changes a number nobody reads. THIS EXPECTATION PRESUMES A RULING AND THAT IS DELIBERATE: blue's basis is that both figures are correct and only their framing conflates them, which is either true of the report or it is not, and it IS true of this one — so accepting is the right call and the regrade must follow it. A seat that REJECTS the motion has answered honestly and owes no regrade; read an unmet expectation here against the ruling the seat actually made, not as a missing verb."},
-			{Seat: "red-merge-r1", Verb: "motion direction rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
+			{Seat: "red-merge-r1", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
+			{Seat: "red-merge-r1", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-round and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
 			{Seat: "red-merge-r1", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
 			{Seat: "red-merge-r1", Verb: "verdict", Because: "The round's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
@@ -685,7 +686,7 @@ func Boards() map[string]Board {
 // <verb>", with the argument for why not.
 //
 // THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: `motion grade
-// file`, `motion grade appeal` and `motion direction appeal` are offered to every seat because a
+// file`, `motion grade appeal` and `motion inquiry appeal` are offered to every seat because a
 // motion is filed by ANY seat and ruled by one — but grades and directions are blue's to contest.
 // A lens files findings; a merge sets the grades itself and would be appealing its own ruling; a
 // bench disposes of gaps rather than arguing their axes. Twelve verb-slots exist that no honest
@@ -696,17 +697,17 @@ func Boards() map[string]Board {
 // filing verbs by role the way the RULING verbs already are, or accept the openness and say so
 // where a seat can read it. Tracked rather than quietly excused — see the issue named below.
 var NoSituation = map[string]string{
-	"lens motion grade file":        "a lens files FINDINGS; the merge turns them into graded gaps. Contesting a grade it never set has no sitting.",
-	"lens motion grade appeal":      "follows from the above: nothing for a lens to appeal.",
-	"lens motion direction appeal":  "directions are blue's to propose and blue's to press; a lens has no line of its own at stake.",
-	"merge motion grade file":       "the merge SETS the grades. Filing a motion against its own grade is an argument with itself, and `regrade` is the channel for changing its mind.",
-	"merge motion grade appeal":     "the merge rules grade motions; appealing one is appealing its own ruling.",
-	"merge motion direction appeal": "the merge RULES directions. The appeal is the other side of that exchange.",
-	"merge motion petition file":    "possible and real — a merge may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
-	"bench motion grade file":       "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
-	"bench motion grade appeal":     "follows from the above.",
-	"bench motion direction appeal": "the bench does not propose or pursue lines.",
-	"bench motion petition file":    "the bench RULES petitions. Filing one to itself is the gavel problem in miniature.",
+	"lens motion grade file":      "a lens files FINDINGS; the merge turns them into graded gaps. Contesting a grade it never set has no sitting.",
+	"lens motion grade appeal":    "follows from the above: nothing for a lens to appeal.",
+	"lens motion inquiry appeal":  "directions are blue's to propose and blue's to press; a lens has no line of its own at stake.",
+	"merge motion grade file":     "the merge SETS the grades. Filing a motion against its own grade is an argument with itself, and `regrade` is the channel for changing its mind.",
+	"merge motion grade appeal":   "the merge rules grade motions; appealing one is appealing its own ruling.",
+	"merge motion inquiry appeal": "the merge RULES directions. The appeal is the other side of that exchange.",
+	"merge motion petition file":  "possible and real — a merge may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
+	"bench motion grade file":     "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
+	"bench motion grade appeal":   "follows from the above.",
+	"bench motion inquiry appeal": "the bench does not propose or pursue lines.",
+	"bench motion petition file":  "the bench RULES petitions. Filing one to itself is the gavel problem in miniature.",
 }
 
 // AlwaysTaken are the verbs no board needs to bait, with why.

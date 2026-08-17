@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 // AN ID IS UNIQUE ACROSS THE WHOLE RECORD, NOT ONLY WITHIN ITS OWN KIND.
@@ -28,7 +30,12 @@ import (
 // idKind is one minted namespace: what mints it, and the shape it produces.
 type idKind struct {
 	name string
-	// pattern must match every id this kind mints and NOTHING another kind mints.
+	// pattern must match every id this kind mints and NOTHING another kind mints. It is READ FROM
+	// internal/flags where the shape is declared, never restated here: this table used to carry
+	// its own `^A\d+$` and siblings, and when the line-of-inquiry id moved A -> Q the copy stayed,
+	// so the matrix reported the MINTER as wrong against a pattern nobody had updated. A matrix
+	// that exists to catch namespace drift cannot itself hold a second copy of the namespace.
+	// The finding label is the one exception below, with its reason.
 	pattern *regexp.Regexp
 	// mint produces the next id of this kind in a run directory.
 	mint func(runDir string) (string, error)
@@ -38,21 +45,24 @@ func idKinds() []idKind {
 	return []idKind{
 		{
 			name:    "gap",
-			pattern: regexp.MustCompile(`^R\d+-\d+$`),
+			pattern: flags.GapID().Shape(),
 			mint:    func(runDir string) (string, error) { return MintGapID(runDir, 1) },
 		},
 		{
-			name:    "avenue",
-			pattern: regexp.MustCompile(`^A\d+$`),
-			mint:    MintAvenueID,
+			name:    "line-of-inquiry",
+			pattern: flags.InquiryID().Shape(),
+			mint:    MintInquiryID,
 		},
 		{
 			name:    "motion",
-			pattern: regexp.MustCompile(`^M\d+$`),
+			pattern: flags.MotionID().Shape(),
 			mint:    MintMotionID,
 		},
 		{
-			name:    "finding",
+			name: "finding",
+			// NOT from flags: FindingLabel's shape is the id a LENS carries (`L2-F1`), while the
+			// minter here is exercised with a seat id, so the two describe different halves of
+			// the same vocabulary. Restated deliberately, which is what an exception looks like.
 			pattern: regexp.MustCompile(`^[A-Za-z0-9]+-F\d+$`),
 			mint:    func(runDir string) (string, error) { return NextFindingLabel(runDir, "red-lens-r1-L1") },
 		},
@@ -180,9 +190,9 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
 			Set("complexity_cost", "low").Set("existence", "verified"))
 		return err
-	case "avenue":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "avenue", NewPayload().
-			Set("avenue_id", id).Set("status", "proposed").Set("line", "a line").Set("reason", "r"))
+	case "line-of-inquiry":
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "line-of-inquiry", NewPayload().
+			Set("inquiry_id", id).Set("status", "proposed").Set("line", "a line").Set("reason", "r"))
 		return err
 	case "motion":
 		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "motion", NewPayload().

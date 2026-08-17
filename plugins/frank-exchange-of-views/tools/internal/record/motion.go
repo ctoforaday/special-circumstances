@@ -11,13 +11,13 @@ import (
 // The propose→rule exchange was implemented three times, with three vocabularies and no shared
 // identity:
 //
-//	directions   blue avenue      -> merge avenue-rule       key `ruling`
+//	directions   blue line of inquiry      -> merge line of inquiry-rule       key `ruling`
 //	governance   <seat> petition  -> bench petition-rule      key `ruling`
 //	grades       blue dispute     -> merge dispute-respond    key `response`
 //
 // Two spellings of one concept, three renderers, and nothing tying an ask to its answer. That is
 // the direct cause of a defect class fixed one instance at a time: #315 found the petition FILING
-// unrendered while the avenue RULING was found unrendered SEPARATELY in the same sweep, because
+// unrendered while the line of inquiry RULING was found unrendered SEPARATELY in the same sweep, because
 // nothing said they were the same mechanism. #312 is the same root — `petition-rule` joins on
 // `(petitioner, class)` with no id, which is why the report renders filings and rulings side by
 // side rather than joined: pairing two filings by one seat in one round would be a guess.
@@ -29,7 +29,7 @@ import (
 // express "required only when --on=grade", so a flag-discerned subject would put three divergent
 // contracts into hand-written RunE validation — a flag combination policed by prose, which is
 // the shape this suite exists to remove.
-var MotionSubjects = []string{"grade", "petition", "direction"}
+var MotionSubjects = []string{"grade", "petition", "inquiry"}
 
 // MotionVerdicts are the rulings, per subject. The KEY is `ruling` on every one of them and the
 // flag is `--as` on every one of them, which is the point: §I of the plan names
@@ -44,7 +44,7 @@ var MotionVerdicts = map[string][]EnumValue{
 		Ev("granted", "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"),
 		Ev("denied", "the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest"),
 	},
-	"direction": {
+	"inquiry": {
 		Ev("endorsed", "worth this run's time — blue should take it up"),
 		Ev("out-of-scope", "a real question, but not THIS question"),
 		Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
@@ -110,7 +110,7 @@ func MotionFieldEnum(subject, key string, flag string) (EnumField, bool) {
 
 // MintMotionID assigns the next run-unique motion id (M1, M2 …).
 //
-// Run-unique rather than round-scoped, for the reason an avenue's is: a motion OUTLIVES the round
+// Run-unique rather than round-scoped, for the reason a line of inquiry's is: a motion OUTLIVES the round
 // that filed it — a grade dispute rejected in round 2 is re-disputed in round 3 and appealed to
 // the bench in round 4 — so a round-scoped id would have to be re-minted to survive, and the
 // re-mint is where the thread breaks.
@@ -168,7 +168,7 @@ func Motions(b *Board) []*Motion {
 	byID := map[string]*Motion{}
 	var order []string
 
-	// Avenue PROPOSALS, indexed by their id — the filing half of every direction motion. Gathered
+	// Inquiry PROPOSALS, indexed by their id — the filing half of every direction motion. Gathered
 	// in the same pass and read only when a ruling arrives, because a proposal nobody ruled on is
 	// not a motion (see the motion-rule arm).
 	type proposal struct {
@@ -188,13 +188,13 @@ func Motions(b *Board) []*Motion {
 	// single pass in the function compat.go exists to be the legacy twin of. What caught it was the
 	// prose gate (#320) — "judge-petition/motion-rule prose absent from report" on 25 of 60 seeds —
 	// not the reasoning that had already been written down one file over.
-	// A PASS OF ITS OWN, for the same interleaving reason: blue proposes the avenue and the merge
+	// A PASS OF ITS OWN, for the same interleaving reason: blue proposes the line of inquiry and the merge
 	// rules it, so the two live in different shards and the ruling can replay first. Gathered
 	// inside pass 1 this map was read before it was filled, and a direction motion came out with
 	// no filer, no round and no ask — rendering as an answer to a question nobody asked.
 	for _, e := range b.Events {
-		if e.Type == "avenue" && e.Payload.Str("supersedes_status") == "" {
-			if a := e.Payload.Str("avenue_id"); a != "" {
+		if e.Type == "line-of-inquiry" && e.Payload.Str("supersedes_status") == "" {
+			if a := e.Payload.Str("inquiry_id"); a != "" {
 				proposals[a] = proposal{filer: e.SeatID, basis: e.Payload.Str("line"), round: e.Round}
 			}
 		}
@@ -215,7 +215,7 @@ func Motions(b *Board) []*Motion {
 			}
 			m.Subject, m.Filer, m.Round = e.Payload.Str("subject"), e.SeatID, e.Round
 			m.Basis, m.Relief = e.Payload.Str("reason"), e.Payload.Str("relief")
-			for _, k := range []string{"gap_id", "dimension", "proposed", "class", "avenue_id"} {
+			for _, k := range []string{"gap_id", "dimension", "proposed", "class", "inquiry_id"} {
 				if v := e.Payload.Str(k); v != "" {
 					m.Fields[k] = v
 				}
@@ -225,13 +225,13 @@ func Motions(b *Board) []*Motion {
 			// ruling is also its creation; every other subject is created by its `motion` event,
 			// which this pass may not have reached yet. The ruling itself is attached in pass 2.
 			if _, ok := byID[id]; !ok {
-				if e.Payload.Str("subject") != "direction" {
+				if e.Payload.Str("subject") != "inquiry" {
 					continue // a ruling naming no filing; RequireMotionSubjectRef refuses this at the write
 				}
 				// A DIRECTION MOTION IS CREATED BY ITS RULING, and that is not a special case
 				// bolted on — it is the only shape that does not invent identity. `direction` has
-				// no `file` verb because the PROPOSAL is the filing (`blue avenue`), so the id it
-				// joins on is the avenue's own A-id: minted, refusable, already on the record.
+				// no `file` verb because the PROPOSAL is the filing (`blue line of inquiry`), so the id it
+				// joins on is the line of inquiry's own A-id: minted, refusable, already on the record.
 				//
 				// The rejected alternative was minting an M-id at propose time. It would have
 				// filed a motion for every line blue ever floated — ~60 a run in the fuzz against
@@ -242,7 +242,7 @@ func Motions(b *Board) []*Motion {
 				// compat.go builds the legacy direction motion the same way, from `avenue-rule`.
 				// One shape for both vocabularies, which is what makes the dual-read a translation
 				// rather than a second model.
-				m := &Motion{ID: id, Subject: "direction", Fields: map[string]string{"avenue_id": id}}
+				m := &Motion{ID: id, Subject: "inquiry", Fields: map[string]string{"inquiry_id": id}}
 				if p, ok := proposals[id]; ok {
 					m.Filer, m.Round, m.Basis = p.filer, p.round, p.basis
 				}
@@ -285,15 +285,15 @@ func Motions(b *Board) []*Motion {
 //
 // It takes the SUBJECT because the subjects do not share a filing verb. `grade` and `petition` are
 // filed by `motion <subject> file` and join on the M-id it mints; `direction` has no file verb —
-// the proposal is the filing — so it joins on the AVENUE's own id, and the thing that must exist
-// is the avenue, not a motion event. Passing the subject keeps that difference in one place
+// the proposal is the filing — so it joins on the LINE's own id, and the thing that must exist
+// is the line of inquiry, not a motion event. Passing the subject keeps that difference in one place
 // instead of pushing it into each RunE.
 func RequireMotionSubjectRef(runDir, subject, id string) error {
 	if id == "" {
 		return fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
-	if subject == "direction" {
-		return RequireAvenueRef(runDir, id)
+	if subject == "inquiry" {
+		return RequireInquiryRef(runDir, id)
 	}
 	m, err := MergedEvents(runDir)
 	if err != nil {
@@ -334,7 +334,7 @@ func RequireSubjectMatches(runDir, subject, id string) error {
 // MotionSubjectOf reports what a motion is ABOUT, from the record rather than from the caller.
 //
 // A direction has no filing event — the proposal is the filing — so an id that resolves to an
-// avenue IS a direction motion by construction.
+// line of inquiry IS a direction motion by construction.
 func MotionSubjectOf(runDir, id string) (string, error) {
 	m, err := MergedEvents(runDir)
 	if err != nil {
@@ -346,8 +346,8 @@ func MotionSubjectOf(runDir, id string) (string, error) {
 		}
 	}
 	for _, e := range m.Events {
-		if e.Type == "avenue" && e.Payload.Str("avenue_id") == id {
-			return "direction", nil
+		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") == id {
+			return "inquiry", nil
 		}
 	}
 	return "", fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
@@ -360,7 +360,7 @@ func MotionSubjectOf(runDir, id string) (string, error) {
 // direction ruled `endorsed` was re-ruled `out-of-scope` the same way. Replay keeps whichever the
 // ordering happens to favour, so the answer a reader sees is decided by shard interleaving.
 //
-// Two writers disagreeing about one fate is the defect the avenue code already guards against by
+// Two writers disagreeing about one fate is the defect the line of inquiry code already guards against by
 // giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
 // which is a new event that preserves both positions, rather than a second ruling that erases one.
 func RequireUnruledMotion(runDir, id string) error {
@@ -398,12 +398,6 @@ func RequireRuledMotion(runDir, subject, id string) error {
 			if e.Payload.Str("motion_id") == id {
 				return nil
 			}
-		case "avenue-rule":
-			// The pre-collapse spelling. An appeal filed under the new vocabulary against a
-			// ruling written under the old one is a real case for as long as both are live.
-			if e.Payload.Str("avenue_id") == id {
-				return nil
-			}
 		}
 	}
 	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", subject, id)
@@ -417,3 +411,24 @@ func MotionVerdictEnum(subject string) EnumField {
 		Why: "the ruling is what BINDS the coming seats, and every downstream reader switches on it; an unrecognized verdict reads as no ruling at all, so a refusal silently becomes permission",
 	}
 }
+
+// THE DUAL-READ IS GONE, and this is where it was.
+//
+// Before the motion collapse (#344) the three exchanges were written as `dispute`/`dispute-respond`,
+// `petition`/`petition-rule` and `avenue`/`avenue-rule`. `compat.go` translated those retired shapes
+// through an `AllMotions` seam so a stored pre-collapse record would not render `0 filed / 0 ruled`
+// — a plausible zero indistinguishable from a run that genuinely had no disputes.
+//
+// That reasoning was sound and its PREMISE was not. It declared itself permanent on the grounds
+// that "stored runs are re-read" and that installing projects hold records this repo cannot see.
+// Checked 2026-08-16 rather than assumed: the only records anywhere carrying the retired types were
+// `internal/record/testdata/pre-motion-run` and `pre-motion-real-run` — two fixtures created to
+// exercise the dual-read — plus one research run referenced solely in code comments. The
+// compatibility code's entire evidence base was the fixtures written to justify it.
+//
+// Two sessions reached that conclusion independently on the same instruction and deleted it in
+// parallel; the merge kept `Motions` as the single read and dropped the `AllMotions` seam with it.
+//
+// THE COST IF THE PREMISE IS WRONG, stated rather than left to be discovered: a record written
+// before #344 renders an empty motions section and `0 filed / 0 ruled`, exactly the plausible zero
+// compat.go existed to prevent.

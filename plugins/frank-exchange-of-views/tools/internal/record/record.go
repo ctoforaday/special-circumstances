@@ -519,7 +519,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
 		// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
 		// were document probes. An optional field would be answered the same way the
-		// avenue --hypothesis was before it was required, which is to say not at all. Making
+		// line of inquiry --hypothesis was before it was required, which is to say not at all. Making
 		// red state what would settle each check is the behaviour change; `document` stays a
 		// legitimate answer, but it now has to be chosen.
 		if !p.Has("check_kind") || p.Str("check_kind") == "" {
@@ -817,37 +817,61 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireClosedGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
 			return err
 		}
-	case "avenue":
-		// EVERY AVENUE HAS AN ID, exactly as every gap, finding and citation does. Records
+	case "line-of-inquiry":
+		// EVERY LINE OF INQUIRY HAS AN ID, exactly as every gap, finding and citation does. Records
 		// written before the lifecycle existed carry none and no longer replay — deliberate:
 		// a compatibility path for one subsystem is an asymmetry every reader then has to
 		// learn, and the corpus it would preserve is six exploratory runs, not production.
-		// A MOVE names an avenue that exists. A proposal ASSIGNS the id, so only a move (which
+		// A MOVE names a line of inquiry that exists. A proposal ASSIGNS the id, so only a move (which
 		// carries supersedes_status) is checked against the record.
 		if p.Str("supersedes_status") != "" {
-			if err := requireAvenue(runDir, p.Str("avenue_id"), "blue avenue", "--id"); err != nil {
+			if err := requireInquiry(runDir, p.Str("inquiry_id"), "blue line of inquiry", "--id"); err != nil {
 				return err
 			}
 		}
-		if p.Str("avenue_id") == "" {
-			return fmt.Errorf("record: avenue requires an id — the tool assigns one on a proposal and --id names it on a move; an avenue with no identity has no lifecycle and cannot be ruled on or revisited")
+		if p.Str("inquiry_id") == "" {
+			return fmt.Errorf("record: line-of-inquiry requires an id — the tool assigns one on a proposal and --id names it on a move; a line of inquiry with no identity has no lifecycle and cannot be ruled on or revisited")
 		}
 		// A MOVE (--id) carries only the new status and its reason; the substance lives on
 		// the proposal it moves, so requiring --line here would make a move impossible.
 		if p.Str("supersedes_status") == "" && (!p.Has("line") || p.Str("line") == "") {
-			return fmt.Errorf("record: avenue requires --line (what you are going to try — an unnamed avenue teaches a future run nothing)")
+			return fmt.Errorf("record: line-of-inquiry requires --line (what you are going to try — an unnamed line teaches a future run nothing)")
 		}
-		// A declined or abandoned avenue with no reason is the decoration this verb
+		// A declined or abandoned line of inquiry with no reason is the decoration this verb
 		// exists to prevent: the road not taken is worthless without why.
 		// Guarded by the DECLARED set so an unknown status falls through to checkEnum at the
 		// end of validate, which names the set and the near-miss. Without the guard the
 		// reason rule fires first and a typo'd status is reported as a missing reason.
-		declared, _ := Enum("avenue", "status")
+		declared, _ := Enum("line-of-inquiry", "status")
 		if st := p.Str("status"); declared.Allows(st) && st != "pursued" && st != "proposed" && (!p.Has("reason") || p.Str("reason") == "") {
 			if st == "deferred" {
-				return fmt.Errorf("record: a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
+				return fmt.Errorf("record: a deferred line of inquiry requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
 			}
-			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
+			return fmt.Errorf("record: a %s line of inquiry requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
+		}
+	case "inquiry-support":
+		// AN ABSENT ID IS ITS OWN REFUSAL. requireInquiry treats "" as "not provided" and returns
+		// nil — correct where the flag is optional, and silently permissive here, where the id IS
+		// the join. Checked first so a missing --id names itself rather than falling through to a
+		// reference check that never fires.
+		if p.Str("inquiry_id") == "" {
+			return fmt.Errorf("record: inquiry-support requires --id — the line of inquiry you are voting on. " +
+				"`show lines-of-inquiry` lists every one with its fate")
+		}
+		// THE VOTE NAMES A LINE THAT EXISTS. A dangling id would record a verdict about a line
+		// nobody proposed — and the merge's PASS gate counts votes, so it would discharge a duty
+		// for a line that is not there while the real one stayed unvoted.
+		if err := requireInquiry(runDir, p.Str("inquiry_id"), "merge inquiry-support", "--id"); err != nil {
+			return err
+		}
+		// AND IT SAYS WHAT THE REPORT ACTUALLY SAYS. The grade alone is red's conclusion; the
+		// reason is the evidence for it, and it is the half blue and the bench can check. A
+		// verdict with no quoted text is the self-attestation this whole channel exists to end —
+		// "I read it and it is fine" is the claim, not the check.
+		if strings.TrimSpace(p.Str("reason")) == "" {
+			return fmt.Errorf("record: inquiry-support requires --reason — what the report SAYS at that line, quoted. " +
+				"The grade is your conclusion; the quote is what anyone else can check it against, and a verdict " +
+				"without one is indistinguishable from not having looked")
 		}
 	case "halt":
 		// The safety boundary reaches the human as the words the bench chose, relayed

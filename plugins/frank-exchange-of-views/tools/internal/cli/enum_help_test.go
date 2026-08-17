@@ -32,7 +32,20 @@ import (
 // separated by pipes, either spaced or bare. Deliberately loose — a false positive costs
 // one line on the exempt list with a reason, and a false negative costs another silent
 // enum.
-var setInHelp = regexp.MustCompile(`[\w-]+ *\| *[\w-]+`)
+//
+// AND IT WAS NOT LOOSE ENOUGH, exactly as that last sentence warned. The pattern required a
+// WORD immediately before the pipe, so the glossed form was invisible to it:
+//
+//	proposed (put forward, undecided — the default) | pursued (being followed) | …
+//
+// Every separator there is preceded by `)`. `blue line of inquiry --status` carried that string, spelling
+// four of its five statuses, and neither gate below ever saw it as set-shaped — so the flag that
+// most needed this check was the one flag it could not see. Measured 2026-08-16, by mutating the
+// string back and watching a gate written to catch it pass anyway.
+//
+// The optional group admits a parenthesised gloss between the value and the pipe. `closed |
+// risk_accepted` still matches, so nothing this caught before stops being caught.
+var setInHelp = regexp.MustCompile(`[\w-]+(?: *\([^)]*\))? *\| *[\w-]+`)
 
 // exempt names the set-shaped flags that are NOT declared in record.EnumFields, each with
 // why. Being here is a decision, not an oversight — which is the distinction a bare
@@ -62,6 +75,18 @@ var openSets = map[string]string{}
 // record.EnumFields, named so that "somewhere else" is a claim a reader can check rather
 // than an assumption. These need no "..." — their help is telling the truth.
 var enforcedElsewhere = map[string]string{
+	// A RENDERING CHOICE, NOT A PAYLOAD FIELD — so record.EnumFields, which keys by event type,
+	// has nothing to hold it. `graph` refuses an unknown format in its own RunE default arm
+	// (`unknown --format %q (mermaid | dot)`), which is the enforcement this gate asks for, in the
+	// only place a read-side flag can have it.
+	//
+	// Both --format flags surfaced the day setInHelp was widened to see the glossed `a (x) | b (y)`
+	// form. `graph` was already correct. `show board --format` was NOT: it tested for markdown and
+	// fell through to JSON for everything else at exit 0, so a typo and the default were the same
+	// bytes. That one is fixed at the site rather than excused here.
+	"graph --format": "refused in graph's own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
+	"board --format": "refused in the show-board arm of seat.Show — same reason as graph: a rendering choice, not a payload field. It was NOT refused until this gate could see it",
+
 	// The motion verdicts are keyed on (SUBJECT, ruling), which record.EnumFields cannot express:
 	// it keys by event TYPE, and one `motion-rule` carries granted|denied for a petition and
 	// accepted|rejected for a grade. record.validate checks it, and the help here is generated
@@ -231,5 +256,54 @@ func TestEveryDeclaredSetBelongsToARealFlag(t *testing.T) {
 				t.Errorf("%q is excused (%s) but is not a set-shaped flag in the tree — the exemption outlived what it excused", site, why)
 			}
 		}
+	}
+}
+
+// AN ENUMHELP-REGISTERED FLAG'S USAGE LINE MUST NOT ALSO SPELL ITS SET.
+//
+// setFlags above already states this as the design: "an enumhelp-registered flag carries them in
+// the command's enumerated-values section instead and ITS USAGE LINE GOES SHORT." That was intent
+// with nothing holding it, and exactly one flag of twelve broke it.
+//
+// MEASURED 2026-08-16. `blue line of inquiry --status` read:
+//
+//	proposed (put forward, undecided — the default) | pursued (being followed) |
+//	declined (considered, not taken) | abandoned (pursued, then died)
+//
+// FOUR of five. `deferred` — "worth taking, and not by THIS run", the fate that had no name until
+// someone gave it one — was added to InquiryStatuses and never to this string. The four it did
+// carry were glossed differently from the record ("put forward, undecided" against "put forward
+// and not yet resolved — the default, and the state that owes a move"). Two statements of one
+// enum in a single `--help`, disagreeing, and the one a seat reads first was the incomplete one.
+//
+// THE TEST IS setInHelp, the same regex setFlags uses to recognise a usage line that advertises a
+// set, and reusing it is the point: "spells its set" gets ONE definition. It keys on the `a | b`
+// separator, so a usage line that names values IN PROSE to explain the field — `mint --check-kind`
+// says "read a document, RUN a computation, or verify a source", naming all three — is doing its
+// job and passes. Enumerating is what goes stale; explaining is what the line is for.
+func TestNoEnumhelpFlagAlsoSpellsItsSetInItsUsage(t *testing.T) {
+	var checked int
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		registered := enumhelp.Registered(c)
+		c.Flags().VisitAll(func(f *pflag.Flag) {
+			if len(registered[f.Name]) == 0 {
+				return
+			}
+			checked++
+			if setInHelp.MatchString(f.Usage) {
+				t.Errorf("%s --%s is enumhelp-registered AND spells a set in its usage line — that is a "+
+					"hand-kept copy of the %d values the Enumerated block already renders from the record, and it "+
+					"drifts the way `line of inquiry --status` did (4 of 5, never learned `deferred`). Say what the FIELD is "+
+					"for and let the record list the values.\nusage: %s", c.Name(), f.Name, len(registered[f.Name]), f.Usage)
+			}
+		})
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+	}
+	walk(newRoot())
+	if checked == 0 {
+		t.Fatal("no enumhelp-registered flags were examined — the walk found nothing, which is the silent pass this gate exists to avoid")
 	}
 }

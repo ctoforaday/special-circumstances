@@ -1,6 +1,7 @@
 package report
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -95,67 +96,118 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	}
 }
 
-func TestAvenuesSplitByFate(t *testing.T) {
+func TestInquiriesSplitByFate(t *testing.T) {
 	board := &record.Board{Events: []record.Event{
-		{Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "profile the hot path").Set("method", "bench")},
-		{Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("avenue_id", "A2").Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
-		{Type: "avenue", SeatID: "red-lens-r1", Payload: record.NewPayload().Set("avenue_id", "A3").Set("status", "declined").Set("line", "third-party audit").Set("reason", "out of scope")},
+		{Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "profile the hot path").Set("method", "bench")},
+		{Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q2").Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
+		{Type: "line-of-inquiry", SeatID: "red-lens-r1", Payload: record.NewPayload().Set("inquiry_id", "Q3").Set("status", "declined").Set("line", "third-party audit").Set("reason", "out of scope")},
 	}}
-	exp := avenues(board, "The expansions", accepted)
+	exp := inquiries(board, "Research areas", accepted)
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
-		t.Errorf("expansions must carry ONLY accepted (pursued) avenues:\n%s", exp)
+		t.Errorf("research areas must carry ONLY pursued and proposed inquiries:\n%s", exp)
 	}
-	alt := avenues(board, "Alternatives considered", rejected)
+	alt := inquiries(board, "Alternatives considered", rejected)
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
-		t.Errorf("a rejected avenue is an alternative considered, its reason the counter:\n%s", alt)
+		t.Errorf("a rejected line of inquiry is an alternative considered, its reason the counter:\n%s", alt)
 	}
 	if !strings.Contains(alt, "third-party audit") {
-		t.Errorf("a declined avenue is also an alternative considered:\n%s", alt)
+		t.Errorf("a declined line of inquiry is also an alternative considered:\n%s", alt)
 	}
 	if strings.Contains(alt, "profile the hot path") {
-		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
+		t.Errorf("a pursued line of inquiry must not appear under alternatives:\n%s", alt)
 	}
-	// No avenues of a fate → flagged, not blank.
-	if none := avenues(&record.Board{}, "The expansions", accepted); !strings.Contains(none, "none on the record") {
+	// No inquiries of a fate → flagged, not blank.
+	if none := inquiries(&record.Board{}, "Research areas", accepted); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
 
-// EVERY STATUS REACHES A SECTION. `proposed` and `deferred` matched neither predicate and
-// vanished from the report entirely — a direction blue put forward and never resolved, and one
-// it explicitly kept for a later run, both absent from the section whose whole job is the roads
-// not taken.
-func TestNoAvenueStatusVanishesFromTheReport(t *testing.T) {
-	for _, status := range record.AvenueStatuses {
-		board := &record.Board{Events: []record.Event{{Type: "avenue", SeatID: "blue-r1",
-			Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", status).Set("line", "the only line")}}}
-		exp, alt := avenues(board, "The expansions", accepted), avenues(board, "Alternatives considered", rejected)
-		in := strings.Contains(exp, "the only line")
-		inAlt := strings.Contains(alt, "the only line")
-		if in == inAlt {
-			t.Errorf("status %q lands in %d section(s); every avenue belongs to exactly one, or the reader never sees it:\nEXPANSIONS\n%s\nALTERNATIVES\n%s",
-				status, map[bool]int{true: 2, false: 0}[in], exp, alt)
+// EVERY STATUS LANDS WHERE ITS FATE SAYS — three sections, and one deliberate exclusion.
+//
+// # This test never looked at a status
+//
+// It ranged over `record.InquiryStatuses`, which is `[]EnumValue`, and passed the STRUCT to
+// `Set("status", status)`. `Payload.Str` returns "" for a non-string, so `a.Status` was the empty
+// string on all five iterations. With `rejected` defined as the complement of `accepted`, "" fell
+// into alternatives every time and `in != inAlt` held — so it passed, five times, having exercised
+// no status at all. A test whose entire subject is "every status reaches a section" had never seen
+// one. Found 2026-08-16 while adding the third section. It ranges over InquiryStatusNames() now.
+//
+// # The model this asserts: the lifecycle of a research topic through the report
+//
+//	pursued              "Research areas" — a topic followed, and what it yielded
+//	deferred             "Future research directions" — KEPT for a later run or a deeper context,
+//	                     which is a decision. Filing it under "Alternatives considered" said the
+//	                     opposite of its fate, and only the `[deferred]` tag on the row
+//	                     contradicted the heading above it.
+//	declined, abandoned  Alternatives considered — weighed and not taken, or tried and died
+//	proposed             "Research areas", beside `pursued`, with `[proposed]` on its own row. A
+//	                     first cut excluded it from every section (TestFuzzDebate refused: a seat's
+//	                     recorded reasoning must reach the reader) and a second gave it a fourth
+//	                     section. Three areas is the decision: a line blue put forward IS an area
+//	                     this run is researching, and red's per-round support verdict is what stops
+//	                     it sitting undecided — not a heading describing the omission.
+//
+// EVERY status lands in EXACTLY ONE section, so a sixth that matches no predicate fails here
+// rather than vanishing the way `proposed` and `deferred` once did.
+func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
+	section := map[string]string{
+		"pursued":   "research",
+		"proposed":  "research", // an undecided line IS an area this run is researching
+		"deferred":  "future",
+		"declined":  "alternatives",
+		"abandoned": "alternatives",
+	}
+	for _, status := range record.InquiryStatusNames() {
+		want, known := section[status]
+		if !known {
+			t.Errorf("status %q is in the enum and this test has no expectation for it — decide which section it "+
+				"belongs to (or that it belongs to none, like `proposed`) rather than letting it match a complement "+
+				"by accident", status)
+			continue
+		}
+		board := &record.Board{Events: []record.Event{{Type: "line-of-inquiry", SeatID: "blue-r1",
+			Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", status).Set("line", "the only line")}}}
+		in := map[string]bool{
+			"research":     strings.Contains(inquiries(board, "Research areas", accepted), "the only line"),
+			"future":       strings.Contains(inquiries(board, "Future research directions", deferred), "the only line"),
+			"alternatives": strings.Contains(inquiries(board, "Alternatives considered", rejected), "the only line"),
+		}
+		var got []string
+		for name, present := range in {
+			if present {
+				got = append(got, name)
+			}
+		}
+		sort.Strings(got)
+		switch {
+		case len(got) != 1:
+			t.Errorf("status %q rendered under %v, want exactly [%s] — a line of inquiry in two sections is an alternative to "+
+				"itself, and one in NONE loses the seat's recorded prose entirely (TestFuzzDebate's A1-A3 class "+
+				"caught exactly that when `proposed` was excluded)", status, got, want)
+		case got[0] != want:
+			t.Errorf("status %q rendered under %q, want %q", status, got[0], want)
 		}
 	}
 }
 
-// A MOVED AVENUE IS ONE AVENUE. Reading raw events rendered a line pursued at r0 and abandoned
+// A MOVED LINE OF INQUIRY IS ONE LINE. Reading raw events rendered a line pursued at r0 and abandoned
 // at r2 under BOTH headings — as an expansion and as an alternative to itself.
-func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
+func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 	board := &record.Board{Events: []record.Event{
-		{Round: 0, Type: "avenue", SeatID: "blue-r0", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("line", "rewrite the parser")},
-		{Round: 2, Type: "avenue", SeatID: "blue-r2", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "abandoned").Set("reason", "the grammar moved under it")},
+		{Round: 0, Type: "line-of-inquiry", SeatID: "blue-r0", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "rewrite the parser")},
+		{Round: 2, Type: "line-of-inquiry", SeatID: "blue-r2", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "abandoned").Set("reason", "the grammar moved under it")},
 	}}
-	exp := avenues(board, "The expansions", accepted)
-	alt := avenues(board, "Alternatives considered", rejected)
+	exp := inquiries(board, "Research areas", accepted)
+	alt := inquiries(board, "Alternatives considered", rejected)
 	if strings.Contains(exp, "rewrite the parser") {
-		t.Errorf("an avenue ABANDONED at r2 is not an expansion — its latest status decides:\n%s", exp)
+		t.Errorf("a line of inquiry ABANDONED at r2 is not an expansion — its latest status decides:\n%s", exp)
 	}
 	if !strings.Contains(alt, "rewrite the parser") || !strings.Contains(alt, "the grammar moved under it") {
-		t.Errorf("the abandoned avenue must carry its current reason:\n%s", alt)
+		t.Errorf("the abandoned line of inquiry must carry its current reason:\n%s", alt)
 	}
 	// The substance came from the CREATION event and the reason from the MOVE — the history is
-	// the evidence of choosing, which is the whole point of giving an avenue a lifecycle.
+	// the evidence of choosing, which is the whole point of giving a line of inquiry a lifecycle.
 	if !strings.Contains(alt, "r0 pursued → r2 abandoned") {
 		t.Errorf("the history that produced the status must be rendered:\n%s", alt)
 	}
@@ -163,13 +215,17 @@ func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
 
 // RED'S RULING AND BLUE'S DEFIANCE OF IT ARE THE SUBSTANCE. Blue pursuing a line red ruled
 // out-of-scope looked identical to blue pursuing one red endorsed.
-func TestAvenueRulingAndContestReachTheReader(t *testing.T) {
+func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 	board := &record.Board{Events: []record.Event{
-		{Round: 0, Type: "avenue", SeatID: "blue-r0", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "proposed").Set("line", "survey the adjacent literature")},
-		{Round: 1, Type: "avenue-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("avenue_id", "A1").Set("ruling", "out-of-scope").Set("reason", "a real question, not THIS run's")},
-		{Round: 1, Type: "avenue", SeatID: "blue-r1", Payload: record.NewPayload().Set("avenue_id", "A1").Set("status", "pursued").Set("contests_ruling", "out-of-scope")},
+		{Round: 0, Type: "line-of-inquiry", SeatID: "blue-r0", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "proposed").Set("line", "survey the adjacent literature")},
+		// The LIVE vocabulary: red rules a direction through `motion inquiry rule`, whose motion_id
+		// IS the line's own id — the proposal is the filing, so there is no second identity. The
+		// fixture used to write the retired `avenue-rule` type, which nothing has written since
+		// the motion collapse and which no longer has a read arm.
+		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("subject", "inquiry").Set("motion_id", "Q1").Set("ruling", "out-of-scope").Set("reason", "a real question, not THIS run's")},
+		{Round: 1, Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("contests_ruling", "out-of-scope")},
 	}}
-	exp := avenues(board, "The expansions", accepted)
+	exp := inquiries(board, "Research areas", accepted)
 	for _, want := range []string{"out-of-scope", "a real question, not THIS run's", "against red's"} {
 		if !strings.Contains(exp, want) {
 			t.Errorf("the reader must see the ruling AND that blue moved against it; missing %q:\n%s", want, exp)

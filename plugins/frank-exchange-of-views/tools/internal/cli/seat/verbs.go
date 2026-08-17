@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
@@ -125,7 +126,7 @@ var views = []struct {
 	// EVERY DESCRIPTION NAMES THE VERB THAT FILLS THE VIEW, and that is a contract
 	// (viewnaming_test.go), not a convention. A seat navigates by what the tool PRINTS: measured
 	// on a probe, one read `--view lines-of-inquiry` and then typed `blue line-of-inquiry`, a verb
-	// that does not exist, because nothing in the projection it had just read said `avenue`. It
+	// that does not exist, because nothing in the projection it had just read said `line of inquiry`. It
 	// found the right verb by failing twice. The next seat may instead conclude the capability is
 	// missing and write prose, which loses it for the whole run and is reported nowhere.
 	// THE ARTIFACT THE WHOLE DEBATE IS ABOUT, and the last thing a seat still opened by hand.
@@ -139,7 +140,7 @@ var views = []struct {
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
 	{"evidence", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
-	{"lines-of-inquiry", "the exploration space: avenues taken, declined and abandoned. Written by `avenue` (propose and move) and `motion direction rule` (red's ruling)", ""},
+	{"lines-of-inquiry", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", ""},
 	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
 }
 
@@ -155,7 +156,7 @@ var views = []struct {
 //
 // Measured on a probe: a haiku seat read `--view lines-of-inquiry`, had no way to learn which verb
 // writes into it, and invented `blue line-of-inquiry` — a verb that does not exist. It found
-// `avenue` by failing twice. The next seat may instead conclude the capability is missing and
+// `line of inquiry` by failing twice. The next seat may instead conclude the capability is missing and
 // write prose, which loses it for the run and is reported nowhere.
 //
 // A field declared and never read is the shape this suite keeps finding: it reads as documented
@@ -314,7 +315,19 @@ func renderView(cmd *cobra.Command, want string) error {
 		// The markdown arm is what `ledger` and `archive` rendered: the open board for a human
 		// verification pass, then the closure archive with its prose. Both were separate views
 		// of data this JSON already carries whole.
-		if f, _ := cmd.Flags().GetString(flags.Format); f == "markdown" || f == "md" {
+		// AN UNKNOWN --format IS REFUSED, NOT ROUNDED TO JSON.
+		//
+		// This read `if f == "markdown" || f == "md"` with no else, so every other value —
+		// including a typo, and including `dot`, which `graph --format` accepts — fell through to
+		// the JSON arm and exited 0. A seat that asked for a rendering it did not get had no way
+		// to find out: `--format banana` and `--format json` produced identical bytes.
+		//
+		// Found 2026-08-16 by widening setInHelp in the enum-help gate. The usage line spells
+		// `json (…) | markdown (…)`, which is a closed-set promise, and nothing was keeping it.
+		switch f, _ := cmd.Flags().GetString(flags.Format); f {
+		case "", "json":
+			// The default arm, below.
+		case "markdown", "md":
 			led, err := view.Markdown(runDir, "ledger", "")
 			if err != nil {
 				return err
@@ -327,6 +340,9 @@ func renderView(cmd *cobra.Command, want string) error {
 			cmd.OutOrStdout().Write([]byte("\n"))
 			cmd.OutOrStdout().Write(arc)
 			return nil
+		default:
+			return feov.Errorf(feov.Validation, "show board: unknown --format %q (json | markdown) — "+
+				"an unrecognised format used to render JSON and exit 0, so a seat could not tell a typo from the default", f)
 		}
 		// The role and seat are passed so the board CAN carry the sitting; whether it does is
 		// the duty arm's decision, and unset means the board is exactly what it always was.
