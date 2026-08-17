@@ -647,10 +647,13 @@ func TestUpdateAbandonsWhenItsLockWasBroken(t *testing.T) {
 // #217: a record whose check no longer exists is dropped — but ONLY when the caller
 // actually parsed a loop. An empty slice means "nothing parsed", never "prune everything".
 func TestPruneOrphansNeedsAParsedLoop(t *testing.T) {
+	// The orphan is a check whose COMMAND is gone. Two WORDINGS of one command are no longer
+	// two records at all — see TestTwoWordingsOfOneCommandAreOneRecord, which is the case this
+	// fixture used to carry and which #432 turned from an orphan into a match.
 	seed := func() *RearmState {
 		return &RearmState{Rearmed: map[string]Rearm{
-			CheckKey("1. `go test ./...` → ok"):     {Check: "current wording"},
-			CheckKey("1. `go test ./...` → all ok"): {Check: "an older wording, now orphaned"},
+			CheckKey("1. `go test ./...` → ok"): {Check: "1. `go test ./...` → ok"},
+			CheckKey("2. `go vet ./...` → ok"):  {Check: "2. `go vet ./...` → ok"},
 		}}
 	}
 	live := []Check{{Line: "1. `go test ./...` → ok"}}
@@ -763,5 +766,117 @@ func TestEveryPackageThatParsesTheLoopAlsoReportsItsProblems(t *testing.T) {
 	if len(offenders) > 0 {
 		t.Errorf("packages that parse the validation loop but never report what the parse DROPPED:\n  %s\n\nParseValidationLoop silently declines entries a human reader counts — a lettered label opens no check, and a mislabelled ordinal makes state keyed by position disagree with the labels in the note. A site that parses without reporting turns those into a check that is never watched, never re-armed, and never mentioned. Call checkpoint.NoteLoopProblems(note) — or LoopProblems(loop) if you already hold the section — and write the result to stderr. Never refuse: these are hooks, and a numbering slip must not cost a seal or block a tool call.",
 			strings.Join(offenders, "\n  "))
+	}
+}
+
+// #432 friction 2 — THE CASE THAT DROVE THE KEY CHANGE.
+//
+// The live state held FOURTEEN records for TWELVE checks. In four of the five duplicated
+// pairs the command was byte-identical and only the annotation had moved:
+//
+//	→ 17 pkgs ok  vs  → 18 ok        → 15 pkgs ok  vs  → 21 ok        → 16 files valid  vs  → 16 valid
+//
+// The old whole-line key called each of those a different check. It also taught the note's
+// authors to stop correcting stale counts, because a correction orphaned the record — which
+// is how the loop came to document "18 ok" for a thirty-package module ON PURPOSE.
+func TestTwoWordingsOfOneCommandAreOneRecord(t *testing.T) {
+	a := CheckKey("3. `go test -C plugins/frank-exchange-of-views/tools ./...` → 17 pkgs ok · re-armed by: x/")
+	b := CheckKey("3. `go test -C plugins/frank-exchange-of-views/tools ./...` → 18 ok · re-armed by: x/")
+	if a != b {
+		t.Fatalf("correcting a stale count changed the identity:\n  %q\n  %q", a, b)
+	}
+	if a != "go test -C plugins/frank-exchange-of-views/tools ./..." {
+		t.Errorf("key = %q; the identity is the command, not the sentence around it", a)
+	}
+}
+
+// THE OTHER HALF, and it must not be lost in the trade: changing what the check RUNS is a
+// different check and must still orphan. Measured pair — the goldens entry was corrected from
+// the REGENERATE command to the review command, and that record SHOULD not carry over.
+func TestChangingTheCommandStillChangesTheIdentity(t *testing.T) {
+	old := CheckKey("11. Goldens: `UPDATE_GOLDENS=1 go test ./internal/difftest` — never by hand")
+	cur := CheckKey("11. Goldens: `go run ./golden -review` (from scripts/) · re-armed by: x/")
+	if old == cur {
+		t.Fatal("a check that runs a different command must not inherit the old record")
+	}
+}
+
+// A check with no command span still gets an identity rather than an empty key — every
+// record collapsing onto "" would be the silent merge this whole design is against.
+func TestAProseCheckFallsBackToItsWholeLine(t *testing.T) {
+	k := CheckKey("10. last_event in rearmed.json advances while work continues")
+	if k == "" {
+		t.Fatal("a prose check keyed to the empty string would merge with every other prose check")
+	}
+	if k != "last_event in rearmed.json advances while work continues" {
+		t.Errorf("key = %q; want the whole line with the ordinal stripped", k)
+	}
+	// An unterminated backtick is prose, not a command — it must not swallow the rest of the
+	// line as an identity.
+	if got := CheckKey("1. a stray ` backtick and then words"); got != "a stray ` backtick and then words" {
+		t.Errorf("unterminated span: key = %q, want the whole line", got)
+	}
+}
+
+// THE HAZARD THE CHANGE INTRODUCES, held explicitly. Keying on the command means two checks
+// running one command are one identity. That must be LOUD and must stop the prune, because a
+// record standing for two checks makes "orphaned" meaningless.
+func TestASharedCommandIsReportedAndStopsThePrune(t *testing.T) {
+	live := []Check{
+		{Line: "1. `go test ./...` → the fast leg"},
+		{Line: "2. `go test ./...` → the slow leg"},
+		{Line: "3. `go vet ./...` → ok"},
+	}
+	dup := CheckKeyCollisions(live)
+	if len(dup) != 1 || dup[0] != "go test ./..." {
+		t.Fatalf("collisions = %v; want exactly the shared command", dup)
+	}
+
+	s := &RearmState{Rearmed: map[string]Rearm{
+		"go test ./...": {Check: "1. `go test ./...` → the fast leg"},
+		"an old orphan": {Check: "9. `gone` → removed"},
+		"go vet ./...":  {Check: "3. `go vet ./...` → ok"},
+	}}
+	if dropped := s.PruneOrphans(live); dropped != nil {
+		t.Errorf("dropped %v while an identity was ambiguous; deletion must wait for the ambiguity to be resolved", dropped)
+	}
+	if len(s.Rearmed) != 3 {
+		t.Errorf("state = %v; nothing may be deleted under a collision", s.Rearmed)
+	}
+
+	// No collision, no excuse: the orphan goes.
+	clean := []Check{{Line: "3. `go vet ./...` → ok"}}
+	s2 := &RearmState{Rearmed: map[string]Rearm{
+		"go vet ./...":  {Check: "3. `go vet ./...` → ok"},
+		"an old orphan": {Check: "9. `gone` → removed"},
+	}}
+	if dropped := s2.PruneOrphans(clean); len(dropped) != 1 {
+		t.Errorf("dropped = %v; an unambiguous orphan must still be pruned", dropped)
+	}
+}
+
+// MIGRATION IS NOT A RESET. The live file already held both wordings; on load they collapse,
+// and WHICH ONE SURVIVES cannot be Go's map seed. The newest wins, which is what RearmState
+// has always claimed to hold.
+func TestCollapsingTwoWordingsKeepsTheNewestRun(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rearmed.json")
+	body := `{"rearmed":{
+	  "` + "`go test ./...` → 17 pkgs ok" + `":{"index":3,"check":"3. ` + "`go test ./...`" + ` → 17 pkgs ok","at":"2026-08-01T00:00:00Z"},
+	  "` + "`go test ./...` → 18 ok" + `":{"index":3,"check":"3. ` + "`go test ./...`" + ` → 18 ok","at":"2026-08-15T00:00:00Z"}
+	}}`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := LoadRearm(os.ReadFile, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Rearmed) != 1 {
+		t.Fatalf("state = %v; two wordings of one command must collapse to one record", s.Rearmed)
+	}
+	got := s.Rearmed["go test ./..."]
+	if got.At != "2026-08-15T00:00:00Z" {
+		t.Errorf("survivor.At = %q; the NEWEST run must survive, not whichever the map yielded last", got.At)
 	}
 }
