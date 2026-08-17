@@ -25,11 +25,20 @@ import (
 //
 // # Why it is red's, and why every round
 //
-// The check is a leaf read of the artifact — is this line in the report, and does the text still
-// back it as STATED — which is red's discipline, not blue's self-report. And it is per-round
-// because the report changes every round: a verdict cast before this round's edits answers a
-// question about a document that no longer exists. `record.UnvotedInquiries` keys on the round for
-// exactly that reason, and the merge's sitting is not complete while any line is unvoted.
+// The check is a read of the artifact — is this line in the report, and does the text still back it
+// as STATED — which is red's discipline, not blue's self-report. And it is per-round because the
+// report changes every round: a verdict cast before this round's edits answers a question about a
+// document that no longer exists. `record.UnvotedInquiries` keys on the round for exactly that
+// reason, and the merge's sitting is not complete while any line is unvoted.
+//
+// # ONE READ PER ROUND, NOT ONE READ PER LINE
+//
+// The votes are recorded per line because each line gets its own verdict and its own quote — that
+// is the record's shape and it is right. The READING is not per line: you read the report once this
+// round and answer every line against that one pass, the way anyone checks a document against a
+// list. A dozen lines over four rounds would otherwise be forty-eight full reads of the same
+// artifact on the most expensive seat in the run, and a duty that costs that much is one seats
+// route around — which is worse than no duty, because the record then says checked.
 //
 // # The verdict is NOT the ruling
 //
@@ -40,7 +49,7 @@ import (
 // document drifted from its own account of itself.
 func newInquirySupport() *cobra.Command {
 	c := seat.Prose(seat.New("inquiry-support",
-		`your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says at that line, quoted>"`,
+		`your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {
@@ -59,7 +68,7 @@ func newInquirySupport() *cobra.Command {
 	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID,
 		"the line of inquiry you are voting on — `show lines-of-inquiry` lists every one")
 	enumhelp.Flag(c, flags.As, record.MustEnum("inquiry-support", "as"),
-		"REQUIRED — what the report does for this line RIGHT NOW, read at the leaf rather than recalled. `unsupported` and `absent` put it on blue's worklist; `weakened` is a flag blue may answer or accept")
+		"REQUIRED — what the report does for this line RIGHT NOW, from this round's read of the document rather than from the record you already have. `unsupported` and `absent` put it on blue's worklist; `weakened` is a flag blue may answer or accept")
 	return c
 }
 
