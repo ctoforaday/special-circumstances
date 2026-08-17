@@ -19,13 +19,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
-
-const version = "0.1.0"
 
 type requirements struct {
 	Tools []toolchain.Tool `json:"tools"`
@@ -83,7 +82,7 @@ func liveNudge(m *runlive.Marker) string {
 // progress and nothing said so, which is the one job that nudge has.
 func run(args []string, stdin io.Reader, stdout io.Writer, pluginRoot, projectDir string, probe func([]toolchain.Tool) []toolchain.Status) int {
 	if len(args) > 0 && args[0] == "-version" {
-		fmt.Fprintln(stdout, "sc-toolchain-nudge", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-toolchain-nudge"))
 		return 0
 	}
 

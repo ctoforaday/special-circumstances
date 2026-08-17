@@ -63,11 +63,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
 )
-
-const version = "0.1.0"
 
 type hookInput struct {
 	ToolName    string          `json:"tool_name"`
@@ -144,7 +143,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0 // a bad flag is never worth disturbing the session over
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-strike-counter", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-strike-counter"))
 		return 0
 	}
 

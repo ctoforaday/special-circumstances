@@ -22,11 +22,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/claims"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/trajectory"
 )
-
-const version = "0.2.0"
 
 const usage = `gray-area — trajectory evidence
 
@@ -144,7 +143,7 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 		return 2
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "gray-area", version)
+		fmt.Fprintln(stdout, buildid.Line("gray-area"))
 		return 0
 	}
 	if cmd == "" {

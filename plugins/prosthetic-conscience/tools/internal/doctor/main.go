@@ -20,10 +20,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
-
-const version = "0.1.0"
 
 type requirements struct {
 	Tools []toolchain.Tool `json:"tools"`
@@ -512,7 +511,7 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 		return 0
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-doctor", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-doctor"))
 		return 0
 	}
 

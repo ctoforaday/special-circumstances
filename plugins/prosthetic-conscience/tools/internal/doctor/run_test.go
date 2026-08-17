@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 // noFix stands in for fix(): the real one reaches the network (gh release download)
@@ -245,7 +247,7 @@ func TestVersionFlagSkipsTheProbe(t *testing.T) {
 	if code := run([]string{"-version"}, &out, "", noExecutable, noFix(&fixed)); code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.Contains(out.String(), "sc-doctor") || !strings.Contains(out.String(), version) {
+	if !strings.Contains(out.String(), "sc-doctor") || !strings.Contains(out.String(), buildid.Revision()) {
 		t.Fatalf("version output = %q", out.String())
 	}
 	if strings.Contains(out.String(), "VERDICT:") {

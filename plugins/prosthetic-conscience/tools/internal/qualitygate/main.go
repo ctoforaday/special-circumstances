@@ -32,13 +32,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
-
-const version = "0.2.0"
 
 // Modes for SC_QUALITY_GATE. Formatting rewrites files, so it gets its own
 // off-switch separate from disabling the gate outright.
@@ -310,7 +309,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, e env) int {
 		return 0 // a bad flag is never worth failing the Edit/Write over
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-quality-gate", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-quality-gate"))
 		return 0
 	}
 

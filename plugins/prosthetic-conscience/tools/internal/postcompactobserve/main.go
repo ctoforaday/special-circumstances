@@ -52,11 +52,10 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 )
-
-const version = "0.1.0"
 
 // probe names the measurement, so a row can never be read as more than it is.
 const probe = "token-overlap-v1"
@@ -172,7 +171,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-postcompact-observe", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-postcompact-observe"))
 		return 0
 	}
 

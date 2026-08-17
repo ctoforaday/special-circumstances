@@ -39,13 +39,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/qualitygate"
 )
-
-const version = "0.1.0"
 
 // merge is the event's decision policy, kept pure so it can be tested without units.
 //
@@ -75,7 +74,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0 // a bad flag is never worth failing the Edit/Write over
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-posttooluse", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-posttooluse"))
 		return 0
 	}
 

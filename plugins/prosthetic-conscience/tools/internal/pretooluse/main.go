@@ -36,13 +36,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/pushfreezeguard"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secretsgate"
 )
-
-const version = "0.1.0"
 
 // merge is the event's decision policy, kept pure so it can be tested without units.
 func merge(results []hookunit.Result) (decision, warnings string) {
@@ -66,7 +65,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "sc-pretooluse", version)
+		fmt.Fprintln(stdout, buildid.Line("sc-pretooluse"))
 		return 0
 	}
 

@@ -50,37 +50,19 @@ var notVersions = map[string]string{
 		"is the source, this is the destination",
 }
 
-// staleBinaryVersions are the per-binary `const version` declarations, one per hook binary,
-// each frozen at the value it was born with. They are NOT denied as "not a version" — they are
-// versions, and the value they assert is wrong: a binary shipped inside prosthetic-conscience
-// 0.37.0 answering `-version` with 0.1.0 tells an operator diagnosing a bad hook the one thing
-// they cannot use.
+// THE PER-BINARY `const version` CLASS IS GONE, AND THAT IS WHY THERE IS NO ALLOWLIST HERE.
 //
-// MEASURED 2026-08-15: 15 of them across two plugins, at 0.1.0 or 0.2.0, in plugins at 0.37.0
-// and 0.7.1. Only two are even reachable (`-version` is parsed in secretsgate and
-// toolchainnudge); the rest assert a version nothing can read, which is why nobody noticed.
+// There used to be one: 15 declarations across two plugins, each frozen at the value it was born
+// with, so a binary shipped inside prosthetic-conscience 0.39.0 answered `-version` with 0.1.0.
+// They were TOLERATED and counted on every run rather than denied, explicitly so the class could
+// not grow while it waited for a decision (#405 item 3).
 //
-// TOLERATED, NOT HIDDEN, and the distinction is the point. Failing on all 15 would block every
-// pull request until the version is derived at build time (#405), which is a change with a
-// decision in front of it. So they are counted and printed on every run, and a SIXTEENTH one
-// fails — the class cannot grow while it waits.
-var staleBinaryVersions = map[string]bool{
-	"plugins/gray-area/tools/cmd/gray-area-capture/main.go":                   true,
-	"plugins/gray-area/tools/cmd/gray-area/main.go":                           true,
-	"plugins/prosthetic-conscience/tools/internal/checkpointrestore/main.go":  true,
-	"plugins/prosthetic-conscience/tools/internal/checkpointseal/main.go":     true,
-	"plugins/prosthetic-conscience/tools/internal/doctor/main.go":             true,
-	"plugins/prosthetic-conscience/tools/internal/filechangedrearm/main.go":   true,
-	"plugins/prosthetic-conscience/tools/internal/postcompactobserve/main.go": true,
-	"plugins/prosthetic-conscience/tools/internal/posttooluse/main.go":        true,
-	"plugins/prosthetic-conscience/tools/internal/pretooluse/main.go":         true,
-	"plugins/prosthetic-conscience/tools/internal/pushfreezeguard/main.go":    true,
-	"plugins/prosthetic-conscience/tools/internal/qualitygate/main.go":        true,
-	"plugins/prosthetic-conscience/tools/internal/secretsgate/main.go":        true,
-	"plugins/prosthetic-conscience/tools/internal/sessionstart/main.go":       true,
-	"plugins/prosthetic-conscience/tools/internal/strikecounter/main.go":      true,
-	"plugins/prosthetic-conscience/tools/internal/toolchainnudge/main.go":     true,
-}
+// The decision landed: `internal/buildid` reads the commit the running binary was built from —
+// a fact the Go toolchain already stamps into every binary with no flags (#450) — and all 15
+// constants were deleted. With the allowlist removed, a NEW `const version = "0.1.0"` now falls
+// through to the unclassified branch below and FAILS, which is the correct answer: the fact is
+// available from the build, so hand-writing it again is a regression rather than a carrier to
+// register.
 
 // reVersionShaped finds declarations that look like a version so the sweep can demand each be
 // classified. Deliberately broad: a false positive costs one line on a list, and a false
@@ -105,17 +87,8 @@ var reVersionShaped = regexp.MustCompile(`(?m)^\s*(?:(?:const|var)\s+)?((?:[A-Za
 
 // sweepUnclassified fails on any version-shaped declaration that is neither a known carrier nor
 // explicitly denied. This is what keeps `facts` from quietly falling behind the tree.
-//
-// It returns the tolerated count alongside the problems so the caller can PRINT it. A tolerated
-// item that is never mentioned again is a denied item wearing a different word.
 func sweepUnclassified(root string) []string {
-	problems, _ := sweepWithTolerated(root)
-	return problems
-}
-
-func sweepWithTolerated(root string) ([]string, int) {
 	var problems []string
-	tolerated := 0
 	err := filepath.WalkDir(filepath.Join(root, "plugins"), func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
@@ -137,10 +110,6 @@ func sweepWithTolerated(root string) ([]string, int) {
 				// not belong in the class below.
 				continue
 			}
-			if name == "version" && staleBinaryVersions[rel] {
-				tolerated++
-				continue
-			}
 			problems = append(problems, fmt.Sprintf(
 				"%s:%s = %q is version-shaped and CLASSIFIED NOWHERE.\n"+
 					"  Add it to `facts` if it carries a version somebody else also writes down, or to "+
@@ -153,5 +122,5 @@ func sweepWithTolerated(root string) ([]string, int) {
 		problems = append(problems, fmt.Sprintf("sweeping for version declarations: %v", err))
 	}
 	sort.Strings(problems)
-	return problems, tolerated
+	return problems
 }
