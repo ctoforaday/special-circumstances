@@ -869,7 +869,8 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// verdict with no quoted text is the self-attestation this whole channel exists to end —
 		// "I read it and it is fine" is the claim, not the check.
 		if strings.TrimSpace(p.Str("reason")) == "" {
-			return fmt.Errorf("record: inquiry-support requires --reason — what the report SAYS at that line, quoted. " +
+			return fmt.Errorf("record: inquiry-support requires --reason — what the report SAYS for this line, quoted " +
+				"from the read you did this round. " +
 				"The grade is your conclusion; the quote is what anyone else can check it against, and a verdict " +
 				"without one is indistinguishable from not having looked")
 		}

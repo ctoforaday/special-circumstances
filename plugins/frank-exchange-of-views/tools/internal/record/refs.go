@@ -373,7 +373,8 @@ func requirePassClosesAllGaps(runDir string) error {
 		}
 		sort.Strings(ids)
 		return fmt.Errorf("record: verdict PASS refused — %d line(s) of inquiry have no support verdict this round: %s. "+
-			"Read them with `show lines-of-inquiry`, then for EACH one read the report at that line and vote: "+
+			"READ THE REPORT ONCE (`show report`), list the lines with `show lines-of-inquiry`, and vote every one "+
+			"against that single read — this is one pass over the document, not one pass per line: "+
 			"`inquiry-support --id <id> --as supported|weakened|unsupported|absent --reason \"<what the report says there>\"`. "+
 			"A PASS claims the report is sound, and its account of what this run investigated is part of the report; "+
 			"vote them, or issue `--as FAIL`",

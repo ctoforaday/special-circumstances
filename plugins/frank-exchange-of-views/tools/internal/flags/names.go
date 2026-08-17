@@ -76,6 +76,21 @@ const (
 	// near-duplicate surfaces as a reopen rather than a fresh gap. One word, read-only.
 	Candidate = "candidate"
 
+	// Window sizes `show report --anchor <id> --window N`: how many paragraphs of content
+	// either side of the anchor a live read carries, defaulting to anchor.DefaultWindow.
+	//
+	// NOT `--lines`, which was the first spelling and is one character from `--line` — a word
+	// this file already spends on something else entirely ("the question or approach you are
+	// proposing", on `blue line-of-inquiry`). Two flags a letter apart meaning unrelated things
+	// is the collision this vocabulary exists to prevent, and it is worse here than the pairs
+	// that prompted the rule, because both would be accepted by the parser.
+	//
+	// It sizes a read; it is deliberately not a member of the --format family, which chooses a
+	// rendering. And the address is --anchor, never a line number: the report is edited every
+	// round, so a line captured in round 2 points at different text in round 3. Line numbers
+	// come back as OUTPUT, for saying what you read.
+	Window = "window"
+
 	// `blue edit` is the ONLY write path to blue/report.md for a response seat: it replaces
 	// the exact current span --old with --new, preserving red's finding-markers. The words
 	// mirror the Edit tool's old_string/new_string so a seat reaches for what it knows.
@@ -184,10 +199,16 @@ const (
 	AnchorTarget = "anchor-target"
 	AnchorTool   = "anchor-tool"
 
-	// Anchor is the DOCUMENT anchor — the c-<hex> inside a `<!--cite:c-…-->` token — naming
-	// which citation a verification adjudicates. Distinct from the AnchorSeat/Target/Tool trio
-	// above, which anchor a CLOSURE (who checked what, with which tool); this one is the join
-	// key between red's verification and the source blue actually cited (#382).
+	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--fx:f-…-->` or
+	// `<!--proof:p-…-->` token — naming the place in the report an act is about. Distinct from
+	// the AnchorSeat/Target/Tool trio above, which anchor a CLOSURE (who checked what, with
+	// which tool); this one addresses the ARTIFACT.
+	//
+	// Two verbs take it and each narrows the CLASS it will accept, which is the per-verb
+	// validator's job rather than a second word's: `lens verify --anchor` wants a `c-…`,
+	// because it adjudicates the source blue cited (#382); `show report --anchor` takes any of
+	// the three, because reading the live text at an anchor is the same act whichever verb
+	// minted it.
 	Anchor = "anchor"
 	// Independent is the explicit negative beside it: a source red found itself, which has no
 	// anchor to name. Stated rather than left as an empty --anchor, because an empty field
@@ -268,6 +289,7 @@ func All() []string {
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir,
 		Chair,
 		Watch, Now, Serve,
+		Window,
 	}
 }
 
