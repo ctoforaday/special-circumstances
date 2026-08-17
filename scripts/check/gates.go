@@ -136,7 +136,7 @@ var tools = []gate{
 	{id: "rulesweep", kind: kindTool, dir: "scripts", args: []string{"run", "./rulesweep"}, needsBase: true, ciJob: "rule-sweep",
 		why: "a protocol-surface change must name a registry class"},
 	{id: "versionguard", kind: kindTool, dir: "scripts", args: []string{"run", "./versionguard"}, needsBase: true, ciJob: "rule-sweep",
-		why: "plugin content changed without a version bump ships nothing"},
+		why: "a version that goes BACKWARDS ships content under a number a consumer already has"},
 	{id: "golden", kind: kindTool, dir: "scripts", args: []string{"run", "./golden"}, ciJob: "goldens",
 		why: "a stale golden is an unrecorded behaviour change"},
 	{id: "mjsparity", kind: kindTool, dir: "scripts", args: []string{"run", "./mjsparity"}, ciJob: "debate-sim",
