@@ -31,7 +31,6 @@ import (
 // capability change") rather than by absence — an absent entry and an unremarkable release
 // must not be the same bytes.
 var capabilityDeltas = map[string]string{
-	"0.72.0": "A stale binary has no `merge inquiry-support`, so red cannot vote that the report still carries a line of inquiry — and it does NOT refuse `verdict --as PASS` over an unvoted line, so a run passes with its own account of what it investigated unchecked.",
 	"0.10.0": "A stale binary silently produces the duplicated, contradicted report the preflight must now refuse.",
 	"0.12.0": "A stale binary produces the graph-less, prose-dropping report the record now expects.",
 	"0.14.0": "A stale binary renders a debate view missing the dispute argument the bench now rules on from the record.",
@@ -80,7 +79,13 @@ var capabilityDeltas = map[string]string{
 	"0.69.0": "A stale binary harvests from envelopes and reports a plausible count.",
 	"0.70.0": "A stale binary reports a lossy replay as a clean run.",
 	"0.71.0": "A stale binary stamps the round its seat id looks like.",
-	"0.72.0": "A stale binary overwrites an open run's marker without a word, and its dashboard watchers outlive a run nothing captured.",
+	// ONE VERSION, TWO CAPABILITY CHANGES, AND THAT IS THE HONEST ENTRY. #441 and #445 each
+	// bumped Version to 0.72.0 on its own branch, each added its own 0.72.0 line here, and both
+	// merged — so git produced a map with a duplicate key and main stopped compiling. Both
+	// features really did ship under 0.72.0, so a binary below it lacks BOTH; splitting them
+	// across 0.72.0 and 0.73.0 would invent a release that never existed. Merged rather than
+	// renumbered for that reason.
+	"0.72.0": "A stale binary has no `merge inquiry-support`, so red cannot vote that the report still carries a line of inquiry — and it does NOT refuse `verdict --as PASS` over an unvoted line, so a run passes with its own account of what it investigated unchecked. It also overwrites an open run's marker without a word, and its dashboard watchers outlive a run nothing captured.",
 }
 
 // CapabilityDelta is what a binary at this version cannot do, or "" if the version is unknown.
