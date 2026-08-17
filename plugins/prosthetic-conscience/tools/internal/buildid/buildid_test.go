@@ -3,6 +3,7 @@ package buildid
 import (
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -45,7 +46,14 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	}
 	want := strings.TrimSpace(string(head))
 
-	out := filepath.Join(t.TempDir(), "probe")
+	// `.exe` ON WINDOWS OR exec CANNOT FIND IT. `go build -o probe` writes exactly `probe`
+	// there, and exec.Command then reports "executable file not found in %PATH%" — which reads
+	// like a missing toolchain rather than a naming mistake. Caught by the Windows leg, not here.
+	name := "probe"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	out := filepath.Join(t.TempDir(), name)
 	// No -ldflags: that absence is the assertion.
 	build := exec.Command("go", "build", "-o", out, "./cmd/sc-doctor")
 	build.Dir = dir
