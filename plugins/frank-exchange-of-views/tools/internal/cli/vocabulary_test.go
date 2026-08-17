@@ -113,8 +113,8 @@ func dedupe(in []string) []string {
 func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	verbRole := map[string]string{
 		"mint": "merge", "close": "merge", "regrade": "merge",
-		"closing": "merge",
-		"retire":  "blue", "line-of-inquiry": "blue",
+		"closing": "merge", "inquiry-support": "merge",
+		"retire": "blue", "line-of-inquiry": "blue",
 		"opinion": "bench", "halt": "bench", "certify": "bench", "outcome": "bench",
 		"finding": "lens", "observe": "lens", "verify": "lens",
 	}

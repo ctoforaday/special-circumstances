@@ -190,10 +190,16 @@ func placeholderFor(f *pflag.Flag, path []string) string {
 		return scriptPath
 	}
 	if f.Name == "id" {
+		// THE SHAPE DECIDES, NOT THE PATH. A flag declares the id kind it accepts
+		// (flags.InquiryID() types itself `inquiry-id`), so reading the declaration answers the
+		// question the path was being used to guess at. The path form went stale the moment
+		// `motion direction` became `motion inquiry` — this branch used to say `motion direction`
+		// and silently stopped matching, feeding a gap id to a flag that wanted a line's.
+		if f.Value.Type() == "inquiry-id" {
+			return "Q1"
+		}
 		joined := strings.Join(path, " ")
 		switch {
-		case strings.HasPrefix(joined, "motion direction"):
-			return "Q1"
 		case strings.HasPrefix(joined, "motion") && !strings.HasSuffix(joined, "file"):
 			return "M1"
 		case joined == "lens reproduce":

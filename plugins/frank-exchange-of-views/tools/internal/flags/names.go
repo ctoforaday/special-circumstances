@@ -301,7 +301,12 @@ func ForPayloadKey(key string) string {
 // Only the keys whose flag is a DIFFERENT WORD need an entry. review_flag, principle,
 // tension and the rest are spelled by the fallback and would be noise here.
 var payloadFlag = map[string]string{
-	"gap_id":      ID,
+	"gap_id": ID,
+	// The line-of-inquiry id a support verdict joins on. Typed as --id, the word every verb uses
+	// for the thing it is acting on, and stored as `inquiry_id` because the event schema names
+	// WHICH id it is — a payload carrying a bare `id` beside a gap's would be two facts wearing
+	// one key.
+	"inquiry_id":  ID,
 	"disposition": As,
 	// A verification's verdict — what the source did for the claim. Typed as --as, the word this
 	// vocabulary already uses for every verdict a seat renders (`close --as`, `reproduce --as`,

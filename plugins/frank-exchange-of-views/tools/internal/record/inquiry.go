@@ -47,6 +47,39 @@ var InquiryRulings = []EnumValue{
 	Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
 }
 
+// InquirySupports are red's per-round verdict on whether the REPORT still carries this line.
+//
+// This is a different question from InquiryRulings and the two must not be confused. A ruling
+// answers "is this direction worth the run's time" — red's judgement about the RESEARCH. A support
+// verdict answers "is this line present in the report, and does the text still back it as stated"
+// — red's leaf read of the ARTIFACT. A line can be endorsed and unsupported at once: red agreed it
+// was worth taking and the section that took it has since been cut.
+//
+// WHY IT EXISTS. A line of inquiry reached the report as an unaudited row: `assemble` generates it
+// from the record, so it carries no citation anchor and `lens verify` cannot reach it. "We pursued
+// X" was the one claim in the document that nothing checked, which is the shape this repository
+// keeps finding — a fact stated where nothing can refuse it.
+//
+// `weakened` is the middle grade and earns its place the way a `low` corroboration does: it lets
+// red say the support has eroded without demanding a repair blue may reasonably decline. Only
+// `unsupported` and `absent` put the line on blue's worklist.
+var InquirySupports = []EnumValue{
+	Ev("supported", "the line is in the report and the text still backs it as stated"),
+	Ev("weakened", "still there, and the support has eroded — a flag, not a demand; blue is not obliged to act"),
+	Ev("unsupported", "the line is in the report and the text no longer backs it — blue owes a repair or a rebuttal"),
+	Ev("absent", "the line is NOT in the report at all — the record claims a direction the document does not carry"),
+}
+
+// InquirySupportNames is the bare vocabulary.
+func InquirySupportNames() []string { return Names(InquirySupports) }
+
+// SupportDemandsBlue reports whether this verdict puts the line on blue's worklist. `weakened` does
+// not: it is red saying "this is thinner than it was", which is an argument blue may answer or
+// accept, and a duty that fires on it would make every erosion a blocking repair.
+func SupportDemandsBlue(verdict string) bool {
+	return verdict == "unsupported" || verdict == "absent"
+}
+
 // InquiryRulingNames is the bare vocabulary.
 func InquiryRulingNames() []string { return Names(InquiryRulings) }
 
@@ -90,6 +123,12 @@ type Inquiry struct {
 	// path already decided what counts as contesting, and a second derivation downstream is a
 	// second definition that can disagree with it.
 	Contests string
+	// Support is red's latest verdict on whether the REPORT still carries this line, with the
+	// round it was cast in. SupportRound is what makes "voted THIS round" answerable — the duty
+	// is per-round, so a verdict from two rounds ago is not a verdict for this one.
+	Support      string
+	SupportWhy   string
+	SupportRound int
 }
 
 // Inquiries replays the line of inquiry events into current state, in proposal order.
@@ -149,6 +188,12 @@ func Inquiries(b *Board) []*Inquiry {
 				continue
 			}
 			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("reason"), e.Round
+		case "inquiry-support":
+			a, ok := byID[id]
+			if !ok {
+				continue
+			}
+			a.Support, a.SupportWhy, a.SupportRound = e.Payload.Str("as"), e.Payload.Str("reason"), e.Round
 		}
 	}
 	out := make([]*Inquiry, 0, len(order))
@@ -270,4 +315,33 @@ func InquiryRuling(runDir, inquiryID string) string {
 		}
 	}
 	return ruling
+}
+
+// UnvotedInquiries returns the lines red has not cast a support verdict on THIS round.
+//
+// The vote is per-round by design: the question is whether the report STILL carries the line, and
+// a report that changed this round has not been checked by a verdict cast before it did. A verdict
+// that carried forward would answer a question about a document that no longer exists.
+func UnvotedInquiries(b *Board) []*Inquiry {
+	now := CurrentRound(b)
+	var out []*Inquiry
+	for _, a := range Inquiries(b) {
+		if a.Support == "" || a.SupportRound < now {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// UnsupportedInquiries returns the lines red's latest verdict puts on BLUE's worklist — the report
+// no longer backs them, or does not carry them at all. `weakened` is deliberately not here: see
+// SupportDemandsBlue.
+func UnsupportedInquiries(b *Board) []*Inquiry {
+	var out []*Inquiry
+	for _, a := range Inquiries(b) {
+		if SupportDemandsBlue(a.Support) {
+			out = append(out, a)
+		}
+	}
+	return out
 }

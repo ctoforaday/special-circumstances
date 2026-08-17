@@ -101,6 +101,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 | `motion grade appeal` | pressing a rejected grade ruling to the bench | — | CLEAN |
 | `motion inquiry rule` | red ruling on a proposed line of inquiry | `merge avenue-rule` (retired) | EXECUTED (#344) |
 | `motion inquiry appeal` | pressing a direction ruling to the bench | — | CLEAN |
+| `merge inquiry-support` | red's PER-ROUND verdict that the report still carries a line of inquiry, read at the leaf | — | CLEAN: new channel. A line reaches the report as a row `assemble` GENERATES, so it carries no citation anchor and `lens verify` cannot reach it — "we pursued X" was the one class of claim in the document nothing could refuse. `unsupported` and `absent` put the line on blue's worklist; `verdict --as PASS` is refused while any line is unvoted this round |
 | `motion petition file` | an ethical, safety, integrity or constitutional objection | envelope `petitions[]` | EXECUTED (#315): the event is the origination channel |
 | `motion petition rule` | the bench ruling on a petition | — | CLEAN, except for the halt channel above (#329) |
 

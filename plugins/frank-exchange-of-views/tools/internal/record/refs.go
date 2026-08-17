@@ -354,6 +354,31 @@ func requirePassClosesAllGaps(runDir string) error {
 			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
 			len(unruled), strings.Join(unruled, ", "))
 	}
+	// AND EVERY LINE OF INQUIRY VOTED THIS ROUND.
+	//
+	// The report's account of its own research — "we pursued X", "we deferred Y", "we abandoned Z"
+	// — reaches the reader as a row `assemble` GENERATES from the record. It carries no citation
+	// anchor, so `lens verify` cannot reach it and the ordinary adversarial route does not apply.
+	// Without this gate it is the one class of claim in the document that nothing could refuse.
+	//
+	// PER ROUND, not once: the report is regenerated every round, so a verdict cast before this
+	// round's edits answers a question about a document that no longer exists. That is the whole
+	// content of "red verifies every turn" — a carried-forward vote would be a stale read wearing
+	// the shape of a fresh one, which is this repository's recurring defect rather than a fix for
+	// it.
+	if unvoted := UnvotedInquiries(b); len(unvoted) != 0 {
+		ids := make([]string, len(unvoted))
+		for i, a := range unvoted {
+			ids[i] = a.ID
+		}
+		sort.Strings(ids)
+		return fmt.Errorf("record: verdict PASS refused — %d line(s) of inquiry have no support verdict this round: %s. "+
+			"Read them with `show lines-of-inquiry`, then for EACH one read the report at that line and vote: "+
+			"`inquiry-support --id <id> --as supported|weakened|unsupported|absent --reason \"<what the report says there>\"`. "+
+			"A PASS claims the report is sound, and its account of what this run investigated is part of the report; "+
+			"vote them, or issue `--as FAIL`",
+			len(ids), strings.Join(ids, ", "))
+	}
 	return nil
 }
 

@@ -925,6 +925,15 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.mint(seatID)
 		}
 
+		// RED'S PER-ROUND SUPPORT VERDICT ON EVERY LINE OF INQUIRY.
+		//
+		// Driven before the verdict because `verdict --as PASS` is refused while any line is
+		// unvoted this round — the fuzz models the protocol, and the protocol now says red checks
+		// the report's account of its own research every turn. Without this the run cannot reach
+		// PASS at all: 50 of 144 verdicts were refused and every seed fell through to an ASSERTED
+		// terminal verdict, which is how this landed rather than as a silent coverage loss.
+		r.voteInquirySupport(seatID)
+
 		open := r.openGaps()
 		if len(open) == 0 {
 			r.dialectic("merge", seatID, nil)
@@ -1704,7 +1713,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
 	"cite", "verify", "finding", "line-of-inquiry", "reproduce", "friction", "revision", "retire",
-	"manifest-row", "verdict", "spot-check", "certify", "declare", "halt",
+	"manifest-row", "verdict", "spot-check", "inquiry-support", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
@@ -1798,6 +1807,12 @@ var dialecticProseKey = map[string]string{
 	"mint": "problem", "finding": "reason", "regrade": "reason",
 	// Directions: the line, red's ruling on it, and blue's reason for its fate.
 	"line-of-inquiry": "line",
+	// Red's per-round verdict that the REPORT still carries the line. It renders ON THE LINE'S OWN
+	// ROW in the three research areas rather than in a section of its own, because the claim it
+	// answers ("we pursued X") lives there and a verdict a reader has to go and find is a verdict
+	// most readers do not find. `reason` is what red read at that line — the quoted text, not the
+	// grade, which is the half a reader can check.
+	"inquiry-support": "reason",
 	// The lens's below-the-bar work and the fate the merge gave it.
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
@@ -2536,4 +2551,28 @@ func sumCounts(m map[string]int) int {
 		n += v
 	}
 	return n
+}
+
+// voteInquirySupport casts red's per-round support verdict on every line of inquiry that has none
+// this round. It spreads the four outcomes so each is exercised, and keeps `unsupported`/`absent`
+// rare — those put the line on BLUE's worklist, and a fuzz that made every line unsupported would
+// drive that duty and nothing else.
+func (r *runner) voteInquirySupport(seatID string) {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return
+	}
+	for _, a := range record.UnvotedInquiries(b) {
+		as := "supported"
+		switch r.rng.Intn(10) {
+		case 0:
+			as = "unsupported"
+		case 1:
+			as = "absent"
+		case 2, 3:
+			as = "weakened"
+		}
+		_, _ = r.exec("merge", "inquiry-support", "--seat-id", seatID, "--id", a.ID,
+			"--as", as, "--reason", "fuzz: read the report at "+a.ID)
+	}
 }

@@ -106,7 +106,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"Does the eviction path hold under a clock step?",
 		// Composed from the record.
 		"**Verdict:** CEILING-TERMINATED",
-		"## The expansions",
+		"## Research areas",
 		"model-check the two-writer interleaving",
 		"## Alternatives considered",
 		"rewrite the cache lock-free",

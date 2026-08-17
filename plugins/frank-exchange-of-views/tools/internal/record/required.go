@@ -40,6 +40,7 @@ var RequiredFields = map[string][]string{
 	"regrade":         {"reason"},
 	"retire":          {"claim", "reason"},
 	"line-of-inquiry": {"status", "line"},
+	"inquiry-support": {"inquiry_id", "as", "reason"},
 	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "reason"},
 	"halt":            {"reason"},
 	"certify":         {"reason"},

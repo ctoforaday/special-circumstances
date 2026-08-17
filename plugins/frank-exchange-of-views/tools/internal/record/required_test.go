@@ -57,6 +57,7 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"dispute-respond": {"gap_id": "R1-1", "reason": "r"},
 		"retire":          {"claim": "c", "reason": "r"},
 		"line-of-inquiry": {"status": "pursued", "line": "l"},
+		"inquiry-support": {"inquiry_id": "Q1", "as": "supported", "reason": "r"},
 		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "reason": "r"},
 		"halt":            {"reason": "o"},
 		"certify":         {"reason": "s"},

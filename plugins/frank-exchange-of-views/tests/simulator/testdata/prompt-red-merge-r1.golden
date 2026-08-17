@@ -1,4 +1,4 @@
-prompt sha256: 2bffe737d953899208245865d7d093eb41a3b0f6026660f7c5122855b5201b99
+prompt sha256: 9d2633f9d095ecfea27f9ae4ecd3db879f41a7e7a738e67a901fd667d615c572
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD — "/opt/feov/bin/feov-record" merge show findings --run research/2026-01-01_golden — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -13,6 +13,12 @@ Separate genuine incidents; fold duplicates and near-duplicates together; mint S
 A merge that mints a gap for every finding has not merged — it has transcribed, and it floods the docket with noise.
 There is no bulk mint and there is no markdown to dump into: the discipline is the point.
 Each gap you mint carries, in that one call, its class, location (section heading + quoted sentence), problem, required_fix, the acceptance_check red will RUN at re-audit, --check-kind (REQUIRED: document | computation | source — WHAT WOULD SETTLE that check), and severity/likelihood/impact/complexity.
+VOTE EVERY LINE OF INQUIRY, EVERY ROUND, BEFORE YOUR VERDICT.
+Read the exploration space — "/opt/feov/bin/feov-record" merge show lines-of-inquiry --run research/2026-01-01_golden — then for EACH line open the report at that line and record what the document ACTUALLY does for it: "/opt/feov/bin/feov-record" merge inquiry-support --run research/2026-01-01_golden --seat-id <your SEAT_ID> --id <Q#> --as supported|weakened|unsupported|absent --reason "<what the report says there, quoted>".
+THIS IS A LEAF READ, NOT A RECALL: `supported` means you found the line in the document and the text still backs it as stated; `absent` means the report does not carry it at all; `unsupported` means it is there and the text no longer backs it; `weakened` is the middle grade for support that has eroded — a flag blue may answer or accept, and the only one of the four that does NOT put the line on blue's worklist.
+WHY THIS EXISTS: a line of inquiry reaches the report as a row the tool GENERATES from the record, so it carries no citation anchor and `lens verify` cannot reach it — "we pursued X", "we abandoned Y" were the one class of claim in the document your side had no channel to answer.
+PER ROUND, because the report is rewritten every round and a verdict cast before this round's edits answers a question about a document that no longer exists.
+`verdict --as PASS` is REFUSED while any line is unvoted this round, the same way it is refused over an open gap.
 YOUR TERMINAL ACT EACH ROUND: record your verdict — "/opt/feov/bin/feov-record" merge verdict --run research/2026-01-01_golden --seat-id <your SEAT_ID> --as PASS|FAIL.
 It is not ceremony.
 It CHECKPOINTS the whole event log to a recovery mirror outside the run directory (which is untracked-by-design until capture, and a stray git operation has deleted a live blackboard mid-round before), and it is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.

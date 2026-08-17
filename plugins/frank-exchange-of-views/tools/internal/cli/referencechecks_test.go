@@ -82,6 +82,11 @@ var referenceChecks = []struct {
 		extra: []string{"--reason", "r"}},
 	{verb: []string{"merge", "spot-check"}, flag: "--ids", against: "the closure archive", bogus: "R9-9",
 		extra: []string{"--notes", "n"}},
+	// Red's per-round support verdict joins on the LINE's own id, so a dangling one would record a
+	// vote about a line nobody proposed — and the merge's PASS gate counts votes, so it would
+	// discharge a duty for a line that does not exist.
+	{verb: []string{"merge", "inquiry-support"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
+		extra: []string{"--as", "supported", "--reason", "r"}},
 	{verb: []string{"blue", "closing"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--reason", "r"}},
 	{verb: []string{"blue", "manifest-row"}, flag: "--id", against: "the board", bogus: "R9-9",

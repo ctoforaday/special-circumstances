@@ -849,6 +849,30 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			}
 			return fmt.Errorf("record: a %s line of inquiry requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
 		}
+	case "inquiry-support":
+		// AN ABSENT ID IS ITS OWN REFUSAL. requireInquiry treats "" as "not provided" and returns
+		// nil — correct where the flag is optional, and silently permissive here, where the id IS
+		// the join. Checked first so a missing --id names itself rather than falling through to a
+		// reference check that never fires.
+		if p.Str("inquiry_id") == "" {
+			return fmt.Errorf("record: inquiry-support requires --id — the line of inquiry you are voting on. " +
+				"`show lines-of-inquiry` lists every one with its fate")
+		}
+		// THE VOTE NAMES A LINE THAT EXISTS. A dangling id would record a verdict about a line
+		// nobody proposed — and the merge's PASS gate counts votes, so it would discharge a duty
+		// for a line that is not there while the real one stayed unvoted.
+		if err := requireInquiry(runDir, p.Str("inquiry_id"), "merge inquiry-support", "--id"); err != nil {
+			return err
+		}
+		// AND IT SAYS WHAT THE REPORT ACTUALLY SAYS. The grade alone is red's conclusion; the
+		// reason is the evidence for it, and it is the half blue and the bench can check. A
+		// verdict with no quoted text is the self-attestation this whole channel exists to end —
+		// "I read it and it is fine" is the claim, not the check.
+		if strings.TrimSpace(p.Str("reason")) == "" {
+			return fmt.Errorf("record: inquiry-support requires --reason — what the report SAYS at that line, quoted. " +
+				"The grade is your conclusion; the quote is what anyone else can check it against, and a verdict " +
+				"without one is indistinguishable from not having looked")
+		}
 	case "halt":
 		// The safety boundary reaches the human as the words the bench chose, relayed
 		// verbatim — so a halt with no written opinion cannot do its one job.

@@ -102,9 +102,9 @@ func TestInquiriesSplitByFate(t *testing.T) {
 		{Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q2").Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
 		{Type: "line-of-inquiry", SeatID: "red-lens-r1", Payload: record.NewPayload().Set("inquiry_id", "Q3").Set("status", "declined").Set("line", "third-party audit").Set("reason", "out of scope")},
 	}}
-	exp := inquiries(board, "The expansions", accepted)
+	exp := inquiries(board, "Research areas", accepted)
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
-		t.Errorf("expansions must carry ONLY accepted (pursued) inquiries:\n%s", exp)
+		t.Errorf("research areas must carry ONLY pursued and proposed inquiries:\n%s", exp)
 	}
 	alt := inquiries(board, "Alternatives considered", rejected)
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
@@ -117,7 +117,7 @@ func TestInquiriesSplitByFate(t *testing.T) {
 		t.Errorf("a pursued line of inquiry must not appear under alternatives:\n%s", alt)
 	}
 	// No inquiries of a fate → flagged, not blank.
-	if none := inquiries(&record.Board{}, "The expansions", accepted); !strings.Contains(none, "none on the record") {
+	if none := inquiries(&record.Board{}, "Research areas", accepted); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
@@ -135,28 +135,28 @@ func TestInquiriesSplitByFate(t *testing.T) {
 //
 // # The model this asserts: the lifecycle of a research topic through the report
 //
-//	pursued              The expansions — a topic followed, and what it yielded
-//	deferred             its own section — KEPT for a later run or a deeper context, which is a
-//	                     decision. Filing it under "Alternatives considered" said the opposite of
-//	                     its fate, and only the `[deferred]` tag on the row contradicted the
-//	                     heading above it.
+//	pursued              "Research areas" — a topic followed, and what it yielded
+//	deferred             "Future research directions" — KEPT for a later run or a deeper context,
+//	                     which is a decision. Filing it under "Alternatives considered" said the
+//	                     opposite of its fate, and only the `[deferred]` tag on the row
+//	                     contradicted the heading above it.
 //	declined, abandoned  Alternatives considered — weighed and not taken, or tried and died
-//	proposed             "Still undecided — proposed and never resolved". Its own section, phrased
-//	                     to state the ABSENCE of a decision rather than imply one. A first cut
-//	                     excluded it from every section on the argument that a heading announces a
-//	                     fate; TestFuzzDebate failed six seeds with `line of inquiry prose absent from
-//	                     report`, and that invariant wins — a seat's recorded reasoning must reach
-//	                     the report, and a run ending with topics undecided is a finding.
+//	proposed             "Research areas", beside `pursued`, with `[proposed]` on its own row. A
+//	                     first cut excluded it from every section (TestFuzzDebate refused: a seat's
+//	                     recorded reasoning must reach the reader) and a second gave it a fourth
+//	                     section. Three areas is the decision: a line blue put forward IS an area
+//	                     this run is researching, and red's per-round support verdict is what stops
+//	                     it sitting undecided — not a heading describing the omission.
 //
 // EVERY status lands in EXACTLY ONE section, so a sixth that matches no predicate fails here
 // rather than vanishing the way `proposed` and `deferred` once did.
 func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
-		"pursued":   "expansions",
-		"deferred":  "deferred",
+		"pursued":   "research",
+		"proposed":  "research", // an undecided line IS an area this run is researching
+		"deferred":  "future",
 		"declined":  "alternatives",
 		"abandoned": "alternatives",
-		"proposed":  "undecided",
 	}
 	for _, status := range record.InquiryStatusNames() {
 		want, known := section[status]
@@ -169,9 +169,8 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 		board := &record.Board{Events: []record.Event{{Type: "line-of-inquiry", SeatID: "blue-r1",
 			Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", status).Set("line", "the only line")}}}
 		in := map[string]bool{
-			"expansions":   strings.Contains(inquiries(board, "The expansions", accepted), "the only line"),
-			"deferred":     strings.Contains(inquiries(board, "Deferred", deferred), "the only line"),
-			"undecided":    strings.Contains(inquiries(board, "Still undecided", undecided), "the only line"),
+			"research":     strings.Contains(inquiries(board, "Research areas", accepted), "the only line"),
+			"future":       strings.Contains(inquiries(board, "Future research directions", deferred), "the only line"),
 			"alternatives": strings.Contains(inquiries(board, "Alternatives considered", rejected), "the only line"),
 		}
 		var got []string
@@ -199,7 +198,7 @@ func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 		{Round: 0, Type: "line-of-inquiry", SeatID: "blue-r0", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "rewrite the parser")},
 		{Round: 2, Type: "line-of-inquiry", SeatID: "blue-r2", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "abandoned").Set("reason", "the grammar moved under it")},
 	}}
-	exp := inquiries(board, "The expansions", accepted)
+	exp := inquiries(board, "Research areas", accepted)
 	alt := inquiries(board, "Alternatives considered", rejected)
 	if strings.Contains(exp, "rewrite the parser") {
 		t.Errorf("a line of inquiry ABANDONED at r2 is not an expansion — its latest status decides:\n%s", exp)
@@ -226,7 +225,7 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("subject", "inquiry").Set("motion_id", "Q1").Set("ruling", "out-of-scope").Set("reason", "a real question, not THIS run's")},
 		{Round: 1, Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("contests_ruling", "out-of-scope")},
 	}}
-	exp := inquiries(board, "The expansions", accepted)
+	exp := inquiries(board, "Research areas", accepted)
 	for _, want := range []string{"out-of-scope", "a real question, not THIS run's", "against red's"} {
 		if !strings.Contains(exp, want) {
 			t.Errorf("the reader must see the ruling AND that blue moved against it; missing %q:\n%s", want, exp)

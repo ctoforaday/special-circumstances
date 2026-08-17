@@ -95,6 +95,16 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 				`prove --location "<the exact sentence>" --script <path> --answers `+id+
 					`   |   if the demand is wrong, say so in the --reason of the edit that answers `+id)
 		}
+		// RED SAID THE DOCUMENT DOES NOT CARRY THIS LINE, and that is blue's to answer.
+		//
+		// `weakened` is deliberately absent: it is red flagging erosion, an argument blue may
+		// accept, and a duty firing on it would make every "this is thinner than it was" a
+		// blocking repair. SupportDemandsBlue is the one statement of which verdicts bind.
+		for _, a := range UnsupportedInquiries(b) {
+			add("red voted line of inquiry "+a.ID+" `"+a.Support+"` — the report no longer backs it as stated, or does not carry it at all",
+				`edit --old "<the span that should carry it>" --new "<what the report should say>" --reason "..."   |   `+
+					`line-of-inquiry --id `+a.ID+` --status declined|abandoned|deferred --reason "<why it leaves the report>"`)
+		}
 		if !seatDid(b, seatID, "revision") {
 			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)",
 				`revision --reason "<what you changed this round>"`)
@@ -113,6 +123,16 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 				add("motion "+m.ID+" was filed and never ruled — PASS is refused while it stands",
 					`show motions   then   motion `+m.Subject+` rule --id `+m.ID+` --as <verdict> --reason "..."`)
 			}
+		}
+		// EVERY LINE OF INQUIRY IS VOTED, EVERY ROUND.
+		//
+		// The report is regenerated each round, so a verdict cast before this round's edits
+		// answers a question about a document that no longer exists. This is the channel that
+		// makes "we pursued X" checkable at all: the row `assemble` generates carries no anchor,
+		// so without a vote it is the one claim in the report nothing can refuse.
+		for _, a := range UnvotedInquiries(b) {
+			add("line of inquiry "+a.ID+" has no support verdict this round — PASS is refused while the report's own account of its research is unchecked",
+				`show lines-of-inquiry   then   inquiry-support --id `+a.ID+` --as supported|weakened|unsupported|absent --reason "<what the report says at that line>"`)
 		}
 		if !seatDid(b, seatID, "verdict") {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified",
