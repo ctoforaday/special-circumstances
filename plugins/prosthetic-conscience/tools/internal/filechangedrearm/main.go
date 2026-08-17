@@ -194,7 +194,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 	stamp := now.UTC().Format(time.RFC3339)
 
-	var dropped []string
+	var dropped, collisions []string
 
 	// One locked read-modify-write. Loading outside the lock is what lost two of
 	// six concurrent events, measured — see checkpoint.UpdateRearm.
@@ -213,6 +213,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// PruneOrphans refuses to act on an empty slice: a note that failed to parse must
 		// not be read as "no checks exist" and wipe the history.
 		dropped = s.PruneOrphans(checks)
+		// A shared key means one record stands for two checks (#432). PruneOrphans already
+		// refuses to delete under that ambiguity; saying so is the other half, because a
+		// prune that silently does nothing looks exactly like a file with nothing to prune.
+		collisions = checkpoint.CheckKeyCollisions(checks)
 		if !matched {
 			// A directory watch is coarser than the surface it stands in for,
 			// so unclaimed changes are expected and are NOT evidence about any
@@ -230,7 +234,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 	}); err != nil {
 		fmt.Fprintln(stderr, "sc-filechanged-rearm: "+err.Error())
-	} else if len(dropped) > 0 {
+		return 0
+	}
+	// Said before the prune message because it EXPLAINS a prune that did not happen: under a
+	// collision PruneOrphans deletes nothing, and silence there is indistinguishable from a
+	// file with no orphans in it.
+	if len(collisions) > 0 {
+		fmt.Fprintf(stderr, "sc-filechanged-rearm: %d command(s) name more than one check in the loop, so one re-arm record would stand for several: %s. Records are keyed by the check's COMMAND, so give these checks distinct commands (or distinguish them inside the backticks). Nothing was pruned while the identity is ambiguous.\n",
+			len(collisions), strings.Join(collisions, ", "))
+	}
+	if len(dropped) > 0 {
 		// Reported only AFTER the write commits. Said from inside the callback it would
 		// announce a prune that an abandoned update (#215) never performed — a message
 		// about state must not outrun the state.

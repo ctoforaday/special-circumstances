@@ -307,10 +307,15 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-// #217. A check whose text is REWRITTEN gets a new identity, so its old record can never
+// #217. A check whose COMMAND is rewritten gets a new identity, so its old record can never
 // match again — it just sits in the file forever, and every consumer that counts records
 // (sc-doctor, the SessionStart summary) reads a stale check as still re-armed. The record
 // must go when its check does.
+//
+// NARROWED BY #432: this used to reword the ANNOTATION ("all packages ok" -> "every package
+// ok") and expect a prune. That is no longer an orphan and should never have been treated as
+// one — the command did not move, so the check did not. What is exercised here is a real
+// command change; the annotation case is TestRewordingAnAnnotationKeepsTheRecord.
 func TestRecordsAreDroppedWhenTheirCheckIsRewritten(t *testing.T) {
 	dir := project(t)
 	if code := fire(t, dir, filepath.Join(dir, "tools", "internal", "x.go"), "change"); code != 0 {
@@ -323,7 +328,7 @@ func TestRecordsAreDroppedWhenTheirCheckIsRewritten(t *testing.T) {
 
 	// The human rewords check 1. Same check, new identity.
 	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"),
-		strings.Replace(note, "→ all packages ok", "→ every package ok", 1))
+		strings.Replace(note, "`go test ./...`", "`go test -race ./...`", 1))
 
 	// An UNMATCHED event, deliberately: the prune must not wait for a change that happens
 	// to re-arm something, or the orphan outlives the note that explained it.
@@ -340,7 +345,7 @@ func TestRecordsAreDroppedWhenTheirCheckIsRewritten(t *testing.T) {
 	dir2 := project(t)
 	fire(t, dir2, filepath.Join(dir2, "tools", "internal", "x.go"), "change")
 	write(t, filepath.Join(dir2, ".claude", "checkpoints", "CHECKPOINT.md"),
-		strings.Replace(note, "→ all packages ok", "→ every package ok", 1))
+		strings.Replace(note, "`go test ./...`", "`go test -race ./...`", 1))
 	in, _ := json.Marshal(hookInput{FilePath: filepath.Join(dir2, ".qlty", "qlty.toml"), Event: "change"})
 	var o, e bytes.Buffer
 	run(nil, bytes.NewReader(in), &o, &e, dir2, noon)
@@ -462,4 +467,46 @@ func TestAnUnmatchedChangeUnderAHealthyLoopIsSilent(t *testing.T) {
 	if e.String() != "" {
 		t.Errorf("stderr = %q; an unclaimed change under a healthy loop is expected, not a fault", e.String())
 	}
+}
+
+// #432 friction 2 — THE CASE THE OLD KEY GOT WRONG FOUR TIMES OUT OF FIVE.
+//
+// Correcting a stale count is not a change to the check. Under the whole-line key it was, so
+// the live state grew to fourteen records for twelve checks, and the note's authors learned
+// to leave wrong numbers in place rather than orphan a record. A check's `last run` must
+// survive its annotation being fixed.
+func TestRewordingAnAnnotationKeepsTheRecord(t *testing.T) {
+	dir := project(t)
+	if code := fire(t, dir, filepath.Join(dir, "tools", "internal", "x.go"), "change"); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	before := stateOf(t, dir).Rearmed
+	if len(before) != 1 {
+		t.Fatalf("setup: want one record, got %v", before)
+	}
+
+	// Same command, corrected count — exactly the edit the loop had been avoiding.
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"),
+		strings.Replace(note, "→ all packages ok", "→ 30 packages ok", 1))
+
+	write(t, filepath.Join(dir, "unclaimed.txt"), "x")
+	if code := fire(t, dir, filepath.Join(dir, "unclaimed.txt"), "change"); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	after := stateOf(t, dir).Rearmed
+	if len(after) != 1 {
+		t.Fatalf("state = %v; correcting an annotation must not orphan the record", after)
+	}
+	for k, r := range after {
+		if r.At != recordAt(before) {
+			t.Errorf("record %q was re-created rather than kept: at=%q want=%q", k, r.At, recordAt(before))
+		}
+	}
+}
+
+func recordAt(m map[string]checkpoint.Rearm) string {
+	for _, r := range m {
+		return r.At
+	}
+	return ""
 }

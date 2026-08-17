@@ -474,12 +474,80 @@ type RearmState struct {
 // check line. If the line is what identifies the record, the position never
 // needed to be the key.
 //
-// The tradeoff, stated: editing a check's first line changes its identity and
-// orphans its record. That is the right failure — an edited check has a
-// different expectation, so its old `last run` should not carry over — and it
-// costs one stale entry rather than a whole file re-pointed at the wrong checks.
+// # Why the WHOLE LINE is no longer that identity (#432 friction 2)
+//
+// It used to be, and this comment used to defend the cost: "editing a check's first line
+// changes its identity and orphans its record. That is the right failure — an edited check
+// has a different expectation." MEASURED, and it overturns that: the live state held
+// FOURTEEN records for TWELVE checks, and in four of the five duplicated pairs the command
+// was byte-identical and only the annotation had moved.
+//
+//	`go test -C .../frank-exchange-of-views/tools ./...` → 17 pkgs ok   vs   → 18 ok
+//	`go test -C .../prosthetic-conscience/tools ./...`   → 15 pkgs ok   vs   → 21 ok
+//	`go run ./validatejson` (from scripts/)  → 16 files valid           vs   → 16 valid
+//
+// Only the fifth pair was a real change (`UPDATE_GOLDENS=1 go test …` becoming
+// `go run ./golden -review`), where orphaning is exactly right. So the old key got the
+// distinction wrong four times out of five — and the count was never the check.
+//
+// The second cost is worse than the duplicates and is why this changed rather than being
+// left to PruneOrphans: the note's authors learned to STOP CORRECTING STALE TEXT. The loop
+// carries "18 ok" for a thirty-package module and says so in a parenthetical — "left alone
+// on purpose, correcting it orphans this entry". An identity that makes documentation
+// un-editable has made the prose load-bearing, which is the shape `facts-are-fields` is
+// about: the fact is the command, so the command is what the key must be.
+//
+// Falls back to the whole line when there is no command span, so a prose check is still
+// keyed by something rather than by nothing.
 func CheckKey(line string) string {
-	return strings.TrimSpace(loopEntry.ReplaceAllString(strings.TrimSpace(line), ""))
+	line = strings.TrimSpace(loopEntry.ReplaceAllString(strings.TrimSpace(line), ""))
+	if cmd := firstCodeSpan(line); cmd != "" {
+		return cmd
+	}
+	return line
+}
+
+// firstCodeSpan returns the first backticked span, or "" when the line has none.
+//
+// Backticks are the author's own delimiter, written deliberately and rendered as code — not
+// a shape guessed at after the fact. That is the difference between reading a field and
+// hoping about a string, and it is why this is a narrow extraction rather than a parser.
+func firstCodeSpan(line string) string {
+	open := strings.IndexByte(line, '`')
+	if open < 0 {
+		return ""
+	}
+	rest := line[open+1:]
+	end := strings.IndexByte(rest, '`')
+	if end <= 0 {
+		return ""
+	}
+	return strings.TrimSpace(rest[:end])
+}
+
+// CheckKeyCollisions reports keys that two or more live checks share.
+//
+// THE HAZARD THE OLD KEY DID NOT HAVE, named rather than discovered later. Keying on the
+// command means two checks running the same command are one identity, and their records
+// would merge silently — a check's history quietly absorbing another's. The whole-line key
+// could not do that, so this is the price of the change, and it is paid by making the case
+// LOUD instead of letting it fold into an ordinary record ([[facts-are-fields]]: ask what a
+// no-match returns).
+//
+// Returned sorted so the report is stable.
+func CheckKeyCollisions(live []Check) []string {
+	seen := map[string]int{}
+	for _, c := range live {
+		seen[CheckKey(c.Line)]++
+	}
+	var dup []string
+	for k, n := range seen {
+		if n > 1 {
+			dup = append(dup, k)
+		}
+	}
+	sort.Strings(dup)
+	return dup
 }
 
 // PruneOrphans drops records whose check no longer exists in the note.
@@ -502,6 +570,13 @@ func CheckKey(line string) string {
 func (s *RearmState) PruneOrphans(live []Check) (dropped []string) {
 	if len(live) == 0 || len(s.Rearmed) == 0 {
 		return nil // nothing parsed: say nothing, delete nothing
+	}
+	// AMBIGUOUS IDENTITY IS NOT A LICENCE TO DELETE. If two live checks share a key, one
+	// record stands for both and "orphaned" stops meaning anything — the same reason an empty
+	// `live` is refused above. The collision is surfaced by the caller; here it only has to
+	// stop this function destroying state it cannot reason about.
+	if len(CheckKeyCollisions(live)) > 0 {
+		return nil
 	}
 	keep := make(map[string]bool, len(live))
 	for _, c := range live {
@@ -554,10 +629,19 @@ func LoadRearm(read func(string) ([]byte, error), path string) (RearmState, erro
 	}
 	s.LastEvent = parsed.LastEvent
 	for k, r := range parsed.Rearmed {
-		// Re-key on load. Old files keyed by ordinal migrate here, because the
-		// record has always carried the line that identifies it.
+		// Re-key on load. Old files keyed by ordinal migrate here, and so do files keyed by
+		// the whole check line (#432), because the record has always carried the line that
+		// identifies it. A key change is a MIGRATION, not a reset.
 		if want := CheckKey(r.Check); r.Check != "" && want != k {
 			k = want
+		}
+		// TWO OLD RECORDS CAN NOW BE ONE. The command-based key collapses the pairs the
+		// whole-line key accumulated — measured, four of them in the live file. Map order is
+		// not an answer to which survives, so keep the NEWEST, which is what this file has
+		// always claimed to hold: "newest entry per check IDENTITY". Picking by iteration
+		// order would make the surviving `last run` depend on Go's map seed.
+		if prev, ok := s.Rearmed[k]; ok && prev.At > r.At {
+			continue
 		}
 		s.Rearmed[k] = r
 	}
