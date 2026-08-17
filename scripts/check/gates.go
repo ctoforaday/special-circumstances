@@ -136,7 +136,7 @@ var tools = []gate{
 	{id: "rulesweep", kind: kindTool, dir: "scripts", args: []string{"run", "./rulesweep"}, needsBase: true, ciJob: "rule-sweep",
 		why: "a protocol-surface change must name a registry class"},
 	{id: "versionguard", kind: kindTool, dir: "scripts", args: []string{"run", "./versionguard"}, needsBase: true, ciJob: "rule-sweep",
-		why: "plugin content changed without a version bump ships nothing"},
+		why: "a version that goes BACKWARDS ships content under a number a consumer already has"},
 	{id: "golden", kind: kindTool, dir: "scripts", args: []string{"run", "./golden"}, ciJob: "goldens",
 		why: "a stale golden is an unrecorded behaviour change"},
 	{id: "mjsparity", kind: kindTool, dir: "scripts", args: []string{"run", "./mjsparity"}, ciJob: "debate-sim",
@@ -194,6 +194,15 @@ func gateSet() []gate {
 		gate{id: "release", kind: kindRelease, dir: ".", ciJob: "release",
 			skip: "only meaningful on a tag",
 			why:  "cross-compile and publish"},
+		// The RELEASE BOUNDARY invariant (#405). Declared and skipped for the same reason as
+		// `release` itself — it runs in the release job, on a tag, before anything is published
+		// — but declared, because a gate that cannot run here must still appear in the report.
+		// The parity test caught its absence the moment CI grew it, which is what that test is
+		// for.
+		gate{id: "release-tag-matches-manifest", kind: kindTool, dir: "scripts",
+			args: []string{"run", "./versionguard", "-tag"}, ciJob: "release",
+			skip: "needs the tag it validates; the release job runs it on a tag before publishing",
+			why:  "a tag and the manifest it publishes cannot disagree — one release act writes both"},
 	)
 	return gs
 }

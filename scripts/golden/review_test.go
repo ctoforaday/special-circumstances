@@ -234,3 +234,34 @@ func TestReviewSeparatesARealFailureFromStaleness(t *testing.T) {
 		t.Errorf("a non-golden failure must leave goldens untouched, got %q", b)
 	}
 }
+
+// A PARTIAL ACCEPT AND A GENUINE TEST FAILURE MUST NOT SHARE A MESSAGE (#432).
+//
+// The shipped message explained every post-accept failure by the reverted count. With nothing
+// reverted that explanation is self-contradictory, and it misdirects: the suite failed for a
+// reason unrelated to goldens. Measured on a real run — "accepted 9, reverted 0" followed by
+// "STILL FAILING — expected while 0 proposal(s) stay reverted", while the actual cause was a
+// network-blocked test in the same suite.
+func TestReVerifyFailureDistinguishesAPartialAcceptFromARealFailure(t *testing.T) {
+	partial := reVerifyFailure(7, 2, 9)
+	if !strings.Contains(partial, "2 proposal(s) stay reverted") {
+		t.Errorf("a partial accept must be explained by the reverted count:\n%s", partial)
+	}
+	if !strings.Contains(partial, "expected") {
+		t.Errorf("a partial accept's failure is EXPECTED and must say so:\n%s", partial)
+	}
+
+	full := reVerifyFailure(9, 0, 9)
+	if strings.Contains(full, "reverted") {
+		t.Errorf("with nothing reverted the message must not blame reverted proposals:\n%s", full)
+	}
+	if !strings.Contains(full, "NOT a stale golden") {
+		t.Errorf("the reader must be told goldens are not the cause:\n%s", full)
+	}
+	if !strings.Contains(full, "9 of 9") {
+		t.Errorf("it must show the accept was complete, so the reader can rule goldens out:\n%s", full)
+	}
+	if !strings.Contains(full, "real cause") {
+		t.Errorf("it must point at where the real cause is printed:\n%s", full)
+	}
+}

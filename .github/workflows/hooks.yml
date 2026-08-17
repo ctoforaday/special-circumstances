@@ -491,6 +491,16 @@ jobs:
           fi
           echo "plugin=${plugin}" >> "$GITHUB_OUTPUT"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+      # THE RELEASE BOUNDARY, CHECKED BEFORE ANYTHING IS PUBLISHED (#405).
+      #
+      # A release is one act: bump plugin.json and tag that commit. Nothing can derive one from
+      # the other — the plugin system reads the manifest out of the checkout, so the version has
+      # to be IN the tagged commit — so this refuses the pair when they disagree. Without it a
+      # tag can publish assets that no consumer's `/plugin update` will ever ask for, which is
+      # exactly the state measured across all four plugins on 2026-08-15.
+      - name: The tag and the manifest agree
+        run: go run ./versionguard -tag "${GITHUB_REF_NAME}"
+        working-directory: scripts
       - name: Cross-compile
         working-directory: ${{ steps.plugin.outputs.dir }}
         run: |

@@ -85,7 +85,7 @@ func TestCatchesAVersionGoingBackwards(t *testing.T) {
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
 	commit(t, dir, "a branch that carries an older version")
 
-	problems, _, checked, err := check(dir, "main")
+	problems, checked, err := check(dir, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,17 +101,21 @@ func TestCatchesAVersionGoingBackwards(t *testing.T) {
 }
 
 // The rule CLAUDE.md already states: content changed, version did not.
-func TestCatchesContentChangedWithoutABump(t *testing.T) {
+// THE RULE THIS REPLACED, INVERTED (#405). Content changing without a bump used to FAIL. It
+// is now the ordinary case: versions move at a release boundary, which is a human call, not on
+// every PR. The per-PR rule made the version a commit counter — 1.45 to 1.57 in one afternoon
+// — while the tags never moved, which is why no plugin had a tag matching its own version.
+func TestContentMayChangeWithoutABump(t *testing.T) {
 	dir := repo(t, "0.21.0")
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
-	commit(t, dir, "content change, no bump")
+	commit(t, dir, "content change, no bump — an ordinary PR")
 
-	problems, _, _, err := check(dir, "main")
+	problems, _, err := check(dir, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(problems) != 1 || !strings.Contains(problems[0], "ships nothing without a bump") {
-		t.Fatalf("expected the no-bump problem, got %v", problems)
+	if len(problems) != 0 {
+		t.Fatalf("an ordinary PR must not be failed for leaving the version alone: %v", problems)
 	}
 }
 
@@ -121,7 +125,7 @@ func TestPassesWhenTheVersionMovesForward(t *testing.T) {
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
 	commit(t, dir, "content change with a bump")
 
-	problems, _, _, err := check(dir, "main")
+	problems, _, err := check(dir, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +141,7 @@ func TestIgnoresBranchesThatTouchNoPlugin(t *testing.T) {
 	write(t, dir, "README.md", "docs only\n")
 	commit(t, dir, "docs only")
 
-	problems, _, _, err := check(dir, "main")
+	problems, _, err := check(dir, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,57 +158,36 @@ func TestFailsLoudlyWithoutManifests(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
-	if _, _, _, err := check(dir, "main"); err == nil {
+	if _, _, err := check(dir, "main"); err == nil {
 		t.Error("no manifests at all must be an error, not a pass")
 	}
 }
 
-// THE FALSE GREEN (#423). `git diff <merge-base>...HEAD` is committed-only, while the manifest
-// version is read from disk. Edit a plugin, run the local loop before committing, and `touched`
-// is false for every plugin — so the version-must-move arm cannot fire and the gate prints
-// "plugin versions move forward". Then CI, on a clean checkout, fails it.
+// THE "NOT MEASURED" STATE IS GONE, AND ITS ABSENCE IS CHECKED (#405).
 //
-// This is rule-sweep's defect (#409) in the second diff-based gate.
-func TestUncommittedContentIsNotMeasured(t *testing.T) {
+// It existed because the retired must-bump rule read COMMITTED history while the version was
+// read from disk, so an uncommitted change made the question unanswerable. The only surviving
+// check reads the manifest on disk against the merge-base — tree-based on both sides — so it
+// always answers. A branch that can never fire, reporting a state that can never occur, is the
+// dead check this suite spent the week removing; it is not left behind as plumbing.
+func TestUncommittedContentIsStillMeasured(t *testing.T) {
 	dir := repo(t, "0.21.0")
-	// Written but NOT committed — the exact moment the local loop runs.
-	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed in the working tree\n")
+	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed, uncommitted\n")
 
-	problems, unmeasured, _, err := check(dir, "main")
+	problems, checked, err := check(dir, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if checked == 0 {
+		t.Fatal("nothing was compared, so this test would pass on any behaviour")
+	}
 	if len(problems) != 0 {
-		t.Errorf("an uncommitted change is not yet a violation: %v", problems)
-	}
-	if len(unmeasured) != 1 {
-		t.Fatalf("want the plugin reported as unmeasurable, got %v", unmeasured)
-	}
-	if !strings.Contains(unmeasured[0], "demo") || !strings.Contains(unmeasured[0], "UNCOMMITTED") {
-		t.Errorf("the report must name the plugin and why: %q", unmeasured[0])
+		t.Errorf("uncommitted content is not a violation now that versions move at a release: %v", problems)
 	}
 }
 
 // A committed violation OUTRANKS "could not measure": a dirty tree must never mask a real
 // failure that the committed history already proves.
-func TestCommittedViolationBeatsADirtyTree(t *testing.T) {
-	dir := repo(t, "0.21.0")
-	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
-	commit(t, dir, "content change, no bump")
-	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed again, uncommitted\n")
-
-	problems, unmeasured, _, err := check(dir, "main")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(problems) != 1 || !strings.Contains(problems[0], "version stayed at") {
-		t.Fatalf("the committed violation must still FAIL: %v", problems)
-	}
-	if len(unmeasured) != 0 {
-		t.Errorf("a plugin with a real, committed problem is measured — it must not also be reported unmeasurable: %v", unmeasured)
-	}
-}
-
 // A backwards version is tree-based on both sides, so it fires whether or not anything is
 // committed. Uncommitted content must not downgrade it to "not measured".
 func TestBackwardsVersionFiresEvenUncommitted(t *testing.T) {
@@ -212,26 +195,79 @@ func TestBackwardsVersionFiresEvenUncommitted(t *testing.T) {
 	write(t, dir, "plugins/demo/.claude-plugin/plugin.json", `{"name":"demo","version":"0.21.0"}`)
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
 
-	problems, unmeasured, _, err := check(dir, "main")
+	problems, _, err := check(dir, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(problems) != 1 || !strings.Contains(problems[0], "BACKWARDS") {
 		t.Fatalf("a backwards version is answerable from the tree and must FAIL: %v", problems)
 	}
-	if len(unmeasured) != 0 {
-		t.Errorf("it was measured — do not also report it unmeasurable: %v", unmeasured)
-	}
 }
 
-// A clean tree with nothing changed stays silent: the warning must not cry wolf on every run.
-func TestCleanTreeIsNotReportedAsUnmeasured(t *testing.T) {
+// A clean tree with nothing changed stays silent: the gate must not cry wolf on every run.
+func TestCleanTreeIsSilent(t *testing.T) {
 	dir := repo(t, "0.21.0")
-	problems, unmeasured, _, err := check(dir, "main")
+	problems, _, err := check(dir, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(problems) != 0 || len(unmeasured) != 0 {
-		t.Errorf("nothing changed: want silence, got problems=%v unmeasured=%v", problems, unmeasured)
+	if len(problems) != 0 {
+		t.Errorf("nothing changed: want silence, got %v", problems)
+	}
+}
+
+// THE RELEASE BOUNDARY, WHICH IS WHAT REPLACES THE PER-PR BUMP (#405).
+//
+// A tag cannot be derived from the manifest, nor the manifest from the tag: the plugin system
+// reads plugin.json out of the checkout, so the version has to be IN the tagged commit. The
+// non-circular answer is that one release act writes both — and this is what makes them unable
+// to disagree. Measured 2026-08-15: NO plugin had a tag matching its own version, so
+// `sc-doctor -fix` pinned every download to a release that does not exist.
+func TestReleaseTagMustMatchTheManifest(t *testing.T) {
+	dir := repo(t, "0.21.0")
+
+	if err := releaseTagMatchesManifest(dir, "demo--v0.21.0"); err != nil {
+		t.Errorf("a tag matching the manifest must be accepted: %v", err)
+	}
+
+	err := releaseTagMatchesManifest(dir, "demo--v0.22.0")
+	if err == nil {
+		t.Fatal("a tag ahead of the manifest publishes assets no `/plugin update` will ask for; it must be refused")
+	}
+	for _, want := range []string{"0.22.0", "0.21.0", "ONE act"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name both numbers and the remedy, missing %q: %v", want, err)
+		}
+	}
+}
+
+// `-tag` WITH NO VALUE MUST NOT EXIT 0. This is the argument-shaped version of the plausible
+// zero: the flag used to fall through to the ordinary branch check, which passes on a clean
+// tree — so a release job whose GITHUB_REF_NAME came through empty would have printed a green
+// gate for a tag nobody ever examined. Exercised through the real binary because the defect
+// lived in argument dispatch, which is the part a direct call to releaseTagMatchesManifest
+// cannot see.
+func TestTagModeWithNoTagIsRefused(t *testing.T) {
+	cmd := exec.Command("go", "run", ".", "-tag")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("`-tag` with no value exited 0; it must refuse rather than measure something else:\n%s", out)
+	}
+	if !strings.Contains(string(out), "-tag needs the tag") {
+		t.Errorf("the refusal must say what is missing: %s", out)
+	}
+}
+
+// A malformed tag builds the wrong plugin or nothing, and the release job resolves the plugin
+// FROM the tag — so the shape is refused before anything is published.
+func TestReleaseTagMustNameAPluginAndVersion(t *testing.T) {
+	dir := repo(t, "0.21.0")
+	for _, tag := range []string{"demo", "demo--v", "--v0.21.0", "v0.21.0"} {
+		if err := releaseTagMatchesManifest(dir, tag); err == nil {
+			t.Errorf("tag %q is malformed and must be refused", tag)
+		}
+	}
+	if err := releaseTagMatchesManifest(dir, "nosuchplugin--v1.0.0"); err == nil {
+		t.Error("a tag naming a plugin with no manifest must be refused, not silently pass")
 	}
 }
