@@ -130,7 +130,17 @@ func run(label, dir, name string, args []string, update bool) bool {
 	cmd.Dir = dir
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	cmd.Env = append(os.Environ(), "UPDATE_GOLDENS="+map[bool]string{true: "1", false: ""}[update])
-	return cmd.Run() != nil
+	// Start/Wait rather than Run so the leg is TRACKED: a signal arriving mid-review has to be
+	// able to end the child, or the main flow sits waiting on a process writing into a pipe
+	// nobody is reading. See interrupt.go.
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "golden: could not start %s: %v\n", name, err)
+		return true
+	}
+	trackLeg(cmd)
+	err := cmd.Wait()
+	clearLeg()
+	return err != nil
 }
 
 func main() {
@@ -146,6 +156,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "golden:", err)
 		os.Exit(1)
 	}
+	watchSignals()
 
 	if *review {
 		if *update {

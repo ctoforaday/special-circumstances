@@ -228,6 +228,14 @@ func reviewMode(root, accept string, acceptAll bool, reason string) int {
 		fmt.Print("\ngolden: OK — every golden matches. Nothing to review.\n")
 		return 0
 	}
+	// A leg killed by a signal FAILS, and a failed verify leg is what sends this run on to
+	// rewrite goldens. Without this check an interrupted verify would be read as staleness and
+	// answered by materialising proposals nobody asked for — `misattributed-enforcement` again,
+	// one stage upstream of the message #444 split.
+	if code, yes := stopped(); yes {
+		fmt.Fprintf(os.Stderr, "\ngolden: interrupted (%s) during verify; nothing was rewritten.\n", signalName())
+		return code
+	}
 
 	// ---- 2. materialise what the code would record ----
 	fmt.Print("\n══ PROPOSE ══ (re-recording so the diff can be read; nothing is kept yet)\n")
@@ -248,6 +256,24 @@ func reviewMode(root, accept string, acceptAll bool, reason string) int {
 		return 1
 	}
 
+	// FROM HERE THE TREE HOLDS WRITES THIS RUN HAS PROMISED TO TAKE BACK. Every exit below —
+	// a refusal, a panic, a signal — leaves through restoreHeld, so there is one implementation
+	// of that promise rather than one per path. See interrupt.go for the measured failure.
+	hold(root, props)
+	defer func() {
+		if n := restoreHeld(); n > 0 {
+			fmt.Fprintf(os.Stderr, "golden: restored %d proposal(s); the tree is exactly as you found it.\n", n)
+		}
+	}()
+
+	// Interrupted while RECORDING: the proposals are held, so the deferred restore takes them
+	// back. Returning here rather than printing tens of thousands of diff lines into a pipe
+	// nobody is reading is the difference between stopping and thrashing.
+	if code, yes := stopped(); yes {
+		fmt.Fprintf(os.Stderr, "\ngolden: interrupted (%s) while recording proposals.\n", signalName())
+		return code
+	}
+
 	// ---- 3. show the diffs ----
 	fmt.Printf("\n══ REVIEW ══ %d golden(s) propose to change\n", len(props))
 	for _, p := range props {
@@ -258,14 +284,19 @@ func reviewMode(root, accept string, acceptAll bool, reason string) int {
 		fmt.Printf("\n── %s (%s)\n%s", p.path, kind, renderDiff(root, p))
 	}
 
+	// The listing is where a piped review dies — it is the long part, and the part that outruns
+	// the pipe buffer. Checking here means the reader who closed the pipe still gets their tree
+	// back, and gets the same 128+signal exit code they would have got before.
+	if code, yes := stopped(); yes {
+		fmt.Fprintf(os.Stderr, "\ngolden: interrupted (%s) before anything was accepted.\n", signalName())
+		return code
+	}
+
 	keep, err := acceptSet(accept, props)
 	if err != nil {
-		// Revert before refusing: a mistyped -accept must not leave the tree rewritten.
-		for _, p := range props {
-			_ = revert(root, p)
-		}
+		// A mistyped -accept must not leave the tree rewritten; the deferred restore does it.
 		fmt.Fprintln(os.Stderr, "\ngolden:", err)
-		fmt.Fprintln(os.Stderr, "the tree has been restored; nothing was kept.")
+		fmt.Fprintln(os.Stderr, "nothing was kept.")
 		return 2
 	}
 	accepted, reverted := reviewPlan(props, keep, acceptAll)
@@ -277,6 +308,9 @@ func reviewMode(root, accept string, acceptAll bool, reason string) int {
 			return 1
 		}
 	}
+	// The decision has been applied: what is left on disk was NAMED, so the restore must not
+	// take it back if the re-verify below is interrupted.
+	release()
 
 	fmt.Print("\n══ RESULT ══\n")
 	if len(accepted) == 0 {
