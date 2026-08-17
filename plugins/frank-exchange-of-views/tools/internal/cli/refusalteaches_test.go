@@ -124,8 +124,14 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 		want string
 	}{
 		// The measured slip: `show` is per-role, and the concept "show the board" carries no role.
-		{"real flags on a command that does not exist", []string{"feov-record", "show", "--run", "/x", "board"}, "no command named \"show\""},
-		{"no flags at all", []string{"feov-record", "show"}, "no command named \"show\""},
+		//
+		// The wanted text is `"show" is not a top-level command`, NOT `no command named "show"`.
+		// This case used to assert the second, which was the message before the refusal learned to
+		// say WHERE the verb lives — and `show` is exactly the name that must not be denied, since
+		// it exists on all four roles. TestABareSeatVerbIsToldWhereItLives holds that half; this
+		// one holds the ORDERING (command before flag), which is a different property.
+		{"real flags on a command that does not exist", []string{"feov-record", "show", "--run", "/x", "board"}, `"show" is not a top-level command`},
+		{"no flags at all", []string{"feov-record", "show"}, `"show" is not a top-level command`},
 		{"a command that does exist is left to cobra", []string{"feov-record", "blue", "--nonsuch"}, ""},
 		{"a bare flag is left to cobra", []string{"feov-record", "--version"}, ""},
 		{"help is left to cobra", []string{"feov-record", "--help"}, ""},
@@ -177,5 +183,52 @@ func TestTheToolNamesItselfByArgv0(t *testing.T) {
 		if got := InvokedAs(); got != tc.want {
 			t.Errorf("InvokedAs() for %q = %q, want %q", tc.argv0, got, tc.want)
 		}
+	}
+}
+
+// A SEAT VERB TYPED WITHOUT ITS ROLE IS A WRONG ADDRESS, NOT A MISSING CAPABILITY.
+//
+// MEASURED 2026-08-17 on an elicitation probe. A red-merge seat holding a worklist duty that named
+// `inquiry-support` typed `feov-record inquiry-support --help` and was told
+//
+//	no command named "inquiry-support" exists
+//
+// It believed that — the message is unambiguous — went hunting, and settled on `motion inquiry
+// rule`, which is a DIFFERENT ACT: whether the direction is worth the run's time, not whether the
+// report still carries it. The seat did not lose a turn; it landed on the wrong verb confidently.
+//
+// root.go already documents the slip ("`show` is per-role while the concept carries no role, so
+// dropping the prefix is the natural slip rather than a careless one", 6 of 9 seats on their FIRST
+// call) and already routes it to the right refusal. The refusal itself still denied the verb
+// existed. The role-level message had the right shape all along — "it exists, on the blue seat, but
+// not for you. That is a wrong-seat error rather than a missing capability" — and the ROOT level,
+// which is where a seat dropping the prefix actually lands, said the opposite.
+//
+// The genuinely-absent case must keep saying so, or this trades one false answer for another.
+func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
+	root := newRoot()
+
+	for _, tc := range []struct{ name, wantPath string }{
+		{"inquiry-support", "merge inquiry-support"},
+		{"close", "merge close"},
+		{"line-of-inquiry", "blue line-of-inquiry"},
+		{"verify", "lens verify"},
+	} {
+		got := unknownCommandRefusal(root, tc.name)
+		if !strings.Contains(got, tc.wantPath) {
+			t.Errorf("a bare %q does not say where it lives (want %q):\n%s\n\n"+
+				"A seat that believes the verb does not exist stops looking for it — measured: one went on to "+
+				"use a different verb entirely.", tc.name, tc.wantPath, got)
+		}
+		if strings.Contains(got, "no command named") {
+			t.Errorf("a bare %q is refused as nonexistent when it exists at %q:\n%s", tc.name, tc.wantPath, got)
+		}
+	}
+
+	// AND A NAME THAT REALLY IS ABSENT MUST STILL SAY SO.
+	absent := unknownCommandRefusal(root, "banana")
+	if !strings.Contains(absent, "no command named") {
+		t.Errorf("a genuinely absent command no longer says it is absent:\n%s\n\n"+
+			"Pointing a seat at a verb that does not exist is the same defect facing the other way.", absent)
 	}
 }
