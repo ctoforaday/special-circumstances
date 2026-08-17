@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -132,7 +133,13 @@ var views = []struct {
 	// THE ARTIFACT THE WHOLE DEBATE IS ABOUT, and the last thing a seat still opened by hand.
 	// The event record was moved out of reach so `show` became the only way to the board;
 	// report.md stayed behind as the one file a seat had to know the layout to find.
-	{"report", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", ""},
+	// --anchor IS NAMED HERE, IN THE GROUP LISTING, and that placement is the measurement rather
+	// than a preference. Across 18 elicitation sittings (2026-08-17, two naming arms), seats
+	// invoked `show board` 26 times and `show report` 7, and ran `show report --help` ZERO times:
+	// the bare form succeeds, so nothing ever sends a seat one level deeper. A flag on a
+	// subcommand whose bare form works is not a discoverable capability. `changes` already names
+	// its --id the same way, for the same reason.
+	{"report", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", ""},
 	{"board", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", ""},
 	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
 	{"worklist", "STRUCTURED JSON: YOUR PENDING WORK and whether this sitting is finished (`sitting.complete`, with every outstanding duty and the verb that discharges it), plus the shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "*"},
@@ -241,6 +248,16 @@ func Show() *cobra.Command {
 		// uses for the same question.
 		if v.name == "board" {
 			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose)")
+		}
+		// READING AT AN ANCHOR, rather than pulling the whole document to check one sentence.
+		// The window is addressed by anchor because a line number is a fact about a rendering —
+		// see internal/anchor/window.go for why that distinction is load-bearing here.
+		if v.name == "report" {
+			sub.Flags().String(flags.Anchor, "",
+				"read the report AT one anchor id (`f-…`, `c-…`, `p-…`) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. "+
+					"`show findings` resolves finding anchors; `show evidence` resolves citation and proof anchors")
+			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
+				"with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted)")
 		}
 		c.AddCommand(sub)
 	}
@@ -372,6 +389,23 @@ func renderView(cmd *cobra.Command, want string) error {
 		b, err := report.BlueReportForReading(runDir)
 		if err != nil {
 			return err
+		}
+		if a, _ := cmd.Flags().GetString(flags.Anchor); a != "" {
+			n, _ := cmd.Flags().GetInt(flags.Window)
+			w, err := anchor.ReadAround(string(b), a, n)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write([]byte(w.Render()))
+			return nil
+		}
+		// --window WITHOUT --anchor IS REFUSED, not quietly ignored. A seat that asked to
+		// narrow its read and got the whole document back cannot tell that from a report which
+		// is simply that long — the same shape as `--format banana` rendering JSON and exiting
+		// 0, one branch up.
+		if cmd.Flags().Changed(flags.Window) {
+			return feov.Errorf(feov.Validation, "show report: --window sizes a window and there is no window without --anchor <id>. "+
+				"Either name the anchor you are reading at, or drop --window and take the whole report")
 		}
 		cmd.OutOrStdout().Write(b)
 		return nil

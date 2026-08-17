@@ -509,7 +509,20 @@ func WorklistJSONBytes(runDir, role, seatID string) ([]byte, error) {
 // attribute per role/round from. It replaces the red/candidates/*.md file the merge used
 // to `cat` and hand-transcribe — the finding is now a record event, read structured.
 type FindingJSON struct {
-	Label      string `json:"label"`
+	Label string `json:"label"`
+	// Anchor is the finding_id inside this finding's `<!--fx:f-…-->` token — the join key
+	// between the marker in the report and the finding that placed it.
+	//
+	// IT WAS MISSING, and `show report`'s own description had been telling seats that this
+	// view resolved the token. It did not: a seat holding `<!--fx:f-0b03fbfd-->` got back
+	// `L1-F1`, `L5-F1`, … and nothing that connected the two, so the only way to learn what a
+	// marker in the report meant was to not have that question. The record has carried
+	// finding_id since the marker existed; the projection dropped it, which is the join key
+	// living where nothing can reach it rather than where it was written.
+	//
+	// Found 2026-08-17 by `show report --anchor` — the first surface that required a seat to
+	// SUPPLY an anchor id, which is what made the missing lookup observable at all.
+	Anchor     string `json:"anchor"`
 	SeatID     string `json:"seat_id"`
 	Round      int    `json:"round"`
 	Role       string `json:"role"`
@@ -540,6 +553,7 @@ func FindingsJSONOf(b *Board) FindingsJSON {
 		}
 		fj := FindingJSON{
 			Label:    e.Payload.Str("label"),
+			Anchor:   e.Payload.Str("finding_id"),
 			SeatID:   e.SeatID,
 			Round:    e.Round,
 			Role:     RoleOf(e.SeatID),
