@@ -171,6 +171,30 @@ func TestGolden(t *testing.T) {
 				transcript.WriteString("\n═══ RENDERS ═══\n")
 				transcript.WriteString(renders.String())
 			}
+
+			// REPORT: the artifact a HUMAN reads, which until now had no golden at all (#447).
+			//
+			// The RENDERS above pin the projections a SEAT reads back mid-run. `bench assemble`
+			// composes something different — the end-of-run document the person the whole run is
+			// for actually opens — and nothing byte-pinned it. Measured: renaming the `## Record
+			// verification` heading added by #437 left `internal/report`, `internal/difftest` and
+			// the whole golden suite GREEN. Its unit test asserts `strings.HasPrefix(got, "##
+			// Record verification")`, which any suffix satisfies, so the miss and the pass were
+			// the same bytes — `facts-are-fields` clause 3, in a test rather than in a parser.
+			//
+			// Read from DISK rather than stdout: assemble prints a confirmation line and writes
+			// the document to <run>/report.md. A scenario with no terminal outcome or no audited
+			// blue/report.md cannot assemble, so it contributes no section — the same
+			// degenerate-run rule RENDERS already follows, and the reason this could be added to
+			// every scenario rather than needing a fixture of its own.
+			if inv := runGo(bin, runDir, cmd{role: "bench", args: []string{"assemble", "--run", runDir}}); inv.code == 0 {
+				body, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+				if err != nil {
+					t.Fatalf("bench assemble exited 0 but wrote no report.md: %v", err)
+				}
+				transcript.WriteString("\n═══ REPORT ═══\n")
+				transcript.WriteString(normalizeOutput(invocation{stdout: string(body)}, runDir, m).stdout)
+			}
 			compareGolden(t, sc.name, transcript.String())
 		})
 	}

@@ -31,8 +31,13 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 		},
 	}
 	got := recordVerification(b)
-	if !strings.HasPrefix(got, "## Record verification") {
-		t.Fatalf("missing heading:\n%s", got)
+	// THE HEADING IS CHECKED AS A WHOLE LINE, not as a prefix (#447). `HasPrefix` was satisfied
+	// by "## Record verification (injected)" — so a rename of the section a human actually reads
+	// passed here, and passed the golden suite too, because no golden covered the assembled
+	// report at all. The golden is the real fix; this line stops the unit test from reading like
+	// a check it was not.
+	if first, _, _ := strings.Cut(got, "\n"); first != "## Record verification" {
+		t.Fatalf("heading line = %q, want exactly \"## Record verification\":\n%s", first, got)
 	}
 	for _, want := range []string{"gaps-disposed", "pass-closes-all-gaps", "register-before-append"} {
 		if !strings.Contains(got, want) {
