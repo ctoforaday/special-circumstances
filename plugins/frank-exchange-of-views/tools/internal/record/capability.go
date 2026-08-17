@@ -79,6 +79,7 @@ var capabilityDeltas = map[string]string{
 	"0.69.0": "A stale binary harvests from envelopes and reports a plausible count.",
 	"0.70.0": "A stale binary reports a lossy replay as a clean run.",
 	"0.71.0": "A stale binary stamps the round its seat id looks like.",
+	"0.72.0": "A stale binary overwrites an open run's marker without a word, and its dashboard watchers outlive a run nothing captured.",
 }
 
 // CapabilityDelta is what a binary at this version cannot do, or "" if the version is unknown.

@@ -363,3 +363,52 @@ func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
 		t.Errorf("an unjoinable class must be NAMED, or the corpus looks healthy while reaching nobody:\n%s", out.String())
 	}
 }
+
+// #270, DRIVEN END TO END: the gate refuses before anything is built, and stays out of the way
+// for the run it belongs to.
+func TestSetupWillNotOpenASecondRunOverAnUnclosedOne(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC))
+
+	var out, errb bytes.Buffer
+	code := Run(cfg, &out, &errb)
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 — a run left open must stop the next one:\n%s", code, errb.String())
+	}
+	msg := errb.String()
+	for _, want := range []string{
+		"A RUN IS ALREADY OPEN",
+		"research/2026-08-01_abandoned", // names the other run
+		"2026-08-01T09:00:00.000Z",      // and when it started
+		"feov-record capture",           // the remedy that KEEPS its record
+		"delete .claude/run-live.json",  // and the one that does not
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal must carry %q so the operator can act on it:\n%s", want, msg)
+		}
+	}
+	// REFUSED BEFORE ANYTHING WAS BUILT. A gate that fires after creating the skeleton has already
+	// done the thing it was refusing.
+	if _, err := os.Stat(runDir); err == nil {
+		t.Error("the run directory was created despite the refusal — the gate must precede construction")
+	}
+	// And the marker is untouched: the abandoned run is still capturable.
+	if m, ok := ReadRunLiveMarker(cfg.Cwd); !ok || m.RunDir != "research/2026-08-01_abandoned" {
+		t.Errorf("the refusal must not disturb the marker it refused over: %+v ok=%v", m, ok)
+	}
+}
+
+// The same run is not a second run. Re-running setup on a run in progress is ordinary, and this
+// gate must not be the thing that breaks it.
+func TestSetupStaysIdempotentForTheRunItsMarkerNames(t *testing.T) {
+	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now)
+
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d, want 0 — setup on the run its own marker names must proceed:\n%s", code, errb.String())
+	}
+	if _, err := os.Stat(filepath.Join(runDir, "records")); err != nil {
+		t.Errorf("the run was not built: %v", err)
+	}
+}

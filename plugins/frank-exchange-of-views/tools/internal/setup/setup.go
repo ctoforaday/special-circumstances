@@ -477,6 +477,50 @@ func ValidatePins(cites []string, head string, git GitFunc) PinValidation {
 
 // ---- run-live marker ----
 
+// RunLiveMarker is the marker as a READ value. The writer's struct was anonymous, so every reader
+// re-declared its own subset — seat.InferRunDir reads only RunDir, and the shape has never been
+// stated in one place a new reader can find (#270).
+type RunLiveMarker struct {
+	RunDir      string   `json:"runDir"`
+	PinnedPaths []string `json:"pinnedPaths"`
+	Started     string   `json:"started"`
+}
+
+// ReadRunLiveMarker reports the open run, if the marker names one usably.
+//
+// ok=false covers absent, unreadable, unparseable and empty-runDir alike, and that is deliberate
+// at THIS call site: setup's gate must refuse only when it can name the other run in its error.
+// A marker it cannot read is not evidence of an open run — it is evidence of a broken file, and
+// blocking a new run on one would trade a silent hazard for a stuck operator.
+func ReadRunLiveMarker(projectDir string) (RunLiveMarker, bool) {
+	b, err := os.ReadFile(filepath.Join(projectDir, ".claude", "run-live.json"))
+	if err != nil {
+		return RunLiveMarker{}, false
+	}
+	var m RunLiveMarker
+	if json.Unmarshal(b, &m) != nil || strings.TrimSpace(m.RunDir) == "" {
+		return RunLiveMarker{}, false
+	}
+	return m, true
+}
+
+// sameRun compares two run directories as PATHS, not as strings. The marker stores whatever it
+// was given — `research/x` from one invocation, an absolute path from another — so a string
+// compare would refuse a re-setup of the very run in progress, which is ordinary and must stay
+// idempotent.
+func sameRun(projectDir, a, b string) bool {
+	abs := func(p string) string {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(projectDir, p)
+		}
+		if r, err := filepath.Abs(filepath.Clean(p)); err == nil {
+			return r
+		}
+		return filepath.Clean(p)
+	}
+	return strings.EqualFold(abs(a), abs(b))
+}
+
 // WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state).
 // `now` is injected so the sole non-deterministic field is controllable in tests.
 func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time) string {

@@ -64,17 +64,20 @@ func newDashboard() *cobra.Command {
 				fmt.Fprintln(cmd.OutOrStdout(), "dashboard:", out, "(static snapshot — re-run or use --watch to refresh)")
 				return nil
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "dashboard:", out, "(watching — regenerates every 15s until the run-live marker is gone)")
-			// Marker-keyed lifetime: run-capture removes .claude/run-live.json when the run ends;
-			// on its disappearance, one final render and exit.
+			fmt.Fprintln(cmd.OutOrStdout(), "dashboard:", out, "(watching — regenerates every 15s until the run ends)")
+			// TWO SIGNALS, because the marker alone was not enough (#270). `capture` is the only
+			// thing that removes .claude/run-live.json, and capture is optional: a run that was
+			// killed or never captured left this watcher regenerating a dead run forever. The
+			// RECORD is the second signal and the more truthful one — once the bench records the
+			// outcome, the run is over whatever the filesystem still says.
 			marker := filepath.Join(".claude", "run-live.json")
 			ticker := time.NewTicker(15 * time.Second)
 			defer ticker.Stop()
 			for range ticker.C {
 				_ = generate()
-				if _, err := os.Stat(marker); err != nil {
+				if ended, why := runHasEnded(marker, runDir); ended {
 					_ = generate()
-					fmt.Fprintln(cmd.OutOrStdout(), "run-live marker gone — final render written, watcher exiting")
+					fmt.Fprintln(cmd.OutOrStdout(), why+" — final render written, watcher exiting")
 					return nil
 				}
 			}

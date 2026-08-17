@@ -6,10 +6,13 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // The capability gate is the whole security model: the exact secret path renders, everything else
@@ -131,5 +134,54 @@ func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "dashboard.html") {
 		t.Error("the refusal should point at the static snapshot as the way to read a finished run")
+	}
+}
+
+// #270: the watchers must end on EITHER signal. The marker's only remover is `capture`, which is
+// optional — so a killed run used to leave the served dashboard holding a socket, and `--watch`
+// regenerating a dead run, forever.
+func TestRunHasEndedTakesEitherSignal(t *testing.T) {
+	// A live run: marker present, no outcome on the record. Neither watcher may exit.
+	runDir := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "run-live.json")
+	if err := os.WriteFile(marker, []byte(`{"runDir":"x"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if ended, why := runHasEnded(marker, runDir); ended {
+		t.Fatalf("a live run must not end the watch: %q", why)
+	}
+
+	// The clean end: capture removed the marker.
+	gone := filepath.Join(t.TempDir(), "absent.json")
+	ended, why := runHasEnded(gone, runDir)
+	if !ended || !strings.Contains(why, "marker gone") {
+		t.Errorf("an absent marker is the clean end: ended=%v why=%q", ended, why)
+	}
+
+	// THE CASE THIS EXISTS FOR: the bench recorded the run's outcome and the marker is STILL
+	// there, because nothing ran capture. The record is the truthful signal.
+	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ev := record.Event{
+		TS: "2026-08-16T00:00:00Z", SeatID: "judge-terminal", Nonce: "aaaaaaaa", Type: "outcome",
+		Key: "judge-terminal:outcome:1", Payload: record.NewPayload().Set("verdict", "UNVERIFIED"),
+	}
+	b, err := record.MarshalEvent(ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "records", "events-judge-terminal-aaaaaaaa.jsonl"), append(b, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ended, why = runHasEnded(marker, runDir)
+	if !ended {
+		t.Fatal("a run whose outcome is on the record has ended, whatever the filesystem says")
+	}
+	// And it says WHY, because "this run ended without being captured" is the part worth knowing.
+	for _, want := range []string{"UNVERIFIED", "capture has not run"} {
+		if !strings.Contains(why, want) {
+			t.Errorf("the reason must carry %q so the operator learns capture was skipped: %q", want, why)
+		}
 	}
 }

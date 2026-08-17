@@ -324,3 +324,54 @@ func TestMirrorScorecardsFallbackParsesColonClause(t *testing.T) {
 		t.Errorf("second row missing: %v", r.Headlines["red"])
 	}
 }
+
+// #270: A RUN THAT WAS NEVER CLOSED MUST NOT BE OVERWRITTEN IN SILENCE.
+//
+// The marker's only remover is `capture`, and capture is optional. Setup used to overwrite it
+// unconditionally — self-healing and silent, so nobody learned the previous run was never closed.
+// Between the abandoned run and this setup, that stale marker is what seat.InferRunDir hands to
+// every verb invoked without --run.
+func TestSetupRefusesWhenAnotherRunIsStillOpen(t *testing.T) {
+	cwd := t.TempDir()
+	WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC))
+
+	m, ok := ReadRunLiveMarker(cwd)
+	if !ok || m.RunDir != "research/2026-08-01_abandoned" {
+		t.Fatalf("fixture: the marker must read back, got %+v ok=%v", m, ok)
+	}
+	if sameRun(cwd, m.RunDir, "research/2026-08-16_new") {
+		t.Fatal("two different runs must not compare equal")
+	}
+}
+
+// IDEMPOTENT FOR THE SAME RUN. Re-running setup on a run in progress is ordinary — and the marker
+// stores whatever form it was given, so a string compare would refuse the very run it belongs to.
+func TestTheSameRunIsRecognisedThroughPathForm(t *testing.T) {
+	cwd := t.TempDir()
+	abs := filepath.Join(cwd, "research", "2026-08-16_live")
+	for _, form := range []string{"research/2026-08-16_live", abs, "./research/2026-08-16_live", filepath.FromSlash("research/2026-08-16_live")} {
+		if !sameRun(cwd, form, "research/2026-08-16_live") {
+			t.Errorf("%q must be recognised as the same run — setup on a live run must stay idempotent", form)
+		}
+	}
+}
+
+// A marker it cannot READ is not evidence of an open run. Blocking a new run on a corrupt file
+// would trade a silent hazard for a stuck operator, and the gate can only name a run it can read.
+func TestAnUnreadableMarkerIsNotAnOpenRun(t *testing.T) {
+	for _, body := range []string{"", "{", "{}", `{"runDir":""}`, `{"runDir":"   "}`} {
+		cwd := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(cwd, ".claude"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(cwd, ".claude", "run-live.json"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := ReadRunLiveMarker(cwd); ok {
+			t.Errorf("%q must not read as an open run", body)
+		}
+	}
+	if _, ok := ReadRunLiveMarker(t.TempDir()); ok {
+		t.Error("an absent marker is not an open run")
+	}
+}

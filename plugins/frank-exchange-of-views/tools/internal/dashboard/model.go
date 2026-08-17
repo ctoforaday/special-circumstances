@@ -373,6 +373,12 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 // already says it well: an empty terminal verdict falls through to the round verdict off the
 // record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
 // different claim rather than the same claim from a worse source.
+// TerminalVerdict is readTerminalVerdict for callers outside this package: has the bench recorded
+// this run's outcome? Exported for the dashboard SERVER, whose lifetime was keyed only to the
+// run-live marker — a file whose only remover is `capture`, so a killed run left the server
+// watching forever (#270). The record knows what the marker cannot.
+func TerminalVerdict(runDir string) string { return readTerminalVerdict(runDir) }
+
 func readTerminalVerdict(runDir string) string {
 	b, err := record.BoardState(runDir)
 	if err != nil {
