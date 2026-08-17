@@ -45,3 +45,92 @@ _No avenues recorded. On a run past round 0 that is itself a finding: the explor
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## Read this first
+
+_(no open gaps remain — nothing outstanding to re-examine)_
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| _(no open gaps)_ |  |  |  |  |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
+
+## The expansions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Blue team report (sections not composed above)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Red team findings (in full)
+
+### Open gaps (0)
+
+_(none open)_
+
+### Closure index (1)
+
+- R1-1 | closed | source moved | successor -
+
+### Blue's correctness manifest (0)
+
+Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than "we think it was checked".
+
+**1 closed gap(s) carry no manifest row (R1-1).** Those repairs were not audited by the party that made them.
+
+## The debate
+
+_(no debate on the record)_
+
+## Record verification
+
+Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
+
+- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
+- **ok** — `found-by-resolves` — every found_by credit names a real finding
+- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
+- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
+- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
+- **ok** — `register-before-append` — every seat registered before it wrote
+- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
+
+**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.
