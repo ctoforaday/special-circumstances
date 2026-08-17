@@ -92,6 +92,33 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	// Gate: an OPEN run that is not this one. Before anything is built (#270).
+	//
+	// The marker is commitment-as-state, and its only retraction is `capture`, which is optional:
+	// a run that is killed, throws, or is simply never captured leaves it behind. Nothing noticed,
+	// because WriteRunLiveMarker below overwrites unconditionally — self-healing and SILENT, so
+	// the operator never learned that the previous run was never closed.
+	//
+	// Silence is the wrong answer here for a specific reason: between the abandoned run and this
+	// setup, the stale marker is what seat.InferRunDir hands to every verb invoked without --run.
+	// That is #358's failure (a seat recording into the wrong place) reached by a different road.
+	//
+	// This is the one moment a human is present and can act, so it is where the state is made
+	// loud. Idempotent for the SAME run: re-running setup on a run in progress is ordinary.
+	if prev, ok := ReadRunLiveMarker(cfg.Cwd); ok && !sameRun(cfg.Cwd, prev.RunDir, cfg.RunDir) {
+		fmt.Fprintln(stderr, "run-setup: A RUN IS ALREADY OPEN — refusing to create the run:")
+		fmt.Fprintf(stderr, "  .claude/run-live.json says %s is live (started %s).\n", prev.RunDir, prev.Started)
+		fmt.Fprintln(stderr, "  Its capture never ran, so nothing closed it. Until it is closed, every verb")
+		fmt.Fprintln(stderr, "  invoked without --run infers THAT run directory, not this one.")
+		fmt.Fprintln(stderr, "  remedies: close it properly —")
+		fmt.Fprintf(stderr, "    feov-record capture %s <its transcript dir>\n", prev.RunDir)
+		fmt.Fprintln(stderr, "  — which writes its run record and clears the marker; or, if that run is")
+		fmt.Fprintln(stderr, "  genuinely abandoned and you do not want its record, delete .claude/run-live.json.")
+		fmt.Fprintln(stderr, "  Setup will NOT overwrite it silently: that is how a run stayed open for the")
+		fmt.Fprintln(stderr, "  lifetime of the next one with nobody told.")
+		return 2
+	}
+
 	// Gate: pins validated before anything is built.
 	pv := ValidatePins(cfg.Cites, head, cfg.Git)
 	if len(pv.Missing) > 0 {

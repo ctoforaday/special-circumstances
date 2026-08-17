@@ -41,29 +41,6 @@ import (
 // a skewed binary. The precedent is entry 0.68.0's own argument, which retired a hand-written
 // changelog for duplicating a canonical record — stated in entry 67 of one.
 //
-//	`Append` and `RegisterSeat` stamped `Round: RoundOf(seatID)` — a regex over the seat
-//	id, 0 on a miss — while the caller had already resolved the round as a field on
-//	seat.Context and `Begin` had already refused an unresolvable seat. The fact was in
-//	hand at the call site and thrown away one frame later, at 33 of them.
-//
-//	Both now take a `record.Identity{RunDir, SeatID, Round}`, built by
-//	`seat.Context.Identity()`. NO VALUE CHANGES: every difftest golden is byte-identical,
-//	which is the evidence rather than the hope — for any seat that reached a verb body,
-//	`Context.Round` came through the same resolution this used to call. The point is the
-//	SEAM: when the dispatcher injects a round (#290) it lands in one place.
-//
-//	ROLE IS NOT THREADED, and #396 asked for it. `seat.Context.Role` answers which command
-//	GROUP a verb is mounted under; `Event.Role` is the PARTY that wrote it. They disagree —
-//	`motion grade file` run by `blue-respond-r1` is party `blue`, command-group `grade` —
-//	so threading it would relabel the author of every motion event. cli/seat's own
-//	isRoleName says the two are "a different question with a different answer"; the
-//	Event.Role doc now says so too, in place of its false claim to be "never re-derived".
-//
-//	An unknown round writes -1, not 0. Nothing produces one today; it becomes reachable
-//	only when an injected identity conflicts with a typed --seat-id.
-//
-//	A stale binary stamps the round its seat id looks like.
-//
 // versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
 // is what setup preflights against. Without that test the two drift and the preflight
 // compares a stale number to itself.

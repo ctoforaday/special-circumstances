@@ -657,3 +657,42 @@ func TestDiscardedEventsAudit(t *testing.T) {
 		}
 	})
 }
+
+// #270: capture is the step that CLOSES a run, and it used to be silent about the one piece of
+// state that says the run is open.
+//
+// The old code appended a line only when it removed a marker. Absence printed nothing — so a
+// capture run from a subdirectory (the path is cwd-rooted) found no marker, removed nothing, and
+// reported a clean run, while the real marker stayed behind telling every later un-flagged verb
+// it was still inside that run.
+func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
+	t.Run("removed", func(t *testing.T) {
+		cwd := t.TempDir()
+		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/x"}`)
+		got := closeRunLiveMarker(cwd)
+		if got != "run-live marker: removed" {
+			t.Errorf("got %q", got)
+		}
+		if _, err := os.Stat(filepath.Join(cwd, ".claude", "run-live.json")); !os.IsNotExist(err) {
+			t.Error("the marker must actually be gone, not merely reported gone")
+		}
+	})
+
+	t.Run("absent is STATED, not silent", func(t *testing.T) {
+		cwd := t.TempDir()
+		got := closeRunLiveMarker(cwd)
+		if got == "" {
+			t.Fatal("silence is the defect: it reads identically to a successful removal being omitted")
+		}
+		if !strings.Contains(got, "none at") {
+			t.Errorf("the line must say there was none: %q", got)
+		}
+		// The wrong-cwd case is the one that costs something, so the line has to raise it.
+		if !strings.Contains(got, "not the project root") {
+			t.Errorf("the line must name the reason a marker can be missed rather than absent: %q", got)
+		}
+		if !strings.Contains(got, cwd) {
+			t.Errorf("the line must name the path it looked at, or the operator cannot check it: %q", got)
+		}
+	})
+}

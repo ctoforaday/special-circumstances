@@ -893,6 +893,34 @@ func orQ(s string) string {
 	return s
 }
 
+// closeRunLiveMarker removes the run-live marker and SAYS WHAT IT DID, including when it did
+// nothing.
+//
+// It used to append a line only on removal, so "there was no marker" and "I looked in the wrong
+// place" printed the same thing: nothing at all. The path is cwd-rooted, and capture invoked from
+// a subdirectory finds no marker, removes nothing, and reports a clean run — leaving a file that
+// tells every later un-flagged verb it is still inside this run (#270).
+//
+// Capture is the step that CLOSES a run. It is the wrong place to be quiet about the one piece of
+// state that says the run is open.
+func closeRunLiveMarker(cwd string) string {
+	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	_, serr := os.Stat(marker)
+	switch {
+	case serr == nil:
+		if rerr := os.Remove(marker); rerr != nil {
+			return "run-live marker: FOUND at " + marker + " and could NOT be removed: " + rerr.Error() +
+				" — the run still reads as live to every verb that infers its run directory"
+		}
+		return "run-live marker: removed"
+	case os.IsNotExist(serr):
+		return "run-live marker: none at " + marker +
+			" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there"
+	default:
+		return "run-live marker: could not be read at " + marker + ": " + serr.Error()
+	}
+}
+
 // ---- precedent harvest ----
 
 // HarvestResult is the writeScorecards-style report struct for the harvest.
@@ -1278,11 +1306,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 		lines = append(lines, "precedent harvest: no rulings this run")
 	}
 
-	marker := filepath.Join(cwd, ".claude", "run-live.json")
-	if _, serr := os.Stat(marker); serr == nil {
-		_ = os.Remove(marker)
-		lines = append(lines, "run-live marker: removed")
-	}
+	lines = append(lines, closeRunLiveMarker(cwd))
 
 	var out []string
 	out = append(out,

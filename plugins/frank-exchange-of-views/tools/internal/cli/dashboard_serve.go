@@ -17,6 +17,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/dashboard"
 )
 
 // serveDashboard hosts the dashboard over HTTPS as an EPHEMERAL, CAPABILITY-GATED, self-tearing
@@ -71,7 +73,7 @@ func serveDashboard(out io.Writer, runDir string, port int, render func() string
 	fmt.Fprintln(out, "  (self-signed cert — your browser will warn once; the URL secret is the only key; self-tears-down when the run ends)")
 
 	// Self-teardown: watch the run-live marker and close the server on the live→ended transition.
-	go watchAndShutdown(srv)
+	go watchAndShutdown(srv, runDir)
 
 	if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		return err
@@ -99,14 +101,20 @@ func dashboardHandler(secret string, render func() string) http.HandlerFunc {
 // exist before binding, so the server's lifetime is bounded by the run's by construction.
 var runLiveMarker = filepath.Join(".claude", "run-live.json")
 
-// watchAndShutdown shuts srv down as soon as the .run-live marker goes absent. No "seen it first"
-// condition is needed any more: serveDashboard refuses to bind unless the marker is already there,
-// so absence can only mean the run ended.
-func watchAndShutdown(srv *http.Server) {
+// watchAndShutdown shuts srv down when the run ends, by EITHER of the two things that can say so.
+//
+// The marker going absent was the only signal, and its only remover is `capture` — so a run that
+// was killed, threw, or was simply never captured left this server watching forever, holding a
+// listening socket open with nothing left to end it. That is the exposure-with-no-owner the
+// teardown above exists to prevent, reached by the one path the teardown could not see (#270).
+//
+// The RECORD is the second signal and the more truthful one: once the bench records the run's
+// outcome, the run is over whatever the filesystem still says.
+func watchAndShutdown(srv *http.Server, runDir string) {
 	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
 	for range tick.C {
-		if _, err := os.Stat(runLiveMarker); err != nil {
+		if ended, _ := runHasEnded(runLiveMarker, runDir); ended {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			_ = srv.Shutdown(ctx)
 			cancel()
@@ -177,4 +185,24 @@ func selfSignedCert(ips []net.IP) (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: priv}, nil
+}
+
+// runHasEnded answers the ONE question both watchers ask, in one place: is this run over?
+//
+// Two signals, because either alone is a half-answer:
+//
+//   - the run-live marker is gone — the clean end, written by `capture`
+//   - the RECORD carries the bench's outcome — the truthful end, which holds even when nothing
+//     removed the marker, because `capture` is optional and a killed run never reaches it (#270)
+//
+// It returns WHY as well as whether, so a watcher can tell the operator that a run ended without
+// being captured rather than exiting silently — that gap is the thing worth knowing.
+func runHasEnded(marker, runDir string) (bool, string) {
+	if _, err := os.Stat(marker); err != nil {
+		return true, "run-live marker gone"
+	}
+	if v := dashboard.TerminalVerdict(runDir); v != "" {
+		return true, "the record shows this run ended (" + v + ") while the run-live marker is still present — capture has not run"
+	}
+	return false, ""
 }
