@@ -24,6 +24,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 )
@@ -81,7 +82,7 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 	count := func(s string) map[string]int {
 		m := map[string]int{}
 		for _, id := range claimcount.ProtectedAnchorIDs(s) {
-			m[id] = strings.Count(s, AnchorToken(id))
+			m[id] = strings.Count(s, anchor.Token(id))
 		}
 		return m
 	}
@@ -89,45 +90,17 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 	for id, want := range o {
 		switch got := n[id]; {
 		case got == 0:
-			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement", verb, AnchorLabel(id), AnchorToken(id))
+			return fmt.Errorf("%s: your old span contains %s but the replacement does not — an anchor may travel through an edit, but never be dropped by one. Reproduce it EXACTLY (%s) somewhere in the replacement", verb, anchor.Label(id), anchor.Token(id))
 		case got != want:
-			return fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, AnchorLabel(id), want, got)
+			return fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
 		}
 	}
 	for id, got := range n {
 		if o[id] == 0 {
-			return fmt.Errorf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `lens finding` and `blue cite`, never typed into a replacement (got %d occurrence(s))", verb, AnchorLabel(id), got)
+			return fmt.Errorf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `lens finding` and `blue cite`, never typed into a replacement (got %d occurrence(s))", verb, anchor.Label(id), got)
 		}
 	}
 	return nil
-}
-
-// AnchorToken rebuilds the literal token for an anchor id, so a message can quote what must
-// be reproduced verbatim.
-func AnchorToken(id string) string {
-	switch {
-	case strings.HasPrefix(id, "c-"):
-		return "<!--cite:" + id + "-->"
-	case strings.HasPrefix(id, "p-"):
-		return "<!--proof:" + id + "-->"
-	default:
-		return "<!--fx:" + id + "-->"
-	}
-}
-
-// AnchorLabel describes an anchor id by its class, so a seat is told which KIND of anchor
-// its edit would have disturbed. A generic name is passed through unchanged.
-func AnchorLabel(id string) string {
-	switch {
-	case strings.HasPrefix(id, "c-"):
-		return "citation anchor " + id + " (citations are tool-managed — remove one with the tool, never a raw edit)"
-	case strings.HasPrefix(id, "p-"):
-		return "proof anchor " + id + " (a computation backs this sentence — the script and its output are cached; remove one with the tool, never a raw edit)"
-	case strings.HasPrefix(id, "f-"):
-		return "finding-marker " + id
-	default:
-		return id
-	}
 }
 
 // MaxProposalGrowth bounds how much longer a CONCRETE proposed fix may be than the span it

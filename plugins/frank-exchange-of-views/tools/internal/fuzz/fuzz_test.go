@@ -1322,6 +1322,41 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			return res
 		}
 	}
+	// READING THE REPORT AT AN ANCHOR, over the anchors this run actually minted.
+	//
+	// The unit tests drive a fixture; this drives whatever shape the sweep reached — a report
+	// whose anchors sit at the top, at the bottom, adjacent to each other, or inside a section
+	// that a later edit rewrote around them. The window's line arithmetic is where an
+	// off-by-one lives, and a fixture with the anchor comfortably in the middle never asks.
+	if a := someReportAnchor(runDir); a != "" {
+		// EVERY ROLE, BOTH FLAGS. `show report` is defined once in internal/cli/seat, so a
+		// window that worked on the merge and not on blue would mean the projection had grown
+		// a per-role surface — and --window 0 is the degenerate size that must still resolve to
+		// the anchored line rather than to nothing.
+		for _, role := range []string{"blue", "lens", "merge", "bench"} {
+			for _, extra := range [][]string{nil, {"--window", "0"}} {
+				args := append([]string{role, "show", "report", "--anchor", a, "--run", runDir}, extra...)
+				out, err := tracked(bin, args...)
+				if err != nil {
+					res.err = strings.Join(args, " ") + " failed:\n" + truncate(string(out))
+					return res
+				}
+				// THE WINDOW MUST CONTAIN ITS OWN ANCHOR. An exit-0 window that does not is
+				// the plausible zero: a read that reports success and shows the wrong place.
+				if !strings.Contains(string(out), a) {
+					res.err = strings.Join(args, " ") + " returned a window WITHOUT the anchor it was addressed by:\n" + truncate(string(out))
+					return res
+				}
+			}
+		}
+	}
+	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
+	// --id R9-99`. An empty window says "the report has nothing here", which is a different
+	// fact from "that anchor is not in this report".
+	if out, err := tracked(bin, "merge", "show", "report", "--anchor", "f-ffffffff", "--run", runDir); err == nil {
+		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
+		return res
+	}
 	// The OPERATOR's friction read — seats write the channel, the human reads it back.
 	if _, err := tracked(bin, "friction", "--run", runDir); err != nil {
 		res.err = "operator friction read failed: " + err.Error()
@@ -2158,6 +2193,24 @@ func buildBinary(t *testing.T) string {
 
 // mintedGapIDs lists the gaps a run actually created, so a scoped-view oracle asks about
 // something real rather than about a shape the fuzz happened not to produce this seed.
+// someReportAnchor returns one anchor id this run actually put in the report, or "" before any
+// finding has been recorded. Read from the RECORD (the `finding` event's label) rather than by
+// scanning report.md for a token, so the oracle is not testing the reader with the reader.
+func someReportAnchor(runDir string) string {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range b.Events {
+		if e.Type == "finding" {
+			if id := e.Payload.Str("finding_id"); id != "" {
+				return id
+			}
+		}
+	}
+	return ""
+}
+
 func mintedGapIDs(runDir string) []string {
 	b, err := record.BoardState(runDir)
 	if err != nil {

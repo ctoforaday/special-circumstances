@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -242,6 +243,16 @@ func Show() *cobra.Command {
 		if v.name == "board" {
 			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose)")
 		}
+		// READING AT AN ANCHOR, rather than pulling the whole document to check one sentence.
+		// The window is addressed by anchor because a line number is a fact about a rendering —
+		// see internal/anchor/window.go for why that distinction is load-bearing here.
+		if v.name == "report" {
+			sub.Flags().String(flags.Anchor, "",
+				"read the report AT one anchor id (`f-…`, `c-…`, `p-…`) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. "+
+					"`show findings` resolves finding anchors; `show evidence` resolves citation and proof anchors")
+			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
+				"with --anchor: how many paragraphs of content either side of it (blank lines are carried, not counted)")
+		}
 		c.AddCommand(sub)
 	}
 	return c
@@ -372,6 +383,23 @@ func renderView(cmd *cobra.Command, want string) error {
 		b, err := report.BlueReportForReading(runDir)
 		if err != nil {
 			return err
+		}
+		if a, _ := cmd.Flags().GetString(flags.Anchor); a != "" {
+			n, _ := cmd.Flags().GetInt(flags.Window)
+			w, err := anchor.ReadAround(string(b), a, n)
+			if err != nil {
+				return err
+			}
+			cmd.OutOrStdout().Write([]byte(w.Render()))
+			return nil
+		}
+		// --window WITHOUT --anchor IS REFUSED, not quietly ignored. A seat that asked to
+		// narrow its read and got the whole document back cannot tell that from a report which
+		// is simply that long — the same shape as `--format banana` rendering JSON and exiting
+		// 0, one branch up.
+		if cmd.Flags().Changed(flags.Window) {
+			return feov.Errorf(feov.Validation, "show report: --window sizes a window and there is no window without --anchor <id>. "+
+				"Either name the anchor you are reading at, or drop --window and take the whole report")
 		}
 		cmd.OutOrStdout().Write(b)
 		return nil

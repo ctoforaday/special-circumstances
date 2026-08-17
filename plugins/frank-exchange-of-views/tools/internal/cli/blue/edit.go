@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -155,7 +156,7 @@ func planEdit(report, old, new string) (string, error) {
 	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
 	next, _ = tidySeam(next, start)
 	if dropped := droppedMarker(report, next); dropped != "" {
-		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", bluedoc.AnchorLabel(dropped))
+		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
 	return next, nil
 }
