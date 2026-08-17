@@ -520,12 +520,44 @@ jobs:
       # `${{ }}` expansion inside the shell line, for the same reason as rule-sweep's
       # base ref: an expanded value would be code, not an argument.
       #
-      # `create` rather than `upload`: a version tag publishes exactly once, so a
-      # release that already exists means something is wrong and the job SHOULD fail
-      # rather than quietly overwrite a published artifact.
+      # A PUBLISHED TAG IS NEVER SILENTLY OVERWRITTEN — but a RE-RUN is not an overwrite.
+      #
+      # This step used to be a bare `gh release create`, with the stated reasoning that "a
+      # release that already exists means something is wrong and the job SHOULD fail rather
+      # than quietly overwrite a published artifact". The protection is right and is kept. What
+      # it got wrong is that it treated two different situations as one:
+      #
+      #   a RE-RUN of a completed release        — benign, and the normal recovery after an
+      #                                            Actions outage
+      #   a DIFFERENT commit claiming the tag    — the dangerous case, worth failing for
+      #
+      # MEASURED 2026-08-17, during this repository's first release under the release-boundary
+      # model: an Actions outage failed all three tag runs before they published. When Actions
+      # recovered the releases went out, and a re-run of one of those runs then failed with `a
+      # release with the same tag name already exists`. The release had SUCCEEDED; the run said
+      # otherwise. A red run on a published release is a false negative on the most consequential
+      # job in the repository, and it invites exactly the wrong response — re-tagging.
+      #
+      # The discriminator is the CHECKSUMS, which this job has already built. Identical sums mean
+      # the same artifacts, so there is nothing to publish and nothing wrong. Different sums mean
+      # the tag's content moved, which is the case the original refusal exists for — and it still
+      # fails, loudly, rather than clobbering.
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           DIST: ${{ steps.plugin.outputs.dir }}/dist
-        run: gh release create "$TAG" --title "$TAG" --generate-notes "$DIST"/*
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            tmp="$(mktemp -d)"
+            if gh release download "$TAG" --pattern SHA256SUMS --dir "$tmp" 2>/dev/null \
+               && cmp -s "$tmp/SHA256SUMS" "$DIST/SHA256SUMS"; then
+              echo "release ${TAG} is already published, and its SHA256SUMS match what this run just built."
+              echo "This is a RE-RUN of a completed release, not a second attempt to claim the tag. Nothing to do."
+              exit 0
+            fi
+            echo "::error::release ${TAG} already exists and its artifacts DIFFER from what this commit builds."
+            echo "A published tag must not be silently overwritten. Investigate before re-tagging."
+            exit 1
+          fi
+          gh release create "$TAG" --title "$TAG" --generate-notes "$DIST"/*
