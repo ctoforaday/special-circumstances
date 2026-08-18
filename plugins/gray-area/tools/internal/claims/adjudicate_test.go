@@ -276,3 +276,41 @@ func TestTheCitedLineIsTheLineThatMatched(t *testing.T) {
 		t.Errorf("cited line = %q, want the line carrying the match", f.Command)
 	}
 }
+
+// THE ACT/RESULT BOUNDARY, and it lives in Adjudicate so every caller inherits it.
+//
+// A validation-loop entry asserts an act AND an outcome. This record can check the
+// act and cannot see the outcome — the trajectory holds invocations, never their
+// output. A CITED row silent about the outcome reads as endorsing the claimed pass.
+//
+// It shipped in the pull request reader first and was missing here:
+// `adjacent-seat-omission`, caught by the sibling sweep. This test is what stops
+// the third caller from omitting it again.
+func TestACitedClaimNamesTheOutcomeItCouldNotCheck(t *testing.T) {
+	res := trace(t, `{"type":"assistant","uuid":"u1","timestamp":"2026-08-18T01:00:00Z","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go run ./check"}}]}}`)
+	f := Adjudicate([]Claim{{
+		File: "/w/n.md", Line: 3, Cmd: "go run ./check", Outcome: "pass 08-18T01:00Z",
+	}}, res)
+	if len(f) != 1 || f[0].Verdict != Cited {
+		t.Fatalf("want one CITED, got %+v", f)
+	}
+	if len(f[0].Unmeasured) == 0 {
+		t.Fatal("CITED with no boundary — the row reads as endorsing the claimed pass")
+	}
+	if !strings.Contains(f[0].Unmeasured[0], "pass 08-18T01:00Z") {
+		t.Errorf("the boundary does not name the claimed outcome: %q", f[0].Unmeasured[0])
+	}
+	if !strings.Contains(f[0].Unmeasured[0], "not their output") {
+		t.Errorf("the boundary does not say WHY it could not be checked: %q", f[0].Unmeasured[0])
+	}
+}
+
+// A claim asserting no outcome must NOT gain a caveat. Everywhere is nowhere: a
+// marker on every row is noise, and noise is how a real one gets skipped.
+func TestAClaimWithNoAssertedOutcomeGetsNoBoundaryNote(t *testing.T) {
+	res := trace(t, `{"type":"assistant","uuid":"u1","timestamp":"2026-08-18T01:00:00Z","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go run ./check"}}]}}`)
+	f := Adjudicate([]Claim{{File: "/w/n.md", Line: 3, Cmd: "go run ./check"}}, res)
+	if len(f[0].Unmeasured) != 0 {
+		t.Errorf("invented a boundary note for a claim that asserted no outcome: %v", f[0].Unmeasured)
+	}
+}
