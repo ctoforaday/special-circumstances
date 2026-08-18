@@ -36,12 +36,27 @@ const usage = `gray-area — trajectory evidence
                                       With no transcript, resolves this session's
                                       from gray-area's own manifest and prints
                                       which row it used
+  gray-area rework [transcript.jsonl]  acts done more than once: the same file
+                                      written again, the same command re-run
+  gray-area stalls [transcript.jsonl]  acts repeated 3+ times BACK-TO-BACK — the
+                                      [[anti-spinning]] limit, adjudicated against
+                                      the trajectory rather than the hook counter
+  gray-area pr <body.md> [transcript.jsonl]
+                                      adjudicate a pull request body's claims
+                                      against what the session actually ran.
+                                      Exit is 0 even with findings: a body is read
+                                      AFTER the fact, by a human, and NO-EVIDENCE
+                                      is an absence rather than a conviction
+
+rework, stalls and pr resolve this session's transcript the same way checkpoint
+does when none is given.
 
 Flags:
   -binary <name>   also resolve shell-aliased invocations of <name>
                    (a seat that runs REC=./tool ; "$REC" verb is invisible to a
                     matcher that greps for the binary name)
   -json            emit one JSON object per row instead of a table
+  -min <n>         rework: report acts repeated at least n times (default 2)
   -version         print version and exit
 
 checkpoint verdicts:
@@ -53,6 +68,12 @@ checkpoint verdicts:
   UNCHECKABLE  the claim names no command, so there was nothing to look for
 
 Exit is non-zero when anything is STALE or NO-EVIDENCE.
+
+WHAT NONE OF THESE CAN SEE. The trajectory records what was RUN, never what the
+run SAID — result bodies are conversation content and this plugin does not copy
+it. So an act is adjudicable and its OUTCOME is not, and every inspection prints
+that boundary on the rows it affects rather than letting a citation read as an
+endorsement of the result.
 `
 
 // row is what the tool emits. Provenance fields are first because they are the
@@ -139,6 +160,7 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 	asJSON := fs.Bool("json", false, "emit JSON rows")
 	showVersion := fs.Bool("version", false, "print version and exit")
 	projectDir := fs.String("project", "", "project root whose .claude/gray-area/ manifest resolves this session's transcript (default: CLAUDE_PROJECT_DIR, else the working directory)")
+	minRepeat := fs.Int("min", 2, "rework: report acts repeated at least this many times")
 	if err := fs.Parse(flags); err != nil {
 		return 2
 	}
@@ -150,12 +172,43 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 		fs.Usage()
 		return 2
 	}
-	if cmd != "tools" && cmd != "checkpoint" {
+	switch cmd {
+	case "tools", "checkpoint", "rework", "stalls", "pr":
+	default:
 		fmt.Fprintf(stderr, "gray-area: unknown command %q\n", cmd)
 		fs.Usage()
 		return 2
 	}
 	rest := fs.Args()
+
+	if cmd == "pr" {
+		if len(rest) < 1 {
+			fmt.Fprintln(stderr, "gray-area pr: a pull request body path is required")
+			return 2
+		}
+		trace := ""
+		if len(rest) > 1 {
+			trace = rest[1]
+		}
+		return prBody(rest[0], trace, stdout, stderr, open, *asJSON, *projectDir)
+	}
+
+	// rework and stalls take an OPTIONAL transcript, resolving this session's when
+	// it is absent — the same contract checkpoint has, through the same helper.
+	if cmd == "rework" || cmd == "stalls" {
+		trace := ""
+		if len(rest) > 0 {
+			trace = rest[0]
+		}
+		if cmd == "rework" {
+			if *minRepeat < 2 {
+				fmt.Fprintln(stderr, "gray-area rework: -min below 2 would report every act as repeated; refusing rather than emitting a listing whose every row is a false positive")
+				return 2
+			}
+			return rework(trace, stdout, stderr, open, *asJSON, *projectDir, *minRepeat)
+		}
+		return stalls(trace, stdout, stderr, open, *asJSON, *projectDir)
+	}
 
 	if cmd == "checkpoint" {
 		if len(rest) < 1 {

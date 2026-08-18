@@ -2,7 +2,6 @@ package claims
 
 import (
 	"encoding/json"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -59,6 +58,21 @@ type Finding struct {
 	Searched   []string `json:"searched,omitempty"`
 	EventsSeen int      `json:"events_seen"`
 	Note       string   `json:"note,omitempty"`
+
+	// Unmeasured names the parts of the claim THIS RECORD CANNOT SPEAK TO, so a
+	// verdict on the rest cannot be read as a verdict on the whole.
+	//
+	// The case it exists for: a claim asserts an ACT and a RESULT — "`go run
+	// ./check` → 26 passed". The trajectory holds invocations and not their
+	// output (result bodies are conversation content, refused under G4/G6), so
+	// the act is adjudicable and the count is not. Silence would let CITED read
+	// as endorsing the number, which is the false positive
+	// plans/gray-area-phase-2.md §0 named as the builder's problem.
+	//
+	// [[facts-are-fields]] clause 3, aimed at this tool's own output: where the
+	// miss cannot be made refusable, make it LOUD rather than let it fold into
+	// the honest answer.
+	Unmeasured []string `json:"unmeasured,omitempty"`
 }
 
 // bashCommand returns a Bash event's command with heredoc BODIES removed, or "".
@@ -84,30 +98,10 @@ func bashCommand(e trajectory.Event) string {
 	return stripHeredocs(in.Command)
 }
 
-// heredocOpen finds `<< DELIM`, `<<-DELIM`, `<<'DELIM'` or `<<"DELIM"`.
-var heredocOpen = regexp.MustCompile(`<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)(['"]?)`)
-
-// stripHeredocs removes each heredoc's body, keeping the command lines around it.
-// An unterminated heredoc drops the rest of the string — the shell would have fed
-// it all to the reader anyway, so none of it is command.
-func stripHeredocs(cmd string) string {
-	lines := strings.Split(cmd, "\n")
-	var out []string
-	for i := 0; i < len(lines); i++ {
-		out = append(out, lines[i])
-		m := heredocOpen.FindStringSubmatch(lines[i])
-		if m == nil {
-			continue
-		}
-		delim := m[2]
-		i++
-		for i < len(lines) && strings.TrimSpace(lines[i]) != delim {
-			i++
-		}
-		// i now sits on the delimiter (dropped with the body) or past the end.
-	}
-	return strings.Join(out, "\n")
-}
+// stripHeredocs delegates to trajectory, which is where the heredoc grammar now
+// lives — Group needs the same recognition for the opposite reason (see that
+// file), and two copies of it is the drift that makes one silently stop matching.
+func stripHeredocs(cmd string) string { return trajectory.StripHeredocs(cmd) }
 
 // writeTarget returns the path a Write/Edit event acted on, or "".
 func writeTarget(e trajectory.Event) string {
