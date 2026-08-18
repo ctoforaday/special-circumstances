@@ -150,6 +150,19 @@ func ProposalAppliedVerbatim(runDir, gapID, old, new string) (bool, error) {
 // moment it refuses.
 const FrictionKindEstoppel = "estoppel"
 
+// FrictionKindToolError marks a friction event as a TOOL FAULT — unparseable input, an
+// undecodable row, a check that could not run — rather than a seat reporting a capability it
+// lacked.
+//
+// It is a distinct kind for the reason FrictionKindEstoppel is: friction is otherwise a SEAT's
+// report, and folding tool faults into that count would move a number an operator reads for a
+// reason unrelated to what it measures. Filter by kind; the counts stay honest.
+//
+// It exists because an error nobody learns about is one nothing improves on. A tool that cannot
+// parse its own input either prints somewhere unread or says nothing; this is the third option,
+// and it is durable where a hook's reason string is not.
+const FrictionKindToolError = "tool_error"
+
 // FrictionKindKey is the payload key carrying the kind.
 const FrictionKindKey = "kind"
 
