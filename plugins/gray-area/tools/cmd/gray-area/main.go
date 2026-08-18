@@ -48,6 +48,10 @@ const usage = `gray-area — trajectory evidence
                                       AFTER the fact, by a human, and NO-EVIDENCE
                                       is an absence rather than a conviction
 
+  gray-area coverage                  does the manifest name every seat transcript
+                                      that EXISTS? Exits 1 when it could not
+                                      measure, 0 when it did — whatever it found
+
 rework, stalls and pr resolve this session's transcript the same way checkpoint
 does when none is given.
 
@@ -173,13 +177,17 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 		return 2
 	}
 	switch cmd {
-	case "tools", "checkpoint", "rework", "stalls", "pr":
+	case "tools", "checkpoint", "rework", "stalls", "pr", "coverage":
 	default:
 		fmt.Fprintf(stderr, "gray-area: unknown command %q\n", cmd)
 		fs.Usage()
 		return 2
 	}
 	rest := fs.Args()
+
+	if cmd == "coverage" {
+		return coverageVerb(stdout, stderr, *projectDir)
+	}
 
 	if cmd == "pr" {
 		if len(rest) < 1 {

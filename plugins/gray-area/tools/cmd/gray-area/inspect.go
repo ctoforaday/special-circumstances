@@ -321,3 +321,66 @@ func prBody(bodyPath, tracePath string, stdout, stderr io.Writer, open func(stri
 		len(findings), bodyPath)
 	return 0
 }
+
+// coverageVerb answers the question every seat-scoped inspection must ask before
+// printing a number: does the manifest name every seat transcript that exists?
+//
+// It exits 1 when it could NOT measure, and 0 when it measured — whatever it
+// found. That split is deliberate. Unnamed transcripts are a finding for a human;
+// an unmeasurable board is a broken instrument, and an instrument that reports a
+// clean board when it cannot see is the failure this whole plugin is about.
+func coverageVerb(stdout, stderr io.Writer, projectDir string) int {
+	wd, _ := os.Getwd()
+	root := defaultProjectDir(projectDir, os.Getenv("CLAUDE_PROJECT_DIR"), wd)
+	resolved, err := claims.ResolveSession(claims.ManifestDir(root), claims.GlobFS, os.ReadFile, statReadable)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	raw, err := os.ReadFile(resolved.Manifest)
+	if err != nil {
+		fmt.Fprintf(stderr, "gray-area: cannot read %s: %v\n", resolved.Manifest, err)
+		return 1
+	}
+	seats, unclassifiable := claims.SeatIDs(raw)
+	c := claims.Reconcile(resolved.TranscriptPath, seats, os.ReadDir)
+
+	fmt.Fprintf(stdout, "manifest: %s\n", resolved.Manifest)
+	fmt.Fprintf(stdout, "seat directory: %s\n\n", c.Dir)
+	if unclassifiable > 0 {
+		fmt.Fprintf(stdout, "%d seat row(s) carry no agent_id and could be reconciled with nothing — counted here rather than dropped\n", unclassifiable)
+	}
+	if !c.Measured {
+		// NOT a zero. The two states this separates produce the same empty lists.
+		fmt.Fprintf(stdout, "NOT MEASURED — %s\n", c.Why)
+		return 1
+	}
+	fmt.Fprintf(stdout, "%d seat row(s) named, %d transcript(s) on disk\n", len(c.Named), len(c.OnDisk))
+	if c.Why != "" {
+		fmt.Fprintf(stdout, "%s\n", c.Why)
+	}
+	// CAPPED, AND THE REMAINDER IS STATED. A silent truncation reads as "that was
+	// all of them"; the first real run printed 146 lines and buried its own summary.
+	const listCap = 20
+	listed := func(label, why string, ids []string) {
+		for i, id := range ids {
+			if i == listCap {
+				fmt.Fprintf(stdout, "  ... and %d more %s (not listed here)\n", len(ids)-listCap, label)
+				break
+			}
+			fmt.Fprintf(stdout, "  %-9s %s — %s\n", label, id, why)
+		}
+	}
+	listed("UNNAMED", "on disk, and no manifest row accounts for it", c.Unnamed)
+	listed("MISSING", "a seat row names it and the file is not there", c.Missing)
+	if len(c.Unnamed) == 0 && len(c.Missing) == 0 && len(c.Named) > 0 {
+		fmt.Fprintf(stdout, "  reconciled: every seat row names a transcript that exists, and every transcript is named\n")
+	}
+	if len(c.Unnamed) > 0 {
+		fmt.Fprintf(stdout, "\nAn unnamed transcript is a seat NOTHING in the manifest can lead a reader to. "+
+			"Two benign explanations exist and neither is measured here: the subagent may have been killed before "+
+			"SubagentStop fired, or it may not have been spawned through the Agent tool at all. Until one of them is "+
+			"established, seat coverage cannot be stated as a number (#469).\n")
+	}
+	return 0
+}

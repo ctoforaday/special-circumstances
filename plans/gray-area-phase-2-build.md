@@ -109,6 +109,18 @@ census rather than trust this list**.
 exists on disk that no manifest row ever named, so "every seat was inspected" is unproven in the
 missed-seat direction. Any Phase 2 output that states seat coverage as a number is blocked on it.
 
+> **UPDATE 2026-08-18: `gray-area coverage` now MEASURES this**, and the §3 tension #469 raised
+> dissolved on inspection. §3 refuses sweeping `~/.claude/projects/` *guessing which file belongs to
+> which seat* — attribution by guessing, failure mode a false citation. The seat-transcript directory
+> is **derived from the transcript path the harness handed over** at SessionStart
+> (`<transcript>.jsonl` → `<transcript>/subagents/`), so nothing is globbed and nothing is
+> attributed: the output is a set difference over ids and cannot become a citation.
+>
+> The derivation is a CONVENTION rather than a handover, which is the one thing that can go quietly
+> wrong here — so a missing directory in a session that recorded seats is reported as NOT MEASURED
+> with exit 1, never as a clean board. Coverage still may not be stated as a number while an
+> `UNNAMED` row stands; what changed is that the question is now answerable on demand.
+
 ## 5. Validation loop, written before implementation
 
 Per [[validation-loop]], with what re-arms each:

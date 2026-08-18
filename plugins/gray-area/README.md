@@ -40,6 +40,23 @@ Lists every tool invocation as `file:line uuid seat tool target` — so a reader
 
 **And *why* it was unresolvable is a field, not prose.** Every unresolved row carries a `capture_category` from a closed set, because two very different conditions used to produce byte-identical rows: an event that named no seat at all, and a seat that should have a transcript and does not. The second is worth an alarm — one transcript in sixteen arrived *after* its stat, so that race is real. `capture_error` still says it in English for a human reading one row; `capture_category` says it in a word a counter can add up.
 
+## Seat coverage: `coverage`
+
+```
+gray-area coverage
+```
+
+Answers the question any seat-scoped inspection must ask before printing a number: **does the manifest name every seat transcript that exists?** #189 established there are no phantom seats — every `kind: "seat"` row names a file that is there. That is a statement about the *rows*, and it does not bound the rows that were never written.
+
+```
+19 seat row(s) named, 20 transcript(s) on disk
+  UNNAMED   agent-a9c4e78… — on disk, and no manifest row accounts for it
+```
+
+**This is not the glob `plans/gray-area.md` §3 refuses.** That rules out sweeping `~/.claude/projects/` *guessing which files belong to which seat* — attribution by guessing, whose failure mode is a false citation. This reads **one** directory, derived from the transcript path the harness itself handed over at SessionStart, and attributes nothing: its output is a set difference over ids, and it cannot emit a citation at all. Auditing the handover is not replacing it.
+
+**It exits 1 when it could not measure and 0 when it did**, whatever it found. Unnamed transcripts are a finding for a human; an unmeasurable board is a broken instrument, and an instrument reporting a clean board when it cannot see is the failure this plugin is about. A missing seat directory in a session that recorded seats is loud; in a session that recorded none it is consistent, and the two are distinguished rather than collapsed.
+
 ## Pull request bodies: `pr`
 
 ```
