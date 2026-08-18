@@ -65,9 +65,26 @@ func isBlueReport(p string) bool {
 // writesBlueReport resolves whether a tool call WRITES a run's blue/report.md. For the
 // structured edit tools the target is tool_input.file_path (airtight); for Bash it is a
 // write-position match on the command (best-effort common-shell layer).
+// InputUnreadable reports whether a call's tool_input failed to parse. The CLI wrapper writes a
+// FRICTION_KIND_TOOL_ERROR event when it is true, so a gate that could not see its target leaves
+// a trace instead of a silence. Separate from writesBlueReport because a pure predicate should
+// answer one question.
+func InputUnreadable(in Input) bool {
+	var ti toolInput
+	return json.Unmarshal(in.ToolInput, &ti) != nil
+}
+
 func writesBlueReport(in Input) bool {
 	var ti toolInput
-	_ = json.Unmarshal(in.ToolInput, &ti)
+	// A GATE THAT CANNOT READ ITS INPUT MUST LEAVE A TRACE. Swallowing the parse failure leaves
+	// ti.FilePath empty, makes this return false for the structured-tool arm, and makes Decide
+	// answer "no opinion" — so malformed input bypasses the lockdown with nothing recorded.
+	//
+	// This package is deliberately free of I/O, so it REPORTS rather than acts: InputUnreadable
+	// below is the predicate, and internal/cli/hook.go writes the FRICTION_KIND_TOOL_ERROR event
+	// and emits an `ask` decision carrying the cause back to the model. The gate's fail direction
+	// is unchanged — that is a security-semantics decision, not a cleanup.
+	_ = json.Unmarshal(in.ToolInput, &ti) // reported via InputUnreadable; see above
 	switch in.ToolName {
 	case "Write", "Edit", "MultiEdit", "NotebookEdit":
 		return isBlueReport(ti.FilePath)

@@ -1,5 +1,5 @@
-// Package record is the Go port of skills/research-protocol/scripts/lib/record.mjs
-// (plans/record-tool.md, R2g).
+// Package record is the written record: an append-only per-process-shard event log
+// (plans/record-tool.md).
 //
 // Physics, not legislation: an append-only per-process-shard event log with
 // structural idempotency keys, render-time deterministic merge, and projections
@@ -7,11 +7,29 @@
 // feov-record, whose verb sets encode role boundaries; this package owns append,
 // validation, id minting, replay, merge, dedup, and render.
 //
-// FAITHFUL-FIRST (R2g.1): the mjs implementation is the frozen ORACLE and this is
-// a semantically exact port, validated by differential testing before the mjs
-// write path retires. Improvements are R2g.2 and land as separate commits — a
-// behavioural difference introduced here would be indistinguishable from a port
-// bug at the gate.
+// THE ORACLE IS GONE, AND THIS HEADER OUTLIVED IT BY SEVERAL RELEASES.
+//
+// What stood here until 2026-08-16 declared FAITHFUL-FIRST (R2g.1): that
+// skills/research-protocol/scripts/lib/record.mjs was "the frozen ORACLE", that this
+// package was "a semantically exact port", and that improvements had to wait for R2g.2
+// because a behavioural difference would be indistinguishable from a port bug at the
+// differential gate.
+//
+// Every clause of that is now false. The mjs library does not exist — the path it names
+// resolves to nothing, and scripts/ holds debate.js alone. The differential gate ran, caught
+// three real port bugs (JS ${undefined} interpolation, UTF-16 vs byte slicing, HTML escaping
+// in encoding/json), and was retired; internal/difftest/harness_test.go records the
+// retirement in its own words. What replaced the oracle is the GOLDEN SUITE: every byte in
+// internal/difftest/testdata was recorded while the gate was green, so the oracle's
+// validation is preserved in the files rather than in a running comparison.
+//
+// This matters because a dead constraint still binds. Decisions in this package were made
+// FOR the oracle and are still load-bearing today with nothing left to justify them — the
+// Payload insertion ordering (payload.go), the hand-rolled noEscape, and MassMappingVersion,
+// which is pinned below to a value the engine stopped using. A reader who believed this
+// header would defend all three as port fidelity. They are the goldens' contract now, which
+// is a different and weaker claim: change them and re-record deliberately, rather than
+// treating them as frozen.
 package record
 
 import (
@@ -29,17 +47,52 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
-// MassMappingVersion is pinned and mirrors debate.js; changing values bumps it.
+// MassMappingVersion stamps every telemetry line (view.go) with WHICH mass mapping produced
+// its numbers. cost.go reads it back.
 //
-// NOTE (W2g shipped v2 in the engine): the oracle library still carries v1, and
-// the port is faithful to the oracle. Aligning the library to v2 is a semantics
-// change and therefore regenerates oracle and differential together — never one
-// side alone (plans/record-tool.md, ORACLE FREEZE).
-const MassMappingVersion = "v1"
+// IT DISAGREES WITH THE ENGINE, AND THE DISAGREEMENT IS ABOUT NOTHING. What stood here said
+// the gap was real semantics — "W2g shipped v2 in the engine: the oracle library still
+// carries v1, and the port is faithful to the oracle. Aligning the library to v2 is a
+// semantics change" — and deferred the alignment to a regeneration of oracle and
+// differential together, under plans/record-tool.md's ORACLE FREEZE.
+//
+// MEASURED 2026-08-16, by reading both tables instead of both stamps:
+//
+//	debate.js:262  { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
+//	MASS below     { trivial: 0.5, low: 1, "low-medium": 1.5, "medium": 2, "medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0 }
+//
+// Eight keys, eight values, identical — and GapMass matches gapMass on the missing-grade
+// rule too (absent multiplies as zero on both sides). The MAPPINGS agree. Only the STAMPS
+// differ, so a telemetry line says `v1` while the engine that drove the run calls that exact
+// mapping `v2`, and a reader joining runs by mapping_version splits one population in two.
+//
+// The freeze that justified holding it back does not exist (see this package's header), so the
+// alignment is TAKEN, on its own, as the whole of this change (plans/record-protobuf.md, PR0).
+//
+// IT CHANGES NO GAP'S MASS. There is no mass difference to change: GapMass reads MASS, and MASS
+// is the table above, which is unmoved. What changes is the LABEL on every telemetry line, from
+// a number that described no distinguishable mapping to the one the engine has used since W2g.
+//
+// Its only other carrier is view_test.go's key-order assertion. No golden holds the stamp —
+// `grep -rl mapping_version internal/*/testdata` returns nothing — which is why this lands
+// without a golden re-record, and why it is a separate commit from the protobuf migration that
+// re-records all 24 of them.
+const MassMappingVersion = "v2"
 
 // ToolVersion is stamped on register events and answered by --version; setup
 // preflights it against the plugin manifest before the run exists.
-var ToolVersion = "0.1.0"
+//
+// IT IS A DESTINATION, NOT A SOURCE. internal/cli owns the constant (root.go: `const Version`)
+// and assigns it here in init(); scripts/versionguard exempts this declaration by name for
+// exactly that reason. So there is one identity, not two, and no collapse is owed.
+//
+// The initializer is what needed fixing. It read "0.1.0" — a well-formed version number that
+// no shipped binary has ever carried, and that only survives to be stamped when init() did
+// NOT run: a caller using this package without internal/cli. That is the plausible zero in
+// its version-number costume. An event stamped 0.1.0 reads as a genuine old binary, and the
+// one question tool_version exists to answer (WHICH binary wrote this?) gets a confident
+// wrong answer instead of a visible gap. It now says what is true.
+var ToolVersion = "unset — internal/cli assigns the real version at init"
 
 var MASS = map[string]float64{
 	"trivial": 0.5, "low": 1, "low-medium": 1.5, "medium": 2,
