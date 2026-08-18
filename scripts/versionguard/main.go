@@ -3,9 +3,8 @@
 //
 // Dev tooling for this repository only. Nothing here ships to an installing project.
 //
-// It no longer demands a bump per pull request. Versions move at a RELEASE BOUNDARY, which is a
-// human call; see releaseTagMatchesManifest and the note inside check for why that rule was
-// removed rather than relaxed (#405).
+// Versions move at a RELEASE BOUNDARY, which is a human call — this does not demand a bump per
+// pull request. See releaseTagMatchesManifest.
 //
 // WHY IT EXISTS. CLAUDE.md stated a version rule and nothing enforced it. On 2026-07-31 two
 // pull requests merged hours apart:
@@ -38,11 +37,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
 )
 
-// This tool no longer has a DID-NOT-MEASURE state, and so no longer declares exit code 3.
-// That code existed because the retired must-bump rule read committed history on one side and
-// the manifest on disk on the other, so an uncommitted change made the question unanswerable.
-// Both surviving checks read the tree, so both always answer. `scripts/check` still understands
-// exit 3 — rulesweep emits it — and that is the right place for the contract to live.
+// This tool has no DID-NOT-MEASURE state and declares no exit code 3: both checks read the
+// tree, so both always answer. `scripts/check` still understands exit 3 — rulesweep emits it —
+// and that is the right place for the contract to live.
 type manifest struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
@@ -122,17 +119,15 @@ func check(root, base string) (problems []string, checked int, err error) {
 		}
 		checked++
 
-		// THE PER-PR BUMP RULE IS GONE, AND ITS ABSENCE IS THE POINT (#405).
+		// THERE IS NO PER-PR BUMP RULE, AND ITS ABSENCE IS THE POINT.
 		//
-		// This used to fail any PR that changed plugin content without bumping the version, on
-		// the reasoning that `/plugin update` is version-gated. True, and it produced the wrong
-		// system: versions became a per-commit counter (1.45 -> 1.57 in one afternoon) that told
-		// a consumer nothing about whether anything they cared about had changed, while the tags
-		// never moved. That is exactly why NO plugin has a tag matching its version and
-		// `sc-doctor -fix` asks for releases that do not exist.
+		// Failing every PR that changed plugin content without a bump makes the version a
+		// per-commit counter that tells a consumer nothing, while the tags never move — which
+		// is how a plugin ends up with no tag matching its own version and `sc-doctor -fix`
+		// pinning downloads to releases that do not exist.
 		//
-		// The intent was always to tag at a RELEASE BOUNDARY — a human call about when the
-		// binary/text contract has really moved — and to bump there. So an ordinary PR may leave
+		// Tag at a RELEASE BOUNDARY — a human call about when the binary/text contract has
+		// really moved — and bump there. So an ordinary PR may leave
 		// the version alone, a release bumps and tags in one act, and `releaseTagMatchesManifest`
 		// below is what makes the tag and the manifest unable to disagree.
 		//
@@ -198,10 +193,10 @@ func main() {
 		die(err)
 	}
 	if len(os.Args) > 1 && os.Args[1] == "-tag" {
-		// A MISSING VALUE MUST NOT FALL THROUGH. `-tag` with nothing after it used to reach the
-		// branch check below and exit 0 — the release job would have read that as "the tag and
-		// the manifest agree" on a run where no tag was ever examined. That is the plausible
-		// zero this repository keeps finding: the absent case and the healthy case, same bytes.
+		// A MISSING VALUE MUST NOT FALL THROUGH. `-tag` with nothing after it falling through to
+		// the branch check would exit 0, and the release job would read that as "the tag and the
+		// manifest agree" on a run where no tag was ever examined — the plausible zero this
+		// repository keeps finding, where the absent case and the healthy case are same bytes.
 		if len(os.Args) < 3 || os.Args[2] == "" {
 			die("-tag needs the tag to check; refusing rather than reporting a pass on a tag nobody named")
 		}

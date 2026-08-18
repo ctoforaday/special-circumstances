@@ -92,7 +92,7 @@ func isZero(v any) bool {
 
 // ReadTelemetry returns the board telemetry series, computed on read from the
 // record via the shared view library; nil when the run has no rounds. The series
-// is no longer materialized to disk — the record is the source.
+// is never materialized to disk — the record is the source.
 func ReadTelemetry(runDir string) []map[string]any {
 	rows, err := view.Telemetry(runDir)
 	if err != nil {
@@ -284,11 +284,9 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 
 	// manifest_coverage — COUNTED FROM THE RECORD (#318).
 	//
-	// It used to count the ENVELOPE's manifest array, which is why `blue manifest-row` was never
-	// called once in the tool's lifetime: the record-tool plan moved the manifest onto the record
-	// and listed the envelope plumbing as DELETED, the verb shipped, the deletion did not, and
-	// the metric kept scoring the old channel. Blue was required to fill the envelope, graded on
-	// the envelope, and told about the verb by nothing.
+	// NOT from an envelope field. A metric that scores a channel the verb does not write leaves
+	// the verb uncalled for its whole lifetime — blue required to fill one place, graded on it,
+	// and told about the verb by nothing.
 	//
 	// A metric that reads the transient channel cannot see a receipt on the durable one, which
 	// is the whole reason the migration existed.
@@ -343,10 +341,10 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 			counts = append(counts, v)
 		}
 	}
-	// Retires come from the RECORD (retire events), NOT a BLUE_ENVELOPE field. The envelope
-	// never carried `retired`, so this detector counted zero and flagged every LEGITIMATE
-	// retirement as an unrecorded loss — the additive-integrity guard was blind in both
-	// directions. A claim leaves the report ONLY through the retire verb, which is on the record.
+	// Retires come from the RECORD (retire events), NOT a BLUE_ENVELOPE field. An envelope
+	// carries no `retired`, so this detector would count zero and flag every LEGITIMATE
+	// retirement as an unrecorded loss — blind in both directions. A claim leaves the report
+	// ONLY through the retire verb, which is on the record.
 	retires := 0
 	if board != nil {
 		for _, e := range board.Events {
@@ -506,7 +504,7 @@ func redRows(results []map[string]any, telemetry []map[string]any, board *record
 			Value: int(math.Round(float64(anchored) / float64(total) * 100)),
 			Note:  "target 100; baseline 89 (E0.5a)"})
 	} else {
-		n := "needs the tool (the board view) — anchored closures read the record, not the archive.md the merge no longer writes"
+		n := "needs the tool (the board view) — anchored closures read the record"
 		if ok {
 			n = "no closed gaps this run"
 		}
