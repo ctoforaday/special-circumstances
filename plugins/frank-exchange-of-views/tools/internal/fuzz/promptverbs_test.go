@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -30,13 +32,29 @@ import (
 // The tree is the authority, as everywhere else: cli.CommandPaths() walks the real cobra
 // command set rather than a list someone maintains alongside it.
 // THE BOUNDARY IS NOT ALWAYS THE LITERAL WORD. Prompts name the binary through a template
-// ternary — ${binDir ? `"${binDir}/feov-record"` : 'feov-record'} blue cite --location … — so in
+// ternary — ${binDir ? `"${binDir}/feov-record"` : 'feov-record'} blue cite --quote … — so in
 // the SOURCE the text immediately before the role is `} `, not `feov-record`. Anchoring only on
 // the literal missed every call written that way, which is most of them: the forward gate was
 // checking a SUBSET of the prompts it appeared to cover, and the inverse gate below reported 16
 // verbs as unnamed when 15 were named in exactly that form. A gate that silently covers less
 // than it claims is the defect this suite keeps finding, so the boundary now admits both.
-var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|bench)\s+([a-z][a-z-]+)`)
+// A SEAT VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts were split into
+// subgroups — `blue line-of-inquiry propose`, `merge class new` — so a pattern taking exactly one
+// word after the role reads `blue line-of-inquiry propose` as the GROUP `blue line-of-inquiry`,
+// which is not an invocable path. The forward gate then reports a verb the prompt names correctly
+// as missing, and the inverse gate reports both real verbs as named nowhere. Two words are
+// captured and the LONGER path wins where the tree has one (see promptPath).
+var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|bench)\s+([a-z][a-z-]+)(?:\s+([a-z][a-z-]+))?`)
+
+// promptPath resolves one match to the command path it names, preferring the two-word form when
+// the tree has it. The one-word form is returned otherwise — including when it is a group, which
+// is what the forward gate must report.
+func promptPath(m []string, real map[string]bool) string {
+	if len(m) > 3 && m[3] != "" && real[m[1]+" "+m[2]+" "+m[3]] {
+		return m[1] + " " + m[2] + " " + m[3]
+	}
+	return m[1] + " " + m[2]
+}
 
 // AND THE MOTION PATHS, WHICH THIS GATE DID NOT COVER AT ALL.
 //
@@ -169,11 +187,10 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 			}
 		}
 		for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
-			role, verb := m[1], m[2]
-			// `show` is reached with --view and needs no per-view check here; the view names
+			// `show` is reached as a subcommand and needs no per-view check here; the view names
 			// have their own single-source gate (viewNames drives the help).
-			if !real[role+" "+verb] {
-				bad = append(bad, site{filepath.Base(path), role + " " + verb})
+			if p := promptPath(m, real); !real[p] {
+				bad = append(bad, site{filepath.Base(path), p})
 			}
 		}
 	}
@@ -195,118 +212,150 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 	}
 }
 
-// THE INVERSE, AND IT IS THE ONE THAT KEPT FAILING. The gate above asks whether a verb a prompt
-// NAMES exists. Nothing asked whether a verb that exists is named by any prompt — so a verb could
-// have a write path, a validation switch, a reader in the report, and NO CALLER, and every sweep
-// stayed green because the fuzz drove it directly.
+// THE INVERSE, AND THE QUESTION IT ASKS HAD TO CHANGE WITH THE MODEL.
 //
-// Measured, three times in one audit:
-//   - `blue manifest-row` was named by no prompt and no constitution and HAD NEVER BEEN INVOKED
-//     in any run (#318).
-//   - `merge verdict` was in no prompt, so PR #309's VERIFIED derivation was inert in production
-//     and no real run had ever checkpointed its event log to the recovery mirror.
-//   - `merge regrade` was declared canonical with the note "debate.js must name it", appears zero
-//     times there, and its history renders in the report (#325).
+// It used to ask whether every recording verb was NAMED IN A PROMPT, and that caught three real
+// holes: `blue manifest-row` had never been invoked in any run, `merge verdict` was in no prompt
+// so a whole derivation was inert in production, and `merge regrade` was declared canonical with
+// the note "debate.js must name it" and appeared there zero times.
 //
-// Each was found by reading, one at a time, months apart. This asks the question mechanically.
-func TestEveryRecordingVerbIsNamedInAPrompt(t *testing.T) {
-	// WHAT THIS GATE CAN AND CANNOT SEE, stated rather than implied.
-	//
-	// It asks whether a verb's NAME appears at all in any surface a seat reads. That catches the
-	// sharp case — a verb NOTHING mentions, which no seat can reach except by guessing — and it
-	// deliberately does NOT demand the exact `role verb` form. Prompts legitimately write "substance
-	// leaves only through the retire verb" or "mint each open gap via feov-record merge", and
-	// rewriting prose to satisfy a regex would be the tail wagging the dog. The cost is that a verb
-	// mentioned only in passing counts as named; the benefit is no false alarms to train anyone to
-	// ignore. It is a floor, not a ceiling.
-	exempt := map[string]string{
-		"lens register":  "every seat's first action, issued by the harness prefix rather than asked for in prose",
-		"merge register": "as above",
-		"blue register":  "as above",
-		"bench register": "as above",
-		"bench assemble": "the assembler's whole task IS this verb; the seat is dispatched to run it, not told about it in a prompt clause",
-	}
+// But the answer it forced is the one this system is deliberately moving away from. Prompts and
+// constitutions do not name commands: the help page is the only page that instructs, and a prompt
+// that restates a slice of the tool surface does not under-inform a seat — it SATISFIES it, and
+// the seat stops looking. Measured across 54 elicitation sittings: removing the partial list
+// raised the share of the real surface a seat actually saw from 58% to 95%, and adding the
+// directive to read `--help` took it to 100% with no variance. A gate demanding the list back is
+// a gate arguing for the 58%.
+//
+// So the question moves one step: not "is it named where a seat reads", but IS IT REACHABLE FROM
+// WHAT A SEAT IS TOLD TO READ. A seat is told to run `--help` at the root, at its role, and at the
+// group before using any verb in one — so a verb is discoverable exactly when that walk reaches it
+// with something to read beside it. Hidden verbs and empty Shorts are the two ways it does not.
+//
+// The hole the old gate covered is not left open: `docs/seat-command-triggers.md` (checked below)
+// still demands a row per command, and internal/seatprobe demands a board on which each verb is
+// the accounted answer — which is a stronger test of "production uses this" than a prompt naming
+// it ever was, because a board measures whether a seat REACHES for it.
+func TestEveryRecordingVerbIsDiscoverableFromHelp(t *testing.T) {
+	root := cli.NewRootForTest()
 
-	var corpus strings.Builder
+	// Walk exactly as a seat does: root --help, then each group's --help, down to the leaves.
+	var unreachable []string
+	var walk func(c *cobra.Command, path string, hiddenAbove string)
+	walk = func(c *cobra.Command, path string, hiddenAbove string) {
+		for _, sub := range c.Commands() {
+			if sub.Name() == "help" || sub.Name() == "completion" {
+				continue
+			}
+			p := strings.TrimSpace(path + " " + sub.Name())
+			why := hiddenAbove
+			switch {
+			case why != "":
+			case sub.Hidden:
+				why = "it is Hidden, so no --help on the way to it lists it"
+			case strings.TrimSpace(sub.Short) == "":
+				why = "its Short is empty, so it appears in the parent's help as a bare word with nothing to act on"
+			}
+			if sub.HasSubCommands() {
+				walk(sub, p, why)
+				continue
+			}
+			if why != "" && seat.RecordType(sub) != "" {
+				unreachable = append(unreachable, p+" — "+why)
+			}
+		}
+	}
+	walk(root, "", "")
+
+	sort.Strings(unreachable)
+	if len(unreachable) > 0 {
+		t.Errorf("%d recording verb(s) a seat cannot discover by reading --help:\n  %s\n\n"+
+			"The help page is the only page that instructs. A verb the walk from the root does not surface\n"+
+			"has no caller but the fuzz, and no prompt is going to name it — that is the point.",
+			len(unreachable), strings.Join(unreachable, "\n  "))
+	}
+}
+
+// AND NO SURFACE A SEAT READS MAY GROW ITS CATALOGUE BACK.
+//
+// The gate above says a verb must be discoverable from --help. This says the prompts must stop
+// being the place it is discovered — and it is a RATCHET, not a budget: the number each file is
+// pinned at is what it names TODAY, and the only legal direction is down.
+//
+// A ratchet rather than a target, because the debt is real and stating it as zero would fail the
+// build on work that has not been done yet, which is how a gate gets turned off. A ratchet blocks
+// the regression that actually happens — a helpful clause adding one more invocation — and makes
+// the remaining count a number in the open instead of an intention.
+//
+// WHY THE COUNT SHOULD GO TO NEAR ZERO. A prompt that restates a slice of the tool surface does
+// not under-inform a seat, it SATISFIES it: measured across 54 elicitation sittings, removing the
+// partial list raised the share of the real surface a seat actually saw from 58% to 95%, and
+// adding the directive to read `--help` took it to 100% with no variance between sittings. Every
+// command named here is a reason for a seat not to look.
+//
+// Lowering an entry is the whole point: when a strip lands, re-pin it to the new number in the
+// same change. The test prints the number to pin.
+// THE RATCHET IS ON WHAT A HUMAN EDITS. The rendered prompt goldens are DERIVED from debate.js,
+// so pinning them too would be two hand-kept copies of one number — the same defect one level up,
+// and every strip would have to re-pin seventeen files to record one change. They stay in the
+// gates where a rendered prompt is the right subject (a prompt naming a verb that does not exist
+// is checked above, on the rendering, because that is where a seat meets it).
+var promptCatalogue = map[string]int{
+	"debate.js":           48,
+	"blue-researcher.md":  2,
+	"blue-synthesizer.md": 3,
+	"lead-judge.md":       7,
+	"red-auditor.md":      5,
+}
+
+func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
+	real := map[string]bool{}
+	for _, p := range cli.CommandPaths() {
+		real[p] = true
+	}
 	for _, path := range agentFacingFiles(t) {
 		b, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// Stripped, for the reason jsComment states: a seat never reads a code comment, and
-		// several of these name commands that were retired.
-		corpus.WriteString(jsComment.ReplaceAllString(string(b), ""))
-		corpus.WriteString("\n")
-	}
-	text := corpus.String()
-	if len(text) < 1000 {
-		t.Fatal("the agent-facing corpus is nearly empty — the scan is broken, and a broken scan here would report every verb as unnamed")
-	}
-
-	// Every command the corpus actually NAMES as a command.
-	cmdNamed := map[string]bool{}
-	for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
-		cmdNamed[m[1]+" "+m[2]] = true
-	}
-	for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
-		cmdNamed["motion "+m[1]+" "+m[2]] = true
-	}
-	if len(cmdNamed) == 0 {
-		t.Fatal("the corpus names no commands at all — promptVerb no longer matches how prompts are written, and a scan that finds nothing reports every verb as an orphan")
-	}
-
-	var orphans []string
-	for _, p := range cli.CommandPaths() {
-		parts := strings.SplitN(p, " ", 2)
-		if len(parts) != 2 {
-			continue
+		text := jsComment.ReplaceAllString(string(b), "")
+		named := map[string]bool{}
+		for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
+			if p := promptPath(m, real); real[p] {
+				named[p] = true
+			}
 		}
-		role := parts[0]
-		// Only ROLE verbs are a seat's business. Operator commands (setup, capture, dashboard,
-		// scorecard, verify, graph …) are run by the human or the engine, never asked of a seat.
-		switch role {
-		case "lens", "merge", "blue", "bench":
-		case "motion":
-			// Covered by promptMotion above. Excluded before, silently, by this default.
-		default:
-			continue
+		for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
+			if p := "motion " + m[1] + " " + m[2]; real[p] {
+				named[p] = true
+			}
 		}
-		// The `show <view>` subtree has its own gate (promptViewSub, above): a projection is
-		// named as `blue show evidence`, which promptVerb reads as the command `blue show`.
-		// Asking this gate about them would report every projection as an orphan.
-		if strings.Contains(p, " show ") {
-			continue
+		base := filepath.Base(path)
+		if strings.HasSuffix(base, ".golden") {
+			continue // derived from debate.js; see promptCatalogue
 		}
-		if exempt[p] != "" {
-			continue
+		pinned, tracked := promptCatalogue[base]
+		if !tracked {
+			// AN UNTRACKED FILE'S CEILING IS ZERO. A surface that names no commands today must
+			// not start, and a new prompt file is exactly where the catalogue grows back.
+			pinned = 0
 		}
-		// THE COMMAND, NOT THE WORD.
-		//
-		// This was `\b<verb>\b` against the whole corpus, and most verb names are ordinary
-		// English. Measured 2026-08-13: THIRTEEN role verbs passed on a bare word match with no
-		// `<role> <verb>` anywhere a seat reads. The worst was `blue revision` — "revision"
-		// occurs thirteen times as prose ("a revision is not on the record until the transcript
-		// carries it") while no prompt tells blue to run the verb, AND capture's record-parity
-		// audit counts revision events and scores blue on the result. An audit was grading seats
-		// against a duty nobody instructs, and the gate built to catch exactly that reported zero.
-		//
-		// The gate's claim was "this verb is reachable from what a seat reads". Its check was
-		// "this English word occurs". Nothing showed the gap, because a pass and a vacuous pass
-		// print the same line.
-		//
-		// promptVerb is reused rather than reinvented: it already handles the template-ternary
-		// boundary (`} blue retire`), which is how most calls are written in the source.
-		if cmdNamed[p] {
-			continue
+		if len(named) > pinned {
+			var list []string
+			for p := range named {
+				list = append(list, p)
+			}
+			sort.Strings(list)
+			t.Errorf("%s names %d distinct commands, up from the pinned %d:\n  %s\n\n"+
+				"The help page is the only page that instructs. Take the invocation out and name the ACT;\n"+
+				"if this is a deliberate strip that went the other way, re-pin promptCatalogue[%q] = %d.",
+				base, len(named), pinned, strings.Join(list, "\n  "), base, len(named))
 		}
-		orphans = append(orphans, p)
-	}
-	sort.Strings(orphans)
-	if len(orphans) > 0 {
-		t.Errorf("%d seat verb(s) exist and are named NOWHERE a seat can read:\n  %s\n\n"+
-			"A verb no seat is told about has no caller but the fuzz, so every sweep stays green over a\n"+
-			"capability production never uses. Name it where the act happens, or exempt it with a reason.",
-			len(orphans), strings.Join(orphans, "\n  "))
+		if tracked && len(named) < pinned {
+			t.Errorf("%s names %d distinct commands, below its pinned %d — the strip landed and the ratchet did not move.\n"+
+				"Re-pin promptCatalogue[%q] = %d in this change, or the next regrowth back to %d passes silently.",
+				base, len(named), pinned, base, len(named), pinned)
+		}
 	}
 }
 
@@ -519,7 +568,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 		for key, values := range fields {
 			flag := key
 			if key == "class" {
-				flag = flags.PetitionClass
+				flag = flags.Class
 			}
 			if byFlag[flag] == nil {
 				byFlag[flag] = map[string]bool{}

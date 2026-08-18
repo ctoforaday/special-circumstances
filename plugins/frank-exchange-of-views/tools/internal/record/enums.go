@@ -61,7 +61,7 @@ const DispositionCarried = "carried"
 // spelled the same three outcomes six ways.
 var ClosureClasses = []EnumValue{
 	Ev("closed", "the repair was verified at the leaf and nothing regressed"),
-	Ev("closed_with_regression", "repaired, but something else broke — REQUIRES --successor naming the gap that carries the regression forward"),
+	Ev("closed_with_regression", "repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward"),
 	Ev("amends_prior", "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit"),
 	Ev("rebuttal_sustained", "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"),
 	Ev("risk_accepted", "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"),
@@ -112,9 +112,19 @@ var EnumFields = map[string][]EnumField{
 			Ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
 		},
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
+	}, {
+		Key: "ended", Flag: flags.Ended, Optional: true, Values: []EnumValue{
+			Ev("deadlock", "the bench JUDGED the exchange deadlocked — the one terminal state the record cannot derive, so --reason is the only account of it there will ever be"),
+			Ev("ceiling", "the run stopped against its safety or round ceiling rather than against a judgement"),
+		},
+		// A SWITCH OVER TWO BOOLEANS IS AN ENUM WITH A SILENT FOURTH STATE. `--deadlocked` and
+		// `--exhausted` were separate flags stored as separate fields and read back in a
+		// first-match switch by every consumer, so setting both recorded a contradiction the
+		// tool accepted and the reader resolved by argument order.
+		Why: "the verdict stamp reads this to say HOW a non-pass ended; an unrecognized word decorates the stamp with nothing, which reads exactly like a run that ended for no stated reason",
 	}},
 	"line-of-inquiry": {{
-		Key: "status", Flag: flags.Status, Values: InquiryStatuses,
+		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
 	"inquiry-support": {{

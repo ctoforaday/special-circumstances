@@ -63,7 +63,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		{"merge regrade", "reason", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
 		{"motion grade rule", "reason", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
 		{"motion grade file", "reason", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"motion petition file", "reason", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--petition-class", "safety", "--relief", "halt"}},
+		{"motion petition file", "reason", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// The path is however many leading non-flag words the case supplies.

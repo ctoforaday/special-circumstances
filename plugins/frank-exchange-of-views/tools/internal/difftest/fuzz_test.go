@@ -164,7 +164,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 					"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
 				if rng.Intn(3) == 0 {
-					args = append(args, "--cx", pick(rng, fuzzGrades))
+					args = append(args, "--complexity", pick(rng, fuzzGrades))
 				}
 				if rng.Intn(3) == 0 {
 					args = append(args, "--supersedes", pick(rng, fuzzIDs))
@@ -176,12 +176,15 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					args = append(args, "--found-by", "L1,L5")
 				}
 			case 3:
-				args = []string{"close", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs)}
-				switch rng.Intn(3) {
-				case 0:
-					args = append(args, "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "report.md#S1")
-				case 1:
+				verb := "close"
+				if rng.Intn(3) == 1 {
+					verb = "carry"
+				}
+				args = []string{verb, "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs)}
+				if verb == "carry" {
 					args = append(args, "--carried-from", "1")
+				} else {
+					args = append(args, "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1")
 				}
 				if rng.Intn(4) == 0 {
 					args = append(args, "--as", "closed_with_regression")
@@ -197,7 +200,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					args = append(args, "--as", pick(rng, []string{"minted-as", "folded-into", "declined", "banked"}))
 				}
 			case 6:
-				args = []string{"spot-check", "--run", "{RUN}", "--seat-id", s, "--ids", "R1-1,R1-2"}
+				args = []string{"spot-check", "--run", "{RUN}", "--seat-id", s, "--ids", "R1-1,R1-2", "--reason", "re-read both closures"}
 			}
 		case "lens":
 			switch rng.Intn(4) {
@@ -221,7 +224,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 			case 0:
 				args = []string{"revision", "--run", "{RUN}", "--seat-id", s, "--reason", "revised"}
 			case 1:
-				args = []string{"manifest-row", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs), "--row", "checked"}
+				args = []string{"manifest-row", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs), "--reason", "checked"}
 			case 2:
 				args = []string{"dispute", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
 					"--dimension", "likelihood", "--proposed", pick(rng, fuzzGrades), "--reason", "why"}

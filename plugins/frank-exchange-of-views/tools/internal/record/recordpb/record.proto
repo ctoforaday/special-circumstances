@@ -384,16 +384,21 @@ message Mint {
   optional string neighbor = 6;
   optional string distinguisher = 7;
 
-  // location is section heading + quoted sentence — enough to find the defect again.
+  // location is the defect's span, quoted verbatim from the report and matched against it.
   optional string location = 8;
   optional string problem = 9;
   optional string required_fix = 10;
 
-  // The fix pair is validated against the LIVE report and refused unless the span is present and
-  // unique, so a seat cannot prescribe text without having read what it prescribes against.
-  optional string fix_old = 11;
+  // fix_new is the text that span should become — validated against the LIVE report, so a seat
+  // cannot prescribe text without having read what it prescribes against.
+  //
+  // `fix_old` HELD THE SAME SPAN AS `location`, checked by a second matcher. A gap's location and
+  // the span its proposal replaces were never two facts.
   optional string fix_new = 12;
   optional string fix_basis = 13;
+
+  reserved 11;
+  reserved "fix_old";
 
   optional string acceptance_check = 14;
   optional CheckKind check_kind = 15;
@@ -465,9 +470,14 @@ message Regrade {
 // THE SEAT: a `none` claim the board contradicts is rendered as the contradiction it is.
 message SpotCheck {
   repeated string ids = 1;
-  optional string notes = 2;
   optional bool none = 3;
+
+  // ONE PROSE CHANNEL. `notes` held what the spot-check found and `reason` held why there was
+  // nothing to sample — the same field, split by which branch wrote it.
   optional string reason = 4;
+
+  reserved 2;
+  reserved "notes";
 }
 
 // Opinion is the bench ruling on a gap.
@@ -528,14 +538,23 @@ message Cite {
   optional string location = 5;
   optional string access_date = 6;
   optional string cite_key = 7;
-  optional string claim = 8;
   optional string text = 9;
+
+  // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
+  // anchor. One span, one field.
+  reserved 8;
+  reserved "claim";
 }
 
 // Verify is red reading a source at the leaf.
 message Verify {
   optional string claim = 1;
-  optional string reference = 2;
+
+  // A SOURCE IS NAMED BY url + title, here as in Cite. `reference` was a free-text third
+  // spelling on the one verb that reads a source red found itself, so the corroboration a run
+  // rests on was identified less precisely than the citations it audits.
+  optional string url = 9;
+  optional string title = 10;
 
   // anchor names the citation checked; independent marks a source red found itself. One or the
   // other — a verification of nothing was recordable before this verb required them.
@@ -546,6 +565,9 @@ message Verify {
   optional SourceOutcome outcome = 6;
   optional Confidence confidence = 7;
   optional string text = 8;
+
+  reserved 2;
+  reserved "reference";
 }
 
 // Proof is a computation blue ran to settle a claim. The tool executes it twice and caches;
@@ -794,11 +816,17 @@ message Outcome {
   // A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
   // builder, where the dot sits at the end of the PREVIOUS line. They come from the frozen key
   // census (testdata/payload-keys.txt), which is why it exists. verdict_basis is read by
-  // report/assemble.go; deadlocked and exhausted record HOW the sitting ended, which DeriveVerdict
-  // says is otherwise not on the record at all.
+  // report/assemble.go; `ended` records HOW the sitting ended, which DeriveVerdict says is
+  // otherwise not on the record at all.
+  //
+  // IT WAS TWO BOOLEANS, `deadlocked` and `exhausted`, and every reader took them apart in a
+  // switch — which is an enum written as two fields, with a fourth state (both true) that meant
+  // nothing and a first-match rule deciding it silently.
   optional string verdict_basis = 4;
-  optional bool deadlocked = 5;
-  optional bool exhausted = 6;
+  optional string ended = 7;
+
+  reserved 5, 6;
+  reserved "deadlocked", "exhausted";
 }
 
 message Position {

@@ -24,11 +24,12 @@ import (
 // be the one fact in the report that nothing recorded, and an unrecorded fact is one a
 // future reader cannot audit. This verb writes it; `bench assemble` reads it back.
 //
-// deadlocked / exhausted say HOW a non-pass ended (judged deadlock vs safety ceiling);
-// they decorate the stamp and are recorded alongside the verdict, never inferred later.
+// --ended says HOW a non-pass ended (a judged deadlock, or the safety ceiling). It decorates the
+// stamp and is recorded alongside the verdict, never inferred later. It was two booleans that
+// every reader took apart in a switch, which is an enum with a fourth state nobody defined.
 func newOutcome() *cobra.Command {
 	c := seat.New("outcome",
-		"record the run's terminal verdict as a fact: --as "+record.MustEnum("outcome", "verdict").Spelling()+" --reason \"<how the run ended, in your words>\" [--deadlocked] [--exhausted]",
+		"record the run's terminal verdict as a fact: --as "+record.MustEnum("outcome", "verdict").Spelling()+" --reason \"<how the run ended, in your words>\" [--ended "+record.MustEnum("outcome", "ended").Spelling()+"]",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			verdict := seat.Str(cmd, flags.As)
 			if verdict == "" {
@@ -52,8 +53,7 @@ func newOutcome() *cobra.Command {
 				}
 				basis = record.VerdictDerived
 			}
-			deadlocked, _ := cmd.Flags().GetBool(flags.Deadlocked)
-			exhausted, _ := cmd.Flags().GetBool(flags.Exhausted)
+			ended := seat.Str(cmd, flags.Ended)
 
 			// --reason IS THE RULE, NOT AN EXCEPTION, and the rule is enforced in `validate`
 			// rather than here — one write path, one enforcer. The 2026-07-20 vocabulary
@@ -71,9 +71,8 @@ func newOutcome() *cobra.Command {
 
 			p := record.NewPayload().
 				Set("verdict", verdict).
-				Set("verdict_basis", basis).
-				Set("deadlocked", deadlocked).
-				Set("exhausted", exhausted)
+				Set("verdict_basis", basis)
+			seat.Set(cmd, p, "ended", flags.Ended)
 			if reason != "" {
 				p.Set("reason", reason)
 			}
@@ -86,28 +85,26 @@ func newOutcome() *cobra.Command {
 			if _, err := record.Append(s.Identity(), "outcome", p); err != nil {
 				return nil, err
 			}
-			return outcomeResult{Verdict: verdict, Deadlocked: deadlocked, Exhausted: exhausted}, nil
+			return outcomeResult{Verdict: verdict, Ended: ended}, nil
 		})
 
 	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
-	c.Flags().Bool(flags.Deadlocked, false, "the run ended by judged deadlock — the ONE terminal verdict the record cannot derive, so your --reason is the only account of it there will ever be")
 	c.Flags().String(flags.Reason, "", "REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had")
-	c.Flags().Bool(flags.Exhausted, false, "the run ended by safety/round ceiling")
+	enumhelp.Flag(c, flags.Ended, record.MustEnum("outcome", "ended"), "what STOPPED the run, when it was not a pass — a judgement or a ceiling")
 	return c
 }
 
 type outcomeResult struct {
-	Verdict    string `json:"verdict"`
-	Deadlocked bool   `json:"deadlocked"`
-	Exhausted  bool   `json:"exhausted"`
+	Verdict string `json:"verdict"`
+	Ended   string `json:"ended,omitempty"`
 }
 
 func (r outcomeResult) Human() string {
 	by := ""
-	switch {
-	case r.Deadlocked:
+	switch r.Ended {
+	case "deadlock":
 		by = " (by judged deadlock)"
-	case r.Exhausted:
+	case "ceiling":
 		by = " (by safety ceiling)"
 	}
 	return fmt.Sprintf("outcome recorded: %s%s", r.Verdict, by)

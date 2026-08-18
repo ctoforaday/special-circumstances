@@ -21,6 +21,7 @@ package seat
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -258,41 +259,52 @@ type Handler func(Context, *cobra.Command) (Result, error)
 //
 // Applied AFTER the verb has registered its own flags, so a verb cannot forget to call it
 // and no verb has to remember what it requires twice.
-// suppliedByTheVerb are (verb, payload key) pairs the RECORD requires and the VERB fills, with
-// what fills them.
+// Records declares the event type a verb writes, when that is not the verb's own name.
+//
+// A verb and an event type stopped being 1:1 the moment the verbs that carried TWO CONTRACTS
+// were split into the two verbs they already were — `lens verify` and `lens corroborate` both
+// write a `verify`, `merge close` and `merge carry` both write a `close`. The record's
+// required-field table is keyed by event type, so the lookup needs the event, not the word.
+func Records(c *cobra.Command, eventType string) *cobra.Command {
+	annotate(c, recordsKey, eventType)
+	return c
+}
+
+// Supplied answers whether this verb fills the field itself, and why. The gates read it so the
+// help check and the marking cannot disagree about the same flag.
+func Supplied(c *cobra.Command, key string) string { return c.Annotations[suppliesKey+key] }
+
+// Supplies marks a record field this verb fills ITSELF, with why.
 //
 // A REQUIRED FIELD IS NOT A REQUIRED FLAG, and conflating them produced help that contradicted
-// itself in one line: `blue line of inquiry --status` read "REQUIRED — proposed (put forward, undecided —
-// the default)". Required, and also the default. A seat reading that supplies a value it did not
-// need to choose, and the one state the field exists to express — a direction PUT FORWARD and not
-// yet resolved — is the one a seat is least likely to type.
+// itself in one line: `--status` read "REQUIRED — proposed (put forward, undecided — the
+// default)". Required, and also the default. A seat reading that supplies a value it did not
+// need to choose, and the one state the field exists to express is the one it is least likely
+// to type.
 //
-// Caught by TestEveryRequiredFlagIsActuallyRefused, which ran the verb without the flag and it
-// worked.
-var suppliedByTheVerb = map[string]string{
-	"line-of-inquiry.status": "a fresh proposal defaults to `proposed` in the verb — the state the old shape could not express, and the one a seat would not think to type. A MOVE still requires it, and the move's own refusal says so",
+// Declared HERE, at the verb that does the supplying, rather than in a table keyed by verb name
+// somewhere else: the fact and the code that makes it true stay in the same file, so one cannot
+// move without the other being in front of you.
+func Supplies(c *cobra.Command, key, why string) *cobra.Command {
+	annotate(c, suppliesKey+key, why)
+	return c
+}
+
+const (
+	recordsKey  = "feov.records"
+	suppliesKey = "feov.supplies."
+)
+
+func annotate(c *cobra.Command, key, val string) {
+	if c.Annotations == nil {
+		c.Annotations = map[string]string{}
+	}
+	c.Annotations[key] = val
 }
 
 // satisfiedByAnyOf are payload keys a seat may supply through MORE THAN ONE flag. Cobra's
 // per-flag required marking cannot express that — it would refuse the alternative — so these go
 // through MarkFlagsOneRequired instead.
-//
-// The model is not new: helpcontract_test.go already carries `satisfiedByAnother` for the same
-// facts, discovered from the other side. It lives here too because this is where the marking
-// happens, and a marker that did not know about an alternative would make the help's REQUIRED
-// true by breaking the form it names in the same sentence.
-// conditionallyRequired are (verb, payload key) pairs the record requires in SOME invocations and
-// not others, with the condition. Cobra's marking is static — it cannot say "required unless this
-// is a move" — so these are refused where the condition can be read, and the flag is left unmarked.
-//
-// This is a capability boundary, not a preference about messages. Marking `line-of-inquiry.line`
-// breaks every MOVE: a move names an existing line by --id and carries no --line, and validate
-// says so in the same breath (`supersedes_status == "" && line == ""`).
-var conditionallyRequired = map[string]string{
-	"line-of-inquiry.line":   "required on a PROPOSAL and absent on a move, which names an existing line by --id",
-	"line-of-inquiry.status": "a proposal defaults to `proposed` in the verb; a move requires it, and the move's own refusal says so",
-}
-
 var satisfiedByAnyOf = map[string][]string{
 	// The prose channel is one argument arriving three ways: inline, from a file, or from stdin
 	// via `--reason-file -`. The file forms exist for prose too large to type.
@@ -300,10 +312,36 @@ var satisfiedByAnyOf = map[string][]string{
 	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
 	// same sentence it calls the field required.
 	"problem": {flags.Problem, flags.Reason, flags.ReasonFile},
-	// manifest-row falls back to the prose channel when --row is absent, so the receipt can
-	// arrive from a file like every other prose argument.
-	"row": {flags.Row, flags.Reason, flags.ReasonFile},
+	// A line of inquiry's own statement and a manifest receipt are the verb's prose, so they
+	// arrive through the same channel every other prose field does — including from a file.
+	"line": {flags.Reason, flags.ReasonFile},
+	"row":  {flags.Reason, flags.ReasonFile},
 }
+
+// markTree annotates every LEAF under a role. Verbs with subgroups are the ordinary shape now,
+// and a loop over the role's direct children would have marked the group and left the verbs
+// under it unmarked — help that says everything is optional, which is the silent half of exactly
+// the defect this function exists to remove.
+func markTree(c *cobra.Command) {
+	if c.HasSubCommands() {
+		for _, sub := range c.Commands() {
+			markTree(sub)
+		}
+		return
+	}
+	if t := RecordType(c); t != "" {
+		markRequired(c, t)
+	}
+}
+
+// RecordType is the event type a verb writes, or "" for a command that writes no record.
+//
+// Exported because the gates that check the CLI against the record's tables have to spell a verb
+// the same way the record does, and a verb name stopped being that spelling twice over: when the
+// two-contract verbs were split (two verbs, one event type), and at the root, where the operator
+// commands `verify` and `friction` share a word with seat verbs and write nothing at all. Only a
+// command built by New carries the annotation, so the empty string is a fact, not a miss.
+func RecordType(c *cobra.Command) string { return c.Annotations[recordsKey] }
 
 func markRequired(c *cobra.Command, verb string) {
 	for _, key := range record.RequiredFields[verb] {
@@ -313,7 +351,7 @@ func markRequired(c *cobra.Command, verb string) {
 			// annotate, and nothing wrong: not every payload key has a flag.
 			continue
 		}
-		if suppliedByTheVerb[verb+"."+key] != "" {
+		if c.Annotations[suppliesKey+key] != "" {
 			// Required of the RECORD, supplied by the VERB. Marking it would tell a seat to
 			// type what it does not have to, and the annotation would sit beside the word
 			// "default" in the same sentence.
@@ -330,11 +368,6 @@ func markRequired(c *cobra.Command, verb string) {
 		// guards a different boundary, the one internal callers reach through record.Append
 		// without a command line. Cobra's is the SEAT's boundary, and it is the one that can
 		// refuse before an event exists and can say so in the help.
-		if conditionallyRequired[verb+"."+key] != "" {
-			// The usage still says REQUIRED, because it IS — in the invocation the seat is
-			// most likely making. Which one is the verb's to know.
-			continue
-		}
 		if alts := satisfiedByAnyOf[key]; len(alts) > 0 {
 			var present []string
 			for _, a := range alts {
@@ -428,6 +461,28 @@ func CheckFlagReferences(cmd *cobra.Command, runDir string) error {
 	return err
 }
 
+// taught marks an error the HANDLER already answered — diagnosed in the verb's own words, with
+// whatever the seat needs next already in the sentence.
+//
+// It exists so the top level can tell those apart from the ones cobra raises BEFORE the handler
+// runs: an unknown flag, a missing required flag, a flag group violated. Those say only which
+// flag word was wrong, and the flag table is the answer to that — so the top level attaches the
+// command's own help to them, and to nothing else.
+//
+// A FIELD, NOT A PATTERN. The alternative was matching cobra's message text ("required flag(s)
+// ... not set"), which is a string shape from another module: it fails silently the day cobra
+// rewords it, and a refusal that quietly stops teaching reads exactly like one that never needed
+// to (see [[facts-are-fields]]).
+type taught struct{ error }
+
+func (t taught) Unwrap() error { return t.error }
+
+// Taught reports whether a verb's handler already answered this error.
+func Taught(err error) bool {
+	var t taught
+	return errors.As(err, &t)
+}
+
 // Emit renders a verb's outcome. It is the ONE place both a success and a failure are
 // rendered, so they cannot disagree, and the ONE place a --json error's code is read — from
 // the error's own type via feov.CodeOf, with no switch on concrete error types. verb and
@@ -438,7 +493,7 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 		// The ROLE leads the human message ("merge: close requires --id") — it names which
 		// contract is being held. Under --json the role is a field, the code is the machine
 		// handle a consumer branches on, and the message stays the clean domain sentence.
-		prefixed := fmt.Errorf("%s: %w", role, err)
+		prefixed := taught{fmt.Errorf("%s: %w", role, err)}
 		if jsonMode(cmd) {
 			return json.NewEncoder(cmd.OutOrStdout()).Encode(errEnvelope{
 				Verb: cmd.Name(), Role: role, Code: feov.CodeOf(err), Error: prefixed.Error(),
@@ -468,6 +523,7 @@ func New(name, help string, run Handler) *cobra.Command {
 		Long:         help + "\n" + FrictionFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
+		Annotations:  map[string]string{recordsKey: name},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s, err := Begin(cmd)
 			if err != nil {

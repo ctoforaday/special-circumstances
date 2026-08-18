@@ -100,3 +100,10 @@ func CommandPaths() []string {
 	sort.Strings(out)
 	return out
 }
+
+// NewRootForTest builds the real command tree for the gates that must walk it exactly as a seat
+// meets it — the same tree Execute runs, not a reconstruction.
+//
+// Exported for the same reason CommandPaths is: a gate that asks "can a seat discover this" has to
+// ask the tree, and a second tree built for testing answers about itself.
+func NewRootForTest() *cobra.Command { return newRoot() }

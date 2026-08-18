@@ -302,7 +302,7 @@ func requireSupersededAreClosed(runDir string) error {
 		return nil
 	}
 	sort.Strings(stranded)
-	return fmt.Errorf("record: verdict refused — %d superseded gap(s) are still OPEN: %s. Superseding is a promise to replace, and an ancestor left open is the same defect counted twice: the 2026-07-18 run finished reporting 9 open gaps of which 7 were distinct. Close each ancestor (--successor names its replacement), or if it is genuinely still live, it was not superseded",
+	return fmt.Errorf("record: verdict refused — %d superseded gap(s) are still OPEN: %s. Superseding is a promise to replace, and an ancestor left open is the same defect counted twice: the 2026-07-18 run finished reporting 9 open gaps of which 7 were distinct. Close each ancestor (--superseded-by names its replacement), or if it is genuinely still live, it was not superseded",
 		len(stranded), strings.Join(stranded, ", "))
 }
 

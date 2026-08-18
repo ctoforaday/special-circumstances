@@ -98,7 +98,7 @@ func TestGolden(t *testing.T) {
 			runDir := t.TempDir()
 			seed(t, runDir, sc.seed)
 			// A lens finding anchors into blue/report.md (slice 1b) and is rejected
-			// unless its --location quote is present. Ensure a report carrying the
+			// unless its --quote quote is present. Ensure a report carrying the
 			// scenario heading anchors (## S2 / ## S4) exists; a scenario may override.
 			if _, ok := sc.seed["blue/report.md"]; !ok {
 				seed(t, runDir, map[string]string{

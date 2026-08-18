@@ -74,8 +74,20 @@ func NewSurface(paths []string) Surface {
 	for _, p := range paths {
 		parts := strings.Fields(p)
 		switch {
-		case len(parts) == 2 && isRole(parts[0]):
-			byRole[parts[0]] = append(byRole[parts[0]], parts[1])
+		case len(parts) >= 2 && isRole(parts[0]):
+			// A ROLE VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts are
+			// subgroups now — `blue line-of-inquiry propose`, `merge class new` — and a case
+			// matching exactly two fields dropped them from the surface entirely. The coverage
+			// gate then reported full coverage of a surface it could not see, and its inverse
+			// called a real verb one the role does not offer.
+			//
+			// `show` stays collapsed to the group: its projections are the READ path, covered by
+			// AlwaysTaken as one act, and expanding them would demand a board per projection.
+			verb := strings.Join(parts[1:], " ")
+			if parts[1] == "show" {
+				verb = "show"
+			}
+			byRole[parts[0]] = append(byRole[parts[0]], verb)
 		case len(parts) == 3 && parts[0] == "motion":
 			subject, verb := parts[1], parts[2]
 			if verb == "rule" {

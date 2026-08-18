@@ -315,7 +315,7 @@ func MergedEvents(runDir string) (Merged, error) {
 //
 // The four grades are `any` rather than string because ABSENCE is renderable:
 // the oracle interpolates them straight into a template literal, so a gap minted
-// without --cx renders the literal text "undefined". Collapsing that to "" here
+// without --complexity renders the literal text "undefined". Collapsing that to "" here
 // would be a silent, byte-level divergence in every ledger — exactly the class the
 // differential gate exists to catch, and it did catch it.
 type Gap struct {
@@ -631,59 +631,98 @@ func loadRegistry(runDir string) (*classRegistry, error) {
 	return &reg, nil
 }
 
-func validateClass(runDir string, p *Payload) error {
+// knownClasses is the registry as it stands for this run: the staged corpus plus every slug the
+// run has coined. nil means no registry is staged — advisory mode, where any slug is accepted.
+func knownClasses(runDir string) (map[string]bool, []string, error) {
 	reg, err := loadRegistry(runDir)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	m, err := MergedEvents(runDir)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	var extensions []string
+	coined := map[string]bool{}
 	for _, e := range m.Events {
 		if e.Type == "class-new" {
-			extensions = append(extensions, e.Payload.Str("slug"))
+			coined[e.Payload.Str("slug")] = true
 		}
-	}
-	classNew, _ := p.Get("class_new")
-	if b, ok := classNew.(bool); ok && b {
-		if p.Str("definition") == "" || p.Str("neighbor") == "" || p.Str("distinguisher") == "" {
-			return fmt.Errorf("record: --class-new requires --definition, --neighbor <existing-slug>, and --distinguisher (the tie-break question)")
-		}
-		if reg != nil {
-			known := map[string]bool{}
-			for _, c := range reg.Classes {
-				known[c.Slug] = true
-			}
-			for _, s := range extensions {
-				known[s] = true
-			}
-			if !known[p.Str("neighbor")] {
-				return fmt.Errorf("record: --neighbor %s is not a known class", p.Str("neighbor"))
-			}
-		}
-		return nil
 	}
 	if reg == nil {
-		return nil // no registry staged — advisory mode (R1 tolerance; R4 makes it strict)
+		return nil, nil, nil // advisory mode (R1 tolerance; R4 makes it strict)
 	}
-	known := map[string]bool{}
-	var slugs []string
+	known, slugs := map[string]bool{}, []string(nil)
 	for _, c := range reg.Classes {
 		known[c.Slug] = true
 		slugs = append(slugs, c.Slug)
 	}
-	for _, s := range extensions {
+	for s := range coined {
 		known[s] = true
 	}
-	if !known[p.Str("class")] {
-		hintN := 6
-		if len(slugs) < hintN {
-			hintN = len(slugs)
+	return known, slugs, nil
+}
+
+// ClassCoinedInRun reports whether this run coined the slug, rather than inheriting it from the
+// staged registry.
+//
+// IT WAS A FLAG A SEAT SET. `--class-new` asserted "this class is new", which the registry
+// already knows — so the assertion could be wrong in both directions, and the boolean's real
+// meaning was "I also passed --definition, --neighbor and --distinguisher". Coining is
+// `merge class new` now; this derives the fact from what that verb wrote.
+func ClassCoinedInRun(runDir, slug string) bool {
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range m.Events {
+		if e.Type == "class-new" && e.Payload.Str("slug") == slug {
+			return true
 		}
-		hint := strings.Join(slugs[:hintN], ", ")
-		return fmt.Errorf("record: unknown class %s — use a registry slug (e.g. %s, ...) or mint the class with --class-new (definition + neighbor + distinguisher required)", p.Str("class"), hint)
+	}
+	return false
+}
+
+// validateClass holds a MINT to a class the registry recognises.
+func validateClass(runDir string, p *Payload) error {
+	known, slugs, err := knownClasses(runDir)
+	if err != nil {
+		return err
+	}
+	if known == nil || known[p.Str("class")] {
+		return nil
+	}
+	hintN := 6
+	if len(slugs) < hintN {
+		hintN = len(slugs)
+	}
+	return fmt.Errorf("record: unknown class %s — use a registry slug (e.g. %s, ...) or coin this one first with `merge class new --class %s --definition ... --neighbor ... --distinguisher ...`",
+		p.Str("class"), strings.Join(slugs[:hintN], ", "), p.Str("class"))
+}
+
+// validateClassNew holds a COINING to the three facts that make a class discriminate: what it is,
+// what it is nearest to, and how to tell them apart. The neighbor must itself be known, or the
+// registry grows a tree with no root.
+func validateClassNew(runDir string, p *Payload) error {
+	if p.Str("slug") == "" {
+		return fmt.Errorf("record: class new requires --class (the slug being coined)")
+	}
+	for _, f := range []string{"definition", "neighbor", "distinguisher"} {
+		if p.Str(f) == "" {
+			return fmt.Errorf("record: class new requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f)
+		}
+	}
+	known, _, err := knownClasses(runDir)
+	if err != nil {
+		return err
+	}
+	if known == nil {
+		return nil
+	}
+	if known[p.Str("slug")] {
+		return fmt.Errorf("record: class %s already exists — mint against it with `merge mint --class %s` rather than coining it twice", p.Str("slug"), p.Str("slug"))
+	}
+	if !known[p.Str("neighbor")] {
+		return fmt.Errorf("record: --neighbor %s is not a known class", p.Str("neighbor"))
 	}
 	return nil
 }

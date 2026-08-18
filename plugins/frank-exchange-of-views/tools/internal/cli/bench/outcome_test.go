@@ -54,7 +54,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 			t.Setenv(seatenv.SeatVar, "judge-r1")
 			args := []string{"outcome", "--as", "UNVERIFIED"}
 			if tc.deadlocked {
-				args = append(args, "--deadlocked")
+				args = append(args, "--ended", "deadlock")
 			}
 			if tc.reason != "" {
 				args = append(args, "--reason", tc.reason)

@@ -89,7 +89,7 @@ without red's assent" holds because the marker is immortal and every content cha
 Immortality was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and never delete one); a live
 run showed that is not enough. It is now **enforced at the write**. `blue/report.md` is **read-only to
 every seat except the allowlisted author `agent_type`** (`frank-exchange-of-views:blue-synthesizer`, the
-round-0 synthesis seat). A response seat changes the report ONLY through **`feov-record blue edit --old
+round-0 synthesis seat). A response seat changes the report ONLY through **`feov-record blue edit --quote
 <exact current span> --new <replacement> --reason <why> [--answers <gap-id>]`** — an exact-on-stripped span replace (reusing
 `lens.LocateSpan`, the finding-marker matcher) that appends a `blue_edit` event, an append-only
 diff-stack replaying onto the round-0 report.
@@ -100,7 +100,7 @@ diff-stack replaying onto the round-0 report.
 quote is refused as ambiguous and the contextual quote is refused as anchor-spanning, so the anchored
 occurrence — the one red actually flagged — became the only uneditable one. 71% of anchored quotes in the
 2026-08-04 smoke had their anchor mid-span, so that was the common shape, not a corner. What the tool
-checks now is the multiset of anchor ids in `--old` against `--new`: blue may carry an anchor across
+checks now is the multiset of anchor ids in `--quote` against `--new`: blue may carry an anchor across
 verbatim, and may not change WHICH anchors exist. That is strictly stronger than the old rule, which said
 nothing about `--new` at all — 5 smoke edits smuggled an anchor INTO `--new` and duplicated it.
 

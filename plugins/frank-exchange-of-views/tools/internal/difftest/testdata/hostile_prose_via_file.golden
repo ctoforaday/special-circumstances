@@ -13,7 +13,7 @@ exit 0
 stdout:
 minted R1-1
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity low --likelihood low --impact low --location ## S2 --reason-file {RUN}/prose.md
+$ lens finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason-file {RUN}/prose.md
 exit 0
 stdout:
 finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)

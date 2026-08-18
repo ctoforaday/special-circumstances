@@ -65,7 +65,7 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	registerBlue(t, runDir)
 
 	out, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "rising over time", "--new", "climbing sharply", "--reason", "sharper phrasing")
+		"--key", "E1", "--quote", "rising over time", "--new", "climbing sharply", "--reason", "sharper phrasing")
 	if err != nil {
 		t.Fatalf("blue edit: %v (out %q)", err, out)
 	}
@@ -91,7 +91,7 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	registerBlue(t, runDir)
 
 	out, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "context: important", "--new", "context: vital", "--reason", "x")
+		"--key", "E1", "--quote", "context: important", "--new", "context: vital", "--reason", "x")
 	if err == nil {
 		t.Fatalf("expected a reject; out %q", out)
 	}
@@ -116,7 +116,7 @@ func TestBlueEditRejectsAbsentOld(t *testing.T) {
 	registerBlue(t, runDir)
 
 	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "the scheduler is cooperative", "--new", "x", "--reason", "y")
+		"--key", "E1", "--quote", "the scheduler is cooperative", "--new", "x", "--reason", "y")
 	if err == nil {
 		t.Fatal("a mis-quote must be rejected")
 	}
@@ -130,7 +130,7 @@ func TestBlueEditIdempotentRetry(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe cost is rising fast.\n")
 	registerBlue(t, runDir)
 	args := []string{"blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "rising fast.", "--new", "climbing fast.", "--reason", "r"}
+		"--key", "E1", "--quote", "rising fast.", "--new", "climbing fast.", "--reason", "r"}
 	if _, err := run(t, args...); err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	}
 	// Retry with the same key → reconcile forward.
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "rising fast.", "--new", "climbing fast.", "--reason", "r"); err != nil {
+		"--key", "E1", "--quote", "rising fast.", "--new", "climbing fast.", "--reason", "r"); err != nil {
 		t.Fatalf("reconcile retry errored: %v", err)
 	}
 	if !strings.Contains(readReport(t, runDir), "climbing fast") {
@@ -189,7 +189,7 @@ func TestBlueEditRecordsTheGapItAnswers(t *testing.T) {
 	registerBlue(t, runDir)
 
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "Five independent verification", "--new", "Five verification",
+		"--key", "E1", "--quote", "Five independent verification", "--new", "Five verification",
 		"--answers", gap, "--reason", "drop the independence claim"); err != nil {
 		t.Fatalf("blue edit --answers: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
 	registerBlue(t, runDir)
 
 	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--answers", "R9-99", "--reason", "why")
 	if err == nil {
 		t.Fatal("an edit answering a gap no mint created was accepted")
@@ -232,7 +232,7 @@ func TestBlueEditRefusesAGapIDHidingInTheReason(t *testing.T) {
 	registerBlue(t, runDir)
 
 	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--reason", gap+": acknowledge the shared definition")
 	if err == nil {
 		t.Fatal("the free-text convention was accepted while --answers was empty")
@@ -254,7 +254,7 @@ func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
 	registerBlue(t, runDir)
 
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--reason", "tightened per R9-99 and section 3-2 of the style note"); err != nil {
 		t.Fatalf("prose naming no real gap was refused: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
 	registerBlue(t, runDir)
 
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "text to change", "--new", "prose to revise",
+		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--reason", "clearer phrasing, self-directed"); err != nil {
 		t.Fatalf("a self-directed edit was refused: %v", err)
 	}
@@ -316,18 +316,18 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "G1", "--class", "overclaim", "--class-new", "--definition", "d", "--neighbor", "n",
-		"--distinguisher", "x", "--location", "Five independent verification approaches agree.", "--problem", "the defect",
+		"--key", "G1", "--class", "overclaim",
+		"--quote", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
-		"--fix-old", "Five independent verification", "--fix-new", "Five verification"); err != nil {
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
+		"--new", "Five verification approaches agree."); err != nil {
 		t.Fatalf("a legal concrete proposal was refused: %v", err)
 	}
 	ev := lastOfType(t, runDir, "mint")
 	if got := ev.Payload.Str("fix_basis"); got != "verified" {
-		t.Errorf("fix_basis = %q, want %q — a pair validated against the live report is verified", got, "verified")
+		t.Errorf("fix_basis = %q, want %q — a replacement validated against the live report is verified", got, "verified")
 	}
-	if ev.Payload.Str("fix_old") == "" || ev.Payload.Str("fix_new") == "" {
+	if ev.Payload.Str("location") == "" || ev.Payload.Str("fix_new") == "" {
 		t.Error("the proposal itself was not recorded, so blue cannot apply what red proposed")
 	}
 }
@@ -348,25 +348,11 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 	}
 }
 
-// Half a proposal is not a proposal: blue could not apply it, so it is refused at the source
-// rather than recorded as something blue must interpret.
-func TestHalfAProposalIsRefused(t *testing.T) {
-	runDir := t.TempDir()
-	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
-		"--likelihood", "medium", "--impact", "medium",
-		"--fix-old", "Five independent verification")
-	if err == nil {
-		t.Fatal("--fix-old without --fix-new was accepted")
-	}
-	if !strings.Contains(err.Error(), "--fix-new") {
-		t.Errorf("the refusal must name the missing half: %v", err)
-	}
-	if n := countType(t, runDir, "mint"); n != 0 {
-		t.Errorf("a refused mint still recorded %d event(s)", n)
-	}
-}
+// THE HALF-PROPOSAL CLASS IS GONE, not untested. --fix-old and --location were the same span
+// checked by two matchers, so a proposal is now --quote (the span, required anyway) plus --new
+// (the replacement) — there is no half of it left to refuse. What the axis still rests on is
+// below: a --quote naming text that is not in the report is refused, which is what forces red to
+// have read the document before prescribing against it.
 
 // A proposal red could not have written without reading the document is the point of the
 // axis; one quoting text that is not there proves the opposite, and is refused.
@@ -376,7 +362,7 @@ func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium",
-		"--fix-old", "a sentence the report never contained", "--fix-new", "anything")
+		"--quote", "a sentence the report never contained", "--new", "anything")
 	if err == nil {
 		t.Fatal("a proposal against absent text was accepted, so nothing forced red to read the report")
 	}
@@ -393,10 +379,10 @@ const prescribedText = "Five verification approaches agree, all sharing one defi
 func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", key, "--class", "overclaim", "--location", "Five independent verification approaches agree.", "--problem", "the defect",
+		"--key", key, "--class", "overclaim", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--likelihood", "medium", "--impact", "medium",
-		"--fix-old", fixOld, "--fix-new", fixNew)
+		"--quote", fixOld, "--new", fixNew)
 	if err != nil {
 		t.Fatalf("mint with proposal: %v", err)
 	}
@@ -415,7 +401,7 @@ func seedProposalApplied(t *testing.T, runDir string) string {
 	registerBlue(t, runDir)
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--answers", gap,
-		"--old", "Five independent verification approaches agree", "--new", prescribedText,
+		"--quote", "Five independent verification approaches agree", "--new", prescribedText,
 		"--reason", "applying red's proposed text verbatim"); err != nil {
 		t.Fatalf("blue applying red's proposal: %v", err)
 	}
@@ -441,7 +427,7 @@ func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
 	registerBlue(t, runDir)
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--answers", gap,
-		"--old", "Five independent verification approaches agree", "--new", "Five approaches agree, on one shared definition",
+		"--quote", "Five independent verification approaches agree", "--new", "Five approaches agree, on one shared definition",
 		"--reason", "red's wording overstates it; mine is tighter"); err != nil {
 		t.Fatalf("counter-edit: %v", err)
 	}
@@ -459,7 +445,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 
 	before := countType(t, runDir, "mint")
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--key", "G2", "--class", "overclaim", "--location", prescribedText,
+		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium")
 	if err == nil {
@@ -486,7 +472,7 @@ func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
 	prior := seedProposalApplied(t, runDir)
 
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--key", "G2", "--class", "overclaim", "--location", prescribedText,
+		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium",
 		"--supersedes", prior); err != nil {
@@ -500,9 +486,9 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 	seedProposalApplied(t, runDir)
 
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
-		// UNRELATED, but PRESENT. Since 0.63.0 a mint's --location is matched against the report,
+		// UNRELATED, but PRESENT. Since 0.63.0 a mint's --quote is matched against the report,
 		// so "text the guard should not cover" can no longer mean "text that does not exist".
-		"--key", "G2", "--class", "overclaim", "--location", "Sieve costs grow with the bound.",
+		"--key", "G2", "--class", "overclaim", "--quote", "Sieve costs grow with the bound.",
 		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)

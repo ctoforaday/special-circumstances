@@ -64,7 +64,7 @@ func TestTidySeamLeavesContentAlone(t *testing.T) {
 func TestPlanEditRefusesAnAmbiguousSpan(t *testing.T) {
 	const rep = "# H\n\nThe value is stable.\n\nElsewhere, again: The value is stable.\n"
 	if _, err := planEdit(rep, "The value is stable.", "The value is steady."); err == nil {
-		t.Fatal("an --old span matching twice was accepted — it silently edits the first site")
+		t.Fatal("an --quote span matching twice was accepted — it silently edits the first site")
 	} else if !strings.Contains(err.Error(), "MORE THAN ONCE") {
 		t.Errorf("error = %v, want it to name the ambiguity", err)
 	}

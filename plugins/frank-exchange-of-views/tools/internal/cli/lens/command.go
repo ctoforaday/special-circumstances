@@ -17,10 +17,11 @@ const role = "lens"
 // NewCommand assembles the role. Each verb builds itself in its own file.
 func NewCommand() *cobra.Command {
 	return seat.Role(role,
-		"red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.",
+		"red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.",
 		seat.Register("FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
 		newFinding(),
 		newVerify(),
+		newCorroborate(),
 		newReproduce(),
 		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),
 	)

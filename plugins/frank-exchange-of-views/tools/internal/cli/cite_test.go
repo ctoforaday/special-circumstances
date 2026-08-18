@@ -41,7 +41,7 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://sky/1": body}})
 
 	out, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--location", `# Findings: "The sky is blue and the grass is green."`,
+		"--quote", `# Findings: "The sky is blue and the grass is green."`,
 		"--url", "https://sky/1", "--title", "Sky Facts")
 	if err != nil {
 		t.Fatalf("blue cite: %v (out %q)", err, out)
@@ -87,7 +87,7 @@ func TestBlueCiteMisQuoteRejectedNoEffect(t *testing.T) {
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://x": []byte("src")}})
 
 	_, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--location", `"the scheduler is cooperative"`, "--url", "https://x", "--title", "T")
+		"--quote", `"the scheduler is cooperative"`, "--url", "https://x", "--title", "T")
 	if err == nil {
 		t.Fatal("a mis-quoted cite was accepted")
 	}
@@ -106,7 +106,7 @@ func TestBlueCiteInFenceRejected(t *testing.T) {
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://x": []byte("src")}})
 
 	_, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--location", `"code line here"`, "--url", "https://x", "--title", "T")
+		"--quote", `"code line here"`, "--url", "https://x", "--title", "T")
 	if err == nil || !strings.Contains(err.Error(), "fence") {
 		t.Fatalf("citing inside a fence = %v, want a fence rejection", err)
 	}
@@ -119,7 +119,7 @@ func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
 	withFetcher(t, &fakeFetcher{err: errFake})
 
 	_, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--location", `"The claim holds under load."`, "--url", "https://gone", "--title", "T")
+		"--quote", `"The claim holds under load."`, "--url", "https://gone", "--title", "T")
 	if err == nil {
 		t.Fatal("citing an unreachable source was accepted")
 	}
@@ -144,11 +144,11 @@ func TestBlueCiteReusesCacheAcrossTwoCites(t *testing.T) {
 	withFetcher(t, f)
 
 	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--location", `"First claim stands."`, "--url", "https://same", "--title", "T"); err != nil {
+		"--quote", `"First claim stands."`, "--url", "https://same", "--title", "T"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", citeSeat,
-		"--location", `"Second claim stands too."`, "--url", "https://same", "--title", "T"); err != nil {
+		"--quote", `"Second claim stands too."`, "--url", "https://same", "--title", "T"); err != nil {
 		t.Fatal(err)
 	}
 	if f.calls != 1 {
@@ -170,7 +170,7 @@ func TestBlueCiteKeyIsIdempotent(t *testing.T) {
 	withFetcher(t, f)
 
 	args := []string{"blue", "cite", "--run", runDir, "--seat-id", citeSeat, "--key", "C1",
-		"--location", `"The measured latency is bounded."`, "--url", "https://x", "--title", "T"}
+		"--quote", `"The measured latency is bounded."`, "--url", "https://x", "--title", "T"}
 	if _, err := run(t, args...); err != nil {
 		t.Fatal(err)
 	}

@@ -8,10 +8,80 @@ exit 2
 stderr:
 feov-record: required flag(s) "principle", "review-flag", "tension" not set
 
+a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} opinion [flags]
+
+Flags:
+      --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+  -h, --help                 help for opinion
+      --id gap-id            REQUIRED — the gap being ruled on
+      --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
+      --reason string        REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --review-flag string   REQUIRED — why a human should, or should not, look at this
+      --tension string       REQUIRED — the values in tension (e.g. correctness vs economy)
+
+Enumerated values:
+  --as
+    closed                    the repair was verified at the leaf and nothing regressed
+    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
 $ bench opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed --principle p --tension t
 exit 2
 stderr:
 feov-record: required flag(s) "review-flag" not set
+
+a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} opinion [flags]
+
+Flags:
+      --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+  -h, --help                 help for opinion
+      --id gap-id            REQUIRED — the gap being ruled on
+      --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
+      --reason string        REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --review-flag string   REQUIRED — why a human should, or should not, look at this
+      --tension string       REQUIRED — the values in tension (e.g. correctness vs economy)
+
+Enumerated values:
+  --as
+    closed                    the repair was verified at the leaf and nothing regressed
+    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl

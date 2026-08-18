@@ -1,9 +1,6 @@
 package blue
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
@@ -35,102 +32,102 @@ import (
 // direct feedstock for the sleeper service's subject mining. Nothing in the
 // engine preserved them before this verb — they died in a seat's context.
 //
-// TWO FORMS, BECAUSE THE UNIT IS THE CHOICE AND NOT THE ENTRY (#246).
+// TWO FORMS, AND THEY ARE TWO VERBS (#246).
 //
-//	PROPOSE  --line --hypothesis [--status] [--method]   -> the tool assigns A1, A2 …
-//	MOVE     --id A1 --status <new> --reason "<what changed>"
+//	propose  --reason "<the approach>" --hypothesis "<what would be true if it pays off>"
+//	move     --id A1 --as pursued|declined|abandoned|deferred --reason "<what changed>"
 //
-// The move form is the whole point. Measured over 86 line of inquiry events in six runs: ZERO were
-// ever recorded twice and ZERO statuses ever changed, because there was no id and no update
+// The move form is the whole point. Measured over 86 line-of-inquiry events in six runs: ZERO
+// were ever recorded twice and ZERO statuses ever changed, because there was no id and no update
 // path. 83 of 86 landed in round 0 — so "pursued" meant "I intend to", nothing could ever
-// falsify it, and a direction that died mid-run had no way to say so. The rejection rate
-// that came out of that measured only what blue could rule out BEFORE STARTING.
+// falsify it, and a direction that died mid-run had no way to say so.
 //
-// --hypothesis is what makes a later move checkable: a line of inquiry that says what would be true
-// if it paid off can be abandoned against its own claim rather than on a shrug.
+// They were ONE verb, and --id silently chose which contract applied: a proposal needs a
+// hypothesis and defaults its status, a move needs the id, the new status and the reason. Nothing
+// cobra could mark, so both forms ran with every flag optional and the seat learned which was
+// which by being refused. The whole `conditionallyRequired` mechanism in the seat package existed
+// to describe this one verb, and it is gone with the split.
+//
+// --hypothesis is what makes a later move checkable: a line that says what would be true if it
+// paid off can be abandoned against its own claim rather than on a shrug.
 func newInquiry() *cobra.Command {
-	c := seat.Prose(seat.New("line-of-inquiry",
-		`PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			id, line := seat.Str(cmd, flags.ID), seat.Str(cmd, flags.Line)
-			if id != "" && line != "" {
-				return nil, fmt.Errorf("blue line of inquiry: --id MOVES a line of inquiry you already proposed and --line PROPOSES a new one — passing both leaves it ambiguous which you meant. Drop --line to move A%s, or drop --id to propose", "")
-			}
-			p := record.NewPayload()
-			moving := id != ""
-			if moving {
-				// A move must name a real line of inquiry, and must say what changed: a status that
-				// slides with no reason is exactly the unfalsifiable "pursued" this replaces.
-				if err := record.RequireInquiryRef(s.RunDir, id); err != nil {
-					return nil, err
-				}
-				if strings.TrimSpace(seat.Str(cmd, flags.Reason)) == "" {
-					return nil, fmt.Errorf("blue line of inquiry: moving %s requires --reason — what you learned that changed its fate. The choosing is the evidence; a status that moves silently records none of it", id)
-				}
-				p.Set("inquiry_id", id).Set("supersedes_status", "1")
+	c := &cobra.Command{
+		Use:          "line-of-inquiry",
+		Short:        "a direction the report could take, and what became of it — `propose` one, `move` one you already proposed",
+		SilenceUsage: true,
+	}
+	c.AddCommand(newInquiryPropose(), newInquiryMove())
+	return c
+}
 
-				// THE CONTEST MOVED OUT OF HERE, TO `motion direction appeal` (#344), AND A REAL
-				// RUN IS WHY.
-				//
-				// `contests_ruling` was set here as a side effect of moving a line to `pursued`
-				// against an adverse ruling. That coupling is the defect: it can only record
-				// disagreement that WINS. In research/2026-08-10_pre-motion-real-record the merge
-				// ruled a line too-thin, blue argued against that reasoning at the leaf, and then
-				// declined the line anyway — the ordinary outcome of an argument — and the field
-				// recorded nothing. `contests_ruling` appears zero times in the whole record.
-				//
-				// So the number it existed to produce ("how often does blue pursue a line red
-				// ruled out") measured DEFIANCE, not disagreement, and every seat that argued and
-				// yielded fell out of the count silently.
-				//
-				// An appeal is its own event with its own reason, filed against the ruling,
-				// independent of what the line's status does next. The READ side of this field
-				// stays forever — record/inquiry.go and compat.go still recover it from
-				// pre-collapse records, where it is the only legacy spelling of an appeal.
-			} else {
-				if line == "" {
-					return nil, fmt.Errorf("blue line-of-inquiry requires --line (the approach you are proposing) or --id (a line you are moving) — see `blue line-of-inquiry --help`")
-				}
-				fresh, err := record.MintInquiryID(s.RunDir)
-				if err != nil {
-					return nil, err
-				}
-				id = fresh
-				p.Set("inquiry_id", id)
-				seat.SetSame(cmd, p, flags.Line, flags.Method)
-				seat.Set(cmd, p, "hypothesis", flags.Hypothesis)
+func newInquiryPropose() *cobra.Command {
+	c := seat.Prose(seat.Records(seat.New("propose",
+		`put a line of inquiry on the record (the tool assigns its id): --reason "<the approach you are going to try>" --hypothesis "<what would be true if it pays off>" [--method]. `+
+			`It starts as `+"`proposed`"+` — the state that OWES a move; say what became of it with `+"`line-of-inquiry move`"+`.`,
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			id, err := record.MintInquiryID(s.RunDir)
+			if err != nil {
+				return nil, err
 			}
-			// A fresh proposal with no stated fate is `proposed` — the state the old shape
-			// could not express, which forced blue to declare a fate before it had one.
-			status := seat.Str(cmd, flags.Status)
-			if status == "" && !moving {
-				status = "proposed"
-			}
-			p.Set("status", status)
+			p := record.NewPayload().Set("inquiry_id", id)
+			seat.SetSame(cmd, p, flags.Method)
+			seat.Set(cmd, p, "hypothesis", flags.Hypothesis)
+			// The record keeps its own word: the payload key is `line`, the flag is --reason.
+			// Flag words are not payload keys (see internal/flags).
+			p.Set("line", seat.Str(cmd, flags.Reason))
+			// A fresh proposal with no stated fate is `proposed` — the state the old shape could
+			// not express, which forced blue to declare a fate before it had one.
+			p.Set("status", "proposed")
 			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
 			}
 			if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
 				return nil, err
 			}
-			return inquiryResult{ID: id, Status: status, Line: line, Moved: moving}, nil
-		}))
+			return inquiryResult{ID: id, Status: "proposed", Line: p.Str("line")}, nil
+		}), "line-of-inquiry"))
 
-	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "a line of inquiry you already proposed (A1, A2 …) whose fate you are MOVING; omit to propose a new one")
-	c.Flags().String(flags.Line, "", "the question or approach you are proposing — what you are going to try")
+	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
-	// THE VALUES ARE NOT RE-LISTED HERE, and this was the one enumhelp.Flag caller of twelve
-	// that re-listed them. The hand-written line carried FOUR of the five statuses — `deferred`
-	// had been added to InquiryStatuses and never to this string — and glossed the four it did
-	// carry differently from the enum ("put forward, undecided" against "put forward and not yet
-	// resolved — the default, and the state that owes a move"). Two copies of one enum in a
-	// single `--help`, and a seat reading the usage line rather than the Enumerated values block
-	// below it could not learn that `deferred` exists at all.
-	//
-	// enumhelp renders every value with its own meaning from the record, so the usage line's job
-	// is to say what the FIELD is for. That is what the other eleven callers do.
-	enumhelp.Flag(c, flags.Status, record.MustEnum("line-of-inquiry", "status"), "the fate of this line of inquiry — omit on a fresh proposal (it defaults to `proposed`); REQUIRED when moving one with --id. Re-recording `pursued` with what you learned is a reaffirmation and settles the line for this round")
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
+	return c
+}
+
+func newInquiryMove() *cobra.Command {
+	c := seat.Prose(seat.Records(seat.New("move",
+		`say what became of a line you already proposed: --id A1 --as `+record.MustEnum("line-of-inquiry", "status").Spelling()+` --reason "<what you learned that changed its fate>". `+
+			`Re-recording `+"`pursued`"+` with what you learned is a reaffirmation, and settles the line for this round.`,
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			id := seat.Str(cmd, flags.ID)
+			if err := record.RequireInquiryRef(s.RunDir, id); err != nil {
+				return nil, err
+			}
+			p := record.NewPayload().
+				Set("inquiry_id", id).
+				Set("supersedes_status", "1").
+				Set("status", seat.Str(cmd, flags.As))
+			// THE CONTEST IS `motion inquiry appeal` (#344), NOT A FIELD HERE. `contests_ruling`
+			// was set as a side effect of moving a line to `pursued` against an adverse ruling,
+			// and that coupling can only record disagreement that WINS: in one real record the
+			// merge ruled a line too thin, blue argued the reasoning at the leaf and then
+			// declined the line anyway — the ordinary outcome of an argument — and the field
+			// recorded nothing. It appears zero times in the whole record.
+			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+				return nil, err
+			}
+			if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
+				return nil, err
+			}
+			return inquiryResult{ID: id, Status: p.Str("status"), Moved: true}, nil
+		}), "line-of-inquiry"))
+
+	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "the line of inquiry whose fate you are moving (A1, A2 …) — `show lines-of-inquiry` lists every one")
+	_ = c.MarkFlagRequired(flags.ID)
+	// THE VALUES ARE NOT RE-LISTED HERE. The hand-written line this replaced carried FOUR of the
+	// five statuses — `deferred` had been added to InquiryStatuses and never to the string — and
+	// glossed the four it did carry differently from the enum. enumhelp renders every value with
+	// its own meaning from the record, so the usage line's job is to say what the FIELD is for.
+	enumhelp.Flag(c, flags.As, record.MustEnum("line-of-inquiry", "status"), "the fate of this line of inquiry")
 	return c
 }
 

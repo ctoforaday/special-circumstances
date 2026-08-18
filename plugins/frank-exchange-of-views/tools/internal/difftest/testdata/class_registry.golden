@@ -8,32 +8,149 @@ exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --class-new --check-kind document --check x --problem p
+mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} mint [flags]
+
+Flags:
+      --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
+      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --complexity grade         what fixing it costs, on the same scale
+      --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
+      --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
+  -h, --help                     help for mint
+      --impact grade             REQUIRED — how bad the consequence is if it lands
+      --key string               a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
+      --likelihood grade         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
+      --new string               OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
+      --problem string           REQUIRED — what is wrong (or pass it via --reason)
+      --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
+      --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
+
+Enumerated values:
+  --check-kind
+    document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
+    computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind
+    source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --class-new --definition a closure re-attested as fresh --neighbor not-a-real-neighbor --distinguisher was the act repeated? --check-kind document --check x --problem p
+mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} mint [flags]
+
+Flags:
+      --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
+      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --complexity grade         what fixing it costs, on the same scale
+      --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
+      --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
+  -h, --help                     help for mint
+      --impact grade             REQUIRED — how bad the consequence is if it lands
+      --key string               a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
+      --likelihood grade         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
+      --new string               OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
+      --problem string           REQUIRED — what is wrong (or pass it via --reason)
+      --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
+      --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
+
+Enumerated values:
+  --check-kind
+    document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
+    computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind
+    source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --class-new --definition a closure re-attested as fresh --neighbor citation-drift --distinguisher was the act repeated? --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
-exit 0
-stdout:
-minted R1-1
+mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} mint [flags]
+
+Flags:
+      --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
+      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --complexity grade         what fixing it costs, on the same scale
+      --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
+      --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
+  -h, --help                     help for mint
+      --impact grade             REQUIRED — how bad the consequence is if it lands
+      --key string               a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
+      --likelihood grade         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
+      --new string               OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
+      --problem string           REQUIRED — what is wrong (or pass it via --reason)
+      --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
+      --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
+
+Enumerated values:
+  --check-kind
+    document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
+    computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind
+    source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
+exit 2
+stderr:
+feov-record: merge: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check same class again --severity low --likelihood low --impact low --problem extension accepted
-exit 0
-stdout:
-minted R1-2
+exit 2
+stderr:
+feov-record: merge: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
 {"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"compare anchors","check_kind":"document","class":"attestation-inflation","class_new":true,"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"medium","neighbor":"citation-drift","problem":"inflation","severity":"medium","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
-{"key":"red-merge-r1:class-new:#1","nonce":"NONCE001","payload":{"definition":"a closure re-attested as fresh","distinguisher":"was the act repeated?","neighbor":"citation-drift","slug":"attestation-inflation"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"class-new"}
-{"key":"red-merge-r1:mint:R1-2","nonce":"NONCE001","payload":{"acceptance_check":"same class again","check_kind":"document","class":"attestation-inflation","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-2","impact":"low","likelihood":"low","problem":"extension accepted","severity":"low","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"mint"}
 
 ═══ RENDERS ═══
 -- debate
@@ -54,10 +171,7 @@ indistinguishable from one that never looked._
 
 ## Read this first
 
-2 open gap(s) remain, most severe first — full statements in **Red team findings** below.
-
-1. **[medium]** inflation (R1-1) — 
-2. **[low]** extension accepted (R1-2) — 
+_(no open gaps remain — nothing outstanding to re-examine)_
 
 ## TL;DR
 
@@ -79,8 +193,7 @@ _(blue/report.md has no "## Analysis" section — not authored here; blue owns t
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| inflation | medium | high | — | — |
-| extension accepted | low | low | — | — |
+| _(no open gaps)_ |  |  |  |  |
 
 The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
 
@@ -112,21 +225,9 @@ A claim sits under S4.
 
 ## Red team findings (in full)
 
-### Open gaps (2)
+### Open gaps (0)
 
-### R1-1 — inflation
-
-severity medium | medium x high | cx — | class attestation-inflation
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: compare anchors
-
-### R1-2 — extension accepted
-
-severity low | low x low | cx — | class attestation-inflation
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: same class again
+_(none open)_
 
 ### Closure index (0)
 

@@ -1,4 +1,4 @@
-prompt sha256: 21f2996358c0c443fc52bcd23a9a31d3bce142ea3d6891e672f7cf1a28e9de0f
+prompt sha256: 62fb80b4af8a09162b33716265f675ad62cd416e50100a0a9269d020564ee385
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -10,7 +10,7 @@ This verb exists because a bench once had exactly such a finding, found that `op
 A certification is NOT a verdict and does not change one: a VERIFIED run can carry it.
 You keep no memory between runs, so this statement is the only continuity you have, and it was named in no prompt until 2026-08-13 — the capability existed and nobody was told; (2) "/opt/feov/bin/feov-record" bench assemble --run research/2026-01-01_golden.
 The assembler composes research/2026-01-01_golden/report.md FROM THE EVENT LOG (the verdict stamp from the outcome event you just wrote, the graded risk matrix, the expansions and alternatives-considered from the line of inquiry record, red's findings in full, and the entire debate transcript — positions, closings, grade disputes, the bench's opinions and petition rulings, the terminal halt/certification) and LIFTS blue's audited sections VERBATIM from blue/report.md (the title, the TL;DR, the Catechism, the technical foundations, the analysis, the open questions).
-A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR, which the seat used to write AFTER red's final audit so nothing ever checked it, is now blue's inside the audited report.
+A tool cannot mis-author a synthesis surface — the run-5 catechism defect (6/7 answers regressed when assembly authored the catechism) is structurally impossible, and the TL;DR is blue's, inside the audited report, rather than a synthesis surface written after red's final audit where nothing checks it.
 There are NO <FILL> fields and NO sections for you to write; do not hand-write report.md and do not copy anything yourself.
 Verify research/2026-01-01_golden/report.md exists and read its top — the verdict stamp is the outcome event's, the sections are blue's and the record's.
 AUTHORITATIVE OPEN COUNT: after assembling, run "/opt/feov/bin/feov-record" bench show board --run research/2026-01-01_golden and report its counts.open as open_gaps in your envelope — this is the run's true outstanding-gap number (the board after every closure and ruling), and it is the ONLY correct source for it.

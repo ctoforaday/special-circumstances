@@ -42,7 +42,8 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
 | `lens finding` | a defect in the report, anchored to a location | — | CLEAN — the canonical lens surface |
-| `lens verify` | you checked a citation against its source, or corroborated a claim from a source you found | envelope `corroboration[]` re-typed claim/reference/confidence | EXECUTED (#326/#382): the envelope carries no corroboration array, and blue reads what red found from `show evidence`. The verb now carries BOTH axes — `--as` what the source did (with its negative half: `refutes`, `absent`) and `--confidence` how sure you are of that — plus `--anchor` naming which citation, or `--independent` for a source blue never cited |
+| `lens corroborate` | a source YOU found backing a claim blue made — one blue never cited | ~~`verify --independent`~~ | EXECUTED: there is no anchor to name, so the source is named the way every source here is, by `--url` and `--title`, and both are required because nothing else identifies what red read |
+| `lens verify` | you checked a citation BLUE authored against its source | envelope `corroboration[]` re-typed claim/reference/confidence | EXECUTED (#326/#382): the envelope carries no corroboration array, and blue reads what red found from `show evidence`. The verb carries BOTH axes — `--as` what the source did (with its negative half: `refutes`, `absent`) and `--confidence` how sure you are of that — and `--anchor` naming which citation is REQUIRED, because a source blue never cited is `corroborate`'s |
 | `lens reproduce` | a proof anchor in the report you can re-run and read | — | CLEAN. Two acts under one verb ON PURPOSE, and both are recorded: the tool COMPUTES whether it reproduced, and `--as sound\|unsound` is red's judgement from reading the script. A seat that perceives only the mechanical half correctly calls it theatre — measured, in exactly those words — which is why the reading is required rather than optional |
 | ~~`lens observe`~~ | RETIRED (#327) — a below-bar note | — | EXECUTED: the above/below-bar line is one judgement the lens makes on everything it notices, and `finding` plus a grade expresses it |
 | ~~`lens cite`~~ | RENAMED to `verify` (#341) | — | EXECUTED. It shared the `cite` event type with blue's authoring act, told apart by the ABSENCE of a label, so a blue cite written without one counted as red's audit volume |
@@ -58,6 +59,8 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `merge spot-check` | the round archive spot-check duty | the envelope array is deleted | RESOLVED (#317): the verb is the single channel and its floor is computed from the board |
 | `merge position` | the round's RED narrative | a hand-written `### RED` section in debate.md | EXECUTED: the transcript is rendered from `position` events |
 | `merge closing` | a closing argument on a docketed item | — | CLEAN |
+| `merge class new` | coining a gap class the registry does not have | ~~`mint --class-new`~~ | EXECUTED: it was four flags on `mint` (a boolean whose whole meaning was "I also passed three other flags") writing a second event that had nothing to do with putting a gap on the board |
+| `merge carry` | restating a closure an earlier round already made | ~~`close --carried-from`~~ | EXECUTED: a carry needs no verification triple, is exempt from `--reason` and from the open-gap check, and must name a real prior closure — four branches in `validate` keyed off one flag, so one verb could require nothing |
 | `merge verdict` | the terminal PASS/FAIL act | — | CLEAN. Refused while a gap is open or a motion is unruled — the gate is enforced at the tool, not trusted to the seat |
 | ~~`merge dispute-respond`~~ | COLLAPSED into `motion grade rule` (#344) | — | EXECUTED |
 
@@ -68,7 +71,8 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `blue edit` | any change to `blue/report.md` after round 0 | a raw Write/Edit to the file | EXECUTED — the lockdown: report.md is read-only to a response seat and the tool refuses an edit that drops, duplicates or invents an anchor |
 | `blue cite` | a source backing a claim you are authoring | a hand-typed `[^1]` footnote | EXECUTED: the tool fetches, caches, hashes and splices the invisible anchor; assembly weaves the bibliography. Blue never types a footnote |
 | `blue prove` | a claim a program settles, and the gaps whose `check_kind` is `computation` | prose asserting the computation happened | EXECUTED (#277): a computation gap CANNOT be closed on prose, and the tool runs the script twice and records which of reproducible/observed it produced |
-| `blue line-of-inquiry` | a line of inquiry proposed, pursued, declined, abandoned or deferred | — | CLEAN |
+| `blue line-of-inquiry propose` | a direction you are putting on the record, with what would be true if it paid off | — | CLEAN |
+| `blue line-of-inquiry move` | what became of a line you already proposed — pursued, declined, abandoned or deferred | — | CLEAN. Split from `propose` because the two contracts differ: a proposal has no id and defaults its fate, a move requires the id, the new fate and what changed |
 | `blue retire` | a claim leaving the report | a claim quietly not being there any more | EXECUTED (#226): capture compares the claim-count fall against the retire events, and an unaccounted drop is a detector hit |
 | `blue revision` | the round record: what changed this round | ~~hand-written `blue/CHANGELOG.md`~~ | EXECUTED (#251): the file is gone from `setup`, from every prompt and from both blue constitutions. The event was always the canonical half — capture counted it, the report renders it as the revision history — while the prompts demanded the file, so the audit read the channel nobody was told to write |
 | `blue manifest-row` | the self-audit receipt for a repaired gap | envelope `manifest[]` array | RESOLVED (#318): the verb is the single source, the row is on the record, and a closed gap with no row is named in the report as a repair nobody audited |
@@ -145,7 +149,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
    And it was the last unanchored SELF-REPORT in a system that anchors everything else: a closure
    names who checked what with which tool, a proof is re-run, a citation is re-fetched. `existence:
    verified` was red's word about red's own diligence. The incident behind it — three gaps minted
-   `verified` at report sections that did not exist — is better explained by `mint --location`
+   `verified` at report sections that did not exist — is better explained by `mint --quote`
    having been unmatched, which 0.63.0 fixed.
 
    Kept here rather than deleted, like the `certify` reversal above: a decision that shipped, did

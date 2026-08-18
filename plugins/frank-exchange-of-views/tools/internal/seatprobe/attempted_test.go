@@ -32,7 +32,7 @@ func TestAttemptedSeesWhatTheRecordCannot(t *testing.T) {
 		`ls -la /run`,
 		`"C:/tools/fxr.exe" blue show --run /run --view board`,
 		`"C:/tools/fxr.exe" blue show --run /run --view findings`,
-		`"C:/tools/fxr.exe" blue edit --old "x" --new "y" --reason "z"`,
+		`"C:/tools/fxr.exe" blue edit --quote "x" --new "y" --reason "z"`,
 		`grep -r show /run`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "blue")

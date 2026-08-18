@@ -51,7 +51,7 @@ func NewCommand() *cobra.Command {
 		[]string{flags.ID, flags.Dimension, flags.Proposed}, "merge"))
 	c.AddCommand(subject("petition",
 		"an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues",
-		[]string{flags.PetitionClass, flags.Relief}, "bench"))
+		[]string{flags.Class, flags.Relief}, "bench"))
 	c.AddCommand(subject("inquiry",
 		"rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`blue line of inquiry`)",
 		nil, "merge"))

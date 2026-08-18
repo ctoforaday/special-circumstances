@@ -198,6 +198,7 @@ The remaining cases are out of scope.
 			{Seat: "blue-respond-r1", Verb: "manifest-row", Because: "The manifest is the receipt for a repair, one row per repaired gap, and the report NAMES a closed gap with no row as a repair nobody audited including its author."},
 			{Seat: "blue-respond-r1", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond-r1", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},
+			{Seat: "blue-respond-r1", Verb: "line-of-inquiry propose", Because: "Answering the computation gaps opens a direction this report has not taken — whether the discrepancy is arithmetic or a measurement error is a question with a hypothesis, and a line may be proposed AT ANY POINT in the run, not only at the start. Measured over six runs: 83 of 86 lines were declared in round 0 and not one was revisited, so a direction that occurs mid-repair is exactly the one the record has never held."},
 		},
 	}
 }
@@ -343,7 +344,7 @@ Reversibility under load was not tested.
 		Expect: []Expectation{
 			{Seat: "blue-respond-r1", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
 			{Seat: "blue-respond-r1", Verb: "motion grade appeal", Because: "The grade is contestable and, once refused, the appeal is the ONE accounted way to press it. `contests_ruling` used to record only disagreement that won; the appeal records the argument whether or not it prevails."},
-			{Seat: "blue-respond-r1", Verb: "line-of-inquiry", Because: "Two lines are ruled and neither has a fate. Every line of inquiry at proposed or pursued owes a move each round, and a line declared once and never revisited records an intention rather than a choice."},
+			{Seat: "blue-respond-r1", Verb: "line-of-inquiry move", Because: "Two lines are ruled and neither has a fate. Every line of inquiry at proposed or pursued owes a MOVE each round — a line declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 lines land in round 0 and never change."},
 			{Seat: "blue-respond-r1", Verb: "motion inquiry appeal", Because: "One line was ruled too-thin. If blue still believes in it, the appeal is where that argument lives — and it is filed whether or not blue also pursues the line, which is the whole point of separating it from the status move."},
 			{Seat: "blue-respond-r1", Verb: "position", Because: "The round's narrative renders as the report's BLUE section from the record. A round with no position leaves the transcript with a hole where blue's account should be."},
 		},
@@ -418,7 +419,9 @@ Figures were read from the deployed configuration.
 		Expect: []Expectation{
 			{Seat: "red-merge-r1", Verb: "mint", Because: "The control: red's core act, and a board where minting is never right would not be an audit."},
 			{Seat: "red-merge-r1", Verb: "near-match", Because: "Before minting, the candidate is screened against the board. A duplicate minted as fresh forks a gap's lineage, and the screen is cheaper than the reconciliation."},
-			{Seat: "red-merge-r1", Verb: "close", Because: "The ordinary disposal, with its verification anchor. A closure whose anchor is not recoverable is exactly the attestation-format defect the scorecard measures."},
+			{Seat: "red-merge-r1", Verb: "class new", Because: "The contradiction is between a stated UNIVERSAL and the per-class figures under it, and no slug in the registry names that kind. Minting under the nearest slug that is not it makes the class a bucket rather than a discriminator — the registry is what a later run reads to know what has gone wrong before, so a coined class with its definition, neighbour and tie-break question is worth more than a comfortable near-match."},
+			{Seat: "red-merge-r1", Verb: "close", Because: "The ordinary disposal, with its verification triple. A closure whose evidence is not recoverable is exactly the attestation-format defect the scorecard measures."},
+			{Seat: "red-merge-r1", Verb: "carry", Because: "The archive already holds a closure of the settled gap. Re-attesting it as a FRESH close double-counts closure history and corrupts the repair_regression denominator; a carry restates the earlier act and says so. The seat that cannot produce a verification triple for work it did not do this round has exactly one honest move, and it is this one."},
 			{Seat: "red-merge-r1", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
 			{Seat: "red-merge-r1", Verb: "position", Because: "The round's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
 			{Seat: "red-merge-r1", Verb: "friction", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A merge that notices and says nothing leaves the gap in the tooling invisible."},
@@ -514,16 +517,19 @@ The benchmark measures end-to-end latency.
 The improvement is 40% against the prior release.
 
 The methodology follows the standard published by the working group.
+
+The working group's standard has been withdrawn since the benchmark was run.
 `,
 		Claims: []string{"The improvement is 40% against the prior release."},
 		Proofs: []Proof{{
 			Location: "The improvement is 40% against the prior release.",
 			Script:   "print('improvement: 40%')",
 		}},
-		Task: "This is your audit pass. Surface what is wrong at the leaf, and check the evidence behind what the report claims. It rests on a cited claim and on a recorded computation; whether either establishes what it is attached to is your question, not blue's.",
+		Task: "This is your audit pass. Surface what is wrong at the leaf, and check the evidence behind what the report claims. It rests on a cited claim, on a recorded computation, and on one claim about an external standard that carries no citation at all; whether any of them establishes what it is attached to is your question, not blue's.",
 		Expect: []Expectation{
 			{Seat: "red-lens-r1-L1", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
-			{Seat: "red-lens-r1-L1", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the trust grade is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty."},
+			{Seat: "red-lens-r1-L1", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty."},
+			{Seat: "red-lens-r1-L1", Verb: "corroborate", Because: "The methodology claim rests on a standard BLUE NEVER CITED, so there is no anchor to verify against — and `verify` requires one. The source red goes and finds is its own act with its own verb, and the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
 			{Seat: "red-lens-r1-L1", Verb: "reproduce", Because: "A proof is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
 			{Seat: "red-lens-r1-L1", Verb: "motion petition file", Because: "A lens that believes proceeding would require asserting what it thinks false has one channel, and it is not prose. Every seat may file; the bench rules."},
 			{Seat: "red-lens-r1-L1", Verb: "friction", Because: "The report cites a claim whose source is behind a paywall this seat cannot reach. There is no verb for `I could not read it`, so the accounted move is to say so on the friction channel — and a lens that instead grades the citation on the abstract has produced a verification that never happened."},

@@ -24,7 +24,7 @@ func newMint() *cobra.Command {
 	var supersedes, foundBy flags.CSV
 
 	c := seat.Prose(seat.New("mint",
-		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug>|--class-new <slug> --definition --neighbor --distinguisher, --location "..." --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--cx <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
+		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// Crash-retry idempotency: --key (the stable local label, e.g. the source
 			// lens finding) makes a retried mint return the EXISTING id.
@@ -76,18 +76,15 @@ func newMint() *cobra.Command {
 				p.Set("mint_reason", text)
 			}
 			seat.Set(cmd, p, "mint_key", flags.Key)
-			// ONE VALUE, ONE SELECTOR. --class carries the slug whether the class already
-			// exists or this mint is coining it; --class-new says which. It was two string
-			// flags carrying the SAME value and differing only in a boolean property, so
-			// `class` needed an alternates entry to be marked required at all — and the wire
-			// format never agreed with that shape: Mint.class_new is a bool in the schema
-			// these events are written against.
+			// COINING A CLASS IS `merge class new`, a verb of its own. This one names a slug
+			// the registry already has; class_new records whether THIS run coined it, which
+			// the registry knows and a seat no longer has to assert.
 			seat.Set(cmd, p, "class", flags.Class)
-			p.Set("class_new", seat.Given(cmd, flags.ClassNew))
+			p.Set("class_new", record.ClassCoinedInRun(s.RunDir, seat.Str(cmd, flags.Class)))
 
 			// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
 			//
-			// `lens finding --location` is REFUSED on a mis-quote — the anchor cannot be spliced
+			// `lens finding --quote` is REFUSED on a mis-quote — the anchor cannot be spliced
 			// where the text is not. Mint's took prose, on the reasoning that a gap's location is
 			// "recorded for a reader". Measured (#359): three gaps were minted naming report
 			// sections that do not exist, two of them `--existence verified`. A seat asserted it
@@ -101,16 +98,16 @@ func newMint() *cobra.Command {
 			// about an omission already does. The refusal says so, because a seat that reads
 			// "not found in report.md" and has an omission on its hands would otherwise conclude
 			// the verb cannot express what it is holding.
-			if loc := seat.Str(cmd, flags.Location); strings.TrimSpace(loc) != "" {
+			if loc := seat.Str(cmd, flags.Quote); strings.TrimSpace(loc) != "" {
 				report, err := record.ReadBlueReport(s.RunDir)
 				if err != nil {
 					return nil, err
 				}
-				if _, _, lerr := bluedoc.LocateUnique("merge mint --location", string(report), loc); lerr != nil {
+				if _, _, lerr := bluedoc.LocateUnique("merge mint --quote", string(report), loc); lerr != nil {
 					return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission", lerr)
 				}
 			}
-			seat.SetSame(cmd, p, flags.Definition, flags.Neighbor, flags.Distinguisher, flags.Location)
+			seat.Set(cmd, p, "location", flags.Quote)
 			p.Set("problem", problem)
 			seat.Set(cmd, p, "required_fix", flags.Fix)
 			// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
@@ -127,19 +124,14 @@ func newMint() *cobra.Command {
 			// one, and the field becomes decoration — the same reason the finding label and the
 			// gap id are tool-assigned rather than claimed.
 			basis := "proposed"
-			if seat.Given(cmd, flags.FixOld) || seat.Given(cmd, flags.FixNew) {
-				fixOld, fixNew := seat.Str(cmd, flags.FixOld), seat.Str(cmd, flags.FixNew)
-				if fixOld == "" || fixNew == "" {
-					return nil, fmt.Errorf("merge mint: a concrete proposal needs BOTH --fix-old (the exact span you say is wrong) and --fix-new (the exact text it should become) — one alone is half a proposal blue cannot apply")
-				}
+			if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
 				report, err := record.ReadBlueReport(s.RunDir)
 				if err != nil {
 					return nil, err
 				}
-				if err := bluedoc.ValidateProposal("merge mint", string(report), fixOld, fixNew); err != nil {
+				if err := bluedoc.ValidateProposal("merge mint", string(report), seat.Str(cmd, flags.Quote), fixNew); err != nil {
 					return nil, err
 				}
-				p.Set("fix_old", fixOld)
 				p.Set("fix_new", fixNew)
 				basis = "verified"
 			}
@@ -171,7 +163,7 @@ func newMint() *cobra.Command {
 			// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
 			// rejection — the tool records the block, never the seat's memory of it.
 			if board, berr := record.BoardState(s.RunDir); berr == nil {
-				if prior, prescribed := record.EstoppelConflict(board, seat.Str(cmd, flags.Location)); prior != "" &&
+				if prior, prescribed := record.EstoppelConflict(board, seat.Str(cmd, flags.Quote)); prior != "" &&
 					!contains(supersedes.Value(), prior) {
 					msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
 						prior, prior, prior, prescribed)
@@ -197,33 +189,21 @@ func newMint() *cobra.Command {
 			if _, err := record.Append(s.Identity(), "mint", p); err != nil {
 				return nil, err
 			}
-			if seat.Given(cmd, flags.ClassNew) {
-				cn := record.NewPayload().Set("slug", seat.Str(cmd, flags.Class))
-				seat.SetSame(cmd, cn, flags.Definition, flags.Neighbor, flags.Distinguisher)
-				if _, err := record.Append(s.Identity(), "class-new", cn); err != nil {
-					return nil, err
-				}
-			}
 			return mintResult{GapID: gapID}, nil
 		}))
 
-	c.Flags().String(flags.Key, "", "a stable local label (e.g. the source lens finding) making a retried mint idempotent")
-	c.Flags().String(flags.Class, "", "the gap's class slug — what KIND of defect this is. A registry slug, or one you are coining with --class-new")
-	c.Flags().Bool(flags.ClassNew, false, "the slug in --class is NEW and this mint coins it; requires --definition, --neighbor and --distinguisher")
-	c.Flags().String(flags.Definition, "", "what the new class is, in one line")
-	c.Flags().String(flags.Neighbor, "", "the existing class this one sits closest to")
-	c.Flags().String(flags.Distinguisher, "", "the tie-break question that tells the two apart")
-	c.Flags().String(flags.Location, "", "REQUIRED-IF-GIVEN — the EXACT sentence the defect lives at, quoted from blue/report.md and nothing else (matched, and refused if not found — for an omission, quote the sentence where it SHOULD be). Was prose until 0.63.0, when three gaps turned out to name sections that did not exist. against the report — it is recorded for a reader, so prose is fine here")
+	c.Flags().String(flags.Key, "", flags.DescKey)
+	c.Flags().String(flags.Class, "", "the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with `merge class new`")
+	c.Flags().String(flags.Quote, "", flags.DescQuote+". For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
-	c.Flags().String(flags.FixOld, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact current span you say is wrong (must be present and unique in blue/report.md — a proposal you cannot state legally is one blue cannot apply). Requires --fix-new")
-	c.Flags().String(flags.FixNew, "", "the exact text that span should become. Bounded: a replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Together these two derive fix_basis: verified")
+	c.Flags().String(flags.New, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified")
 	c.Flags().String(flags.Check, "", "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description")
 	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check — read a document, RUN a computation, or verify a source. A `computation` check cannot be closed by prose: it closes only when a proof answers this gap"))
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
-	c.Flags().Var(&cx, flags.Complexity, "complexity_cost — what fixing it costs, on the same scale")
+	c.Flags().Var(&cx, flags.Complexity, "what fixing it costs, on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
 	return c

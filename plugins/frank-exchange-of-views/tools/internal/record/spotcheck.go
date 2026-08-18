@@ -38,7 +38,10 @@ type SpotCheck struct {
 	SeatID string
 	// Sampled are the archived closures the merge says it re-verified.
 	Sampled []string
-	Notes   string
+	// Prose is what the sample found, or why there was nothing to sample. ONE channel: it was
+	// `notes` and `reason`, two payload keys filled by different branches of one verb, so the
+	// report rendered whichever the seat happened to reach for and dropped the other.
+	Prose string
 	// None is a claim that there was nothing to sample.
 	None       bool
 	NoneReason string
@@ -105,7 +108,7 @@ func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		discharged[e.Round] = true
 		sc := SpotCheck{
 			Round: e.Round, SeatID: e.SeatID,
-			Sampled: e.Payload.StrList("ids"), Notes: e.Payload.Str("notes"),
+			Sampled: e.Payload.StrList("ids"), Prose: e.Payload.Str("reason"),
 			Archived: archivedBefore(e.Round),
 		}
 		if v, ok := e.Payload.Get("none"); ok {
@@ -141,8 +144,8 @@ func (s SpotCheck) Describe() string {
 	default:
 		line := fmt.Sprintf("r%d (%s): re-verified %s of %d archived closure(s)",
 			s.Round, s.SeatID, strings.Join(s.Sampled, ", "), s.Archived)
-		if s.Notes != "" {
-			line += " — " + s.Notes
+		if s.Prose != "" {
+			line += " — " + s.Prose
 		}
 		return line
 	}

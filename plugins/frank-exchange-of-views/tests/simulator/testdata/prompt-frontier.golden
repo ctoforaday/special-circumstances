@@ -1,7 +1,7 @@
-prompt sha256: e941f3dadf2c29fc7cbbd91e11b1358dd086665926ab16052fe3a874e0798478
+prompt sha256: 159d28066310e2aaf57d0c8cb85373fd0eb3dfe46b840f1cf9efefe44226c39d
 
 Research debate opening for topic: "the seat prompt contract".
-Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY with "/opt/feov/bin/feov-record" blue line-of-inquiry --run research/2026-01-01_golden --seat-id <your SEAT_ID> --line "<the approach or question you would follow>" --hypothesis "<what would be true if it pays off>" --status proposed.
+Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY with "/opt/feov/bin/feov-record" blue line-of-inquiry propose --run research/2026-01-01_golden --seat-id <your SEAT_ID> --reason "<the approach or question you would follow>" --hypothesis "<what would be true if it pays off>".
 ONE line of inquiry per hypothesis, and the tool assigns each an id (Q1, Q2 …).
 THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too-thin or out-of-scope, and cannot hold you to when the run drifts.
 On the record it has an id, a fate, and an argument.

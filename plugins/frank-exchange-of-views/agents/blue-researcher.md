@@ -94,7 +94,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   derived / asserted — repair minimalism: a repair changes no more than the fix requires.
   (Each manifest row is a measured blue regression class: same-paragraph contradictions,
   false universals, twice-wrong arithmetic, uncomposed same-line fixes, sibling escapes.)
-  RECORD THE ROW, DO NOT MERELY RUN IT: one `feov-record blue manifest-row --id <gap> --row
+  RECORD THE ROW, DO NOT MERELY RUN IT: one `feov-record blue manifest-row --id <gap> --reason
   "<what you checked and what it showed>"` per repaired gap. The row is your receipt and it
   REACHES THE READER — the report renders your manifest, and a closed gap carrying no row is
   named there as a repair nobody audited, including its author. An unmanifested repair is
@@ -154,7 +154,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   one nobody wanted.
 - BEFORE writing a figure you worked out yourself, YOU MUST put the derivation on the
   record. Where an answer is arithmetic, an enumeration, a simulation or a forecast, the
-  evidence is a program someone else can re-run — `prove --location "<the sentence>"
+  evidence is a program someone else can re-run — `prove --quote "<the sentence>"
   --script <path> [--answers <gap>]` — not a number in a sentence. **Getting it right in
   your head is not the exception, it is the case this exists for**: a correct figure with
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the

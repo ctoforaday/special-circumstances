@@ -340,7 +340,11 @@ func deriveKey(seatID, typ string, p *Payload, shardEvents []Event) string {
 	if singleton[typ] {
 		return seatID + ":" + typ
 	}
-	for _, k := range []string{"gap_id", "label", "id", "observation", "reference"} {
+	// THE LIST IS THE IDEMPOTENCY CONTRACT, and it goes stale silently: a key that no writer
+	// stores any more simply never matches, and the ordinal fallback then records a second event
+	// where the first should have been updated in place. `reference` was here after the verify
+	// verbs stopped writing it, so re-verifying one source counted as two.
+	for _, k := range []string{"gap_id", "label", "id", "observation", "anchor", "url"} {
 		if v := p.Str(k); v != "" {
 			return seatID + ":" + typ + ":" + v
 		}
@@ -551,12 +555,14 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if !p.Has("location") || p.Str("location") == "" {
 			return fmt.Errorf("record: anchor requires location (the section + quoted sentence the marker sits at)")
 		}
+	case "class-new":
+		return validateClassNew(runDir, p)
 	case "mint":
 		if !p.Has("acceptance_check") || p.Str("acceptance_check") == "" {
 			return fmt.Errorf("record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)")
 		}
 		if !p.Has("class") || p.Str("class") == "" {
-			return fmt.Errorf("record: mint requires --class (the slug — a registry one, or one you are coining with --class-new)")
+			return fmt.Errorf("record: mint requires --class (the slug — one the registry has, or one you coined first with `merge class new`)")
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
@@ -664,7 +670,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		}
 		anchored := p.Str("anchor_seat") != "" && p.Str("anchor_tool") != "" && p.Str("anchor_target") != ""
 		if !anchored && !p.Has("carried_from") {
-			return fmt.Errorf("record: close requires the attestation anchor (--anchor-seat --anchor-tool --anchor-target) or --carried-from <round> — an unanchored closure is unauditable (E0.5a)")
+			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). To restate a closure an earlier round already made, use `merge carry --carried-from <round>` instead")
 		}
 		// --carried-from IS A LINEAGE CLAIM, so it is checked like one.
 		//
@@ -688,15 +694,15 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("record: close --carried-from claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so an unanchored first closure must instead carry --anchor-seat/--anchor-tool/--anchor-target", p.Str("gap_id"))
+				return fmt.Errorf("record: carry claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against", p.Str("gap_id"))
 			}
 		}
-		if err := requireGap(runDir, p.Str("successor"), "close", "--successor"); err != nil {
+		if err := requireGap(runDir, p.Str("successor"), "close", "--superseded-by"); err != nil {
 			return err
 		}
 		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
 		// is a dead end wearing a forwarding address.
-		if err := requireOpenGap(runDir, p.Str("successor"), "close", "--successor",
+		if err := requireOpenGap(runDir, p.Str("successor"), "close", "--superseded-by",
 			"the unresolved remainder cannot be carried into a gap that is already finished"); err != nil {
 			return err
 		}
@@ -706,12 +712,12 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// is separately checked against a real prior closure below.
 		if !p.Has("carried_from") {
 			if err := requireOpenGap(runDir, p.Str("gap_id"), "close", "--id",
-				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use --carried-from <round> to RESTATE an earlier closure"); err != nil {
+				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `merge carry --carried-from <round>` to RESTATE an earlier closure"); err != nil {
 				return err
 			}
 		}
 		if p.Str("closure_class") == "closed_with_regression" && !p.Has("successor") {
-			return fmt.Errorf("record: closed_with_regression requires --successor (lineage never drops)")
+			return fmt.Errorf("record: closed_with_regression requires --superseded-by (lineage never drops)")
 		}
 		// THE NEAR MISS, refused as the typo it is.
 		//
@@ -721,13 +727,13 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// never drops". Only spellings that differ in case or separator are caught: that
 		// is the whole typo class, and it cannot refuse a class somebody meant.
 		if cc := p.Str("closure_class"); cc != "closed_with_regression" && sameWord(cc, "closed_with_regression") {
-			return fmt.Errorf("record: %s is not a closure class — did you mean `closed_with_regression`? It is matched exactly, and it is the one class that requires --successor, so a near-miss spelling would have closed the gap with its remainder dropped", jsonish(cc))
+			return fmt.Errorf("record: %s is not a closure class — did you mean `closed_with_regression`? It is matched exactly, and it is the one class that requires --superseded-by, so a near-miss spelling would have closed the gap with its remainder dropped", jsonish(cc))
 		}
-		// A closure is a claim, and the claim's substance is its argument: what was
-		// verified and why it holds. Checked after the anchor so the more specific
-		// refusal (an unauditable closure) leads when both are absent, and EXEMPT for a
-		// carry — a --carried-from close restates an earlier closure that already stated
-		// its reason, so demanding a fresh one would be asking the same argument twice.
+		// A closure is a claim, and the claim's substance is its argument: what was verified and
+		// why it holds. Checked after the verification triple so the more specific refusal (an
+		// unauditable closure) leads when both are absent, and EXEMPT for a carry — a carry
+		// restates an earlier closure that already stated its reason, so demanding a fresh one
+		// would be asking the same argument twice.
 		if !p.Has("carried_from") && (!p.Has("reason") || p.Str("reason") == "") {
 			return fmt.Errorf("record: close requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
 		}
