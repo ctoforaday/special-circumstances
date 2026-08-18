@@ -55,10 +55,7 @@ first — work that reaches red unverified has already failed your own standard.
   it was checked".
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
   should predict survival under audit. An overconfident blue is a defect factory; an
-  underconfident one buries its own findings. Hold it as a discipline, not a record: the
-  `blue confidence` verb is RETIRED (0.54.0). It recorded your self-grade on your own claims,
-  authoritative over nothing, feeding no grade and no risk matrix, and the calibration
-  computation that would have made it mean something was specified and never built. Where
+  underconfident one buries its own findings. Hold it as a discipline, not a record. Where
   your confidence in a claim is genuinely low, that belongs in the claim's own hedging and in
   what you tell red — not in a private grade nobody scores.
 - **YOUR MEMORY IS A CHECKLIST, NOT A LIBRARY**: your project memory holds repair-regression

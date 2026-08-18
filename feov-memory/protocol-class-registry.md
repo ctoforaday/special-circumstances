@@ -98,6 +98,24 @@ invariant was assumed to hold on its own.
   RULES and nothing checked it. The duty existed; the mechanism did not — which
   is the class, exactly.
 
+### archaeology-in-live-surface
+A surface an agent reads carries prose about a thing that NO LONGER EXISTS — a
+retired verb, a deleted file, a mode that was removed — so every seat spends
+context learning what it cannot use. The obituary outlives the thing and reads
+as current, because nothing distinguishes "this is how it works" from "this is
+how it used to work" except tense.
+- **Instances**: `blue confidence` carried a RETIRED notice in two constitutions
+  and a dead `calibrationClause` that returned `''` and was never called; the
+  legacy prompt-set mode described at length in a refusal for a mode that cannot
+  be selected; a `--bin` flag documented as belonging to a capture that is gone.
+- **Sweep question**: does the subject of this prose still exist? If it does not,
+  the git history holds it and the live surface should not.
+- **Neighbour**: `prose-carried-harness-trivia` — there the prose describes a
+  REAL condition a hook could answer in place; here it describes nothing that
+  exists at all.
+- **Distinguisher**: could a seat ACT on this sentence today? If the thing it
+  names is gone, no action exists and it is archaeology.
+
 ### prose-carried-harness-trivia
 Harness guidance carried in every prompt that a hook could answer at the moment
 it bites. The prose costs every seat every round; the condition it describes

@@ -61,7 +61,7 @@ RECORD — no file; read through the tool:
   show report     the artifact under audit, anchors intact (blue edit holds you to carrying them)
   show board      open gaps with full grading; --format markdown adds the closure archive's prose
   show worklist   your open set plus sitting.complete and every outstanding duty
-  show findings   lens findings (candidate FILES were retired — findings are events)
+  show findings   lens findings (findings are events, not files)
   show evidence   WHAT BACKS THE REPORT: every source by its <!--cite:c-…--> anchor, every proof
                     by its <!--proof:p-…--> anchor with the sha256 reproduce takes and red's
                     re-run, and red's verified claims with trust grades. How you resolve an anchor
@@ -102,10 +102,7 @@ All artifacts are git-tracked; nothing is summarized away. The payload is the fi
 
 ## Reading the corpus — two access modes, never confused
 
-There is no search index. Retrieval-by-search was retired (2026-08-04): the index covered past
-RUN artifacts rather than the sources under audit, no seat ever queried it across a full run, and
-it cost an embedding pass per run for that. What remains is the two modes that were always the
-load-bearing ones:
+There is no search index, and there are two access modes:
 
 1. **Full read for the document under audit** — red reads blue's living report whole, in
    context, every round. A snippet NEVER substitutes: a decontextualized quote is how audits

@@ -61,16 +61,10 @@ if (!binDir) {
   throw new Error(`debate: refusing dispatch — binDir unset. The engine does not run without the record.
 
 The tool is the contract, not an enhancement: every seat writes its acts through \`feov-record\` and reads the
-board back through it, and binDir is how a seat is told where that binary is. Omitting it used to select a
-LEGACY PROMPT SET that told seats to hand-write debate.md, red/citation-ledger.md and blue/CHANGELOG.md —
-files \`setup\` no longer creates and nothing reads. Such a run records nothing through the tool, every axis
-added since 2026-07-19 is silently absent, and every gate stays green (setup's own preflight comment names
-this: "a run would then take the legacy prompt set, record nothing through the tool, and every axis added
-since would be silently absent with every gate green").
-
-That is not a fallback. It is the plausible zero with a whole run behind it, so it is refused here for the
-same reason model and judgmentModel are: a decision the engine cannot make correctly by guessing must be
-stated.`)
+board back through it, and binDir is how a seat is told where that binary is. Without it no seat can reach
+the record, so the run would record nothing and every gate would still pass — the plausible zero with a whole
+run behind it. It is refused here for the same reason model and judgmentModel are: a decision the engine
+cannot make correctly by guessing must be stated.`)
 }
 
 // Lane floor (retrospective §3 row 7): run 2 silently ran under-provisioned at lanes=2.
@@ -95,15 +89,12 @@ const frictionClause = (who, role) => ` FRICTION (${who}) — CLOSE THIS CHANNEL
 // Bash spawn additionally carries a measured multi-second fixed floor. Every seat gets this.
 const speedClause = ` SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result. Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing). KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.`
 
-// The record IS the exchange (plan §III R2). Every seat gets an engine-assigned
-// SEAT_ID and every act it takes is an event written through the binary — not a
-// second channel beside a file write. The parallel-writes stage and its parity
-// gate are done: the hand-written artifacts they ran against are retired, and
-// the events are no longer "under test", they are the only copy.
+// The record IS the exchange. Every seat gets an engine-assigned SEAT_ID and every
+// act it takes is an event written through the binary. The events are the only copy.
 //
-// R2g: the four mjs seat CLIs are retired and the writer is ONE compiled binary
-// with role subcommands, so the seat is handed its ROLE rather than a script
-// path. The role is not decoration — seat identity is bound to it, and a seat
+// The writer is ONE compiled binary with role subcommands, so the seat is handed its
+// ROLE rather than a script path. The role is not decoration — seat identity is bound
+// to it, and a seat
 // that reaches for another role's verbs is refused. The tool's --help IS the
 // seat's record contract: everything listed is permitted, anything absent does
 // not exist for that seat and is FRICTION rather than something to work around.
@@ -123,11 +114,9 @@ const speedClause = ` SPEED: every message you send costs a ~20s round-trip rega
 // exactly that.
 // MEMORY AS DUTY, delivered by CLASS JOIN (rulebook audit item 8).
 //
-// Red's accumulated gap patterns used to be staged whole into inputs/ and a seat
-// was told to read them. E0.5 measured what that is worth: run 4's clause was
-// unsatisfiable at four blue seats, and run 5's lanes verifiably READ the file
-// and committed both warned patterns anyway. Reading is not binding, and fifty
-// patterns at seat start is a salience problem no amount of instruction fixes.
+// Patterns reach a seat by CLASS JOIN, matched to the gap in front of it. Staging the
+// whole corpus does not work: reading is not binding, and fifty patterns at seat start
+// is a salience problem no amount of instruction fixes.
 //
 // So the patterns arrive at the DECISION POINT instead, selected by the class of
 // the gap actually being repaired. A join, not a search: deterministic, small,
@@ -150,22 +139,6 @@ const inquiryClause = binDir
   ? ` LINES OF INQUIRY: record each genuinely distinct approach you considered with the line of inquiry verb — the approach itself goes in --line "<the question or approach>" (NOT --line-of-inquiry, which is not a flag), and its fate goes in the status flag: --status pursued (it became your spine — say what you learned in --reason), --status deferred (worth taking, and NOT BY THIS RUN — --reason says what a later run should pick it up FOR), --status declined (you weighed it and did not take it), or --status abandoned (you tried it and it died). Every fate but the first two REQUIRES a --reason, and all four reach the report under their own heading — pursued, deferred, and considered-or-rejected are three sections a reader sees, not one list of winners. A line you have not decided yet stays at \`proposed\`, which is a real state and not a failure to type one: it renders under "Still undecided" and the tool asks you to settle it each round. The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived. This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.`
   : ''
 
-// CALIBRATION (blue-researcher.md: "CALIBRATION IS CRAFT"). The constitution mandates
-// self-grading confidence per claim; before now that duty had no channel and stayed a
-// dead-letter (the archetype this script keeps naming — "confidence self-graded", mandated
-// and never instrumented). This is the channel, and it is NON-AUTHORITATIVE by construction:
-// the confidence event is read only by the debate-view and report renderers; it never enters
-// the gap board or the risk matrix, so blue never grades its own exam. Its value is targeting
-// (red spends audit where a calibration miss costs most) and honesty (an inflated grade is a
-// defect signal, not a defense).
-// CALIBRATION IS RETIRED (0.54.0). `blue confidence` recorded blue's self-grade on blue's own
-// claims: authoritative over nothing, feeding no grade and no risk matrix, and its calibration
-// computation was specified, never built, and blocked on data only the verb's use would produce.
-//
-// The design it was named for SURVIVES and belongs to red: the plan specified confidence as a
-// FIELD on red's corroboration, per statement-reference pair, which is `lens verify --confidence`.
-// One word had come to carry two questions, and only one of them was ever load-bearing.
-const calibrationClause = () => ''
 
  // STEELMAN DUTY (E0.5h): the sections red NEVER gap-anchors are exactly the
 // self-critical ones — disconfirming passes, human-gated paths, self-attested
@@ -220,15 +193,11 @@ const inspectionClause = transcriptDir
   : ''
 
 const scorecardClause = (tool) => {
-  // priors-are-poison (2026-07-19). Half-1 removed the cross-run SEED — a prior run's numbers
-  // were Goodhart bait, topic-confounded, cross-model and salience-priming. Half-2 (here) gives
-  // the chair its OWN in-run scorecard for THIS question, computed live from this run's record —
-  // via `feov-record scorecard` (#121 slice 3; the one computation, no re-derivation). The
-  // `scorecards` arg now feeds operator analytics only.
-  // `feov-record scorecard` is the only reader (the node scorecards.mjs fallback is retired,
-  // #121 slice 5). It used to be gated on binDir as well; binDir is required now, so the only
-  // seats without a scorecard are the ones with no CHAIR — which is a role question, not a
-  // tooling one.
+  // A chair reads its OWN in-run scorecard for THIS question, computed live from this run's
+  // record via `feov-record scorecard`. Never a prior run's numbers: those are Goodhart bait,
+  // topic-confounded, cross-model and salience-priming. The `scorecards` arg feeds operator
+  // analytics only. The only seats without a scorecard are the ones with no CHAIR — a role
+  // question, not a tooling one.
   const chair = CHAIR[tool]
   if (!chair) return ''
   return ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  ${binDir}/feov-record scorecard --run ${runDir} --chair ${chair}  and read how this chair is doing on the question in front of you so far. It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding). Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.`
@@ -316,12 +285,7 @@ const PETITION_RULING = {
           // the seat-command trigger map exists to remove, and while `halt` sat in this enum the
           // mistake was the natural thing to write. It is now unwriteable.
           ruling: { type: 'string', enum: ['granted', 'denied'] },
-          // RELIEF, NOT OPINION (#330). The envelope used to carry the ruling's `opinion` — the
-          // same prose the petition-rule event records — so the argument existed twice and the
-          // two copies could disagree with nothing to reconcile them.
-          //
-          // They are not the same thing, which is why this is a split rather than a deletion.
-          // The OPINION is the reasoning (the principle applied, the values in tension, why a
+          // RELIEF, NOT OPINION. The OPINION is the reasoning (the principle applied, the values in tension, why a
           // human should or should not look); it belongs on the record, and the report renders it
           // beside the filing it answers. The RELIEF is the operative part — the instruction that
           // BINDS the coming seats — and the engine must have it in hand to inject into their
@@ -330,10 +294,7 @@ const PETITION_RULING = {
           // WHO THE RELIEF BINDS, and it is required when relief is granted — enforced below
           // rather than in the schema, because `required` cannot be conditional on a sibling.
           //
-          // Relief used to be threaded into exactly ONE prompt: blue's. A bench that granted a
-          // petition and directed RED recorded in its own friction that it had "issued a
-          // direction to red knowing it has no carrier" (#360). An instruction with no addressee
-          // can only be delivered by guessing, and the guess was hardcoded.
+          // An instruction with no addressee can only be delivered by guessing.
           binds: { type: 'string', enum: ['blue', 'red', 'both'] },
         },
       },
@@ -383,12 +344,9 @@ const BLUE_ENVELOPE = {
     // W1.7 round-parity attestation (run-5: blue's round-2 revision shipped with no ### BLUE
     // block or round record; a lens misjudged the round state and the judge had to
     // reconstruct blue's position from red's records). TRUE only after the round carries BOTH
-    // a `position` event and a `revision` event — both on the RECORD, since #251 retired the
-    // hand-written CHANGELOG that used to be the second half. A revision is not on the record
-    // until the record carries it, which was the whole point and was half-true while one of the
-    // two lived in a file nothing validated. On false the script RE-PROMPTS once and, failing
-    // that, logs friction and CONTINUES (#249 — it used to abort the whole run, which killed
-    // 2/2 haiku validation runs). Attestation tier: shape in-run; capture's record-parity audit
+    // a `position` event and a `revision` event — both on the RECORD. A revision is not on the
+    // record until the record carries it. On false the script RE-PROMPTS once and, failing that,
+    // logs friction and CONTINUES. Attestation tier: shape in-run; capture's record-parity audit
     // recounts post-hoc, so an unresolved gap is still scored.
     round_record_appended: { type: 'boolean' },
     // W2b correctness manifest (repair-quality program A.2): one row per repaired gap —
@@ -521,9 +479,8 @@ const JUDGE_ENVELOPE = {
           // grade_adjusted (run-4 §3.3): "gap real, grade wrong" — the dispute-resolution
           // value the enum could not previously express. The rationale MUST state the new
           // grade; the next red-merge applies it and lists the delta.
-          // moot (run-4 coverage audit, GAP-35): the gap's predicate expired — the claim or
-          // artifact it attached to no longer exists in the report. Run 4's judge had to
-          // misuse `carried` for this live traffic class. Moot adjudicates the gap out.
+          // moot: the gap's predicate expired — the claim or artifact it attached to is no
+          // longer in the report. Moot adjudicates the gap out.
           // routed_to_infrastructure (W1.9, run-5 judge-r2 friction): "valid finding, fix
           // owned outside the debate" — R1-7 had to wear risk_accepted as the least-wrong
           // fit. Leaves red's verdict pool like risk_accepted; collected as an infra debt
@@ -558,14 +515,12 @@ const LANE_METHODS = [
 // Sharded findings (run-4 §4 — RATIFIED, seven conditions; write-guard preflight SATISFIED
 // 2026-07-16: ledger/archive names ALLOWED at a live red-auditor seat while findings.md and
 // report.md controls BLOCKED, so the names are clean and the probe was not vacuous).
-// The ledger is the single source of truth for status; the archive is immutable closed prose.
-// MIGRATED 2026-07-19 then RETIRED (§VIII, plans/pre-dry-run-batch): the ledger/archive PATHS are
-// gone from every prompt. red-merge mints/closes through feov-record; every downstream reader
-// (blue for open gaps, the judge to rule, assembly to copy) now ACTIVELY PULLS the board itself —
+// red-merge mints and closes through feov-record; every downstream reader (blue for open gaps,
+// the judge to rule, assembly to copy) ACTIVELY PULLS the board itself —
 // `feov-record <role> show board --run <dir> [--format markdown]`, which computes-and-returns
 // fresh and atomic from the record on read (one reader, no staleness window). No projection is
-// materialized to disk any more: the render-shadow waypoint is gone (2026-07-31), and every view —
-// markdown and telemetry alike — is generated just-in-time from the event log.
+// materialized to disk: every view, markdown and telemetry alike, is generated just-in-time
+// from the event log.
 
 // W2c petition machinery: the log is the judicial record's petition section; a
 // halt ruling ends the run (verdict HALTED — capture relays the opinion
@@ -630,12 +585,10 @@ const reliefFor = (party) => {
 }
 let halted = false
 let haltOpinion = null
-// ONE SEAT ID NAMES ONE SITTING. It used to be the literal `judge-petition` for all of them —
-// once after synthesis and twice per round, so a 3-round run held up to SEVEN sittings under one
-// id. Each sitting's register rotates the nonce (deliberately, for crash re-dispatch), so that is
-// seven shards for one seat, and replay keeps ONE: a petition sitting writes no `verdict` and no
-// `revision`, so the terminal pool is empty and selection falls to latest mtime. Every earlier
-// sitting's rulings were dropped from the replay while the run reported success (#394).
+// ONE SEAT ID NAMES ONE SITTING. Sharing one id across sittings loses rulings silently: each
+// sitting's register rotates the nonce (deliberately, for crash re-dispatch), so N sittings are
+// N shards for one seat, and replay keeps ONE — a petition sitting writes no `verdict` and no
+// `revision`, so the terminal pool is empty and selection falls to latest mtime.
 //
 // Deriving the id from the PETITIONER makes it unique by construction rather than by a counter
 // someone has to remember to increment — the filer already identifies the occasion, because each
@@ -667,11 +620,9 @@ async function hearPetitions(env, who) {
     // #360, the OPINION, which is the operative half. It was dropped at this boundary while the
     // rest travelled, so a granted petition arrived downstream as a verdict with no reasoning.
     petitionLog.push({ petitioner: who, class: r.class, ruling: r.ruling, opinion: r.opinion })
-    // RELIEF IS ADDRESSED. It used to be threaded into exactly ONE prompt — blue's — so relief
-    // binding red reached nothing, and a bench recorded in its own friction that it had "issued a
-    // direction to red knowing it has no carrier". `binds` comes from the ruling; a grant that
-    // names no addressee defaults to BOTH rather than silently reaching one seat, because the
-    // failure this fixes was relief that bound nobody it was written for.
+    // RELIEF IS ADDRESSED. `binds` comes from the ruling; a grant that names no addressee
+    // defaults to BOTH rather than silently reaching one seat, because relief threaded to a
+    // single prompt binds nobody else it was written for.
     if (r.ruling === 'granted' && r.relief) {
       reliefInEffect.push({ petitioner: who, relief: r.relief, binds: r.binds || 'both' })
     }
