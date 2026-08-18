@@ -152,9 +152,14 @@ func decodeJSONL(body []byte) []map[string]any {
 		dec := json.NewDecoder(strings.NewReader(ln))
 		dec.UseNumber()
 		var m map[string]any
-		if dec.Decode(&m) == nil {
-			out = append(out, m)
+		if err := dec.Decode(&m); err != nil {
+			// NOT SWALLOWED. Dropping an unreadable row renders a shorter series with nothing
+			// saying a line failed. The malformed row is recorded IN the output instead, so a
+			// reader sees the gap rather than a plausibly-short series.
+			out = append(out, map[string]any{"_decode_error": err.Error(), "_raw": ln})
+			continue
 		}
+		out = append(out, m)
 	}
 	return out
 }

@@ -1,0 +1,822 @@
+// The written record: an append-only per-process-shard event log, one event per line.
+//
+// THIS FILE IS THE SCHEMA. Before it, an event's payload was a map[string]any read back with
+// p.Str("gap_id") at 653 call sites, and nothing between the writer and the reader could say no:
+// a misspelled key returned "", which is indistinguishable from a field the seat legitimately
+// omitted. Every field below is a field a writer can be refused at.
+//
+// GENERATED CODE IS COMMITTED. Regenerate with `go run ./protogen` from scripts/; the schema's
+// content hash is stamped beside the bindings and gated in CI.
+//
+// FIELD NUMBERS ARE PERMANENT. A retired number goes in `reserved`, never back into service —
+// a renumber silently reinterprets every record already written. This is the one piece of
+// backwards compatibility the migration does NOT delete, because it is what makes the format
+// safe to change at all.
+
+syntax = "proto3";
+
+package feov.record.v1;
+
+option go_package = "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb";
+
+// SchemaVersion is the format discriminator, and it is a POSITIVE FIELD rather than a parse
+// failure on purpose.
+//
+// Detecting an old record by "the unmarshal failed" recovers a fact from the shape of an error,
+// which is the defect this whole schema exists to remove. It also breaks forward reads: the
+// moment a later release adds anything, an older binary would report the record as OLDER than
+// itself, which is the opposite of true.
+//
+// IT BUMPS ON ENUM-VALUE ADDITIONS TOO, not only on field changes. Measured against
+// protobuf-go v1.36.12: protojson with DiscardUnknown=true does not reject an unknown enum
+// value, it silently drops the field to its zero value. So a newer `check_kind` read by an
+// older binary would become UNSPECIFIED without a word — a plausible zero manufactured by the
+// tolerance setting. The version gate refuses the line first; scripts/protogen gates the bump.
+enum SchemaVersion {
+  SCHEMA_VERSION_UNSPECIFIED = 0;  // absent: written before the schema existed. Always an error.
+  SCHEMA_VERSION_1 = 1;
+}
+
+// EventType names the verb that wrote the event. It is redundant with the `body` oneof case and
+// checked against it at the single write path — two carriers of one fact with a gate between
+// them, which is legal precisely because the gate exists. It stays because it is in every
+// golden and every `switch e.Type`, and dropping it would rewrite ~29 switches into type
+// assertions for no gain.
+//
+// The five retired types — dispute, dispute_respond, petition, petition_rule, avenue_rule —
+// have NO value here. That absence is the deletion of the legacy vocabulary.
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_REGISTER = 1;
+  EVENT_TYPE_ANCHOR = 2;
+  EVENT_TYPE_AVENUE = 3;
+  EVENT_TYPE_BLUE_EDIT = 4;
+  EVENT_TYPE_CERTIFY = 5;
+  EVENT_TYPE_CITE = 6;
+  EVENT_TYPE_CLASS_NEW = 7;
+  EVENT_TYPE_CLOSE = 8;
+  EVENT_TYPE_CLOSING = 9;
+  EVENT_TYPE_DECLARE = 10;
+  EVENT_TYPE_FINDING = 11;
+  EVENT_TYPE_FRICTION = 12;
+  EVENT_TYPE_FRICTION_NONE = 13;
+  EVENT_TYPE_HALT = 14;
+  EVENT_TYPE_MANIFEST_ROW = 15;
+  EVENT_TYPE_MINT = 16;
+  EVENT_TYPE_MOTION = 17;
+  EVENT_TYPE_MOTION_APPEAL = 18;
+  EVENT_TYPE_MOTION_RULE = 19;
+  EVENT_TYPE_OBSERVE = 20;
+  EVENT_TYPE_OPINION = 21;
+  EVENT_TYPE_OUTCOME = 22;
+  EVENT_TYPE_POSITION = 23;
+  EVENT_TYPE_PROOF = 24;
+  EVENT_TYPE_REGRADE = 25;
+  EVENT_TYPE_REPRODUCE = 26;
+  EVENT_TYPE_RETIRE = 27;
+  EVENT_TYPE_REVISION = 28;
+  EVENT_TYPE_SPOT_CHECK = 29;
+  EVENT_TYPE_VERDICT = 30;
+  EVENT_TYPE_VERIFY = 31;
+}
+
+// Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
+// not a missing entry, and record.MASS is held to this set by a test.
+enum Grade {
+  // UNSPECIFIED IS THE `undefined` SENTINEL, and it is load-bearing rather than a filler zero.
+  // view.go renders an ungraded value as the literal nine-character word `undefined` — never
+  // empty — because the projections group by it and a bare blank would silently merge with a
+  // real grade. by_severity keys an ungraded mint under exactly that word. Modelling it as the
+  // enum's zero keeps "not graded" a value the schema can carry rather than an absence a reader
+  // has to infer.
+  GRADE_UNSPECIFIED = 0;
+  GRADE_TRIVIAL = 1;
+  GRADE_LOW = 2;
+  GRADE_LOW_MEDIUM = 3;
+  GRADE_MEDIUM = 4;
+  GRADE_MEDIUM_HIGH = 5;
+  GRADE_HIGH = 6;
+  GRADE_CERTAIN = 7;
+  GRADE_REALIZED = 8;
+}
+
+// Verdict is red's binary gate. PASS is CHECKED against the open board, not taken on the seat's
+// word — which is why the set is closed: `--as pass` once recorded a PASS that skipped the check
+// entirely, and `--as banana` recorded a banana.
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;
+  VERDICT_PASS = 1;
+  VERDICT_FAIL = 2;
+}
+
+// RunOutcome is how the SITTING ended. The report's verdict stamp switches on it, so an
+// unrecognized value used to fall through to a bare stamp — losing, for CEILING, the "this is
+// NOT a judged failure to verify" caveat the stamp exists to carry.
+enum RunOutcome {
+  RUN_OUTCOME_UNSPECIFIED = 0;
+  RUN_OUTCOME_VERIFIED = 1;
+  RUN_OUTCOME_CEILING = 2;
+  RUN_OUTCOME_HALTED = 3;
+  RUN_OUTCOME_UNVERIFIED = 4;
+}
+
+// CheckKind is WHAT WOULD SETTLE an acceptance check. COMPUTATION is the one with teeth: a gap
+// minted that way cannot be closed on prose. Across six recorded runs no seat ever wrote a
+// program, and the cause was that all ten of red's checks were document probes — red could only
+// ever ask whether the report SAYS something.
+enum CheckKind {
+  CHECK_KIND_UNSPECIFIED = 0;
+  CHECK_KIND_DOCUMENT = 1;
+  CHECK_KIND_COMPUTATION = 2;
+  CHECK_KIND_SOURCE = 3;
+}
+
+// ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
+// unified, four surfaces spelled the same three outcomes six ways and no mechanism could see
+// them disagree, because every set was open.
+enum ClosureClass {
+  CLOSURE_CLASS_UNSPECIFIED = 0;
+  CLOSURE_CLASS_CLOSED = 1;
+  CLOSURE_CLASS_CLOSED_WITH_REGRESSION = 2;  // REQUIRES successor
+  CLOSURE_CLASS_AMENDS_PRIOR = 3;            // REQUIRES supersedes
+  CLOSURE_CLASS_REBUTTAL_SUSTAINED = 4;
+  CLOSURE_CLASS_RISK_ACCEPTED = 5;
+  CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE = 6;
+}
+
+// SourceOutcome is WHAT THE SOURCE DID for a claim — a different question from how sure the
+// auditor is of that determination (Confidence).
+//
+// THE NEGATIVE HALF DID NOT EXIST until 0.60.0. Red could say how a citation held and had no
+// way to record that it did NOT, so the strongest adversarial finding on this axis had to leave
+// as prose — and the audit built to catch a report shipping a refuted citation went looking for
+// a verdict no field could carry, reporting PASS over an empty file on every run.
+enum SourceOutcome {
+  SOURCE_OUTCOME_UNSPECIFIED = 0;
+  SOURCE_OUTCOME_SUPPORTS = 1;
+  SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2;
+  SOURCE_OUTCOME_WEAK = 3;
+  SOURCE_OUTCOME_REFUTES = 4;
+  SOURCE_OUTCOME_ABSENT = 5;      // silence is not contradiction
+  SOURCE_OUTCOME_UNREACHABLE = 6;
+}
+
+// Confidence is how sure the auditor is OF THE DETERMINATION, whatever the determination was.
+// `refutes` at low confidence and `refutes` at high confidence are different facts, and a
+// reader who cannot tell them apart cannot act on either. Low is a call for more evidence, not
+// an automatic fail.
+enum Confidence {
+  CONFIDENCE_UNSPECIFIED = 0;
+  CONFIDENCE_HIGH = 1;
+  CONFIDENCE_MEDIUM = 2;
+  CONFIDENCE_LOW = 3;
+}
+
+// Soundness: REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures
+// determinism; `print("7 is prime")` reproduces perfectly forever. UNSOUND is the dangerous
+// cell, because a proof that re-runs clean and establishes nothing looks maximally credible.
+enum Soundness {
+  SOUNDNESS_UNSPECIFIED = 0;
+  SOUNDNESS_SOUND = 1;
+  SOUNDNESS_UNSOUND = 2;
+}
+
+// AvenueStatus is a line of inquiry's fate. The lines-of-inquiry projection groups BY status, so
+// a value outside the set did not fail — it silently vanished from the section that exists to
+// show the roads not taken.
+enum AvenueStatus {
+  AVENUE_STATUS_UNSPECIFIED = 0;
+  AVENUE_STATUS_PROPOSED = 1;
+  AVENUE_STATUS_PURSUED = 2;
+  AVENUE_STATUS_DEFERRED = 3;
+  AVENUE_STATUS_DECLINED = 4;
+  AVENUE_STATUS_ABANDONED = 5;
+}
+
+// MotionSubject is what a motion is ABOUT. The ruling vocabulary is keyed on it, which is why
+// the rulings are separate enums below rather than one flat set.
+enum MotionSubject {
+  MOTION_SUBJECT_UNSPECIFIED = 0;
+  MOTION_SUBJECT_GRADE = 1;
+  MOTION_SUBJECT_PETITION = 2;
+  MOTION_SUBJECT_DIRECTION = 3;
+}
+
+// The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
+// event carries granted|denied for a petition and accepted|rejected for a grade, and a ruling
+// nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
+enum GradeRuling {
+  GRADE_RULING_UNSPECIFIED = 0;
+  GRADE_RULING_ACCEPTED = 1;
+  GRADE_RULING_REJECTED = 2;
+}
+
+enum PetitionRuling {
+  PETITION_RULING_UNSPECIFIED = 0;
+  PETITION_RULING_GRANTED = 1;
+  PETITION_RULING_DENIED = 2;
+}
+
+enum DirectionRuling {
+  DIRECTION_RULING_UNSPECIFIED = 0;
+  DIRECTION_RULING_ENDORSED = 1;
+  DIRECTION_RULING_OUT_OF_SCOPE = 2;  // a real question, but not THIS question
+  DIRECTION_RULING_TOO_THIN = 3;      // in scope, but the hypothesis does not carry its budget
+}
+
+// Event is the log line.
+//
+// EVERY FIELD IS `optional`, WITHOUT EXCEPTION, and that is not stylistic. Absence is meaningful
+// throughout this record: a flag the seat never passed must not appear in the event at all, and
+// presence is read at 34 call sites. proto3 without `optional` has implicit presence, so an
+// unset field and a zero-valued one marshal to the same bytes under EmitUnpopulated=false —
+// `seq = 0` (the register event's real sequence number) would vanish from the line, and
+// schema_version could not distinguish "absent" from "0", which is the question the read rests
+// on. Requiredness is a validate-time duty declared separately, never inferred from optionality.
+message Event {
+  optional int32 seq = 1;
+
+  // ts is when the event happened, and it is what replay ORDERS BY.
+  //
+  // Without it, events merged by shard FILENAME, so every cross-seat reference was ordered by
+  // how seat names happen to sort: the bench closing a gap red minted was dropped silently
+  // because the gap did not exist yet at replay time. Nanosecond precision, fixed width, so
+  // lexicographic order is time order — and monotonicity is guaranteed in code rather than
+  // hoped for from the hardware, because a wall clock can step backwards under NTP.
+  optional string ts = 2;
+
+  optional string seat_id = 3;
+  optional string nonce = 4;
+  optional int32 round = 5;
+
+  // role is the seat's ROLE as a field. Readers used to recover it with
+  // strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
+  // renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
+  // the wrong party, silently. Stamped once at the write; never re-derived.
+  optional string role = 6;
+
+  optional EventType type = 7;
+  optional string key = 8;
+  optional SchemaVersion schema_version = 9;
+
+  oneof body {
+    Register register = 20;
+    Verdict_ verdict = 21;
+    Outcome outcome = 22;
+    Position position = 23;
+    Halt halt = 24;
+    Certify certify = 25;
+    Declare declare = 26;
+    Motion motion = 27;
+    MotionRule motion_rule = 28;
+    MotionAppeal motion_appeal = 29;
+    Mint mint = 30;
+    ClassNew class_new = 31;
+    Close close = 32;
+    Closing closing = 33;
+    Regrade regrade = 34;
+    SpotCheck spot_check = 35;
+    Opinion opinion = 36;
+    Finding finding = 37;
+    Observe observe = 38;
+    Anchor anchor = 39;
+    Cite cite = 40;
+    Verify verify = 41;
+    Proof proof = 42;
+    Reproduce reproduce = 43;
+    Avenue avenue = 44;
+    BlueEdit blue_edit = 45;
+    Revision revision = 46;
+    Retire retire = 47;
+    ManifestRow manifest_row = 48;
+    Friction friction = 49;
+    FrictionNone friction_none = 50;
+  }
+
+  // 51-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // claimed now rather than negotiated later.
+  reserved 51 to 80;
+}
+
+// TelemetryLine is the per-round projection, NOT a shard event.
+//
+// It is written by view.Telemetry and re-decoded by the dashboard, cost and scorecard as raw
+// JSON keys. It gets a message for the same reason events do: it was a nested *Payload of
+// *Payloads, and its consumers bind its keys as strings.
+message TelemetryLine {
+  optional int32 round = 1;
+  optional string mapping_version = 2;
+  optional int32 open_count = 3;
+
+  // max_severity is a Grade, but it is rendered `undefined` — the nine-character word, not
+  // empty — when nothing is graded, because the projections must not print a bare blank. That
+  // sentinel is why it is an enum with an explicit UNDEFINED value rather than a string.
+  optional Grade max_severity = 4;
+
+  optional NewMint new_mint = 5;
+  optional double mass = 6;
+  optional int32 realized_open = 7;
+  optional RepairRegression repair_regression = 8;
+  optional EdgeDeltas edge_deltas = 9;
+
+  // 10 IS DELIBERATELY UNUSED, and this is a defect the schema surfaced rather than created.
+  //
+  // `accepted_deltas` is READ by internal/cost/cost.go:399 and internal/dashboard/render.go:364,
+  // both as []any, and is WRITTEN BY NOTHING. Its only occurrences outside those two readers are
+  // fixtures in dashboard/render_test.go — so the tests pass on supplied data while production
+  // sees nil on every run, and both surfaces render "no accepted deltas" where the truth is
+  // "never measured". The engine still carries the concept (debate.js:270,
+  // ACCEPTED_DELTA_DOCKET_THRESHOLD), so this is a lost producer, not dead weight.
+  //
+  // It is NOT modelled here. Encoding a field nobody writes would carry the plausible zero
+  // forward wearing a schema's authority. The two readers go in PR3 and the missing producer is
+  // filed separately — see plans/record-protobuf.md.
+  reserved 10;
+  reserved "accepted_deltas";
+}
+
+message NewMint {
+  optional int32 count = 1;
+
+  // by_severity is REPEATED, not a map: the key space is the closed Grade set plus the
+  // `undefined` sentinel, so a repeated field sorted by an order this code owns is deterministic
+  // BY CONSTRUCTION and needs no faith in protojson/prototext map ordering.
+  repeated SeverityTally by_severity = 2;
+
+  // by_class is a MAP because the gap-class registry is extended at runtime by `class-new` —
+  // genuinely open, so a repeated form would need an invented sort anyway.
+  map<string, int32> by_class = 3;
+
+  // class_repeat_rate is absent when no gaps were minted this round — distinct from 0.0, which
+  // means minted-and-none-repeated.
+  optional double class_repeat_rate = 4;
+}
+
+message SeverityTally {
+  optional Grade grade = 1;
+  optional int32 count = 2;
+}
+
+message RepairRegression {
+  optional int32 closures = 1;
+  optional int32 lineage_mints = 2;
+  // ratio is absent when there were no closures to divide by — not 0.0, which would read as
+  // "closures happened and none had lineage".
+  optional double ratio = 3;
+}
+
+message EdgeDeltas {
+  optional double down_mass = 1;
+  optional double up_mass = 2;
+}
+
+// Mint records a gap. `gap_id` is ASSIGNED by the tool, never chosen by the seat.
+message Mint {
+  optional string gap_id = 1;
+  optional string mint_key = 2;
+
+  // class names the defect's kind. class_new records that the seat coined it in this act, which
+  // is why the definition/neighbor/distinguisher trio travels alongside: a new class has to say
+  // what it is, what it is nearest to, and how it differs.
+  optional string class = 3;
+  optional bool class_new = 4;
+  optional string definition = 5;
+  optional string neighbor = 6;
+  optional string distinguisher = 7;
+
+  // location is section heading + quoted sentence — enough to find the defect again.
+  optional string location = 8;
+  optional string problem = 9;
+  optional string required_fix = 10;
+
+  // The fix pair is validated against the LIVE report and refused unless the span is present and
+  // unique, so a seat cannot prescribe text without having read what it prescribes against.
+  optional string fix_old = 11;
+  optional string fix_new = 12;
+  optional string fix_basis = 13;
+
+  optional string acceptance_check = 14;
+  optional CheckKind check_kind = 15;
+
+  // LIKELIHOOD AND IMPACT ARE REQUIRED; severity and complexity_cost are not. The rule is not
+  // "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM A LEGITIMATE
+  // VALUE cannot be optional. GapMass multiplies likelihood by impact and an absent grade
+  // contributes ZERO, so an ungraded gap reads exactly like a harmless one and sinks to the
+  // bottom of every ranking. Severity and cost are reported rather than multiplied, so their
+  // absence is visible to a reader.
+  optional Grade severity = 16;
+  optional Grade likelihood = 17;
+  optional Grade impact = 18;
+  optional Grade complexity_cost = 19;
+
+  // ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
+  // key would read as "lineage unknown" where the truth is "lineage none".
+  repeated string supersedes = 20;
+  repeated string found_by = 21;
+}
+
+// ClassNew registers a coined gap class in the run's registry.
+message ClassNew {
+  optional string slug = 1;
+  optional string definition = 2;
+  optional string neighbor = 3;
+  optional string distinguisher = 4;
+}
+
+// Close ends a gap on verified repair.
+message Close {
+  optional string gap_id = 1;
+  optional ClosureClass closure_class = 2;
+
+  // The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
+  // closure is unauditable — or the closure is a carry, restating an earlier one.
+  optional string anchor_seat = 3;
+  optional string anchor_tool = 4;
+  optional string anchor_target = 5;
+  optional string carried_from = 6;
+
+  // successor carries the unresolved remainder forward. Required by CLOSED_WITH_REGRESSION,
+  // because lineage never drops.
+  optional string successor = 7;
+
+  // prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
+  // and the re-audit reads it.
+  optional string prose = 8;
+}
+
+// Closing is the closing argument on a docket-bound gap, read by the bench.
+message Closing {
+  optional string gap_id = 1;
+  optional string text = 2;
+}
+
+// Regrade moves a grade, with its reason. A grade decides what happens NEXT to a gap, so moving
+// one on a finished gap changes a number nobody reads.
+message Regrade {
+  optional string gap_id = 1;
+  optional Grade severity = 2;
+  optional Grade likelihood = 3;
+  optional Grade impact = 4;
+  optional Grade complexity_cost = 5;
+  optional string basis = 6;
+}
+
+// SpotCheck re-reads archived closures. THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM
+// THE SEAT: a `none` claim the board contradicts is rendered as the contradiction it is.
+message SpotCheck {
+  repeated string ids = 1;
+  optional string notes = 2;
+  optional bool none = 3;
+  optional string reason = 4;
+}
+
+// Opinion is the bench ruling on a gap.
+message Opinion {
+  optional string gap_id = 1;
+
+  // disposition stays a STRING, deliberately. Its set is open: closing it would mean a
+  // legitimate bench ruling failing hard mid-round. Two guards remain in validate — `halt` is
+  // refused because it is the bench's own verb and must not be reachable by a typo, and a
+  // near-miss spelling of a closure class is refused as the typo it is.
+  optional string disposition = 2;
+
+  optional string principle = 3;
+  optional string tension = 4;
+  optional string review_flag = 5;
+  optional string rationale = 6;
+}
+
+// Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
+// finding can never be credited in a gap's found_by and its work is lost.
+message Finding {
+  optional string finding_id = 1;
+  optional string finding_key = 2;
+  optional string label = 3;
+  optional string location = 4;
+  optional string text = 5;
+  optional Grade severity = 6;
+  optional Grade likelihood = 7;
+  optional Grade impact = 8;
+}
+
+// Observe is a seat-labelled observation, disposed of by the merge.
+message Observe {
+  optional string label = 1;
+  optional string text = 2;
+  optional string observation = 3;
+}
+
+// Anchor records that a finding's marker sits at a location in the report. Keyed on the
+// finding_id, so re-anchoring the same finding writes one event rather than a second marker.
+message Anchor {
+  optional string id = 1;
+  optional string location = 2;
+  optional string finding_id = 3;
+  optional string finding_key = 4;
+  optional string label = 5;
+  optional string text = 6;
+}
+
+// Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
+// seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
+// disable that check for the row.
+message Cite {
+  optional string label = 1;
+  optional string url = 2;
+  optional string sha256 = 3;
+  optional string title = 4;
+  optional string location = 5;
+  optional string access_date = 6;
+  optional string cite_key = 7;
+  optional string claim = 8;
+  optional string text = 9;
+}
+
+// Verify is red reading a source at the leaf.
+message Verify {
+  optional string claim = 1;
+  optional string reference = 2;
+
+  // anchor names the citation checked; independent marks a source red found itself. One or the
+  // other — a verification of nothing was recordable before this verb required them.
+  optional string anchor = 3;
+  optional bool independent = 4;
+
+  optional string access_date = 5;
+  optional SourceOutcome outcome = 6;
+  optional Confidence confidence = 7;
+  optional string text = 8;
+}
+
+// Proof is a computation blue ran to settle a claim. The tool executes it twice and caches;
+// `drift` records that the two runs disagreed, which makes it a measurement of a moving system
+// rather than a proof.
+message Proof {
+  optional string proof_id = 1;
+  optional string proof_key = 2;
+  optional string proof_sha = 3;
+  // proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
+  // census for the same reason as Outcome's three.
+  optional string proof_basis = 8;
+  optional string answers = 4;
+  optional string cites = 5;
+  optional bool drift = 6;
+  optional string text = 7;
+}
+
+// Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by
+// comparing bytes and is never claimed by the seat, while `soundness` is red's JUDGEMENT of
+// whether the script establishes the claim it is anchored to.
+message Reproduce {
+  optional string proof_sha = 1;
+  optional bool reproduced = 2;
+  optional Soundness soundness = 3;
+  optional string recorded_output = 4;
+  optional string observed_output = 5;
+  optional string note = 6;
+}
+
+// Avenue is a line of inquiry with a lifecycle. A PROPOSAL assigns the id and carries the
+// substance; a MOVE names the avenue and carries only the new status and its reason, which is
+// why `line` cannot be required unconditionally.
+message Avenue {
+  optional string avenue_id = 1;
+  optional string line = 2;
+  optional string hypothesis = 3;
+  optional string method = 4;
+  optional AvenueStatus status = 5;
+
+  // supersedes_status marks this event as a MOVE rather than a proposal.
+  optional string supersedes_status = 6;
+
+  // A declined, deferred or abandoned avenue requires a reason: the road not taken is worthless
+  // without why, and a deferral with none is indistinguishable from forgetting.
+  optional string reason = 7;
+}
+
+// BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
+// KEY rather than a convention — the prose habit it replaced linked only 73% of the time, which
+// is reliable enough to look like a key and not reliable enough to be one.
+message BlueEdit {
+  optional string edit_key = 1;
+  optional string answers = 2;
+  optional string old = 3;
+  optional string new = 4;
+  optional string text = 5;
+
+  // applied_verbatim marks text taken unchanged from red's own --fix-new. Estoppel is enforced
+  // on it: red may not open a clean slate against its own words.
+  optional bool applied_verbatim = 6;
+}
+
+message Revision {
+  optional string text = 1;
+}
+
+// Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
+message Retire {
+  optional string claim = 1;
+  optional string reason = 2;
+  optional string superseded_by = 3;
+  optional string removal_basis = 4;
+}
+
+message ManifestRow {
+  optional string gap_id = 1;
+  optional string row = 2;
+}
+
+// FrictionKind is WHY a friction event exists, and it is a FIELD rather than something a reader
+// infers from the wording. estoppel.go:142-154 carries the history: the prose is aimed at a seat
+// and must stay editable, so the count an operator reads must not move when it is edited (#283).
+// A `{text}`-only Friction message would have reverted that fix silently.
+enum FrictionKind {
+  FRICTION_KIND_UNSPECIFIED = 0;  // a seat's own report: a capability it needed and did not have
+  FRICTION_KIND_ESTOPPEL = 1;     // an estoppel REFUSAL, recorded by the tool rather than the seat
+
+  // TOOL_ERROR is the record's answer to a swallowed error, and it is why the KIND field earns
+  // its keep twice over.
+  //
+  // A tool that cannot parse its own input, or drops a row it cannot decode, currently either
+  // prints somewhere nobody reads or says nothing at all — and an error nobody learns about is
+  // one the system cannot improve on. The friction channel already exists for exactly this
+  // escalation, so an internal failure becomes an EVENT rather than a silence.
+  //
+  // It is a distinct KIND rather than a plain friction event because friction is otherwise a
+  // SEAT's report of a missing capability, and folding tool faults into that count would move a
+  // number an operator reads for a reason unrelated to what it measures — the #283 property this
+  // enum exists to protect. Filter by kind; the counts stay honest.
+  FRICTION_KIND_TOOL_ERROR = 2;
+}
+
+// Friction is the escalation channel that keeps a missing tool from becoming a silent workaround
+// — and, when the tool refuses a mint under estoppel, the record of that refusal.
+message Friction {
+  optional string text = 1;
+  optional FrictionKind kind = 2;
+  // estopped_by names the gap whose own --fix-new the refused mint was attacking.
+  optional string estopped_by = 3;
+}
+
+// FrictionNone is the explicit negative: the seat was asked and had nothing to report. Distinct
+// from never having been asked, which is the whole reason it is its own event.
+message FrictionNone {
+  optional string text = 1;
+}
+
+// Motion, and the SECOND oneof is the whole point.
+//
+// The old validate keyed on (subject, key): MotionFields[subject] said which enumerated fields a
+// motion of that subject carries, and MotionVerdicts[subject] which rulings are legal on it —
+// with a comment calling that "the one place the (subject, key) keying can live", because the
+// flat EnumFields table could not express it.
+//
+// A single flat Motion message reproduces exactly that defect in a new syntax: `dimension`
+// belongs to a grade motion and `class` to a petition, and a flat message would accept either on
+// either, leaving the pairing to a runtime check nothing generates. So the subject IS a oneof,
+// and the fields that belong to a subject live inside its own message. A grade motion carrying
+// a petition's `class` is then not a validation failure — it is unrepresentable.
+//
+// The `subject` enum is kept alongside for the same reason `Event.type` is kept alongside its
+// body oneof: readers switch on it, and it is checked against the oneof case at the write.
+message Motion {
+  optional string motion_id = 1;
+  optional MotionSubject subject = 2;
+
+  // basis is the ASK in the filer's words. A motion with no argument is a demand, and the ruler
+  // has nothing to rule on.
+  optional string basis = 3;
+  optional string relief = 4;
+
+  oneof filing {
+    GradeMotion grade = 10;
+    PetitionMotion petition = 11;
+    DirectionMotion direction = 12;
+  }
+}
+
+// GradeMotion contests a gap's grade on one dimension. Both of its checks belonged to the
+// retired `blue dispute` verb and did not come across with it: a motion against a gap that does
+// not exist is dropped at replay, and one against a gap already disposed of asks for a
+// disposition that has already been made.
+message GradeMotion {
+  optional string gap_id = 1;
+  optional GradeDimension dimension = 2;
+  optional Grade proposed = 3;
+}
+
+// GradeDimension is which axis of a gap's grading is contested.
+enum GradeDimension {
+  GRADE_DIMENSION_UNSPECIFIED = 0;
+  GRADE_DIMENSION_SEVERITY = 1;
+  GRADE_DIMENSION_LIKELIHOOD = 2;
+  GRADE_DIMENSION_IMPACT = 3;
+  GRADE_DIMENSION_COMPLEXITY_COST = 4;
+}
+
+// PetitionMotion is the constitutional short-circuit: any party seat may petition the bench.
+message PetitionMotion {
+  optional PetitionClass class = 1;
+}
+
+enum PetitionClass {
+  PETITION_CLASS_UNSPECIFIED = 0;
+  PETITION_CLASS_INTEGRITY = 1;
+  PETITION_CLASS_SAFETY = 2;
+  PETITION_CLASS_PROCESS = 3;
+  PETITION_CLASS_SCOPE = 4;
+}
+
+// DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
+// direction has no separate filing, because blue's proposal IS the filing.
+message DirectionMotion {
+  optional string avenue_id = 1;
+}
+
+// MotionRule is the ruling, and its verdict set is keyed on the subject in the same way — one
+// motion-rule event carries granted|denied for a petition and accepted|rejected for a grade.
+// An unrecognized ruling reads as no ruling at all, so a refusal silently becomes permission.
+message MotionRule {
+  optional string motion_id = 1;
+  optional MotionSubject subject = 2;
+  optional string opinion = 3;
+
+  oneof ruling {
+    GradeRuling grade = 10;
+    PetitionRuling petition = 11;
+    DirectionRuling direction = 12;
+  }
+
+  // binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
+  // the old table could not police: the filing's copy of the enum loop had always existed and
+  // the ruling's did not, so the first enumerated field to appear on a ruling was unenforced.
+  optional RulingBinds binds = 4;
+}
+
+enum RulingBinds {
+  RULING_BINDS_UNSPECIFIED = 0;
+  RULING_BINDS_ALL = 1;
+  RULING_BINDS_FILER = 2;
+  RULING_BINDS_NONE = 3;
+}
+
+// MotionAppeal records that a party pressed a ruling — whether or not it also complied. Arguing
+// and then yielding belongs on the record instead of vanishing.
+message MotionAppeal {
+  optional string motion_id = 1;
+  optional MotionSubject subject = 2;
+  optional string reason = 3;
+}
+
+// Register is every seat's FIRST record action, and the only event Append does not write —
+// RegisterSeat mints it directly, rotating the nonce so a re-dispatched seat writes its own
+// shard and the stale instance's shard stays inert.
+message Register {
+  // tool_version is stamped on the seat's first act, so a run that somehow mixes binaries says
+  // so in its own record instead of producing events whose difference nobody can explain.
+  optional string tool_version = 1;
+}
+
+// Verdict_ carries red's terminal gate. Named with a trailing underscore because `Verdict` is
+// the enum; the field is `verdict` either way and the wire is unaffected.
+message Verdict_ {
+  optional Verdict verdict = 1;
+}
+
+// Outcome is the run's TERMINAL act. The verdict is derived from the record; how the sitting
+// ENDED is not, and on a judged deadlock this prose is the only evidence that determination
+// will ever have.
+message Outcome {
+  optional RunOutcome verdict = 1;
+  optional string prose = 2;
+  optional string verdict_why = 3;
+
+  // A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
+  // builder, where the dot sits at the end of the PREVIOUS line. They come from the frozen key
+  // census (testdata/payload-keys.txt), which is why it exists. verdict_basis is read by
+  // report/assemble.go; deadlocked and exhausted record HOW the sitting ended, which DeriveVerdict
+  // says is otherwise not on the record at all.
+  optional string verdict_basis = 4;
+  optional bool deadlocked = 5;
+  optional bool exhausted = 6;
+}
+
+message Position {
+  optional string text = 1;
+}
+
+// Halt is the safety boundary, and it reaches the human as the words the bench chose, relayed
+// verbatim — so a halt with no written opinion cannot do its one job.
+message Halt {
+  optional string opinion = 1;
+}
+
+// Certify is the bench's continuity: what it would want a human to re-examine. The bench keeps
+// no memory between runs, so this statement is the whole of it.
+message Certify {
+  optional string statement = 1;
+}
+
+message Declare {
+  optional string holding = 1;
+}

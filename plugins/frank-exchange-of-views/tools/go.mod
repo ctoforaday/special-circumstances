@@ -7,9 +7,12 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14
 	github.com/gofrs/flock v0.13.0
 	github.com/google/go-cmp v0.7.0
+	github.com/protocolbuffers/txtpbfmt v0.0.0-20260803135053-1fd8a60d1ffc
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
+	github.com/thediveo/enumflag/v2 v2.2.1
 	golang.org/x/sys v0.47.0
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -17,6 +20,6 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/thediveo/enumflag/v2 v2.2.1 // indirect
+	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )
