@@ -41,7 +41,7 @@ import (
 const FrictionFooter = `
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with the 'friction' verb — a missing
+needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.`
 
 // MotionFooter points at the one group a seat uses that is NOT under its role.

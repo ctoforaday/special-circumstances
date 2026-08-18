@@ -88,9 +88,12 @@ func RefuseUnknownVerb(c *cobra.Command, role, attempted string) error {
 			"verb %q is outside the %s seat's role — it exists, on the %s seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.",
 			attempted, role, elsewhere))
 	}
+	// THE ROLE GOES IN FRONT. `friction` bare is the OPERATOR's read, not this seat's write, so a
+	// refusal that names it without the role sends a seat from one wrong address to another —
+	// and this is the message a seat reads at the exact moment it has lost a capability.
 	return RefuseAndTeach(c, fmt.Sprintf(
-		"no verb %q exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason \"...\"` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.",
-		attempted))
+		"no verb %q exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `%s friction --reason \"...\"` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.",
+		attempted, role))
 }
 
 // roleWithVerb finds the sibling role that DOES have this verb, or "" when nothing does. It walks

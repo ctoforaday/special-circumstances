@@ -154,26 +154,19 @@ var views = []struct {
 // ViewNames is the projection vocabulary — the single source behind the help text, the
 // unknown-view error, and (exported for this reason) the gate that asserts every `--view`
 // an agent-facing surface NAMES actually exists. See cli.ViewNames.
-// ViewMenu is the view list WITH ITS SEMANTICS, one per line.
+// showGroup resolves the `show` GROUP from wherever a refusal is raised, so the listing a seat
+// gets is the one cobra renders for that group — not a second copy with its own column widths.
 //
-// THE DESCRIPTIONS WERE DEAD TEXT UNTIL THIS EXISTED. The `views` table carried a written line for
-// every projection and the `desc` field was read NOWHERE — `--help` printed
-// `board|findings|worklist|…`, a bare list of nouns, and every seat that ever asked what a view
-// was got names with no meanings.
-//
-// Measured on a probe: a haiku seat read `--view lines-of-inquiry`, had no way to learn which verb
-// writes into it, and invented `blue line-of-inquiry` — a verb that does not exist. It found
-// `line of inquiry` by failing twice. The next seat may instead conclude the capability is missing and
-// write prose, which loses it for the run and is reported nowhere.
-//
-// A field declared and never read is the shape this suite keeps finding: it reads as documented
-// while documenting nothing.
-func ViewMenu() string {
-	var b strings.Builder
-	for _, v := range views {
-		fmt.Fprintf(&b, "  %-16s %s\n", v.name, v.desc)
+// A refusal may be raised from the group itself (bare `show`) or from one of its view
+// subcommands, and only the group's help carries the projection list.
+func showGroup(c *cobra.Command) *cobra.Command {
+	if c == nil {
+		return c
 	}
-	return b.String()
+	if c.Name() != "show" && c.Parent() != nil && c.Parent().Name() == "show" {
+		return c.Parent()
+	}
+	return c
 }
 
 func ViewNames() []string {
@@ -310,7 +303,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		case "board", "findings", "friction", "motions", "worklist", "telemetry", "evidence":
 			return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON)", role, want)
 		case "":
-			return fmt.Errorf("%s show: name a projection. They are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
+			return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
 		default:
 			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/friction/motions/worklist are JSON by name)", role, want)
 		}
@@ -459,7 +452,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		return nil
 	}
 	if want == "" {
-		return fmt.Errorf("%s show: name a projection. They are:\n\n%s\nEach names the verb that fills it", role, ViewMenu())
+		return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
 	}
 	known := false
 	for _, v := range views {
@@ -468,10 +461,12 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 	}
 	if !known {
-		// THE MENU, NOT THE NAMES. A seat that mistypes a view is a seat that does not
-		// know the view space, and a list of twelve nouns tells it which words are legal
-		// while leaving it to guess which one holds what it wants.
-		return fmt.Errorf("%s show: unknown view %q. The projections are:\n\n%s\nEach names the verb that fills it", role, want, ViewMenu())
+		// THE MENU, NOT THE NAMES. A seat that mistypes a view is a seat that does not know
+		// the view space, and a list of twelve nouns tells it which words are legal while
+		// leaving it to guess which one holds what it wants. The menu is COBRA'S — every view
+		// is a real subcommand with its own Short, so the framework already renders this list
+		// and renders it the same way everywhere.
+		return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: unknown view %q. Each below names the verb that fills it", role, want))
 	}
 
 	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
