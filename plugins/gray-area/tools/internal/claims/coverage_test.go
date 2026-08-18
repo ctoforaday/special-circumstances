@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -31,11 +32,29 @@ func dirOf(names ...string) func(string) ([]os.DirEntry, error) {
 func absent(string) ([]os.DirEntry, error) { return nil, errors.New("no such file or directory") }
 
 // The directory comes from the path the harness handed over, not from a search.
+//
+// THE EXPECTATION IS BUILT WITH filepath.Join, NOT SPELLED OUT. The first version
+// asserted the POSIX literal and went red on windows-latest:
+//
+//	SubagentDir = "\\root\\.claude\\projects\\-repo\\937047bc\\subagents"
+//	       want = "/root/.claude/projects/-repo/937047bc/subagents"
+//
+// The CODE was right and the test was platform-naive. A manifest holds the path
+// the harness wrote on the machine that ran, so on Windows a Windows path is the
+// correct answer and separator-normalising the derivation would produce a path
+// that does not exist. What this test owes is the TRANSFORMATION — stem plus
+// "subagents" — not one platform's spelling of it.
 func TestTheSeatDirectoryIsDerivedFromTheHandedOverPath(t *testing.T) {
-	got := SubagentDir("/root/.claude/projects/-repo/937047bc.jsonl")
-	want := "/root/.claude/projects/-repo/937047bc/subagents"
-	if got != want {
-		t.Errorf("SubagentDir = %q, want %q", got, want)
+	in := filepath.Join(string(filepath.Separator)+"root", ".claude", "projects", "-repo", "937047bc.jsonl")
+	want := filepath.Join(string(filepath.Separator)+"root", ".claude", "projects", "-repo", "937047bc", "subagents")
+	if got := SubagentDir(in); got != want {
+		t.Errorf("SubagentDir(%q) = %q, want %q", in, got, want)
+	}
+	// A Windows-shaped path must derive on any host: the transformation is a
+	// suffix trim plus a join, and neither is platform-dependent in a way that
+	// should change the ANSWER for a path the harness itself wrote.
+	if got := SubagentDir(`C:\claude\projects\repo\937047bc.jsonl`); !strings.HasSuffix(got, "subagents") || strings.Contains(got, ".jsonl") {
+		t.Errorf("a Windows-shaped path did not derive: %q", got)
 	}
 	for _, bad := range []string{"", "   ", "/root/projects/937047bc", "/root/projects/937047bc.json"} {
 		if d := SubagentDir(bad); d != "" {
