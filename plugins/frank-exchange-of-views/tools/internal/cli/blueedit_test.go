@@ -316,7 +316,7 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "G1", "--class-new", "overclaim", "--definition", "d", "--neighbor", "n",
+		"--key", "G1", "--class", "overclaim", "--class-new", "--definition", "d", "--neighbor", "n",
 		"--distinguisher", "x", "--location", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",

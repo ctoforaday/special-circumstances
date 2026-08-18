@@ -52,7 +52,7 @@ func seatRun(t *testing.T) string {
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", key, "--class-new", class,
+		"--key", key, "--class", class, "--class-new",
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
 		"--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",

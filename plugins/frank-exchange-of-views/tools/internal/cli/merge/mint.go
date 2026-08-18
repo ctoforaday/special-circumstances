@@ -76,12 +76,13 @@ func newMint() *cobra.Command {
 				p.Set("mint_reason", text)
 			}
 			seat.Set(cmd, p, "mint_key", flags.Key)
-			// --class-new both names the class and mints it, so it wins over --class.
-			if seat.Given(cmd, flags.ClassNew) {
-				p.Set("class", seat.Str(cmd, flags.ClassNew))
-			} else {
-				seat.Set(cmd, p, "class", flags.Class)
-			}
+			// ONE VALUE, ONE SELECTOR. --class carries the slug whether the class already
+			// exists or this mint is coining it; --class-new says which. It was two string
+			// flags carrying the SAME value and differing only in a boolean property, so
+			// `class` needed an alternates entry to be marked required at all — and the wire
+			// format never agreed with that shape: Mint.class_new is a bool in the schema
+			// these events are written against.
+			seat.Set(cmd, p, "class", flags.Class)
 			p.Set("class_new", seat.Given(cmd, flags.ClassNew))
 
 			// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
@@ -197,7 +198,7 @@ func newMint() *cobra.Command {
 				return nil, err
 			}
 			if seat.Given(cmd, flags.ClassNew) {
-				cn := record.NewPayload().Set("slug", seat.Str(cmd, flags.ClassNew))
+				cn := record.NewPayload().Set("slug", seat.Str(cmd, flags.Class))
 				seat.SetSame(cmd, cn, flags.Definition, flags.Neighbor, flags.Distinguisher)
 				if _, err := record.Append(s.Identity(), "class-new", cn); err != nil {
 					return nil, err
@@ -207,8 +208,8 @@ func newMint() *cobra.Command {
 		}))
 
 	c.Flags().String(flags.Key, "", "a stable local label (e.g. the source lens finding) making a retried mint idempotent")
-	c.Flags().String(flags.Class, "", "the gap's class slug from the registry — what KIND of defect this is")
-	c.Flags().String(flags.ClassNew, "", "mint a new class slug; requires --definition, --neighbor and --distinguisher")
+	c.Flags().String(flags.Class, "", "the gap's class slug — what KIND of defect this is. A registry slug, or one you are coining with --class-new")
+	c.Flags().Bool(flags.ClassNew, false, "the slug in --class is NEW and this mint coins it; requires --definition, --neighbor and --distinguisher")
 	c.Flags().String(flags.Definition, "", "what the new class is, in one line")
 	c.Flags().String(flags.Neighbor, "", "the existing class this one sits closest to")
 	c.Flags().String(flags.Distinguisher, "", "the tie-break question that tells the two apart")

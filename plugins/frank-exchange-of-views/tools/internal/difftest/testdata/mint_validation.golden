@@ -11,7 +11,7 @@ feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --check-kind document --check run it --problem no class given
 exit 2
 stderr:
-feov-record: required flag(s) "impact", "likelihood" not set
+feov-record: required flag(s) "class", "impact", "likelihood" not set
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --severity catastrophic --problem bad grade
 exit 2

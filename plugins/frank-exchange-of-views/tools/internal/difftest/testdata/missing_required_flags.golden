@@ -1,12 +1,12 @@
 $ merge mint --seat-id red-merge-r1
 exit 2
 stderr:
-feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
+feov-record: required flag(s) "check", "check-kind", "class", "impact", "likelihood" not set
 
 $ merge mint --run {RUN}
 exit 2
 stderr:
-feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
+feov-record: required flag(s) "check", "check-kind", "class", "impact", "likelihood" not set
 
 $ merge not-a-verb --run {RUN} --seat-id red-merge-r1
 exit 2

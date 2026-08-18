@@ -4,7 +4,7 @@ feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not 
 
 ── mint without class
 exit 2
-feov-record: required flag(s) "impact", "likelihood" not set
+feov-record: required flag(s) "class", "impact", "likelihood" not set
 
 ── mint with unknown class
 exit 2

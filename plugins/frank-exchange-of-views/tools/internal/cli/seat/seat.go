@@ -297,8 +297,6 @@ var satisfiedByAnyOf = map[string][]string{
 	// The prose channel is one argument arriving three ways: inline, from a file, or from stdin
 	// via `--reason-file -`. The file forms exist for prose too large to type.
 	"reason": {flags.Reason, flags.ReasonFile},
-	// A gap's class is either an EXISTING registry slug or one this mint is creating.
-	"class": {flags.Class, flags.ClassNew},
 	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
 	// same sentence it calls the field required.
 	"problem": {flags.Problem, flags.Reason, flags.ReasonFile},

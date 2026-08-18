@@ -8,17 +8,17 @@ exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --check-kind document --check x --problem p
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --class-new --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor not-a-real-neighbor --distinguisher was the act repeated? --check-kind document --check x --problem p
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --class-new --definition a closure re-attested as fresh --neighbor not-a-real-neighbor --distinguisher was the act repeated? --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class-new attestation-inflation --definition a closure re-attested as fresh --neighbor citation-drift --distinguisher was the act repeated? --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --class-new --definition a closure re-attested as fresh --neighbor citation-drift --distinguisher was the act repeated? --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
 exit 0
 stdout:
 minted R1-1

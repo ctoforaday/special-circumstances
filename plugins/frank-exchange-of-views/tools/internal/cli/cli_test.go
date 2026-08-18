@@ -555,13 +555,13 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	}
 }
 
-// --class-new both names the class and mints it, so it wins over --class and
-// emits a second event registering the slug.
-func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
+// ONE VALUE, ONE SELECTOR. --class carries the slug whether it exists or is being coined;
+// --class-new says which, and makes the mint emit a second event registering it.
+func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "ignored", "--class-new", "brand-new",
+		"--class", "brand-new", "--class-new",
 		"--definition", "d", "--neighbor", "n", "--distinguisher", "q",
 		"--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
@@ -569,7 +569,7 @@ func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
 	}
 	m := lastOfType(t, runDir, "mint")
 	if got := m.Payload.Str("class"); got != "brand-new" {
-		t.Errorf("class = %q, want the --class-new slug", got)
+		t.Errorf("class = %q, want the slug from --class", got)
 	}
 	if v, _ := m.Payload.Get("class_new"); v != true {
 		t.Errorf("class_new = %v, want true", v)
@@ -1362,7 +1362,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 		t.Fatal(err)
 	}
 	minted, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class-new", "some-class", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
+		"--class", "some-class", "--class-new", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low")
 	if err != nil {

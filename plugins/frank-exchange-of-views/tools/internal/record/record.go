@@ -556,7 +556,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			return fmt.Errorf("record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)")
 		}
 		if !p.Has("class") || p.Str("class") == "" {
-			return fmt.Errorf("record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)")
+			return fmt.Errorf("record: mint requires --class (the slug — a registry one, or one you are coining with --class-new)")
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//

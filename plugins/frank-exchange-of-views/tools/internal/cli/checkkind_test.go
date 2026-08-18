@@ -30,7 +30,7 @@ func writeScript(t *testing.T, runDir, name, body string) {
 func mintComputation(t *testing.T, runDir, key string) {
 	t.Helper()
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", key, "--class-new", "unverified-arithmetic", "--definition", "d",
+		"--key", key, "--class", "unverified-arithmetic", "--class-new", "--definition", "d",
 		"--neighbor", "n", "--distinguisher", "x",
 		"--problem", "the primality claim is asserted, not computed",
 		"--check-kind", "computation", "--check", "trial division over 2..6 returns no divisor",
@@ -137,7 +137,7 @@ func TestCheckKindIsEnforcedAsAnEnum(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "G1", "--class-new", "x", "--definition", "d", "--neighbor", "n",
+		"--key", "G1", "--class", "x", "--class-new", "--definition", "d", "--neighbor", "n",
 		"--distinguisher", "y", "--problem", "p",
 		"--check-kind", "compute", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")

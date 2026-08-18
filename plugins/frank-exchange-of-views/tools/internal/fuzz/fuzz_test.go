@@ -382,7 +382,7 @@ func (r *runner) mint(seatID string) string {
 		"--reason", "fuzz: the argument for raising this"}
 	if !r.classMade {
 		r.classMade = true
-		args = append(args, "--class-new", "fuzzcls", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
+		args = append(args, "--class", "fuzzcls", "--class-new", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
 	} else {
 		args = append(args, "--class", "fuzzcls")
 	}
