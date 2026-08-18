@@ -1301,9 +1301,58 @@ golden re-records, the difftest envelope rename, and the telemetry-projection de
 is the bulk edit and it is deliberately not started — it cannot be left half-done without leaving
 the record half-typed.
 
-## Open questions for the operator
+## Decisions — all four open questions are resolved
 
-**6. THE PROJECTION STAYS JSON — decided, and NOT by inheriting the shard's argument.** `show
+**Resolved by the operator on 2026-08-18, after #458 merged.** Nothing here is open; each is a
+PR2/PR3/PR4 work item, and the owning PR is named in each.
+
+**7a. `hookgate` — FAIL CLOSED, AND FILE FRICTION.** See below, with the risk it accepts.
+
+**4. `accepted_deltas` — DELETE THE READERS.** It has rendered `0` on every run since its producer
+went missing.
+
+The severity was overstated when this was first filed, and the correction matters: **the engine is
+unaffected.** `debate.js:838-862` computes `acceptedDeltaMagnitude` and `acceptedDeltas` itself,
+in-process, and dockets on its own threshold at `:862`. Nothing in the run depends on the Go
+telemetry field. What reads it is display only — `dashboard/render.go:364` (`deltas = len(d)`, a
+rate-table column) and a `cost.go` line. So this is a column that always says zero, which is a
+plausible zero in a report, not a broken mechanism.
+
+Restoring it would not have been a revival either: the motion collapse retired
+`dispute`/`dispute-respond`, so a producer would be NEW code computing from
+`motion(subject=grade)` + `motion-rule(ruling=accepted)`. That is a deliberate metric to add, not
+a regression to repair. **PR3 deletes both readers**; `TelemetryLine` keeps `reserved 10` and the
+reserved name so the field cannot be silently reused.
+
+**5. `buf` — DECLARE IT, tier `optional`, and let the doctor check it.** PR4 adds it to
+frank-exchange-of-views' `requirements.json`: purpose "convert a raw shard line to JSON for
+inspection", tier `optional` because **nothing in the build or the run needs it** — `protogen`
+deliberately avoids it and seats read `show board --format json`, which is unaffected by shard
+format. Its absence must therefore never be a failure, only a note.
+
+This closes the gap the `jq` argument exposed: a tool documented as a diagnostic path is declared
+and checked, never assumed present. An undeclared tool in a recipe is the accident-of-environment
+reasoning that got the `jq` cost thrown out, preserved in writing.
+
+**6. `omitempty` — DROP IT ENTIRELY from the agent-facing projections.** All 108 fields in
+`viewjson.go` always emit; unset becomes explicit `null`.
+
+The split-by-decision-relevance option was rejected in favour of this, and the reason is the
+stronger one: a split needs a LIST of which fields matter, and that list is a hand-kept carrier
+that drifts from the schema it describes — the defect this migration exists to remove, recreated
+in the fix. Dropping `omitempty` outright needs no list and no judgement per field.
+
+The cost is tokens on every board read, paid mostly on fields nobody consults. The benefit is that
+"not set" and "not applicable" stop being the same bytes: an omitted `check_kind` and a
+`check_kind` nobody set are today indistinguishable to a reading seat, which is the plausible zero
+surviving into the one surface an agent acts on every turn. **PR2 owns it.**
+
+---
+
+The reasoning each rests on, kept because it is the part that would otherwise be re-litigated:
+
+
+**8. THE PROJECTION STAYS JSON — decided, and NOT by inheriting the shard's argument.** `show
 board`, `show worklist` and the telemetry series keep JSON. The reasoning that carried textproto
 for shards — a closed set must not become a string at the wire boundary — has **no force here**:
 that argument is about a WRITER being refusable, and a projection is read-only output with no
@@ -1362,58 +1411,17 @@ sound premise and a conclusion that did not follow: `ask` sends a shape the clie
 SYNCHRONOUS — the agent sees it now. A `FRICTION_KIND_TOOL_ERROR` event is DURABLE — a later
 reader finds it. An error worth surfacing generally wants both.
 
-**7a. `hookgate`'s FAIL DIRECTION is still an operator decision, filed not changed.**
-`writesBlueReport` did `_ = json.Unmarshal(in.ToolInput, &ti)`; on a parse failure `ti.FilePath`
-stays empty, the function returns false, and `Decide` answers "no opinion" — so **malformed input
-silently bypasses the blue-report lockdown**, and nothing records that it happened.
+**7a. `hookgate` — FAIL CLOSED, AND FILE FRICTION.** Both halves (operator, 2026-08-18).
 
-Malformed input still makes `writesBlueReport` return false and `Decide` answer "no opinion", so
-the write is still ALLOWED. That is unchanged deliberately: flipping a gate to fail-closed can
-block legitimate work and is a security-semantics decision, not a cleanup. What changed is that
-the bypass is now DETECTABLE and recordable rather than invisible — `TestUnreadableToolInputIsDetectable`
-asserts both halves, including that the fail direction did not move. **Owner: operator.**
+Malformed `tool_input` leaves `ti.FilePath` empty, so `writesBlueReport` returns false, `Decide`
+answers "no opinion", and the write is ALLOWED — a gate bypassed by input it cannot read is not a
+gate. It now DENIES, and records a `FRICTION_KIND_TOOL_ERROR` event so the refusal leaves a trace
+rather than only blocking.
 
+The risk this accepts, stated: if the harness ever sends a shape this parser does not expect, a
+legitimate write is denied — and the seat most likely to be hit is the allowlisted author, the one
+seat that should never be blocked. That is the deliberate trade against a silent bypass, and the
+friction event is what makes such a denial diagnosable instead of mysterious.
 
-**4. `accepted_deltas` has no producer — a live telemetry gap, not a migration artifact.**
-Found while modelling `TelemetryLine`. Read by `internal/cost/cost.go:399` and
-`internal/dashboard/render.go:364`, written by NOTHING; its only other occurrences are fixtures in
-`dashboard/render_test.go`, so the tests pass on supplied data while production sees `nil` every
-run and both surfaces render "no accepted deltas" where the truth is "never measured".
-`debate.js:270` still carries `ACCEPTED_DELTA_DOCKET_THRESHOLD`, so the concept is live in the
-engine and it is the PRODUCER that went missing — most likely in the port or the motion collapse.
-**This migration does not restore it**: `TelemetryLine` carries `reserved 10` with the reason
-inline, and PR3 deletes the two readers. Restoring it needs the semantics the motion collapse
-changed, which is a decision rather than a fix. **Owner: operator.**
-
-**5. `buf` is undeclared.** §II.2(0) documents `buf convert` as the raw-shard diagnostic path, and
-`buf` appears in no `requirements.json` — the same status `jq` had when its absence was wrongly
-weighed as a cost. PR4 adds it to frank-exchange-of-views at tier `optional`, or the recipe comes
-out of this plan. **Owner: PR4.**
-
-0. ~~§V.3's real-data check contradicts the no-converter decision.~~ **RESOLVED by the operator,
-   2026-08-17: there is no data anywhere to preserve except test fixtures, which are
-   regenerable by re-running.** This closes the last blocking contradiction and simplifies three
-   things at once:
-
-   - **No converter, in any form.** §V.3's "PR2 converts it and asserts a round trip" is struck.
-     The `research/2026-08-10_dual-read-vs-migration` shards are disposable like everything else.
-   - **§V.3's driveable check is REPLACED, not weakened.** Instead of round-tripping a preserved
-     artifact, PR2 **regenerates** the fixtures by driving the CLI end to end and re-records
-     them. That is strictly better evidence than the old plan's: a regenerated fixture proves the
-     write path produces what the read path accepts *today*, where a converted one only proved a
-     translation was faithful. The "bytes nobody authored for a test" justification is retired
-     with the artifact it defended.
-   - **§II.5's loud refusal STAYS, and its cost drops to nothing.** The pre-proto row is no
-     longer protecting data in this repo — it protects an installing project that has records
-     this repo cannot see, which was always the real argument (§I, "the cost, stated once"). With
-     no local corpus, the refusal test runs against a fixture regenerated from the pre-change
-     binary or hand-written; §II.5's synthetic-fixture weakening no longer needs mitigating,
-     because nothing of value depends on the fixture being genuine.
-
-None outstanding. All three forks were put to the operator on 2026-08-16 and resolved; the
-`scripts/mutate` call was decided rather than asked (`semantic-consent`: decide the reversible,
-disclose it) because it is a process call with no behavioural or irreversible consequence. It is
-worth the minutes because this plan's whole claim is a write path that *refuses*, and CLAUDE.md
-records `internal/secrets` reporting 100.0% statement coverage while two of eight patterns could
-be deleted with the suite green. Coverage cannot ask whether the new refusals would be NOTICED if
-they stopped firing; mutation can. Survivors are a list to explain, not a number to drive to zero.
+`hookgate` stays free of I/O: `InputUnreadable` is the predicate, and `internal/cli/hook.go`
+writes the friction event and emits the deny document.
