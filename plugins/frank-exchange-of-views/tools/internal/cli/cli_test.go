@@ -170,6 +170,17 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 			if err == nil {
 				t.Fatal("the verb ran without its preconditions")
 			}
+			// SUPPLY EVERY OTHER REQUIRED FLAG, so the refusal under test is this one's. The
+			// verbs whose flags cobra marks refuse at PARSE time, before Begin reaches the
+			// run/seat-id checks — so a case that omits both measures whichever fires first
+			// rather than the one it is named for.
+			if strings.Contains(err.Error(), "required flag") || strings.Contains(err.Error(), "one of the flags in the group") {
+				args = append(args, "--reason", "supplied so the refusal under test is the run/seat one")
+				_, err = run(t, args...)
+				if err == nil {
+					t.Fatal("the verb ran without its preconditions")
+				}
+			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
 			}
@@ -643,11 +654,13 @@ func TestProseChannelResolution(t *testing.T) {
 		if err == nil {
 			t.Fatal("a position with no reason was recorded — an empty position is a duty discharged by nothing")
 		}
+		// Cobra names the pair without dashes ("one of the flags in the group [reason
+		// reason-file]"), which is the framework's phrasing and still names both ways in.
 		all := out + err.Error()
-		if !strings.Contains(all, "--reason") {
+		if !strings.Contains(all, "reason") {
 			t.Errorf("the refusal does not name the flag that fixes it:\n%s", all)
 		}
-		if strings.Contains(all, "prose file") || strings.Contains(all, "reason-file") {
+		if strings.Contains(all, "cannot read") || strings.Contains(all, "prose file") {
 			t.Errorf("omitting both flags was reported as a FILE read failure, sending the seat after a file it never named:\n%s", all)
 		}
 		// The seat's own register event is expected; a POSITION event is not.

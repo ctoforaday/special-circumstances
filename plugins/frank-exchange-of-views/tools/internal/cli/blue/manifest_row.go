@@ -34,7 +34,11 @@ func newManifestRow() *cobra.Command {
 		}))
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this receipt covers")
-	c.Flags().String(flags.Row, "", "what you checked and what it showed, compressed to one line")
+	// THE ALTERNATIVE IS NAMED IN THE SAME SENTENCE, as --problem's is on mint. The field is
+	// required and this flag is not the only way to fill it: the verb falls back to the prose
+	// channel, so a help that said REQUIRED without saying that would describe a constraint the
+	// tool does not have.
+	c.Flags().String(flags.Row, "", "what you checked and what it showed, compressed to one line (or pass it via --reason)")
 	return c
 }
 

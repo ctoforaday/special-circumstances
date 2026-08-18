@@ -880,21 +880,37 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
   // Each seat is handed its ROLE, not a script path: seat identity is bound to
   // the role namespace, so a seat pointed at the wrong one is refused by the tool.
   const roleOf = (label) => world.calls.find((x) => x.opts.label.startsWith(label)).prompt
-  // The path is QUOTED (plugin roots can contain spaces), so the role token sits
-  // after the closing quote — the same shape capture's join audit must match.
-  const dispatches = (label, role) => new RegExp(`feov-record"?\\s+${role}\\s+register`).test(roleOf(label))
+  // THE SUBJECT IS ROLE BINDING, not any particular command. The prompt used to carry a
+  // `feov-record <role> register` invocation and this matched on that; the contract names no
+  // commands now — the help is the only page that instructs — so it asserts what it was always
+  // about: the seat is told which role is ITS role, and a seat pointed at another is refused by
+  // the tool.
+  const dispatches = (label, role) => roleOf(label).includes('Yours is `' + role + '`')
   assert.ok(dispatches('red-lens', 'lens'), 'lens dispatched to the lens role')
   assert.ok(dispatches('red-merge-r1', 'merge'), 'merge dispatched to the merge role')
   assert.ok(dispatches('blue-respond-r1', 'blue'), 'blue dispatched to the blue role')
   assert.ok(dispatches('assemble', 'bench'), 'assembly dispatched to the bench role')
 
-  // THE HELP IS THE CONTRACT, and the seat is told so explicitly — including what
-  // to do when what it needs is absent, which is friction rather than improvising
-  // or hand-writing the artifact the record layer exists to replace.
+  // THE HELP IS THE ONLY PAGE THAT INSTRUCTS, and the seat is REQUIRED to walk it in three
+  // steps before the act that needs them: root for the groups, the group for its commands, the
+  // command for its flags. A seat that skips a rung is working from memory, and the measured
+  // failure is exactly that — a seat assumed the writing verb matched a projection's name and
+  // read the help only after two invented calls had failed.
   const lens = roleOf('red-lens')
-  assert.ok(lens.includes('feov-record lens --help'), 'the seat is pointed at its own contract')
-  assert.ok(/does not exist for you/.test(lens), 'absence is stated as absence')
-  assert.ok(/friction verb/.test(lens), 'the escalation path is named')
+  assert.ok(/REQUIRED/.test(lens), 'reading the help is stated as required, not suggested')
+  assert.ok(lens.includes('--help — the GROUPS'), 'step 1: the root help, for the groups')
+  assert.ok(lens.includes('<group> --help'), 'step 2: the group help, before using a command in it')
+  assert.ok(lens.includes('<group> <command> --help'), 'step 3: the command help, before running it')
+  assert.ok(/BEFORE using any command in a group you have not yet opened/.test(lens), 'the group rung is ordered before use')
+  assert.ok(/BEFORE running the command/.test(lens), 'the command rung is ordered before use')
+  assert.ok(/DOES NOT EXIST FOR YOU/.test(lens), 'absence is stated as absence')
+  assert.ok(/finding about the tooling/.test(lens), 'the escalation path is stated')
+
+  // AND IT NAMES NO COMMAND. The contract is the ladder, not a list — a partial list satisfies
+  // the seat's need to know what exists and stops it looking, which is the whole reason the
+  // naming experiment moved this out of the prompt.
+  assert.ok(!/\b(register|mint|close|verdict|regrade|retire|opinion|certify|halt)\s+--/.test(lens),
+    'the record contract hands over a typeable invocation')
 })
 
 // ---- W2c: the petition short-circuit + judicial halt ----
