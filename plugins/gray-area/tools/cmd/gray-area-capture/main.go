@@ -58,6 +58,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
+	"sort"
 )
 
 // schema is the manifest row version. The transcript format is vendor-internal
@@ -67,7 +68,7 @@ import (
 // reader cannot otherwise tell "an old binary wrote this row and had no category" from
 // "a new binary wrote it and the row resolved" — both omit the key. Gating on schema >= 2
 // is what makes the field's ABSENCE mean something, which is the whole point of adding it.
-const schema = 2
+const schema = 3
 
 // The closed set of reasons a row is unresolved. A counter downstream needs to separate the
 // expected population from the alarming one, and a prose error string cannot be counted:
@@ -109,6 +110,10 @@ type hookInput struct {
 	Effort              struct {
 		Level string `json:"level"`
 	} `json:"effort"`
+	// HookEventName is what the HARNESS calls this event. The wiring already knows which hook
+	// it registered for and passes it with -event; this is the payload's own claim, recorded
+	// so the two can be COMPARED rather than assumed equal. See manifestRow.HookEventName.
+	HookEventName string `json:"hook_event_name"`
 }
 
 // manifestRow is one seat's entry. Field names are snake_case to match the
@@ -138,6 +143,53 @@ type manifestRow struct {
 	// a resolved row has nothing to categorise. Present on EVERY unresolved row from
 	// schema 2 onward, which is what lets a reader treat its absence as meaningful.
 	CaptureCategory string `json:"capture_category,omitempty"`
+	// PayloadKeys is the top-level KEY NAMES the hook payload carried, recorded on unresolved
+	// rows only. Schema 3.
+	//
+	// WHY NAMES AND NOT VALUES. #189 is undetermined after four investigations, and the reason
+	// the fourth also stalled is that this program records the eight fields it already models
+	// and nothing about what else arrived — so a population it cannot explain is a population
+	// it cannot even describe. Measured 2026-08-17 on this repository's own manifest: 141 seat
+	// rows carry no agent_type and no transcript, and NONE of them corresponds to an `Agent`
+	// tool call (20 in the whole session, all 19 typed rows accounted for). Whatever fires
+	// SubagentStop for them is not an Agent-tool subagent, and no field here says what it is.
+	//
+	// Values are NOT recorded, and that is not timidity: the payload carries
+	// `last_assistant_message`, which this program deliberately refuses to copy (see the header
+	// and plans/gray-area.md G6). Key names describe the SHAPE of an event without spreading
+	// conversation content into a second file — which is the whole posture of this plugin.
+	PayloadKeys []string `json:"payload_keys,omitempty"`
+	// DeclaredEvent is what the WIRING said (-event, from hooks.json). HookEventName is what the
+	// PAYLOAD said. Both are recorded because #189 turns on whether they agree.
+	//
+	// Schema 3 recorded payload key NAMES and immediately earned its keep: the first typeless row
+	// carried `hook_event_name`, `stop_hook_active`, `prompt_id` and `permission_mode` — four
+	// fields this program had never modelled, on an event it could not explain. Names alone
+	// cannot say WHICH event it was, and that is the question.
+	//
+	// A VALUE IS RECORDED HERE AND NOT ELSEWHERE, deliberately: `hook_event_name` is harness
+	// metadata naming its own event, not conversation content. `last_assistant_message` sits in
+	// the same payload and is still refused (G6). The distinction is what the field IS, not how
+	// convenient it would be.
+	DeclaredEvent string `json:"declared_event,omitempty"`
+	HookEventName string `json:"hook_event_name,omitempty"`
+}
+
+// payloadKeys returns the sorted top-level key names of a JSON object, or nil.
+//
+// Sorted so two rows are comparable at a glance; a set, not a sequence, because JSON object
+// order carries no meaning and an unstable list would read as a changing payload.
+func payloadKeys(raw []byte) []string {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(raw, &m) != nil {
+		return nil
+	}
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // statFunc is the filesystem probe, injected so both the resolved and the
@@ -147,7 +199,7 @@ type statFunc func(string) (int64, error)
 // buildRow is the pure decision: given the hook input and a probe, produce the
 // row. It never returns an error — an unresolvable path is DATA, recorded as
 // resolved=false with the reason, not a failure that loses the row entirely.
-func buildRow(in hookInput, now time.Time, stat statFunc) manifestRow {
+func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, stat statFunc) manifestRow {
 	r := manifestRow{
 		Schema:              schema,
 		Kind:                "seat",
@@ -158,6 +210,8 @@ func buildRow(in hookInput, now time.Time, stat statFunc) manifestRow {
 		TranscriptPath:      in.TranscriptPath,
 		AgentTranscriptPath: in.AgentTranscriptPath,
 		SessionCronCount:    len(in.SessionCrons),
+		DeclaredEvent:       declaredEvent,
+		HookEventName:       in.HookEventName,
 		Effort:              in.Effort.Level,
 		BackgroundTaskIDs:   []string{},
 	}
@@ -169,6 +223,7 @@ func buildRow(in hookInput, now time.Time, stat statFunc) manifestRow {
 	if in.AgentTranscriptPath == "" {
 		r.CaptureError = "hook input carried no agent_transcript_path"
 		r.CaptureCategory = captureNoPath
+		r.PayloadKeys = payloadKeys(raw)
 		return r
 	}
 	// STAT EVEN THE UNTYPED SEATS, and categorise from what happened rather than from what
@@ -188,6 +243,7 @@ func buildRow(in hookInput, now time.Time, stat statFunc) manifestRow {
 		} else {
 			r.CaptureCategory = captureMissing
 		}
+		r.PayloadKeys = payloadKeys(raw)
 		return r
 	}
 	r.Resolved = true
@@ -312,7 +368,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	appendRow(manifestPath(projectDir, in.SessionID), buildRow(in, now, stat), stderr)
+	appendRow(manifestPath(projectDir, in.SessionID), buildRow(in, raw, *event, now, stat), stderr)
 	return 0
 }
 
