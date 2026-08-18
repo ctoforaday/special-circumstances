@@ -366,12 +366,16 @@ func reportTelemetry(runDir string, p func(string)) {
 		return
 	}
 	p("\n## Board telemetry (per round)\n")
-	p("| round | open | max severity | new mints | mass | realized_open | accepted deltas | mapping |")
-	p("|---|---|---|---|---|---|---|---|")
+	// `accepted deltas` was a column here. It read a telemetry key NOTHING WRITES, so it printed
+	// 0 on every row of every run — a measurement whose miss is indistinguishable from its honest
+	// answer. The engine is unaffected: debate.js computes its own accepted-delta magnitude in
+	// process and dockets on it. Removed rather than left reading as measured.
+	p("| round | open | max severity | new mints | mass | realized_open | mapping |")
+	p("|---|---|---|---|---|---|---|")
 	for _, t := range lines {
-		p(fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %d | %s |",
+		p(fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s |",
 			telField(t, "round"), telField(t, "open_count"), telField(t, "max_severity"),
-			newMintCount(t), telField(t, "mass"), telField(t, "realized_open"), acceptedDeltas(t), telField(t, "mapping_version")))
+			newMintCount(t), telField(t, "mass"), telField(t, "realized_open"), telField(t, "mapping_version")))
 	}
 	p("\nTelemetry is the convenience copy, never the evidence of record — actuation reviews recompute from the git-tracked ledger.")
 }
@@ -411,11 +415,4 @@ func newMintCount(m map[string]any) string {
 		return "?"
 	}
 	return telVal(c)
-}
-
-func acceptedDeltas(m map[string]any) int {
-	if a, ok := m["accepted_deltas"].([]any); ok {
-		return len(a)
-	}
-	return 0
 }

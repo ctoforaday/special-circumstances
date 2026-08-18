@@ -24,6 +24,17 @@
         "darwin": "brew install uv",
         "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh"
       }
+    },
+    {
+      "name": "buf",
+      "purpose": "convert a raw record shard line to JSON for inspection (`buf convert internal/record/recordpb/record.proto --type feov.record.v1.Event --from -#format=txtpb --to -#format=json`) — diagnostics only; nothing in the build or a run needs it, and `scripts/protogen` deliberately does not",
+      "tier": "optional",
+      "check_cmd": "buf --version",
+      "install": {
+        "windows": "go install github.com/bufbuild/buf/cmd/buf@latest",
+        "darwin": "brew install bufbuild/buf/buf",
+        "linux": "go install github.com/bufbuild/buf/cmd/buf@latest"
+      }
     }
   ]
 }

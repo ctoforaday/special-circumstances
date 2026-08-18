@@ -356,16 +356,14 @@ func RenderHTML(m Model) string {
 
 	// Open/close rates table.
 	w("<h2>Open / close rates (the convergence signal — is red's discovery decaying?)</h2>\n")
-	w(`<div class="scrollx"><table><tr><th>round</th><th>opened</th><th>closed</th><th>still open</th><th>close rate</th><th>max sev</th><th title="new mints by severity: c certain, h high, mh medium-high, m medium, lm low-medium, l low, t trivial">mints (c/h/mh/m/lm/l/t)</th><th>mass</th><th>deltas</th></tr>` + "\n")
+	w(`<div class="scrollx"><table><tr><th>round</th><th>opened</th><th>closed</th><th>still open</th><th>close rate</th><th>max sev</th><th title="new mints by severity: c certain, h high, mh medium-high, m medium, lm low-medium, l low, t trivial">mints (c/h/mh/m/lm/l/t)</th><th>mass</th></tr>` + "\n")
 	rateRows := make([]string, 0, len(m.Rates))
 	for i, r := range m.Rates {
 		t := m.Telemetry[i]
-		deltas := 0
-		if d, ok := t["accepted_deltas"].([]any); ok {
-			deltas = len(d)
-		}
-		rateRows = append(rateRows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td><td>%d%%</td><td>%s</td><td class="nowrap">%s</td><td>%s</td><td>%d</td></tr>`,
-			esc(anyStr(r.Round)), r.Opened, r.Closed, esc(anyStr(r.Open)), r.CloseRate, esc(orDash(t["max_severity"])), sevRow(t), esc(orDash(t["mass"])), deltas))
+		// The `deltas` column read accepted_deltas, a telemetry key nothing writes, so it showed
+		// 0 on every row ever rendered. Removed rather than left looking measured — see cost.go.
+		rateRows = append(rateRows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td><td>%d%%</td><td>%s</td><td class="nowrap">%s</td><td>%s</td></tr>`,
+			esc(anyStr(r.Round)), r.Opened, r.Closed, esc(anyStr(r.Open)), r.CloseRate, esc(orDash(t["max_severity"])), sevRow(t), esc(orDash(t["mass"]))))
 	}
 	w(strings.Join(rateRows, "\n") + "\n</table></div>\n")
 

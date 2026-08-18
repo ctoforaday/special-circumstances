@@ -61,9 +61,9 @@ td, th { font-variant-numeric: tabular-nums; }
 <text x="518.0" y="24.0" text-anchor="end" class="label">6</text>
 </svg>
 <h2>Open / close rates (the convergence signal — is red's discovery decaying?)</h2>
-<div class="scrollx"><table><tr><th>round</th><th>opened</th><th>closed</th><th>still open</th><th>close rate</th><th>max sev</th><th title="new mints by severity: c certain, h high, mh medium-high, m medium, lm low-medium, l low, t trivial">mints (c/h/mh/m/lm/l/t)</th><th>mass</th><th>deltas</th></tr>
-<tr><td>1</td><td>3</td><td>0</td><td>3</td><td>0%</td><td>high</td><td class="nowrap">2h 1m</td><td>4</td><td>0</td></tr>
-<tr><td>2</td><td>1</td><td>2</td><td>2</td><td>50%</td><td>high</td><td class="nowrap">1m</td><td>6</td><td>1</td></tr>
+<div class="scrollx"><table><tr><th>round</th><th>opened</th><th>closed</th><th>still open</th><th>close rate</th><th>max sev</th><th title="new mints by severity: c certain, h high, mh medium-high, m medium, lm low-medium, l low, t trivial">mints (c/h/mh/m/lm/l/t)</th><th>mass</th></tr>
+<tr><td>1</td><td>3</td><td>0</td><td>3</td><td>0%</td><td>high</td><td class="nowrap">2h 1m</td><td>4</td></tr>
+<tr><td>2</td><td>1</td><td>2</td><td>2</td><td>50%</td><td>high</td><td class="nowrap">1m</td><td>6</td></tr>
 </table></div>
 <h2>Red's board (contents, not bytes)</h2>
 <table>
