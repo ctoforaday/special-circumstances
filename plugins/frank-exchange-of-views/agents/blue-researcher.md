@@ -136,11 +136,11 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
 - AFTER every sitting — not only the ones that went wrong — YOU MUST close the friction
-  channel explicitly: `friction --reason "<the thing and what shape the work actually
-  wanted>"` for each capability gap, missing tool, or TEMPLATE/PROTOCOL MISFIT (a section
-  that made no sense for the topic, a field with nothing honest to put in it, content with
-  no home), and `friction --none --reason "<what you reached for and found>"` when nothing
-  blocked you. **Silence is not the empty case.** An absent friction log reads identically
+  channel explicitly: your role's friction verb, with a --reason naming the thing and the
+  shape the work actually wanted, for each capability gap, missing tool, or TEMPLATE/PROTOCOL
+  MISFIT (a section that made no sense for the topic, a field with nothing honest to put in
+  it, content with no home), and its --none form, with a --reason saying what you reached for
+  and found, when nothing blocked you. **Silence is not the empty case.** An absent friction log reads identically
   whether the sitting was clean or the channel went unused, and across eighteen recorded
   seat sittings it was the second every single time — including one seat that worked out,
   in its own reasoning, that a verb it needed did not exist, and then guessed instead of
