@@ -92,7 +92,7 @@ func AvailableOf(b *Board, role, seatID string) []Duty {
 	if b == nil {
 		return out
 	}
-	add := func(what, how string) { out = append(out, Duty{What: what, How: how}) }
+	add := func(what string) { out = append(out, Duty{What: what}) }
 
 	switch role {
 	case "blue":
@@ -107,32 +107,26 @@ func AvailableOf(b *Board, role, seatID string) []Duty {
 		// which is where a followed line comes to REST — so a seat that did the right thing
 		// was told to abandon or defer it. Both are fixed at the single predicate now.
 		for _, a := range StaleInquiries(b) {
-			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since round %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Round),
-				fmt.Sprintf(`line-of-inquiry --id %s --status pursued|declined|abandoned|deferred --reason "<what you learned, or why its fate changed>"`, a.ID))
+			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since round %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Round))
 		}
 		// A repair with no receipt is one nobody audited, including its author.
 		for _, id := range gapsEditedWithoutManifest(b, seatID) {
-			add("gap "+id+" was answered by an edit and carries no manifest row — the report names a closed gap with no row as a repair nobody audited, including its author",
-				`manifest-row --id `+id+` --row "<what you checked and what it showed>"`)
+			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a closed gap with no row as a repair nobody audited, including its author")
 		}
 	case "merge":
 		if anyClosedGap(b) && !seatDid(b, seatID, "spot-check") {
-			add("the closure archive is not empty and this sitting has sampled none of it",
-				`spot-check --id <a closed gap> --notes "..."   |   spot-check --none --reason "<what you looked at and found>"`)
+			add("the closure archive is not empty and this sitting has sampled none of it")
 		}
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
 		for _, id := range gapsWithAcceptedMotionAndNoRegrade(b) {
-			add("gap "+id+" had a grade motion ACCEPTED and no regrade followed it — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence",
-				`regrade --id `+id+` --severity|--likelihood|--impact|--cx <the new grade> --reason "<what changed your mind>"`)
+			add("gap " + id + " had a grade motion ACCEPTED and no regrade followed it — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
 	case "lens":
 		for _, key := range citedClaimsWithoutVerify(b) {
-			add("citation "+key+" is on the record and nobody has verified it against what the source actually says",
-				`verify --key `+key+` --as <outcome> --confidence <grade> --reason "..."`)
+			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
 		}
 		for _, id := range proofsWithoutReproduce(b) {
-			add("proof "+id+" is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it",
-				`reproduce --id `+id)
+			add("proof " + id + " is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it")
 		}
 	}
 	return out
@@ -211,15 +205,28 @@ func gapsWithAcceptedMotionAndNoRegrade(b *Board) []string {
 	return out
 }
 
-// citedClaimsWithoutVerify finds sources on the record that nobody checked.
+// citedClaimsWithoutVerify finds citations on the record that nobody checked.
+//
+// THE JOIN IS THE CITATION ANCHOR, and it was neither of the keys this used to read.
+//
+// It looked for `cite_key`, then `key`, on both sides. A `cite` event carries neither — its keys
+// are access_date, claim, label, location, sha256, title, url — so the lookup always missed, the
+// slice was always empty, and no lens was ever told about an unverified citation. "Nothing is
+// outstanding" and "the join key is not on the event" were the same bytes, and the affordance had
+// never fired in the tool's lifetime.
+//
+// It also hid a second defect: the instruction that dead path handed over named `--key`, a flag
+// `lens verify` does not have, so the one time it fired it would have failed. Neither was visible
+// because the other kept it off the board.
+//
+// `blue cite` records the anchor id as `label` (c-<hex>, the token it splices into the report);
+// `lens verify` records the citation it checked as `anchor`. An INDEPENDENT verify carries no
+// anchor and deliberately discharges nothing: it is a check against a source blue never cited.
 func citedClaimsWithoutVerify(b *Board) []string {
 	verified := map[string]bool{}
 	for _, e := range b.Events {
 		if e.Type == "verify" {
-			if k := e.Payload.Str("cite_key"); k != "" {
-				verified[k] = true
-			}
-			if k := e.Payload.Str("key"); k != "" {
+			if k := e.Payload.Str("anchor"); k != "" {
 				verified[k] = true
 			}
 		}
@@ -230,10 +237,7 @@ func citedClaimsWithoutVerify(b *Board) []string {
 		if e.Type != "cite" {
 			continue
 		}
-		k := e.Payload.Str("cite_key")
-		if k == "" {
-			k = e.Payload.Str("key")
-		}
+		k := e.Payload.Str("label")
 		if k == "" || verified[k] || seen[k] {
 			continue
 		}

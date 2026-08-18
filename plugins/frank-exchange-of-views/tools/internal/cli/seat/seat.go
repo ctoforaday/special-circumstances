@@ -44,6 +44,22 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.`
 
+// MotionFooter points at the one group a seat uses that is NOT under its role.
+//
+// Every other verb a seat needs is listed by `<role> --help`. Motions are not: the group sits at
+// the ROOT, because any seat may FILE one and exactly one role RULES each subject, so mounting it
+// per role would either duplicate it four times or misreport who may rule.
+//
+// That was survivable while a duty handed over a full invocation. It is not now: the worklist
+// says "motion M1 was filed and never ruled — PASS is refused while it stands", and a merge seat
+// reading its own role help finds no motion verb, no motion group, and no pointer to either. The
+// duty names a thing the help does not reach, which is the one shape this contract cannot have if
+// the help page is the only page that instructs.
+const MotionFooter = `
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.`
+
 // Context is what every verb needs and no verb should re-derive.
 type Context struct {
 	RunDir string

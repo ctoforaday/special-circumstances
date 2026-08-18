@@ -1362,6 +1362,26 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.err = "operator friction read failed: " + err.Error()
 		return res
 	}
+	// A SEAT AT THE WRONG ADDRESS IS TOLD WHERE THE VERB LIVES, not which flag is unknown.
+	//
+	// The seat's write is `<role> friction`; the roleless form lands on the read above. It used
+	// to die in cobra's parser — `unknown flag: --reason`, before any message that could teach —
+	// and the channel it could not reach is the one for reporting exactly that. These flags exist
+	// on the read ONLY to be refused, so this is the drive that exercises them.
+	for _, args := range [][]string{
+		{"friction", "--reason", "fuzz: a capability I could not reach"},
+		{"friction", "--none", "--reason", "fuzz: nothing blocked me"},
+	} {
+		out, err := tracked(bin, append(args, "--run", runDir)...)
+		if err == nil {
+			res.err = strings.Join(args, " ") + " was ACCEPTED by the operator's read — a seat's write landed on a projection:\n" + truncate(string(out))
+			return res
+		}
+		if !strings.Contains(string(out), "role") {
+			res.err = strings.Join(args, " ") + " was refused without naming `<role> friction` — the seat is left as stuck as a parse error would leave it:\n" + truncate(string(out))
+			return res
+		}
+	}
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
 	for _, v := range []string{"findings"} {

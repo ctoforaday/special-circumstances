@@ -495,7 +495,7 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 	c := &cobra.Command{
 		Use:   role,
 		Short: short,
-		Long:  short + "\n" + FrictionFooter,
+		Long:  short + "\n" + MotionFooter + "\n" + FrictionFooter,
 		// ArbitraryArgs with flag parsing off at the ROLE level so an unrecognised
 		// verb reaches RunE instead of failing on a flag the role does not own:
 		// `lens mint --run x` must answer "the lens has no mint verb", not
