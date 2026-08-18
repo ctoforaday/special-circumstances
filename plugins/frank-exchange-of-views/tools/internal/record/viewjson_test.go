@@ -25,7 +25,6 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	writeShard(t, runDir, blue, "bbbbbbbb", []Event{
 		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", NewPayload().Set("reason", "blue r1")),
 		ev(blue, "bbbbbbbb", 1, 1, "confidence", blue+":confidence:C1", NewPayload().Set("label", "claim one").Set("grade", "medium")),
-		ev(blue, "bbbbbbbb", 2, 1, "dispute", blue+":dispute:R1-1", NewPayload().Set("gap_id", "R1-1").Set("dimension", "likelihood").Set("proposed", "low").Set("reason", "blue evidence")),
 	})
 	writeShard(t, runDir, judge, "cccccccc", []Event{
 		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", NewPayload().
@@ -63,9 +62,6 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	}
 	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "R1-1" || r1.RedClosings[0].Text != "red closes r1" {
 		t.Errorf("round 1 RedClosings = %+v", r1.RedClosings)
-	}
-	if len(r1.Disputes) != 1 || r1.Disputes[0].Kind != "dispute" || r1.Disputes[0].Proposed != "low" {
-		t.Errorf("round 1 Disputes = %+v", r1.Disputes)
 	}
 	// The red-only round: Red present, Blue an empty (non-nil) array.
 	if len(r2.Red) != 1 || r2.Red[0] != "red r2" {

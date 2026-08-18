@@ -139,7 +139,7 @@ func Assemble(runDir string) (string, error) {
 		p("## Blue team report (sections not composed above)\n\n" + extra)
 	}
 	p(redFindings(board))
-	p(debate(evs))
+	p(debate(board, evs))
 	// Every adjudicated exchange, joined on its id (#344).
 	if m := motions(board); m != "" {
 		p(m)
@@ -885,7 +885,10 @@ func unmintedFindings(board *record.Board) string {
 // and closings, the grade disputes and their answers, then the bench's opinions and petition
 // rulings; then the terminal bench disposition (halt / certify). Everything the parties and
 // the bench put on the record, in one place — the seat re-narrated none of it.
-func debate(evs []record.Event) string {
+// debate takes the BOARD as well as the events, because a petition's ruling cannot be attributed
+// to its filing from an event alone: motion-rule carries motion_id, never the filer or subject of
+// the ask. record.Motions performs that join.
+func debate(board *record.Board, evs []record.Event) string {
 	var order []int
 	byRound := map[int][]record.Event{}
 	for _, e := range evs {
@@ -911,19 +914,7 @@ func debate(evs []record.Event) string {
 				round = append(round, fmt.Sprintf("### BLUE CLOSING — %s\n%s", e.Payload.Str("gap_id"), e.Payload.Str("reason")))
 			}
 		}
-		// Grade disputes and their answers — the claim-level alternative and its counter.
-		var disp []string
-		for _, e := range re {
-			switch e.Type {
-			case "dispute":
-				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s", e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("reason")))
-			case "dispute-respond":
-				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("reason")))
-			}
-		}
-		if len(disp) > 0 {
-			round = append(round, "### Grade disputes\n"+strings.Join(disp, "\n"))
-		}
+
 		// PETITIONS: the filing AND the ruling, in event order, in one block.
 		//
 		// Rendering the ruling alone — "petition red-merge: granted — <opinion>" — gives the
@@ -936,26 +927,6 @@ func debate(evs []record.Event) string {
 		// the class but no petition id (#312), so pairing two filings by the same seat in one
 		// round would be a guess. They are rendered in the order they happened, which is a fact,
 		// and the run-level count check below says plainly if a filing went unanswered.
-		var pets []string
-		for _, e := range re {
-			switch e.Type {
-			case "petition":
-				class := e.Payload.Str("class")
-				if class != "" {
-					class = " (" + class + ")"
-				}
-				row := fmt.Sprintf("- **%s petitions the bench%s**: %s", e.SeatID, class, e.Payload.Str("reason"))
-				if r := e.Payload.Str("relief"); r != "" {
-					row += "\n  - relief sought: " + r
-				}
-				pets = append(pets, row)
-			case "petition-rule":
-				pets = append(pets, fmt.Sprintf("- ruled **%s** on %s's petition — %s", e.Payload.Str("ruling"), e.Payload.Str("petitioner"), e.Payload.Str("reason")))
-			}
-		}
-		if len(pets) > 0 {
-			round = append(round, "### Petitions\n"+strings.Join(pets, "\n"))
-		}
 		// The bench's in-round acts: opinions on the docket.
 		var lead []string
 		for _, e := range re {
@@ -989,18 +960,31 @@ func debate(evs []record.Event) string {
 			// which is why it could never have appeared in the per-gap dispositions above, and
 			// why the bench that needed one had nowhere to put it (#361).
 			disp = append(disp, "**Declared** — "+e.Payload.Str("holding"))
-		case "petition":
-			filed++
-		case "petition-rule":
+		}
+	}
+	// A PETITION IS A MOTION NOW, AND THAT MAKES THIS COUNT BETTER THAN IT WAS. It read the
+	// retired `petition`/`petition-rule` types, so after the collapse it saw zero of each and the
+	// unanswered-petition warning below could never fire — silence that read as "no petitions
+	// went unanswered".
+	//
+	// The old note said the pair was COUNTED rather than JOINED because `petition-rule` carried
+	// no id, so pairing two filings by one seat in one round would have been a guess. A motion
+	// has an id; record.Motions joins the ask to its answer, so this is now an exact count of
+	// petitions that were never ruled rather than a difference between two tallies.
+	for _, m := range record.Motions(board) {
+		if m.Subject != "petition" {
+			continue
+		}
+		filed++
+		if m.Ruled() {
 			ruled++
 		}
 	}
 	// AN UNANSWERED PETITION IS THE LOUD CASE. A petition is a seat's channel for an ethical,
 	// safety, integrity or constitutional objection, and the engine routes it to a bench sitting
 	// BEFORE the debate continues — so a filing with no ruling means that sitting did not happen.
-	// Counted rather than joined (see the Petitions block above): the count is sound where the
-	// pairing is not, and reporting nothing would make the failure indistinguishable from a run
-	// that had no petitions at all.
+	// Reporting nothing would make the failure indistinguishable from a run that had no
+	// petitions at all, which is why this counts rather than staying silent.
 	if filed > ruled {
 		disp = append(disp, fmt.Sprintf("**%d petition(s) received no ruling on the record.** A petition is heard before the debate continues; a filing with no ruling means that sitting is missing, not that the objection was withdrawn.", filed-ruled))
 	}

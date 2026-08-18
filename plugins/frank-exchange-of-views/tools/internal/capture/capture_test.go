@@ -363,8 +363,8 @@ func TestHarvestPrecedents(t *testing.T) {
 		// only the motion. Harvesting the petitioner means joining the two.
 		{Round: 2, Type: "motion", SeatID: "blue-respond-r2", Payload: record.NewPayload().
 			Set("motion_id", "M4").Set("subject", "petition").Set("reason", "the demand buries a hazard")},
-		{Round: 2, Type: "petition-rule", SeatID: "judge-r2", Payload: record.NewPayload().
-			Set("motion_id", "M4").Set("ruling", "granted").
+		{Round: 2, Type: "motion-rule", SeatID: "judge-r2", Payload: record.NewPayload().
+			Set("motion_id", "M4").Set("subject", "petition").Set("ruling", "granted").
 			Set("reason", "scope narrowed to shipped artifacts")},
 		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().
 			Set("gap_id", "R1-9").Set("disposition", "carried").Set("reason", longRationale)},
@@ -619,16 +619,16 @@ func TestDiscardedEventsAudit(t *testing.T) {
 		runDir := t.TempDir()
 		shard(t, runDir, "events-judge-petition-aaaaaaaa.jsonl",
 			ev("judge-petition", "aaaaaaaa", "register", "judge-petition:register:aaaaaaaa"),
-			ev("judge-petition", "aaaaaaaa", "petition-rule", "judge-petition:petition-rule:M1"))
+			ev("judge-petition", "aaaaaaaa", "motion-rule", "judge-petition:motion-rule:M1"))
 		shard(t, runDir, "events-judge-petition-bbbbbbbb.jsonl",
 			ev("judge-petition", "bbbbbbbb", "register", "judge-petition:register:bbbbbbbb"),
-			ev("judge-petition", "bbbbbbbb", "petition-rule", "judge-petition:petition-rule:M2"))
+			ev("judge-petition", "bbbbbbbb", "motion-rule", "judge-petition:motion-rule:M2"))
 
 		a := DiscardedEventsAudit(runDir)
 		if a.Verdict != "FAIL" {
 			t.Fatalf("lost work must FAIL the run record: %+v", a)
 		}
-		if !strings.Contains(a.Detail, "judge-petition") || !strings.Contains(a.Detail, "petition-rule:M1") {
+		if !strings.Contains(a.Detail, "judge-petition") || !strings.Contains(a.Detail, "motion-rule:M1") {
 			t.Errorf("the detail must name the seat and the lost keys, so it is actionable: %q", a.Detail)
 		}
 	})

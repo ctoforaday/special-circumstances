@@ -240,33 +240,27 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		{Round: 1, Type: "dispute", SeatID: "blue-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("dimension", "impact").Set("proposed", "low").Set("reason", "trivial harm")},
-		{Round: 1, Type: "dispute-respond", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("response", "rejected").Set("reason", "harm compounds")},
 		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("reason", "needs a probe")},
 		{Round: 1, Type: "petition", SeatID: "blue", Payload: record.NewPayload().Set("class", "integrity").Set("reason", "the instruction would require asserting what I believe false").Set("relief", "strike the demand from the docket")},
-		{Round: 1, Type: "petition-rule", SeatID: "judge-petition", Payload: record.NewPayload().Set("petitioner", "blue").Set("ruling", "granted").Set("reason", "relief warranted")},
 		{Round: 0, Type: "halt", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "safety gate tripped")},
 		{Round: 0, Type: "certify", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "re-examine the cost model")},
 	}
-	d := debate(evs)
+	d := debate(&record.Board{Events: evs}, evs)
 	for _, want := range []string{
 		"### Round 1", "### RED\ngap A stands", "### BLUE\ngap A repaired",
-		"disputes R1-1/impact → low: trivial harm", "answered (rejected): harm compounds",
 		"R1-1: carried",
-		// BOTH SIDES OF THE PETITION. The transcript used to render only the ruling, so the
-		// reader got the bench's answer with no question attached — and the relief sought and
-		// the basis argued are what the answer is an answer TO.
-		"### Petitions",
-		"**blue petitions the bench (integrity)**: the instruction would require asserting what I believe false",
-		"relief sought: strike the demand from the docket",
-		"ruled **granted** on blue's petition", "relief warranted",
+		// THE PETITION SECTION IS NOT HERE ANY MORE, and its absence is the point. It rendered
+		// both sides of a petition off the retired `petition`/`petition-rule` types — a second
+		// rendering of a dialectic that `## Motions` already shows with each ruling beside the ask
+		// it answers. Two carriers of one fact; this was the one reading a vocabulary nothing
+		// writes, so it showed nothing while looking complete.
 		"### Bench disposition", "**HALT** — safety gate tripped", "**Certification** — re-examine the cost model",
 	} {
 		if !strings.Contains(d, want) {
 			t.Errorf("debate transcript missing %q:\n%s", want, d)
 		}
 	}
-	if empty := debate(nil); !strings.Contains(empty, "no debate on the record") {
+	if empty := debate(&record.Board{}, nil); !strings.Contains(empty, "no debate on the record") {
 		t.Errorf("empty debate should say so: %q", empty)
 	}
 }
@@ -346,15 +340,23 @@ func TestRemovalBasisReachesTheReader(t *testing.T) {
 // debate continues. A filing with no ruling means that sitting did not happen — and reporting
 // nothing would make it indistinguishable from a run that had no petitions at all.
 func TestAnUnansweredPetitionIsReported(t *testing.T) {
-	filed := []record.Event{{Round: 1, Type: "petition", SeatID: "red-merge-r1",
-		Payload: record.NewPayload().Set("class", "safety").Set("reason", "the demand would bury a hazard")}}
-	d := debate(filed)
+	// A PETITION IS A MOTION. This fixture used the retired `petition` type, so after the collapse
+	// the detector counted zero filings and could not fire — the warning it exists to raise was
+	// unreachable while this test went on passing.
+	filed := []record.Event{{Round: 1, Type: "motion", SeatID: "red-merge-r1",
+		Payload: record.NewPayload().Set("motion_id", "M1").Set("subject", "petition").
+			Set("class", "safety").Set("basis", "the demand would bury a hazard")}}
+	d := debate(&record.Board{Events: filed}, filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
 	}
-	answered := append(filed, record.Event{Round: 1, Type: "petition-rule", SeatID: "judge-r1",
-		Payload: record.NewPayload().Set("petitioner", "red-merge-r1").Set("ruling", "denied").Set("reason", "the hazard is graded, not buried")})
-	if d := debate(answered); strings.Contains(d, "received no ruling") {
+	// The ruling joins by MOTION ID, which is the whole point of the collapse: `petition-rule`
+	// carried only the petitioner, so two filings by one seat in one round could not be told
+	// apart. record.Motions pairs the answer to its ask exactly.
+	answered := append(filed, record.Event{Round: 1, Type: "motion-rule", SeatID: "judge-r1",
+		Payload: record.NewPayload().Set("motion_id", "M1").Set("subject", "petition").
+			Set("ruling", "denied").Set("opinion", "the hazard is graded, not buried")})
+	if d := debate(&record.Board{Events: answered}, answered); strings.Contains(d, "received no ruling") {
 		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
 	}
 }

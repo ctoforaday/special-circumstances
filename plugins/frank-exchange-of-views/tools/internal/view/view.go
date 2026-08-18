@@ -520,19 +520,6 @@ func debateMD(b *record.Board) []byte {
 		for _, c := range sec("closing", "blue") {
 			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("reason")))
 		}
-		var disp []string
-		for _, e := range re {
-			switch e.Type {
-			case "dispute":
-				disp = append(disp, fmt.Sprintf("- **%s** disputes %s/%s → %s: %s",
-					e.SeatID, e.Payload.Str("gap_id"), e.Payload.Str("dimension"), e.Payload.Str("proposed"), e.Payload.Str("reason")))
-			case "dispute-respond":
-				disp = append(disp, fmt.Sprintf("  - answered (%s): %s", e.Payload.Str("response"), e.Payload.Str("reason")))
-			}
-		}
-		if len(disp) > 0 {
-			parts = append(parts, "### Grade disputes\n"+strings.Join(disp, "\n"))
-		}
 		// THE BENCH'S WHOLE OUTPUT, not only the part that moves a gap.
 		//
 		// This built ### LEAD from `opinion` events ALONE, so two of the bench's three acts were
@@ -557,7 +544,7 @@ func debateMD(b *record.Board) []byte {
 					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("reason")))
 			case "declare":
 				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+e.Payload.Str("holding"))
-			case "motion-rule", "petition-rule":
+			case "motion-rule":
 				// Only the PETITION subject: a grade or direction ruling answers a motion the
 				// motions view already renders with its ask beside it. A petition ruling is the
 				// bench acting on the run itself, and its opinion is the operative part.

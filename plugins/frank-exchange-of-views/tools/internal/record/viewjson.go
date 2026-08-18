@@ -678,25 +678,11 @@ type DebateRoundJSON struct {
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
 	BlueClosings []DebateClosingJSON `json:"blue_closings"`
-	Disputes     []DebateDisputeJSON `json:"disputes"`
 }
 
 type DebateClosingJSON struct {
 	GapID string `json:"gap_id"`
 	Text  string `json:"text"`
-}
-
-// DebateDisputeJSON carries both a claim (`dispute`) and its answer (`dispute-respond`),
-// tagged by Kind — render.go renders them as a single interleaved "### Grade disputes" list.
-type DebateDisputeJSON struct {
-	Kind      string `json:"kind"`
-	SeatID    string `json:"seat_id"`
-	GapID     string `json:"gap_id"`
-	Dimension string `json:"dimension"`
-	Proposed  string `json:"proposed"`
-	Evidence  string `json:"evidence"`
-	Response  string `json:"response"`
-	Rationale string `json:"rationale"`
 }
 
 type DebateOpinionJSON struct {
@@ -755,16 +741,6 @@ func DebateJSONOf(b *Board) DebateJSON {
 		}
 		for _, e := range re {
 			switch e.Type {
-			case "dispute":
-				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
-					Kind: "dispute", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),
-					Dimension: e.Payload.Str("dimension"), Proposed: e.Payload.Str("proposed"), Evidence: e.Payload.Str("reason"),
-				})
-			case "dispute-respond":
-				rj.Disputes = append(rj.Disputes, DebateDisputeJSON{
-					Kind: "dispute-respond", SeatID: e.SeatID, GapID: e.Payload.Str("gap_id"),
-					Response: e.Payload.Str("response"), Rationale: e.Payload.Str("reason"),
-				})
 			case "opinion":
 				rj.Lead = append(rj.Lead, DebateOpinionJSON{
 					GapID: e.Payload.Str("gap_id"), Disposition: e.Payload.Str("disposition"),

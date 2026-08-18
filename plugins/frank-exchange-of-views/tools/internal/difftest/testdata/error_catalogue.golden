@@ -75,43 +75,10 @@ feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VER
 
 ── petition ruling outside the set
 exit 2
-feov-record: no verb "petition-rule" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `bench friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: invalid argument "halt" for "--as" flag: --as must be one of granted|denied (got "halt") — the ruling is what BINDS the coming seats, and every downstream reader switches on it; an unrecognized verdict reads as no ruling at all, so a refusal silently becomes permission
 
-the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
-
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
-
-Available Commands:
-  assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
-  certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
-  declare     state a holding that binds how the record is READ without moving any gap: --reason "<the construction, correction or holding>"
-  friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
-  opinion     a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
-  outcome     record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED --reason "<how the run ended, in your words>" [--deadlocked] [--exhausted]
-  register    FIRST ACTION at the sitting: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | worklist | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-
-Flags:
-  -h, --help   help for bench
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "{TOOL} [command] --help" for more information about a command.
+    granted  the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow
+    denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
 
 ── closure class near-miss
 exit 2
@@ -124,49 +91,14 @@ feov-record: invalid argument "closed-with-regression" for "--as" flag: --as mus
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
-── dispute dimension outside the set
+── grade motion dimension outside the set
 exit 2
-feov-record: no verb "dispute" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `blue friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: invalid argument "banana" for "--dimension" flag: --dimension must be one of severity|likelihood|impact|complexity_cost (got "banana") — the ruling is matched to the filing on (gap, dimension) and the gap's grade is then read AT that dimension: an axis outside the four matches no ruling and reads no grade, so the motion is filed against nothing
 
-blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
-
-Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  edit            replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  line-of-inquiry PROPOSE a line of inquiry (--line "<approach>" --hypothesis "<what would be true if it pays off>" [--status] [--method]; the tool assigns its id), or MOVE one you already proposed (--id A1 --status proposed|pursued|declined|abandoned --reason "<what changed>")
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --location "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | worklist | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-
-Flags:
-  -h, --help   help for blue
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "{TOOL} [command] --help" for more information about a command.
+    severity         how bad the defect is in itself
+    likelihood       how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
+    impact           how bad the consequence is if it lands
+    complexity_cost  what fixing it costs — the axis to contest when the fix is worth more than the defect. THE FLAG IS `--cx`, not `--complexity_cost`: the other three dimensions ARE their flag names and this one is not, which is a trap a seat walks into by learning the pattern from the other three (measured)
 
 ── verification outcome outside the set
 exit 2

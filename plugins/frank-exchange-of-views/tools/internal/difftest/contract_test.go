@@ -103,13 +103,18 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"verdict in the wrong case", []string{"merge", "verdict", "--as", "pass"}},
 		{"verdict outside the set", []string{"merge", "verdict", "--as", "banana"}},
 		{"outcome in the wrong case", []string{"bench", "outcome", "--as", "ceiling"}},
-		{"petition ruling outside the set", []string{"bench", "petition-rule", "--petitioner", "red-merge-r1", "--petition-class", "scope", "--as", "halt", "--reason", "r"}},
+		// These two pinned "no verb `petition-rule` exists" and "no verb `dispute` exists" — the
+		// generic unknown-verb refusal — while claiming to pin a value outside a closed set. The
+		// verbs were retired by the motion collapse and the entries were never moved, so the
+		// catalogue froze the wrong refusal and this test went on passing. That is the exact
+		// failure the catalogue exists to catch, in the catalogue itself.
+		{"petition ruling outside the set", []string{"motion", "petition", "rule", "--id", "M1", "--as", "halt", "--reason", "r"}},
 		{"closure class near-miss", []string{"merge", "close", "--id", "R1-1", "--as", "closed-with-regression", "--anchor-seat", "L1", "--anchor-tool", "Read", "--anchor-target", "t", "--reason", "r"}},
 		// The class sweep found five more set-shaped flags past --as. Each is here for
 		// the same reason as the rest of this catalogue: the refusal is the seat's
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
-		{"dispute dimension outside the set", []string{"blue", "dispute", "--id", "R1-1", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
+		{"grade motion dimension outside the set", []string{"motion", "grade", "file", "--id", "R1-1", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
 		{"verification outcome outside the set", []string{"lens", "verify", "--claim", "c", "--reference", "r", "--independent", "--as", "banana", "--confidence", "high"}},
 		// The two cases that used to be unstatable: a verification that does not say WHICH
 		// citation it checked, and one with no verdict at all. Both were accepted — the bare verb
