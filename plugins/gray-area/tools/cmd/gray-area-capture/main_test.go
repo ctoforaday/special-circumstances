@@ -268,16 +268,35 @@ func TestPayloadKeysRecordNamesAndNeverValues(t *testing.T) {
 	}
 }
 
-// A resolved row has nothing to explain, so it carries no keys: this field exists to describe the
-// population that is unaccounted for, and putting it on every row would bury that signal.
-func TestResolvedRowsCarryNoPayloadKeys(t *testing.T) {
-	raw := []byte(`{"agent_transcript_path":"/t/a.jsonl","agent_type":"general-purpose"}`)
+// THE COMPARISON MUST BE POSSIBLE, AND THE FIRST VERSION OF THIS FIELD MADE IT IMPOSSIBLE.
+//
+// Schema 3 recorded payload_keys on UNRESOLVED rows only, reasoning that a resolved row has
+// nothing to explain. But the stated falsification test for #189 is "compare a typeless row's key
+// set against a TYPED row's" — and typed rows resolve, so they never carried keys. The instrument
+// could not perform the comparison it was built for.
+//
+// A field recorded only where the answer is already suspected cannot DISTINGUISH two populations;
+// it can only describe one of them. So both carry it, and this test is what stops the "resolved
+// rows have nothing to explain" tidiness argument from returning.
+func TestBothPopulationsCarryPayloadKeysSoTheyCanBeCompared(t *testing.T) {
+	raw := []byte(`{"agent_transcript_path":"/t/a.jsonl","agent_type":"general-purpose","prompt_id":"p1"}`)
 	var in hookInput
 	if err := json.Unmarshal(raw, &in); err != nil {
 		t.Fatal(err)
 	}
-	if r := buildRow(in, raw, "SubagentStop", noon, okStat(9)); len(r.PayloadKeys) != 0 {
-		t.Errorf("a resolved row recorded payload_keys = %v", r.PayloadKeys)
+	resolved := buildRow(in, raw, "SubagentStop", noon, okStat(9))
+	if !resolved.Resolved {
+		t.Fatal("setup: this row must resolve")
+	}
+	if len(resolved.PayloadKeys) == 0 {
+		t.Fatal("a RESOLVED row carries no payload_keys, so it cannot be compared against a " +
+			"typeless one — which is the only comparison #189 turns on")
+	}
+
+	unresolved := buildRow(in, raw, "SubagentStop", noon, failStat)
+	if strings.Join(resolved.PayloadKeys, ",") != strings.Join(unresolved.PayloadKeys, ",") {
+		t.Errorf("the same payload produced different key sets: %v vs %v",
+			resolved.PayloadKeys, unresolved.PayloadKeys)
 	}
 }
 

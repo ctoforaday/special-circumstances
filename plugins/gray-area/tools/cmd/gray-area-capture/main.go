@@ -114,6 +114,12 @@ type hookInput struct {
 	// it registered for and passes it with -event; this is the payload's own claim, recorded
 	// so the two can be COMPARED rather than assumed equal. See manifestRow.HookEventName.
 	HookEventName string `json:"hook_event_name"`
+	// The remaining non-content scalars the payload carries. Recorded together rather than one
+	// per investigation round: each round costs a build, a merge and a wait for an event to
+	// fire, and the questions these answer are already foreseeable.
+	PermissionMode string `json:"permission_mode"`
+	PromptID       string `json:"prompt_id"`
+	StopHookActive bool   `json:"stop_hook_active"`
 }
 
 // manifestRow is one seat's entry. Field names are snake_case to match the
@@ -143,8 +149,7 @@ type manifestRow struct {
 	// a resolved row has nothing to categorise. Present on EVERY unresolved row from
 	// schema 2 onward, which is what lets a reader treat its absence as meaningful.
 	CaptureCategory string `json:"capture_category,omitempty"`
-	// PayloadKeys is the top-level KEY NAMES the hook payload carried, recorded on unresolved
-	// rows only. Schema 3.
+	// PayloadKeys is the top-level KEY NAMES the hook payload carried, on EVERY seat row.
 	//
 	// WHY NAMES AND NOT VALUES. #189 is undetermined after four investigations, and the reason
 	// the fourth also stalled is that this program records the eight fields it already models
@@ -158,6 +163,13 @@ type manifestRow struct {
 	// `last_assistant_message`, which this program deliberately refuses to copy (see the header
 	// and plans/gray-area.md G6). Key names describe the SHAPE of an event without spreading
 	// conversation content into a second file — which is the whole posture of this plugin.
+	//
+	// ON EVERY ROW, AND THE FIRST VERSION GOT THIS WRONG. Schema 3 recorded keys on UNRESOLVED
+	// rows only, reasoning that a resolved row has nothing to explain. But the stated
+	// falsification test for #189 is "compare a typeless row's key set against a TYPED row's" —
+	// and typed rows resolve, so they never carried keys. The instrument made the comparison it
+	// was built for impossible. A field recorded only where the answer is already suspected
+	// cannot distinguish the populations; it can only describe one of them.
 	PayloadKeys []string `json:"payload_keys,omitempty"`
 	// DeclaredEvent is what the WIRING said (-event, from hooks.json). HookEventName is what the
 	// PAYLOAD said. Both are recorded because #189 turns on whether they agree.
@@ -173,6 +185,19 @@ type manifestRow struct {
 	// convenient it would be.
 	DeclaredEvent string `json:"declared_event,omitempty"`
 	HookEventName string `json:"hook_event_name,omitempty"`
+	// PermissionMode, PromptID and StopHookActive are the payload's remaining non-content
+	// scalars. All three are harness metadata; `last_assistant_message` is the content field in
+	// the same payload and stays refused (G6).
+	//
+	// RECORDED IN ONE ROUND, not one per question. The first two instruments each answered
+	// exactly one question and cost a build, a merge and a wait for an event to fire. PromptID
+	// in particular is the one that can say whether these events are scoped to a MAIN-SESSION
+	// prompt rather than to a subagent — which is the live hypothesis now that declared_event
+	// and hook_event_name have been measured to AGREE (both `SubagentStop`, so the wiring is
+	// not lying and the harness really does call them that).
+	PermissionMode string `json:"permission_mode,omitempty"`
+	PromptID       string `json:"prompt_id,omitempty"`
+	StopHookActive bool   `json:"stop_hook_active,omitempty"`
 }
 
 // payloadKeys returns the sorted top-level key names of a JSON object, or nil.
@@ -210,8 +235,12 @@ func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, sta
 		TranscriptPath:      in.TranscriptPath,
 		AgentTranscriptPath: in.AgentTranscriptPath,
 		SessionCronCount:    len(in.SessionCrons),
+		PayloadKeys:         payloadKeys(raw),
 		DeclaredEvent:       declaredEvent,
 		HookEventName:       in.HookEventName,
+		PermissionMode:      in.PermissionMode,
+		PromptID:            in.PromptID,
+		StopHookActive:      in.StopHookActive,
 		Effort:              in.Effort.Level,
 		BackgroundTaskIDs:   []string{},
 	}
@@ -223,7 +252,6 @@ func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, sta
 	if in.AgentTranscriptPath == "" {
 		r.CaptureError = "hook input carried no agent_transcript_path"
 		r.CaptureCategory = captureNoPath
-		r.PayloadKeys = payloadKeys(raw)
 		return r
 	}
 	// STAT EVEN THE UNTYPED SEATS, and categorise from what happened rather than from what
@@ -243,7 +271,6 @@ func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, sta
 		} else {
 			r.CaptureCategory = captureMissing
 		}
-		r.PayloadKeys = payloadKeys(raw)
 		return r
 	}
 	r.Resolved = true

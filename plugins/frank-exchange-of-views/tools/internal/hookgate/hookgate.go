@@ -102,6 +102,19 @@ func writesBlueReport(in Input) bool {
 // blue/report.md by any agent_type other than the author; a non-report target or an author
 // write returns (false, ""). Default-DENY by allowlist: only the author is permitted.
 func PreDecision(in Input) (bool, string) {
+	// FAIL CLOSED ON INPUT THIS GATE CANNOT READ. A gate bypassed by input it cannot parse is not
+	// a gate: an unreadable tool_input leaves FilePath empty, which reads as "not the report" and
+	// lets the write through — the one outcome an allowlist must never produce by accident.
+	//
+	// THE COST IS REAL AND IS ACCEPTED DELIBERATELY (operator, 2026-08-18). If the harness ever
+	// sends a shape this parser does not expect, a legitimate write is refused — and the seat most
+	// likely to be hit is the ALLOWLISTED AUTHOR, the one seat that should never be blocked. That
+	// is the trade against a silent bypass, and it is survivable only because the refusal says
+	// what happened: the reason reaches the model, and the caller files a friction event, so a
+	// denial is diagnosable rather than mysterious.
+	if InputUnreadable(in) {
+		return true, unreadableReason
+	}
 	if !writesBlueReport(in) {
 		return false, "" // not a report.md write → no opinion
 	}
@@ -110,6 +123,14 @@ func PreDecision(in Input) (bool, string) {
 	}
 	return true, denyReason
 }
+
+// unreadableReason reaches the MODEL through permissionDecisionReason, so it names the cause and
+// the remedy rather than only refusing.
+const unreadableReason = "feov-record: this hook could not parse tool_input, so it cannot tell " +
+	"whether the call writes blue/report.md — and the blue-report lockdown must not be bypassed " +
+	"by input it cannot read. Nothing about your call is known to be wrong. Retry it; if it " +
+	"refuses again, the tool_input shape has changed and the gate needs updating — a friction " +
+	"event has been filed recording exactly that."
 
 // Outcome is what the PreToolUse hook should do with a tool call.
 type Outcome int
