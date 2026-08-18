@@ -142,6 +142,11 @@ func main() {
 
 	surface := seatprobe.NewSurface(cli.CommandPaths())
 	results := make([]string, len(names))
+	// A BOARD THAT NEVER DISPATCHED IS NOT A RESULT, and this used to be invisible: every board
+	// could fail — a wrong -constitutions path fails all of them at once — and the command still
+	// printed a report and exited 0. A caller scoring that run reads an empty report as a quiet
+	// one, which is the plausible zero this repository keeps finding, arriving in the instrument.
+	failed := make([]bool, len(names))
 	sem := make(chan struct{}, max(1, *parallel))
 	var wg sync.WaitGroup
 	for i, name := range names {
@@ -153,6 +158,7 @@ func main() {
 			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive, dutyArm, *patterns)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
+				failed[i] = true
 				return
 			}
 			results[i] = out
@@ -165,6 +171,48 @@ func main() {
 	fmt.Printf("%d board(s), model %s, naming arm %s, duty arm %s, help-directive %t. What each seat CHOSE, of what its role offers.\n\n", len(names), *model, arm, dutyArm, *directive)
 	for _, r := range results {
 		fmt.Println(r)
+	}
+
+	n := 0
+	for _, f := range failed {
+		if f {
+			n++
+		}
+	}
+	if n > 0 {
+		fmt.Fprintf(os.Stderr, "\nseatprobe: %d of %d board(s) FAILED TO DISPATCH — this run is not a result.\n"+
+			"Scoring it would read an empty report as a quiet one. Fix the dispatch and re-run.\n", n, len(names))
+		os.Exit(1)
+	}
+}
+
+// namingTreatment reports how many distinct verb names the arm actually removed, and says so in
+// the report beside the arm that claims to have removed them.
+//
+// It answers a question the arm name cannot: `-naming none` is a LABEL, and the redaction behind
+// it is a set of regexes over prose that the constitutions are free to drift away from. Reporting
+// the arm without the count is reporting the intention.
+//
+// A read failure is NOT MEASURED rather than zero: "0 names survived" and "I could not open the
+// constitution" are different facts, and only one of them means the treatment worked.
+func namingTreatment(role, constDir string, sf seatprobe.Surface, arm seatprobe.Naming, directive bool) string {
+	src, err := constitutionFor(role, constDir)
+	if err != nil {
+		return "NOT MEASURED (no constitution for " + role + ": " + err.Error() + ")"
+	}
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return "NOT MEASURED (cannot read " + src + ": " + err.Error() + ")"
+	}
+	before := len(seatprobe.NamesSurviving(string(b), sf))
+	after := len(seatprobe.NamesSurviving(string(seatprobe.Constitution(b, sf, role, arm, directive)), sf))
+	switch {
+	case before == 0:
+		return fmt.Sprintf("the shipped %s constitution names NO verbs, so this arm has nothing to remove — a null result here is the fixture, not the finding", role)
+	case arm == seatprobe.NamingNone && after == before:
+		return fmt.Sprintf("%d name(s) before, %d after — THE REDACTOR REMOVED NOTHING. This `none` arm is the `partial` arm wearing another label; do not compare it", before, after)
+	default:
+		return fmt.Sprintf("%d distinct verb name(s) in the shipped %s constitution -> %d under arm %s", before, role, after, arm)
 	}
 }
 
@@ -273,6 +321,12 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 	// number waiting to be compared against a number from a different condition — which is how the
 	// "4 of 14" figure came to be cited as a fact about seats rather than about one arm.
 	report += fmt.Sprintf("\n**arm**: naming=%s duty=%s help-directive=%t\n", arm, dutyArm, directive)
+	// THE TREATMENT, MEASURED RATHER THAN ASSUMED. naming.go's type doc says this count "is
+	// printed with the result" and nothing printed it, so an arm whose redactor had stopped
+	// matching would produce a `none` run byte-identical to `partial`, both arms would report the
+	// same behaviour, and the experiment would conclude "naming does not matter" — a null result
+	// manufactured by the instrument and wearing the clothes of a finding.
+	report += "**naming treatment**: " + namingTreatment(role, constDir, surface, arm, directive) + "\n"
 	if hu, err := seatprobe.ReadHelpUse(trajectoryPath(runDir), filepath.Base(bin)); err == nil {
 		report += fmt.Sprintf("**help use**: %s\n", hu.Line())
 	} else {

@@ -212,6 +212,20 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: go run ./versionguard -base "origin/$BASE_REF"
         working-directory: scripts
+      # Archaeology added to a surface an agent READS — a retirement notice, an "it used
+      # to", a mode that is gone. Every seat then spends context on something it cannot
+      # act on. Swept by hand once; the count went UP during the same session, because an
+      # unrelated branch landed fresh sites while the sweep was in flight. A sweep with
+      # nothing checking it is policy-without-mechanism, a class in the same registry.
+      #
+      # The selftest runs FIRST and unconditionally: a matcher whose patterns went stale
+      # reports zero findings, which is byte-identical to a clean diff.
+      - run: go run ./archaeology -selftest
+        working-directory: scripts
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+        run: go run ./archaeology -base "origin/$BASE_REF"
+        working-directory: scripts
 
   scripts:
     # The repo's dev tooling, now Go: rule-sweep, golden, the four CI guards and the
