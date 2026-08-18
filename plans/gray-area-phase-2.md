@@ -45,6 +45,36 @@ positive on an accurate body puts the operator between two of the agent's output
 covers the absence case; a PR-body reader will need its own answer for the false-positive case, and
 `NO-EVIDENCE`'s asymmetry (state the search, let the reader convict) is the shape to start from.
 
+## 0.1 The gate is discharged (2026-08-18, #189) — and the premise under §2.2 is void
+
+**The ruling is satisfied, not overturned.** It said: fix #189 first, then build Phase 2 whole.
+#189 is answered — `plans/gray-area.md` §11.11. The seat-scoped half is unblocked and Phase 2 whole
+is the work.
+
+What the answer changes about *this document*: **the 72% figure was an artifact of the instrument.**
+`SubagentStop` fires at the MAIN agent's turn end, and `gray-area-capture` filed every one of those
+events as a seat because that is the hook that delivered it. So §2.2's table counts 146 turn ends in
+its denominator, and §3's "28% for seats" is a coverage number over a population three-quarters of
+which is not the population. Seat coverage in that manifest is **19 of 19**.
+
+Which means the entire §4 trade — A, B, C — was a choice between three ways of living with a
+miscount. **None of the three was necessary**, including the one that was recommended and the one
+that was chosen. The recommendation (Option C, defer the seat-scoped half) would have deferred a
+half that was never blocked, and would have shipped a coverage caveat onto every seat-scoped output
+saying the tool could see 28% of what it could in fact see entirely.
+
+The ruling that overruled it is the reason this got measured at all: gating Phase 2 on #189 is what
+turned an unexplained population into the work rather than a caveat to route around. Recorded
+because the recommendation was wrong on a fact, not just on a judgement — the argument in §4 reads
+as sound and rests on a number nothing could refuse.
+
+**Still open, unchanged by this**: the false-positive direction for PR-body adjudication (§0's last
+paragraph), §6's check 4 (the plausible-zero gate), and everything in §7.
+
+**§5's carrier census is now short.** `cmd/gray-area-capture` and the shipped README are in it too —
+both moved for #189 — and any seat-scoped inspection must filter `kind == "seat"` rather than
+counting `SubagentStop` rows, which is the mistake this document is built on top of.
+
 ## 1. What Phase 2 was specified as
 
 From `gray-area.md` §7:
@@ -74,7 +104,9 @@ established the substrate the rest of Phase 2 would reuse:
 **So Phase 2 does not start from zero, and should not re-invent the verdict model.** The
 `NO-EVIDENCE` asymmetry in particular was argued once and should not be re-argued per inspection.
 
-### 2.2 The substrate is blind to 72% of seats (#189)
+### 2.2 The substrate is blind to 72% of seats (#189) — ✗ WRONG, see §0.1
+
+> The measurement below is real and its denominator is not. Kept for the same reason §11.10 is kept.
 
 Measured 2026-08-15, `gray-area.md` §11.10, across all 69 `kind: "seat"` rows of one manifest:
 
@@ -102,8 +134,8 @@ need*, and that division is clean:
 | inspection | needs | substrate today |
 |---|---|---|
 | **act-vs-claim** (main session) | the parent session transcript | **complete** — Phase 5 cites it today |
-| **rework** — same file edited N times, same test re-run after a claimed fix | parent transcript for the lead's own work; per-seat for a seat's | complete for the lead, **28%** for seats |
-| **stalls** — time between acts, retry loops, abandoned lines | mostly per-seat | **28%** |
+| **rework** — same file edited N times, same test re-run after a claimed fix | parent transcript for the lead's own work; per-seat for a seat's | complete for the lead, ~~**28%**~~ **19/19** for seats (§0.1) |
+| **stalls** — time between acts, retry loops, abandoned lines | mostly per-seat | ~~**28%**~~ **complete** (§0.1) |
 
 The parent transcript is not a special case: it is the file Phase 5 already reads, and the one the
 lead agent's entire tool history lives in. Everything the *lead* did is fully observable now.
@@ -121,7 +153,7 @@ the plugin's own output, and it is the failure mode this plugin exists to preven
 
 Buildable, but it puts the burden on a caveat rather than a mechanism.
 
-### Option B — fix the substrate first (#189), then build Phase 2 whole ✅ CHOSEN
+### Option B — fix the substrate first (#189), then build Phase 2 whole ✅ CHOSEN — and DISCHARGED, see §0.1
 
 The honest sequencing if per-seat inspection is the point. The cost is that #189 is **undetermined
 after three failed hypotheses** (§11.8 environment, §11.9 session, §11.10 seat — the first two

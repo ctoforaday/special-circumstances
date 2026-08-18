@@ -352,3 +352,78 @@ func TestRecordingTheEventNameDidNotOpenTheDoorToContent(t *testing.T) {
 		}
 	}
 }
+
+// THE CONJUNCTION IS THE CLASSIFIER, and each half alone must leave the row a seat.
+//
+// #189: a SubagentStop carrying no agent_type AND no file at the path it predicted is a main
+// agent turn end, not a subagent. The measurement is in main.go's kind block — 146 such rows,
+// 146 distinct ids, 0 on disk, and 0 of 3406 mid-turn windows containing one.
+//
+// The two unobserved combinations are the point of this test. A typed row that did not stat is
+// the alarm; an untyped row that DID stat is a real trajectory whose name is missing. Neither
+// has ever been seen, and neither may be quietly filed under an explanation that was measured
+// on the other population.
+func TestOnlyTheConjunctionIsATurnEnd(t *testing.T) {
+	missing := func(string) (int64, error) { return 0, errors.New("no such file") }
+	for _, c := range []struct {
+		name string
+		in   hookInput
+		stat statFunc
+		want string
+	}{
+		{"no type, no file — the measured signature",
+			hookInput{AgentTranscriptPath: "/t/gone.jsonl"}, missing, kindTurnEnd},
+		{"typed, no file — the alarm, still a seat",
+			hookInput{AgentTranscriptPath: "/t/gone.jsonl", AgentType: "red-auditor"}, missing, kindSeat},
+		{"no type, file present — a nameless trajectory, still a seat",
+			hookInput{AgentTranscriptPath: "/t/a.jsonl"}, okStat(42), kindSeat},
+		{"typed, file present — an ordinary seat",
+			hookInput{AgentTranscriptPath: "/t/a.jsonl", AgentType: "Explore"}, okStat(42), kindSeat},
+		{"no path at all — nothing was attempted, so nothing is concluded",
+			hookInput{}, missing, kindSeat},
+	} {
+		if got := buildRow(c.in, nil, "SubagentStop", noon, c.stat).Kind; got != c.want {
+			t.Errorf("%s: kind = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// A turn-end row must still carry everything that made it classifiable, so a reader can
+// re-derive the verdict instead of trusting it. The classification is a convenience over the
+// fields, never a replacement for them.
+func TestATurnEndRowStillCarriesTheEvidenceForItsOwnClassification(t *testing.T) {
+	r := buildRow(hookInput{AgentID: "a1", AgentTranscriptPath: "/t/gone.jsonl"}, nil,
+		"SubagentStop", noon, func(string) (int64, error) { return 0, errors.New("no such file") })
+	if r.Kind != kindTurnEnd {
+		t.Fatalf("kind = %q", r.Kind)
+	}
+	if r.AgentID == "" || r.AgentTranscriptPath == "" || r.Resolved || r.AgentType != "" {
+		t.Errorf("a turn end must keep its id, its predicted path, and both empties: %+v", r)
+	}
+	if r.CaptureCategory != captureUntypedSeat || r.CaptureError == "" {
+		t.Errorf("the reason it did not resolve is still the reason: %+v", r)
+	}
+}
+
+// The kinds are a CLOSED set and the three must stay distinct. A reader filters on this field
+// first; two kinds colliding would silently merge two populations, which is the defect schema 4
+// exists to undo.
+func TestTheKindsAreThreeDistinctValues(t *testing.T) {
+	seen := map[string]bool{}
+	for _, k := range []string{kindSeat, kindTurnEnd, kindSession} {
+		if k == "" || seen[k] {
+			t.Fatalf("kind %q is empty or duplicated", k)
+		}
+		seen[k] = true
+	}
+}
+
+// Schema 4 is what lets a reader date the meaning of `kind`. Rows 1-3 called every SubagentStop
+// a seat; without the bump, counting seats across the boundary mixes 19 with 165 and reports a
+// coverage figure that is an artifact of the instrument.
+func TestSchemaAnnouncesTheKindChange(t *testing.T) {
+	if schema < 4 {
+		t.Errorf("schema = %d; `kind` changed meaning, and a reader with no version cannot "+
+			"tell a schema-3 seat row from a schema-4 one", schema)
+	}
+}

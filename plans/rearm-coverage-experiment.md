@@ -38,6 +38,10 @@ Two questions cannot be answered from inside a running session, because both are
 > exactly the files on disk, 0 resolved-but-missing; one file arrived after its own `stat`, so the
 > race is real and is **1 of 16, not 50 of 69**.
 >
+> *(SUPERSEDED 2026-08-18, `plans/gray-area.md` §11.11: the typeless rows are main-agent turn ends
+> arriving on `SubagentStop`, not seats. The implication below holds as a fact about those rows and
+> is useless as advice about seats — every seat resolved, 19/19.)*
+>
 > **`agent_type` empty ⟹ no transcript.** That is the check to re-run, and it needs no filesystem
 > probe. What produces the typeless population is still not determined — six probe agents across
 > every `subagent_type` (and omitted) all carried a type and all resolved. Evidence:

@@ -729,6 +729,11 @@ were unrecoverable.
 
 ### 11.10 §11.9's correlate is wrong too, and the real one is the SEAT (measured 2026-08-15, #189)
 
+> **SUPERSEDED BY §11.11 (2026-08-18).** Every measurement below holds; the UNIT does not. The
+> "typeless seats" are not seats — `SubagentStop` fires at the main agent's turn end. So "blind to
+> 72% of seats" counted turn ends in the denominator, and seat coverage is 19/19. Kept unrewritten,
+> because a wrong axis that reads as an answer is the thing worth being able to recognise again.
+
 **Third axis, same method as the first two failed on: a property nobody had checked.** §11.8 said
 "not written in this environment"; §11.9 narrowed it to "the correlate is the session, not the
 clock". Both are wrong — and §11.9's own evidence was compatible with the right answer all along,
@@ -772,7 +777,8 @@ built, instead of emitting a filesystem error that reads like a transient one.
 **The refusal to add a fallback path search stands and is reinforced.** With 50 of 69 seats having no
 file at all, a fallback would be guessing three times in four.
 
-**What produced the typeless population is NOT determined.** Six probe agents — explicit
+**What produced the typeless population is NOT determined.** *(ANSWERED in §11.11: they are main
+agent turn ends, not a subagent population at all.)* Six probe agents — explicit
 `general-purpose`, explicit `claude`, explicit `Explore`, and `subagent_type` omitted — all carried a
 type and all resolved. An attempt to identify the others by searching the parent transcript for their
 ids was **contaminated and discarded**: printing the ids into diagnostics put them into the
@@ -782,3 +788,94 @@ got their axis wrong.
 
 Evidence and method: `plans/hook-surface-spike.md` §7a. The same measurement session closed #290's
 gate — `PreToolUse` carries `agent_id`, and it joins to `SubagentStop` on the same key (spike §7).
+
+### 11.11 ANSWERED: they are not seats. `SubagentStop` fires at the MAIN agent's turn end (measured 2026-08-18, #189)
+
+**§11.10's table is right and its unit is wrong.** Every row in it is real; the population it calls
+"seats with no `agent_type`" is not a population of seats. It is the main agent's own turn boundary,
+arriving on the `SubagentStop` hook.
+
+Four measurements on session `937047bc` — 165 `SubagentStop` rows, 19 carrying a type. Method and
+data: the manifest, plus the session's own transcript, read in aggregate.
+
+**1 — IDENTITY.** 19 typed rows carry 19 distinct `agent_id`s, and **19 of 19** are present as
+`agent-*.jsonl` under `<session>/subagents/`. 146 typeless rows carry 146 distinct `agent_id`s, and
+**0 of 146** are present. Every id in both populations fires exactly once. Zero exceptions.
+
+**2 — POSITION.** 139 of the 146 typeless captures (95%) land within 120s **after a main-agent turn
+end**. The nearest preceding transcript record is the assistant's closing text (96) or the Stop
+hook's own summary (43). Going the other way: **166 of the 197 turn ends** inside the hook's active
+window are followed by one — 84%, and between 80% and 90% on every one of the eight days.
+
+**3 — THE FALSIFIER, and it is the one that settles it.** Across **3406** mid-turn windows — an
+assistant `tool_use` through its matching `tool_result` — **0 of 146** typeless captures land inside
+one. 2 of 19 typed captures do. A subagent completing is *by construction* mid-turn: the parent is
+blocked on the `Agent` call, waiting. **Nothing that fires only at turn boundaries is a subagent
+finishing.** This is the measurement §11.8, §11.9 and §11.10 each lacked — a prediction the wrong
+answer could not survive, rather than a correlation the right one also fits.
+
+**4 — MECHANISM, supporting and not load-bearing.** 20 subagent transcripts are on disk; 19 carry a
+`.meta.json` holding `{"agentType": …}`, written for `Agent`-tool spawns. 19 metas, 19 typed rows.
+So `agent_type` reads off that sidecar, and an event with no sidecar has no type to report. The three
+findings above stand without this one. (The 20th transcript — on disk, no meta — produced **no
+manifest row at all**, and is the one on-disk id never named by any row. Left open below.)
+
+**So the harness fires this hook at the MAIN agent's Stop**, with a freshly minted `agent_id`, no
+meta sidecar, and an `agent_transcript_path` it *predicts* and nothing ever writes to. The path was
+never a broken pointer. It is a forecast, and `stat` was being asked to confirm a file that was never
+promised.
+
+#### What this overturns
+
+**"The substrate is blind to 72% of seats" measured the wrong denominator.** 146 turn ends were in
+it. Every seat this repository has ever spawned resolved: **19 of 19**. §11.10's operational
+advice — "`agent_type` empty ⟹ no transcript, so classify the seat uncapturable" — was a correct
+prediction about the wrong object, and acting on it would have hard-coded the miscount into the
+tool.
+
+The consequence runs past this file. `plans/gray-area-phase-2.md` scoped Phase 2 around that number:
+its §3 table gives seat-scoped inspection "28%" coverage, and Options A, B and C are three ways to
+live with it. **None of them is needed.** Phase 2's seat-scoped half is not blocked, and #189 is not
+a substrate defect to fix before building — see that file's §0.1.
+
+#### The class, and why three investigations missed it
+
+`misattributed-enforcement`, in the instrument rather than in a message: **the row's `kind` was
+decided by which hook delivered it.** `SubagentStop` fired, so the row said `seat` — a
+classification with no field behind it and nothing that could refuse it. Every later question was
+then asked about seats, and the answer to *"why do 72% of seats have no transcript"* is that 72% of
+them are not seats. This is `facts-are-fields` at the point where the fact enters the record: the
+event's *name* was read as the event's *nature*.
+
+It survived three rounds because the miscount is invisible from inside the manifest. A reader has
+`kind: "seat"` and no way to disagree with it. The disagreement had to come from outside — the
+session transcript, which is where the mid-turn falsifier lives.
+
+#### What changed (schema 4)
+
+`gray-area-capture` no longer hard-codes the kind. A `SubagentStop` carrying **no `agent_type` AND
+no file at its predicted path** is written as `kind: "turn-end"`. The conjunction, and only the
+conjunction: a typed row that did not `stat` stays a seat and stays the alarm; an untyped row that
+*did* `stat` stays a seat, because a real trajectory whose name is missing is a surprise, and a
+surprise must not be filed under an explanation measured on a different population. Neither has ever
+been observed, which is exactly why neither may be folded in silently. Both cases are asserted in
+`main_test.go`.
+
+The schema bump is load-bearing: `kind` changed meaning, and a reader counting seats across the
+boundary would mix 19 with 165.
+
+#### What this does NOT claim
+
+- **84% is not 100%.** 31 of 197 turn ends produced no row. Windows where the hook binary was absent
+  (they are gitignored and rebuilt after every merge) are the known cause and are *not* separately
+  measured. Stated rather than rounded away.
+- **Why the harness labels this event `SubagentStop`** is not established here — only that it does,
+  and that `declared_event` and `hook_event_name` agree, so the wiring is not lying (#462).
+- **The one on-disk transcript with no meta and no row** is unexplained. It is a real subagent that
+  went entirely unrecorded, and it is the opposite failure from the one this section closes: not a
+  phantom counted as a seat, but a seat counted as nothing.
+
+**Contamination, recorded rather than dropped.** Four `agent_id`s were printed into this session's
+own transcript while reading `capture_error` text. Small, and this session is itself measured data —
+the same class of self-contamination that voided §11.10's identification attempt, caught later this
+time rather than not at all.

@@ -68,7 +68,52 @@ import (
 // reader cannot otherwise tell "an old binary wrote this row and had no category" from
 // "a new binary wrote it and the row resolved" — both omit the key. Gating on schema >= 2
 // is what makes the field's ABSENCE mean something, which is the whole point of adding it.
-const schema = 3
+//
+// 4 changes what `kind` MEANS (#189), which is the reason it is a bump and not an edit. Rows
+// 1-3 called every SubagentStop a seat. Schema 4 does not, and a reader counting seats across
+// the boundary would otherwise mix a population of 19 with a population of 165. See kindTurnEnd.
+const schema = 4
+
+// The closed set of row kinds. `kind` is the first field any reader filters on, so what it
+// MEANS is load-bearing, and until schema 4 it was wrong for 88% of the rows in this
+// repository's own manifest.
+//
+// # kindTurnEnd, and why SubagentStop is not evidence of a subagent (#189)
+//
+// SubagentStop fires for something other than an `Agent` tool call, and rows 1-3 filed all of
+// it as seats. Measured on session 937047bc — 165 SubagentStop rows, 19 with a type:
+//
+//	IDENTITY    19 typed rows -> 19 distinct agent ids -> 19/19 present under <session>/subagents/.
+//	            146 typeless rows -> 146 distinct agent ids -> 0/146 present. Each id fires once.
+//	POSITION    139/146 typeless captures land within 120s AFTER a main-agent turn end; the
+//	            nearest preceding transcript record is the assistant's closing text (96) or the
+//	            Stop hook's own summary (43). 166 of the 197 turn ends in the hook's window are
+//	            followed by one — 84%, and 80-90% on every one of the eight days.
+//	FALSIFIER   across 3406 mid-turn windows (an assistant tool_use through its tool_result),
+//	            0/146 typeless captures land inside one. 2/19 typed do. A subagent completing
+//	            is BY CONSTRUCTION mid-turn: the parent is blocked on the Agent call. Nothing
+//	            that fires only at turn boundaries is a subagent finishing.
+//	MECHANISM   20 transcripts on disk, 19 carrying a .meta.json holding agentType — written
+//	            for Agent-tool spawns. 19 metas, 19 typed rows. Supporting, not load-bearing:
+//	            the three above stand without it.
+//
+// So the harness fires this hook at the MAIN agent's Stop with a freshly minted agent id, no
+// meta sidecar, and a transcript path it PREDICTS and nothing ever writes to. The path is not
+// a broken pointer; it is a forecast.
+//
+// WHAT THIS OVERTURNS. plans/gray-area.md §11.10 concluded the substrate was blind to 72% of
+// seats, and plans/gray-area-phase-2.md scoped Phase 2 around that number. Both counted turn
+// ends in the denominator. Every seat this repository ever spawned resolved: 19/19.
+//
+// WHAT IT DOES NOT CLAIM. 84% is not 100%: some turn ends produce no row (windows where the
+// hook binary was absent are the known cause, and are not separately measured). The
+// classification here is made from the ROW's own two fields, never from that correlation —
+// see buildRow.
+const (
+	kindSeat    = "seat"     // a subagent's trajectory, handed over at SubagentStop
+	kindTurnEnd = "turn-end" // a SubagentStop that named no seat; see above
+	kindSession = "session"  // the MAIN session's trajectory, handed over at SessionStart
+)
 
 // The closed set of reasons a row is unresolved. A counter downstream needs to separate the
 // expected population from the alarming one, and a prose error string cannot be counted:
@@ -81,9 +126,10 @@ const schema = 3
 // anything was stat'ed. That misreading cost three wrong answers (plans/gray-area.md §11.8,
 // §11.9) before the correlation was noticed.
 const (
-	// captureUntypedSeat: the seat carried no agent_type and no transcript appeared. This is
-	// the expected 72%, and it is NOT an alarm.
-	captureUntypedSeat = "seat-carries-no-agent-type"
+	// captureUntypedSeat: the event named no seat — no agent_type, and no transcript at the
+	// path it predicted. NOT an alarm, and as of #189 not a seat either: these are main-agent
+	// turn ends arriving on the SubagentStop hook. See kindTurnEnd for the measurement.
+	captureUntypedSeat = "event-names-no-seat"
 	// captureMissing: a TYPED seat's transcript did not stat. This is the alarming one — the
 	// population where a file is expected — and one file in 16 arrived after its stat, so the
 	// race is real here and must stay visible.
@@ -126,11 +172,9 @@ type hookInput struct {
 // harness payloads a reader will have alongside them.
 type manifestRow struct {
 	Schema int `json:"schema"`
-	// Kind separates the two rows a manifest can hold. "seat" is a subagent's
-	// trajectory, handed over at SubagentStop; "session" is the MAIN session's,
-	// handed over at SessionStart. They are one file because they belong to one
-	// run, and they are distinguished because a consumer asking "where is this
-	// session's transcript" must not be answered with a seat's.
+	// Kind separates the rows a manifest can hold — see kindSeat, kindTurnEnd, kindSession.
+	// A consumer asking "where is this session's transcript" must not be answered with a
+	// seat's, and a consumer counting seats must not be handed the turn ends.
 	Kind                string   `json:"kind"`
 	CapturedAt          string   `json:"captured_at"`
 	SessionID           string   `json:"session_id"`
@@ -227,7 +271,7 @@ type statFunc func(string) (int64, error)
 func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, stat statFunc) manifestRow {
 	r := manifestRow{
 		Schema:              schema,
-		Kind:                "seat",
+		Kind:                kindSeat,
 		CapturedAt:          now.UTC().Format(time.RFC3339),
 		SessionID:           in.SessionID,
 		AgentID:             in.AgentID,
@@ -264,9 +308,13 @@ func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, sta
 	if err != nil {
 		r.CaptureError = "agent_transcript_path did not resolve: " + err.Error()
 		if in.AgentType == "" {
-			// Permanent and expected: no trajectory was written for this seat and none will
-			// be. Said as a category so a counter can set it aside; the error text stays,
-			// because a human reading one row still wants the path and the errno.
+			// THE CONJUNCTION, AND ONLY THE CONJUNCTION, RECLASSIFIES. No type AND no file is
+			// the measured signature of a turn end (kindTurnEnd). Either half alone stays a
+			// seat: a typed row that did not stat is the alarm below, and an untyped row that
+			// DID stat is a real trajectory whose name is missing — surprising, and a surprise
+			// must not be filed under an explanation. Neither has ever been observed, which is
+			// exactly why neither may be folded in silently.
+			r.Kind = kindTurnEnd
 			r.CaptureCategory = captureUntypedSeat
 		} else {
 			r.CaptureCategory = captureMissing
@@ -323,7 +371,7 @@ func appendRow(path string, r manifestRow, stderr io.Writer) {
 func buildSessionRow(in hookInput, now time.Time, stat statFunc) manifestRow {
 	r := manifestRow{
 		Schema:            schema,
-		Kind:              "session",
+		Kind:              kindSession,
 		CapturedAt:        now.UTC().Format(time.RFC3339),
 		SessionID:         in.SessionID,
 		TranscriptPath:    in.TranscriptPath,
