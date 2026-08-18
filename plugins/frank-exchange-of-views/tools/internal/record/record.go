@@ -738,11 +738,51 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// `dispute` and `dispute-respond` were in this arm until #344. Their checks did not
 		// disappear with them — they moved to the motion verbs, which is where the gap
 		// reference, the open-gap requirement and the prose requirement now live.
+		// PRESENCE FIRST, THEN RESOLVABILITY. requireGap returns nil on an empty id — an
+		// ABSENT reference is not a DANGLING one, and that is right for the check it makes —
+		// so absence needs its own. Without it a bare `manifest-row` recorded a repair receipt
+		// naming no gap and printed "manifest row recorded for ", and a bare `closing` filed an
+		// argument about nothing.
+		if p.Str("gap_id") == "" {
+			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", typ)
+		}
 		if err := requireGap(runDir, p.Str("gap_id"), typ, "--id"); err != nil {
 			return err
 		}
 		if typ == "closing" && p.Str("reason") == "" {
 			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
+		}
+		// A MANIFEST ROW IS THE RECEIPT. An empty one says a repair was audited and shows
+		// nothing for it, which is worth less than no row: the row is what makes "unaudited
+		// repair" countable, so a blank one flatters the count it feeds.
+		if typ == "manifest-row" && p.Str("row") == "" {
+			return fmt.Errorf("record: manifest-row requires --row (what you checked and what it showed — an empty receipt still counts as a repair audited)")
+		}
+	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
+	//
+	// None of these required anything, so the bare verb recorded an event with empty text and
+	// returned success — and two of them GATE THE SITTING. Measured: `blue friction` then
+	// `blue revision`, no flags, took a seat from two outstanding duties to `complete: true`,
+	// and the friction projection then read `total: 1, attested: 0` with `text: ""`. A channel
+	// reporting one entry that says nothing is worse than a channel reporting none, because the
+	// count is what an audit reads.
+	//
+	// This class was found once already and fixed at ONE instance: `lens verify` required no
+	// flag at all, and the note in RequiredFields records it ("A VERIFICATION OF NOTHING WAS
+	// RECORDABLE"). The siblings were never swept. They are swept here.
+	//
+	// `spot-check` is deliberately NOT in this arm. Its bare form is a documented decision with
+	// a test pinning it, and its --none --reason exists for the same distinction this makes.
+	case "friction", "friction-none", "position", "revision":
+		if p.Str("reason") == "" {
+			switch typ {
+			case "friction":
+				return fmt.Errorf("record: friction requires --reason (what you reached for and could not get). If nothing blocked you, that is the --none form, and it needs a --reason too: an empty discharge cannot be told from a skipped one")
+			case "friction-none":
+				return fmt.Errorf("record: friction --none requires --reason (what you reached for and FOUND). The explicit negative is only worth more than silence when it says what was looked at")
+			default:
+				return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", typ, typ)
+			}
 		}
 	case "finding":
 		// A finding/observation with no label CANNOT BE ADDRESSED, and every one must get

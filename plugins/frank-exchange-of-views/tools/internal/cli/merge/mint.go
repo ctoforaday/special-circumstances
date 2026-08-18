@@ -177,8 +177,13 @@ func newMint() *cobra.Command {
 					// The KIND is a field, not something a reader infers from the wording. The
 					// prose above is aimed at a seat and must stay editable; the count an
 					// operator reads must not move when it is edited (#283).
+					// THE KEY IS `reason`, which is what the friction projection reads and what
+					// the friction verb writes. This set `text`, so every estoppel block
+					// recorded an entry that rendered with EMPTY TEXT in the operator's
+					// friction read: the block was logged and its explanation was not, which
+					// is the same blank entry an empty discharge produces.
 					fr := record.NewPayload().
-						Set("text", msg).
+						Set("reason", msg).
 						Set(record.FrictionKindKey, record.FrictionKindEstoppel).
 						Set("estopped_by", prior)
 					if _, ferr := record.Append(s.Identity(), "friction", fr); ferr != nil {
