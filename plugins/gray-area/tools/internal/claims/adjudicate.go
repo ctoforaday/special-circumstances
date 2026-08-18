@@ -226,6 +226,23 @@ func Adjudicate(cs []Claim, res trajectory.Result) []Finding {
 		f.Verdict, f.File, f.Line, f.UUID, f.At = Cited, hit.File, hit.Line, hit.UUID, hit.Timestamp
 		f.Command = matchingLine(bashCommand(*hit), sig)
 
+		// THE ACT/RESULT BOUNDARY, and it belongs HERE rather than in one caller.
+		//
+		// A validation-loop entry asserts an ACT and an OUTCOME — "`go run ./check`
+		// … last run: pass". This record can adjudicate the act and cannot see the
+		// outcome: the trajectory holds invocations, never their output (result
+		// bodies are conversation content, refused under G4/G6). A CITED row that
+		// says nothing about the outcome reads as endorsing the claimed pass.
+		//
+		// It was built into the pull request reader first and left out of this one
+		// — `adjacent-seat-omission`, the class the sweep exists to catch, in the
+		// tool that adjudicates. Putting it in Adjudicate rather than in each verb
+		// is what stops the third caller from omitting it again.
+		if c.Outcome != "" {
+			f.Unmeasured = append(f.Unmeasured,
+				"the claimed outcome ("+strings.TrimSpace(c.Outcome)+") — the trajectory records invocations, not their output")
+		}
+
 		// STALENESS, computed without any help from the mechanism that is supposed
 		// to report it. The trajectory holds every write with its target and time,
 		// so "the claim is older than the last write to its own trigger surface" is

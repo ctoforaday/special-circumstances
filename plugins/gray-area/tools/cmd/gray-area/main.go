@@ -408,6 +408,11 @@ func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(
 			if len(f.Searched) > 0 {
 				fmt.Fprintf(stdout, "    searched: %v across %d citable events\n", f.Searched, f.EventsSeen)
 			}
+			// In the table, not only in the JSON: a human reading this is exactly
+			// who a CITED-reads-as-endorsement would mislead.
+			for _, u := range f.Unmeasured {
+				fmt.Fprintf(stdout, "    NOT MEASURED: %s\n", u)
+			}
 			if f.Note != "" {
 				fmt.Fprintf(stdout, "    note: %s\n", f.Note)
 			}
