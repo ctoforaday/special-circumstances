@@ -84,6 +84,12 @@ From `gray-area.md` §7:
 
 Three inspections bundled under one phase. That bundling is the thing this proposal argues with.
 
+> **BUILT WHOLE, 2026-08-18 (#471).** The bundling argument lost, and lost on a fact rather than on
+> judgement: §2.2's coverage number was an artifact of the instrument (§0.1). All three inspections
+> ship — `gray-area rework`, `gray-area stalls`, `gray-area pr`. The build spec, and the two designs
+> the real session falsified after unit tests passed them, are in
+> [`gray-area-phase-2-build.md`](gray-area-phase-2-build.md).
+
 ## 2. What has changed since it was written
 
 Two things, and both move the boundary.
