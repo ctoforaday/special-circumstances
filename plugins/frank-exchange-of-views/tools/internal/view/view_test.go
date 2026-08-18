@@ -381,7 +381,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 		t.Fatalf("%d telemetry lines, want one per round:\n%s", len(lines), raw)
 	}
 	// Key order is the contract, not merely the key set.
-	if !strings.HasPrefix(lines[0], `{"round":1,"mapping_version":"v1","open_count":`) {
+	if !strings.HasPrefix(lines[0], `{"round":1,"mapping_version":"v2","open_count":`) {
 		t.Errorf("telemetry key order changed:\n%s", lines[0])
 	}
 
