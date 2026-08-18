@@ -6,9 +6,9 @@
 > rather than for direction to be invented. They redirected it.
 > Parent: [`gray-area.md`](gray-area.md) §7.
 >
-> **The recommendation is to build roughly half of what Phase 2 was specified as, and to say
-> plainly which half is deferred and why** — [[complete-the-concept]] requires that scoping down
-> be a complete concept rather than a truncated one, and that the remainder be enumerated.
+> The recommendation was to build roughly half of what Phase 2 was specified as and defer the rest.
+> **The operator chose the whole of it, gated on #189 instead.** The original argument is kept below
+> rather than rewritten, because a proposal that quietly becomes the decision it lost teaches nothing.
 
 ---
 
