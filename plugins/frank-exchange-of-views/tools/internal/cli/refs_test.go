@@ -58,6 +58,11 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			args := append(cmdPath(c.args), "--run", runDir)
 			args = append(args, c.args[len(cmdPath(c.args)):]...)
+			// SUPPLY THE PROSE, so the refusal under test is the REFERENCE one. Cobra refuses a
+			// missing required flag at parse, before the reference check the case is named for.
+			if !hasFlag(args, "--reason") && !hasFlag(args, "--reason-file") {
+				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
+			}
 			_, err := run(t, args...)
 			if err == nil {
 				t.Fatalf("%s accepted a reference to something that does not exist — it would be dropped at replay, and the seat would never know", c.name)
@@ -129,6 +134,11 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			args := append(cmdPath(c.args), "--run", runDir)
 			args = append(args, c.args[len(cmdPath(c.args)):]...)
+			// SUPPLY THE PROSE, so the refusal under test is the REFERENCE one. Cobra refuses a
+			// missing required flag at parse, before the reference check the case is named for.
+			if !hasFlag(args, "--reason") && !hasFlag(args, "--reason-file") {
+				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
+			}
 			_, err := run(t, args...)
 			if err == nil {
 				t.Fatalf("%s was accepted", c.name)
@@ -220,4 +230,15 @@ func cmdPath(args []string) []string {
 		n++
 	}
 	return append([]string{}, args[:n]...)
+}
+
+// hasFlag reports whether an argv already carries a flag, so a case that sets its own prose is
+// not given a second copy (both-given is itself a refusal).
+func hasFlag(args []string, name string) bool {
+	for _, a := range args {
+		if a == name {
+			return true
+		}
+	}
+	return false
 }

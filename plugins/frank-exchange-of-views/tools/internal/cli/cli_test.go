@@ -143,10 +143,20 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 	}{
 		{"lens finding without --run", []string{"lens", "finding", "--seat-id", "red-lens-r1-L1"}, "lens: --run <runDir> is required"},
 		{"lens finding without --seat-id", []string{"lens", "finding", "--run", "X"}, "lens: --seat-id is required"},
-		{"merge mint without --run", []string{"merge", "mint", "--seat-id", "red-merge-r1"}, "merge: --run <runDir> is required"},
-		{"merge mint without --seat-id", []string{"merge", "mint", "--run", "X"}, "merge: --seat-id is required"},
-		{"blue revision without --run", []string{"blue", "revision", "--seat-id", "blue-lane-1"}, "blue: --run <runDir> is required"},
-		{"bench opinion without --seat-id", []string{"bench", "opinion", "--run", "X"}, "bench: --seat-id is required"},
+		// EACH CASE CARRIES THE VERB'S OTHER REQUIRED FLAGS. Cobra refuses a missing required
+		// flag at PARSE, before Begin reaches the run and seat-id checks, so a case that omits
+		// them measures whichever refusal fires first rather than the one it is named for.
+		{"merge mint without --run", []string{"merge", "mint", "--seat-id", "red-merge-r1",
+			"--check", "c", "--check-kind", "document", "--impact", "medium", "--likelihood", "medium",
+			"--class", "x", "--problem", "p"}, "merge: --run <runDir> is required"},
+		{"merge mint without --seat-id", []string{"merge", "mint", "--run", "X",
+			"--check", "c", "--check-kind", "document", "--impact", "medium", "--likelihood", "medium",
+			"--class", "x", "--problem", "p"}, "merge: --seat-id is required"},
+		{"blue revision without --run", []string{"blue", "revision", "--seat-id", "blue-lane-1",
+			"--reason", "what changed this round"}, "blue: --run <runDir> is required"},
+		{"bench opinion without --seat-id", []string{"bench", "opinion", "--run", "X",
+			"--id", "R1-1", "--as", "carried", "--principle", "p", "--tension", "t",
+			"--review-flag", "no", "--reason", "r"}, "bench: --seat-id is required"},
 		{"register is not exempt", []string{"lens", "register", "--run", "X"}, "lens: --seat-id is required"},
 	}
 	for _, tc := range cases {
@@ -174,13 +184,6 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 			// verbs whose flags cobra marks refuse at PARSE time, before Begin reaches the
 			// run/seat-id checks — so a case that omits both measures whichever fires first
 			// rather than the one it is named for.
-			if strings.Contains(err.Error(), "required flag") || strings.Contains(err.Error(), "one of the flags in the group") {
-				args = append(args, "--reason", "supplied so the refusal under test is the run/seat one")
-				_, err = run(t, args...)
-				if err == nil {
-					t.Fatal("the verb ran without its preconditions")
-				}
-			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
 			}
@@ -704,7 +707,10 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1")
+	// --reason is supplied so the refusal under test is the ANCHOR one: cobra refuses a missing
+	// required flag at parse, before the handler that checks the anchor ever runs.
+	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
+		"--reason", "closed after verification")
 	if err == nil {
 		t.Fatal("an unanchored closure was accepted")
 	}
@@ -736,7 +742,8 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 
 	// Closing an unknown gap is refused before anything is written.
 	_, err = run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R9-9",
-		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x")
+		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
+		"--reason", "supplied so the refusal under test is the reference one")
 	if err == nil {
 		t.Fatal("a closure of an unknown gap was accepted")
 	}
@@ -813,9 +820,12 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{"regrade without --reason", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "regrade requires --reason"},
-		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "mint requires --check"},
-		{"mint without --class", []string{"merge", "mint", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
+		// The expectation is the FLAG NAME. Cobra refuses these now, and its message names what
+		// is missing without restating what it is for — which the command's own --help already
+		// documents, and which the seat is required to have read before running the command.
+		{"regrade without --reason", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "reason"},
+		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "check"},
+		{"mint without --class", []string{"merge", "mint", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "class"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -841,11 +851,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				t.Fatal("the verb was accepted without its reason")
 			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
-				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
-			}
-			// The role leads the message, so the seat knows which contract it broke.
-			if !strings.HasPrefix(err.Error(), "merge:") {
-				t.Errorf("the error does not lead with the role: %q", err)
+				t.Errorf("error = %q, want it to name the missing flag %q", err, tc.wantErr)
 			}
 		})
 	}
@@ -925,8 +931,12 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 			if err == nil {
 				t.Fatalf("an opinion was accepted without --%s", missing)
 			}
-			if !strings.Contains(err.Error(), "opinions, not dispositions") {
-				t.Errorf("the refusal must say why: %v", err)
+			// The refusal NAMES the missing flag. What the field is for lives in
+			// `bench opinion --help`, which the seat is required to have read before running
+			// the command — restating it in the error would be a second copy of the same text,
+			// free to drift from the one cobra generates.
+			if !strings.Contains(err.Error(), missing) {
+				t.Errorf("the refusal does not name --%s: %v", missing, err)
 			}
 		})
 	}

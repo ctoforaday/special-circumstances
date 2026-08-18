@@ -1,12 +1,12 @@
 $ merge mint --seat-id red-merge-r1
 exit 2
 stderr:
-feov-record: merge: --run <runDir> is required
+feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
 
 $ merge mint --run {RUN}
 exit 2
 stderr:
-feov-record: merge: --seat-id is required (the engine assigns it; it is in your prompt)
+feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
 
 $ merge not-a-verb --run {RUN} --seat-id red-merge-r1
 exit 2

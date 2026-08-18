@@ -29,7 +29,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 	}{
 		{
 			name: "a deadlock with no account is refused", deadlocked: true, reason: "",
-			wantErr: "yes", wantSay: "requires --reason",
+			wantErr: "yes", wantSay: "reason",
 		},
 		{
 			name: "a deadlock with its account is recorded", deadlocked: true,
@@ -40,7 +40,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 		},
 		{
 			name:    "no account at all is refused, deadlock or not",
-			wantErr: "yes", wantSay: "requires --reason",
+			wantErr: "yes", wantSay: "reason",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 				t.Fatal("accepted an outcome the contract forbids")
 			}
 			if !strings.Contains(err.Error(), tc.wantSay) {
-				t.Errorf("refusal does not say what to do: %v", err)
+				t.Errorf("the refusal does not name the missing flag %q: %v", tc.wantSay, err)
 			}
 			// AND THE REFUSAL MUST NOT MISDESCRIBE THE RECORD. The first version told a seat its
 			// verdict was "DERIVED from the record ()" on a run where derivation had failed —

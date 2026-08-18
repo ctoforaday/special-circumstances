@@ -281,14 +281,16 @@ var suppliedByTheVerb = map[string]string{
 // facts, discovered from the other side. It lives here too because this is where the marking
 // happens, and a marker that did not know about an alternative would make the help's REQUIRED
 // true by breaking the form it names in the same sentence.
-// cobraEnforces are the verbs whose required flags are marked at the FLAG, because they have no
-// refusal of their own to lose. Every other verb refuses in its RunE with a message naming what
-// the argument is FOR, which a generic flag check cannot do.
-var cobraEnforces = map[string]bool{
-	"friction":     true,
-	"position":     true,
-	"revision":     true,
-	"manifest-row": true,
+// conditionallyRequired are (verb, payload key) pairs the record requires in SOME invocations and
+// not others, with the condition. Cobra's marking is static — it cannot say "required unless this
+// is a move" — so these are refused where the condition can be read, and the flag is left unmarked.
+//
+// This is a capability boundary, not a preference about messages. Marking `line-of-inquiry.line`
+// breaks every MOVE: a move names an existing line by --id and carries no --line, and validate
+// says so in the same breath (`supersedes_status == "" && line == ""`).
+var conditionallyRequired = map[string]string{
+	"line-of-inquiry.line":   "required on a PROPOSAL and absent on a move, which names an existing line by --id",
+	"line-of-inquiry.status": "a proposal defaults to `proposed` in the verb; a move requires it, and the move's own refusal says so",
 }
 
 var satisfiedByAnyOf = map[string][]string{
@@ -330,18 +332,9 @@ func markRequired(c *cobra.Command, verb string) {
 		// guards a different boundary, the one internal callers reach through record.Append
 		// without a command line. Cobra's is the SEAT's boundary, and it is the one that can
 		// refuse before an event exists and can say so in the help.
-		// COBRA ENFORCES ONLY WHERE NOTHING ELSE DOES, and that boundary is the message.
-		//
-		// Cobra's refusal is `required flag(s) "tension" not set` — WHAT is missing, never WHY.
-		// Most verbs here refuse in their own RunE instead, and those messages teach: "opinion
-		// requires --tension (the values in tension)", "regrade requires --reason (what changed
-		// your mind)". Marking those at the flag would replace ~30 instructive refusals with the
-		// generic one, which is a worse contract even though it is the framework's own.
-		//
-		// These four had NO refusal at all — the bare verb recorded an empty event and returned
-		// success — so there is no instruction to lose, and the flag marking is strictly better
-		// than the nothing it replaces.
-		if !cobraEnforces[verb] {
+		if conditionallyRequired[verb+"."+key] != "" {
+			// The usage still says REQUIRED, because it IS — in the invocation the seat is
+			// most likely making. Which one is the verb's to know.
 			continue
 		}
 		if alts := satisfiedByAnyOf[key]; len(alts) > 0 {

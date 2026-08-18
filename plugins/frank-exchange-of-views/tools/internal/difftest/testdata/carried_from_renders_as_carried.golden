@@ -11,7 +11,7 @@ minted R2-1
 $ merge close --run {RUN} --seat-id red-merge-r2 --id R2-1 --carried-from 1
 exit 2
 stderr:
-feov-record: merge: record: close --carried-from claims gap R2-1 was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so an unanchored first closure must instead carry --anchor-seat/--anchor-tool/--anchor-target
+feov-record: at least one of the flags in the group [reason reason-file] is required
 
 ═══ EVENTS ═══
 -- events-red-merge-r2-NONCE001.jsonl

@@ -11,7 +11,7 @@ minted R1-1
 $ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
 exit 2
 stderr:
-feov-record: merge: record: regrade requires --reason (grade movement is recorded with its reason)
+feov-record: at least one of the flags in the group [reason reason-file] is required
 
 $ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0

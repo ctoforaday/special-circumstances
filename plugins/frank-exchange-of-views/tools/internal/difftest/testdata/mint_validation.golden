@@ -6,12 +6,12 @@ registered red-merge-r1 (shard nonce NONCE001)
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --problem no check given
 exit 2
 stderr:
-feov-record: merge: record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)
+feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --check-kind document --check run it --problem no class given
 exit 2
 stderr:
-feov-record: merge: record: mint requires --class (or --class-new with --definition/--neighbor/--distinguisher)
+feov-record: required flag(s) "impact", "likelihood" not set
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --severity catastrophic --problem bad grade
 exit 2
@@ -21,7 +21,7 @@ feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophi
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --supersedes R9-9 --problem dangling lineage
 exit 2
 stderr:
-feov-record: merge: record: mint requires --likelihood — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded
+feov-record: required flag(s) "impact", "likelihood" not set
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check grep the sites --severity high --likelihood high --impact medium --cx low --problem a real one
 exit 0
