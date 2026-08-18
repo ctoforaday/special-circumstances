@@ -108,31 +108,31 @@ func AvailableOf(b *Board, role, seatID string) []Duty {
 		// was told to abandon or defer it. Both are fixed at the single predicate now.
 		for _, a := range StaleInquiries(b) {
 			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since round %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Round),
-				fmt.Sprintf(`line-of-inquiry --id %s --status pursued|declined|abandoned|deferred --reason "<what you learned, or why its fate changed>"`, a.ID))
+				seatVerb(role, fmt.Sprintf(`line-of-inquiry --id %s --status pursued|declined|abandoned|deferred --reason "<what you learned, or why its fate changed>"`, a.ID)))
 		}
 		// A repair with no receipt is one nobody audited, including its author.
 		for _, id := range gapsEditedWithoutManifest(b, seatID) {
 			add("gap "+id+" was answered by an edit and carries no manifest row — the report names a closed gap with no row as a repair nobody audited, including its author",
-				`manifest-row --id `+id+` --row "<what you checked and what it showed>"`)
+				seatVerb(role, `manifest-row --id `+id+` --row "<what you checked and what it showed>"`))
 		}
 	case "merge":
 		if anyClosedGap(b) && !seatDid(b, seatID, "spot-check") {
 			add("the closure archive is not empty and this sitting has sampled none of it",
-				`spot-check --id <a closed gap> --notes "..."   |   spot-check --none --reason "<what you looked at and found>"`)
+				seatVerb(role, `spot-check --id <a closed gap> --notes "..."`)+`   |   `+seatVerb(role, `spot-check --none --reason "<what you looked at and found>"`))
 		}
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
 		for _, id := range gapsWithAcceptedMotionAndNoRegrade(b) {
 			add("gap "+id+" had a grade motion ACCEPTED and no regrade followed it — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence",
-				`regrade --id `+id+` --severity|--likelihood|--impact|--cx <the new grade> --reason "<what changed your mind>"`)
+				seatVerb(role, `regrade --id `+id+` --severity|--likelihood|--impact|--cx <the new grade> --reason "<what changed your mind>"`))
 		}
 	case "lens":
 		for _, key := range citedClaimsWithoutVerify(b) {
 			add("citation "+key+" is on the record and nobody has verified it against what the source actually says",
-				`verify --key `+key+` --as <outcome> --confidence <grade> --reason "..."`)
+				seatVerb(role, `verify --key `+key+` --as <outcome> --confidence <grade> --reason "..."`))
 		}
 		for _, id := range proofsWithoutReproduce(b) {
 			add("proof "+id+" is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it",
-				`reproduce --id `+id)
+				seatVerb(role, `reproduce --id `+id))
 		}
 	}
 	return out
