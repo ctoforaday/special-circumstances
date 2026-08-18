@@ -1,14 +1,49 @@
 # Gray Area Phase 2 — scope proposal
 
-> **Status: proposal, not a plan. No code.** Written because the operator asked for a scoped
-> proposal to accept, cut down, or redirect, rather than for direction to be invented.
+> **Status: RULED ON 2026-08-17. The operator overruled the recommendation.** See §0.
+>
+> Written because the operator asked for a scoped proposal to accept, cut down, or redirect,
+> rather than for direction to be invented. They redirected it.
 > Parent: [`gray-area.md`](gray-area.md) §7.
 >
-> **The recommendation is to build roughly half of what Phase 2 was specified as, and to say
-> plainly which half is deferred and why** — [[complete-the-concept]] requires that scoping down
-> be a complete concept rather than a truncated one, and that the remainder be enumerated.
+> The recommendation was to build roughly half of what Phase 2 was specified as and defer the rest.
+> **The operator chose the whole of it, gated on #189 instead.** The original argument is kept below
+> rather than rewritten, because a proposal that quietly becomes the decision it lost teaches nothing.
 
 ---
+
+## 0. The ruling, and what it overturns
+
+**Option B: fix the substrate (#189) first, then build Phase 2 whole.** Not Option C, which this
+document recommended and marked ✅.
+
+The recommendation traded coverage for availability: build the half whose substrate is complete,
+accept that seat-level behaviour goes unmeasured, and wait for #189 to resolve on its own. The
+ruling refuses that trade, and the reason it is the operator's to make rather than mine is that it
+turns on what the plugin is FOR. Seat-level behaviour — what each debating role actually did, versus
+what it claimed — is the product. A Phase 2 that inspects only the lead agent is a working tool
+aimed at the less interesting half, and shipping it first would relieve exactly the pressure that
+gets #189 solved.
+
+**So #189 is no longer a blocker to route around. It is the work.** Its risk is stated plainly and
+was already in §Option B: three hypotheses have failed (environment, session, seat-as-cause — the
+third descriptive rather than causal), and nobody can estimate it. That risk is accepted, not
+dissolved.
+
+**Second ruling: act-vs-claim DOES point at PR bodies, with full post-hoc adjudication.** The
+narrower options — self-check before posting, or validation-sections-only — were declined. Findings
+are recorded against merged pull requests and readable by the operator.
+
+That settles the question §7 left open, and it settles it in the direction that costs the agent
+most: a PR body stops being testimony and becomes a record under inspection. The case for it is
+measured rather than theoretical — in the session that wrote this document I told the operator
+"nothing was published" when three releases had already gone out, and quoted a plugin version that
+had moved two hours earlier. Both are exactly what adjudication against the trajectory catches.
+
+The failure mode that comes with it is real and is now the builder's problem to hold: a false
+positive on an accurate body puts the operator between two of the agent's outputs. §6's check 4
+covers the absence case; a PR-body reader will need its own answer for the false-positive case, and
+`NO-EVIDENCE`'s asymmetry (state the search, let the reader convict) is the shape to start from.
 
 ## 1. What Phase 2 was specified as
 
@@ -86,16 +121,16 @@ the plugin's own output, and it is the failure mode this plugin exists to preven
 
 Buildable, but it puts the burden on a caveat rather than a mechanism.
 
-### Option B — fix the substrate first (#189), then build Phase 2 whole
+### Option B — fix the substrate first (#189), then build Phase 2 whole ✅ CHOSEN
 
 The honest sequencing if per-seat inspection is the point. The cost is that #189 is **undetermined
 after three failed hypotheses** (§11.8 environment, §11.9 session, §11.10 seat — the first two
 wrong, the third descriptive rather than causal). Nobody can estimate this, and gating Phase 2 on it
 means Phase 2 may not happen.
 
-### Option C — build the LEAD-SCOPED half now; hold the seat-scoped half behind #189 ✅
+### Option C — build the LEAD-SCOPED half now; hold the seat-scoped half behind #189 — RECOMMENDED, NOT CHOSEN
 
-**Recommended.** Build the inspections whose substrate is complete, and do not pretend the others
+**Recommended at the time, and overruled — see §0.** Build the inspections whose substrate is complete, and do not pretend the others
 are one flag away.
 
 Concretely in scope:
@@ -161,10 +196,9 @@ construction, and it is what makes Option C's narrower scope honest rather than 
 - **Whether `friction.md` stays seat-authored with the miner adjudicating it, or becomes
   miner-derived.** `gray-area.md` §9 left this open and this proposal does not close it.
 - **The acceptance test for the plugin as a whole**, also open from §9.
-- **Whether act-vs-claim over PR bodies is wanted at all.** It is the highest-value target and the
-  most intrusive — it adjudicates the agent's own reports to the human, which is either the point of
-  the plugin or a step past what the operator wants it doing. Flagged for the operator rather than
-  assumed.
+- ~~**Whether act-vs-claim over PR bodies is wanted at all.**~~ **SETTLED 2026-08-17: yes, with full
+  post-hoc adjudication.** See §0. What remains open is how a PR-body reader avoids convicting an
+  accurate body — the false-positive direction, which no existing verdict covers.
 - **Phase 2's original acceptance test remains unavailable.** §7 already records that the historical
   hand analyses cannot be re-derived because those transcripts were never committed. Option C does
   not recover it; the first captured run remains the real fixture.
