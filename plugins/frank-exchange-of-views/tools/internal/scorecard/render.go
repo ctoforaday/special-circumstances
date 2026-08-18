@@ -152,9 +152,16 @@ func decodeJSONL(body []byte) []map[string]any {
 		dec := json.NewDecoder(strings.NewReader(ln))
 		dec.UseNumber()
 		var m map[string]any
-		if dec.Decode(&m) == nil {
-			out = append(out, m)
+		if err := dec.Decode(&m); err != nil {
+			// NOT SWALLOWED. This read `if dec.Decode(&m) == nil { append }`, so an unreadable
+			// row simply vanished and the scorecard rendered a shorter series with nothing
+			// anywhere saying a line had failed. The twin of the same bug lived in
+			// view.Telemetry. A malformed row is recorded IN the output, so a reader sees the
+			// gap rather than a plausibly-short series.
+			out = append(out, map[string]any{"_decode_error": err.Error(), "_raw": ln})
+			continue
 		}
+		out = append(out, m)
 	}
 	return out
 }

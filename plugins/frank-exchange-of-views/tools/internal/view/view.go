@@ -121,13 +121,24 @@ func Telemetry(runDir string) ([]map[string]any, error) {
 		return nil, err
 	}
 	var rows []map[string]any
-	for _, ln := range lines {
+	for i, ln := range lines {
 		dec := json.NewDecoder(strings.NewReader(ln))
 		dec.UseNumber()
 		var m map[string]any
-		if dec.Decode(&m) == nil {
-			rows = append(rows, m)
+		// THE ERROR IS RETURNED, NOT SWALLOWED. This read `if dec.Decode(&m) == nil { append }`,
+		// so a row that failed to decode simply vanished — and this function's own error return
+		// sat unused beside it. The consumers (dashboard, cost, scorecard) render a ROUND PER ROW,
+		// so a dropped row is a round that silently stops existing: the series looks shorter and
+		// nothing anywhere says a line was unreadable.
+		//
+		// These lines are produced by telemetryLines a few statements earlier in the same call, so
+		// a decode failure is an internal inconsistency — the one case where failing loud costs
+		// nothing, because there is no external input to be tolerant of.
+		if err := dec.Decode(&m); err != nil {
+			return nil, fmt.Errorf("view: telemetry row %d of %d did not decode: %w\nrow: %s",
+				i+1, len(lines), err, ln)
 		}
+		rows = append(rows, m)
 	}
 	return rows, nil
 }

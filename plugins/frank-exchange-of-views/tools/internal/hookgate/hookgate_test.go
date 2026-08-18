@@ -105,3 +105,26 @@ func TestPostDroppedCatchesCitationAndBothClasses(t *testing.T) {
 		t.Errorf("dropped finding → %v, want [f-a]", got)
 	}
 }
+
+// A GATE THAT CANNOT READ ITS INPUT MUST LEAVE A TRACE.
+//
+// `_ = json.Unmarshal(in.ToolInput, &ti)` made malformed input bypass the blue-report lockdown
+// in silence: FilePath empty -> writesBlueReport false -> Decide "no opinion" -> the write is
+// allowed. The fail direction is deliberately unchanged; what is asserted here is that the
+// condition is now DETECTABLE, so internal/cli/hook.go can record it as a friction event of kind
+// FRICTION_KIND_TOOL_ERROR instead of nothing happening.
+func TestUnreadableToolInputIsDetectable(t *testing.T) {
+	bad := Input{ToolName: "Write", ToolInput: []byte(`{"file_path": `)} // truncated
+	if !InputUnreadable(bad) {
+		t.Error("malformed tool_input reported as readable — the bypass would stay invisible")
+	}
+	good := Input{ToolName: "Write", ToolInput: []byte(`{"file_path":"/x/blue/report.md"}`)}
+	if InputUnreadable(good) {
+		t.Error("well-formed tool_input reported as unreadable — this would file friction on every call")
+	}
+	// The gate still answers, and still answers the same way. Detectability is not a semantics
+	// change; that choice is the operator's (plan open question 7).
+	if writesBlueReport(bad) {
+		t.Error("fail direction changed — that is an operator decision, not a cleanup")
+	}
+}

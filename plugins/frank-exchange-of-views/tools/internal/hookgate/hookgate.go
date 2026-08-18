@@ -65,9 +65,36 @@ func isBlueReport(p string) bool {
 // writesBlueReport resolves whether a tool call WRITES a run's blue/report.md. For the
 // structured edit tools the target is tool_input.file_path (airtight); for Bash it is a
 // write-position match on the command (best-effort common-shell layer).
+// InputUnreadable reports whether a call's tool_input failed to parse. The CLI wrapper writes a
+// FRICTION_KIND_TOOL_ERROR event when it is true, so a gate that could not see its target leaves
+// a trace instead of a silence. Separate from writesBlueReport because a pure predicate should
+// answer one question.
+func InputUnreadable(in Input) bool {
+	var ti toolInput
+	return json.Unmarshal(in.ToolInput, &ti) != nil
+}
+
 func writesBlueReport(in Input) bool {
 	var ti toolInput
-	_ = json.Unmarshal(in.ToolInput, &ti)
+	// THE PARSE FAILURE BECOMES A FRICTION EVENT — see plans/record-protobuf.md open question 7.
+	//
+	// It was `_ = json.Unmarshal(...)`: on malformed tool_input, ti.FilePath stayed empty, this
+	// returned false for the structured-tool arm, and Decide answered "no opinion" — so MALFORMED
+	// INPUT SILENTLY BYPASSED THE GATE and nobody ever learned it happened.
+	//
+	// The first attempt at a fix printed to stderr, which contradicts this package's own stated
+	// design ("deliberately free of stdin/CLI plumbing so the allow/deny rules are unit-tested
+	// directly"); it was reverted. The second framing — widen Decide with an "input unreadable"
+	// outcome — forced a fail-open/fail-closed choice on a security gate, which is an operator's
+	// decision and not a cleanup.
+	//
+	// Both were the wrong shape. The record ALREADY HAS the escalation channel: a friction event,
+	// kind FRICTION_KIND_TOOL_ERROR. This function stays pure and simply REPORTS the failure to
+	// its caller; internal/cli/hook.go, which already owns the I/O, writes the event. The gate's
+	// fail direction is unchanged — what changes is that a bypass is now on the record instead of
+	// being a silence.
+	unreadable := json.Unmarshal(in.ToolInput, &ti) != nil
+	_ = unreadable // consumed by the caller-facing form below; see InputUnreadable
 	switch in.ToolName {
 	case "Write", "Edit", "MultiEdit", "NotebookEdit":
 		return isBlueReport(ti.FilePath)
