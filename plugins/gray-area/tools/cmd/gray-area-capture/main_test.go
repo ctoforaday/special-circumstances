@@ -35,7 +35,7 @@ func TestRowNeverCarriesConversationContent(t *testing.T) {
 	if err := json.Unmarshal([]byte(raw), &in); err != nil {
 		t.Fatal(err)
 	}
-	out, err := json.Marshal(buildRow(in, nil, noon, okStat(0)))
+	out, err := json.Marshal(buildRow(in, nil, "SubagentStop", noon, okStat(0)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestUnresolvablePathIsRecordedNotDropped(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := buildRow(tc.in, nil, noon, tc.stat)
+			r := buildRow(tc.in, nil, "SubagentStop", noon, tc.stat)
 			if r.Resolved != tc.resolved {
 				t.Errorf("resolved = %v, want %v", r.Resolved, tc.resolved)
 			}
@@ -129,11 +129,11 @@ func TestEveryUnresolvedRowCarriesACategoryAndNoResolvedOneDoes(t *testing.T) {
 		{AgentTranscriptPath: "/t/gone.jsonl", AgentType: "red-auditor"},
 		{AgentType: "red-auditor"},
 	} {
-		if r := buildRow(in, nil, noon, missing); r.CaptureCategory == "" {
+		if r := buildRow(in, nil, "SubagentStop", noon, missing); r.CaptureCategory == "" {
 			t.Errorf("unresolved row with no category: %+v", r)
 		}
 	}
-	if r := buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, nil, noon, okStat(7)); r.CaptureCategory != "" {
+	if r := buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, nil, "SubagentStop", noon, okStat(7)); r.CaptureCategory != "" {
 		t.Errorf("a resolved row has nothing to categorise, got %q", r.CaptureCategory)
 	}
 }
@@ -144,7 +144,7 @@ func TestEveryUnresolvedRowCarriesACategoryAndNoResolvedOneDoes(t *testing.T) {
 // is there, the row says resolved, and the correlation is contradicted where it can be seen.
 // Short-circuiting on agent_type would have made this row unable to disagree.
 func TestAnUntypedSeatThatDoesResolveIsRecordedAsResolved(t *testing.T) {
-	r := buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, nil, noon, okStat(42))
+	r := buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, nil, "SubagentStop", noon, okStat(42))
 	if !r.Resolved || r.SizeBytes != 42 {
 		t.Errorf("an untyped seat WITH a transcript must be recorded as resolved: %+v", r)
 	}
@@ -174,7 +174,7 @@ func TestBackgroundTaskIDsAreCarried(t *testing.T) {
 		},
 		SessionCrons: []json.RawMessage{[]byte(`{"id":"c1"}`)},
 	}
-	r := buildRow(in, nil, noon, okStat(0))
+	r := buildRow(in, nil, "SubagentStop", noon, okStat(0))
 	if got := strings.Join(r.BackgroundTaskIDs, ","); got != "task-1,task-2" {
 		t.Errorf("background_task_ids = %q", got)
 	}
@@ -185,7 +185,7 @@ func TestBackgroundTaskIDsAreCarried(t *testing.T) {
 
 // Never nil: a nil slice marshals to null and forces every reader to special-case it.
 func TestBackgroundTaskIDsMarshalAsArrayNotNull(t *testing.T) {
-	out, err := json.Marshal(buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, nil, noon, okStat(0)))
+	out, err := json.Marshal(buildRow(hookInput{AgentTranscriptPath: "/t/a.jsonl"}, nil, "SubagentStop", noon, okStat(0)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestUnresolvedRowsRecordThePayloadsShape(t *testing.T) {
 	if err := json.Unmarshal(raw, &in); err != nil {
 		t.Fatal(err)
 	}
-	r := buildRow(in, raw, noon, failStat)
+	r := buildRow(in, raw, "SubagentStop", noon, failStat)
 	if r.Resolved {
 		t.Fatal("setup: this row must be unresolved")
 	}
@@ -254,7 +254,7 @@ func TestPayloadKeysRecordNamesAndNeverValues(t *testing.T) {
 	if err := json.Unmarshal(raw, &in); err != nil {
 		t.Fatal(err)
 	}
-	r := buildRow(in, raw, noon, failStat)
+	r := buildRow(in, raw, "SubagentStop", noon, failStat)
 
 	blob, err := json.Marshal(r)
 	if err != nil {
@@ -276,7 +276,60 @@ func TestResolvedRowsCarryNoPayloadKeys(t *testing.T) {
 	if err := json.Unmarshal(raw, &in); err != nil {
 		t.Fatal(err)
 	}
-	if r := buildRow(in, raw, noon, okStat(9)); len(r.PayloadKeys) != 0 {
+	if r := buildRow(in, raw, "SubagentStop", noon, okStat(9)); len(r.PayloadKeys) != 0 {
 		t.Errorf("a resolved row recorded payload_keys = %v", r.PayloadKeys)
+	}
+}
+
+// #189: WHAT THE WIRING CLAIMS AND WHAT THE HARNESS SAYS ARE TWO FACTS, RECORDED SEPARATELY.
+//
+// The event is taken from hooks.json rather than inferred from the payload, and that stays right —
+// inferring it from which fields happen to be present is a guess that goes wrong silently. But
+// "do not infer it" is not "do not record what the payload claims". #189 turns on whether the two
+// agree, and until now only one of them was written down.
+func TestBothTheDeclaredAndThePayloadEventAreRecorded(t *testing.T) {
+	raw := []byte(`{"agent_transcript_path":"/t/gone.jsonl","hook_event_name":"Stop"}`)
+	var in hookInput
+	if err := json.Unmarshal(raw, &in); err != nil {
+		t.Fatal(err)
+	}
+	r := buildRow(in, raw, "SubagentStop", noon, failStat)
+	if r.DeclaredEvent != "SubagentStop" {
+		t.Errorf("declared_event = %q; want what the wiring passed", r.DeclaredEvent)
+	}
+	if r.HookEventName != "Stop" {
+		t.Errorf("hook_event_name = %q; want what the payload claimed", r.HookEventName)
+	}
+	if r.DeclaredEvent == r.HookEventName {
+		t.Fatal("this fixture exists to show a DISAGREEMENT; if the two collapse the comparison is lost")
+	}
+}
+
+// THE VALUE BOUNDARY, RESTATED WHERE IT IS NOW LOAD-BEARING. Recording one payload value does not
+// open the door to recording payload values: `hook_event_name` is harness metadata naming its own
+// event, while `last_assistant_message` in the same payload is conversation content and stays out
+// (G6). A future edit that reaches for one more "just this once" field fails here.
+func TestRecordingTheEventNameDidNotOpenTheDoorToContent(t *testing.T) {
+	raw := []byte(`{"agent_transcript_path":"/t/gone.jsonl","hook_event_name":"SubagentStop",
+	                "last_assistant_message":"SECRET-CONTENT","prompt_id":"p-123"}`)
+	var in hookInput
+	if err := json.Unmarshal(raw, &in); err != nil {
+		t.Fatal(err)
+	}
+	blob, err := json.Marshal(buildRow(in, raw, "SubagentStop", noon, failStat))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(blob), "SECRET-CONTENT") {
+		t.Fatal("conversation content reached the manifest")
+	}
+	if !strings.Contains(string(blob), `"hook_event_name":"SubagentStop"`) {
+		t.Error("the event name is the one value this row may carry, and it is missing")
+	}
+	// The key NAMES still describe everything else, including fields whose values stay out.
+	for _, want := range []string{"last_assistant_message", "prompt_id"} {
+		if !strings.Contains(string(blob), want) {
+			t.Errorf("payload_keys should still name %q even though its value is refused", want)
+		}
 	}
 }

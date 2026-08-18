@@ -110,6 +110,10 @@ type hookInput struct {
 	Effort              struct {
 		Level string `json:"level"`
 	} `json:"effort"`
+	// HookEventName is what the HARNESS calls this event. The wiring already knows which hook
+	// it registered for and passes it with -event; this is the payload's own claim, recorded
+	// so the two can be COMPARED rather than assumed equal. See manifestRow.HookEventName.
+	HookEventName string `json:"hook_event_name"`
 }
 
 // manifestRow is one seat's entry. Field names are snake_case to match the
@@ -155,6 +159,20 @@ type manifestRow struct {
 	// and plans/gray-area.md G6). Key names describe the SHAPE of an event without spreading
 	// conversation content into a second file — which is the whole posture of this plugin.
 	PayloadKeys []string `json:"payload_keys,omitempty"`
+	// DeclaredEvent is what the WIRING said (-event, from hooks.json). HookEventName is what the
+	// PAYLOAD said. Both are recorded because #189 turns on whether they agree.
+	//
+	// Schema 3 recorded payload key NAMES and immediately earned its keep: the first typeless row
+	// carried `hook_event_name`, `stop_hook_active`, `prompt_id` and `permission_mode` — four
+	// fields this program had never modelled, on an event it could not explain. Names alone
+	// cannot say WHICH event it was, and that is the question.
+	//
+	// A VALUE IS RECORDED HERE AND NOT ELSEWHERE, deliberately: `hook_event_name` is harness
+	// metadata naming its own event, not conversation content. `last_assistant_message` sits in
+	// the same payload and is still refused (G6). The distinction is what the field IS, not how
+	// convenient it would be.
+	DeclaredEvent string `json:"declared_event,omitempty"`
+	HookEventName string `json:"hook_event_name,omitempty"`
 }
 
 // payloadKeys returns the sorted top-level key names of a JSON object, or nil.
@@ -181,7 +199,7 @@ type statFunc func(string) (int64, error)
 // buildRow is the pure decision: given the hook input and a probe, produce the
 // row. It never returns an error — an unresolvable path is DATA, recorded as
 // resolved=false with the reason, not a failure that loses the row entirely.
-func buildRow(in hookInput, raw []byte, now time.Time, stat statFunc) manifestRow {
+func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, stat statFunc) manifestRow {
 	r := manifestRow{
 		Schema:              schema,
 		Kind:                "seat",
@@ -192,6 +210,8 @@ func buildRow(in hookInput, raw []byte, now time.Time, stat statFunc) manifestRo
 		TranscriptPath:      in.TranscriptPath,
 		AgentTranscriptPath: in.AgentTranscriptPath,
 		SessionCronCount:    len(in.SessionCrons),
+		DeclaredEvent:       declaredEvent,
+		HookEventName:       in.HookEventName,
 		Effort:              in.Effort.Level,
 		BackgroundTaskIDs:   []string{},
 	}
@@ -348,7 +368,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	appendRow(manifestPath(projectDir, in.SessionID), buildRow(in, raw, now, stat), stderr)
+	appendRow(manifestPath(projectDir, in.SessionID), buildRow(in, raw, *event, now, stat), stderr)
 	return 0
 }
 
