@@ -621,7 +621,12 @@ classify a seat as uncapturable when the row is built instead of reporting a fil
 reads like a transient one. The refusal to add a fallback path search **stands and is reinforced** —
 with 50 of 69 seats having no file, a fallback would be guessing three times in four.
 
-**What produced the typeless population is NOT determined.** All six probes — explicit
+**What produced the typeless population is NOT determined.** *(ANSWERED 2026-08-18 —
+`plans/gray-area.md` §11.11. They are not a population of seats: `SubagentStop` fires at the MAIN
+agent's turn end, with a minted id, no meta sidecar and a PREDICTED transcript path nothing writes
+to. 0 of 146 land mid-turn across 3406 windows; a subagent completing is by construction mid-turn.
+The "50 of 69" and "guessing three times in four" figures above therefore count turn ends in their
+denominator — seat coverage is 19/19.)* All six probes — explicit
 `general-purpose`, explicit `claude`, explicit `Explore`, and `subagent_type` omitted — carried a type
 and resolved. An attempt to identify the others by looking for their ids in the parent transcript was
 **contaminated and discarded**: printing the ids into diagnostics put them into the transcript, so the
