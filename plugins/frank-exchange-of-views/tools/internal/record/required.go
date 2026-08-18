@@ -54,6 +54,18 @@ var RequiredFields = map[string][]string{
 	// (or an explicit --independent), WHAT the source did for the claim, HOW SURE red is of that
 	// (a separate question), and the reading behind the verdict.
 	"verify": {"claim", "outcome", "confidence", "reason"},
+	// A DUTY DISCHARGED BY NOTHING. None of these required anything, so the bare verb recorded
+	// an empty event and returned success — and two of them GATE THE SITTING. Measured:
+	// `blue friction` then `blue revision`, no flags, took a seat from two outstanding duties to
+	// complete:true, and the friction projection then read total:1 attested:0 with text:"".
+	//
+	// Same class as `verify` above, which was fixed at that one instance while its siblings sat
+	// untouched. `spot-check` is deliberately absent: its bare form is a documented decision.
+	"friction":      {"reason"},
+	"friction-none": {"reason"},
+	"position":      {"reason"},
+	"revision":      {"reason"},
+	"manifest-row":  {"gap_id", "row"},
 }
 
 // THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its

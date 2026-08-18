@@ -67,6 +67,13 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		// The verb that took no required flag at all: a bare `lens verify` recorded an event and
 		// counted as red's audit volume. `outcome` is the payload key behind --as.
 		"verify": {"claim": "c", "outcome": "supports", "confidence": "high", "reason": "what the source says"},
+		// The duties a bare verb used to discharge with nothing. Two of these GATE the sitting,
+		// so an empty one did not merely record badly — it ended the seat's obligations.
+		"friction":      {"reason": "what I reached for and could not get"},
+		"friction-none": {"reason": "what I reached for and found"},
+		"position":      {"reason": "where I stand this round"},
+		"revision":      {"reason": "what I changed this round"},
+		"manifest-row":  {"gap_id": "R1-1", "row": "what I checked and what it showed"},
 	}
 
 	for typ, required := range RequiredFields {

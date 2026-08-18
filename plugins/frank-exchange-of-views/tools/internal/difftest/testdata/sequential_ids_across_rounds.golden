@@ -31,7 +31,7 @@ feov-record: merge: record: spot-check --ids names gap R1-1, which is still OPEN
 $ merge dispute-respond --run {RUN} --seat-id red-merge-r2 --id R1-1 --as rejected --reason the consequence stands
 exit 2
 stderr:
-feov-record: no verb "dispute-respond" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no verb "dispute-respond" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `merge friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
 
 the red merge seat — the board's only writer.
 
@@ -41,7 +41,7 @@ them; read the ones open against you with '<role> show motions'.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with the 'friction' verb — a missing
+needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:

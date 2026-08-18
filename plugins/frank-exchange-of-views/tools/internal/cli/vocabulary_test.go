@@ -117,6 +117,14 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		"retire": "blue", "line-of-inquiry": "blue",
 		"opinion": "bench", "halt": "bench", "certify": "bench", "outcome": "bench",
 		"finding": "lens", "observe": "lens", "verify": "lens",
+		// Every role has these; blue is a representative seat for the help check.
+		"friction": "blue", "position": "blue", "revision": "blue", "manifest-row": "blue",
+	}
+	// AN EVENT TYPE IS NOT ALWAYS A VERB. `friction-none` is what `friction --none` records, so
+	// it has required fields and no command of its own — its flags live on `friction`, which is
+	// checked above. The gate's model is one-verb-per-type; this is where that does not hold.
+	noVerbOfItsOwn := map[string]string{
+		"friction-none": "recorded by `friction --none`; its flags are on that verb",
 	}
 	// A FIELD THE VERB SUPPLIES IS NOT A FLAG THE SEAT MUST TYPE, and marking it produced help
 	// that contradicted itself: `blue line of inquiry --status` read "REQUIRED — proposed (… the default)".
@@ -125,6 +133,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	suppliedByTheVerb := map[string]bool{"line-of-inquiry/status": true}
 
 	for verb, required := range record.RequiredFields {
+		if why := noVerbOfItsOwn[verb]; why != "" {
+			continue
+		}
 		role, ok := verbRole[verb]
 		if !ok {
 			t.Errorf("record declares requirements for %q but this test does not know its role — the table grew and the check did not", verb)

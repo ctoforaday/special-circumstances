@@ -41,7 +41,7 @@ import (
 const FrictionFooter = `
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with the 'friction' verb — a missing
+needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.`
 
 // MotionFooter points at the one group a seat uses that is NOT under its role.
@@ -273,6 +273,38 @@ var suppliedByTheVerb = map[string]string{
 	"line-of-inquiry.status": "a fresh proposal defaults to `proposed` in the verb — the state the old shape could not express, and the one a seat would not think to type. A MOVE still requires it, and the move's own refusal says so",
 }
 
+// satisfiedByAnyOf are payload keys a seat may supply through MORE THAN ONE flag. Cobra's
+// per-flag required marking cannot express that — it would refuse the alternative — so these go
+// through MarkFlagsOneRequired instead.
+//
+// The model is not new: helpcontract_test.go already carries `satisfiedByAnother` for the same
+// facts, discovered from the other side. It lives here too because this is where the marking
+// happens, and a marker that did not know about an alternative would make the help's REQUIRED
+// true by breaking the form it names in the same sentence.
+// cobraEnforces are the verbs whose required flags are marked at the FLAG, because they have no
+// refusal of their own to lose. Every other verb refuses in its RunE with a message naming what
+// the argument is FOR, which a generic flag check cannot do.
+var cobraEnforces = map[string]bool{
+	"friction":     true,
+	"position":     true,
+	"revision":     true,
+	"manifest-row": true,
+}
+
+var satisfiedByAnyOf = map[string][]string{
+	// The prose channel is one argument arriving three ways: inline, from a file, or from stdin
+	// via `--reason-file -`. The file forms exist for prose too large to type.
+	"reason": {flags.Reason, flags.ReasonFile},
+	// A gap's class is either an EXISTING registry slug or one this mint is creating.
+	"class": {flags.Class, flags.ClassNew},
+	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
+	// same sentence it calls the field required.
+	"problem": {flags.Problem, flags.Reason, flags.ReasonFile},
+	// manifest-row falls back to the prose channel when --row is absent, so the receipt can
+	// arrive from a file like every other prose argument.
+	"row": {flags.Row, flags.Reason, flags.ReasonFile},
+}
+
 func markRequired(c *cobra.Command, verb string) {
 	for _, key := range record.RequiredFields[verb] {
 		f := c.Flags().Lookup(flags.ForPayloadKey(key))
@@ -288,6 +320,43 @@ func markRequired(c *cobra.Command, verb string) {
 			continue
 		}
 		f.Usage = "REQUIRED — " + f.Usage
+
+		// AND COBRA ENFORCES IT. This only ever rewrote the usage string, so the help said
+		// REQUIRED and the parser accepted the command without it — the tool asserting a
+		// constraint nothing held. Measured: `blue friction` and `blue revision`, no flags,
+		// recorded empty events and took a seat from two outstanding duties to complete:true.
+		//
+		// The record layer refuses these too, and that is not a second reader of one rule: it
+		// guards a different boundary, the one internal callers reach through record.Append
+		// without a command line. Cobra's is the SEAT's boundary, and it is the one that can
+		// refuse before an event exists and can say so in the help.
+		// COBRA ENFORCES ONLY WHERE NOTHING ELSE DOES, and that boundary is the message.
+		//
+		// Cobra's refusal is `required flag(s) "tension" not set` — WHAT is missing, never WHY.
+		// Most verbs here refuse in their own RunE instead, and those messages teach: "opinion
+		// requires --tension (the values in tension)", "regrade requires --reason (what changed
+		// your mind)". Marking those at the flag would replace ~30 instructive refusals with the
+		// generic one, which is a worse contract even though it is the framework's own.
+		//
+		// These four had NO refusal at all — the bare verb recorded an empty event and returned
+		// success — so there is no instruction to lose, and the flag marking is strictly better
+		// than the nothing it replaces.
+		if !cobraEnforces[verb] {
+			continue
+		}
+		if alts := satisfiedByAnyOf[key]; len(alts) > 0 {
+			var present []string
+			for _, a := range alts {
+				if c.Flags().Lookup(a) != nil {
+					present = append(present, a)
+				}
+			}
+			if len(present) > 1 {
+				c.MarkFlagsOneRequired(present...)
+				continue
+			}
+		}
+		_ = c.MarkFlagRequired(f.Name)
 	}
 }
 

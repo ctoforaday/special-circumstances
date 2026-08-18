@@ -170,6 +170,17 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 			if err == nil {
 				t.Fatal("the verb ran without its preconditions")
 			}
+			// SUPPLY EVERY OTHER REQUIRED FLAG, so the refusal under test is this one's. The
+			// verbs whose flags cobra marks refuse at PARSE time, before Begin reaches the
+			// run/seat-id checks — so a case that omits both measures whichever fires first
+			// rather than the one it is named for.
+			if strings.Contains(err.Error(), "required flag") || strings.Contains(err.Error(), "one of the flags in the group") {
+				args = append(args, "--reason", "supplied so the refusal under test is the run/seat one")
+				_, err = run(t, args...)
+				if err == nil {
+					t.Fatal("the verb ran without its preconditions")
+				}
+			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
 			}
@@ -629,18 +640,34 @@ func TestProseChannelResolution(t *testing.T) {
 		}
 	})
 
-	t.Run("neither channel yields empty text, not an error", func(t *testing.T) {
+	t.Run("neither channel is not a CHANNEL error", func(t *testing.T) {
+		// THE TWO LAYERS ARE SEPARATE, and this is the one that distinguishes them. A missing
+		// --reason-file is a channel failure (the case above); passing NEITHER flag is not —
+		// the channel returns empty and the VERB decides whether empty is acceptable.
+		//
+		// Every prose verb now refuses an empty reason, because a duty discharged by nothing
+		// still counts as discharged. So the refusal must come from the verb's rule and name
+		// the flag, NOT from a failed read: a seat told "cannot read prose file" when it simply
+		// omitted an argument goes looking for a file it never named.
 		runDir := t.TempDir()
-		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
-			t.Fatal(err)
+		out, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1")
+		if err == nil {
+			t.Fatal("a position with no reason was recorded — an empty position is a duty discharged by nothing")
 		}
-		ev := lastOfType(t, runDir, "position")
-		if got := ev.Payload.Str("reason"); got != "" {
-			t.Errorf("text = %q, want empty", got)
+		// Cobra names the pair without dashes ("one of the flags in the group [reason
+		// reason-file]"), which is the framework's phrasing and still names both ways in.
+		all := out + err.Error()
+		if !strings.Contains(all, "reason") {
+			t.Errorf("the refusal does not name the flag that fixes it:\n%s", all)
 		}
-		// text is set unconditionally on a prose verb, so the key is present.
-		if !payloadKeys(ev)["reason"] {
-			t.Error("the reason key is absent from a prose verb's payload")
+		if strings.Contains(all, "cannot read") || strings.Contains(all, "prose file") {
+			t.Errorf("omitting both flags was reported as a FILE read failure, sending the seat after a file it never named:\n%s", all)
+		}
+		// The seat's own register event is expected; a POSITION event is not.
+		for _, e := range events(t, runDir) {
+			if e.Type == "position" {
+				t.Errorf("a refused position was still recorded: %+v", e)
+			}
 		}
 	})
 

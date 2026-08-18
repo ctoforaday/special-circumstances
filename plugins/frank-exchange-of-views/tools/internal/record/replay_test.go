@@ -615,7 +615,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
 		{"opinion missing every field", "opinion", NewPayload(), "opinion requires --id"},
-		{"an unknown verb is not validated here", "friction", NewPayload(), ""},
+		{"an unknown verb is not validated here", "no-such-verb", NewPayload(), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

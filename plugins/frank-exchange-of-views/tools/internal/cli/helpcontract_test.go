@@ -41,6 +41,7 @@ var requiredInHelp = regexp.MustCompile(`REQUIRED\s+—`)
 // model — each required flag independently mandatory — is the thing that cannot express it.
 var satisfiedByAnother = map[string]string{
 	"problem": "--reason, which the verb copies into the problem field. The help says so in the same sentence: \"(or pass it via --reason)\"",
+	"row":     "--reason, which manifest-row falls back to when --row is absent. The help says so in the same sentence, for the same reason problem's does",
 }
 
 // notEnforcedAtTheFlag are flags whose help says REQUIRED and whose refusal is DELIBERATELY
