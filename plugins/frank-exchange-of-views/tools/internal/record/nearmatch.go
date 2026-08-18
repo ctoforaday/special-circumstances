@@ -22,7 +22,7 @@ import (
 type NearMatchJSON struct {
 	ID       string  `json:"id"`
 	Score    float64 `json:"score"`
-	Location string  `json:"location,omitempty"`
+	Location string  `json:"location"`
 	Status   string  `json:"status"` // open | closed
 }
 
