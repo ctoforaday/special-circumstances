@@ -35,6 +35,10 @@ feov-record: no verb "dispute-respond" exists on any seat — not this role's, a
 
 the red merge seat — the board's only writer.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing

@@ -125,6 +125,10 @@ exit 0
 stdout:
 red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
@@ -156,6 +160,10 @@ $ feov-record merge help
 exit 0
 stdout:
 the red merge seat — the board's only writer.
+
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -195,6 +203,10 @@ exit 0
 stdout:
 blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
@@ -233,6 +245,10 @@ $ feov-record bench help
 exit 0
 stdout:
 the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
+
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you

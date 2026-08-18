@@ -27,15 +27,23 @@ package record
 // would make this view disagree with the gates, and a seat told it was finished by one surface
 // and refused by another learns to trust neither.
 
-// Duty is one outstanding obligation, with the act that discharges it.
+// Duty is one outstanding obligation. It says WHAT is owed, and nothing about how.
+//
+// # The only page that instructs is the help page
+//
+// This carried a `how`: an invocation, flag by flag, for each way out. That is a hand-kept SECOND
+// COPY of a surface the tool already generates, and it drifted exactly as a second copy does —
+// the lens affordance told a seat to run `verify --key <k>`, a flag `lens verify` does not have,
+// so the only instruction that duty ever handed over could not run. Nobody caught it because the
+// affordance that produces it never fires (see citedClaimsWithoutVerify): a dead path holding a
+// wrong instruction, each hiding the other.
+//
+// A duty is STATE — this is owed, and here is why. `<role> <verb> --help` is where the flags,
+// their enums and their required-ness live, generated from the command that enforces them, so it
+// cannot disagree with the write path. Naming the verb inside `what` is a pointer; naming its
+// flags here would be the same second copy under a shorter name.
 type Duty struct {
 	What string `json:"what"`
-	// How names the WAYS OUT, not the way out. A duty a seat cannot act on is a complaint —
-	// a blocked seat once searched ten-plus calls for a verb that did not exist — but naming a
-	// single command steers: a seat handed one answer takes it and never reads the help or
-	// weighs the alternative, and the alternative is often the honest move. Where a duty has
-	// more than one legitimate discharge, every one of them is listed.
-	How string `json:"how"`
 }
 
 // SittingJSON says whether this seat's sitting is finished, and what is left if not.
@@ -72,14 +80,13 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	if arm == DutyAvailable || arm == DutyAvailableOnBoard {
 		s.Available = AvailableOf(b, role, seatID)
 	}
-	add := func(what, how string) { s.Outstanding = append(s.Outstanding, Duty{What: what, How: how}) }
+	add := func(what string) { s.Outstanding = append(s.Outstanding, Duty{What: what}) }
 
 	// EVERY SEAT CLOSES THE FRICTION CHANNEL. Silence is not the empty case: an absent friction
 	// log reads the same whether the sitting was clean or the channel went unused, and across
 	// eighteen recorded sittings it was the second every time.
 	if !seatDid(b, seatID, "friction") && !seatDid(b, seatID, "friction-none") {
-		add("the friction channel is open — you have neither reported a capability gap nor said that nothing blocked you",
-			seatVerb(role, `friction --reason "<what you reached for and could not get>"`)+`   |   `+seatVerb(role, `friction --none --reason "<what you reached for and found>"`))
+		add("the friction channel is open — you have neither reported a capability gap nor said that nothing blocked you")
 	}
 
 	switch role {
@@ -91,9 +98,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 			// contesting a check_kind, so a seat that thinks the demand is wrong argues it in
 			// the edit that answers the gap. Naming only `prove` would make disagreement look
 			// like non-compliance.
-			add("gap "+id+" was minted --check-kind computation and no proof answers it; prose cannot close it",
-				seatVerb(role, `prove --location "<the exact sentence>" --script <path> --answers `+id)+
-					`   |   if the demand is wrong, say so in the --reason of the edit that answers `+id)
+			add("gap " + id + " was minted --check-kind computation and no proof answers it; prose cannot close it")
 		}
 		// RED SAID THE DOCUMENT DOES NOT CARRY THIS LINE, and that is blue's to answer.
 		//
@@ -101,27 +106,22 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		// accept, and a duty firing on it would make every "this is thinner than it was" a
 		// blocking repair. SupportDemandsBlue is the one statement of which verdicts bind.
 		for _, a := range UnsupportedInquiries(b) {
-			add("red voted line of inquiry "+a.ID+" `"+a.Support+"` — the report no longer backs it as stated, or does not carry it at all",
-				seatVerb(role, `edit --old "<the span that should carry it>" --new "<what the report should say>" --reason "..."`)+`   |   `+
-					seatVerb(role, `line-of-inquiry --id `+a.ID+` --status declined|abandoned|deferred --reason "<why it leaves the report>"`))
+			add("red voted line of inquiry " + a.ID + " `" + a.Support + "` — the report no longer backs it as stated, or does not carry it at all")
 		}
 		if !seatDid(b, seatID, "revision") {
-			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)",
-				seatVerb(role, `revision --reason "<what you changed this round>"`))
+			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)")
 		}
 	case "merge":
 		// Both of these already REFUSE `verdict --as PASS`. Naming them here is the same list,
 		// arriving when the seat can still act on it rather than at the terminal act.
 		for _, id := range b.GapOrder {
 			if g := b.Gaps[id]; g != nil && g.Open {
-				add("gap "+id+" is open — PASS is refused while it is",
-					seatVerb(role, `close --id `+id+` --as <disposition> --reason "..."`)+`   (or `+seatVerb(role, `verdict --as FAIL`)+`)`)
+				add("gap " + id + " is open — PASS is refused while it is")
 			}
 		}
 		for _, m := range Motions(b) {
 			if m != nil && !m.Ruled() {
-				add("motion "+m.ID+" was filed and never ruled — PASS is refused while it stands",
-					seatVerb(role, `show motions`)+`   then   motion `+m.Subject+` rule --id `+m.ID+` --as <verdict> --reason "..."`)
+				add("motion " + m.ID + " was filed and never ruled — PASS is refused while it stands")
 			}
 		}
 		// EVERY LINE OF INQUIRY IS VOTED, EVERY ROUND.
@@ -131,12 +131,10 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		// makes "we pursued X" checkable at all: the row `assemble` generates carries no anchor,
 		// so without a vote it is the one claim in the report nothing can refuse.
 		for _, a := range UnvotedInquiries(b) {
-			add("line of inquiry "+a.ID+" has no support verdict this round — PASS is refused while the report's own account of its research is unchecked",
-				seatVerb(role, `show lines-of-inquiry`)+`   then   `+seatVerb(role, `inquiry-support --id `+a.ID+` --as supported|weakened|unsupported|absent --reason "<what the report says at that line>"`))
+			add("line of inquiry " + a.ID + " has no support verdict this round — PASS is refused while the report's own account of its research is unchecked")
 		}
 		if !seatDid(b, seatID, "verdict") {
-			add("your terminal act is missing — the run cannot say from its own record that it was ever verified",
-				seatVerb(role, `verdict --as PASS|FAIL`))
+			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
 	//
@@ -153,8 +151,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	case "bench":
 		for _, m := range Motions(b) {
 			if m != nil && !m.Ruled() && m.Subject == "petition" {
-				add("petition "+m.ID+" is unruled, and petitions are heard BEFORE the debate continues",
-					seatVerb(role, `show motions`)+`   then   motion petition rule --id `+m.ID+` --as granted|denied --reason "..."`)
+				add("petition " + m.ID + " is unruled, and petitions are heard BEFORE the debate continues")
 			}
 		}
 	}

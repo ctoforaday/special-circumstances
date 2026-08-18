@@ -33,7 +33,7 @@ func TestAvailableNeverGatesCompletion(t *testing.T) {
 	t.Setenv(DutyArmEnv, string(DutyAvailable))
 	b := &Board{Gaps: map[string]*Gap{}}
 	s := SittingOf(b, "blue", "blue-respond-r1")
-	s.Available = append(s.Available, Duty{What: "an affordance", How: "some verb"})
+	s.Available = append(s.Available, Duty{What: "an affordance"})
 	// Complete is computed from Outstanding alone; appending affordances cannot move it.
 	want := len(s.Outstanding) == 0
 	if s.Complete != want {
@@ -73,12 +73,12 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			{SeatID: "blue-respond-r1", Type: "blue_edit", Payload: NewPayload().Set("answers", "R1-2")},
 		}}
 		got := AvailableOf(b, "blue", "blue-respond-r1")
-		if !mentions(got, "manifest-row --id R1-2") {
+		if !mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Fatalf("an edit answering R1-2 with no manifest row afforded nothing: %v", hows(got))
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
 		b.Events = append(b.Events, Event{SeatID: "blue-respond-r1", Type: "manifest-row", Payload: NewPayload().Set("gap_id", "R1-2")})
-		if got := AvailableOf(b, "blue", "blue-respond-r1"); mentions(got, "manifest-row --id R1-2") {
+		if got := AvailableOf(b, "blue", "blue-respond-r1"); mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
 		}
 	})
@@ -89,11 +89,11 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 				Set("subject", "grade").Set("as", "accepted").Set("gap_id", "R1-1")},
 		}}
 		got := AvailableOf(b, "merge", "red-merge-r1")
-		if !mentions(got, "regrade --id R1-1") {
+		if !mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Fatalf("an accepted grade motion with no regrade afforded nothing: %v", hows(got))
 		}
 		b.Events = append(b.Events, Event{SeatID: "red-merge-r1", Type: "regrade", Payload: NewPayload().Set("gap_id", "R1-1")})
-		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "regrade --id R1-1") {
+		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
 		}
 	})
@@ -105,23 +105,25 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			{SeatID: "red-merge-r1", Type: "motion-rule", Payload: NewPayload().
 				Set("subject", "grade").Set("as", "rejected").Set("gap_id", "R1-1")},
 		}}
-		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "regrade") {
+		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "no regrade followed it") {
 			t.Errorf("a REJECTED grade motion afforded a regrade: %v", hows(got))
 		}
 	})
 }
 
+// A duty says WHAT is owed, so these read `what`. They used to read `how` — an invocation this
+// type no longer carries, because the help page is the only page that instructs.
 func hows(ds []Duty) []string {
 	out := []string{}
 	for _, d := range ds {
-		out = append(out, d.How)
+		out = append(out, d.What)
 	}
 	return out
 }
 
 func mentions(ds []Duty, want string) bool {
 	for _, d := range ds {
-		if strings.Contains(d.How, want) {
+		if strings.Contains(d.What, want) {
 			return true
 		}
 	}

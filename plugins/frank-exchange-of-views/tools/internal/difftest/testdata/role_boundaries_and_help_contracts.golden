@@ -5,6 +5,10 @@ feov-record: verb "mint" is outside the lens seat's role — it exists, on the m
 
 red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
@@ -38,6 +42,10 @@ stderr:
 feov-record: verb "mint" is outside the blue seat's role — it exists, on the merge seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.
 
 blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -80,6 +88,10 @@ feov-record: verb "close" is outside the blue seat's role — it exists, on the 
 
 blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
@@ -121,6 +133,10 @@ feov-record: verb "mint" is outside the bench seat's role — it exists, on the 
 
 the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
@@ -156,6 +172,10 @@ exit 0
 stdout:
 red lens seats — findings, source verification, proof re-runs. Cannot mint or close a gap: that is the merge's.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
@@ -187,6 +207,10 @@ $ merge help
 exit 0
 stdout:
 the red merge seat — the board's only writer.
+
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -226,6 +250,10 @@ exit 0
 stdout:
 blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
 
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with the 'friction' verb — a missing
@@ -264,6 +292,10 @@ $ bench help
 exit 0
 stdout:
 the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
+
+MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
+one role rules each subject. Run 'motion --help' for the subjects and who rules
+them; read the ones open against you with '<role> show motions'.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
