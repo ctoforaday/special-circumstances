@@ -130,11 +130,9 @@ func cwdOf(raw []byte) string {
 func emitPreRewrite(cmd *cobra.Command, toolInput json.RawMessage, command string) {
 	updated := map[string]any{}
 	if err := json.Unmarshal(toolInput, &updated); err != nil {
-		// WAS: `return // unparseable: say nothing rather than send a shape the client cannot use`.
-		// Saying nothing meant the run directory was NOT injected and no one learned why — the
-		// seat then gets the "no run directory" refusal from a completely different layer, which
-		// names the wrong cause. The premise was sound (do not send a shape the client cannot
-		// use) and the conclusion did not follow: `ask` sends a shape the client CAN use.
+		// SAYING NOTHING NAMES THE WRONG CAUSE. Without the injection the seat hits the "no run
+		// directory" refusal from a different layer entirely, and nobody learns the real reason.
+		// Declining to send a shape the client cannot use is right; `ask` IS a shape it can use.
 		emitPreAsk(cmd, fmt.Sprintf("feov-record: tool_input did not parse (%v), so the run "+
 			"directory could not be injected. Nothing is blocked — this is surfaced rather than "+
 			"swallowed, because the refusal you would otherwise hit names the wrong cause.", err))
@@ -154,10 +152,10 @@ func emitPreRewrite(cmd *cobra.Command, toolInput json.RawMessage, command strin
 
 // emitPreAsk writes the PreToolUse ask document: hand the call to the human WITH THE REAL CAUSE.
 //
-// FAIL-OPEN VS FAIL-CLOSED IS A FALSE BINARY, and this is the third option the protocol has had
-// all along. A hook that cannot understand its input does not have to guess a direction — it can
-// say so, and `permissionDecisionReason` is carried back to the model, so the agent sees the
-// actual error and can correct or escalate instead of being silently allowed or silently blocked.
+// FAIL-OPEN VS FAIL-CLOSED IS A FALSE BINARY: `ask` is the third option. A hook that cannot
+// understand its input need not guess a direction — `permissionDecisionReason` is carried back to
+// the model, so the agent sees the actual error and can correct or escalate instead of being
+// silently allowed or silently blocked.
 //
 // This is the SYNCHRONOUS half of the answer; a friction event of kind FRICTION_KIND_TOOL_ERROR
 // is the durable half. The reason string reaches the agent NOW; the friction event is what a

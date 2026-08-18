@@ -48,20 +48,17 @@ var (
 // dropping a PRE-SCHEMA line silently is how a format break renders as an empty board —
 // indistinguishable from a run that did nothing.
 //
-// THE FIRST DRAFT OF THIS FUNCTION GOT ALL THREE HARD CASES WRONG, and the truncation fuzz below
-// is what found them. It is written up because the errors were in the REASONING, not the code:
+// THREE PROPERTIES OF THE RULE ARE LOAD-BEARING, and each is a way of being wrong that a
+// truncation fuzz over every byte offset will find:
 //
-//   - It assumed a pre-schema line is "valid textproto without schema_version". It is not: the
-//     pre-migration record is JSON, which is not textproto at all, so a real old line fell
-//     through stage 1 and was DROPPED SILENTLY — the exact plausible zero the hard break exists
-//     to convert into an error, reintroduced by the function meant to prevent it.
-//   - It let a TRUNCATED line classify as a complete event. Measured at offsets 192-193 of a
-//     227-byte line: the envelope survives the cut and the body does not, and an Event with no
-//     body parsed clean. Replay would have accepted a partial write as real.
-//   - It made 16 of 227 truncation points FALSE FATALS: prefixes ending on a field boundary
-//     before schema_version were read as pre-schema and errored. Because Append reads the seat's
-//     own shard to compute the next seq, that is not one failed replay — it blocks every
-//     subsequent append by that seat, which is the hard outage this comment claims to rule out.
+//   - A PRE-SCHEMA LINE IS JSON, not textproto missing a field. Keying stage 1 on a missing
+//     schema_version drops a real old line as a fragment — silently, which is the plausible zero
+//     this function exists to convert into an error.
+//   - A LINE WITHOUT A BODY IS NOT AN EVENT. A cut that lands past the envelope leaves valid
+//     textproto with no body, and accepting it means replay treats a partial write as real.
+//   - A TRUNCATION IS NEVER A VERSION FACT. Since Append reads the seat's own shard to compute
+//     the next seq, a torn prefix classified fatal does not fail one replay — it blocks every
+//     subsequent append by that seat.
 //
 // The corrected rule discriminates on what is actually TRUE of each class:
 //
@@ -203,23 +200,21 @@ func looksLikeJSONObject(s string) bool {
 
 // IsFatal reports whether a classification must stop the caller.
 //
-// ONLY THE TWO VERSION FACTS ARE FATAL. LineCorrupt is NOT, and the first draft had it wrong in a
-// way that took a real outage to see.
+// ONLY THE TWO VERSION FACTS ARE FATAL, and LineCorrupt is deliberately not one of them.
 //
-// That draft made corruption fatal and rescued torn writes with a position rule —
-// "only a shard's last line can be torn". The rule is true at the instant of tearing and FALSE
-// immediately afterwards, because `appendLine` HEALS a fragment by terminating it and writing the
-// next event AFTER it (durability_test.go asserts the shard becomes register / sealed fragment /
-// new event, fragment at lines[1]). So one crash would make a mid-shard line permanently fatal:
-// `Append` reads the seat's own shard for the next seq and would fail for that seat FOREVER, and
-// every replay of the run with it. That is the exact outage the rule was written to prevent,
-// reintroduced by the rescue.
+// A truncated body and a corrupted body are the same bytes: measured, 27 of 227 truncation
+// offsets parse as textproto syntax while failing the strict schema parse. Nothing in the line
+// tells them apart, so the only question is which way to be wrong.
 //
-// The honest position: a truncated body and a corrupted body are the same bytes, and nothing in
-// the line distinguishes them — measured, 27 of 227 truncation offsets parse as textproto syntax
-// while failing the strict schema parse. Since they cannot be told apart, the choice is which way
-// to be wrong, and availability wins: a false fatal is an outage, a false fragment repeats the
-// tolerance the record already had for its whole life.
+// POSITION CANNOT RESCUE IT. "Only a shard's last line can be torn" holds at the instant of
+// tearing and fails immediately after, because `appendLine` heals a fragment by terminating it
+// and writing the next event AFTER it (durability_test.go pins the shard as register / sealed
+// fragment / new event, fragment at lines[1]). A position rule therefore makes a mid-shard line
+// permanently fatal, and since `Append` reads the seat's own shard for the next seq, that seat
+// never writes again and every replay of the run fails with it.
+//
+// So availability wins: a false fatal is an outage, a false fragment repeats the tolerance the
+// record has had for its whole life.
 //
 // It is NOT silently dropped. LineCorrupt carries its error to the caller, which surfaces it in
 // the render anomaly footer (viewjson.Anomalies) — visible in the report, never blocking a write.

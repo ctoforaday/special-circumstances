@@ -12,37 +12,30 @@ import (
 
 // THE SHARD LINE IS TEXTPROTO, ONE EVENT PER LINE, CANONICALIZED.
 //
-// WHY NOT JSON, having very nearly shipped it. protojson works and was the standing choice for
-// several drafts. It was replaced on one argument, which is the only one of three that survives
-// scrutiny:
+// WHY NOT JSON. JSON has no enum type, so protojson renders a closed-set value as a QUOTED
+// STRING: on the wire `"type":"EVENT_TYPE_VERDICT"` is lexically indistinguishable from
+// `"role":"red"` or from prose containing those characters, and a generic reader gets Go `string`
+// for both. The encoding undoes at the boundary the distinction this schema exists to create.
+// textproto emits `type: EVENT_TYPE_VERDICT` as a bare identifier — a symbol, visibly not a
+// string.
 //
-//	JSON HAS NO ENUM TYPE. protojson renders a closed-set value as a QUOTED STRING, so on the
-//	wire `"type":"EVENT_TYPE_VERDICT"` is lexically indistinguishable from `"role":"red"` or
-//	from any prose payload that happens to contain those characters. Measured: a generic reader
-//	unmarshalling the JSON gets Go `string` for the free-text field and Go `string` for the
-//	enum. The encoding UNDOES, at the boundary, the exact distinction this schema exists to
-//	create — a closed set that is no longer a string. textproto emits `type: EVENT_TYPE_VERDICT`
-//	as a bare identifier: a symbol, visibly not a string.
+// TWO ADJACENT ARGUMENTS DO NOT CARRY IT, and are recorded so they are not mistaken for reasons:
 //
-// The two arguments that did NOT carry it, recorded so they are not re-litigated as though they
-// had:
+//   - "Strong enum typing" is IRRELEVANT to the choice: EventType is an int32-based Go constant
+//     under either encoding. That is the win over an untyped payload, not a reason to prefer
+//     textproto.
+//   - "Efficiency" terminates at "then use binary". One event: binary=10, protojson-with-numbers=37,
+//     textproto=39, protojson-with-names=49. textproto beats protojson by ~20% and binary beats
+//     both fourfold; binary was declined for inspectability, so choosing textproto FOR the bytes
+//     would be choosing the wrong thing.
 //
-//   - "Strong enum typing." True and IRRELEVANT to the choice: EventType is an int32-based Go
-//     constant under either encoding. That is the win over the old Payload's p.Str("verdict"),
-//     not a reason to prefer textproto.
-//   - "Efficiency." Measured on one event: binary=10, protojson-with-numbers=37, textproto=39,
-//     protojson-with-names=49. textproto beats protojson by ~20%, but every efficiency argument
-//     in this space terminates at "then use binary", which is 4x smaller and was declined for
-//     inspectability. Choosing textproto FOR the bytes would be choosing the wrong thing.
-//
-// AND A NON-ARGUMENT, which is why this comment exists at all: `jq`. Losing it on shards was
-// weighed as a real cost for two drafts. It is not one. `jq` is declared ONLY in
-// prosthetic-conscience, at tier `optional`, for "JSON slicing for diagnostics and key-scoped
-// settings reads"; frank-exchange-of-views — which owns the record — declares node and uv. Its
-// presence on any given machine is chance, and a format decision resting on an undeclared,
+// AND `jq` IS NOT A COST. It is declared only in prosthetic-conscience, at tier `optional`, for
+// "JSON slicing for diagnostics and key-scoped settings reads"; frank-exchange-of-views — which
+// owns the record — declares node and uv. A format decision resting on an undeclared,
 // doctor-unchecked tool is reasoning from an accident of the environment. The structured read
 // path is `feov-record show board`, which emits JSON as a PROJECTION and is unaffected by what
-// shards hold.
+// shards hold; `buf convert --from x#format=txtpb --to -#format=json` recovers a JSON view of a
+// shard line on demand.
 //
 // CANONICALIZATION IS MANDATORY, exactly as json.Compact was for protojson. prototext's
 // whitespace comes from internal/detrand, whose header states it "does not change within a

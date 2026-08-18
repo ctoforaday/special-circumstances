@@ -76,25 +76,15 @@ func InputUnreadable(in Input) bool {
 
 func writesBlueReport(in Input) bool {
 	var ti toolInput
-	// THE PARSE FAILURE BECOMES A FRICTION EVENT — see plans/record-protobuf.md open question 7.
+	// A GATE THAT CANNOT READ ITS INPUT MUST LEAVE A TRACE. Swallowing the parse failure leaves
+	// ti.FilePath empty, makes this return false for the structured-tool arm, and makes Decide
+	// answer "no opinion" — so malformed input bypasses the lockdown with nothing recorded.
 	//
-	// It was `_ = json.Unmarshal(...)`: on malformed tool_input, ti.FilePath stayed empty, this
-	// returned false for the structured-tool arm, and Decide answered "no opinion" — so MALFORMED
-	// INPUT SILENTLY BYPASSED THE GATE and nobody ever learned it happened.
-	//
-	// The first attempt at a fix printed to stderr, which contradicts this package's own stated
-	// design ("deliberately free of stdin/CLI plumbing so the allow/deny rules are unit-tested
-	// directly"); it was reverted. The second framing — widen Decide with an "input unreadable"
-	// outcome — forced a fail-open/fail-closed choice on a security gate, which is an operator's
-	// decision and not a cleanup.
-	//
-	// Both were the wrong shape. The record ALREADY HAS the escalation channel: a friction event,
-	// kind FRICTION_KIND_TOOL_ERROR. This function stays pure and simply REPORTS the failure to
-	// its caller; internal/cli/hook.go, which already owns the I/O, writes the event. The gate's
-	// fail direction is unchanged — what changes is that a bypass is now on the record instead of
-	// being a silence.
-	unreadable := json.Unmarshal(in.ToolInput, &ti) != nil
-	_ = unreadable // consumed by the caller-facing form below; see InputUnreadable
+	// This package is deliberately free of I/O, so it REPORTS rather than acts: InputUnreadable
+	// below is the predicate, and internal/cli/hook.go writes the FRICTION_KIND_TOOL_ERROR event
+	// and emits an `ask` decision carrying the cause back to the model. The gate's fail direction
+	// is unchanged — that is a security-semantics decision, not a cleanup.
+	_ = json.Unmarshal(in.ToolInput, &ti) // reported via InputUnreadable; see above
 	switch in.ToolName {
 	case "Write", "Edit", "MultiEdit", "NotebookEdit":
 		return isBlueReport(ti.FilePath)

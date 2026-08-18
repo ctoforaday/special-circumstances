@@ -8,12 +8,11 @@ import (
 
 // WHAT EACH VERB REQUIRES, DECLARED ONCE — as an ANNOTATION, never inferred from the schema.
 //
-// The obvious derivation is wrong and was tried: "a required field is one the message declares
-// non-`optional`". Every field in this schema IS `optional`, deliberately, so that presence stays
-// expressible (canonical.go and the presence test say why — three booleans carry meaning by
-// presence alone and would collapse `false` into unset). Requiredness is therefore a SEPARATE
-// FACT and needs a separate declaration; reading it off optionality would silently make every
-// field optional at the same moment it made presence work.
+// REQUIREDNESS CANNOT BE READ OFF OPTIONALITY. Every field in this schema is `optional`,
+// deliberately, so that presence stays expressible — three booleans carry meaning by presence
+// alone and would collapse `false` into unset (see canonical.go and the presence test). Deriving
+// "required" from non-`optional` would therefore make every field optional at the same moment it
+// made presence work. It is a separate fact and needs a separate declaration.
 //
 // REQUIREDNESS IS A PRESENCE DUTY CHECKED AT THE WRITE, not a wire property. proto3 has no
 // `required` and should not: a wire-level requirement is unremovable for the life of the schema,

@@ -555,8 +555,8 @@ message Proof {
   optional string proof_id = 1;
   optional string proof_key = 2;
   optional string proof_sha = 3;
-  // proof_basis is written by blue/prove.go:84 and read at eight sites — also missed by the hand
-  // censuses, also found by the frozen key census.
+  // proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
+  // census for the same reason as Outcome's three.
   optional string proof_basis = 8;
   optional string answers = 4;
   optional string cites = 5;
@@ -791,12 +791,11 @@ message Outcome {
   optional string prose = 2;
   optional string verdict_why = 3;
 
-  // verdict_basis, deadlocked and exhausted were MISSED by two hand censuses — a grep that
-  // required `.Set(` on one line cannot see a chained builder, where the dot sits at the end of
-  // the PREVIOUS line, and reading the verb caught only what the verb's own function body showed.
-  // The frozen key census (testdata/payload-keys.txt) found them. verdict_basis is read by
-  // report/assemble.go:334; deadlocked and exhausted record HOW the sitting ended, which
-  // DeriveVerdict says is otherwise not on the record at all.
+  // A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
+  // builder, where the dot sits at the end of the PREVIOUS line. They come from the frozen key
+  // census (testdata/payload-keys.txt), which is why it exists. verdict_basis is read by
+  // report/assemble.go; deadlocked and exhausted record HOW the sitting ended, which DeriveVerdict
+  // says is otherwise not on the record at all.
   optional string verdict_basis = 4;
   optional bool deadlocked = 5;
   optional bool exhausted = 6;

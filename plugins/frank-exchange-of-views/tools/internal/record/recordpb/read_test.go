@@ -152,11 +152,11 @@ func TestTruncationAtEveryOffsetNeverYieldsAFalseEvent(t *testing.T) {
 
 	// THE `corrupt` RESIDUE IS REAL AND MUST NEVER BE FATAL — regardless of position.
 	//
-	// The first draft rescued these with "only a shard's last line can be torn". That is false the
-	// moment appendLine HEALS the fragment: it terminates the torn line and writes the next event
-	// AFTER it (durability_test.go: register / sealed fragment / new event, fragment at lines[1]),
-	// so a mid-shard fragment is the normal steady state after any crash. Making it fatal would
-	// fail `Append` for that seat forever, which is the outage the rule claimed to prevent.
+	// POSITION CANNOT RESCUE THEM. "Only a shard's last line can be torn" is false the moment
+	// appendLine HEALS the fragment — it terminates the torn line and writes the next event AFTER
+	// it (durability_test.go: register / sealed fragment / new event, fragment at lines[1]), so a
+	// mid-shard fragment is the normal steady state after any crash. Fatal here fails `Append`
+	// for that seat forever.
 	for n := 0; n < len(full); n++ {
 		kind, _, _ := pb.ClassifyLine([]byte(full[:n]))
 		if kind.IsFatal() {

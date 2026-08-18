@@ -3375,8 +3375,8 @@ type Proof struct {
 	ProofId  *string                `protobuf:"bytes,1,opt,name=proof_id,json=proofId,proto3,oneof" json:"proof_id,omitempty"`
 	ProofKey *string                `protobuf:"bytes,2,opt,name=proof_key,json=proofKey,proto3,oneof" json:"proof_key,omitempty"`
 	ProofSha *string                `protobuf:"bytes,3,opt,name=proof_sha,json=proofSha,proto3,oneof" json:"proof_sha,omitempty"`
-	// proof_basis is written by blue/prove.go:84 and read at eight sites — also missed by the hand
-	// censuses, also found by the frozen key census.
+	// proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
+	// census for the same reason as Outcome's three.
 	ProofBasis    *string `protobuf:"bytes,8,opt,name=proof_basis,json=proofBasis,proto3,oneof" json:"proof_basis,omitempty"`
 	Answers       *string `protobuf:"bytes,4,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
 	Cites         *string `protobuf:"bytes,5,opt,name=cites,proto3,oneof" json:"cites,omitempty"`
@@ -4623,12 +4623,11 @@ type Outcome struct {
 	Verdict    *RunOutcome            `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.RunOutcome,oneof" json:"verdict,omitempty"`
 	Prose      *string                `protobuf:"bytes,2,opt,name=prose,proto3,oneof" json:"prose,omitempty"`
 	VerdictWhy *string                `protobuf:"bytes,3,opt,name=verdict_why,json=verdictWhy,proto3,oneof" json:"verdict_why,omitempty"`
-	// verdict_basis, deadlocked and exhausted were MISSED by two hand censuses — a grep that
-	// required `.Set(` on one line cannot see a chained builder, where the dot sits at the end of
-	// the PREVIOUS line, and reading the verb caught only what the verb's own function body showed.
-	// The frozen key census (testdata/payload-keys.txt) found them. verdict_basis is read by
-	// report/assemble.go:334; deadlocked and exhausted record HOW the sitting ended, which
-	// DeriveVerdict says is otherwise not on the record at all.
+	// A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
+	// builder, where the dot sits at the end of the PREVIOUS line. They come from the frozen key
+	// census (testdata/payload-keys.txt), which is why it exists. verdict_basis is read by
+	// report/assemble.go; deadlocked and exhausted record HOW the sitting ended, which DeriveVerdict
+	// says is otherwise not on the record at all.
 	VerdictBasis  *string `protobuf:"bytes,4,opt,name=verdict_basis,json=verdictBasis,proto3,oneof" json:"verdict_basis,omitempty"`
 	Deadlocked    *bool   `protobuf:"varint,5,opt,name=deadlocked,proto3,oneof" json:"deadlocked,omitempty"`
 	Exhausted     *bool   `protobuf:"varint,6,opt,name=exhausted,proto3,oneof" json:"exhausted,omitempty"`
