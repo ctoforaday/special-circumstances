@@ -276,6 +276,140 @@ func TestEveryRecordingVerbIsDiscoverableFromHelp(t *testing.T) {
 	}
 }
 
+// AND THE COUNT IS TAKEN WHERE THE SEAT MEETS IT — the RENDERED prompts, in aggregate.
+//
+// THE SOURCE CANNOT ANSWER THIS QUESTION. debate.js writes the shared clauses with the role
+// interpolated (`${role} friction --reason …`), so the literal `blue friction` exists nowhere in
+// the file and everywhere in the prompts a seat is handed. A ratchet reading the source alone
+// reported ZERO while every seat prompt still carried an invocation — the gate reproducing, one
+// level up, the defect it was built to catch.
+//
+// ONE number over the whole rendered set, not one per file: the goldens are derived, so per-file
+// pins would be seventeen hand-kept copies of a single fact, and moving a clause between seats
+// would churn them all without changing anything true.
+func TestNoRenderedPromptNamesACommand(t *testing.T) {
+	const pinned = 0
+
+	real := map[string]bool{}
+	for _, p := range cli.CommandPaths() {
+		real[p] = true
+	}
+	named := map[string]bool{}
+	var files int
+	for _, path := range agentFacingFiles(t) {
+		if !strings.HasSuffix(path, ".golden") {
+			continue
+		}
+		files++
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range promptVerb.FindAllStringSubmatch(string(b), -1) {
+			if p := promptPath(m, real); real[p] {
+				named[p] = true
+			}
+		}
+		for _, m := range promptMotion.FindAllStringSubmatch(string(b), -1) {
+			if p := "motion " + m[1] + " " + m[2]; real[p] {
+				named[p] = true
+			}
+		}
+	}
+	if files == 0 {
+		t.Fatal("no rendered prompt goldens found — the glob is broken, and a broken glob reports a clean board forever")
+	}
+	var list []string
+	for p := range named {
+		list = append(list, p)
+	}
+	sort.Strings(list)
+	if len(list) > pinned {
+		t.Errorf("the rendered prompts name %d distinct commands across %d files, up from the pinned %d:\n  %s\n\n"+
+			"A seat meets the PROMPT, not the template. Name the act and let the three-step --help directive in\n"+
+			"recordClause carry the rest; if this is deliberate, re-pin the constant in this test.",
+			len(list), files, pinned, strings.Join(list, "\n  "))
+	}
+	if len(list) < pinned {
+		t.Errorf("the rendered prompts name %d distinct commands, below the pinned %d — re-pin the constant to %d.",
+			len(list), pinned, len(list))
+	}
+}
+
+// AND THE FLAGS ARE HALF THE CATALOGUE.
+//
+// Taking the invocations out and leaving `--check-kind document | computation | source` in the
+// prose moves the list one layer down without shrinking it: the seat still reads a slice of the
+// surface from the prompt and still has no reason to open --help. A seat needs the ACT and the
+// FIELD's meaning; the word it types, whether the field is required, and what values it accepts
+// are the help's to state, and enumhelp already renders every closed set with its per-value
+// meanings there.
+//
+// FIVE WORDS ARE EXEMPT, and each is infrastructure rather than vocabulary: --help is the
+// directive itself, --run and --seat-id are engine-injected and named where that is explained,
+// and --reason/--reason-file is the ONE prose channel, stated once in recordClause as the
+// universal contract rather than per act.
+//
+// THE VOCABULARY COMES FROM flags.All(), never a list here: a gate holding its own copy of the
+// surface measures the copy.
+func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
+	const pinned = 0
+
+	infrastructure := map[string]bool{
+		// cobra owns --help; the rest are declared in flags and are infrastructure rather than
+		// vocabulary — engine-injected identity, and the one prose channel.
+		"help": true, flags.Run: true, flags.SeatID: true,
+		flags.Reason: true, flags.ReasonFile: true,
+	}
+	vocabulary := map[string]bool{}
+	for _, f := range flags.All() {
+		if !infrastructure[f] {
+			vocabulary[f] = true
+		}
+	}
+
+	spelled := map[string]bool{}
+	var files int
+	for _, path := range agentFacingFiles(t) {
+		if !strings.HasSuffix(path, ".golden") {
+			continue
+		}
+		files++
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// THE ANCHOR TOKENS ARE NOT FLAGS. `<!--cite:c-…-->` contains the literal `--cite`, and a
+		// gate that counted it would report a flag the prompt does not spell — a false positive
+		// trains its reader to skip the whole gate, which costs more than the flag it caught.
+		text := anchorToken.ReplaceAllString(string(b), "")
+		for _, m := range promptFlag.FindAllStringSubmatch(text, -1) {
+			if vocabulary[m[1]] {
+				spelled[m[1]] = true
+			}
+		}
+	}
+	if files == 0 {
+		t.Fatal("no rendered prompt goldens found — the glob is broken, and a broken glob reports a clean board forever")
+	}
+	var list []string
+	for f := range spelled {
+		list = append(list, "--"+f)
+	}
+	sort.Strings(list)
+	if len(list) != pinned {
+		t.Errorf("the rendered prompts spell %d distinct flags across %d files, against the pinned %d:\n  %s\n\n"+
+			"Name the FIELD and what it is for; the word a seat types, whether it is required, and its value space\n"+
+			"belong to --help, which renders every closed set with per-value meanings. Re-pin only for a deliberate change.",
+			len(list), files, pinned, strings.Join(list, "\n  "))
+	}
+}
+
+var (
+	promptFlag  = regexp.MustCompile(`--([a-z][a-z-]+)\b`)
+	anchorToken = regexp.MustCompile(`<!--[a-z]+:[^>]*-->`)
+)
+
 // AND NO SURFACE A SEAT READS MAY GROW ITS CATALOGUE BACK.
 //
 // The gate above says a verb must be discoverable from --help. This says the prompts must stop
@@ -301,11 +435,13 @@ func TestEveryRecordingVerbIsDiscoverableFromHelp(t *testing.T) {
 // gates where a rendered prompt is the right subject (a prompt naming a verb that does not exist
 // is checked above, on the rendering, because that is where a seat meets it).
 var promptCatalogue = map[string]int{
-	"debate.js":           48,
-	"blue-researcher.md":  2,
-	"blue-synthesizer.md": 3,
-	"lead-judge.md":       7,
-	"red-auditor.md":      5,
+	// 48 -> 0. Every invocation is out; the prompts name the ACT and the projection, and
+	// recordClause carries the three-step --help directive that replaces the catalogue.
+	"debate.js":           0,
+	"blue-researcher.md":  0,
+	"blue-synthesizer.md": 0,
+	"lead-judge.md":       0,
+	"red-auditor.md":      0,
 }
 
 func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
@@ -332,7 +468,9 @@ func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 		}
 		base := filepath.Base(path)
 		if strings.HasSuffix(base, ".golden") {
-			continue // derived from debate.js; see promptCatalogue
+			// Counted in aggregate below instead: per-file pins on seventeen derived files would
+			// be seventeen hand-kept copies of one number.
+			continue
 		}
 		pinned, tracked := promptCatalogue[base]
 		if !tracked {

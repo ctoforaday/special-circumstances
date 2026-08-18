@@ -9,12 +9,16 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 )
 
-// THE REDACTION IS ASSERTED AGAINST THE REAL CONSTITUTIONS, NOT A FIXTURE.
+// THE CONSTITUTIONS NAME NO VERB, AND THAT IS NOW THE INVARIANT.
 //
-// A fixture would prove the regex works on text written to make it work. The arms are dispatched
-// with THESE files, so these are what the treatment has to reach — and the residue this reports is
-// the honest scope of the `none` arm rather than a claim that it is total.
-func TestRedactionRemovesTheNamesFromTheRealConstitutions(t *testing.T) {
+// This asserted the opposite: that the redactor REMOVED names from files that carried them, back
+// when a constitution's hand-kept list was the shipped configuration. The finding it was built to
+// measure landed — the help page is the only page that instructs — so the shipped bytes ARE the
+// `none` arm, and the property worth holding is that they stay that way.
+//
+// The redactor is kept and still asserted below: it is what makes the arm total against a file
+// that acquires a name, and a treatment nobody exercises is one nobody would notice breaking.
+func TestTheShippedConstitutionsNameNoVerb(t *testing.T) {
 	sf := NewSurface(cli.CommandPaths())
 	for _, name := range []string{"red-auditor.md", "blue-researcher.md", "blue-synthesizer.md", "lead-judge.md"} {
 		t.Run(name, func(t *testing.T) {
@@ -22,21 +26,41 @@ func TestRedactionRemovesTheNamesFromTheRealConstitutions(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			before := NamesSurviving(string(b), sf)
-			// A VACUOUS PASS IS THE FAILURE MODE. If the input names nothing, redacting it
-			// removes nothing, the `none` arm equals the `partial` arm, and the experiment
-			// reports "naming does not matter" — a null result manufactured by the instrument.
-			if len(before) == 0 {
-				t.Fatalf("%s names no live verb at all, so redacting it is a no-op and the `none` arm would be byte-identical to `partial`. Either the constitution stopped naming verbs or NamesSurviving no longer matches how they are written — both make this experiment report nothing while looking like it ran", name)
+			if named := NamesSurviving(string(b), sf); len(named) > 0 {
+				var left []string
+				for v, n := range named {
+					left = append(left, v+"×"+itoa(n))
+				}
+				t.Errorf("%s names %d verb(s): %s\n\nA constitution that names a slice of the surface does not under-inform a seat, it SATISFIES it — measured at 58%% surface exposure against 100%% with the help directive alone. Name the ACT; the verb is the help's to state.",
+					name, len(named), strings.Join(left, ", "))
 			}
-			after := NamesSurviving(Redact(string(b), sf), sf)
+		})
+	}
+}
+
+// AND THE REDACTOR IS TOTAL ON TEXT THAT DOES NAME VERBS.
+//
+// Asserted against a constructed input rather than a shipped one, because the shipped ones no
+// longer name anything — which is exactly the vacuous pass this file's own comment warns about.
+// The `partial` arm is that constructed input, so the redactor is measured against the treatment
+// it has to undo.
+func TestRedactionIsTotalOnTheArmThatNames(t *testing.T) {
+	sf := NewSurface(cli.CommandPaths())
+	for _, role := range Roles {
+		t.Run(role, func(t *testing.T) {
+			named := PartialSurfaceBlock(sf, role)
+			before := NamesSurviving(named, sf)
+			if len(before) == 0 {
+				t.Fatalf("the partial arm for %s names no verb, so redacting it is a no-op and `none` would be byte-identical to `partial` — a null result manufactured by the instrument", role)
+			}
+			after := NamesSurviving(Redact(named, sf), sf)
 			if len(after) > 0 {
 				var left []string
 				for v, n := range after {
 					left = append(left, v+"×"+itoa(n))
 				}
 				t.Errorf("%s still names %d verb(s) after redaction: %s\n\nThe `none` arm would be dispatched with those names in front of the seat, so any difference it measures is against a treatment that did not happen.",
-					name, len(after), strings.Join(left, ", "))
+					role, len(after), strings.Join(left, ", "))
 			}
 		})
 	}

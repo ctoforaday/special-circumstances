@@ -1,21 +1,21 @@
-prompt sha256: 79771275ae870233dd4aad9f3bae693dfa749cdb99266d36ed3d2e93e97618b1
+prompt sha256: ac822455e0a33993a03833199a2fc3d46c968b4d35662c907fbe6aac3e8369cc
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
-Read the frontier hypotheses from the RECORD — "/opt/feov/bin/feov-record" blue show lines-of-inquiry --run research/2026-01-01_golden — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
+Read the frontier hypotheses from the RECORD — the `lines-of-inquiry` projection — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
 Research your assigned slice to saturation per the research protocol (spend at least one search in five on disconfirming evidence; note each source inline with its URL, title, and access date).
 Your assigned METHOD LENS: adversarial-disconfirming-first (hunt evidence AGAINST the frontier hypotheses before evidence for them) — work primarily through this method's source class; take hypothesis 1 first, then breadth.
 SOURCE NOTES (not footnotes): a lane drafts candidates, it does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
-Do NOT mint footnote labels; citations are tool-managed at synthesis and hand-typed labels are retired.
+Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing.
 Write your full candidate draft to research/2026-01-01_golden/blue/candidates/lane-1.md.
-LINES OF INQUIRY: record each genuinely distinct approach you considered with the line of inquiry verb — propose it with `line-of-inquiry propose --reason "<the question or approach>" --hypothesis "<what would be true if it pays off>"`, and say what became of it with `line-of-inquiry move --id <Q#> --as <fate> --reason "<what changed>"`: --as pursued (it became your spine — say what you learned in --reason), --as deferred (worth taking, and NOT BY THIS RUN — --reason says what a later run should pick it up FOR), --as declined (you weighed it and did not take it), or --as abandoned (you tried it and it died).
-Every fate but the first two REQUIRES a --reason, and all four reach the report under their own heading — pursued, deferred, and considered-or-rejected are three sections a reader sees, not one list of winners.
+LINES OF INQUIRY: record each genuinely distinct approach you considered with the line of inquiry verb — PROPOSE it with the approach and the hypothesis that would be true if it paid off, and later MOVE it to its fate with what changed: PURSUED (it became your spine — say what you learned), DEFERRED (worth taking, and NOT BY THIS RUN — say what a later run should pick it up FOR), DECLINED (you weighed it and did not take it), or ABANDONED (you tried it and it died).
+Every fate but the first two owes a reason, and all four reach the report under their own heading — pursued, deferred, and considered-or-rejected are three sections a reader sees, not one list of winners.
 A line you have not decided yet stays at `proposed`, which is a real state and not a failure to type one: it renders under "Still undecided" and the tool asks you to settle it each round.
 The abandoned ones matter most: a dead end you record is a dead end the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 This is not narration for the report — it is the record that makes "explore the alternatives" checkable instead of self-attested.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  /opt/feov/bin/feov-record scorecard --run research/2026-01-01_golden --chair blue  and read how this chair is doing on the question in front of you so far.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read the scorecard for YOUR CHAIR (`blue`) through the tool — the operator command and the selector that names a chair are in the root --help — and read how this chair is doing on the question in front of you so far.
 It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
 Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
 SEAT_ID: blue-lane-1.
@@ -40,6 +40,8 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.
 Return a 3-line synopsis.

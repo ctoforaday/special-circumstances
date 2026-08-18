@@ -57,9 +57,18 @@ import (
 type Naming string
 
 const (
-	// NamingPartial is the status quo: the constitution exactly as it ships.
+	// NamingPartial names a HANDFUL of the role's verbs and stops — the shape a hand-kept list in
+	// a constitution has.
+	//
+	// IT WAS THE STATUS QUO AND IS NOW A TREATMENT, because the finding landed: the constitutions
+	// and the orchestrator's prompts name no verbs at all, so "the constitution exactly as it
+	// ships" IS the `none` arm and drawing `partial` from the same bytes would make the two
+	// identical. Constructing it keeps the experiment re-runnable as a regression check on the
+	// result rather than retiring it into a claim nobody can re-measure.
 	NamingPartial Naming = "partial"
-	// NamingNone withholds every verb NAME while keeping every situation that calls for one.
+	// NamingNone withholds every verb NAME while keeping every situation that calls for one. It is
+	// the shipped configuration, and Redact is a belt-and-braces pass over it rather than the
+	// treatment it once was.
 	NamingNone Naming = "none"
 	// NamingComplete states the whole role surface, GENERATED from the command tree.
 	NamingComplete Naming = "complete"
@@ -113,6 +122,8 @@ func Constitution(src []byte, sf Surface, role string, arm Naming, directive boo
 	switch arm {
 	case NamingNone:
 		text = Redact(text, sf)
+	case NamingPartial:
+		text += "\n\n" + PartialSurfaceBlock(sf, role)
 	case NamingComplete:
 		text += "\n\n" + CompleteSurfaceBlock(sf, role)
 	}
@@ -136,6 +147,33 @@ func CompleteSurfaceBlock(sf Surface, role string) string {
 		fmt.Fprintf(&b, "  %s %s\n", role, v)
 	}
 	b.WriteString("\nEach verb's own `--help` carries its flags and what it is for. Nothing outside this list exists for you.\n")
+	return b.String()
+}
+
+// PartialNamed is how many verbs the partial arm names.
+//
+// THREE, because that is the size the hand-kept lists actually were when they existed: measured
+// over the four dispatched constitutions, 2 of 18 reachable for blue, 2 of 11 for the bench, 4 of
+// 16 for the merge and 1 of 9 for a lens. The arm reproduces the SHAPE of the defect — a few names
+// in front of the seat and the rest unmentioned — not any particular historical list.
+const PartialNamed = 3
+
+// PartialSurfaceBlock names the first few of the role's verbs and stops, which is what a hand-kept
+// list in a constitution does.
+//
+// TAKEN FROM THE TREE IN ITS OWN ORDER, so the arm cannot drift from the surface it is a subset
+// of. Which three is arbitrary and stated as arbitrary: the treatment under test is the PARTIALITY
+// — a plausible answer to the question --help answers completely — not the identity of the verbs.
+func PartialSurfaceBlock(sf Surface, role string) string {
+	verbs := sf.Verbs(role)
+	if len(verbs) > PartialNamed {
+		verbs = verbs[:PartialNamed]
+	}
+	var b strings.Builder
+	b.WriteString("THE VERBS YOU WILL MOSTLY NEED:\n\n")
+	for _, v := range verbs {
+		fmt.Fprintf(&b, "  %s %s\n", role, v)
+	}
 	return b.String()
 }
 
