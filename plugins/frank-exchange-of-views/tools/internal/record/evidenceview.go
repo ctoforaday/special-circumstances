@@ -57,14 +57,14 @@ type EvidenceSourceJSON struct {
 	// Anchor is the c-<hex> exactly as it appears inside `<!--cite:…-->`. It is the lookup key
 	// a seat holds when it reads the report, which is the whole reason this view exists.
 	Anchor     string `json:"anchor"`
-	URL        string `json:"url,omitempty"`
-	Title      string `json:"title,omitempty"`
-	Sha256     string `json:"sha256,omitempty"`
-	AccessDate string `json:"access_date,omitempty"`
+	URL        string `json:"url"`
+	Title      string `json:"title"`
+	Sha256     string `json:"sha256"`
+	AccessDate string `json:"access_date"`
 	// Location is the sentence the anchor sits at — what the source is offered as backing for.
-	Location string `json:"location,omitempty"`
-	Claim    string `json:"claim,omitempty"`
-	SeatID   string `json:"seat_id,omitempty"`
+	Location string `json:"location"`
+	Claim    string `json:"claim"`
+	SeatID   string `json:"seat_id"`
 	Round    int    `json:"round"`
 
 	// Verified is every `lens verify` naming THIS anchor. An empty slice is the honest zero and
@@ -79,16 +79,16 @@ type EvidenceProofJSON struct {
 	// here because the seat holds the first and the verb wants the second, and that gap is what
 	// made `reproduce` unreachable from the document.
 	Anchor   string `json:"anchor"`
-	Sha256   string `json:"sha256,omitempty"`
-	Basis    string `json:"basis,omitempty"`
-	Script   string `json:"script,omitempty"`
+	Sha256   string `json:"sha256"`
+	Basis    string `json:"basis"`
+	Script   string `json:"script"`
 	Exit     int    `json:"exit"`
-	Location string `json:"location,omitempty"`
+	Location string `json:"location"`
 	// Cites is the citation anchor of the METHOD this computation applies, when blue named one —
 	// the link between the two evidence classes, and the only one on the record.
-	Cites  string `json:"cites,omitempty"`
-	Drift  string `json:"drift,omitempty"`
-	SeatID string `json:"seat_id,omitempty"`
+	Cites  string `json:"cites"`
+	Drift  string `json:"drift"`
+	SeatID string `json:"seat_id"`
 	Round  int    `json:"round"`
 
 	// Verified is red's re-run, or nil when nobody re-ran it. Nil is not "failed" and not
@@ -104,29 +104,29 @@ type EvidenceReproductionJSON struct {
 	// mechanical half alone establishes nothing and the two are never collapsed into one word.
 	Reproduced bool   `json:"reproduced"`
 	Sound      bool   `json:"sound"`
-	Note       string `json:"note,omitempty"`
-	SeatID     string `json:"seat_id,omitempty"`
+	Note       string `json:"note"`
+	SeatID     string `json:"seat_id"`
 	Round      int    `json:"round"`
 }
 
 // EvidenceVerificationJSON is one `lens verify` — a claim red checked against a source.
 type EvidenceVerificationJSON struct {
-	Claim string `json:"claim,omitempty"`
+	Claim string `json:"claim"`
 	// Anchor is the citation adjudicated, empty on an independent check.
-	Anchor string `json:"anchor,omitempty"`
+	Anchor string `json:"anchor"`
 	// Outcome is what the source DID for the claim, and it has a negative half: `refutes` and
 	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
 	// axis left as prose and the assembly screen looked for a verdict no field could carry.
-	Outcome string `json:"outcome,omitempty"`
+	Outcome string `json:"outcome"`
 	// Confidence is how sure red is of that outcome — orthogonal to it. `refutes` at low
 	// confidence is a call for more evidence; at high confidence it is a finding to act on.
-	Confidence string `json:"confidence,omitempty"`
+	Confidence string `json:"confidence"`
 	// Text is red's reading — required, because a verdict with nothing behind it is the
 	// assertion the verb exists to replace.
-	Text       string `json:"text,omitempty"`
-	Reference  string `json:"reference,omitempty"`
-	AccessDate string `json:"access_date,omitempty"`
-	SeatID     string `json:"seat_id,omitempty"`
+	Text       string `json:"text"`
+	Reference  string `json:"reference"`
+	AccessDate string `json:"access_date"`
+	SeatID     string `json:"seat_id"`
 	Round      int    `json:"round"`
 }
 

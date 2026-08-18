@@ -2,6 +2,7 @@ package hookgate
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -113,18 +114,54 @@ func TestPostDroppedCatchesCitationAndBothClasses(t *testing.T) {
 // allowed. The fail direction is deliberately unchanged; what is asserted here is that the
 // condition is now DETECTABLE, so internal/cli/hook.go can record it as a friction event of kind
 // FRICTION_KIND_TOOL_ERROR instead of nothing happening.
-func TestUnreadableToolInputIsDetectable(t *testing.T) {
-	bad := Input{ToolName: "Write", ToolInput: []byte(`{"file_path": `)} // truncated
+func TestUnreadableToolInputFailsClosed(t *testing.T) {
+	bad := Input{ToolName: "Write", ToolInput: []byte(`{"file_path": `)} // truncated mid-value
+
 	if !InputUnreadable(bad) {
-		t.Error("malformed tool_input reported as readable — the bypass would stay invisible")
+		t.Fatal("malformed tool_input reported as readable — the bypass would stay invisible")
 	}
-	good := Input{ToolName: "Write", ToolInput: []byte(`{"file_path":"/x/blue/report.md"}`)}
-	if InputUnreadable(good) {
-		t.Error("well-formed tool_input reported as unreadable — this would file friction on every call")
+
+	// THE GATE DENIES. Before this it returned false here (FilePath empty reads as "not the
+	// report"), so unreadable input walked straight through the blue-report lockdown.
+	deny, reason := PreDecision(bad)
+	if !deny {
+		t.Error("unreadable tool_input was ALLOWED — a gate bypassed by input it cannot read " +
+			"is not a gate")
 	}
-	// The gate still answers, and still answers the same way. Detectability is not a semantics
-	// change; that choice is the operator's (plan open question 7).
-	if writesBlueReport(bad) {
-		t.Error("fail direction changed — that is an operator decision, not a cleanup")
+
+	// The refusal reaches the model through permissionDecisionReason, so it must say the seat did
+	// nothing wrong and what to do — a bare denial on input the seat never controlled is unactionable.
+	for _, want := range []string{"could not parse tool_input", "Nothing about your call is known to be wrong", "Retry"} {
+		if !strings.Contains(reason, want) {
+			t.Errorf("deny reason missing %q — a denial the seat cannot act on is a mystery:\n%s", want, reason)
+		}
+	}
+
+	// AND THE AUTHOR IS NOT EXEMPT, which is the cost this decision accepts. The allowlist is
+	// checked AFTER readability, because an unreadable payload cannot prove who is calling.
+	author := Input{AgentType: AuthorAgentType, ToolName: "Write", ToolInput: []byte(`{"file_path": `)}
+	if deny, _ := PreDecision(author); !deny {
+		t.Error("the author was exempted from the unreadable-input denial — the exemption is " +
+			"read from a payload that did not parse")
+	}
+}
+
+func TestReadableInputIsUnaffected(t *testing.T) {
+	// The ordinary paths must not move: this change is about input the gate cannot read, and
+	// nothing else.
+	report := Input{ToolName: "Write", ToolInput: []byte(`{"file_path":"/x/blue/report.md"}`)}
+	if InputUnreadable(report) {
+		t.Fatal("well-formed input reported unreadable — this would deny every call")
+	}
+	if deny, _ := PreDecision(report); !deny {
+		t.Error("a non-author write to blue/report.md must still be denied")
+	}
+	authored := Input{AgentType: AuthorAgentType, ToolName: "Write", ToolInput: []byte(`{"file_path":"/x/blue/report.md"}`)}
+	if deny, _ := PreDecision(authored); deny {
+		t.Error("the allowlisted author must still be permitted")
+	}
+	other := Input{ToolName: "Write", ToolInput: []byte(`{"file_path":"/x/notes.md"}`)}
+	if deny, _ := PreDecision(other); deny {
+		t.Error("a write to another file must still draw no opinion")
 	}
 }

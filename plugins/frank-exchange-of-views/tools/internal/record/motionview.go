@@ -35,25 +35,25 @@ type MotionJSON struct {
 	Filer   string `json:"filer"`
 	Round   int    `json:"round"`
 	// Basis is the ask IN THE FILER'S WORDS. It is why this view exists.
-	Basis  string `json:"basis,omitempty"`
-	Relief string `json:"relief,omitempty"`
+	Basis  string `json:"basis"`
+	Relief string `json:"relief"`
 
 	// Ruled is false while the motion is outstanding, and an outstanding motion is what blocks
 	// a PASS verdict — so the field a blocked seat is looking for is stated rather than inferred
 	// from an empty ruling string.
 	Ruled       bool   `json:"ruled"`
-	Ruling      string `json:"ruling,omitempty"`
-	RulingBy    string `json:"ruling_by,omitempty"`
-	RulingRound int    `json:"ruling_round,omitempty"`
-	Opinion     string `json:"opinion,omitempty"`
+	Ruling      string `json:"ruling"`
+	RulingBy    string `json:"ruling_by"`
+	RulingRound int    `json:"ruling_round"`
+	Opinion     string `json:"opinion"`
 
-	Appealed     bool   `json:"appealed,omitempty"`
-	AppealReason string `json:"appeal_reason,omitempty"`
+	Appealed     bool   `json:"appealed"`
+	AppealReason string `json:"appeal_reason"`
 
 	// Fields carries the subject-specific payload — a grade motion's gap_id/dimension/proposed,
 	// a petition's class. Kept as the record holds them rather than flattened into named columns
 	// that would differ per subject.
-	Fields map[string]string `json:"fields,omitempty"`
+	Fields map[string]string `json:"fields"`
 }
 
 // MotionsJSON is the whole docket, with the outstanding count a blocked seat needs.

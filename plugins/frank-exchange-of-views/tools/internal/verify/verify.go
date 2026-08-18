@@ -36,9 +36,9 @@ type Check struct {
 	//
 	// An inapplicable check is NEVER a failure: a run that halts legitimately leaves the
 	// PASS gate inapplicable, and that is correct, not a defect.
-	NA         bool     `json:"na,omitempty"`
+	NA         bool     `json:"na"`
 	Detail     string   `json:"detail"`
-	Violations []string `json:"violations,omitempty"`
+	Violations []string `json:"violations"`
 }
 
 func ok(name, detail string) Check { return Check{Name: name, OK: true, Detail: detail} }

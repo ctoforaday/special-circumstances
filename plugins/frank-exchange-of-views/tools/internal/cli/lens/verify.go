@@ -132,10 +132,10 @@ func newVerify() *cobra.Command {
 var citeAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
 
 type verifyResult struct {
-	Anchor      string `json:"anchor,omitempty"`
-	Independent bool   `json:"independent,omitempty"`
+	Anchor      string `json:"anchor"`
+	Independent bool   `json:"independent"`
 	Outcome     string `json:"outcome"`
-	Reference   string `json:"reference,omitempty"`
+	Reference   string `json:"reference"`
 }
 
 func (r verifyResult) Human() string {

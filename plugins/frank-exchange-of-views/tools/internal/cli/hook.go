@@ -11,6 +11,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // readReportFile is the production report reader injected into hookgate.PostDropped.
@@ -74,8 +75,16 @@ func newHookPre() *cobra.Command {
 			// directory, which is wire-supplied and documented, never this hook process's
 			// os.Getwd(). Absent or unusable marker → empty → no rewrite, matching
 			// InferRunDir's "say nothing rather than guess".
-			switch outcome, payload := hookgate.PreOutcome(in, seat.InferRunDir(cwdOf(raw))); outcome {
+			runDir := seat.InferRunDir(cwdOf(raw))
+			switch outcome, payload := hookgate.PreOutcome(in, runDir); outcome {
 			case hookgate.OutcomeDeny:
+				// A DENIAL THIS GATE CANNOT EXPLAIN IS THE ONE IT MUST RECORD. When the refusal is
+				// "I could not read your tool_input", the seat did nothing wrong and the cause is
+				// in the tool — so it goes on the record as friction, not just into a reason
+				// string the run forgets. hookgate stays free of I/O; the write lives here.
+				if hookgate.InputUnreadable(in) {
+					fileToolFriction(runDir, in.ToolName)
+				}
 				emitPreDeny(cmd, payload)
 			case hookgate.OutcomeRewrite:
 				emitPreRewrite(cmd, in.ToolInput, payload)
@@ -169,6 +178,30 @@ func emitPreAsk(cmd *cobra.Command, reason string) {
 		},
 	}
 	_ = json.NewEncoder(cmd.OutOrStdout()).Encode(out)
+}
+
+// fileToolFriction records a tool fault on the run's record.
+//
+// BEST EFFORT, AND SILENT ONLY WHERE THERE IS NOTHING TO WRITE TO. A hook can fire outside a run
+// (no marker, no run directory), and there is no record to carry the event then — the deny reason
+// still reaches the model, which is the channel that always exists. Where a run IS resolvable the
+// fault becomes durable, so a refusal nobody understood at the time is answerable afterwards.
+//
+// The write must never turn a hook into a failure: this gate's job is to answer, and a seat is
+// not blocked because the bookkeeping failed.
+func fileToolFriction(runDir, toolName string) {
+	if runDir == "" {
+		return
+	}
+	p := record.NewPayload().
+		Set("text", fmt.Sprintf("hookgate could not parse tool_input for %s, so the blue-report "+
+			"lockdown refused the call rather than risk bypassing it. The seat did nothing wrong; "+
+			"the tool_input shape and this gate's parser have diverged.", toolName)).
+		Set(record.FrictionKindKey, record.FrictionKindToolError)
+	// Round -1 is UNKNOWN, and record.Identity is explicit that this is not round 0 — a hook
+	// fires outside any seat's round, and conflating the two produced the phantom-archive bug
+	// this field was added to prevent.
+	_, _ = record.Append(record.Identity{RunDir: runDir, SeatID: "hookgate", Round: -1}, "friction", p)
 }
 
 // emitPreDeny writes the PreToolUse deny document (exit stays 0).
