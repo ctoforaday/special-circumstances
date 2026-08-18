@@ -17,16 +17,12 @@ All complex instructions MUST be state-based logical contracts.
 - BEFORE shipping a change to a RULE — a skill, a seat prompt, a constitution, a
   template, or law — YOU MUST name the defect's CLASS and sweep its siblings.
   Fixing the instance in front of you leaves the class alive at the adjacent
-  seat, where it passes the very tests your patch added: measured four times out
-  of four (lens labels patched, blue-lane footnote namespaces bit the next run;
-  blue-reads-transcript patched, the lossy gap summary bit the next run; grade
-  enums widened, the mass mapping distorted the next run; friction-to-file
-  shipped, lens seats still had no write path). Classes and the minting
+  seat, where it passes the very tests your patch added — because those tests were
+  written about the instance too. Classes and the minting
   discipline live in `feov-memory/protocol-class-registry.md`; `Rule-Class:` and
   `Sibling-Sweep:` commit trailers record it and `scripts/rulesweep`
   enforces it, because a sweep requirement nothing checks is itself the
   policy-without-mechanism class it would be enforcing. [[refactoring-safety]]
   already states this duty for CODE faults ("prevent the class, don't patch the
-  instance"); the rulebook broke it four times running because nothing scoped it
-  to rules and nothing checked it — which is why this clause names the surface
-  and points at a mechanism rather than restating the principle.
+  instance"); this clause names the RULE surface and points at a mechanism,
+  because a duty scoped to neither is one nothing checks.

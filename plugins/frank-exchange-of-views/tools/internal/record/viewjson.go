@@ -30,10 +30,9 @@ type BoardJSON struct {
 	Closed       []GapJSON         `json:"closed"`
 	Observations []ObservationJSON `json:"observations"`
 	Counts       CountsJSON        `json:"counts"`
-	// Anomalies are surfaced, never swallowed. A dropped mutation (a ruling on a gap the
-	// replay had not reached yet) used to vanish silently; the run that did this went
-	// three rounds reporting a board that was wrong by six gaps with nothing to show for
-	// it. A seat that can see them can petition about them.
+	// Anomalies are surfaced, never swallowed. A dropped mutation — a ruling on a gap the
+	// replay has not reached yet — vanishing silently gives a board that is wrong by however
+	// many it dropped, with nothing to show for it. A seat that can see them can petition.
 	Anomalies []string `json:"anomalies"`
 	// Sitting rides here only under the carriage arm (see BoardJSONBytesFor). A nil pointer
 	// omits the key entirely, so the shipped board JSON is byte-identical to what it was.
@@ -46,11 +45,9 @@ type CountsJSON struct {
 	ClosedByBench int `json:"closed_by_bench"`
 	// UncreditedFindings counts lens findings whose label is named in NO gap's found_by.
 	//
-	// It replaces undisposed_observations (#327). That metric counted `observe` events with no
-	// `dispose` fate, and both verbs are retired — so it would now be PERMANENTLY ZERO, which is
-	// the plausible-zero this codebase keeps finding: a clean board and a dead detector print the
-	// same number. A finding's fate is coalescence, so the honest question is whether the finding
-	// was ever credited, and that is what this counts.
+	// A finding's fate is COALESCENCE, so the honest question is whether it was ever credited.
+	// Counting an explicit disposal instead would be permanently zero — the plausible zero this
+	// codebase keeps finding, where a clean board and a dead detector print the same number.
 	UncreditedFindings int `json:"uncredited_findings"`
 	Anomalies          int `json:"anomalies"`
 	TotalObservations  int `json:"total_observations"`
@@ -141,9 +138,9 @@ type ObservationJSON struct {
 	Text   string `json:"text,omitempty"`
 
 	// Credited says the finding's label is named in some gap's found_by — the ONLY way a
-	// finding is addressed now that `dispose` is retired (#327). It is explicit rather than
-	// left for the consumer to re-derive by scanning every gap, because that re-derivation is
-	// a second definition free to disagree with this one.
+	// finding is addressed. It is explicit rather than left for the consumer to re-derive by
+	// scanning every gap, because that re-derivation is a second definition free to disagree
+	// with this one.
 	Credited bool `json:"credited"`
 }
 
@@ -203,8 +200,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 		}
 	}
 
-	// CREDITED, not disposed (#327). A finding is addressed by being named in some gap's
-	// found_by; the dispose verb that used to give it an explicit fate is retired.
+	// CREDITED. A finding is addressed by being named in some gap's found_by.
 	credited := map[string]bool{}
 	for _, g := range b.Gaps {
 		if g == nil || g.Mint == nil {
@@ -715,13 +711,10 @@ func DebateJSONOf(b *Board) DebateJSON {
 
 	for _, r := range roundOrder {
 		re := byRound[r]
-		// Party comes from PartyOf — the stamped field, with the id-prefix fallback
-		// only for pre-#348 records. This used to be strings.HasPrefix on the raw
-		// seat id, which PartyOf's own doc names as the pattern being retired: an id
-		// that failed to match its expected prefix rendered as the WRONG PARTY with
-		// nothing to notice. Note `frontier` is a blue seat that the old prefix test
-		// missed; it emits no position or closing, so this is behaviour-preserving
-		// today and correct if that ever changes.
+		// Party comes from PartyOf — the stamped field, never a strings.HasPrefix on the
+		// raw seat id: an id that fails to match its expected prefix renders as the WRONG
+		// PARTY with nothing to notice. `frontier` is one such blue seat; it emits no
+		// position or closing today, and this stays correct if that changes.
 		sec := func(typ, party string) []Event {
 			var s []Event
 			for _, e := range re {

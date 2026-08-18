@@ -6,11 +6,9 @@
 //
 // The three record-backed audits (telemetry, friction-parity, record-parity) read the record
 // IN-PROCESS via record.BoardState → DebateJSONOf/FrictionJSONOf, never by spawning `merge show`.
-// The PRECEDENT HARVEST reads it too, as of #413 — it used to read the envelopes' self-reported
-// ruling arrays, which meant a bench that under-reported promoted less than it ruled and a bench
-// that reported nothing promoted nothing, indistinguishably from a run with nothing to promote.
-// The JS no-`--bin` SKIP path has no Go analogue: the binary always holds the record. Real runs
-// always passed --bin, so this is behavior-preserving — the differential in the port PR pins it.
+// The PRECEDENT HARVEST reads it too, never the envelopes' self-reported ruling arrays: a bench
+// that under-reports would promote less than it ruled, and one that reported nothing would
+// promote nothing, indistinguishably from a run with nothing to promote.
 package capture
 
 import (
@@ -896,10 +894,10 @@ func orQ(s string) string {
 // closeRunLiveMarker removes the run-live marker and SAYS WHAT IT DID, including when it did
 // nothing.
 //
-// It used to append a line only on removal, so "there was no marker" and "I looked in the wrong
-// place" printed the same thing: nothing at all. The path is cwd-rooted, and capture invoked from
-// a subdirectory finds no marker, removes nothing, and reports a clean run — leaving a file that
-// tells every later un-flagged verb it is still inside this run (#270).
+// Reporting only on removal makes "there was no marker" and "I looked in the wrong place" print
+// the same thing: nothing at all. The path is cwd-rooted, so capture invoked from a subdirectory
+// finds no marker, removes nothing, and would report a clean run — leaving a file that tells
+// every later un-flagged verb it is still inside this run.
 //
 // Capture is the step that CLOSES a run. It is the wrong place to be quiet about the one piece of
 // state that says the run is open.
@@ -952,11 +950,10 @@ type ruling struct {
 
 // rulingsFromRecord reads the rulings THE RECORD HOLDS.
 //
-// It used to read them from the harness journal's envelopes — a seat's own account of what it
-// ruled, composed as free-text arrays at the end of its sitting and validated by nothing that
-// knows what happened. The record holds the same rulings as events, each written through a verb
-// that refused them if they were malformed. Asking the less reliable of the two was the defect
-// (#413).
+// NOT from the harness journal's envelopes — a seat's own account of what it ruled, composed as
+// free-text arrays at the end of its sitting and validated by nothing that knows what happened.
+// The record holds the same rulings as events, each written through a verb that refused them if
+// they were malformed. Asking the less reliable of the two is the defect.
 //
 // It failed the way this class always fails. A bench that ruled six gaps and listed four
 // promoted four, and nothing noticed. A bench that omitted the array promoted nothing, and
@@ -1036,9 +1033,9 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 	rulings := rulingsFromRecord(board)
 	claimed := rulingsClaimedByEnvelopes(results)
 	if len(rulings) == 0 {
-		// STATED, not implied. "0 rulings" used to be the output of both an honest quiet run
-		// and a harvest that could not see the rulings in front of it. If the envelopes claim
-		// rulings the record does not hold, that is exactly the second case and it says so.
+		// STATED, not implied. "0 rulings" is otherwise the output of both an honest quiet run
+		// and a harvest that cannot see the rulings in front of it. If the envelopes claim
+		// rulings the record does not hold, that is the second case and it says so.
 		if claimed > 0 {
 			return HarvestResult{Written: false, Count: 0, EnvelopeClaimed: claimed,
 				Reason: fmt.Sprintf("the record holds NO rulings while the envelopes claim %d — the record is the source, so nothing is promoted; this divergence is the finding", claimed)}
@@ -1071,9 +1068,8 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 		}, "\n"))
 	}
 	if err := os.WriteFile(out, []byte(strings.Join(body, "\n")), 0o644); err != nil {
-		// This branch is a WRITE failure, and it used to report "no law/ dir at repo root" —
-		// the reason from the branch above, copied. A reader chasing that message would go
-		// looking for a directory that exists.
+		// This branch is a WRITE failure and must say so. Reusing the branch above's reason
+		// ("no law/ dir at repo root") would send a reader looking for a directory that exists.
 		return HarvestResult{Written: false, Count: len(rulings), EnvelopeClaimed: claimed,
 			Reason: "could not write " + out + ": " + err.Error()}
 	}

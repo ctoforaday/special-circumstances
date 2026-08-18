@@ -497,12 +497,11 @@ func concise(s string) string {
 //
 // # It rendered TWO, and the missing ones made the report say something false
 //
-// `rejected` was the complement of `pursued`, so `deferred` AND `proposed` both landed under
-// "Alternatives considered". That complement was itself a fix — the pair used to be {abandoned,
-// declined}, which made those two vanish from the report entirely, the exact failure the status
-// enum's own Why warns about ("it silently vanishes from the section that exists to show the roads
-// not taken"). Trading "vanishes" for "misfiled" was an improvement and still wrong in a way no
-// reader could detect: only the `[deferred]` tag on the row contradicted the heading above it.
+// Taking `rejected` as the complement of `pursued` puts `deferred` AND `proposed` under
+// "Alternatives considered" — wrong in a way no reader can detect, since only the `[deferred]`
+// tag on the row contradicts the heading above it. Narrowing the pair instead makes them vanish
+// from the report entirely, which is the failure the status enum's own Why warns about ("it
+// silently vanishes from the section that exists to show the roads not taken").
 //
 // # `proposed` is a research area, and both alternatives were worse
 //
@@ -810,12 +809,12 @@ func fixProposal(mint *record.Payload) string {
 // regradeHistory renders EVERY grade movement on a gap with the reason given for it, or "" if
 // the gap was never regraded.
 //
-// It used to render a count and the LATEST basis, on OPEN gaps only. Two ways a stated reason
-// was lost: an earlier regrade's basis was overwritten in the display by a later one, and a gap
-// that closed dropped its whole regrade history — so a grade argued down over three rounds and
-// then closed showed the reader no argument at all. A regrade is red revising its own assessment,
-// usually because blue disputed it; the dispute renders, and the reasoning that answered it did
-// not.
+// EVERY movement, on open and closed gaps alike. Rendering a count and the latest basis loses a
+// stated reason twice over: an earlier regrade's basis is overwritten in the display by a later
+// one, and a gap that closes drops its whole history — so a grade argued down over three rounds
+// and then closed shows the reader no argument at all. A regrade is red revising its own
+// assessment, usually because blue disputed it; the dispute renders, and the reasoning that
+// answered it must too.
 func regradeHistory(g *record.Gap) string {
 	if len(g.Regrades) == 0 {
 		return ""
@@ -866,11 +865,9 @@ func unmintedFindings(board *record.Board) string {
 		if loc != "" {
 			loc = " — " + loc
 		}
-		// A finding is addressed by COALESCENCE and nothing else now (#327): its label named in
-		// some gap's found_by. The `dispose` path that could give it an explicit fate is retired,
-		// so a finding reaching this section means exactly one thing — the merge weighed it and
-		// did not mint it — and the section says so rather than distinguishing two ways of not
-		// being minted.
+		// A finding is addressed by COALESCENCE and nothing else: its label named in some gap's
+		// found_by. So a finding reaching this section means exactly one thing — the merge
+		// weighed it and did not mint it — and the section says so.
 		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s\n%s",
 			head, loc,
 			grade(e.Payload.Str("severity")), grade(e.Payload.Str("likelihood")), grade(e.Payload.Str("impact")),
@@ -929,11 +926,11 @@ func debate(evs []record.Event) string {
 		}
 		// PETITIONS: the filing AND the ruling, in event order, in one block.
 		//
-		// The report used to render the ruling alone — "petition red-merge: granted — <opinion>"
-		// — so the reader got the bench's answer with no question attached. A petition is the one
-		// channel a seat has for an ethical, safety, integrity or constitutional objection; the
-		// relief it sought and the basis it argued are the substance, and the ruling is only
-		// meaningful against them.
+		// Rendering the ruling alone — "petition red-merge: granted — <opinion>" — gives the
+		// reader the bench's answer with no question attached. A petition is the one channel a
+		// seat has for an ethical, safety, integrity or constitutional objection; the relief it
+		// sought and the basis it argued are the substance, and the ruling is only meaningful
+		// against them.
 		//
 		// The two are NOT joined into a single row. `petition-rule` carries the petitioner and
 		// the class but no petition id (#312), so pairing two filings by the same seat in one
@@ -1063,8 +1060,7 @@ func frictionLog(evs []record.Event) string {
 
 // revisionHistory is blue's per-round revision record folded into the report as
 // bottom-of-document provenance — how the report evolved round by round. Composed from revision
-// events; a run with no revisions omits it. This is the report home the standalone changelog
-// projection lacked, which is why that view is retired.
+// events; a run with no revisions omits it.
 func revisionHistory(evs []record.Event) string {
 	var rows []string
 	for _, e := range evs {

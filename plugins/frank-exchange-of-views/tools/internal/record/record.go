@@ -46,8 +46,8 @@ var MASS = map[string]float64{
 	"medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
 }
 
-// isGrade validates against the single canonical grade set (flags.Grades) — record no longer
-// keeps its own copy. MASS's keys are held to that same set by a test (grade set never drifts).
+// isGrade validates against the single canonical grade set (flags.Grades) — record does not
+// keep its own copy. MASS's keys are held to that same set by a test (grade set never drifts).
 func isGrade(s string) bool { return flags.IsGrade(s) }
 
 // GapMass mirrors `(MASS[likelihood] ?? 0) * (MASS[impact] ?? 0)`: an unknown or
@@ -149,16 +149,12 @@ type Event struct {
 	SeatID string `json:"seatId"`
 	Nonce  string `json:"nonce"`
 	Round  int    `json:"round"`
-	// Role is the seat's PARTY as a field (#348). Readers used to recover it with
-	// strings.HasPrefix(e.SeatID, "red-merge") — including the branch deciding whether a
-	// position renders as RED or BLUE — so a seat id that failed to match its expected prefix
-	// rendered as the wrong party, silently. Stamped ONCE, at the write, and never recomputed by
-	// a reader: that is the property #348 bought, and it is real.
+	// Role is the seat's PARTY as a field. Stamped ONCE, at the write, and never recomputed by a
+	// reader — a reader that prefix-matched the seat id itself would render the wrong party
+	// silently whenever an id failed to match its expected prefix.
 	//
-	// IT IS STILL DERIVED, and the comment here used to say "never re-derived", which was false
-	// in a way that read as verified (#396). `roleOfSeat(seatID)` prefix-matches the seat id at
-	// the write. One derivation instead of four is the whole gain; it does not make the value a
-	// fact.
+	// IT IS STILL DERIVED: `roleOfSeat(seatID)` prefix-matches the seat id at the write. One
+	// derivation instead of four is the whole gain; it does not make the value a fact.
 	//
 	// seat.Context.Role IS NOT THE SUBSTITUTE, and reaching for it would be a regression. It
 	// answers which command GROUP a verb is mounted under, not which party is writing — see
@@ -174,15 +170,10 @@ type Event struct {
 
 // Identity is WHO IS WRITING, carried to the write instead of recovered at it.
 //
-// Round used to be re-derived here by running a regex over the seat id — `RoundOf(seatID)`,
-// returning 0 on a miss — even though the caller had already resolved it as a field on
-// seat.Context and `Begin` had already refused an unresolvable seat. The fact was in hand at the
-// call site and thrown away one frame later (#396, and #348 closed on the read half of it).
-//
-// Threading it changes no value today: for any seat that reached a verb body, `Begin` has proved
-// SeatID is non-empty, so `Context.Round` came through the same path this used to call. That is
-// exactly why it is safe to land first — it puts the fact ON THE SEAM, so when the dispatcher
-// injects a round (#290) it arrives once here rather than at 32 call sites.
+// Round is CARRIED, never re-derived by regex over the seat id: the caller has already resolved
+// it as a field on seat.Context, and re-deriving would return 0 on a miss — indistinguishable
+// from round 0. Carrying it puts the fact ON THE SEAM, so a dispatcher-injected round arrives
+// once here rather than at 32 call sites.
 //
 // ROLE IS DELIBERATELY NOT A FIELD HERE. See the note on Event.Role: the role stamped on an event
 // is the PARTY, derived from the seat id, and seat.Context.Role answers a different question —
@@ -739,12 +730,9 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return fmt.Errorf("record: %q is not a %s for a %s motion — one of %s", v, key, subject, strings.Join(Names(allowed), " | "))
 			}
 		}
-		// A GRADE MOTION IS ABOUT A GAP, and both of these checks belonged to `blue dispute`
-		// before it was retired. Neither came across with the verb: the additive stage built the
-		// filing around the motion id and nobody diffed the reference discipline against the
-		// verb being replaced. A motion against a gap that does not exist is dropped at replay;
-		// one against a gap already disposed of asks for a different disposition than the one
-		// that has been made.
+		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
+		// at replay; one against a gap already disposed of asks for a different disposition than
+		// the one that has been made.
 		if subject == "grade" {
 			if err := requireGap(runDir, p.Str("gap_id"), "motion grade file", "--id"); err != nil {
 				return err
@@ -818,10 +806,9 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 			return err
 		}
 	case "line-of-inquiry":
-		// EVERY LINE OF INQUIRY HAS AN ID, exactly as every gap, finding and citation does. Records
-		// written before the lifecycle existed carry none and no longer replay — deliberate:
-		// a compatibility path for one subsystem is an asymmetry every reader then has to
-		// learn, and the corpus it would preserve is six exploratory runs, not production.
+		// EVERY LINE OF INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
+		// record without one does not replay: a compatibility path for one subsystem is an
+		// asymmetry every reader then has to learn.
 		// A MOVE names a line of inquiry that exists. A proposal ASSIGNS the id, so only a move (which
 		// carries supersedes_status) is checked against the record.
 		if p.Str("supersedes_status") != "" {
