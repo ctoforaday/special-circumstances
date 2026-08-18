@@ -17,6 +17,10 @@ Thumbs.db
 # Claude Code local-only state
 .claude/settings.local.json
 .claude/checkpoints/
+# Per-session strike state, written by sc-strike-counter. Machine-local and it quotes the
+# session's own tool calls verbatim, so it is never repo content. It went unlisted because the
+# hook binaries were absent for weeks — the file only exists when the counter actually runs.
+.claude/strikes.json
 .claude/spike/
 .claude/*.log
 
