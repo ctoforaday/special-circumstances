@@ -226,16 +226,17 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
 	default:
 		root.AddCommand(
-			newVerify(),      // operator cross-check, not a seat role — read-only over the record
-			newGraph(),       // operator: render a run's actual behaviour from the record
-			newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
-			newFriction(),    // operator: the friction channel — seats write it, the human reads it
-			newFetch(),       // operator: cached, hash-verified web read — feeds the run source cache
-			newSetup(),       // operator: build a research run's blackboard
-			newScorecard(),   // operator: a chair's in-run self-read scorecard
-			newDashboard(),   // operator: the live run dashboard.html
-			newCapture(),     // operator: the post-hoc capture auditor
-			newHook(),        // hook backend: the blue-report lockdown gates (invoked by hooks.json)
+			newVerify(),          // operator cross-check, not a seat role — read-only over the record
+			newGraph(),           // operator: render a run's actual behaviour from the record
+			newShowDiagnostics(), // operator: did the seats find their surface — exposure and use, as fields
+			newCountClaims(),     // operator/blue: deterministic claim_count over blue/report.md
+			newFriction(),        // operator: the friction channel — seats write it, the human reads it
+			newFetch(),           // operator: cached, hash-verified web read — feeds the run source cache
+			newSetup(),           // operator: build a research run's blackboard
+			newScorecard(),       // operator: a chair's in-run self-read scorecard
+			newDashboard(),       // operator: the live run dashboard.html
+			newCapture(),         // operator: the post-hoc capture auditor
+			newHook(),            // hook backend: the blue-report lockdown gates (invoked by hooks.json)
 		)
 	}
 

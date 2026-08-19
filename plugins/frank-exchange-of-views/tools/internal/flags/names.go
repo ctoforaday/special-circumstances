@@ -61,6 +61,12 @@ const (
 	Title = "title"
 
 	Format = "format" // operator output selector
+	// Sitting names WHOSE sitting a diagnostic is about, and is deliberately not --seat-id:
+	// that one says who is ASKING and selects the tree the command is even on.
+	Sitting = "sitting"
+	// Trajectory is the captured transcript a diagnostic reads. The record says what a seat
+	// WROTE; only the trajectory says what it was SHOWN.
+	Trajectory = "trajectory"
 
 	// Window sizes `show report --quote`'s sibling read `--anchor <id> --window N`: how many
 	// paragraphs of content either side of the anchor a live read carries.
@@ -201,6 +207,7 @@ func All() []string {
 		Run, SeatID, JSON,
 		Reason, ReasonFile,
 		ID, IDs, Key, Quote, New, Answers, URL, Title, Format, Window,
+		Sitting, Trajectory,
 		As, None, Ended, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,

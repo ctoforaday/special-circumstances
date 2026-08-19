@@ -85,8 +85,9 @@ var enforcedElsewhere = map[string]string{
 	// form. `graph` was already correct. `show board --format` was NOT: it tested for markdown and
 	// fell through to JSON for everything else at exit 0, so a typo and the default were the same
 	// bytes. That one is fixed at the site rather than excused here.
-	"graph --format": "refused in graph's own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
-	"board --format": "refused in the show-board arm of seat.Show — same reason as graph: a rendering choice, not a payload field. It was NOT refused until this gate could see it",
+	"graph --format":       "refused in graph's own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
+	"diagnostics --format": "refused in show diagnostics' own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
+	"board --format":       "refused in the show-board arm of seat.Show — same reason as graph: a rendering choice, not a payload field. It was NOT refused until this gate could see it",
 
 	// The motion verdicts are keyed on (SUBJECT, ruling), which record.EnumFields cannot express:
 	// it keys by event TYPE, and one `motion-rule` carries granted|denied for a petition and
