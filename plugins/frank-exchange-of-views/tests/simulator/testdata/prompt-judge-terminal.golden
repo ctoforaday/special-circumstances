@@ -1,4 +1,4 @@
-prompt sha256: cb6e75286a4166b891806ec5aecbbd249ec4f1c6653ffce893ca86293450ce99
+prompt sha256: 0002a0106b125596b29d793c19eecc532fb55e98bd4a73a5c51f0f2aa982e6a6
 
 Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
 Undisposed grade disputes: [{"gap_id":"R1-1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
@@ -23,16 +23,17 @@ Rows reading "not computed" are honest, not gaps to fill — the envelope-derive
 SEAT_ID: judge-terminal.
 THE RECORD TOOL IS THE CONTRACT: every board act happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
-YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id judge-terminal and --run research/2026-01-01_golden on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat.
+YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id judge-terminal on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat.
+You do NOT pass the run directory: it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
 Three steps, every sitting, before the act that needs them:
 
   1.
-"/opt/feov/bin/feov-record" --seat-id judge-terminal --run research/2026-01-01_golden --help — every verb your seat can run, each with what it is for.
+"/opt/feov/bin/feov-record" --seat-id judge-terminal --help — every verb your seat can run, each with what it is for.
   2.
-"/opt/feov/bin/feov-record" --seat-id judge-terminal --run research/2026-01-01_golden <group> --help — where a verb sits under a group, what is in that group.
+"/opt/feov/bin/feov-record" --seat-id judge-terminal <group> --help — where a verb sits under a group, what is in that group.
 Do this BEFORE using any command in a group you have not yet opened.
   3.
-"/opt/feov/bin/feov-record" --seat-id judge-terminal --run research/2026-01-01_golden <group> <command> --help — the flags, which are required, and what each value may be.
+"/opt/feov/bin/feov-record" --seat-id judge-terminal <group> <command> --help — the flags, which are required, and what each value may be.
 Do this BEFORE running the command.
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
 Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes.
