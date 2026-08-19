@@ -1,4 +1,4 @@
-prompt sha256: 5c9381358a3a20a93c08b4c3b7af1690c3e2c64c2d4634be05500d4f5ee69ee6
+prompt sha256: 259bd6cf6ce8b81fa16b8fd62dfcfb3912319d71385b736d620e2a43691874c9
 
 Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -8,7 +8,7 @@ A section built on a line of inquiry that was never proposed is undeclared scope
 Both are findings.
 Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and settles the line for that round — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 Measured over six runs: 83 of 86 lines of inquiry were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it..
-Re-read the FULL living report through the tool — `lens show report` (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
+Re-read the FULL living report through the tool — the `report` projection (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
 Anchor every finding to a quoted sentence — the text you quote MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md, alone and with nothing prepended to it (a section heading in front of it makes it match nothing; name the section in --reason): the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).

@@ -1,8 +1,8 @@
-prompt sha256: 57404d6661d451f193fa32748532cf750d55e467ea38ef7deb1676f106d2672f
+prompt sha256: 885b8f2d1fff1460fafc7753659531bec5d5105d0d54f95226879bbfac8ca3ee
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
-FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `the `board` projection > <your session scratchpad>/board-1.md && the `debate` projection > <your session scratchpad>/debate-1.md && cat <your session scratchpad>/board-1.md <your session scratchpad>/debate-1.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden; the transcript is the RECORD rendered via show debate, not a hand-written file) — then read that one file instead of three separate reads.
+FIRST ACTION (read batching, W1.12): concatenate your working set with a single bash call — `the `board` projection > <your session scratchpad>/board-1.md && the `debate` projection > <your session scratchpad>/debate-1.md && cat <your session scratchpad>/board-1.md <your session scratchpad>/debate-1.md research/2026-01-01_golden/inputs/red-gap-patterns.md > <your session scratchpad>/respond-1-workset.md` (ABSOLUTE scratchpad path, never under research/2026-01-01_golden; the transcript is the RECORD rendered as the `debate` projection, not a hand-written file) — then read that one file instead of three separate reads.
 REPORT.MD IS READ-ONLY TO YOU (the lockdown): you change research/2026-01-01_golden/blue/report.md ONLY through the edit verb, which takes the exact current span, its replacement, your reasoning, and the gap it answers — it matches your span across the invisible anchor layer and REJECTS an edit that CHANGES WHICH ANCHORS EXIST — a `<!--fx:...-->` finding marker or a `<!--cite:...-->` citation anchor may travel THROUGH your edit, but never be dropped, duplicated or invented by one.
 YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES.
 You have Bash, Write and Edit, and for a whole class of questions running something settles it faster and harder than arguing about it.

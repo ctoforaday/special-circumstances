@@ -9,10 +9,10 @@ Research that survives an adversary.
 
 ## Protocol
 
-- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY (`blue line-of-inquiry propose --reason "<the approach>" --hypothesis "<what would be true if it pays off>"`); searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
+- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
-- During writing, YOU MUST add every citation with the TOOL — `blue cite --quote "<the exact sentence>" --url <u> --title <t>` — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged as friction.
+- During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged as friction.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
 - For PDF-only sources, YOU MUST try the document-extraction MCP tools before grading down on a lossy fetch: `arxiv-latex` (exact LaTeX for arXiv figures/tables) and `pdf-reader` (page/table extraction with provenance) — discoverable via ToolSearch when the project's `.mcp.json` servers are approved. Two runs of friction ranked lossy PDF fetches the #1 capability gap; a claim capped at "unable to corroborate" without trying these is an incomplete audit.
 
@@ -48,7 +48,7 @@ research/<date>_<slug>/
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
 │                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
-│                      #  them with `show lines-of-inquiry`. A hypothesis in a file is one red
+│                      #  read them as the `lines-of-inquiry` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the round-0 ones shape the
 │                      #  whole run)
 │   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
@@ -98,8 +98,7 @@ There is no search index, and there are two access modes:
    go blind. This clause outranks any token saving.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
    summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
-   (`fetch --url <the cited url>` — a cache hit, so you audit the same artifact, not a page that may
-   have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs).
+   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs).
    WebFetch is not used: it returns a summary, not the source.
 
 To find text inside the run's own artifacts, use `Grep` — the terms you want are the terms you
