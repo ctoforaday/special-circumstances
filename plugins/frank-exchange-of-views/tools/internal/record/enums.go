@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // WHAT EACH CLOSED-SET FLAG ACCEPTS, DECLARED ONCE.
@@ -239,33 +242,66 @@ func sameWord(a, b string) bool {
 	return strip(a) == strip(b)
 }
 
-// checkEnum refuses a value outside the declared set, naming what would have worked.
+// checkOpenSets refuses a value outside the TWO sets the schema cannot close.
 //
-// The near-miss is called out BY NAME when the value differs only in case, because that
-// is the failure that was actually measured (`--as pass`, `--as Pass`) and "PASS | FAIL"
-// alone does not tell a seat that its lowercase spelling was the whole problem.
-func checkEnum(typ string, p *Payload) error {
-	for _, e := range EnumFields[typ] {
-		if e.Optional && !p.Has(e.Key) {
-			continue
+// MOST OF WHAT checkEnum POLICED IS NOW UNREPRESENTABLE. verdict, outcome's verdict, avenue
+// status, closure_class, check_kind, soundness, verify's outcome and confidence are closed proto
+// enums: a value outside the set cannot be built, let alone written, so a runtime check for it
+// would be dead code asserting the type system works.
+//
+// Two are deliberately still open strings, and they are the whole of what remains:
+//
+//   - `Outcome.ended` — how the sitting ended.
+//   - `Opinion.disposition` — the bench's ruling word. Kept open on the operator's decision
+//     (plan §II.3): closing it means a legitimate bench ruling fails HARD mid-round, and a bench
+//     that cannot rule is worse than a vocabulary that drifts.
+//
+// The near-miss is called out BY NAME when the value differs only in case, because that is the
+// failure that was actually measured (`--as pass`, `--as Pass`) and "PASS | FAIL" alone does not
+// tell a seat that its lowercase spelling was the whole problem.
+func checkOpenSets(body proto.Message) error {
+	switch b := body.(type) {
+	case *recordpb.Outcome:
+		if b.Ended == nil {
+			return nil // absent is legal; `ended` is optional
 		}
-		got := p.Str(e.Key)
-		if e.Allows(got) {
-			continue
+		return checkWord("ended", flags.Ended, b.GetEnded(), endedValues())
+	case *recordpb.Opinion:
+		return checkWord("disposition", flags.As, b.GetDisposition(), benchDispositions)
+	}
+	return nil
+}
+
+// checkWord is the refusal itself: the value, the set that would have worked, and the consequence.
+func checkWord(key, flag, got string, allowed []EnumValue) error {
+	for _, want := range allowed {
+		if got == want.Name {
+			return nil
 		}
-		// The consequence (Why) is always stated: a seat that mistyped needs to know what
-		// the mistype WOULD have done, not just that a set exists.
-		detail := ""
-		for _, want := range e.Values {
-			if strings.EqualFold(got, want.Name) {
-				detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want.Name))
-			}
+	}
+	detail := ""
+	for _, want := range allowed {
+		if strings.EqualFold(got, want.Name) {
+			detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want.Name))
 		}
-		if got == "" {
-			detail = "nothing was passed, and "
+	}
+	if got == "" {
+		detail = "nothing was passed, and "
+	}
+	names := make([]string, 0, len(allowed))
+	for _, want := range allowed {
+		names = append(names, want.Name)
+	}
+	return fmt.Errorf("record: --%s must be one of %s (got %s) — %sthe word is what every later reader switches on",
+		flag, strings.Join(names, "|"), jsonish(got), detail)
+}
+
+// endedValues is the `ended` set, read off the one declaration of it rather than re-typed.
+func endedValues() []EnumValue {
+	for _, ef := range EnumFields["outcome"] {
+		if ef.Key == "ended" {
+			return ef.Values
 		}
-		return fmt.Errorf("record: %s requires --%s %s (got %s) — %s%s",
-			typ, e.Flag, strings.Join(Names(e.Values), "|"), jsonish(got), detail, e.Why)
 	}
 	return nil
 }

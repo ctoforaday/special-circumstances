@@ -55,7 +55,7 @@ func DeriveVerdict(runDir string) (verdict, why string, ok bool) {
 	passed := false
 	halted := false
 	for i := range b.Events {
-		e := &b.Events[i]
+		e := b.Events[i]
 		if r := int(e.GetRound()); r > maxRound {
 			maxRound = r
 		}

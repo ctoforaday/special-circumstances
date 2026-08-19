@@ -1121,7 +1121,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 	// where a value outside the set cannot be represented at all. Two are NOT — `Outcome.ended`
 	// and `Opinion.disposition` are still open strings with declared sets — so the call stays,
 	// and it stays here, at the single write path.
-	return checkEnum(typ, body)
+	return checkOpenSets(body)
 }
 
 // filingSubject is the subject a Motion's filing BELONGS to, read off the oneof case rather than

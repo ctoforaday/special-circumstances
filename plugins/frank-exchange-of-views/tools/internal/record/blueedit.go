@@ -15,7 +15,7 @@ func AnchorIDs(runDir string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
 	for i := range m.Events {
-		body, ok := recordpb.Body(&m.Events[i])
+		body, ok := recordpb.Body(m.Events[i])
 		if !ok {
 			// No body at all, so no anchor id. An anchor event that carries nothing cannot
 			// name a marker, and the old code reached the same answer by a different route:
@@ -47,7 +47,7 @@ func ExistingBlueEditByKey(runDir, seatID, key string) (bool, error) {
 		return false, err
 	}
 	for i := range m.Events {
-		e := &m.Events[i]
+		e := m.Events[i]
 		if e.GetSeatId() != seatID {
 			continue
 		}

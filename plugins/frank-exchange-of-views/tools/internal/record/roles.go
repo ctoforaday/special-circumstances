@@ -71,7 +71,7 @@ func roleOfSeat(seatID string) string {
 // is deliberately not `e.Role != nil`: a record carrying an explicit empty role would otherwise
 // return "" as if that were the party, which is the wrong-party-silently failure the field was
 // added to end.
-func PartyOf(e Event) string {
+func PartyOf(e *Event) string {
 	if role := e.GetRole(); role != "" {
 		return role
 	}

@@ -52,7 +52,7 @@ func CitedSources(runDir string) ([]Source, error) {
 	seen := map[string]bool{}
 	var out []Source
 	for i := range m.Events {
-		body, ok := recordpb.Body(&m.Events[i])
+		body, ok := recordpb.Body(m.Events[i])
 		if !ok {
 			// No body at all, so nothing to cite. The old code reached the same answer by a
 			// different route: Payload.Str on an absent key returned "", which the label
@@ -99,7 +99,7 @@ func CitationLabels(runDir string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
 	for i := range m.Events {
-		body, ok := recordpb.Body(&m.Events[i])
+		body, ok := recordpb.Body(m.Events[i])
 		if !ok {
 			continue
 		}
@@ -128,7 +128,7 @@ func ExistingCiteByKey(runDir, seatID, key string) (string, error) {
 		return "", err
 	}
 	for i := range m.Events {
-		e := &m.Events[i]
+		e := m.Events[i]
 		if e.GetSeatId() != seatID {
 			continue
 		}
@@ -197,7 +197,7 @@ func ExistingProofByKey(runDir, seatID, key string) (string, error) {
 		return "", err
 	}
 	for i := range m.Events {
-		e := &m.Events[i]
+		e := m.Events[i]
 		if e.GetSeatId() != seatID {
 			continue
 		}
@@ -222,11 +222,17 @@ type Proof struct {
 	Label  string // the p-<hex> anchor id
 	SHA    string
 	Basis  string
-	Script string
-	Exit   int
 	Cites  string // the METHOD citation this applies, when blue named one
 	Reason string
-	Drift  string
+
+	// Drift is WHETHER the two runs diverged, not the sentence describing how.
+	//
+	// The record carries five fields for a proof — answers, cites, drift, proof_key, text —
+	// measured by reading the verb, and `script`, `exit`, `location` and `output` were excluded
+	// deliberately. The script BODY and its exit code are artifacts, not facts about the debate:
+	// they live in the proof cache, keyed by the sha256 this struct carries. A reader that wants
+	// them joins on SHA rather than finding them copied into every event.
+	Drift bool
 
 	// Verified is red's independent re-run (#343): whether the proof reproduced for the
 	// auditor, and what red made of it. Nil when nobody re-ran it — and that absence is
@@ -263,7 +269,7 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 	// than in every reader.
 	verified := map[string]*ProofVerification{}
 	for i := range m.Events {
-		e := &m.Events[i]
+		e := m.Events[i]
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
@@ -302,7 +308,7 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 	// remove. The schema decision is the lead's; the compile error is the loud miss.
 	var out []Proof
 	for i := range m.Events {
-		e := &m.Events[i]
+		e := m.Events[i]
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
@@ -311,26 +317,16 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 		if !isProof {
 			continue
 		}
-		exit := 0
-		if v, ok := e.Payload.Get("exit"); ok {
-			if f, isNum := v.(float64); isNum {
-				exit = int(f)
-			} else if i, isInt := v.(int); isInt {
-				exit = i
-			}
-		}
 		out = append(out, Proof{
 			Label: pf.GetProofId(),
 			// Written as `sha256`, joined on as `proof_sha` — one fact, one field now.
 			SHA:    pf.GetProofSha(),
 			Basis:  pf.GetProofBasis(),
-			Script: e.Payload.Str("script"),
-			Exit:   exit,
 			Cites:  pf.GetCites(),
 			// --reason lands on Proof.text, the message's only prose channel — the same
 			// flag/field split recordpb/required.go records for Verify.text.
 			Reason: pf.GetText(),
-			Drift:  e.Payload.Str("drift"),
+			Drift:  pf.GetDrift(),
 			// nil when nobody re-ran it, which the report states rather than omits.
 			Verified: verified[pf.GetProofSha()],
 		})

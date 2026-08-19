@@ -444,11 +444,11 @@ func Motions(b *Board) []*Motion {
 // the proposal is the filing — so it joins on the LINE's own id, and the thing that must exist
 // is the line of inquiry, not a motion event. Passing the subject keeps that difference in one place
 // instead of pushing it into each RunE.
-func RequireMotionSubjectRef(runDir, subject, id string) error {
+func RequireMotionSubjectRef(runDir string, subject recordpb.MotionSubject, id string) error {
 	if id == "" {
 		return fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
-	if subject == "inquiry" {
+	if subject == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
 		return RequireInquiryRef(runDir, id)
 	}
 	m, err := MergedEvents(runDir)
@@ -542,7 +542,7 @@ func RequireUnruledMotion(runDir, id string) error {
 // has no honest sentence for. The check covers every subject rather than the one that surfaced it:
 // appealing an unruled grade is the same nonsense as appealing an unruled direction, and fixing
 // only the instance is how the class survives.
-func RequireRuledMotion(runDir, subject, id string) error {
+func RequireRuledMotion(runDir string, subject recordpb.MotionSubject, id string) error {
 	if err := RequireMotionSubjectRef(runDir, subject, id); err != nil {
 		return err
 	}

@@ -78,7 +78,7 @@ func AvailableOf(b *Board, role, seatID string) []Item {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a closed gap with no row as a repair nobody audited, including its author")
 		}
 	case "merge":
-		if anyClosedGap(b) && !seatDid(b, seatID, "spot-check") {
+		if anyClosedGap(b) && !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
 			add("the closure archive is not empty and this sitting has sampled none of it")
 		}
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
@@ -117,7 +117,7 @@ func gapsEditedWithoutManifest(b *Board, seatID string) []string {
 	edited, rowed := map[string]bool{}, map[string]bool{}
 	var order []string
 	for i := range b.Events {
-		e := &b.Events[i]
+		e := b.Events[i]
 		if e.GetSeatId() != seatID {
 			continue
 		}
@@ -180,7 +180,7 @@ func gapsEditedWithoutManifest(b *Board, seatID string) []string {
 func gapsWithAcceptedMotionAndNoRegrade(b *Board) []string {
 	regraded := map[string]bool{}
 	for i := range b.Events {
-		body, ok := recordpb.Body(&b.Events[i])
+		body, ok := recordpb.Body(b.Events[i])
 		if !ok {
 			continue
 		}
@@ -229,7 +229,7 @@ func gapsWithAcceptedMotionAndNoRegrade(b *Board) []string {
 func citedClaimsWithoutVerify(b *Board) []string {
 	verified := map[string]bool{}
 	for i := range b.Events {
-		body, ok := recordpb.Body(&b.Events[i])
+		body, ok := recordpb.Body(b.Events[i])
 		if !ok {
 			continue
 		}
@@ -246,7 +246,7 @@ func citedClaimsWithoutVerify(b *Board) []string {
 	var out []string
 	seen := map[string]bool{}
 	for i := range b.Events {
-		body, ok := recordpb.Body(&b.Events[i])
+		body, ok := recordpb.Body(b.Events[i])
 		if !ok {
 			continue
 		}
@@ -287,7 +287,7 @@ func citedClaimsWithoutVerify(b *Board) []string {
 func proofsWithoutReproduce(b *Board) []string {
 	rerun := map[string]bool{}
 	for i := range b.Events {
-		body, ok := recordpb.Body(&b.Events[i])
+		body, ok := recordpb.Body(b.Events[i])
 		if !ok {
 			continue
 		}
@@ -300,7 +300,7 @@ func proofsWithoutReproduce(b *Board) []string {
 	var out []string
 	seen := map[string]bool{}
 	for i := range b.Events {
-		body, ok := recordpb.Body(&b.Events[i])
+		body, ok := recordpb.Body(b.Events[i])
 		if !ok {
 			continue
 		}
