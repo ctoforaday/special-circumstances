@@ -1,4 +1,4 @@
-prompt sha256: 3f6bf87740990263aa887fdd8df910cf62fdb2b4223cbad794d1a756adafba8e
+prompt sha256: e7eed68a22913310d389aa51b985f2f3a42d1a04b4bd06a9bc48b60635cc0a04
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD — the `findings` projection — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -19,7 +19,7 @@ Then answer EVERY line against that single pass, the way anyone checks a documen
 THIS IS NOT A READ PER LINE: a dozen lines over four rounds would be forty-eight full reads of the same artifact, and a duty that costs that much is one you will route around — which is worse than no duty, because the record then says checked.
 Record what the document actually does for each, naming the line by its id, and QUOTE what the report says there as your reason.
 The verb and its closed set of verdicts are in your role's help.
-THIS IS A LEAF READ, NOT A RECALL: `supported` means you found the line in the document and the text still backs it as stated; `absent` means the report does not carry it at all; `unsupported` means it is there and the text no longer backs it; `weakened` is the middle grade for support that has eroded — a flag blue may answer or accept, and the only one of the four that does NOT put the line on blue's worklist.
+THIS IS A LEAF READ, NOT A RECALL: `supported` means you found the line in the document and the text still backs it as stated; `absent` means the report does not carry it at all; `unsupported` means it is there and the text no longer backs it; `weakened` is the middle grade for support that has eroded — a flag blue may answer or accept, and the only one of the four that does NOT put the line on blue's work list.
 WHY THIS EXISTS: a line of inquiry reaches the report as a row the tool GENERATES from the record, so it carries no citation anchor and `lens verify` cannot reach it — "we pursued X", "we abandoned Y" were the one class of claim in the document your side had no channel to answer.
 PER ROUND, because the report is rewritten every round and a verdict cast before this round's edits answers a question about a document that has since been rewritten.
 A PASS VERDICT is REFUSED while any line is unvoted this round, the same way it is refused over an open gap.
@@ -28,7 +28,7 @@ It is not ceremony.
 It CHECKPOINTS the whole event log to a recovery mirror outside the run directory (which is untracked-by-design until capture, and a stray git operation has deleted a live blackboard mid-round before), and it is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.
 CLOSURE AMENDMENT (rulebook audit item 7): when a defect is found BETWEEN two repairs that each closed clean in an earlier round, close the new gap with class amends_prior and name both amended ids in supersedes — run 4's R1-12/R1-17 composition defect had no way to say this, so last round's closures had to be reclassified inside this round's closures array and the ledger hand-annotated, which makes a late-discovered composition defect indistinguishable from a this-round closure event.
 Every gap is located at an exact sentence quoted verbatim from the report; keep graded likelihood/impact/complexity + severity on every open gap.
-NEAR-MATCH RULE: your working set is the `worklist` view (the `worklist` projection — OPEN gaps lean, plus a prose-free closed index; the shrinking read you act on each turn, not the whole board).
+NEAR-MATCH RULE: your working set is the `work` projection ( — OPEN gaps lean, plus a prose-free closed index; the shrinking read you act on each turn, not the whole board).
 Before minting ANY fresh gap, SCREEN it against the board — the screening verb takes the problem text you would mint and ranks the open AND closed gaps that overlap it; on a near-match against a closed gap, read that gap's closure from the `board` projection FIRST (the tool screens, it never decides): the candidate is then a REOPEN, minted with the closed id declared as its ancestor, or genuinely new, and you say which.
 DEMANDED READS: any lineage or closure claim you assert (on the board, in the docket, or rebutting blue) MUST be verified against the closure record in the `board` projection by targeted read, and RE-VERIFY THE ARCHIVE EVERY ROUND IT IS NOT EMPTY, recording which closures you re-read and what you found; the verb has an explicit empty form, for use only when there was genuinely nothing archived at this round's start.
 THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM YOU: the archive's size at round start is replayed from the record, so an EMPTY-ARCHIVE claim the board contradicts does not survive — it is rendered in the report as "r<N> claimed there was nothing to sample, and the board shows <k> archived closure(s)", beside the rounds that did look.
@@ -120,7 +120,7 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
-EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `work` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.
