@@ -45,6 +45,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // MassMappingVersion stamps every telemetry line (view.go) with WHICH mass mapping produced
@@ -315,10 +316,26 @@ func RegisterSeat(id Identity) (nonce, shard string, err error) {
 	// never-update-mid-run rule stands, but a run that somehow mixes binaries now
 	// says so in its own record instead of producing events whose difference
 	// nobody can explain afterwards.
+	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT IS WRITTEN HERE, AND NOWHERE ELSE.
+	//
+	// register is every seat's stated first action, which makes it the one moment the mapping is
+	// knowable: the hook supplies agent_id (the only payload field that discriminates one seat
+	// from another), and the seat supplies which seat it is. Recording their join is what turns
+	// self-asserted identity into a fact later calls can be held to.
+	//
+	// A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat
+	// id recovered by parsing the seat's own command — a fact read back out of prose, whose
+	// miss is indistinguishable from an honest absence. This is a field on an event a writer can
+	// refuse, on the record that already holds everything else about the seat.
+	//
+	// EMPTY IS RECORDED AS ABSENT, not as "". A run whose hook never fired has no agent_id on any
+	// register event, and that must stay legible as "not measured" rather than reading as an
+	// agent whose handle is the empty string.
+	agent := seatenv.AgentID()
 	ev := Event{
 		Seq: 0, TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: id.Round, Role: roleOfSeat(seatID),
 		Type: "register", Key: seatID + ":register:" + nonce,
-		Payload: NewPayload().Set("tool_version", ToolVersion),
+		Payload: NewPayload().Set("tool_version", ToolVersion).SetIf(agent != "", "agent_id", agent),
 	}
 	if err := appendLine(shard, ev); err != nil {
 		return "", "", err

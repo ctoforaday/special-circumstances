@@ -52,7 +52,22 @@ import (
 const (
 	SeatVar  = "FEOV_SEAT"
 	RoundVar = "FEOV_ROUND"
+	// AgentVar carries the harness's own handle for the subagent, and it is the one identity
+	// variable that HAS a writer: the PreToolUse hook reads agent_id off the payload and exports
+	// it beside FEOV_RUN.
+	//
+	// It is deliberately NOT a seat id. Nothing upstream of `register` knows which agent holds
+	// which seat — the dispatcher does not learn the id (Workflow's agent() returns a result, not
+	// a handle), and recovering one from the command string would be a fact read back out of
+	// prose. So the hook exports the fact it HAS, register writes the mapping as a field on the
+	// record, and every later call resolves the seat from that. This is why SeatVar still has no
+	// writer and is not going to get one.
+	AgentVar = "FEOV_AGENT_ID"
 )
+
+// AgentID is the harness handle for this process's subagent, or "" in a main session or any
+// context the hook did not rewrite.
+func AgentID() string { return strings.TrimSpace(os.Getenv(AgentVar)) }
 
 // Seat is a seat's identity as FACTS rather than as a string other code takes apart.
 type Seat struct {
