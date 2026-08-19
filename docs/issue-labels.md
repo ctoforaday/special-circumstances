@@ -3,10 +3,21 @@
 Four namespaces. Every open issue carries exactly one `area:` and one `priority:`; `state:` and the
 kind labels (`bug`, `enhancement`, `documentation`, `question`) are optional.
 
-**No gate reads any of this.** Checked when the scheme was introduced: nothing in `scripts/` or
-`.github/` parses a label. These are for a human or an agent deciding what to pick up, which means
-a wrong label costs attention rather than a build — and also means nothing will catch one, so the
-rubric below is the only thing keeping them consistent.
+**One gate watches this, and it cannot block.** `.github/workflows/labels.yml` marks any issue
+that does not carry exactly one `area:` and one `priority:` with `state:unlabelled`. That is the
+strongest enforcement available: an issue has no merge gate, so there is no state an unlabelled one
+is prevented from reaching. `rulesweep` refuses a commit; this can only mark the board.
+
+Nothing else reads a label. Checked when the scheme was introduced: nothing in `scripts/` parses
+one, and the workflow above checks only that a label with each PREFIX is present — never which
+values are legal, because GitHub's label set is already the record of what exists and a second copy
+in a workflow file would drift from it. So a *wrong* label still costs attention rather than a
+build, and nothing will catch it. The rubric below is what keeps them consistent.
+
+Two routes were considered and rejected. An issue **form** with a required dropdown labels only
+issues opened through the form UI, and most issues here are filed through the API, which never sees
+it. Failing the workflow rather than marking would paint a red X on an issue that is merely
+untriaged, which trains everyone to ignore the signal while still blocking nothing.
 
 ## `priority:` — what earns each level
 

@@ -51,8 +51,14 @@
 //	go run ./check -base main   the ref diff-based gates compare against (default origin/main)
 package main
 
-// workflowPath is the authority. This table is the mirror, and parity_test.go is what keeps
-// the mirror honest — see the package comment.
+// workflowPath is the authority FOR THE GATE SET, and the scoping matters: it is not the only
+// workflow in the repository. `.github/workflows/labels.yml` runs on `issues` events, marks an
+// issue carrying no `area:`/`priority:` label, and is deliberately absent from this table — it
+// gates nothing, cannot run locally, and has no merge to block (docs/issue-labels.md says why).
+// A gate that cannot run here is DECLARED and skipped; a workflow that is not a gate is neither.
+//
+// This table is the mirror of hooks.yml, and parity_test.go is what keeps the mirror honest —
+// see the package comment.
 const workflowPath = ".github/workflows/hooks.yml"
 
 // kind groups a gate by what it is, so the report can be read at a glance and so parity can
