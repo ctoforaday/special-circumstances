@@ -56,9 +56,9 @@ capability is a finding about the tooling, and that channel is how it gets fixed
 // that matches nothing falls through silently: absent duties and an honestly empty duty list are
 // the same bytes.
 //
-// The role is not a fact about the tree. It is a fact about WHO WAS DISPATCHED, the engine injects
-// it as FEOV_SEAT, and the tool now derives the tree FROM it rather than recovering it from a path
-// the seat had to type correctly.
+// The role is not a fact about the tree. It is a fact about WHO WAS DISPATCHED — bound at
+// `register` and read back from the record — and the tool derives the tree FROM it rather than
+// recovering it from a path the seat had to type correctly.
 const RoleKey = "feov.seat-role"
 
 // SeatKey carries the resolved seat ID beside its role, for refusals that must name the party.

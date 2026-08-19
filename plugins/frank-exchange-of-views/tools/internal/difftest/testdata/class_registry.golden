@@ -44,9 +44,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check x --problem p
 exit 2
@@ -89,9 +89,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check x --problem p
 exit 2
@@ -134,9 +134,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class attestation-inflation --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
 exit 2

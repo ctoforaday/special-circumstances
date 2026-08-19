@@ -152,11 +152,11 @@ func dispatchedSeat() string {
 // NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.
 //
 // THE ROLE LEVEL IS GONE. It used to be four groups under the root, so a merge seat typed
-// `feov-record merge mint` — restating a fact the engine had already injected as FEOV_SEAT, with
-// CheckSeatRole reconciling the two copies and refusing a disagreement. The tool's own refusal
-// message says the principle it was breaking: "the engine injects your identity; you do not type
-// it." A merge seat now runs `mint`; a lens seat running `mint` gets an unknown command, which is
-// the same boundary drawn by the only fact that decides it.
+// `feov-record merge mint` — restating a fact the tool could already look up, with CheckSeatRole
+// reconciling the two copies and refusing a disagreement. The tool's own refusal message said the
+// principle it was breaking: you do not retype your identity. A merge seat now runs `mint`; a lens
+// seat running `mint` gets an unknown command, which is the same boundary drawn by the only fact
+// that decides it.
 //
 // The operator tree is the one with no seat: setup, capture, dashboard and the rest have no role
 // to scope to, and a human running them is not a seat.
@@ -177,7 +177,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// flags are the mechanism the first cut of this CLI re-implemented by
 	// re-declaring --run and --seat-id on all sixteen verbs.
 	root.PersistentFlags().String(flags.Run, "", "the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
-	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run")
+	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at `register`, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
 	// format is primarily view-selected: board/findings/friction are JSON by name, the rest

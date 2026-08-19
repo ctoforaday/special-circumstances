@@ -113,8 +113,9 @@ func seedBlueReport(t *testing.T, runDir string) {
 func help(t *testing.T, args ...string) string {
 	t.Helper()
 	var out bytes.Buffer
-	// THE TREE IS THE SEAT'S, and the seat id is in the args the test is about to send.
-	// Production reads FEOV_SEAT; a test drives cobra with a slice that never reaches the env.
+	// THE TREE IS THE SEAT'S, and the seat id is in the args the test is about to send. Reading a
+	// surface needs no binding — cobra answers --help without reaching RunE — so the flag alone is
+	// the whole resolution here, which is also what an unregistered seat's own help read does.
 	root := NewRootFor(seatenv.SeatIDIn(args))
 	root.SetOut(&out)
 	root.SetErr(&out)

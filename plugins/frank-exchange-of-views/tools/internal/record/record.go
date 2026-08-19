@@ -140,10 +140,14 @@ var roundRe = regexp.MustCompile(`-r(\d+)`)
 // Deleting the fallback outright would make every un-injected caller round 0 silently, which is
 // the same failure with fewer witnesses. It goes when the hook injects on every path (#290).
 //
-// STATE OF THAT CONDITION, 2026-08-15. Read this before assuming the injected branch ever runs:
-// NOTHING in this repository sets FEOV_ROUND or FEOV_SEAT. A whole-tree sweep across Go, JS, JSON,
-// shell and Markdown finds only readers and comments. So in production the fallback is not a
-// fallback — it is the ONLY path, and judge-terminal still stamps round 0 on every append (#396).
+// STATE OF THAT CONDITION. The seat half is CLOSED: the PreToolUse hook exports the agent handle,
+// `register` binds it to a seat on the record, and identity is read back from there — FEOV_SEAT is
+// gone, having never had a writer at all.
+//
+// THE ROUND HALF IS NOT, and this fallback is still the only path in production. Nothing sets
+// FEOV_ROUND, so judge-terminal still stamps round 0 on every append (#396). agent_id cannot fix
+// it: a handle says WHO, never WHICH ROUND, and the round is a fact only the dispatcher holds. The
+// regex below remains a guess about string shape, and this comment is what says so.
 //
 // What DID change: #290's gate is no longer unmeasured. PreToolUse carries agent_id — 9 of 9
 // subagent calls across three tool types, stable within an agent, distinct across concurrent ones,
@@ -223,9 +227,9 @@ type Event struct {
 	// this one is stamped ONCE at the write, so a later change to how the party is derived cannot
 	// silently re-label events already on the record.
 	//
-	// What would still make it a FACT rather than a derivation is the dispatcher injecting the
-	// party alongside the seat (#290). FEOV_SEAT injects the seat; the party is still inferred
-	// from its prefix.
+	// What would still make it a FACT rather than a derivation is the dispatcher stating the
+	// party. The seat is now a fact — bound at `register` and read back from the record — but the
+	// party is still inferred from the seat id's prefix.
 	Role    string   `json:"role,omitempty"`
 	Type    string   `json:"type"`
 	Key     string   `json:"key"`

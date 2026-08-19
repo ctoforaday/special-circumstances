@@ -149,11 +149,12 @@ func ResolveSeat(flagSeatID string, bound func() (string, error), inferRound fun
 // parsed — the CLI builds its command tree from the seat's role, and cobra resolves the command
 // path before it parses any flag.
 //
-// The environment is the real channel: the engine injects FEOV_SEAT. The os.Args scan is for a
-// human or a test driving the binary by hand with --seat-id, which ResolveSeat still accepts; it
-// is a bounded read of two spellings and is not a second flag parser. Anything it cannot find
-// yields "", which builds the operator tree — the honest answer for a process with no seat.
-// THE FLAG WINS HERE, AND THE INJECTION WINS AT EXECUTION. They answer different questions.
+// The RECORD is the real channel: the hook injects an agent handle, `register` binds it, and bound
+// resolves the pair. The os.Args scan is for the bootstrap call and for a human or test driving the
+// binary by hand with --seat-id; it is a bounded read of two spellings and is not a second flag
+// parser. Anything it cannot find yields "", which builds the operator tree — the honest answer for
+// a process with no seat.
+// THE FLAG WINS HERE, AND THE BINDING WINS AT EXECUTION. They answer different questions.
 //
 // Tree selection asks WHICH SURFACE AM I LOOKING AT; execution asks WHO IS ACTING. Letting the
 // flag choose the tree is what lets any seat read any other seat's surface —
