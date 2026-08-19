@@ -222,17 +222,15 @@ type Proof struct {
 	Label  string // the p-<hex> anchor id
 	SHA    string
 	Basis  string
+	Script string
+	Exit   int
 	Cites  string // the METHOD citation this applies, when blue named one
 	Reason string
 
-	// Drift is WHETHER the two runs diverged, not the sentence describing how.
-	//
-	// The record carries five fields for a proof — answers, cites, drift, proof_key, text —
-	// measured by reading the verb, and `script`, `exit`, `location` and `output` were excluded
-	// deliberately. The script BODY and its exit code are artifacts, not facts about the debate:
-	// they live in the proof cache, keyed by the sha256 this struct carries. A reader that wants
-	// them joins on SHA rather than finding them copied into every event.
-	Drift bool
+	// Drift is WHAT MOVED between the two runs — the sentence, not a bool. It lived in the proof
+	// cache's meta.json while the report rendered it, so the record was the one party to the
+	// exchange that could not say what happened. That file is gone and this is a field.
+	Drift string
 
 	// Verified is red's independent re-run (#343): whether the proof reproduced for the
 	// auditor, and what red made of it. Nil when nobody re-ran it — and that absence is
@@ -322,6 +320,8 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 			// Written as `sha256`, joined on as `proof_sha` — one fact, one field now.
 			SHA:    pf.GetProofSha(),
 			Basis:  pf.GetProofBasis(),
+			Script: pf.GetScript(),
+			Exit:   int(pf.GetExit()),
 			Cites:  pf.GetCites(),
 			// --reason lands on Proof.text, the message's only prose channel — the same
 			// flag/field split recordpb/required.go records for Verify.text.

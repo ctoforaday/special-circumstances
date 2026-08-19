@@ -3369,11 +3369,23 @@ type Proof struct {
 	ProofSha *string                `protobuf:"bytes,3,opt,name=proof_sha,json=proofSha,proto3,oneof" json:"proof_sha,omitempty"`
 	// proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
 	// census for the same reason as Outcome's three.
-	ProofBasis    *string `protobuf:"bytes,8,opt,name=proof_basis,json=proofBasis,proto3,oneof" json:"proof_basis,omitempty"`
-	Answers       *string `protobuf:"bytes,4,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
-	Cites         *string `protobuf:"bytes,5,opt,name=cites,proto3,oneof" json:"cites,omitempty"`
-	Drift         *bool   `protobuf:"varint,6,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
-	Text          *string `protobuf:"bytes,7,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	ProofBasis *string `protobuf:"bytes,8,opt,name=proof_basis,json=proofBasis,proto3,oneof" json:"proof_basis,omitempty"`
+	Answers    *string `protobuf:"bytes,4,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
+	Cites      *string `protobuf:"bytes,5,opt,name=cites,proto3,oneof" json:"cites,omitempty"`
+	// drift is WHAT MOVED between the two runs, not merely that something did.
+	//
+	// It was a bool, and the sentence describing the divergence lived in the proof cache's
+	// meta.json instead. That split put a fact about the debate in a JSON file beside the record
+	// that exists to hold it — and the report renders the sentence, so the record was the one
+	// party to the exchange that could not say what happened. Absent means the two runs agreed.
+	Drift *string `protobuf:"bytes,6,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
+	Text  *string `protobuf:"bytes,7,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	// script and exit are the execution's own facts, and they belong here for the same reason:
+	// `report/proofs.go` renders both, and a reader of the record should not have to open a
+	// second store to learn how a proof ran. The script BODY and its output stay in the cache as
+	// CONTENT, addressed by proof_sha — content is not a fact about the debate.
+	Script        *string `protobuf:"bytes,9,opt,name=script,proto3,oneof" json:"script,omitempty"`
+	Exit          *int32  `protobuf:"varint,10,opt,name=exit,proto3,oneof" json:"exit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3450,11 +3462,11 @@ func (x *Proof) GetCites() string {
 	return ""
 }
 
-func (x *Proof) GetDrift() bool {
+func (x *Proof) GetDrift() string {
 	if x != nil && x.Drift != nil {
 		return *x.Drift
 	}
-	return false
+	return ""
 }
 
 func (x *Proof) GetText() string {
@@ -3462,6 +3474,20 @@ func (x *Proof) GetText() string {
 		return *x.Text
 	}
 	return ""
+}
+
+func (x *Proof) GetScript() string {
+	if x != nil && x.Script != nil {
+		return *x.Script
+	}
+	return ""
+}
+
+func (x *Proof) GetExit() int32 {
+	if x != nil && x.Exit != nil {
+		return *x.Exit
+	}
+	return 0
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by
@@ -5197,7 +5223,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"\b_outcomeB\r\n" +
 	"\v_confidenceB\a\n" +
-	"\x05_textJ\x04\b\x02\x10\x03R\treference\"\xe1\x02\n" +
+	"\x05_textJ\x04\b\x02\x10\x03R\treference\"\xab\x03\n" +
 	"\x05Proof\x12\x1e\n" +
 	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12 \n" +
 	"\tproof_key\x18\x02 \x01(\tH\x01R\bproofKey\x88\x01\x01\x12 \n" +
@@ -5206,8 +5232,11 @@ const file_record_proto_rawDesc = "" +
 	"proofBasis\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x04 \x01(\tH\x04R\aanswers\x88\x01\x01\x12\x19\n" +
 	"\x05cites\x18\x05 \x01(\tH\x05R\x05cites\x88\x01\x01\x12\x19\n" +
-	"\x05drift\x18\x06 \x01(\bH\x06R\x05drift\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\a \x01(\tH\aR\x04text\x88\x01\x01B\v\n" +
+	"\x05drift\x18\x06 \x01(\tH\x06R\x05drift\x88\x01\x01\x12\x17\n" +
+	"\x04text\x18\a \x01(\tH\aR\x04text\x88\x01\x01\x12\x1b\n" +
+	"\x06script\x18\t \x01(\tH\bR\x06script\x88\x01\x01\x12\x17\n" +
+	"\x04exit\x18\n" +
+	" \x01(\x05H\tR\x04exit\x88\x01\x01B\v\n" +
 	"\t_proof_idB\f\n" +
 	"\n" +
 	"_proof_keyB\f\n" +
@@ -5218,7 +5247,9 @@ const file_record_proto_rawDesc = "" +
 	"\b_answersB\b\n" +
 	"\x06_citesB\b\n" +
 	"\x06_driftB\a\n" +
-	"\x05_text\"\xe1\x02\n" +
+	"\x05_textB\t\n" +
+	"\a_scriptB\a\n" +
+	"\x05_exit\"\xe1\x02\n" +
 	"\tReproduce\x12 \n" +
 	"\tproof_sha\x18\x01 \x01(\tH\x00R\bproofSha\x88\x01\x01\x12#\n" +
 	"\n" +

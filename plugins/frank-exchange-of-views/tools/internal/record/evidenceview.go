@@ -91,10 +91,11 @@ type EvidenceProofJSON struct {
 	// Cites is the citation anchor of the METHOD this computation applies, when blue named one —
 	// the link between the two evidence classes, and the only one on the record.
 	Cites string `json:"cites"`
-	// Drift records that the tool's two runs of the same script disagreed, which makes the
-	// result a measurement of a moving system rather than a proof. It is the schema's boolean:
-	// the payload once carried a sentence here, and `Proof.drift` keeps only whether it drifted.
-	Drift  bool   `json:"drift"`
+	// Drift is WHAT MOVED when the tool's two runs of the same script disagreed, which makes the
+	// result a measurement of a moving system rather than a proof. Empty means they agreed.
+	// It was briefly reduced to a boolean while the sentence lived in the proof cache's
+	// meta.json; that file is gone and `Proof.drift` carries the sentence itself.
+	Drift  string `json:"drift"`
 	SeatID string `json:"seat_id"`
 	Round  int    `json:"round"`
 

@@ -582,8 +582,23 @@ message Proof {
   optional string proof_basis = 8;
   optional string answers = 4;
   optional string cites = 5;
-  optional bool drift = 6;
+
+  // drift is WHAT MOVED between the two runs, not merely that something did.
+  //
+  // It was a bool, and the sentence describing the divergence lived in the proof cache's
+  // meta.json instead. That split put a fact about the debate in a JSON file beside the record
+  // that exists to hold it — and the report renders the sentence, so the record was the one
+  // party to the exchange that could not say what happened. Absent means the two runs agreed.
+  optional string drift = 6;
+
   optional string text = 7;
+
+  // script and exit are the execution's own facts, and they belong here for the same reason:
+  // `report/proofs.go` renders both, and a reader of the record should not have to open a
+  // second store to learn how a proof ran. The script BODY and its output stay in the cache as
+  // CONTENT, addressed by proof_sha — content is not a fact about the debate.
+  optional string script = 9;
+  optional int32 exit = 10;
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by

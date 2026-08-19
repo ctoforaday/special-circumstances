@@ -28,7 +28,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -180,9 +179,16 @@ func describeDrift(a, b string, ea, eb int) string {
 	}
 }
 
-// store writes the artifact: the script as executed, its output, and the metadata. Keyed by
-// the SCRIPT's hash, so one proof run twice is one artifact and a changed script is a
-// different one — the identity rule the fetch cache already uses for a source.
+// store writes the artifact: the script as executed and its output. Keyed by the SCRIPT's hash,
+// so one proof run twice is one artifact and a changed script is a different one — the identity
+// rule the fetch cache already uses for a source.
+//
+// IT WRITES NO METADATA. `meta.json` used to sit here holding sha, exit, script path and drift —
+// facts about the debate, in a JSON file beside the record that exists to hold facts about the
+// debate. Nothing could refuse a wrong value in it, the report rendered fields the record could
+// not state, and red's re-run read its expectations out of it. Those fields are on `Proof` now.
+// What stays is CONTENT: the script body and the output bytes, which are too large to be facts
+// and are addressed by the same sha the record carries.
 func store(runDir string, r *Result, body []byte) error {
 	dir := filepath.Join(runDir, "proofs", r.SHA)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -191,14 +197,7 @@ func store(runDir string, r *Result, body []byte) error {
 	if err := os.WriteFile(filepath.Join(dir, "script"+filepath.Ext(r.Script)), body, 0o644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "output"), []byte(r.Output), 0o644); err != nil {
-		return err
-	}
-	meta, err := json.MarshalIndent(r, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dir, "meta.json"), append(meta, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(dir, "output"), []byte(r.Output), 0o644)
 }
 
 // Reproduce re-runs a recorded proof and reports whether it still says the same thing.
@@ -208,14 +207,14 @@ func store(runDir string, r *Result, body []byte) error {
 // the smoke's R2-2, where blue could only assert that a test had happened.
 func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
 	dir := filepath.Join(runDir, "proofs", sha)
-	raw, err := os.ReadFile(filepath.Join(dir, "meta.json"))
+	// The recorded output is the ARTIFACT, read as bytes. What the proof CLAIMED — its exit, its
+	// drift, the script it ran — is on the record, where a reader can refuse it; this function
+	// needs only the bytes to compare against.
+	recorded, err := os.ReadFile(filepath.Join(dir, "output"))
 	if err != nil {
 		return false, "", "", fmt.Errorf("proof: no recorded proof %s in this run: %w", sha, err)
 	}
-	var rec Result
-	if err := json.Unmarshal(raw, &rec); err != nil {
-		return false, "", "", err
-	}
+	rec := Result{Output: string(recorded)}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return false, "", "", err
