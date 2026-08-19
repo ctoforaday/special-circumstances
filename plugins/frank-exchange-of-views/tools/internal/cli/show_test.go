@@ -78,7 +78,7 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 				"merge": "red-merge-r1", "blue": "blue-respond-r1",
 				"lens": "red-lens-r1-L1", "bench": "judge-r1",
 			}[c.role]
-			out, err := run(t, c.role, "show", "--run", runDir, "--seat-id", seat)
+			out, err := run(t, "show", "--run", runDir, "--seat-id", seat)
 			if err != nil {
 				t.Fatalf("%s show: %v", c.role, err)
 			}

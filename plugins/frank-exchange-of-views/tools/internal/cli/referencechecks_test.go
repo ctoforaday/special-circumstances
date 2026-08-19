@@ -227,7 +227,7 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 			}
 
 			argv := append([]string{}, c.verb...)
-			argv = append(argv, "--run", runDir, "--seat-id", seatFor(c.verb[0]))
+			argv = append(argv, "--run", runDir, "--seat-id", seatHolding(c.verb[0]))
 			argv = append(argv, c.flag, c.bogus)
 			argv = append(argv, c.extra...)
 

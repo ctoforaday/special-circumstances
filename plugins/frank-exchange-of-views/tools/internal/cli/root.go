@@ -10,6 +10,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -121,9 +122,9 @@ func noSeatNote(seatID string) string {
 			"the engine injects it and you never type it."
 	}
 	if RoleOfSeat(seatID) == "" {
-		return "\n\nTHIS IS THE OPERATOR SURFACE, because " + seatID + " belongs to no role namespace. The " +
-			"engine assigns seat ids; a hand-invented one selects no seat's verbs, so they are missing rather " +
-			"than refused."
+		return "\n\n" + seatID + " does not belong to any role namespace, so it selects no surface. The engine " +
+			"assigns seat ids; a hand-invented one identifies nobody, and a record written under it would be " +
+			"attributed to an identity no dispatch created."
 	}
 	return ""
 }
@@ -185,13 +186,25 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// can be refused from. The surface is scoped to whoever is asking, so there is nothing to show
 	// until that is answered; `--seat-id operator` is how an operator answers it.
 	switch role := RoleOfSeat(seatID); {
-	case strings.TrimSpace(seatID) == "":
-		// No verbs at all. root.RunE below carries the reason.
+	case role == "":
+		// NO VERBS FOR AN IDENTITY NOBODY RECOGNISES, and that covers two cases with one rule:
+		// nothing was given, or what was given belongs to no namespace. An invented seat id used
+		// to fall through to the OPERATOR surface, which is a claim about the caller that nothing
+		// checked — it is not the operator, it is unidentified. noSeatNote says which of the two
+		// it met. refuseUnknownCommandFirst answers the identity question before cobra parses
+		// anything, so `mint --check c` is not answered with "unknown flag: --check" — a complaint
+		// about the third word of a command that could not have run. `--version` and `--help` are
+		// left to cobra: they are answerable without knowing who is asking, and the setup
+		// preflight runs `--version` against a binary it has not identified itself to.
 	case role != "" && role != record.OperatorRole:
 		verbs, short := seatVerbs(role)
-		seat.SetRole(root, role)
+		seat.SetRole(root, role, seatID)
 		root.Short = short
-		root.Long = InvokedAs() + " — " + short
+		// THE FRICTION FOOTER MOVED WITH THE VERBS, not away with the group. It hung on the role
+		// group's Long, and deleting the group would have dropped it silently — a seat would stop
+		// being told that a capability it cannot find is a finding about the tooling rather than
+		// something to work around. Caught by TestRoleHelpCarriesTheFrictionFooter.
+		root.Long = InvokedAs() + " — " + short + "\n" + seat.FrictionFooter
 		root.AddCommand(verbs...)
 		root.AddCommand(motion.NewCommandFor(role))
 		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
@@ -253,15 +266,13 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 // It searches one level under each role group, which is where seat verbs live. `motion <subject>
 // <verb>` is deliberately not searched: `rule` and `file` are generic enough that pointing at all
 // three subjects would be noise rather than an answer.
-func whereItLives(root *cobra.Command, name string) []string {
+func whereItLives(_ *cobra.Command, name string) []string {
 	var out []string
-	for _, group := range root.Commands() {
-		if !group.HasSubCommands() {
-			continue
-		}
-		for _, verb := range group.Commands() {
-			if verb.Name() == name || verb.HasAlias(name) {
-				out = append(out, group.Name()+" "+verb.Name())
+	for role, r := range AllRoots() {
+		for _, c := range r.Commands() {
+			if c.Name() == name || c.HasAlias(name) {
+				out = append(out, role)
+				break
 			}
 		}
 	}
@@ -269,14 +280,17 @@ func whereItLives(root *cobra.Command, name string) []string {
 	return out
 }
 
-// unknownCommandRefusal is the ONE statement of what a bare unknown name is told, so the two sites
-// that answer it cannot drift into saying different things about the same miss.
 func unknownCommandRefusal(root *cobra.Command, name string) string {
+	// A VERB THAT EXISTS SOMEWHERE ELSE IS NOT A MISSING CAPABILITY, and the difference decides
+	// what the seat does next. It used to end "run it with its role in front", which was the fix
+	// while the tree had a role level; that advice is now wrong, and wrong advice at a refusal is
+	// worse than none — it sends a seat to type something that cannot work.
 	if at := whereItLives(root, name); len(at) > 0 {
-		return fmt.Sprintf("%q is not a top-level command — it is a SEAT verb, and it exists at: %s. "+
-			"That is a wrong-address error, not a missing capability: run it with its role in front "+
-			"(`%s --help`). The commands below are the whole top-level surface.",
-			name, strings.Join(at, ", "), at[0])
+		return fmt.Sprintf("%q is not on your surface — it is the %s seat's verb. That is a "+
+			"wrong-SEAT error, not a missing capability, so do not work around it: if the act is "+
+			"yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that "+
+			"holds it is named here. The commands below are everything you can run.",
+			name, strings.Join(at, " and "))
 	}
 	return fmt.Sprintf(
 		"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", name)
@@ -301,7 +315,9 @@ func unknownCommandRefusal(root *cobra.Command, name string) string {
 // cobra's error text would make this depend on the shape of a string another library owns —
 // which is the failure mode this repo keeps finding. Position 1 cannot be a flag value, because
 // nothing precedes it.
-func refuseUnknownCommandFirst(root *cobra.Command, argv []string) error {
+// seatID is passed rather than read from the environment: the tests drive cobra in-process with
+// an args slice that never reaches os.Args, so a check reading the env would refuse every call.
+func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string) error {
 	if len(argv) < 2 {
 		return nil
 	}
@@ -315,16 +331,46 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string) error {
 	root.InitDefaultHelpFlag()
 	root.InitDefaultVersionFlag()
 
-	name := argv[1]
-	if name == "" || strings.HasPrefix(name, "-") {
-		return nil // a flag, or help/version: cobra's own handling is right for those
+	// THE COMMAND IS THE FIRST NON-FLAG WORD, not argv[1]. `--json mint …` put a flag there, so
+	// the pre-check saw one and stood aside, and cobra then complained about `--class` — a flag on
+	// a command it had not found. The root's own flags are a knowable set: two take a value, the
+	// rest are booleans.
+	name := ""
+	for i := 1; i < len(argv); i++ {
+		a := argv[i]
+		switch {
+		case a == "--run" || a == "--seat-id":
+			i++ // and its value
+		case strings.HasPrefix(a, "-"):
+			// --json, --help, --version, and any --flag=value form: no separate value to skip.
+		default:
+			name = a
+		}
+		if name != "" {
+			break
+		}
+	}
+	if name == "" {
+		return nil // flags only: cobra's own handling is right for --help and --version
+	}
+	// NOBODY SAID WHO IS ASKING, so there is no surface to look this up in. Answered here rather
+	// than after parsing, because the flags belong to a command that could not have been found.
+	if RoleOfSeat(seatID) == "" {
+		return seat.RefuseAndTeach(root, "a command was named and the surface is scoped to whoever is asking."+noSeatNote(seatID))
 	}
 	for _, c := range root.Commands() {
 		if c.Name() == name || c.HasAlias(name) {
 			return nil
 		}
 	}
-	return seat.RefuseAndTeach(root, unknownCommandRefusal(root, name)+noSeatNote(seatenv.Dispatched()))
+	// A WRONG-SEAT ERROR KEEPS ITS CODE. `--json` consumers branch on the KIND of failure, and
+	// this one is a role violation however the tree came to lack the verb; flattening it to a
+	// plain message makes "you are the wrong seat" indistinguishable from a typo.
+	taught := seat.RefuseAndTeach(root, unknownCommandRefusal(root, name)+noSeatNote(seatID))
+	if len(whereItLives(root, name)) > 0 {
+		return feov.Errorf(feov.RoleViolation, "%s", taught.Error())
+	}
+	return taught
 }
 
 // Execute runs the CLI. Abort-safety is armed first: a seat killed mid-command
@@ -333,8 +379,13 @@ func Execute() {
 	defer record.InstallSignalGuard()()
 
 	root := newRoot()
-	if err := refuseUnknownCommandFirst(root, os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
+	if err := refuseUnknownCommandFirst(root, os.Args, seatenv.Dispatched()); err != nil {
+		// THROUGH THE SAME EMITTER AS EVERY OTHER TOP-LEVEL REFUSAL. This branch printed a bare
+		// sentence, so `--json` callers got prose from the one path that answers before cobra —
+		// a channel whose entire contract is that it is machine-readable.
+		if !EmitTopLevelError(os.Stdout, os.Args, err) {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
+		}
 		os.Exit(2)
 	}
 	if err := ExecuteRoot(root); err != nil {
@@ -397,11 +448,20 @@ func EmitTopLevelError(w io.Writer, argv []string, err error) bool {
 	if !jsonRequested(argv) {
 		return false
 	}
+	// THE CODE IS THE ERROR'S OWN WHERE IT HAS ONE. Validation was hardcoded because everything
+	// reaching here was a parse refusal; a wrong-SEAT refusal now arrives here too, and it carries
+	// role_violation. A consumer branching on the kind of failure would otherwise be told a
+	// dispatch error is a typo.
+	code := feov.Validation
+	var coded *feov.Error
+	if errors.As(err, &coded) && coded.Code != "" {
+		code = coded.Code
+	}
 	_ = json.NewEncoder(w).Encode(struct {
 		OK    bool   `json:"ok"`
 		Code  string `json:"code"`
 		Error string `json:"error"`
-	}{OK: false, Code: string(feov.Validation), Error: err.Error()})
+	}{OK: false, Code: string(code), Error: err.Error()})
 	return true
 }
 

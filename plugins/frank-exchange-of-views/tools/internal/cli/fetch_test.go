@@ -42,7 +42,7 @@ func TestFetchPrintsBodyAndCachesForReuse(t *testing.T) {
 	f := &fakeFetcher{resp: map[string][]byte{"https://ex/a": []byte("source body")}}
 	withFetcher(t, f)
 
-	out, err := run(t, "fetch", "--run", dir, "--url", "https://ex/a")
+	out, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://ex/a")
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestFetchPrintsBodyAndCachesForReuse(t *testing.T) {
 	}
 
 	// Second fetch of the same URL is served from cache — Fetch not re-entered.
-	out2, err := run(t, "fetch", "--run", dir, "--url", "https://ex/a")
+	out2, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://ex/a")
 	if err != nil {
 		t.Fatalf("second fetch: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestFetchFailureIsANonZeroErrorNotAFriction(t *testing.T) {
 	dir := t.TempDir()
 	withFetcher(t, &fakeFetcher{err: errors.New("host unreachable")})
 
-	_, err := run(t, "fetch", "--run", dir, "--url", "https://gone")
+	_, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://gone")
 	if err == nil {
 		t.Fatal("fetch of an unreachable URL returned nil error")
 	}
@@ -76,7 +76,7 @@ func TestFetchFailureIsANonZeroErrorNotAFriction(t *testing.T) {
 	}
 	// fetch takes no seat and writes no event — so nothing (least of all a friction) is
 	// on the record. The records dir is never even created by a bare read.
-	if _, statErr := run(t, "fetch", "--run", dir, "--url", "https://gone"); statErr == nil {
+	if _, statErr := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://gone"); statErr == nil {
 		t.Error("a repeated failed fetch unexpectedly succeeded")
 	}
 }
@@ -84,10 +84,10 @@ func TestFetchFailureIsANonZeroErrorNotAFriction(t *testing.T) {
 func TestFetchRequiresRunAndURL(t *testing.T) {
 	dir := t.TempDir()
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{}})
-	if _, err := run(t, "fetch", "--run", dir); err == nil {
+	if _, err := run(t, "fetch", "--seat-id", "operator", "--run", dir); err == nil {
 		t.Error("fetch without --url did not error")
 	}
-	if _, err := run(t, "fetch", "--url", "https://x"); err == nil {
+	if _, err := run(t, "fetch", "--seat-id", "operator", "--url", "https://x"); err == nil {
 		t.Error("fetch without --run did not error")
 	}
 }
@@ -97,14 +97,14 @@ func TestFetchJSONReportsCacheHit(t *testing.T) {
 	f := &fakeFetcher{resp: map[string][]byte{"https://ex/j": []byte("jbody")}}
 	withFetcher(t, f)
 
-	first, err := run(t, "fetch", "--run", dir, "--url", "https://ex/j", "--json")
+	first, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://ex/j", "--json")
 	if err != nil {
 		t.Fatalf("json fetch: %v", err)
 	}
 	if !strings.Contains(first, `"cache_hit":false`) {
 		t.Errorf("first --json fetch = %s, want cache_hit false", first)
 	}
-	second, err := run(t, "fetch", "--run", dir, "--url", "https://ex/j", "--json")
+	second, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://ex/j", "--json")
 	if err != nil {
 		t.Fatalf("json fetch 2: %v", err)
 	}

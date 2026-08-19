@@ -90,7 +90,7 @@ func subject(name, actingRole, short string, fileFlags []string, ruler string) *
 	// The absent verb is a real design statement — a petition is heard BEFORE the debate
 	// continues, so there is nothing to escalate to — and the refusal is where a seat actually
 	// meets it, so it is where the reason belongs.
-	c.RunE = func(_ *cobra.Command, args []string) error {
+	c.RunE = func(cmd *cobra.Command, args []string) error {
 		var have []string
 		for _, sub := range c.Commands() {
 			have = append(have, sub.Name())
@@ -102,10 +102,13 @@ func subject(name, actingRole, short string, fileFlags []string, ruler string) *
 		// around it and loses the capability for the run. The verb IS missing here — and saying
 		// only that would tell a blue seat grade motions cannot be ruled at all.
 		if len(args) > 0 && args[0] == "rule" && actingRole != ruler {
+			// NAMES BOTH PARTIES: the seat that holds the gavel, and the one that asked. Either
+			// alone sends a seat to the wrong fix — "the bench rules this" without saying who you
+			// are reads as advice, and "you are merge" without saying who does reads as a dead end.
 			return feov.Errorf(feov.RoleViolation,
-				"a %s motion is ruled by the %s seat, so `rule` is not on your surface; you are %s. "+
+				"a %s motion is ruled by the %s seat, so `rule` is not on your surface; you are %s (%s). "+
 					"A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle",
-				name, ruler, actingRole)
+				name, ruler, seat.DispatchedAs(cmd), actingRole)
 		}
 		named := "names no verb"
 		if len(args) > 0 {

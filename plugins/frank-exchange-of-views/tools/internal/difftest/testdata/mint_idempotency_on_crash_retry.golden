@@ -1,19 +1,19 @@
-$ merge register --run {RUN} --seat-id red-merge-r3
+$ register --run {RUN} --seat-id red-merge-r3
 exit 0
 stdout:
 registered red-merge-r3 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
+$ mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
 minted R3-1
 
-$ merge mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
+$ mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
 minted R3-1 (idempotent retry — existing id returned)
 
-$ merge mint --run {RUN} --seat-id red-merge-r3 --key L6-F1 --class scope-creep --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints
+$ mint --run {RUN} --seat-id red-merge-r3 --key L6-F1 --class scope-creep --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints
 exit 0
 stdout:
 minted R3-2
@@ -23,118 +23,3 @@ minted R3-2
 {"key":"red-merge-r3:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"merge","round":3,"seatId":"red-merge-r3","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r3:mint:R3-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R3-1","impact":"medium","likelihood":"medium","mint_key":"L5-F3","problem":"minted once","severity":"medium","supersedes":[]},"role":"merge","round":3,"seatId":"red-merge-r3","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r3:mint:R3-2","nonce":"NONCE001","payload":{"acceptance_check":"y","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R3-2","impact":"low","likelihood":"low","mint_key":"L6-F1","problem":"a different key mints","severity":"low","supersedes":[]},"role":"merge","round":3,"seatId":"red-merge-r3","seq":2,"ts":2,"type":"mint"}
-
-═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
-either did not happen or was not written down, and a report with no roads-not-taken is
-indistinguishable from one that never looked._
-
-
-═══ REPORT ═══
-# _(blue/report.md has no title — not authored here)_
-
-**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
-
-## Read this first
-
-2 open gap(s) remain, most severe first — full statements in **Red team findings** below.
-
-1. **[medium]** minted once (R3-1) — 
-2. **[low]** a different key mints (R3-2) — 
-
-## TL;DR
-
-_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
-
-## The Catechism
-
-_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
-
-## Technical foundations
-
-_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
-
-## Analysis
-
-_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
-
-## Risk matrix
-
-| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
-|---|---|---|---|---|
-| minted once | medium | medium | — | — |
-| a different key mints | low | low | — | — |
-
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
-
-## Research areas
-
-_(none on the record)_
-
-## Future research directions
-
-_(none on the record)_
-
-## Alternatives considered
-
-_(none on the record)_
-
-## Open questions
-
-_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
-
-## Blue team report (sections not composed above)
-
-## S2
-
-A claim sits under S2.
-
-## S4
-
-A claim sits under S4.
-
-## Red team findings (in full)
-
-### Open gaps (2)
-
-### R3-1 — minted once
-
-severity medium | medium x medium | cx — | class scope-creep
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: x
-
-### R3-2 — a different key mints
-
-severity low | low x low | cx — | class scope-creep
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: y
-
-### Closure index (0)
-
-_(nothing closed)_
-
-## The debate
-
-_(no debate on the record)_
-
-## Record verification
-
-Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
-
-- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
-- **ok** — `found-by-resolves` — every found_by credit names a real finding
-- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
-- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
-- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **ok** — `register-before-append` — every seat registered before it wrote
-- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
-
-**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

@@ -86,9 +86,11 @@ func TestValidReferencesStillResolve(t *testing.T) {
 		{"close", "--seat-id", "red-merge-r1", "--id", first, "--as", "closed",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {
-		args := append([]string{c[0], c[1], "--run", runDir}, c[2:]...)
+		// c[0] is the verb; the role that used to sit in front of it is gone, so only ONE
+		// element is lifted out before --run.
+		args := append([]string{c[0], "--run", runDir}, c[1:]...)
 		if _, err := run(t, args...); err != nil {
-			t.Errorf("a reference that DOES resolve was refused: %v (%v)", err, c[1])
+			t.Errorf("a reference that DOES resolve was refused: %v (%v)", err, c[0])
 		}
 	}
 }

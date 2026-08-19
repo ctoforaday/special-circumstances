@@ -174,9 +174,9 @@ func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
 // close-with-regression, and (blue) a grade dispute / (merge) its answer. Unique prose per act
 // so the report oracle can prove each one actually rendered.
 func (r *runner) dialectic(role, seatID string, open []string) {
-	_, _ = r.exec(role, "position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	_, _ = r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
 	for _, id := range open {
-		_, _ = r.exec(role, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
+		_, _ = r.exec("closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
 	}
 	if role == "blue" {
 	}
@@ -340,7 +340,9 @@ var verifyConfidence = []string{"high", "medium", "low"}
 // a REAL tool-assigned c-<hex>, the same discipline someFinding uses. `lens verify --anchor`
 // refuses an id that names no citation, so a fabricated one would drive only the reject path.
 func (r *runner) someCitation() string {
-	out, err := r.exec("show", "evidence")
+	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
+	// projection; the lens is the one that acts on citations.
+	out, err := r.exec("show", "evidence", "--seat-id", "red-lens-r1-L1")
 	if err != nil {
 		return ""
 	}
@@ -465,7 +467,7 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("show", "findings")
+	out, err := r.exec("show", "findings", "--seat-id", "red-merge-r1")
 	if err != nil {
 		return ""
 	}
@@ -481,7 +483,7 @@ func (r *runner) someFinding() string {
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("show", "board")
+	out, err := r.exec("show", "board", "--seat-id", "red-merge-r1")
 	if err != nil {
 		return nil
 	}
@@ -1093,7 +1095,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			oargs = append(oargs, "--ended", "deadlock")
 		}
 		_, _ = r.exec(oargs...)
-		_, _ = r.exec("assemble")
+		_, _ = r.exec("assemble", "--seat-id", "assemble-r1")
 		open := len(r.openGaps())
 		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "friction": arr()}
 
@@ -1342,7 +1344,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	// Oracle 1: the record the run left must pass verify.
-	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
+	if out, err := tracked(bin, "verify", "--seat-id", "operator", "--run", runDir); err != nil {
 		res.err = "verify FAILED:\n" + truncate(string(out))
 		return res
 	}
@@ -1355,9 +1357,12 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// own command path — and the coverage gate immediately reported 34 paths never invoked,
 	// because the sweep had only ever driven the handful it asserted on. A view that only the
 	// merge reads is a view nobody checks from the seat that actually reads it.
-	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+	// EVERY SEAT READS EVERY PROJECTION, and the seat id is what says which tree `show` is in.
+	for role, sid := range map[string]string{
+		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
+	} {
 		for _, v := range viewNamesForFuzz {
-			args := []string{"show", v, "--run", runDir}
+			args := []string{"show", v, "--run", runDir, "--seat-id", sid}
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
 			}
@@ -1366,7 +1371,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 				return res
 			}
 		}
-		if _, err := tracked(bin, role, "show", "--run", runDir); err != nil {
+		if _, err := tracked(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
 			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
 			return res
 		}
@@ -1406,39 +1411,25 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id R9-99`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := tracked(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir); err == nil {
+	if out, err := tracked(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
 	// The OPERATOR's friction read — seats write the channel, the human reads it back.
-	if _, err := tracked(bin, "friction", "--run", runDir); err != nil {
+	if _, err := tracked(bin, "friction", "--run", runDir, "--seat-id", "operator"); err != nil {
 		res.err = "operator friction read failed: " + err.Error()
 		return res
 	}
-	// A SEAT AT THE WRONG ADDRESS IS TOLD WHERE THE VERB LIVES, not which flag is unknown.
-	//
-	// The seat's write is `<role> friction`; the roleless form lands on the read above. It used
-	// to die in cobra's parser — `unknown flag: --reason`, before any message that could teach —
-	// and the channel it could not reach is the one for reporting exactly that. These flags exist
-	// on the read ONLY to be refused, so this is the drive that exercises them.
-	for _, args := range [][]string{
-		{"friction", "--reason", "fuzz: a capability I could not reach"},
-		{"friction", "--none", "--reason", "fuzz: nothing blocked me"},
-	} {
-		out, err := tracked(bin, append(args, "--run", runDir)...)
-		if err == nil {
-			res.err = strings.Join(args, " ") + " was ACCEPTED by the operator's read — a seat's write landed on a projection:\n" + truncate(string(out))
-			return res
-		}
-		if !strings.Contains(string(out), "role") {
-			res.err = strings.Join(args, " ") + " was refused without naming `<role> friction` — the seat is left as stuck as a parse error would leave it:\n" + truncate(string(out))
-			return res
-		}
-	}
+	// THE WRONG-ADDRESS DRIVE IS GONE, because the address collision is. A seat's `friction
+	// --reason` used to land on the OPERATOR's read, which takes no --reason, so it died in the
+	// parser before any message could teach — and the channel it could not reach is the one for
+	// reporting exactly that. The two frictions are on different trees now: a seat's carries its
+	// write verb and not the read, the operator's the read and no seat verbs. There is nothing
+	// left to land on by accident, so there is nothing here to drive.
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
 	for _, v := range []string{"findings"} {
-		out, err := tracked(bin, "show", v, "--run", runDir)
+		out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -1446,7 +1437,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	{
-		out, err := tracked(bin, "show", "debate", "--json", "--run", runDir)
+		out, err := tracked(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -1467,14 +1458,14 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// role gate, so driving only `merge show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := tracked(bin, role, "show", "debate", "--run", runDir); err != nil {
+		if out, err := tracked(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
 			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = tracked(bin, role, "show", "changes", "--id", ids[0], "--run", runDir)
+			_, _ = tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
 		}
 	}
 	for _, v := range cli.ViewNames() {
@@ -1482,7 +1473,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		case "board", "findings", "friction", "work":
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := tracked(bin, "show", v, "--run", runDir); err != nil {
+		if out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -1492,11 +1483,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
-		if out, err := tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir); err != nil {
+		if out, err := tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := tracked(bin, "show", "changes", "--id", "R9-99", "--run", runDir); err == nil {
+		if out, err := tracked(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
 			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
@@ -1875,7 +1866,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	if halts == 0 {
 		t.Fatal("no halt event on the record — the halt verb never ran")
 	}
-	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
+	if out, err := tracked(bin, "verify", "--seat-id", "operator", "--run", runDir); err != nil {
 		t.Fatalf("verify FAILED on the halted run (a safety exit must still be a valid record):\n%s", truncate(string(out)))
 	}
 }
@@ -2622,9 +2613,13 @@ func (r *runner) readOnly(verb, seatID string, extra ...string) {
 // analogue for. Both carry their own package tests. `hook` reads a JSON payload on stdin rather
 // than argv and is covered by internal/cli's hook tests.
 var readOnlySurfaces = [][]string{
-	// Every role's `show` with NO --view, which resolves that role's DEFAULT view. Only the
-	// merge's was ever driven, so a regression in any other role's default was invisible.
-	{"show"}, {"show"}, {"show"}, {"show"},
+	// Every SEAT's `show` with no view, which resolves that seat's DEFAULT. Only the merge's was
+	// ever driven, so a regression in any other default was invisible. The seat id is what selects
+	// the tree now, so it is what distinguishes these four rather than a role word in front.
+	{"show", "--seat-id", "blue-respond-r1"},
+	{"show", "--seat-id", "red-lens-r1-L1"},
+	{"show", "--seat-id", "red-merge-r1"},
+	{"show", "--seat-id", "judge-r1"},
 	// The operator renders, over whatever shape the run actually reached.
 	{"graph", "--format", "mermaid"},
 	{"graph", "--format", "dot"},
@@ -2636,7 +2631,18 @@ var readOnlySurfaces = [][]string{
 // <transcript-dir>` — not `--run`. Discovered by this very census: the first version of it
 // passed --run and dashboard failed on all 60 runs with a usage error, which is the census
 // working (the surface had never been driven, so nothing here was known).
-func dashboardArgv(runDir string) []string { return []string{"dashboard", runDir, runDir} }
+func dashboardArgv(runDir string) []string {
+	return []string{"dashboard", runDir, runDir, "--seat-id", "operator"}
+}
+
+func containsFlag(argv []string, flag string) bool {
+	for _, a := range argv {
+		if a == flag || strings.HasPrefix(a, flag+"=") {
+			return true
+		}
+	}
+	return false
+}
 
 // sweepReadOnly runs the census against a finished run and reports the first surface that
 // fails. Run AFTER the debate so the state is arbitrary rather than empty — an empty run
@@ -2649,8 +2655,10 @@ func sweepReadOnly(bin, runDir string) string {
 	}
 	for _, argv := range readOnlySurfaces {
 		args := append(append([]string{}, argv...), "--run", runDir)
-		if len(argv) == 2 && argv[1] == "show" {
-			args = append(args, "--seat-id", seatFor(argv[0]))
+		// THE OPERATOR SAYS SO TOO. graph, count-claims, scorecard and the rest are the operator's,
+		// and a surface scoped to whoever is asking has nothing to show a caller who has not said.
+		if !containsFlag(argv, "--seat-id") {
+			args = append(args, "--seat-id", "operator")
 		}
 		if out, err := tracked(bin, args...); err != nil {
 			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
@@ -2703,4 +2711,13 @@ func (r *runner) voteInquirySupport(seatID string) {
 		_, _ = r.exec("inquiry-support", "--seat-id", seatID, "--id", a.ID,
 			"--as", as, "--reason", "fuzz: read the report at "+a.ID)
 	}
+}
+
+// seatOfRole is a dispatched seat of the given role, for drives that iterate roles. The role is no
+// longer part of an invocation; the seat id is what selects the tree it runs in.
+func seatOfRole(role string) string {
+	return map[string]string{
+		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1",
+		"merge": "red-merge-r1", "bench": "judge-r1",
+	}[role]
 }

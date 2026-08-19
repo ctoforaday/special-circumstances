@@ -115,7 +115,12 @@ func CommandPaths() []string {
 		roleOut, out = out, nil
 		for _, p := range roleOut {
 			key := role + " " + p
-			if strings.HasPrefix(p, "motion") {
+			// ONE COMMAND MOUNTED IN SEVERAL TREES KEEPS ONE KEY. `motion` is one object however
+			// many seats can reach it, and `fetch`/`count-claims` are the operator commands seats
+			// genuinely run — a lens reads blue's cached bytes, blue's claim_count is defined as
+			// what count-claims prints. Keying them per role would turn one contract into four
+			// rows nobody can keep in step.
+			if strings.HasPrefix(p, "motion") || p == "fetch" || p == "count-claims" {
 				key = p
 			}
 			if !seen[key] {

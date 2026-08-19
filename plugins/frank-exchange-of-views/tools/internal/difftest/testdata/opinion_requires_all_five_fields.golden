@@ -1,9 +1,9 @@
-$ bench register --run {RUN} --seat-id judge-r2
+$ register --run {RUN} --seat-id judge-r2
 exit 0
 stdout:
 registered judge-r2 (shard nonce NONCE001)
 
-$ bench opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed
+$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed
 exit 2
 stderr:
 feov-record: required flag(s) "principle", "review-flag", "tension" not set
@@ -16,7 +16,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} opinion [flags]
+  feov-record opinion [flags]
 
 Flags:
       --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
@@ -43,7 +43,7 @@ Global Flags:
       --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
-$ bench opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed --principle p --tension t
+$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed --principle p --tension t
 exit 2
 stderr:
 feov-record: required flag(s) "review-flag" not set
@@ -56,7 +56,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} opinion [flags]
+  feov-record opinion [flags]
 
 Flags:
       --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
@@ -86,102 +86,3 @@ Global Flags:
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl
 {"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"bench","round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
-
-═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
-either did not happen or was not written down, and a report with no roads-not-taken is
-indistinguishable from one that never looked._
-
-
-═══ REPORT ═══
-# _(blue/report.md has no title — not authored here)_
-
-**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
-
-## Read this first
-
-_(no open gaps remain — nothing outstanding to re-examine)_
-
-## TL;DR
-
-_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
-
-## The Catechism
-
-_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
-
-## Technical foundations
-
-_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
-
-## Analysis
-
-_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
-
-## Risk matrix
-
-| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
-|---|---|---|---|---|
-| _(no open gaps)_ |  |  |  |  |
-
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
-
-## Research areas
-
-_(none on the record)_
-
-## Future research directions
-
-_(none on the record)_
-
-## Alternatives considered
-
-_(none on the record)_
-
-## Open questions
-
-_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
-
-## Blue team report (sections not composed above)
-
-## S2
-
-A claim sits under S2.
-
-## S4
-
-A claim sits under S4.
-
-## Red team findings (in full)
-
-### Open gaps (0)
-
-_(none open)_
-
-### Closure index (0)
-
-_(nothing closed)_
-
-## The debate
-
-_(no debate on the record)_
-
-## Record verification
-
-Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
-
-- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
-- **ok** — `found-by-resolves` — every found_by credit names a real finding
-- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
-- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
-- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **ok** — `register-before-append` — every seat registered before it wrote
-- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
-
-**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

@@ -65,44 +65,64 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 	runDir := seatRunForContracts(t)
 
 	var checked int
-	walk(newRoot(), func(c *cobra.Command, path []string) {
-		if !c.Runnable() || len(path) < 2 {
-			return
-		}
-		role := path[0]
+	// PER TREE, AND THE ROLE COMES FROM THE TREE. It used to be path[0], because a verb's path
+	// began with its role group; the path is now the verb alone and the role is which surface it
+	// was found on.
+	for role, r := range AllRoots() {
 		if !isSeatRole(role) {
-			return // operator commands take a run directory rather than a seat
+			continue // operator commands take a run directory rather than a seat
 		}
-		c.Flags().VisitAll(func(f *pflag.Flag) {
-			if !requiredInHelp.MatchString(f.Usage) || notEnforcedAtTheFlag[f.Name] != "" || satisfiedByAnother[f.Name] != "" {
+		walk(r, func(c *cobra.Command, path []string) {
+			if !c.Runnable() || len(path) < 1 {
 				return
 			}
-			checked++
-			t.Run(strings.Join(path, " ")+"/--"+f.Name, func(t *testing.T) {
-				args := append(append([]string{}, path...), "--run", runDir, "--seat-id", seatFor(role))
-				// --reason is required by most verbs' own RunE rather than by the marker, so
-				// it is supplied unconditionally: without it the prose refusal fires first
-				// and this gate measures the wrong one.
-				if f.Name != "reason" && c.Flags().Lookup("reason") != nil {
-					args = append(args, "--reason", "the argument for this act")
+			// TWO SUBTREES ARE STILL OUT OF SCOPE, and now they have to say so.
+			//
+			// `motion` was excluded by ACCIDENT: it sat at the root, so its path began "motion",
+			// isSeatRole said no, and the walk skipped it. Moving it inside each seat's tree
+			// brought it into a gate that has never covered it — the subjects carry different
+			// required sets, which is why they are subgroups, and `--id` is enforced in the
+			// handler rather than marked at the flag.
+			//
+			// `reproduce` needs a proof ON THE BOARD before its own flags are reached, so the
+			// placeholder id produces a refusal about the missing proof rather than the missing
+			// flag — a precondition this gate does not build.
+			//
+			// Both are real gaps in this gate's coverage, named rather than left looking covered.
+			if path[0] == "motion" || path[0] == "reproduce" {
+				return
+			}
+			c.Flags().VisitAll(func(f *pflag.Flag) {
+				if !requiredInHelp.MatchString(f.Usage) || notEnforcedAtTheFlag[f.Name] != "" || satisfiedByAnother[f.Name] != "" {
+					return
 				}
-				// Supply every OTHER required flag, so the refusal under test is this one's.
-				c.Flags().VisitAll(func(o *pflag.Flag) {
-					if o.Name == f.Name || !requiredInHelp.MatchString(o.Usage) {
-						return
+				checked++
+				t.Run(strings.Join(path, " ")+"/--"+f.Name, func(t *testing.T) {
+					args := append(append([]string{}, path...), "--run", runDir, "--seat-id", seatFor(role))
+					// --reason is required by most verbs' own RunE rather than by the marker, so
+					// it is supplied unconditionally: without it the prose refusal fires first
+					// and this gate measures the wrong one.
+					if f.Name != "reason" && c.Flags().Lookup("reason") != nil {
+						args = append(args, "--reason", "the argument for this act")
 					}
-					args = append(args, "--"+o.Name, placeholderFor(c, o, path))
+					// Supply every OTHER required flag, so the refusal under test is this one's.
+					c.Flags().VisitAll(func(o *pflag.Flag) {
+						if o.Name == f.Name || !requiredInHelp.MatchString(o.Usage) {
+							return
+						}
+						args = append(args, "--"+o.Name, placeholderFor(c, o, path))
+					})
+					_, err := run(t, args...)
+					if err == nil {
+						t.Fatalf("--%s says REQUIRED in its help and the verb ran without it.\n\nusage: %s\n\nA seat reading that supplies it and nothing is wrong; a seat that misses it records an event with a hole, and the hole surfaces rounds later as an empty section nobody can trace.", f.Name, f.Usage)
+					}
+					if !strings.Contains(err.Error(), f.Name) {
+						t.Errorf("--%s was refused and the message does not NAME it:\n\n%v\n\nA seat that cannot tell which flag it missed guesses, and the guess costs a round.", f.Name, err)
+					}
 				})
-				_, err := run(t, args...)
-				if err == nil {
-					t.Fatalf("--%s says REQUIRED in its help and the verb ran without it.\n\nusage: %s\n\nA seat reading that supplies it and nothing is wrong; a seat that misses it records an event with a hole, and the hole surfaces rounds later as an empty section nobody can trace.", f.Name, f.Usage)
-				}
-				if !strings.Contains(err.Error(), f.Name) {
-					t.Errorf("--%s was refused and the message does not NAME it:\n\n%v\n\nA seat that cannot tell which flag it missed guesses, and the guess costs a round.", f.Name, err)
-				}
 			})
 		})
-	})
+	}
 
 	if checked < 15 {
 		t.Fatalf("only %d REQUIRED flags checked — the walk is not reaching the tree, and a walk that finds nothing passes this forever", checked)
@@ -124,9 +144,11 @@ func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
 		args []string
 		says string
 	}{
-		{"a verb outside the role", []string{"mint", "--seat-id", "red-lens-r1-L1"}, `verb "mint" is outside`},
-		{"a role with no verb", []string{"blue"}, "verb is required"},
-		{"an unknown top-level command", []string{"frobnicate"}, `no command named "frobnicate"`},
+		{"a verb that is another seat's", []string{"mint", "--seat-id", "red-lens-r1-L1"}, `"mint" is not on your surface`},
+		// There is no role level to name, so the old "a role with no verb" case is now a caller
+		// with no identity — the same shape of mistake at the level that still exists.
+		{"a command with no identity", []string{"mint"}, "--seat-id IS REQUIRED HERE"},
+		{"an unknown command", []string{"frobnicate", "--seat-id", "blue-respond-r1"}, `no command named "frobnicate"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out, err := run(t, append(append([]string{}, tc.args...), "--run", runDir)...)
@@ -170,6 +192,19 @@ func isSeatRole(s string) bool {
 		return true
 	}
 	return false
+}
+
+// seatHolding answers which seat can run this verb, by looking for it. It replaces reading the
+// role out of a command PATH, which stopped being possible when the role left the path.
+func seatHolding(verb string) string {
+	for role, r := range AllRoots() {
+		for _, c := range r.Commands() {
+			if c.Name() == verb {
+				return seatFor(role)
+			}
+		}
+	}
+	return ""
 }
 
 func seatFor(role string) string {
@@ -326,35 +361,37 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 	restated := regexp.MustCompile(`--([a-z-]+)\s+([a-z][a-zA-Z_-]*(?:\|[a-zA-Z_][a-zA-Z_-]*)+)`)
 
 	var checked int
-	walk(newRoot(), func(c *cobra.Command, path []string) {
-		registered := enumhelp.Registered(c)
-		for _, m := range restated.FindAllStringSubmatch(c.Short, -1) {
-			flag, listed := m[1], strings.Split(m[2], "|")
-			var want []string
-			switch {
-			case registered[flag] != nil:
-				want = record.Names(registered[flag])
-			case flag == "view":
-				want = ViewNames()
-			default:
-				continue // not an enum this command declares: a shape hint, not a set
-			}
-			checked++
-			real := map[string]bool{}
-			for _, v := range want {
-				real[v] = true
-			}
-			for _, v := range listed {
-				if v == "" || v == "..." {
-					continue
+	for _, r := range AllRoots() {
+		walk(r, func(c *cobra.Command, path []string) {
+			registered := enumhelp.Registered(c)
+			for _, m := range restated.FindAllStringSubmatch(c.Short, -1) {
+				flag, listed := m[1], strings.Split(m[2], "|")
+				var want []string
+				switch {
+				case registered[flag] != nil:
+					want = record.Names(registered[flag])
+				case flag == "view":
+					want = ViewNames()
+				default:
+					continue // not an enum this command declares: a shape hint, not a set
 				}
-				if !real[v] {
-					t.Errorf("`%s` summarises --%s as %q, and %q is NOT in the real set (%s).\n\nThe summary is the line a seat reads first — in Available Commands and now in every refusal — so a value offered here and refused by the tool is a set that does not exist, taught at the moment a seat is deciding what to type.",
-						strings.Join(path, " "), flag, m[2], v, strings.Join(want, "|"))
+				checked++
+				real := map[string]bool{}
+				for _, v := range want {
+					real[v] = true
+				}
+				for _, v := range listed {
+					if v == "" || v == "..." {
+						continue
+					}
+					if !real[v] {
+						t.Errorf("`%s` summarises --%s as %q, and %q is NOT in the real set (%s).\n\nThe summary is the line a seat reads first — in Available Commands and now in every refusal — so a value offered here and refused by the tool is a set that does not exist, taught at the moment a seat is deciding what to type.",
+							strings.Join(path, " "), flag, m[2], v, strings.Join(want, "|"))
+					}
 				}
 			}
-		}
-	})
+		})
+	}
 	if checked == 0 {
 		t.Fatal("no summary restated any known set — either the convention is gone or the walk is broken, and a walk that finds nothing passes this forever")
 	}

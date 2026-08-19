@@ -32,8 +32,6 @@ import (
 // the hand-kept copy this repository keeps paying for, and it would go stale the next time a verb
 // is split — which is the exact event it exists to catch.
 func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
-	root := newRoot()
-
 	// Every leaf, with the event type it writes: its Records annotation, or its own name.
 	type leaf struct {
 		path, name, short, writes string
@@ -55,8 +53,12 @@ func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 			walk(k, append(append([]string{}, prefix...), k.Name()))
 		}
 	}
-	for _, k := range root.Commands() {
-		walk(k, []string{k.Name()})
+	// EVERY SEAT'S TREE: a split pair lives in one role's surface, and no single root holds them
+	// all any more.
+	for role, r := range AllRoots() {
+		for _, k := range r.Commands() {
+			walk(k, []string{role, k.Name()})
+		}
 	}
 	if len(leaves) == 0 {
 		t.Fatal("walked the tree and found no leaves — this gate would pass forever")

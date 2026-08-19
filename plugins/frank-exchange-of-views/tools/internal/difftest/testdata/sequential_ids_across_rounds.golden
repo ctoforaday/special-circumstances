@@ -1,29 +1,29 @@
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r1 first
+$ mint --run {RUN} --seat-id red-merge-r1 --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r1 first
 exit 0
 stdout:
 minted R1-1
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r1 second
+$ mint --run {RUN} --seat-id red-merge-r1 --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r1 second
 exit 0
 stdout:
 minted R1-2
 
-$ merge register --run {RUN} --seat-id red-merge-r2
+$ register --run {RUN} --seat-id red-merge-r2
 exit 0
 stdout:
 registered red-merge-r2 (shard nonce NONCE002)
 
-$ merge mint --run {RUN} --seat-id red-merge-r2 --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r2 first
+$ mint --run {RUN} --seat-id red-merge-r2 --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r2 first
 exit 0
 stdout:
 minted R2-1
 
-$ merge spot-check --run {RUN} --seat-id red-merge-r2 --ids R1-1, R1-2 --reason both re-read
+$ spot-check --run {RUN} --seat-id red-merge-r2 --ids R1-1, R1-2 --reason both re-read
 exit 2
 stderr:
 feov-record: merge: record: spot-check --ids names gap R1-1, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it
@@ -31,13 +31,9 @@ feov-record: merge: record: spot-check --ids names gap R1-1, which is still OPEN
 $ merge dispute-respond --run {RUN} --seat-id red-merge-r2 --id R1-1 --as rejected --reason the consequence stands
 exit 2
 stderr:
-feov-record: no verb "dispute-respond" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `merge friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no command named "merge" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
-the red merge seat — the board's only writer.
-
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+feov-record — the red merge seat — the board's only writer.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -45,17 +41,22 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
+  feov-record [flags]
+  feov-record [command]
 
 Available Commands:
   carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
   class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
   closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  completion      Generate the autocompletion script for the specified shell
+  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  help            Help about any command
   inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
   mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
   register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
@@ -65,14 +66,13 @@ Available Commands:
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help   help for merge
-
-Global Flags:
+  -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+  -v, --version          version for feov-record
 
-Use "{TOOL} [command] --help" for more information about a command.
+Use "feov-record [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
@@ -82,127 +82,3 @@ Use "{TOOL} [command] --help" for more information about a command.
 -- events-red-merge-r2-NONCE002.jsonl
 {"key":"red-merge-r2:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.72.0"},"role":"merge","round":2,"seatId":"red-merge-r2","seq":0,"ts":3,"type":"register"}
 {"key":"red-merge-r2:mint:R2-1","nonce":"NONCE002","payload":{"acceptance_check":"x","check_kind":"document","class":"a","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R2-1","impact":"low","likelihood":"low","problem":"r2 first","severity":"low","supersedes":[]},"role":"merge","round":2,"seatId":"red-merge-r2","seq":1,"ts":4,"type":"mint"}
-
-═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
-either did not happen or was not written down, and a report with no roads-not-taken is
-indistinguishable from one that never looked._
-
-
-═══ REPORT ═══
-# _(blue/report.md has no title — not authored here)_
-
-**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
-
-## Read this first
-
-3 open gap(s) remain, most severe first — full statements in **Red team findings** below.
-
-1. **[low]** r1 first (R1-1) — 
-2. **[low]** r1 second (R1-2) — 
-3. **[low]** r2 first (R2-1) — 
-
-## TL;DR
-
-_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
-
-## The Catechism
-
-_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
-
-## Technical foundations
-
-_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
-
-## Analysis
-
-_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
-
-## Risk matrix
-
-| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
-|---|---|---|---|---|
-| r1 first | low | low | — | — |
-| r1 second | low | low | — | — |
-| r2 first | low | low | — | — |
-
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
-
-## Research areas
-
-_(none on the record)_
-
-## Future research directions
-
-_(none on the record)_
-
-## Alternatives considered
-
-_(none on the record)_
-
-## Open questions
-
-_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
-
-## Blue team report (sections not composed above)
-
-## S2
-
-A claim sits under S2.
-
-## S4
-
-A claim sits under S4.
-
-## Red team findings (in full)
-
-### Open gaps (3)
-
-### R1-1 — r1 first
-
-severity low | low x low | cx — | class a
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: x
-
-### R1-2 — r1 second
-
-severity low | low x low | cx — | class a
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: x
-
-### R2-1 — r2 first
-
-severity low | low x low | cx — | class a
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: x
-
-### Closure index (0)
-
-_(nothing closed)_
-
-## The debate
-
-_(no debate on the record)_
-
-## Record verification
-
-Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
-
-- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
-- **ok** — `found-by-resolves` — every found_by credit names a real finding
-- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
-- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
-- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **ok** — `register-before-append` — every seat registered before it wrote
-- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
-
-**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

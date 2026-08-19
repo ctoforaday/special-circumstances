@@ -1,14 +1,14 @@
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
+$ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
 exit 0
 stdout:
 minted R1-1
 
-$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
+$ regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
 exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
@@ -21,7 +21,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} regrade [flags]
+  feov-record regrade [flags]
 
 Flags:
       --complexity grade   what fixing it costs, on the same scale
@@ -38,12 +38,12 @@ Global Flags:
       --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
-$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
+$ regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0
 stdout:
 regraded R1-1
 
-$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --impact low --reason second movement, same id
+$ regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --impact low --reason second movement, same id
 exit 0
 stdout:
 regraded R1-1
@@ -54,110 +54,3 @@ regraded R1-1
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"a","check_kind":"document","class":"scope-creep","class_new":false,"complexity_cost":"high","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"graded high at mint","severity":"high","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:regrade:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","likelihood":"low","reason":"blue narrowed the scope; consequence shrank","severity":"medium"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"regrade"}
 {"key":"red-merge-r1:regrade:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","impact":"low","reason":"second movement, same id"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"regrade"}
-
-═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
-either did not happen or was not written down, and a report with no roads-not-taken is
-indistinguishable from one that never looked._
-
-
-═══ REPORT ═══
-# _(blue/report.md has no title — not authored here)_
-
-**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
-
-## Read this first
-
-1 open gap(s) remain, most severe first — full statements in **Red team findings** below.
-
-1. **[medium]** graded high at mint (R1-1) — 
-
-## TL;DR
-
-_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
-
-## The Catechism
-
-_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
-
-## Technical foundations
-
-_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
-
-## Analysis
-
-_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
-
-## Risk matrix
-
-| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
-|---|---|---|---|---|
-| graded high at mint | low | high | high | — |
-
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
-
-## Research areas
-
-_(none on the record)_
-
-## Future research directions
-
-_(none on the record)_
-
-## Alternatives considered
-
-_(none on the record)_
-
-## Open questions
-
-_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
-
-## Blue team report (sections not composed above)
-
-## S2
-
-A claim sits under S2.
-
-## S4
-
-A claim sits under S4.
-
-## Red team findings (in full)
-
-### Open gaps (1)
-
-### R1-1 — graded high at mint
-
-severity medium | low x high | cx high | class scope-creep · regraded x1
-  - severity → medium, likelihood → low — blue narrowed the scope; consequence shrank
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: a
-
-### Closure index (0)
-
-_(nothing closed)_
-
-## The debate
-
-_(no debate on the record)_
-
-## Record verification
-
-Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
-
-- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
-- **ok** — `found-by-resolves` — every found_by credit names a real finding
-- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
-- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
-- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **ok** — `register-before-append` — every seat registered before it wrote
-- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
-
-**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

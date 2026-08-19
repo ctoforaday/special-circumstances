@@ -42,7 +42,12 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	root.SetOut(&out)
 	root.SetErr(&out)
 	root.SetArgs(args)
-	err = ExecuteRoot(root)
+	// THE HARNESS REPRODUCES THE BINARY, and this pre-check is part of it: Execute runs
+	// refuseUnknownCommandFirst before cobra parses anything, so a command named by a caller with
+	// no identity is answered about the identity rather than about its flags.
+	if err = refuseUnknownCommandFirst(root, append([]string{"feov-record"}, args...), seatenv.SeatIDIn(args)); err == nil {
+		err = ExecuteRoot(root)
+	}
 	// THE HARNESS REPRODUCES THE BINARY. A flag-PARSE refusal never reaches seat.Emit, so
 	// Execute() renders it as a --json envelope itself; a harness that skipped that step would
 	// measure a wire shape the binary does not produce.
@@ -147,22 +152,25 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		wantErr string
 	}{
 		{"lens finding without --run", []string{"finding", "--seat-id", "red-lens-r1-L1"}, "lens: --run <runDir> is required"},
-		{"lens finding without --seat-id", []string{"finding", "--run", "X"}, "lens: --seat-id is required"},
+		// WITHOUT AN IDENTITY THERE IS NO TREE, so the refusal is about the identity rather
+		// than about the verb. That is the contract now: the surface is scoped to whoever is
+		// asking, and nothing can be shown — or refused — until that is answered.
+		{"a verb with no identity at all", []string{"finding", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
 		// EACH CASE CARRIES THE VERB'S OTHER REQUIRED FLAGS. Cobra refuses a missing required
 		// flag at PARSE, before Begin reaches the run and seat-id checks, so a case that omits
 		// them measures whichever refusal fires first rather than the one it is named for.
 		{"merge mint without --run", []string{"mint", "--seat-id", "red-merge-r1",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--likelihood", "medium",
 			"--class", "x", "--problem", "p"}, "merge: --run <runDir> is required"},
-		{"merge mint without --seat-id", []string{"mint", "--run", "X",
+		{"mint with no identity at all", []string{"mint", "--run", "X",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--likelihood", "medium",
-			"--class", "x", "--problem", "p"}, "merge: --seat-id is required"},
+			"--class", "x", "--problem", "p"}, "--seat-id IS REQUIRED HERE"},
 		{"blue revision without --run", []string{"revision", "--seat-id", "blue-lane-1",
 			"--reason", "what changed this round"}, "blue: --run <runDir> is required"},
-		{"bench opinion without --seat-id", []string{"opinion", "--run", "X",
+		{"opinion with no identity at all", []string{"opinion", "--run", "X",
 			"--id", "R1-1", "--as", "carried", "--principle", "p", "--tension", "t",
-			"--review-flag", "no", "--reason", "r"}, "bench: --seat-id is required"},
-		{"register is not exempt", []string{"register", "--run", "X"}, "lens: --seat-id is required"},
+			"--review-flag", "no", "--reason", "r"}, "--seat-id IS REQUIRED HERE"},
+		{"register is not exempt", []string{"register", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -196,9 +204,11 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 	}
 }
 
-// The verb set is the role boundary, and seat identity is bound to its
-// namespace: a lens seat may not write through the merge role even though the
-// merge role has the verb.
+// The verb set is the role boundary — and it is now the WHOLE of it. A lens seat may not write a
+// board gap, and the reason is no longer that a runtime check compared its seat id against the
+// role in the path: the verb is not in its tree. The claim this test holds is unchanged and the
+// mechanism under it got simpler, so the refusal names the seat that does hold `mint` rather than
+// the role the caller failed to be.
 func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	runDir := t.TempDir()
 	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-lens-r1-L1",
@@ -206,8 +216,8 @@ func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	if err == nil {
 		t.Fatal("a LENS seat minted a board gap through the merge role")
 	}
-	if !strings.Contains(err.Error(), "belongs to the lens role") {
-		t.Errorf("the refusal must name the seat's real role: %v", err)
+	if !strings.Contains(err.Error(), "the merge seat's verb") {
+		t.Errorf("the refusal must name the seat that holds the verb: %v", err)
 	}
 	// And nothing was written under the crossing.
 	if len(events(t, runDir)) != 0 {
@@ -244,7 +254,7 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 			if err == nil {
 				t.Fatalf("%s ran the %s verb", tc.role, tc.verb)
 			}
-			if !strings.Contains(err.Error(), fmt.Sprintf("no command named %q exists", tc.verb)) {
+			if !strings.Contains(err.Error(), fmt.Sprintf("%q is not on your surface", tc.verb)) {
 				t.Errorf("error = %q, want it to say the verb is not on this seat's surface", err)
 			}
 			// THE LIST MOVED FROM THE ERROR TO THE HELP, and that is the fix rather than a
@@ -265,15 +275,25 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 
 // A role invoked with no verb is a usage error, not a no-op: silently succeeding
 // would let a mis-scripted seat believe it recorded something.
-func TestARoleWithNoVerbIsAnError(t *testing.T) {
+// A SEAT THAT NAMES NO VERB IS TOLD SO, AND SHOWN ITS SURFACE.
+//
+// This used to be `<role>` with nothing after it, refused by the role group. There is no role
+// level now, so the same situation is the bare invocation — and the claim is unchanged: naming no
+// verb is an error that answers with what this seat can do, never a silent success.
+func TestASeatWithNoVerbIsAnError(t *testing.T) {
 	for _, role := range []string{"lens", "merge", "blue", "bench"} {
 		t.Run(role, func(t *testing.T) {
-			_, err := run(t, role)
+			out, err := run(t, "--seat-id", record.SampleSeatOf(role))
 			if err == nil {
 				t.Fatalf("%s with no verb succeeded", role)
 			}
-			if !strings.Contains(err.Error(), "a verb is required") {
-				t.Errorf("error = %q", err)
+			if !strings.Contains(err.Error(), "you named no command") {
+				t.Errorf("error = %q, want it to say no command was named", err)
+			}
+			// AND IT TEACHES: the refusal carries this seat's own verbs, which is the whole
+			// point of answering rather than exiting.
+			if text := out + "\n" + err.Error(); !strings.Contains(text, "Available Commands:") {
+				t.Errorf("the refusal showed no surface:\n%s", text)
 			}
 		})
 	}
@@ -284,7 +304,7 @@ func TestARoleWithNoVerbIsAnError(t *testing.T) {
 func TestRoleHelpCarriesTheFrictionFooter(t *testing.T) {
 	for _, role := range []string{"lens", "merge", "blue", "bench"} {
 		t.Run(role, func(t *testing.T) {
-			out := help(t, role, "--help")
+			out := help(t, "--help", "--seat-id", record.SampleSeatOf(role))
 			if !strings.Contains(out, "it does not exist for you") {
 				t.Errorf("%s help lacks the friction footer:\n%s", role, out)
 			}
@@ -298,14 +318,16 @@ func TestRoleHelpCarriesTheFrictionFooter(t *testing.T) {
 // The board verbs exist in the merge role and NOWHERE else. This is the claim
 // the whole engine rests on, so it is asserted over the actual command trees.
 func TestBoardVerbsExistOnlyInTheMergeRole(t *testing.T) {
-	root := newRoot()
+	// ASKED OF FOUR TREES, not of four groups in one. The claim is unchanged and is stronger for
+	// it: a board verb is absent from a lens's SURFACE, not merely absent from a namespace the
+	// lens could still address by typing it.
 	verbs := map[string]map[string]bool{}
-	for _, roleCmd := range root.Commands() {
+	for role, r := range AllRoots() {
 		set := map[string]bool{}
-		for _, v := range roleCmd.Commands() {
+		for _, v := range r.Commands() {
 			set[v.Name()] = true
 		}
-		verbs[roleCmd.Name()] = set
+		verbs[role] = set
 	}
 	for _, board := range []string{"mint", "close", "regrade"} {
 		if !verbs["merge"][board] {
@@ -980,7 +1002,7 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 	for _, tc := range cases {
 		t.Run("friction/"+tc.role, func(t *testing.T) {
 			runDir := t.TempDir()
-			out, err := run(t, tc.role, "friction", "--run", runDir, "--seat-id", tc.seatID,
+			out, err := run(t, "friction", "--run", runDir, "--seat-id", tc.seatID,
 				"--reason", "the capability I needed")
 			if err != nil {
 				t.Fatal(err)

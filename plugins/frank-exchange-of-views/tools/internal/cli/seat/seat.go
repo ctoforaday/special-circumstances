@@ -61,12 +61,28 @@ capability is a finding about the tooling, and that channel is how it gets fixed
 // the seat had to type correctly.
 const RoleKey = "feov.seat-role"
 
-// SetRole stamps the resolved role on the root, where every verb can reach it.
-func SetRole(root *cobra.Command, role string) {
+// SeatKey carries the resolved seat ID beside its role, for refusals that must name the party.
+const SeatKey = "feov.seat-id"
+
+// SetRole stamps the resolved identity on the root, where every verb can reach it.
+//
+// Read from HERE and not from the environment: the tests drive cobra in-process with SetArgs, so
+// os.Args carries nothing, and a refusal that read the env would name an empty seat in exactly the
+// runs that check it names the right one.
+func SetRole(root *cobra.Command, role, seatID string) {
 	if root.Annotations == nil {
 		root.Annotations = map[string]string{}
 	}
 	root.Annotations[RoleKey] = role
+	root.Annotations[SeatKey] = seatID
+}
+
+// DispatchedAs is the seat id this tree was built for.
+func DispatchedAs(c *cobra.Command) string {
+	if c == nil {
+		return ""
+	}
+	return c.Root().Annotations[SeatKey]
 }
 
 // Context is what every verb needs and no verb should re-derive.

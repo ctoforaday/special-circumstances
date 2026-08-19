@@ -284,7 +284,7 @@ func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
 // The help IS the seat's contract (contract_test.go's premise). A flag whose description
 // drifts out of the help teaches nothing, and the seat's only teacher is what it can read.
 func TestBlueEditHelpTeachesTheProvenanceFlag(t *testing.T) {
-	h := help(t, "edit", "--help")
+	h := help(t, "edit", "--help", "--seat-id", "blue-respond-r1")
 	if !strings.Contains(h, "--answers ") {
 		t.Fatalf("blue edit --help never names --answers, so the join key is undiscoverable:\n%s", h)
 	}
