@@ -171,7 +171,7 @@ func Of(cmd *cobra.Command) Context {
 	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	round := -1
-	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(runDir), record.RoundOf); rerr == nil {
+	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(runDir), record.RoundIn(runDir)); rerr == nil {
 		seatID, round = id.ID, id.Round
 	}
 	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd)}
@@ -436,7 +436,7 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
 	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
 	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
-	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).RunDir), record.RoundOf); err != nil {
+	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).RunDir), record.RoundIn(Of(cmd).RunDir)); err != nil {
 		return Of(cmd), err
 	}
 	s := Of(cmd)

@@ -51,7 +51,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 			// seat from that binding rather than from a flag. So the handle is set BEFORE the
 			// register that writes it — afterwards there would be nothing to bind.
 			t.Setenv(seatenv.AgentVar, "agent_bench")
-			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundOf("judge-r1")}); err != nil {
+			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundIn(runDir)("judge-r1")}); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv(seatenv.Var, runDir)
@@ -99,16 +99,16 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	// does — two seats are two agents.
 	t.Setenv(seatenv.AgentVar, "agent_merge")
 	for _, s := range []string{"red-merge-r1"} {
-		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundOf(s)}); err != nil {
+		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundIn(runDir)(s)}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// A PASS on the record makes VERIFIED derivable, with a stated basis.
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "verdict", record.NewPayload().Set("verdict", "PASS")); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundIn(runDir)("red-merge-r1")}, "verdict", record.NewPayload().Set("verdict", "PASS")); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(seatenv.AgentVar, "agent_bench")
-	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundOf("judge-r1")}); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundIn(runDir)("judge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	c := testRoot()
