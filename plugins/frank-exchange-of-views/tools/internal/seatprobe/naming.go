@@ -98,14 +98,30 @@ func ParseNaming(s string) (Naming, error) {
 //
 // THE SECOND UNCONTROLLED DIFFERENCE. skills/research-protocol/scripts/debate.js tells every seat
 // to walk the help in three steps before the act that needs them, every sitting, and to treat a
-// name it did not read there as a guess. The probe's acting prompt says nothing of the kind. So the
+// name it did not read there as a guess. The probe's acting prompt says nothing of the kind.
+//
+// AND THIS TEXT MUST BE THAT WALK, not a paraphrase of it. It briefly said "run --help, then each
+// verb's own --help" — dropping the GROUP rung, which is the one that reveals a subgroup's
+// children. SEEN(leaf) counts those children, so the arm meant to MODEL production would have
+// under-reported exposure against the very configuration that ships, and the shortfall would have
+// read as a property of the surface rather than of the prompt measuring it. So the
 // configuration that was measured exists in no real run, and the configuration that ships has never
 // been probed. Making the directive a flag rather than folding it into the arms keeps the two
 // questions separable: does NAMING carry the surface, and does the DIRECTIVE carry it.
 const HelpDirective = `
-BEFORE YOUR FIRST ACT, run the record tool with --help and read the whole list — the tree is scoped
-to your seat, so what comes back IS your surface — then each verb's own --help before you use it. What is listed you may do; what is not listed does not
-exist for you. A name you did not read in the help this sitting is a guess.
+THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for
+when you are stuck, and not once per run. Three steps, every sitting, before the act that needs
+them:
+
+  1. the record tool with --help — every verb your seat can run, each with what it is for. The tree
+     is scoped to your seat, so what comes back IS your surface.
+  2. the record tool <group> --help — where a verb sits under a group, what is in that group. Do
+     this BEFORE using any command in a group you have not yet opened.
+  3. the record tool <group> <command> --help — the flags, which are required, and what each value
+     may be. Do this BEFORE running the command.
+
+What is listed you may do; what is not listed does not exist for you. A name you did not read in
+the help this sitting is a guess.
 `
 
 // generatedHeading opens the complete arm's block. It is matched on to keep the arms composable
