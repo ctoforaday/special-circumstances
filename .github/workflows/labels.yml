@@ -1,0 +1,67 @@
+---
+# Every open issue carries exactly one `area:` and one `priority:`. This is what notices
+# when one does not.
+#
+# IT CANNOT BLOCK, AND THAT IS NOT A DEFECT IN THE IMPLEMENTATION — it is the shape of the
+# thing. An issue has no merge gate, so there is no state an unlabelled one is prevented from
+# reaching. `rulesweep` refuses a commit; this can only mark. Saying so plainly here because
+# a gate that reads like a gate and only nags is worse than one that says which it is.
+#
+# THE MARKER IS THE OUTPUT, NOT A COMMENT. `state:unlabelled` is queryable, idempotent, and
+# silent — a bot comment per unlabelled issue would be noise, and noise is how a real signal
+# gets filtered. The board itself carries the miss.
+#
+# THE VOCABULARY IS NOT COPIED HERE. This checks for the PRESENCE of one `area:*` and one
+# `priority:*`, never which values are legal — GitHub's label set is already the record of
+# what exists, and a second list in this file would be a copy that drifts from it. Adding an
+# area value needs no edit here. The cost is accepted and stated: a typo'd label satisfies the
+# check, and the thing that stops that is that creating a label is a deliberate act.
+name: labels
+
+on:
+  issues:
+    types: [opened, reopened, labeled, unlabeled]
+
+permissions:
+  issues: write
+
+jobs:
+  require-area-and-priority:
+    runs-on: ubuntu-latest
+    # The job re-labels, which fires `labeled`/`unlabeled`, which re-runs the job. Skipping
+    # the events this job itself causes is what stops that being a loop.
+    if: github.event.label.name != 'state:unlabelled'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const MARKER = 'state:unlabelled';
+            const issue = context.payload.issue;
+            const names = (issue.labels || []).map(l => l.name);
+            const area = names.filter(n => n.startsWith('area:'));
+            const prio = names.filter(n => n.startsWith('priority:'));
+
+            const problems = [];
+            if (area.length !== 1) problems.push(`area: ${area.length} (want exactly 1)`);
+            if (prio.length !== 1) problems.push(`priority: ${prio.length} (want exactly 1)`);
+
+            const marked = names.includes(MARKER);
+            const common = { ...context.repo, issue_number: issue.number };
+
+            if (problems.length === 0) {
+              if (marked) {
+                await github.rest.issues.removeLabel({ ...common, name: MARKER });
+                core.info(`#${issue.number} is labelled; ${MARKER} removed`);
+              } else {
+                core.info(`#${issue.number} is labelled`);
+              }
+              return;
+            }
+
+            if (!marked) {
+              await github.rest.issues.addLabel({ ...common, labels: [MARKER] });
+            }
+            // A NOTICE, NOT A FAILURE. Failing the job would paint a red X on an issue that
+            // is merely untriaged, training everyone to ignore the signal — and it would
+            // block nothing, because an issue has nothing to block. See docs/issue-labels.md.
+            core.notice(`#${issue.number} — ${problems.join('; ')}. Marked ${MARKER}.`);
