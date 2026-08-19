@@ -197,8 +197,12 @@ func isSeatRole(s string) bool {
 // seatHolding answers which seat can run this verb, by looking for it. It replaces reading the
 // role out of a command PATH, which stopped being possible when the role left the path.
 func seatHolding(verb string) string {
-	for role, r := range AllRoots() {
-		for _, c := range r.Commands() {
+	// SEATS FIRST, AND IN A FIXED ORDER. `verify` is a lens verb AND the operator's whole-record
+	// cross-check, and `fetch`/`count-claims` sit in both too — so ranging a map returned whichever
+	// tree came up first and the answer changed between runs. This asks about SEAT verbs, so the
+	// operator's tree is not a candidate at all.
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		for _, c := range NewRootFor(record.SampleSeatOf(role)).Commands() {
 			if c.Name() == verb {
 				return seatFor(role)
 			}

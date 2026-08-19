@@ -209,12 +209,22 @@ type Event struct {
 	// IT IS STILL DERIVED: `roleOfSeat(seatID)` prefix-matches the seat id at the write. One
 	// derivation instead of four is the whole gain; it does not make the value a fact.
 	//
-	// seat.Context.Role IS NOT THE SUBSTITUTE, and reaching for it would be a regression. It
-	// answers which command GROUP a verb is mounted under, not which party is writing — see
-	// isRoleName in cli/seat, which says so deliberately. `motion grade file` run by
-	// `blue-respond-r1` is party `blue` and command-group `grade`; threading the context's Role
-	// would relabel every motion event's author. What would make this a fact is the dispatcher
-	// injecting the party the way it will inject the round (#290), and nothing does yet.
+	// seat.Context.Role USED TO BE THE WRONG SOURCE, and the reason it was is gone. It answered
+	// which command GROUP a verb was mounted under, not which party was writing: `motion grade
+	// file` run by `blue-respond-r1` was party `blue` and command-group `grade`, so threading it
+	// would have relabelled every motion event's author. That was true while the tree had a role
+	// level and a seat typed it.
+	//
+	// The tree is scoped to the dispatched identity now, so seat.Context.Role is READ OUT OF the
+	// seat id — the same derivation this field does, one layer up. It is no longer a different
+	// fact wearing the same name, and the old warning would send a reader away from a value that
+	// now agrees by construction. The two are kept separate anyway, for the reason at the top:
+	// this one is stamped ONCE at the write, so a later change to how the party is derived cannot
+	// silently re-label events already on the record.
+	//
+	// What would still make it a FACT rather than a derivation is the dispatcher injecting the
+	// party alongside the seat (#290). FEOV_SEAT injects the seat; the party is still inferred
+	// from its prefix.
 	Role    string   `json:"role,omitempty"`
 	Type    string   `json:"type"`
 	Key     string   `json:"key"`

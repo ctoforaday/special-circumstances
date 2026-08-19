@@ -212,8 +212,7 @@ func Show() *cobra.Command {
 	}
 	// An unknown projection gets the SURFACE, not a parse error. Cobra's default answers
 	// `unknown command "x" for "feov-record blue show"` and stops — at the one moment a seat is
-	// definitively looking for what exists, which is the same argument that made the root and
-	// the role groups teach.
+	// definitively looking for what exists, which is the same argument that makes the root teach.
 	c.Args = cobra.ArbitraryArgs
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {

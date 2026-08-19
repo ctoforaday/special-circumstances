@@ -38,7 +38,7 @@ package record
 // affordance that produces it never fires (see citedClaimsWithoutVerify): a dead path holding a
 // wrong instruction, each hiding the other.
 //
-// A duty is STATE — this is owed, and here is why. `<role> <verb> --help` is where the flags,
+// A duty is STATE — this is owed, and here is why. `<verb> --help` is where the flags,
 // their enums and their required-ness live, generated from the command that enforces them, so it
 // cannot disagree with the write path. Naming the verb inside `what` is a pointer; naming its
 // flags here would be the same second copy under a shorter name.
@@ -178,18 +178,6 @@ func (s SittingJSON) Blocked() bool {
 	}
 	return false
 }
-
-// seatVerb renders an invocation a seat can actually TYPE: `<role> <verb> …`.
-//
-// A duty's `how` is the one place the tool says what to do about the thing it has just reported,
-// and every one of them handed back a command that exits 2. Measured by running them verbatim
-// against a real board: `friction --reason "x"` exits 2, `revision --reason "y"` exits 2. The
-// root teaches where the verb lives, so a seat recovers — at the cost of a turn, on the surface
-// that exists to spend no turns at all.
-//
-// `motion …` is deliberately NOT wrapped: the motion group sits at the root, filed by any seat
-// and ruled by one, so a role in front of it would be the same defect pointing the other way.
-func seatVerb(role, invocation string) string { return role + " " + invocation }
 
 // seatDid reports whether this seat recorded an event of this type in this run.
 func seatDid(b *Board, seatID, typ string) bool {

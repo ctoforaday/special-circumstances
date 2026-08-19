@@ -137,17 +137,6 @@ func roleOf(cmd *cobra.Command) string {
 	return cmd.Root().Annotations[RoleKey]
 }
 
-// isRoleName is the party set as the tree mounts it. It is stated here rather than imported
-// because internal/record derives roles from SEAT IDS, which is a different question with a
-// different answer, and reaching for that one would bind two vocabularies that only look alike.
-func isRoleName(s string) bool {
-	switch s {
-	case "lens", "merge", "blue", "bench":
-		return true
-	}
-	return false
-}
-
 // InferRunDir answers "which run am I in?" from the live-run marker instead of
 // requiring every call to say so.
 //
@@ -407,7 +396,16 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if s.SeatID == "" {
 		return s, feov.Errorf(feov.MissingField, "--seat-id is required (the engine assigns it; it is in your prompt)")
 	}
-	if err := record.CheckSeatRole(s.Role, s.SeatID); err != nil {
+	// THE ROLE CHECK IS GONE BECAUSE THERE IS NOTHING LEFT TO RECONCILE. It compared the role in
+	// the command PATH against the seat id, which was a real guard while a seat typed both: two
+	// copies of one fact, and a seat could type them to disagree. The tree is built FROM the seat
+	// id now, so s.Role is READ OUT OF that id — the check could only ever compare a value with
+	// itself and pass. Keeping it would be the reconciliation of a fork that no longer exists.
+	//
+	// The half that still means something is that the seat is one the engine created, and it is
+	// enforced where it can be: NewRootFor gives an unrecognised id no tree at all, so a verb
+	// cannot be reached under an invented identity.
+	if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
 		return s, err
 	}
 	if err := CheckFlagReferences(cmd, s.RunDir); err != nil {
