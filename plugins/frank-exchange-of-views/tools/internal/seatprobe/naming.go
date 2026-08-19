@@ -97,14 +97,14 @@ func ParseNaming(s string) (Naming, error) {
 // HelpDirective is the instruction production carries and the probe never did.
 //
 // THE SECOND UNCONTROLLED DIFFERENCE. skills/research-protocol/scripts/debate.js tells every seat
-// "YOUR CONTRACT IS `feov-record <role> --help` and each verb's own --help … READ THAT LIST BEFORE
-// YOUR FIRST ACT, EVERY SITTING". The probe's acting prompt says nothing of the kind. So the
+// to walk the help in three steps before the act that needs them, every sitting, and to treat a
+// name it did not read there as a guess. The probe's acting prompt says nothing of the kind. So the
 // configuration that was measured exists in no real run, and the configuration that ships has never
 // been probed. Making the directive a flag rather than folding it into the arms keeps the two
 // questions separable: does NAMING carry the surface, and does the DIRECTIVE carry it.
 const HelpDirective = `
-BEFORE YOUR FIRST ACT, run the record tool with --help for your role and read the whole list, then
-each verb's own --help before you use it. What is listed you may do; what is not listed does not
+BEFORE YOUR FIRST ACT, run the record tool with --help and read the whole list — the tree is scoped
+to your seat, so what comes back IS your surface — then each verb's own --help before you use it. What is listed you may do; what is not listed does not
 exist for you. A name you did not read in the help this sitting is a guess.
 `
 
