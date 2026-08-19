@@ -1,6 +1,6 @@
 # Seat command triggers — the one-way contract
 
-> **Purpose.** Every seat learns its verbs from `feov-record <role> --help` (the help *is* the
+> **Purpose.** Every seat learns its verbs from `feov-record --help` (the help *is* the
 > instruction — the seats read it, debate.js tells them to "discover"). For that to make a seat
 > RELIABLE, each situation it can be in must map to **exactly one** command. Where two channels
 > reach the same act — a verb *and* an envelope field, a hand-written file, or a debate.js prose
@@ -25,6 +25,12 @@ verb) is the default — it is the auditable single source; envelopes, files, an
 `CLEAN` = unique trigger, no competing channel. `COLLAPSE` = an ambiguous trigger to resolve (the
 canonical channel named). `DECIDE` = a genuine fork needing a human call before collapse.
 
+**The first cell is a JOIN KEY, not an invocation.** `lens finding` is how `CommandPaths()` names
+that command so a row can be matched to it; it is not what a seat types. The tree is scoped to the
+injected seat identity, so a lens types `finding` and the role never appears in the path. Reading
+these cells as commands is how the role prefix got back into the prompts — see
+`TestNoRenderedPromptNamesACommand`.
+
 ## Every seat (`register` · `friction` · `show`)
 
 Three acts every role carries, listed once. The full command path is in the first cell of every row
@@ -37,7 +43,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `lens friction` `merge friction` `blue friction` `bench friction` | a capability gap, or the explicit `--none` that says nothing blocked you | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record friction`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
 | `lens show` `merge show` `blue show` `bench show` | read a projection | — | CLEAN (read path). The projections are their own vocabulary with their own gate — see `TestEveryViewNamesTheVerbThatFillsIt` — so the `show <view>` subtree is not enumerated here |
 
-## Lens (`feov-record lens`)
+## Lens
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
@@ -48,7 +54,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | ~~`lens observe`~~ | RETIRED (#327) — a below-bar note | — | EXECUTED: the above/below-bar line is one judgement the lens makes on everything it notices, and `finding` plus a grade expresses it |
 | ~~`lens cite`~~ | RENAMED to `verify` (#341) | — | EXECUTED. It shared the `cite` event type with blue's authoring act, told apart by the ABSENCE of a label, so a blue cite written without one counted as red's audit volume |
 
-## Merge (`feov-record merge`)
+## Merge
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
@@ -64,7 +70,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `merge verdict` | the terminal PASS/FAIL act | — | CLEAN. Refused while a gap is open or a motion is unruled — the gate is enforced at the tool, not trusted to the seat |
 | ~~`merge dispute-respond`~~ | COLLAPSED into `motion grade rule` (#344) | — | EXECUTED |
 
-## Blue (`feov-record blue`)
+## Blue
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
@@ -83,7 +89,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | ~~`blue dispute`~~ | COLLAPSED into `motion grade file` (#344) | — | EXECUTED |
 | `tldr` / `open_questions` (envelope) | — | authored into the report AND round-tripped in the envelope | CLEAN — executed: the envelope declares neither |
 
-## Bench (`feov-record bench`)
+## Bench
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|

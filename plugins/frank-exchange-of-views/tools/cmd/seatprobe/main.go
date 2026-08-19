@@ -428,14 +428,22 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	}
 	cmd := exec.Command("claude", args...)
 	cmd.Dir = runDir
-	// THE IDENTITY IS INJECTED, BECAUSE THAT IS WHAT PRODUCTION DOES. The PreToolUse hook
-	// prefixes a seat's feov-record calls with FEOV_RUN, and #348 extended the same treatment to
-	// identity — ResolveSeat prefers the injected seat over --seat-id and REFUSES a flag that
-	// disagrees, because "omitting --seat-id is correct and always right".
+	// THE RUN IS INJECTED BECAUSE PRODUCTION INJECTS IT. The PreToolUse hook prefixes a seat's
+	// feov-record calls with FEOV_RUN (#281), and the probe does not load the plugin's hooks —
+	// so without this it told seats to type an absolute path on every call: a HARDER surface
+	// than any real run presents, and every mistyped path it measured was friction production
+	// had already designed away.
 	//
-	// The probe does not load the plugin's hooks, so without this it was telling seats to type
-	// both on every call: a HARDER surface than any real run presents, and every mistyped path
-	// or seat id it measured was friction production had already designed away.
+	// THE SEAT IS INJECTED AND PRODUCTION DOES NOT DO THAT, so this arm of the instrument is
+	// EASIER than the run it models, and knowing which way it leans is the point of saying so.
+	// #348 designed ResolveSeat to prefer an injected seat over --seat-id; the hook half was
+	// never built (internal/seatenv/identity.go: "these constants have readers and no writer"),
+	// so a production seat reads its id off the dispatch prompt and types --seat-id. Since the
+	// tree is now SCOPED by that id, a seat that fumbles it gets an empty surface rather than a
+	// refused write — which makes this the gap most worth closing before the next probe is
+	// treated as a measurement of production. Leaving it injected here keeps THIS instrument
+	// comparable with the runs already recorded against it; changing it silently would rebase
+	// every prior number.
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
 		seatenv.SeatVar+"="+b.Seat,

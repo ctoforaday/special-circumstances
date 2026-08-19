@@ -1,19 +1,19 @@
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind document --check refetch --severity high --likelihood high --impact high --complexity medium --problem source moved
+$ mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind document --check refetch --severity high --likelihood high --impact high --complexity medium --problem source moved
 exit 0
 stdout:
 minted R1-1
 
-$ merge close --run {RUN} --seat-id red-merge-r1 --id R1-1
+$ close --run {RUN} --seat-id red-merge-r1 --id R1-1
 exit 2
 stderr:
 feov-record: required flag(s) "verified-by" not set
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
+close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -21,7 +21,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} close [flags]
+  feov-record close [flags]
 
 Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
@@ -45,15 +45,15 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
-$ merge close --run {RUN} --seat-id red-merge-r1 --id R9-9 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-merge-r1 --id R9-9 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
+close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -61,7 +61,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} close [flags]
+  feov-record close [flags]
 
 Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
@@ -85,15 +85,15 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
-$ merge close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
+close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -101,7 +101,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} close [flags]
+  feov-record close [flags]
 
 Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
@@ -125,10 +125,10 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
-$ merge close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
+$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
 exit 0
 stdout:
 closed R1-1 (closed)
@@ -138,108 +138,3 @@ closed R1-1 (closed)
 {"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"refetch","check_kind":"document","class":"citation-drift","class_new":false,"complexity_cost":"medium","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"source moved","severity":"high","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 {"key":"red-merge-r1:close:R1-1","nonce":"NONCE001","payload":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"closed","gap_id":"R1-1","reason":"refetched; the source now resolves and supports the claim"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"close"}
-
-═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
-either did not happen or was not written down, and a report with no roads-not-taken is
-indistinguishable from one that never looked._
-
-
-═══ REPORT ═══
-# _(blue/report.md has no title — not authored here)_
-
-**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
-
-## Read this first
-
-_(no open gaps remain — nothing outstanding to re-examine)_
-
-## TL;DR
-
-_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
-
-## The Catechism
-
-_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
-
-## Technical foundations
-
-_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
-
-## Analysis
-
-_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
-
-## Risk matrix
-
-| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
-|---|---|---|---|---|
-| _(no open gaps)_ |  |  |  |  |
-
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
-
-## Research areas
-
-_(none on the record)_
-
-## Future research directions
-
-_(none on the record)_
-
-## Alternatives considered
-
-_(none on the record)_
-
-## Open questions
-
-_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
-
-## Blue team report (sections not composed above)
-
-## S2
-
-A claim sits under S2.
-
-## S4
-
-A claim sits under S4.
-
-## Red team findings (in full)
-
-### Open gaps (0)
-
-_(none open)_
-
-### Closure index (1)
-
-- R1-1 | closed | source moved | successor -
-
-### Blue's correctness manifest (0)
-
-Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than "we think it was checked".
-
-**1 closed gap(s) carry no manifest row (R1-1).** Those repairs were not audited by the party that made them.
-
-## The debate
-
-_(no debate on the record)_
-
-## Record verification
-
-Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
-
-- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
-- **ok** — `found-by-resolves` — every found_by credit names a real finding
-- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
-- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
-- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **ok** — `register-before-append` — every seat registered before it wrote
-- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
-
-**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

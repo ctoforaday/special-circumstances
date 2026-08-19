@@ -177,7 +177,9 @@ func setFlags(c *cobra.Command, out map[string]string) {
 
 func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 	found := map[string]string{}
-	setFlags(newRoot(), found)
+	for _, r := range AllRoots() {
+		setFlags(r, found)
+	}
 
 	if len(found) == 0 {
 		t.Fatal("walked the command tree and found no set-shaped flag at all — the walk is broken, and a broken walk would pass this test silently forever")
@@ -252,7 +254,9 @@ func boolCount(bs ...bool) int {
 // that looks present and is dead.
 func TestEveryDeclaredSetBelongsToARealFlag(t *testing.T) {
 	found := map[string]string{}
-	setFlags(newRoot(), found)
+	for _, r := range AllRoots() {
+		setFlags(r, found)
+	}
 	for typ, fields := range record.EnumFields {
 		for _, e := range fields {
 			if _, ok := found[typ+" --"+e.Flag]; !ok {
@@ -312,7 +316,9 @@ func TestNoEnumhelpFlagAlsoSpellsItsSetInItsUsage(t *testing.T) {
 			walk(sub)
 		}
 	}
-	walk(newRoot())
+	for _, r := range AllRoots() {
+		walk(r)
+	}
 	if checked == 0 {
 		t.Fatal("no enumhelp-registered flags were examined — the walk found nothing, which is the silent pass this gate exists to avoid")
 	}

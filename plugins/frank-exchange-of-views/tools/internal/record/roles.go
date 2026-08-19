@@ -33,11 +33,20 @@ import (
 // be the bare `judge-petition` for all of them, and replay kept one shard per seat id, so every
 // earlier sitting's rulings were dropped (#394). The prefix match is unaffected — `judge-` is
 // still position 0 — and `judge-petition-red-merge-r1` now reads as round 1 rather than 0.
+// OPERATOR IS A SEAT ID, not the absence of one.
+//
+// The operator surface used to be what you got when NOTHING identified you, which made "no
+// identity" a MODE — and a mode nobody selects is one nobody can be refused from. Setup, capture,
+// dashboard and the hook backends are run by a party; that party now says so, and the tree is
+// chosen the same way for every caller: by the identity, never by its absence.
+const OperatorRole = "operator"
+
 var roleSeats = map[string][]string{
-	"lens":  {"red-lens-"},
-	"merge": {"red-merge-"},
-	"blue":  {"blue-", "frontier"},
-	"bench": {"judge-", "assemble"},
+	OperatorRole: {OperatorRole},
+	"lens":       {"red-lens-"},
+	"merge":      {"red-merge-"},
+	"blue":       {"blue-", "frontier"},
+	"bench":      {"judge-", "assemble"},
 }
 
 // roleOfSeat reports which role a seat id belongs to, for the error message.
@@ -131,4 +140,14 @@ func CheckSeatRole(role, seatID string) error {
 	return feov.Errorf(feov.RoleViolation, "seat %q does not belong to any role namespace (expected one of %s) — "+
 		"the engine assigns the seat id; a hand-invented one records under an identity no dispatch created",
 		seatID, strings.Join(prefixes, ", "))
+}
+
+// SampleSeatOf is a seat id of the given role, for building that role's command tree in the gates
+// and the surface walk. Derived from roleSeats so a new role or a renamed prefix cannot leave a
+// hand-written sample pointing at a namespace that no longer exists.
+func SampleSeatOf(role string) string {
+	if p := roleSeats[role]; len(p) > 0 {
+		return p[0] + "r1"
+	}
+	return ""
 }

@@ -212,8 +212,7 @@ func Show() *cobra.Command {
 	}
 	// An unknown projection gets the SURFACE, not a parse error. Cobra's default answers
 	// `unknown command "x" for "feov-record blue show"` and stops — at the one moment a seat is
-	// definitively looking for what exists, which is the same argument that made the root and
-	// the role groups teach.
+	// definitively looking for what exists, which is the same argument that makes the root teach.
 	c.Args = cobra.ArbitraryArgs
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
@@ -487,55 +486,27 @@ func renderView(cmd *cobra.Command, want string) error {
 	return nil
 }
 
-func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
-	c := &cobra.Command{
-		Use:   role,
-		Short: short,
-		Long:  short + "\n" + MotionFooter + "\n" + FrictionFooter,
-		// ArbitraryArgs with flag parsing off at the ROLE level so an unrecognised
-		// verb reaches RunE instead of failing on a flag the role does not own:
-		// `lens mint --run x` must answer "the lens has no mint verb", not
-		// "unknown flag: --run". Subcommand resolution happens before flag
-		// parsing, so each verb still parses and validates its own flags strictly.
-		Args:               cobra.ArbitraryArgs,
-		DisableFlagParsing: true,
-		SilenceUsage:       true,
-	}
-	names := make([]string, 0, len(verbs)+1)
+// RoleVerbs is the seat's verb set, ready to mount at the ROOT of that seat's tree.
+//
+// It used to build a `<role>` command GROUP and the root mounted all four. The role level is gone:
+// the engine injects FEOV_SEAT, the tool derives the role from it, and the root IS the seat's
+// surface. A merge seat runs `mint`; a lens seat running `mint` gets an unknown command, which is
+// the same boundary the role group drew and is now drawn by the only fact that decides it.
+//
+// The seat therefore no longer types a word the engine already knows. ResolveSeat has always
+// refused a --seat-id that disagrees with the injection — "the engine injects your identity; you
+// do not type it" — while the tree required the role DERIVED from that identity to be typed
+// correctly, with CheckSeatRole reconciling the two copies. There is one copy now.
+func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
+	out := make([]*cobra.Command, 0, len(verbs)+1)
 	for _, v := range verbs {
-		// Applied HERE rather than in each verb: a verb that had to remember to mark its
-		// own required flags is a verb that can forget, and the forgetting is silent —
-		// the help simply looks like everything is optional. Every role passes through
-		// this loop, so every verb is annotated by construction.
+		// Applied HERE rather than in each verb: a verb that had to remember to mark its own
+		// required flags is a verb that can forget, and the forgetting is silent — the help
+		// simply looks like everything is optional.
 		markTree(v)
-		names = append(names, v.Name())
-		c.AddCommand(v)
+		out = append(out, v)
 	}
-	c.AddCommand(Show())
-	names = append(names, "show")
-
-	c.RunE = func(cmd *cobra.Command, args []string) error {
-		for _, a := range args {
-			if a == "--help" || a == "-h" || a == "help" {
-				return cmd.Help()
-			}
-		}
-		// A FLAG IS NOT A VERB. DisableFlagParsing means `blue --run x` arrives here with
-		// "--run" as args[0], and the first draft answered `verb "--run" is outside this seat's
-		// role` — which is false twice over: it is not a verb, and it is not out of role. A seat
-		// told that looks for a permissions problem that does not exist.
-		if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-			return RefuseUnknownVerb(cmd, role, args[0])
-		}
-		if len(args) > 0 {
-			return RefuseAndTeach(cmd, fmt.Sprintf(
-				"%s: %q is a flag, not a verb — you named a role and its flags with no verb between them, so nothing was recorded. A verb is required; pick one below and pass the flags to it.", role, args[0]))
-		}
-		// A role invoked with no verb is a usage error, not a no-op: silently
-		// succeeding would let a mis-scripted seat believe it recorded something.
-		return RequireVerb(cmd, role)
-	}
-	return c
+	return append(out, Show())
 }
 
 func join(names []string) string {

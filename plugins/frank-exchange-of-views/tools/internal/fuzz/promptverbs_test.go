@@ -46,6 +46,24 @@ import (
 // captured and the LONGER path wins where the tree has one (see promptPath).
 var promptVerb = regexp.MustCompile(`(?:feov-record"?|})\s+(lens|merge|blue|bench)\s+([a-z][a-z-]+)(?:\s+([a-z][a-z-]+))?`)
 
+// AND THE BINARY IS NOT ALWAYS IN FRONT OF IT.
+//
+// promptVerb anchors on `feov-record` or the template `}` because it answers "is this verb a seat
+// is being told to TYPE real". The naming gates ask a different question — "does this text hand a
+// seat a slice of the surface" — and there the prefix is often neither: `edit by edit through
+// \`blue edit\“, "an anchor is BORN only from \`lens finding\`/\`blue cite\`", "cite the METHOD
+// with blue cite". SIX such invocations sat in the rendered prompts while the catalogue gate was
+// pinned at ZERO and green, which is this file's own recurring defect: a gate covering less than
+// it claims and reporting the shortfall as a clean board.
+//
+// The boundary can be dropped here and NOT in the forward gate, and the asymmetry is the whole
+// design: the naming gates keep a match only when the TREE has that path, so "blue read the
+// report" and "the merge is refused" cannot survive — the tree is the discriminator. The forward
+// gate treats a NON-match as the finding, so the same shape would report every such phrase as a
+// verb that does not exist.
+var promptRoleVerb = regexp.MustCompile(
+	"(?:^|[^\\w-])(lens|merge|blue|bench)[ `]+([a-z][a-z-]+)(?:[ `]+([a-z][a-z-]+))?")
+
 // promptPath resolves one match to the command path it names, preferring the two-word form when
 // the tree has it. The one-word form is returned otherwise — including when it is a group, which
 // is what the forward gate must report.
@@ -374,7 +392,7 @@ func TestEveryRecordingVerbIsDiscoverableFromHelp(t *testing.T) {
 // have had to be added to both — which is how one of them ends up a matcher behind.
 func namedIn(text string, real map[string]bool, roleless *regexp.Regexp) map[string]bool {
 	named := map[string]bool{}
-	for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
+	for _, m := range promptRoleVerb.FindAllStringSubmatch(text, -1) {
 		if p := promptPath(m, real); real[p] {
 			named[p] = true
 		}

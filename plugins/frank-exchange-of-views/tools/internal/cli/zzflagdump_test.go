@@ -37,5 +37,7 @@ func TestZZFlagDump(t *testing.T) {
 			})
 		}
 	}
-	walk(newRoot(), "")
+	for _, r := range AllRoots() {
+		walk(r, "")
+	}
 }

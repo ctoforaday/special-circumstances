@@ -15,7 +15,7 @@ import (
 func inquirySeat(t *testing.T, runDir string) string {
 	t.Helper()
 	const seat = "blue-respond-r1"
-	if _, err := run(t, "blue", "register", "--run", runDir, "--seat-id", seat); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", seat); err != nil {
 		t.Fatal(err)
 	}
 	return seat
@@ -27,7 +27,7 @@ func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
 
-	out, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	out, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division by hand", "--hypothesis", "if 7 has no divisor in 2..6 it is prime")
 	if err != nil {
 		t.Fatalf("propose: %v", err)
@@ -48,16 +48,16 @@ func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 func TestInquiryStatusMovesAndKeepsItsSubstance(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "blue", "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "abandoned", "--reason", "every implementation agrees at n=7; the hypothesis is dead"); err != nil {
 		t.Fatalf("move: %v", err)
 	}
 
-	out, err := run(t, "blue", "show", "--run", runDir, "--seat-id", seat, "lines-of-inquiry")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,10 +72,10 @@ func TestInquiryStatusMovesAndKeepsItsSubstance(t *testing.T) {
 func TestInquiryMoveRequiresWhatChanged(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "blue", "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", "abandoned")
+	_, err := run(t, "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", "abandoned")
 	if err == nil {
 		t.Fatal("a line of inquiry slid to abandoned with no stated reason")
 	}
@@ -88,7 +88,7 @@ func TestInquiryMoveRequiresWhatChanged(t *testing.T) {
 func TestInquiryMoveRefusesAnUnknownID(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
-	_, err := run(t, "blue", "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat,
+	_, err := run(t, "line-of-inquiry", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q9", "--as", "pursued", "--reason", "why")
 	if err == nil {
 		t.Fatal("a move against a line of inquiry nobody proposed was accepted")
@@ -104,7 +104,7 @@ func TestInquiryMoveRefusesAnUnknownID(t *testing.T) {
 func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--reason", "a line"); err == nil {
 		t.Fatal("`propose --id` was accepted; the two contracts are still reachable through one shape")
 	}
@@ -115,7 +115,7 @@ func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
 func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "lines-of-inquiry")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,10 +139,10 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 func TestRulingRequiresAReason(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", "Q1", "--ruling", "too-thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
@@ -151,7 +151,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 // BLUE HAS NO BOARD VERBS AND RED HAS NO PROPOSAL VERB. The role boundary is the engine.
 func TestRedCannotProposeALineOfInquiry(t *testing.T) {
 	runDir := t.TempDir()
-	if _, err := run(t, "merge", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--reason", "red's own direction"); err == nil {
 		t.Fatal("red proposed a research direction; directing research is what a gap's required_fix does")
 	}
@@ -162,10 +162,10 @@ func TestRedCannotProposeALineOfInquiry(t *testing.T) {
 func TestOpenInquiriesAreSurfacedAsOwingADecision(t *testing.T) {
 	runDir := t.TempDir()
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "still open"); err != nil {
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "still open"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "blue", "show", "--run", runDir, "--seat-id", seat, "lines-of-inquiry")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -96,10 +98,66 @@ func CommandPaths() []string {
 			out = append(out, path)
 		}
 	}
-	walk(newRoot(), "")
+	// EVERY SEAT'S TREE, PLUS THE OPERATOR'S. No single root holds the whole surface any more:
+	// the tree is scoped to the dispatched role, so `newRoot()` with no seat is the operator's.
+	//
+	// The role is re-composed into the key HERE and nowhere a seat can see it. `blue edit` is not
+	// something anyone types — a blue seat types `edit` — but the identity of a command IS
+	// (role, verb), because `closing`, `position`, `friction`, `register` and `show` each exist
+	// under several roles with different contracts. This function's output is a JOIN KEY for the
+	// trigger map and the gates, not an invocation. The motion subtree keeps its bare path: one
+	// motion is one object however many seats' trees it appears in.
+	seen := map[string]bool{}
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		var roleOut []string
+		out = nil
+		walk(NewRootFor(dispatchedSeatFor(role)), "")
+		roleOut, out = out, nil
+		for _, p := range roleOut {
+			key := role + " " + p
+			// ONE COMMAND MOUNTED IN SEVERAL TREES KEEPS ONE KEY. `motion` is one object however
+			// many seats can reach it, and `fetch`/`count-claims` are the operator commands seats
+			// genuinely run — a lens reads blue's cached bytes, blue's claim_count is defined as
+			// what count-claims prints. Keying them per role would turn one contract into four
+			// rows nobody can keep in step.
+			if strings.HasPrefix(p, "motion") || p == "fetch" || p == "count-claims" {
+				key = p
+			}
+			if !seen[key] {
+				seen[key] = true
+			}
+		}
+	}
+	walk(NewRootFor(""), "")
+	for _, p := range out {
+		seen[p] = true
+	}
+	out = out[:0]
+	for k := range seen {
+		out = append(out, k)
+	}
 	sort.Strings(out)
 	return out
 }
+
+// AllRoots is every tree the tool can build: one per seat role, plus the operator's.
+//
+// NO SINGLE ROOT HOLDS THE WHOLE SURFACE any more — the tree is scoped to the dispatched identity
+// — so anything asking a question ABOUT THE SURFACE has to ask it of all of them. A gate that kept
+// walking one root would go on passing while it saw a quarter of the tool, which is the shape this
+// repository keeps paying for.
+func AllRoots() map[string]*cobra.Command {
+	out := map[string]*cobra.Command{}
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		out[role] = NewRootFor(dispatchedSeatFor(role))
+	}
+	out[record.OperatorRole] = NewRootFor(record.OperatorRole)
+	return out
+}
+
+// dispatchedSeatFor is a seat id of the given role, for building that role's tree in the gates and
+// the surface walk. It is derived from the role tables rather than written down here.
+func dispatchedSeatFor(role string) string { return record.SampleSeatOf(role) }
 
 // NewRootForTest builds the real command tree for the gates that must walk it exactly as a seat
 // meets it — the same tree Execute runs, not a reconstruction.

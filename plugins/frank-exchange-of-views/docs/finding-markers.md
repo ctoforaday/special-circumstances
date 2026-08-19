@@ -89,7 +89,7 @@ without red's assent" holds because the marker is immortal and every content cha
 Immortality was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and never delete one); a live
 run showed that is not enough. It is now **enforced at the write**. `blue/report.md` is **read-only to
 every seat except the allowlisted author `agent_type`** (`frank-exchange-of-views:blue-synthesizer`, the
-round-0 synthesis seat). A response seat changes the report ONLY through **`feov-record blue edit --quote
+round-0 synthesis seat). A response seat changes the report ONLY through **`feov-record edit --quote
 <exact current span> --new <replacement> --reason <why> [--answers <gap-id>]`** — an exact-on-stripped span replace (reusing
 `lens.LocateSpan`, the finding-marker matcher) that appends a `blue_edit` event, an append-only
 diff-stack replaying onto the round-0 report.

@@ -19,37 +19,42 @@ import (
 // Eighteen probed sittings recorded no friction at all. That was read as seats declining a duty.
 // A seat that typed the form its own constitution taught got a parse error and no second guess.
 
-func TestRootFrictionTeachesTheSeatItsAddress(t *testing.T) {
-	for _, args := range [][]string{
-		{"friction", "--reason", "the tool has no path for X"},
-		{"friction", "--none", "--reason", "nothing blocked me"},
-		{"friction", "--reason-file", "/tmp/x"},
-		// An EMPTY reason is a seat at the wrong address just as much as a full one, which is
-		// why the check keys on Changed rather than on emptiness.
-		{"friction", "--reason", ""},
-	} {
-		out, err := run(t, append(args, "--run", t.TempDir())...)
-		if err == nil {
-			t.Errorf("%v was accepted by the operator's read", args)
-			continue
-		}
-		if strings.Contains(err.Error(), "unknown flag") {
-			t.Errorf("%v still fails at the parser (%v) — the seat is told which flag is wrong, not where the verb lives", args, err)
-			continue
-		}
-		// The refusal must carry the ADDRESS. "This takes no --reason" alone leaves the seat
-		// exactly as stuck as the parse error did.
-		all := out + err.Error()
-		if !strings.Contains(all, "friction --reason") || !strings.Contains(all, "role") {
-			t.Errorf("%v refused without naming `<role> friction`:\n%v", args, err)
-		}
+// THE TWO FRICTIONS CANNOT BE CONFUSED ANY MORE, because no tree holds both.
+//
+// This was: a seat typed `friction --reason "..."` — the form its own constitution taught — and
+// landed on the OPERATOR's read of the channel, which takes no --reason, so it got a parse error
+// and no second guess. The refusal was taught to name the seat's address instead.
+//
+// The address is gone because the collision is. A seat's tree carries its own friction WRITE and
+// not the operator's READ; the operator's tree carries the read and no seat verbs. The same words
+// reach different commands because the identity already decided which surface they are on, which
+// is the whole point of scoping it.
+func TestTheTwoFrictionsAreOnDifferentSurfaces(t *testing.T) {
+	// The seat's own write verb takes --reason, on the seat's tree.
+	runDir := seatRun(t)
+	if _, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "the tool has no path for X"); err != nil {
+		t.Fatalf("a seat's own friction write was refused: %v", err)
+	}
+	if got := lastOfType(t, runDir, "friction").Payload.Str("reason"); got != "the tool has no path for X" {
+		t.Errorf("reason = %q", got)
+	}
+	// And the operator's READ is not on that tree at all — it is not a verb a seat can reach,
+	// so there is nothing for a seat to land on by accident.
+	lens := NewRootFor("red-lens-r1-L1")
+	c, _, err := lens.Find([]string{"friction"})
+	if err != nil {
+		t.Fatalf("the lens has no friction verb: %v", err)
+	}
+	if c.Flags().Lookup("reason") == nil {
+		t.Error("the friction a lens reaches is not the write verb — the surfaces have crossed")
 	}
 }
 
 // The operator's read is what this command IS. A refusal that also broke it would trade one
 // unreachable channel for another.
 func TestTheOperatorFrictionReadStillWorks(t *testing.T) {
-	out, err := run(t, "friction", "--run", t.TempDir())
+	out, err := run(t, "friction", "--seat-id", "operator", "--run", t.TempDir())
 	if err != nil {
 		t.Fatalf("the operator's friction read failed: %v", err)
 	}

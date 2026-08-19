@@ -154,8 +154,10 @@ type cmd struct {
 
 // do takes the verb as it is TYPED, so a verb under a subgroup is passed as the words a seat
 // would write ("line-of-inquiry propose") rather than needing a second parameter for the group.
-func (r *runner) do(role, verb, seatID string) *cmd {
-	return &cmd{r: r, args: append(append([]string{role}, strings.Fields(verb)...), "--seat-id", seatID)}
+// do builds one invocation. THE ROLE IS GONE FROM THE ARGS: the tree is scoped to the seat, so the
+// seat id is the only thing that says which verbs exist.
+func (r *runner) do(verb, seatID string) *cmd {
+	return &cmd{r: r, args: append(strings.Fields(verb), "--seat-id", seatID)}
 }
 func (c *cmd) set(flag, val string) *cmd { c.args = append(c.args, flag, val); return c }
 func (c *cmd) bare(flag string) *cmd     { c.args = append(c.args, flag); return c }
@@ -172,9 +174,9 @@ func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
 // close-with-regression, and (blue) a grade dispute / (merge) its answer. Unique prose per act
 // so the report oracle can prove each one actually rendered.
 func (r *runner) dialectic(role, seatID string, open []string) {
-	_, _ = r.exec(role, "position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	_, _ = r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
 	for _, id := range open {
-		_, _ = r.exec(role, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
+		_, _ = r.exec("closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
 	}
 	if role == "blue" {
 	}
@@ -183,7 +185,7 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 		dim := pick(r.rng, regradeDims) // move any grade axis, not only likelihood
 		// EVERY AXIS, not three of four. `--complexity` was never passed because disputeDims fed
 		// this and the fourth axis was spelled by its payload key rather than by its flag.
-		_, _ = r.exec("merge", "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
+		_, _ = r.exec("regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
 			"--"+dim, r.g(), "--complexity", r.g())
 	}
 }
@@ -296,7 +298,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		// that told a real judge to record a halt through petition-rule, where the enum refuses
 		// it. The fuzz stayed green over a production path that could not work.
 		haltOpinion := "fuzz judicial halt — safety boundary"
-		_, _ = r.exec("bench", "halt", "--seat-id", seatID, "--reason", haltOpinion)
+		_, _ = r.exec("halt", "--seat-id", seatID, "--reason", haltOpinion)
 		env["halt"] = map[string]any{"opinion": haltOpinion}
 	}
 	return env
@@ -314,7 +316,7 @@ func (r *runner) register(role, seatID string) {
 		return
 	}
 	r.registered[seatID] = true
-	_, _ = r.exec(role, "register", "--seat-id", seatID)
+	_, _ = r.exec("register", "--seat-id", seatID)
 }
 
 var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
@@ -338,7 +340,9 @@ var verifyConfidence = []string{"high", "medium", "low"}
 // a REAL tool-assigned c-<hex>, the same discipline someFinding uses. `lens verify --anchor`
 // refuses an id that names no citation, so a fabricated one would drive only the reject path.
 func (r *runner) someCitation() string {
-	out, err := r.exec("lens", "show", "evidence")
+	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
+	// projection; the lens is the one that acts on citations.
+	out, err := r.exec("show", "evidence", "--seat-id", "red-lens-r1-L1")
 	if err != nil {
 		return ""
 	}
@@ -377,7 +381,7 @@ func (r *runner) mint(seatID string) string {
 		// COMPUTATION check, so the tool's own close guard is in force alongside the scenario.
 		kind = "computation"
 	}
-	args := []string{"--json", "merge", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
+	args := []string{"--json", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
 		"--check", "acc", "--fix", directive, "--likelihood", r.g(), "--impact", r.g(),
 		// --quote is the anchor ESTOPPEL keys on and the sweep never passed it; --key is
 		// mint's crash-retry idempotency
@@ -402,7 +406,7 @@ func (r *runner) mint(seatID string) string {
 	// only ever in company with a mint.
 	if !r.classMade {
 		r.classMade = true
-		_, _ = r.exec("merge", "class", "new", "--seat-id", seatID,
+		_, _ = r.exec("class", "new", "--seat-id", seatID,
 			"--class", "fuzzcls", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
 	}
 	args = append(args, "--class", "fuzzcls")
@@ -463,7 +467,7 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("merge", "show", "findings")
+	out, err := r.exec("show", "findings", "--seat-id", "red-merge-r1")
 	if err != nil {
 		return ""
 	}
@@ -479,7 +483,7 @@ func (r *runner) someFinding() string {
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("merge", "show", "board")
+	out, err := r.exec("show", "board", "--seat-id", "red-merge-r1")
 	if err != nil {
 		return nil
 	}
@@ -509,7 +513,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	if r.computationGaps[id] {
 		name := "fuzz-answer-" + id + ".js"
 		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
-			_, _ = r.exec("blue", "prove", "--seat-id", "blue-respond-r1", "--quote", "§ fuzz",
+			_, _ = r.exec("prove", "--seat-id", "blue-respond-r1", "--quote", "§ fuzz",
 				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
 		}
 	}
@@ -518,7 +522,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
 	if allowReg && r.coin(25) {
 		if succ := r.mint(seatID); succ != "" {
-			if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed_with_regression",
+			if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "closed_with_regression",
 				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 				return
 			}
@@ -533,7 +537,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// coverage line read as a driven verb.
 	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(30) {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried, "--as", "closed",
+		carry := []string{"carry", "--seat-id", seatID, "--id", carried, "--as", "closed",
 			"--reason", "fuzz: carried from the prior round", "--carried-from", "1"}
 		// A carry names where the remainder went as often as a close does; the flag is on both
 		// verbs and was driven on neither once the two split. The successor is MINTED here for
@@ -554,14 +558,14 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
 	// closed clean earlier, so it needs a prior closure to amend.
 	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(20) {
-		if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
+		if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
 			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
 			"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 			return
 		}
 	}
 	as := pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure"})
-	_, _ = r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
+	_, _ = r.exec("close", "--seat-id", seatID, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
 		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec")
 }
 
@@ -655,9 +659,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// nothing blocked it, and it writes a DIFFERENT event type — so a sweep that only ever
 	// drove the complaint arm would leave the attestation path unexercised, which is the
 	// arm the whole change exists to make observable.
-	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
+	r.maybe(50, func() { r.do("friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
 	r.maybe(30, func() {
-		r.do(role, "friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
+		r.do("friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
 	})
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: a line of inquiry now has an id and a LIFECYCLE. Propose, then sometimes move it — the
@@ -684,7 +688,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// PROPOSE AND MOVE ARE TWO VERBS. A proposal is born `proposed` — the tool supplies it,
 		// so there is no status to pass — and any other fate is reached by MOVING the line it
 		// proposed, which is the cycle red rules on and the oracle reads.
-		out, err := r.do(role, "line-of-inquiry propose", seatID).set("--reason", line).
+		out, err := r.do("line-of-inquiry propose", seatID).set("--reason", line).
 			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").
 			on(50, "--method", "fuzz-method").run()
 		// A MOVE BACK TO `proposed` IS A REAL STATE — the line is still open and the seat is
@@ -692,7 +696,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the set minus its default.
 		if err == nil {
 			if id := inquiryIDOf(out); id != "" {
-				r.do(role, "line-of-inquiry move", seatID).set("--id", id).set("--as", st).
+				r.do("line-of-inquiry move", seatID).set("--id", id).set("--as", st).
 					set("--reason", "fuzz: what changed this line's fate").run()
 			}
 		}
@@ -727,10 +731,10 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// It now models a seat that discharges the duty honestly: sample when there is something
 		// to sample, and claim emptiness only when the board agrees.
 		if closed := r.closedGapIDs(); len(closed) > 0 {
-			r.do("merge", "spot-check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
+			r.do("spot-check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
 				set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
 		} else {
-			r.do("merge", "spot-check", seatID).bare("--none").
+			r.do("spot-check", seatID).bare("--none").
 				set("--reason", "fuzz: the archive was empty at round start").run()
 		}
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
@@ -746,7 +750,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
 		// left no event and no gate saw it — while the merge prompt calls it every round.
 		r.maybe(40, func() {
-			r.readOnly("merge", "near-match", seatID, "--problem", "fuzz candidate problem text for screening", "--quote", "§ fuzz")
+			r.readOnly("near-match", seatID, "--problem", "fuzz candidate problem text for screening", "--quote", "§ fuzz")
 		})
 	case "blue":
 		r.maybe(45, func() { inquiry("blue") })
@@ -776,7 +780,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if r.coin(50) {
 				url = sourceURL("/" + seatID)
 			}
-			r.do("blue", "cite", seatID).
+			r.do("cite", seatID).
 				set("--quote", "§ fuzz").
 				set("--url", url).
 				set("--title", "fuzz source "+seatID).
@@ -788,7 +792,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
 		// auto-logged as friction. Driving it here proves the reject path never wedges the run.
 		r.maybe(15, func() {
-			r.do("blue", "cite", seatID).
+			r.do("cite", seatID).
 				set("--quote", "§ fuzz").
 				set("--url", "http://127.0.0.1:1/unreachable").
 				set("--title", "unreachable "+seatID).
@@ -825,7 +829,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// Answering a gap is blueRespondTo's job, one decision per gap, from the directive.
 			// What remains is an UNATTRIBUTED edit: blue sharpening its own prose, which is real
 			// and must stay legal (--answers' own help says to omit it when no gap is answered).
-			r.do("blue", "edit", seatID).
+			r.do("edit", seatID).
 				set("--quote", oldSpan).
 				set("--new", newSpan).
 				set("--reason", "fuzz edit: sharper phrasing, answering no gap").
@@ -848,7 +852,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err != nil {
 				return
 			}
-			pv := r.do("blue", "prove", seatID).
+			pv := r.do("prove", seatID).
 				set("--quote", "§ fuzz").
 				set("--script", name).
 				set("--reason", "fuzz: computing rather than arguing").
@@ -860,8 +864,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			pv.run()
 		})
-		r.maybe(35, func() { r.readOnly("blue", "claim-index", seatID) })
-		r.maybe(40, func() { r.do("blue", "revision", seatID).set("--reason", "fuzz revision").run() })
+		r.maybe(35, func() { r.readOnly("claim-index", seatID) })
+		r.maybe(40, func() { r.do("revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
 			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a
 			// string that was never in the report — 45 times a sweep. A phantom retire is not
@@ -872,7 +876,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// A real retirement names text a recorded edit took out, which is what makes the
 			// removal something the record can SHOW rather than something a seat says.
 			if claim := r.recentlyEditedOut(); claim != "" {
-				r.do("blue", "retire", seatID).set("--quote", claim).set("--reason", "fuzz: the claim went with the edit").
+				r.do("retire", seatID).set("--quote", claim).set("--reason", "fuzz: the claim went with the edit").
 					on(50, "--new", "fuzz replacement claim").run()
 			}
 		})
@@ -884,19 +888,19 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// prompt asks for and what the scorecard counts, so the fake discharges it the way a
 		// compliant blue would: every gap it is repairing this round.
 		for _, id := range open {
-			r.do("blue", "manifest-row", seatID).set("--id", id).
+			r.do("manifest-row", seatID).set("--id", id).
 				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").
 				on(50, "--reason", "fuzz: the receipt's argument").run()
 		}
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
 		r.maybe(45, func() {
-			r.do("bench", "certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
+			r.do("certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
 		})
 		// A DECLARATION MOVES NO GAP, which is why it takes no --id and why the coverage walk
 		// would otherwise never reach it: every other bench act names something.
 		r.maybe(35, func() {
-			r.do("bench", "declare", seatID).
+			r.do("declare", seatID).
 				set("--reason", "fuzz holding: a term is construed this way for the rest of the run").run()
 		})
 	}
@@ -979,7 +983,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if len(open) == 0 {
 			r.dialectic("merge", seatID, nil)
 			// The merge's TERMINAL act on a PASS: checkpoints the event log to the recovery mirror.
-			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
+			_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "PASS")
 			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 
@@ -995,7 +999,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// The merge's terminal act on a FAIL too: the checkpoint is what protects the event log
 		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
 		// `FAIL` half of a two-value enum had never been recorded by anything.
-		_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "FAIL")
+		_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
 		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
@@ -1045,7 +1049,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// act — deferring a gap with a stated direction — had never been driven once. The
 			// enum-coverage gate found it the moment #342 closed the disposition set.
 			if r.scenarioOf(id) != dirDisputeLost {
-				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", "carried",
+				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", "carried",
 					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false",
 					"--reason", "fuzz: carried with a stated direction for "+id)
 			}
@@ -1054,7 +1058,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// closure vocabulary now, and the sweep must reach all of it — bench opinion
 				// had driven exactly one closing word.
 				disp = pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure", "amends_prior"})
-				_, _ = r.exec("bench", "opinion", "--seat-id", seatID, "--id", id, "--as", disp,
+				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", disp,
 					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "reason": "fuzz"})
@@ -1080,7 +1084,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// --reason is REQUIRED on outcome (#375): it is the run's terminal act, and every claim
 		// or judgment act on this record carries its reasoning. Driving it without one leaves
 		// `bench outcome` refused on every seed, which this sweep reports as a false green.
-		oargs := []string{"bench", "outcome", "--seat-id", seatID, "--as", verd,
+		oargs := []string{"outcome", "--seat-id", seatID, "--as", verd,
 			"--reason", "fuzz: the run reached " + verd + " and the bench recorded how it ended"}
 		// the terminal-outcome modifiers — a non-VERIFIED end may be by safety ceiling or deadlock
 		// (not on a halt, whose outcome stands alone).
@@ -1091,7 +1095,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			oargs = append(oargs, "--ended", "deadlock")
 		}
 		_, _ = r.exec(oargs...)
-		_, _ = r.exec("bench", "assemble")
+		_, _ = r.exec("assemble", "--seat-id", "assemble-r1")
 		open := len(r.openGaps())
 		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "friction": arr()}
 
@@ -1137,14 +1141,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						on(60, "--access-date", "2026-07-24")
 				}
 				if anchor := r.someCitation(); anchor != "" && r.coin(70) {
-					axes(r.do("lens", "verify", seatID)).set("--anchor", anchor).run()
+					axes(r.do("verify", seatID)).set("--anchor", anchor).run()
 				} else {
-					axes(r.do("lens", "corroborate", seatID)).
+					axes(r.do("corroborate", seatID)).
 						set("--url", "https://fuzz.invalid/"+seatID).
 						set("--title", "fuzz source for "+seatID).run()
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
-				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
+				_, _ = r.exec("finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--quote", "§ fuzz", "--reason", "fuzz finding")
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
@@ -1340,7 +1344,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	// Oracle 1: the record the run left must pass verify.
-	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
+	if out, err := tracked(bin, "verify", "--seat-id", "operator", "--run", runDir); err != nil {
 		res.err = "verify FAILED:\n" + truncate(string(out))
 		return res
 	}
@@ -1353,9 +1357,12 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// own command path — and the coverage gate immediately reported 34 paths never invoked,
 	// because the sweep had only ever driven the handful it asserted on. A view that only the
 	// merge reads is a view nobody checks from the seat that actually reads it.
-	for _, role := range []string{"blue", "lens", "merge", "bench"} {
+	// EVERY SEAT READS EVERY PROJECTION, and the seat id is what says which tree `show` is in.
+	for role, sid := range map[string]string{
+		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
+	} {
 		for _, v := range viewNamesForFuzz {
-			args := []string{role, "show", v, "--run", runDir}
+			args := []string{"show", v, "--run", runDir, "--seat-id", sid}
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
 			}
@@ -1364,7 +1371,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 				return res
 			}
 		}
-		if _, err := tracked(bin, role, "show", "--run", runDir); err != nil {
+		if _, err := tracked(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
 			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
 			return res
 		}
@@ -1380,9 +1387,13 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		// window that worked on the merge and not on blue would mean the projection had grown
 		// a per-role surface — and --window 0 is the degenerate size that must still resolve to
 		// the anchored line rather than to nothing.
-		for _, role := range []string{"blue", "lens", "merge", "bench"} {
+		// A SEAT ID PER ROLE, because the tree is scoped to the dispatched identity: without one
+		// the binary builds the OPERATOR surface, where `show` does not exist at all.
+		for _, sid := range map[string]string{
+			"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
+		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
-				args := append([]string{role, "show", "report", "--anchor", a, "--run", runDir}, extra...)
+				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
 				out, err := tracked(bin, args...)
 				if err != nil {
 					res.err = strings.Join(args, " ") + " failed:\n" + truncate(string(out))
@@ -1400,39 +1411,25 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id R9-99`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := tracked(bin, "merge", "show", "report", "--anchor", "f-ffffffff", "--run", runDir); err == nil {
+	if out, err := tracked(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
 	// The OPERATOR's friction read — seats write the channel, the human reads it back.
-	if _, err := tracked(bin, "friction", "--run", runDir); err != nil {
+	if _, err := tracked(bin, "friction", "--run", runDir, "--seat-id", "operator"); err != nil {
 		res.err = "operator friction read failed: " + err.Error()
 		return res
 	}
-	// A SEAT AT THE WRONG ADDRESS IS TOLD WHERE THE VERB LIVES, not which flag is unknown.
-	//
-	// The seat's write is `<role> friction`; the roleless form lands on the read above. It used
-	// to die in cobra's parser — `unknown flag: --reason`, before any message that could teach —
-	// and the channel it could not reach is the one for reporting exactly that. These flags exist
-	// on the read ONLY to be refused, so this is the drive that exercises them.
-	for _, args := range [][]string{
-		{"friction", "--reason", "fuzz: a capability I could not reach"},
-		{"friction", "--none", "--reason", "fuzz: nothing blocked me"},
-	} {
-		out, err := tracked(bin, append(args, "--run", runDir)...)
-		if err == nil {
-			res.err = strings.Join(args, " ") + " was ACCEPTED by the operator's read — a seat's write landed on a projection:\n" + truncate(string(out))
-			return res
-		}
-		if !strings.Contains(string(out), "role") {
-			res.err = strings.Join(args, " ") + " was refused without naming `<role> friction` — the seat is left as stuck as a parse error would leave it:\n" + truncate(string(out))
-			return res
-		}
-	}
+	// THE WRONG-ADDRESS DRIVE IS GONE, because the address collision is. A seat's `friction
+	// --reason` used to land on the OPERATOR's read, which takes no --reason, so it died in the
+	// parser before any message could teach — and the channel it could not reach is the one for
+	// reporting exactly that. The two frictions are on different trees now: a seat's carries its
+	// write verb and not the read, the operator's the read and no seat verbs. There is nothing
+	// left to land on by accident, so there is nothing here to drive.
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
 	for _, v := range []string{"findings"} {
-		out, err := tracked(bin, "merge", "show", v, "--run", runDir)
+		out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -1440,7 +1437,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 	{
-		out, err := tracked(bin, "merge", "show", "debate", "--json", "--run", runDir)
+		out, err := tracked(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -1461,14 +1458,14 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// role gate, so driving only `merge show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := tracked(bin, role, "show", "debate", "--run", runDir); err != nil {
+		if out, err := tracked(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
 			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = tracked(bin, role, "show", "changes", "--id", ids[0], "--run", runDir)
+			_, _ = tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
 		}
 	}
 	for _, v := range cli.ViewNames() {
@@ -1476,7 +1473,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		case "board", "findings", "friction", "work":
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := tracked(bin, "merge", "show", v, "--run", runDir); err != nil {
+		if out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -1486,11 +1483,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(runDir); len(ids) > 0 {
-		if out, err := tracked(bin, "merge", "show", "changes", "--id", ids[0], "--run", runDir); err != nil {
+		if out, err := tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := tracked(bin, "merge", "show", "changes", "--id", "R9-99", "--run", runDir); err == nil {
+		if out, err := tracked(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
 			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
@@ -1869,7 +1866,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	if halts == 0 {
 		t.Fatal("no halt event on the record — the halt verb never ran")
 	}
-	if out, err := tracked(bin, "verify", "--run", runDir); err != nil {
+	if out, err := tracked(bin, "verify", "--seat-id", "operator", "--run", runDir); err != nil {
 		t.Fatalf("verify FAILED on the halted run (a safety exit must still be a valid record):\n%s", truncate(string(out)))
 	}
 }
@@ -2416,13 +2413,13 @@ func (r *runner) answerInquiryRulings(seatID string) {
 			// `contests_ruling` field is still exercised by the move below either way.
 			_, _ = r.exec("motion", "inquiry", "appeal", "--seat-id", seatID, "--id", a.ID,
 				"--reason", "fuzz: the scope call is wrong, this bears on the core claim")
-			r.do("blue", "line-of-inquiry", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("line-of-inquiry", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
 		case ruling == "endorsed":
-			r.do("blue", "line-of-inquiry", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("line-of-inquiry", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: endorsed, taking it up").run()
 		default:
-			r.do("blue", "line-of-inquiry", seatID).set("--id", a.ID).set("--as", "declined").
+			r.do("line-of-inquiry", seatID).set("--id", a.ID).set("--as", "declined").
 				set("--reason", "fuzz: accepting the ruling").run()
 		}
 	}
@@ -2450,7 +2447,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 		if sha == "" {
 			continue // blue has not answered it yet; red has nothing to re-run
 		}
-		out, err := r.exec("--json", "lens", "reproduce", "--seat-id", seatID, "--id", sha, "--as", pick(r.rng, []string{"sound", "unsound"}), "--reason", "fuzz: read the script and re-ran it")
+		out, err := r.exec("--json", "reproduce", "--seat-id", seatID, "--id", sha, "--as", pick(r.rng, []string{"sound", "unsound"}), "--reason", "fuzz: read the script and re-ran it")
 		if err != nil {
 			continue
 		}
@@ -2486,7 +2483,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// The only branch that sets applied_verbatim, and so the only one that estops red.
 			if gid, fo, fn := r.proposalFor(id); gid != "" {
 				if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil && strings.Contains(string(cur), fo) {
-					r.do("blue", "edit", seatID).set("--quote", fo).set("--new", fn).
+					r.do("edit", seatID).set("--quote", fo).set("--new", fn).
 						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run()
 					continue
 				}
@@ -2523,7 +2520,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				body = "console.log(Math.random());" // graded `observed`, and it will not re-run the same
 			}
 			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err == nil {
-				prove := r.do("blue", "prove", seatID).
+				prove := r.do("prove", seatID).
 					set("--quote", "§ fuzz").
 					set("--script", name).
 					set("--answers", id).
@@ -2559,7 +2556,7 @@ func (r *runner) counterEdit(seatID, gapID string) {
 	if !strings.Contains(string(cur), oldSpan) {
 		return
 	}
-	r.do("blue", "edit", seatID).set("--quote", oldSpan).set("--new", newSpan).
+	r.do("edit", seatID).set("--quote", oldSpan).set("--new", newSpan).
 		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").run()
 }
 
@@ -2601,8 +2598,8 @@ func (r *runner) someProposal() (string, string, string) {
 // readOnly invokes a record-nothing seat verb. r.exec tallies it; a non-zero exit shows up in
 // the report's refusal count, which is where the dead `lens line of inquiry` drive and the misrouted
 // `frontier` registration were both found.
-func (r *runner) readOnly(role, verb, seatID string, extra ...string) {
-	args := append([]string{role, verb, "--seat-id", seatID}, extra...)
+func (r *runner) readOnly(verb, seatID string, extra ...string) {
+	args := append([]string{verb, "--seat-id", seatID}, extra...)
 	_, _ = r.exec(args...)
 }
 
@@ -2616,9 +2613,13 @@ func (r *runner) readOnly(role, verb, seatID string, extra ...string) {
 // analogue for. Both carry their own package tests. `hook` reads a JSON payload on stdin rather
 // than argv and is covered by internal/cli's hook tests.
 var readOnlySurfaces = [][]string{
-	// Every role's `show` with NO --view, which resolves that role's DEFAULT view. Only the
-	// merge's was ever driven, so a regression in any other role's default was invisible.
-	{"lens", "show"}, {"merge", "show"}, {"blue", "show"}, {"bench", "show"},
+	// Every SEAT's `show` with no view, which resolves that seat's DEFAULT. Only the merge's was
+	// ever driven, so a regression in any other default was invisible. The seat id is what selects
+	// the tree now, so it is what distinguishes these four rather than a role word in front.
+	{"show", "--seat-id", "blue-respond-r1"},
+	{"show", "--seat-id", "red-lens-r1-L1"},
+	{"show", "--seat-id", "red-merge-r1"},
+	{"show", "--seat-id", "judge-r1"},
 	// The operator renders, over whatever shape the run actually reached.
 	{"graph", "--format", "mermaid"},
 	{"graph", "--format", "dot"},
@@ -2630,7 +2631,18 @@ var readOnlySurfaces = [][]string{
 // <transcript-dir>` — not `--run`. Discovered by this very census: the first version of it
 // passed --run and dashboard failed on all 60 runs with a usage error, which is the census
 // working (the surface had never been driven, so nothing here was known).
-func dashboardArgv(runDir string) []string { return []string{"dashboard", runDir, runDir} }
+func dashboardArgv(runDir string) []string {
+	return []string{"dashboard", runDir, runDir, "--seat-id", "operator"}
+}
+
+func containsFlag(argv []string, flag string) bool {
+	for _, a := range argv {
+		if a == flag || strings.HasPrefix(a, flag+"=") {
+			return true
+		}
+	}
+	return false
+}
 
 // sweepReadOnly runs the census against a finished run and reports the first surface that
 // fails. Run AFTER the debate so the state is arbitrary rather than empty — an empty run
@@ -2643,8 +2655,10 @@ func sweepReadOnly(bin, runDir string) string {
 	}
 	for _, argv := range readOnlySurfaces {
 		args := append(append([]string{}, argv...), "--run", runDir)
-		if len(argv) == 2 && argv[1] == "show" {
-			args = append(args, "--seat-id", seatFor(argv[0]))
+		// THE OPERATOR SAYS SO TOO. graph, count-claims, scorecard and the rest are the operator's,
+		// and a surface scoped to whoever is asking has nothing to show a caller who has not said.
+		if !containsFlag(argv, "--seat-id") {
+			args = append(args, "--seat-id", "operator")
 		}
 		if out, err := tracked(bin, args...); err != nil {
 			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
@@ -2694,7 +2708,16 @@ func (r *runner) voteInquirySupport(seatID string) {
 		case 2, 3:
 			as = "weakened"
 		}
-		_, _ = r.exec("merge", "inquiry-support", "--seat-id", seatID, "--id", a.ID,
+		_, _ = r.exec("inquiry-support", "--seat-id", seatID, "--id", a.ID,
 			"--as", as, "--reason", "fuzz: read the report at "+a.ID)
 	}
+}
+
+// seatOfRole is a dispatched seat of the given role, for drives that iterate roles. The role is no
+// longer part of an invocation; the seat id is what selects the tree it runs in.
+func seatOfRole(role string) string {
+	return map[string]string{
+		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1",
+		"merge": "red-merge-r1", "bench": "judge-r1",
+	}[role]
 }

@@ -52,7 +52,7 @@ research/<date>_<slug>/
 │                      #  cannot rule too-thin or out-of-scope, and the round-0 ones shape the
 │                      #  whole run)
 │   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
-│   │                  #   Authored prose, but every EDIT after round 0 goes through `blue edit`
+│   │                  #   Authored prose, but every EDIT after round 0 goes through the `edit` verb
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
 └── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
 
@@ -127,4 +127,4 @@ A subagent's only voice is its return value — so capability complaints travel 
 - AFTER any task where a missing tool, denied permission, or capability gap impeded you, YOU MUST report it in the envelope's `friction` field: name the capability and what you would have done with it.
 - AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
 - YOU MUST NOT silently work around a capability gap — the workaround destroys the signal that would get you retooled.
-- Friction is recorded on the RECORD via the friction verb — every seat WRITES it, and the read is the OPERATOR's (`feov-record friction --run <dir>`, beside `verify` and `scorecard`), because a capability gap is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
+- Friction is recorded on the RECORD via the friction verb — every seat WRITES it, and the read is the OPERATOR's, on the operator's own surface and not on yours, because a capability gap is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

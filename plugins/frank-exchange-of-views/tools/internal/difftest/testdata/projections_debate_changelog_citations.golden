@@ -1,39 +1,39 @@
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/red.md
+$ position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/red.md
 exit 0
 stdout:
 position recorded
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
+$ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
 minted R1-1
 
-$ merge closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason red's closing
+$ closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason red's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ blue position --run {RUN} --seat-id blue-respond-r1 --reason-file {RUN}/blue.md
+$ position --run {RUN} --seat-id blue-respond-r1 --reason-file {RUN}/blue.md
 exit 0
 stdout:
 position recorded
 
-$ blue closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason blue's closing
+$ closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason blue's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ blue revision --run {RUN} --seat-id blue-respond-r1 --reason repairs landed
+$ revision --run {RUN} --seat-id blue-respond-r1 --reason repairs landed
 exit 0
 stdout:
 revision recorded — the round is on the record
 
-$ blue manifest-row --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason figures recomputed; check run: pass
+$ manifest-row --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason figures recomputed; check run: pass
 exit 0
 stdout:
 manifest row recorded for R1-1
@@ -41,13 +41,9 @@ manifest row recorded for R1-1
 $ blue dispute --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 2
 stderr:
-feov-record: no verb "dispute" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `blue friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
-blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -55,44 +51,44 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
+  feov-record [flags]
+  feov-record [command]
 
 Available Commands:
   cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
   closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  completion      Generate the autocompletion script for the specified shell
+  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   edit            replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."
+  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  help            Help about any command
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        the round's ### BLUE section (prose via --reason)
   prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
   revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
 
 Flags:
-  -h, --help   help for blue
-
-Global Flags:
+  -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+  -v, --version          version for feov-record
 
-Use "{TOOL} [command] --help" for more information about a command.
+Use "feov-record [command] --help" for more information about a command.
 
 $ blue confidence --run {RUN} --seat-id blue-respond-r1 --quote C7 --confidence medium
 exit 2
 stderr:
-feov-record: no verb "confidence" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `blue friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
-blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -100,40 +96,44 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
+  feov-record [flags]
+  feov-record [command]
 
 Available Commands:
   cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
   closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  completion      Generate the autocompletion script for the specified shell
+  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   edit            replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."
+  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  help            Help about any command
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        the round's ### BLUE section (prose via --reason)
   prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
   revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
 
 Flags:
-  -h, --help   help for blue
-
-Global Flags:
+  -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+  -v, --version          version for feov-record
 
-Use "{TOOL} [command] --help" for more information about a command.
+Use "feov-record [command] --help" for more information about a command.
 
-$ lens verify --run {RUN} --seat-id red-lens-r1-L1 --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
+$ verify --run {RUN} --seat-id red-lens-r1-L1 --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
 exit 2
 stderr:
 feov-record: unknown flag: --title
 
-adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.
+adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read blue's source and the claim is not in it. An unevidenced claim is not this verb's, and it is not automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -141,7 +141,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} verify [flags]
+  feov-record verify [flags]
 
 Flags:
       --access-date YYYY-MM-DD     YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
@@ -169,20 +169,20 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
-$ bench register --run {RUN} --seat-id judge-r1
+$ register --run {RUN} --seat-id judge-r1
 exit 0
 stdout:
 registered judge-r1 (shard nonce NONCE003)
 
-$ bench opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --reason the rationale body
+$ opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --reason the rationale body
 exit 0
 stdout:
 opinion recorded: R1-1 carried
 
-$ bench certify --run {RUN} --seat-id judge-r1 --reason what a human should re-examine
+$ certify --run {RUN} --seat-id judge-r1 --reason what a human should re-examine
 exit 0
 stdout:
 certification recorded
@@ -203,161 +203,3 @@ certification recorded
 {"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"reason":"red's round position"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"docketed","severity":"medium","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 {"key":"red-merge-r1:closing:R1-1","nonce":"NONCE001","payload":{"gap_id":"R1-1","reason":"red's closing"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":3,"ts":3,"type":"closing"}
-
-═══ RENDERS ═══
--- debate
-# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
-
-## Round 1
-
-### RED
-red's round position
-
-### RED CLOSING (round 1) — R1-1
-red's closing
-
-### BLUE
-blue's round position
-
-### BLUE CLOSING (round 1) — R1-1
-blue's closing
-
-### LEAD
-- R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
-the rationale body
-
--- lines-of-inquiry
-# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
-
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
-either did not happen or was not written down, and a report with no roads-not-taken is
-indistinguishable from one that never looked._
-
-
-═══ REPORT ═══
-# _(blue/report.md has no title — not authored here)_
-
-**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
-
-## Read this first
-
-**The bench asks a human to re-examine:** what a human should re-examine
-
-1 open gap(s) remain, most severe first — full statements in **Red team findings** below.
-
-1. **[medium]** docketed (R1-1) — 
-
-## TL;DR
-
-_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
-
-## The Catechism
-
-_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
-
-## Technical foundations
-
-_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
-
-## Analysis
-
-_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
-
-## Risk matrix
-
-| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
-|---|---|---|---|---|
-| docketed | medium | medium | — | — |
-
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
-
-## Research areas
-
-_(none on the record)_
-
-## Future research directions
-
-_(none on the record)_
-
-## Alternatives considered
-
-_(none on the record)_
-
-## Open questions
-
-_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
-
-## Blue team report (sections not composed above)
-
-## S2
-
-A claim sits under S2.
-
-## S4
-
-A claim sits under S4.
-
-## Red team findings (in full)
-
-### Open gaps (1)
-
-### R1-1 — docketed
-
-severity medium | medium x medium | cx — | class scope-creep
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: x
-
-### Closure index (0)
-
-_(nothing closed)_
-
-### Blue's correctness manifest (1)
-
-Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than "we think it was checked".
-
-- **R1-1** (blue-respond-r1, r1): figures recomputed; check run: pass
-
-## The debate
-
-### Round 1
-
-### BLUE
-blue's round position
-
-### BLUE CLOSING — R1-1
-blue's closing
-
-### RED
-red's round position
-
-### RED CLOSING — R1-1
-red's closing
-
-### LEAD
-- R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
-the rationale body
-
-### Bench disposition
-
-**Certification** — what a human should re-examine
-
-## Report revision history
-
-### Round 1 — blue-respond-r1
-
-repairs landed
-
-## Record verification
-
-Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
-
-- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
-- **ok** — `found-by-resolves` — every found_by credit names a real finding
-- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
-- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
-- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **ok** — `register-before-append` — every seat registered before it wrote
-- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
-
-**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

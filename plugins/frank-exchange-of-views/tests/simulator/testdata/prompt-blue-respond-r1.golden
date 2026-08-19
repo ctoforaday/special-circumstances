@@ -1,4 +1,4 @@
-prompt sha256: 885b8f2d1fff1460fafc7753659531bec5d5105d0d54f95226879bbfac8ca3ee
+prompt sha256: 05fbc0da5b2df867b9a75db34f1b00c90bd4b6b071e9392172d8dee7aad6db5d
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -14,7 +14,7 @@ A gap whose check_kind is `computation` cannot be closed on prose at all: it clo
 Write a script under the run directory and record it against the exact sentence it backs, naming the script and, where one applies, the METHOD citation it uses.
 The tool runs it TWICE, caches the script and its output, and splices an invisible proof anchor at that sentence.
 Identical output twice is recorded as reproducible; output that moves is recorded as observed — still evidence, of a system in motion, but a MEASUREMENT rather than a proof, and the tool says which you produced.
-THIS IS THE CITATION MODEL WITH THE LAST MILE WALKED, not a new kind of evidence: cite the METHOD with blue cite (trial division, Miller-Rabin, the formula, the standard) and then prove the INSTANCE by running it.
+THIS IS THE CITATION MODEL WITH THE LAST MILE WALKED, not a new kind of evidence: cite the METHOD with the cite verb (trial division, Miller-Rabin, the formula, the standard) and then prove the INSTANCE by running it.
 Several methods on one claim is several anchors on one sentence, which is how a mathematician argues.
 A FAILING CHECK IS A RESULT: disproving your own claim is worth as much as confirming it, and the tool records a non-zero exit as evidence rather than an error.
 Measured, so you know why this clause exists: red once asked for the protocol to be tested on a false claim, blue answered in PROSE that the test had happened, and red correctly refused it for showing no evidence — a whole round for something three lines settle.
@@ -45,14 +45,14 @@ The tool renders it from the record, so it is the source rather than a hand-copi
 THE SAME VIEW RESOLVES YOUR OWN ANCHORS: every source you cited is listed under `sources` by its `<!--cite:c-…-->` id and every computation under `proofs` by its `<!--proof:p-…-->` id, so a token you meet mid-edit is a lookup rather than a guess — and a proof showing `verified: null` is one red has not re-run.
 A claim red graded LOW is where your evidence is thinnest and is worth strengthening before red returns to it.
 BEFORE drafting, read the transcript from the RECORD — the `debate` projection — the gap JSON above is a lossy summary of it, and it lists any accepted grade-dispute deltas pending their contest window; read red's latest "### RED" narrative there and the latest "### LEAD" resolutions if any: any gap the judge CARRIED comes with a stated research direction you owe.
-Address every open gap ADDITIVELY in research/2026-01-01_golden/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; compact and reorganize prose as clarity demands, edit by edit through `blue edit` (a span containing an anchor is fine — carry the anchor token across verbatim into the replacement; quote enough context that your span matches exactly ONE place, or the tool refuses it as ambiguous rather than editing the wrong site) — but a CLAIM leaves only through the retire verb, which takes the claim as it stood, why it goes, and what replaces it where something does — never by quietly not being there any more; capture compares the claim_count fall against the retire events and an unaccounted drop is a detector hit.
+Address every open gap ADDITIVELY in research/2026-01-01_golden/blue/report.md — expand and repair where red is right, rebut in writing (with evidence) where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact; compact and reorganize prose as clarity demands, edit by edit through the edit verb (a span containing an anchor is fine — carry the anchor token across verbatim into the replacement; quote enough context that your span matches exactly ONE place, or the tool refuses it as ambiguous rather than editing the wrong site) — but a CLAIM leaves only through the retire verb, which takes the claim as it stood, why it goes, and what replaces it where something does — never by quietly not being there any more; capture compares the claim_count fall against the retire events and an unaccounted drop is a detector hit.
 Propagate every correction to ALL sites that state the corrected claim, not only the flagged sentence (incomplete propagation was run 3's dominant blue failure class — 5 regressions in 5 rounds).
 Two locators, both cheap scans of your OWN report (not a whole-report re-read — that is the once-per-cycle working-set read you already did): for a CITED claim, the claim-index verb lists every site of each citation — fix each; AND for an unfootnoted restatement a marker index cannot see (a bare corrected FIGURE), grep the corrected strings/figures report-wide.
-Log the sites checked in your round record (`blue revision --reason`).
-ANCHOR PRESERVATION IS TOOL-ENFORCED (you no longer police it by hand): the edit verb compares the anchors in your span against your replacement and REJECTS any edit that would drop, duplicate or invent one, so you cannot tamper with red's immortal audit record or your citation record even by accident (an anchor is BORN only from `lens finding`/`blue cite` and removed only by tool).
+Log the sites checked in your round record (the revision verb).
+ANCHOR PRESERVATION IS TOOL-ENFORCED (you no longer police it by hand): the edit verb compares the anchors in your span against your replacement and REJECTS any edit that would drop, duplicate or invent one, so you cannot tamper with red's immortal audit record or your citation record even by accident (an anchor is BORN only from the finding and cite verbs and removed only by tool).
 You MAY rewrite an anchored sentence: include the anchor token in your span and copy it verbatim into the replacement.
 That is transit, not authorship — the tool checks the bytes.
-If a PostToolUse check reports a dropped anchor, you removed it through some non-tool path — restore it exactly and re-apply through `blue edit`.
+If a PostToolUse check reports a dropped anchor, you removed it through some non-tool path — restore it exactly and re-apply through the edit verb.
 GRADE DISPUTES (your contest path on red's grading): to dispute a gap's severity/likelihood/impact/complexity, EMIT the argument as a motion against that gap, naming the axis and the grade you say it should be, with your evidence — the tool assigns the motion an id (M1, M2 …) and prints it; that id is what red's ruling names, so an ask and its answer are one row under "## Motions", where red answers and the bench reads it.
 If red rejects it and you still disagree, APPEALING the motion on its own id presses it to the bench; AND list each in the envelope's grade_disputes as a ROUTING REF ONLY (gap_id, dimension, proposed — no prose: the evidence lives on the record, not a second copy in the envelope) so the docket routes it — max 5 per round (overflow is batch-docketed to the judge as one item).
 PROBE CLASSES (W1.10): where a fix demands a probe, discharge a DOCUMENT-PROBE now (against shipped artifacts) or, for a LIVE-PROBE needing built artifacts, name it as a deferred acceptance test with its pass condition — never call a file read a live probe.
@@ -86,16 +86,17 @@ Rows reading "not computed" are honest, not gaps to fill — the envelope-derive
 SEAT_ID: blue-respond-r1.
 THE RECORD TOOL IS THE CONTRACT: every board act happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
+YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id blue-respond-r1 on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat.
+You do NOT pass the run directory: it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
 Three steps, every sitting, before the act that needs them:
 
   1.
-"/opt/feov/bin/feov-record" --help — the GROUPS.
-Yours is `blue`; others exist and some of what you owe lives in them.
+"/opt/feov/bin/feov-record" --seat-id blue-respond-r1 --help — every verb your seat can run, each with what it is for.
   2.
-"/opt/feov/bin/feov-record" <group> --help — the commands in that group, and what each is for.
+"/opt/feov/bin/feov-record" --seat-id blue-respond-r1 <group> --help — where a verb sits under a group, what is in that group.
 Do this BEFORE using any command in a group you have not yet opened.
   3.
-"/opt/feov/bin/feov-record" <group> <command> --help — the flags, which are required, and what each value may be.
+"/opt/feov/bin/feov-record" --seat-id blue-respond-r1 <group> <command> --help — the flags, which are required, and what each value may be.
 Do this BEFORE running the command.
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
 Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes.

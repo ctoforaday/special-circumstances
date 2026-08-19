@@ -98,8 +98,11 @@ func TestCompleteArmStatesEveryVerbTheRoleHas(t *testing.T) {
 		if len(verbs) == 0 {
 			t.Fatalf("%s has no verbs — the surface is empty and every arm would be identical", role)
 		}
+		// THE BARE FORM, because that is what a seat types: the tree is scoped to the dispatched
+		// seat, so `merge mint` is not an invocation any more and rendering it would teach one
+		// that cannot run. Asserted per LINE so a verb is not matched inside a longer one.
 		for _, v := range verbs {
-			if !strings.Contains(block, role+" "+v) {
+			if !strings.Contains("\n"+block, "\n  "+v+"\n") {
 				t.Errorf("the complete arm for %s omits %q — a `complete` arm that is not complete measures a third, unnamed treatment", role, v)
 			}
 		}

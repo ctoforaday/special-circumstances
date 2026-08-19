@@ -97,14 +97,14 @@ func ParseNaming(s string) (Naming, error) {
 // HelpDirective is the instruction production carries and the probe never did.
 //
 // THE SECOND UNCONTROLLED DIFFERENCE. skills/research-protocol/scripts/debate.js tells every seat
-// "YOUR CONTRACT IS `feov-record <role> --help` and each verb's own --help … READ THAT LIST BEFORE
-// YOUR FIRST ACT, EVERY SITTING". The probe's acting prompt says nothing of the kind. So the
+// to walk the help in three steps before the act that needs them, every sitting, and to treat a
+// name it did not read there as a guess. The probe's acting prompt says nothing of the kind. So the
 // configuration that was measured exists in no real run, and the configuration that ships has never
 // been probed. Making the directive a flag rather than folding it into the arms keeps the two
 // questions separable: does NAMING carry the surface, and does the DIRECTIVE carry it.
 const HelpDirective = `
-BEFORE YOUR FIRST ACT, run the record tool with --help for your role and read the whole list, then
-each verb's own --help before you use it. What is listed you may do; what is not listed does not
+BEFORE YOUR FIRST ACT, run the record tool with --help and read the whole list — the tree is scoped
+to your seat, so what comes back IS your surface — then each verb's own --help before you use it. What is listed you may do; what is not listed does not
 exist for you. A name you did not read in the help this sitting is a guess.
 `
 
@@ -143,8 +143,11 @@ func CompleteSurfaceBlock(sf Surface, role string) string {
 	verbs := sf.Verbs(role)
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s (generated from the tool's command tree — these %d are the whole set):\n\n", generatedHeading, len(verbs))
+	// NO ROLE IN FRONT. The tree is scoped to the dispatched seat, so a merge seat types `mint`;
+	// rendering `merge mint` here would teach an invocation that cannot run, and this arm exists
+	// to measure what NAMING the surface does — not what a stale spelling does.
 	for _, v := range verbs {
-		fmt.Fprintf(&b, "  %s %s\n", role, v)
+		fmt.Fprintf(&b, "  %s\n", v)
 	}
 	b.WriteString("\nEach verb's own `--help` carries its flags and what it is for. Nothing outside this list exists for you.\n")
 	return b.String()
@@ -172,7 +175,7 @@ func PartialSurfaceBlock(sf Surface, role string) string {
 	var b strings.Builder
 	b.WriteString("THE VERBS YOU WILL MOSTLY NEED:\n\n")
 	for _, v := range verbs {
-		fmt.Fprintf(&b, "  %s %s\n", role, v)
+		fmt.Fprintf(&b, "  %s\n", v)
 	}
 	return b.String()
 }
@@ -206,6 +209,11 @@ func Redact(text string, sf Surface) string {
 	sort.Slice(verbs, func(i, j int) bool { return len(verbs[i]) > len(verbs[j]) })
 
 	const withheld = "⟨verb withheld⟩"
+	// THE GENERATED BLOCK GOES AS A BLOCK. The arms render one verb per indented line in the bare
+	// form a seat types, and a bare verb cannot be redacted by shape — `close`, `verify` and
+	// `show` are ordinary English, and matching them would gut the prose this arm is supposed to
+	// leave standing. The block is structural, so it is removed structurally: heading and all.
+	text = withheldBlock(text)
 	for _, v := range verbs {
 		q := regexp.QuoteMeta(v)
 		// The invocation form: `blue prove`, `"…/feov-record" merge regrade`, `} bench opinion`.
@@ -226,6 +234,7 @@ func Redact(text string, sf Surface) string {
 // result and report it as a finding.
 func NamesSurviving(text string, sf Surface) map[string]int {
 	out := map[string]int{}
+	generated := generatedBlock(text)
 	seen := map[string]bool{}
 	for _, role := range Roles {
 		for _, v := range sf.Verbs(role) {
@@ -233,16 +242,72 @@ func NamesSurviving(text string, sf Surface) map[string]int {
 				continue
 			}
 			seen[v] = true
-			q := regexp.QuoteMeta(v)
-			n := len(regexp.MustCompile(`\b(lens|merge|blue|bench)\s+`+q+`\b`).FindAllString(text, -1))
-			if strings.HasPrefix(v, "motion ") {
-				n = len(regexp.MustCompile(`\b`+q+`\b`).FindAllString(text, -1))
-			} else {
-				n += len(regexp.MustCompile("`"+q+"`").FindAllString(text, -1))
+			// TWO SPELLINGS, COUNTED BY TWO RULES, because they are two different things.
+			//
+			// A name WRITTEN INTO PROSE is what the redaction targets, and it has to be marked as
+			// an invocation by something or it cannot be told from English: `close`, `verify`,
+			// `position`, `finding` and `show` are ordinary words, and making the role prefix
+			// optional took the bench constitution from 0 surviving names to 11, every one of them
+			// prose. The role in front was that mark, and it stays required here even though a seat
+			// no longer types it — this counts the SPELLING a hand-written catalogue uses.
+			//
+			// A name in a GENERATED BLOCK is structural: the arms render one verb per indented
+			// line under their own heading, in the bare form a seat now types. Counting those by
+			// their position rather than their shape is exact, and it is what tells the report
+			// whether an additive arm's treatment actually landed.
+			n := len(regexp.MustCompile(`\b(lens|merge|blue|bench)\s+`+regexp.QuoteMeta(v)+`\b`).FindAllString(text, -1))
+			if generated[v] {
+				n++
 			}
 			if n > 0 {
 				out[v] = n
 			}
+		}
+	}
+	return out
+}
+
+// withheldBlock removes a generated verb block, heading and lines, leaving a marker in its place.
+func withheldBlock(text string) string {
+	for _, heading := range []string{generatedHeading, "THE VERBS YOU WILL MOSTLY NEED"} {
+		i := strings.Index(text, heading)
+		if i < 0 {
+			continue
+		}
+		rest := text[i:]
+		lines := strings.Split(rest, "\n")
+		end := len(lines)
+		for n, line := range lines[1:] {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			if !strings.HasPrefix(line, "  ") {
+				end = n + 1
+				break
+			}
+		}
+		text = text[:i] + "⟨verb list withheld⟩\n" + strings.Join(lines[end:], "\n")
+	}
+	return text
+}
+
+// generatedBlock reads the verbs an ARM rendered, by structure rather than by shape: one verb per
+// indented line under a generated heading, ending at the first line that is not one.
+func generatedBlock(text string) map[string]bool {
+	out := map[string]bool{}
+	for _, heading := range []string{generatedHeading, "THE VERBS YOU WILL MOSTLY NEED"} {
+		i := strings.Index(text, heading)
+		if i < 0 {
+			continue
+		}
+		for _, line := range strings.Split(text[i:], "\n")[1:] {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			if !strings.HasPrefix(line, "  ") {
+				break
+			}
+			out[strings.TrimSpace(line)] = true
 		}
 	}
 	return out

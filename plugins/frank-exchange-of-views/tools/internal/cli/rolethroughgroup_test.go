@@ -28,7 +28,7 @@ func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := run(t, "merge", "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
+	out, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -57,7 +57,7 @@ exists so that a seat reaches the record through the tool rather than through th
 
 Read the board the way a seat does, using THE RECORD TOOL PATH YOUR DISPATCH GAVE YOU:
 
-    <that path> <role> show board --run <this directory>
+    <that path> show board --run <this directory>
 
 The bare name is deliberately not written above. The tool is not installed on PATH, so
 "feov-record: command not found" means you used the wrong handle — it does NOT mean the

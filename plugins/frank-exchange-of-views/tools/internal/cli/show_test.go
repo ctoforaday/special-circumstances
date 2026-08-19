@@ -24,7 +24,7 @@ import (
 func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "shown-gap", "read-surface")
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes at the named site"); err != nil {
@@ -35,7 +35,7 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	// not a view.Markdown rendering, so there is no shared computation to diverge from.
 	for _, name := range []string{"debate", "lines-of-inquiry"} {
 		t.Run(name, func(t *testing.T) {
-			out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", name)
+			out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", name)
 			if err != nil {
 				t.Fatalf("show %s: %v", name, err)
 			}
@@ -78,7 +78,7 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 				"merge": "red-merge-r1", "blue": "blue-respond-r1",
 				"lens": "red-lens-r1-L1", "bench": "judge-r1",
 			}[c.role]
-			out, err := run(t, c.role, "show", "--run", runDir, "--seat-id", seat)
+			out, err := run(t, "show", "--run", runDir, "--seat-id", seat)
 			if err != nil {
 				t.Fatalf("%s show: %v", c.role, err)
 			}
@@ -94,7 +94,7 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 // improvise a file read instead, which is the behaviour this verb exists to replace.
 func TestUnknownViewIsRefusedWithTheListOfViews(t *testing.T) {
 	runDir := seatRun(t)
-	_, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "the-board")
+	_, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "the-board")
 	if err == nil {
 		t.Fatal("an unknown view was accepted; a seat would get an empty read and no signal that it asked for something that does not exist")
 	}
@@ -113,7 +113,7 @@ func TestShowRecordsNothing(t *testing.T) {
 	before := len(events(t, runDir))
 
 	for i := 0; i < 3; i++ {
-		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			t.Fatalf("show: %v", err)
 		}
 	}
@@ -130,13 +130,13 @@ func TestShowRecordsNothing(t *testing.T) {
 func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	runDir := seatRun(t)
 	mintGap(t, runDir, "debate-json", "read-surface")
-	if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--reason", "red's round narrative"); err != nil {
 		t.Fatalf("position: %v", err)
 	}
 
 	// debate --json parses and carries the rounds structure.
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "debate", "--json")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "debate", "--json")
 	if err != nil {
 		t.Fatalf("show debate --json: %v", err)
 	}
@@ -165,17 +165,17 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	// view, and the assertion went on passing — it demands an error, and an unknown view is an
 	// error too. A stale name in a list like this checks nothing while reading as coverage.
 	for _, v := range []string{"board", "findings", "work", "motions", "reason", "telemetry"} {
-		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
+		if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}
 	}
 	// --json with no projection named is refused: the bare form answers with pending work, and
 	// there is no second way to ask for it.
-	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "--json"); err == nil {
+	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "--json"); err == nil {
 		t.Error("a bare `show --json` was accepted; it must refuse and name the projections")
 	}
 	// --json on a markdown view with no JSON form is refused.
-	if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "lines-of-inquiry", "--json"); err == nil {
+	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "lines-of-inquiry", "--json"); err == nil {
 		t.Error("show lines-of-inquiry --json was accepted; it has no JSON form and must refuse")
 	}
 }

@@ -67,7 +67,7 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 		{carried, "carried", "the repair is unverified at the leaf; it needs another round"},
 		{closed, "closed", "the repair discharges the defect and the anchor is checkable"},
 	} {
-		if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
+		if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 			"--id", c.id, "--as", c.as, "--principle", c.principle,
 			"--tension", "thoroughness against ceremony",
 			"--review-flag", "no — the ruling is mechanical",
@@ -100,7 +100,7 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
 	}
-	if _, err := run(t, "merge", "regrade", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--severity", "low",
 		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
 		t.Fatalf("red regrade: %v", err)
@@ -158,7 +158,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 // is the friction-channel defect Gray Area exists to catch — so the refutation gets a test.
 func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--none", "--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	}
 
 	// And the duty cannot be discharged by asserting emptiness with no reason.
-	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--none"); err == nil {
 		t.Error("--none without --reason was accepted; an unexplained empty round is indistinguishable from a skipped one")
 	}
@@ -179,7 +179,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 // successor breaks the accounting that detects claims vanishing quietly.
 func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "the API returns 200 on a malformed body",
 		"--reason", "refuted at the leaf — it returns 400, verified against the handler",
 		"--new", "the API returns 400 on a malformed body"); err != nil {
@@ -198,14 +198,14 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 // board would silently under-count findings in exactly the runs that worked hardest.
 func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L2"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L2"); err != nil {
 		t.Fatalf("register L2: %v", err)
 	}
 	for _, l := range []struct{ seat, label string }{
 		{"red-lens-r1-L1", "L1-F1"}, // local --key F1 → tool assigns L1-F1 (role-prefixed)
 		{"red-lens-r1-L2", "L2-F1"}, // and L2-F1
 	} {
-		if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", l.seat,
+		if _, err := run(t, "finding", "--run", runDir, "--seat-id", l.seat,
 			"--key", "F1", "--quote", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 			t.Fatalf("finding %s: %v", l.label, err)
@@ -230,7 +230,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 	first := mintGap(t, runDir, "partial-repair", "residue-carrying")
 	next := mintGap(t, runDir, "the-residue", "residue-carrying")
 
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", first, "--as", "closed",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
 		"--superseded-by", next,
@@ -255,7 +255,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 // seat that reads it.
 func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "bench", "halt", "--run", runDir, "--seat-id", "judge-r1",
+	if _, err := run(t, "halt", "--run", runDir, "--seat-id", "judge-r1",
 		"--reason", "continuing would compromise the consent gate"); err != nil {
 		t.Fatalf("bench halt: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	// A halt must NOT be reachable as a disposition on a ruling: that is the typo path
 	// the separate verb exists to close off.
 	id := mintGap(t, runDir, "not-haltable", "halt-is-its-own-verb")
-	if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
+	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 		"--id", id, "--as", "halt", "--principle", "p", "--tension", "t",
 		"--review-flag", "no", "--reason", "attempting to halt via a disposition"); err == nil {
 		t.Error("`opinion --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")

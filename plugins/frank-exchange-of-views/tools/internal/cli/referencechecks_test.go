@@ -59,60 +59,60 @@ var referenceChecks = []struct {
 	// needsRegistry stages a class registry first: the class check is advisory without one.
 	needsRegistry bool
 }{
-	{verb: []string{"merge", "close"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"merge", "close"}, flag: "--superseded-by", against: "the board", bogus: "R9-9",
+	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "R9-9",
 		extra: []string{"--id", "R1-1", "--as", "closed_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"merge", "mint"}, flag: "--supersedes", against: "the board", bogus: "R9-9",
+	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "R9-9",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-	{verb: []string{"merge", "mint"}, flag: "--found-by", against: "the findings on the record", bogus: "L9-F9",
+	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "L9-F9",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// NEEDS A REGISTRY STAGED. `validateClass` is ADVISORY when none is present, so this case
 	// silently passed over an unchecked class until the fixture seeded one — which is how the
 	// whole internal/cli suite had been running with class validation off.
-	{verb: []string{"merge", "mint"}, flag: "--class", against: "the class registry", bogus: "no-such-class-slug",
+	{verb: []string{"mint"}, flag: "--class", against: "the class registry", bogus: "no-such-class-slug",
 		needsRegistry: true,
 		extra:         []string{"--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
-	{verb: []string{"merge", "mint"}, flag: "--quote", against: "blue/report.md", bogus: "a sentence that is nowhere in the report",
+	{verb: []string{"mint"}, flag: "--quote", against: "blue/report.md", bogus: "a sentence that is nowhere in the report",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-	{verb: []string{"merge", "regrade"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"regrade"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--severity", "high", "--reason", "r"}},
-	{verb: []string{"merge", "closing"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--reason", "r"}},
-	{verb: []string{"merge", "spot-check"}, flag: "--ids", against: "the closure archive", bogus: "R9-9",
+	{verb: []string{"spot-check"}, flag: "--ids", against: "the closure archive", bogus: "R9-9",
 		extra: []string{"--reason", "n"}},
 	// Red's per-round support verdict joins on the LINE's own id, so a dangling one would record a
 	// vote about a line nobody proposed — and the merge's PASS gate counts votes, so it would
 	// discharge a duty for a line that does not exist.
-	{verb: []string{"merge", "inquiry-support"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
+	{verb: []string{"inquiry-support"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
 		extra: []string{"--as", "supported", "--reason", "r"}},
-	{verb: []string{"blue", "closing"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--reason", "r"}},
-	{verb: []string{"blue", "manifest-row"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"manifest-row"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--reason", "checked"}},
-	{verb: []string{"blue", "edit"}, flag: "--answers", against: "the board", bogus: "R9-9",
+	{verb: []string{"edit"}, flag: "--answers", against: "the board", bogus: "R9-9",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
-	{verb: []string{"blue", "line-of-inquiry", "move"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
+	{verb: []string{"line-of-inquiry", "move"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
-	{verb: []string{"bench", "opinion"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"opinion"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "false", "--reason", "r"}},
 	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.
-	{verb: []string{"blue", "prove"}, flag: "--answers", against: "the board", bogus: "R9-9",
+	{verb: []string{"prove"}, flag: "--answers", against: "the board", bogus: "R9-9",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
-	{verb: []string{"blue", "prove"}, flag: "--cites", against: "the citations on the record", bogus: "c-deadbeef",
+	{verb: []string{"prove"}, flag: "--cites", against: "the citations on the record", bogus: "c-deadbeef",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
-	{verb: []string{"lens", "verify"}, flag: "--anchor", against: "the citations on the record", bogus: "c-deadbeef",
+	{verb: []string{"verify"}, flag: "--anchor", against: "the citations on the record", bogus: "c-deadbeef",
 		extra: []string{"--quote", "c", "--as", "supports", "--confidence", "high", "--reason", "r"}},
 	// `merge carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
 	// gap references and needs its own fixture — which is the whole point of deriving this gate
 	// from the tree rather than trusting the table to have kept up.
-	{verb: []string{"merge", "carry"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--carried-from", "1", "--reason", "r"}},
-	{verb: []string{"merge", "carry"}, flag: "--superseded-by", against: "the board", bogus: "R9-9",
+	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "R9-9",
 		extra: []string{"--id", "R1-1", "--carried-from", "1", "--reason", "r"}},
 }
 
@@ -153,7 +153,7 @@ func TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(recDir, "class-registry.json"), []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err = run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err = run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class", "anything-at-all", "--check-kind", "document", "--check", "c",
 		"--likelihood", "low", "--impact", "low", "--problem", "p")
 	if err == nil {
@@ -200,7 +200,9 @@ func TestEveryCheckedFlagIsInTheTable(t *testing.T) {
 			walk(sub, p)
 		}
 	}
-	walk(newRoot(), "")
+	for _, r := range AllRoots() {
+		walk(r, "")
+	}
 
 	sort.Strings(missing)
 	if len(missing) > 0 {
@@ -225,7 +227,7 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 			}
 
 			argv := append([]string{}, c.verb...)
-			argv = append(argv, "--run", runDir, "--seat-id", seatFor(c.verb[0]))
+			argv = append(argv, "--run", runDir, "--seat-id", seatHolding(c.verb[0]))
 			argv = append(argv, c.flag, c.bogus)
 			argv = append(argv, c.extra...)
 

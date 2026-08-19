@@ -28,26 +28,26 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		name, wants string
 		args        []string
 	}{
-		{"opinion --id", "no mint event created", []string{"bench", "opinion", "--seat-id", "judge-r1",
+		{"opinion --id", "no mint event created", []string{"opinion", "--seat-id", "judge-r1",
 			"--id", "R9-9", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "no"}},
 		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1",
 			"--id", "R9-9", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
 		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1",
 			"--id", "M9", "--as", "accepted", "--reason", "b"}},
-		{"regrade --id", "no mint event created", []string{"merge", "regrade", "--seat-id", "red-merge-r1",
+		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", "red-merge-r1",
 			"--id", "R9-9", "--severity", "low", "--reason", "b"}},
-		{"closing --id", "no mint event created", []string{"merge", "closing", "--seat-id", "red-merge-r1",
+		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "red-merge-r1",
 			"--id", "R9-9", "--reason", "t"}},
-		{"manifest-row --id", "no mint event created", []string{"blue", "manifest-row", "--seat-id", "blue-respond-r1",
+		{"manifest-row --id", "no mint event created", []string{"manifest-row", "--seat-id", "blue-respond-r1",
 			"--id", "R9-9", "--reason", "r"}},
-		{"close --successor", "no mint event created", []string{"merge", "close", "--seat-id", "red-merge-r1",
+		{"close --successor", "no mint event created", []string{"close", "--seat-id", "red-merge-r1",
 			"--id", real, "--as", "closed", "--verified-by", "L1", "--verified-with", "t",
 			"--verified-against", "x", "--superseded-by", "R9-9"}},
-		{"mint --found-by", "no lens recorded", []string{"merge", "mint", "--seat-id", "red-merge-r1",
+		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", "red-merge-r1",
 			"--key", "k2", "--class", "reference-integrity", "--problem", "p",
 			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
 			"--impact", "medium", "--complexity", "low", "--found-by", "L9-F9"}},
-		{"spot-check --ids", "no mint event created", []string{"merge", "spot-check", "--seat-id", "red-merge-r1",
+		{"spot-check --ids", "no mint event created", []string{"spot-check", "--seat-id", "red-merge-r1",
 			"--ids", "R9-9"}},
 		// The petitioner is no longer a field the ruler RESTATES, so there is no seat reference
 		// left to dangle — the ruling names the motion and the motion carries its own filer.
@@ -81,14 +81,16 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	second := mintGap(t, runDir, "second", "reference-integrity")
 
 	for _, c := range [][]string{
-		{"bench", "opinion", "--seat-id", "judge-r1", "--id", first, "--as", "carried",
+		{"opinion", "--seat-id", "judge-r1", "--id", first, "--as", "carried",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--reason", "the ruling"},
-		{"merge", "close", "--seat-id", "red-merge-r1", "--id", first, "--as", "closed",
+		{"close", "--seat-id", "red-merge-r1", "--id", first, "--as", "closed",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {
-		args := append([]string{c[0], c[1], "--run", runDir}, c[2:]...)
+		// c[0] is the verb; the role that used to sit in front of it is gone, so only ONE
+		// element is lifted out before --run.
+		args := append([]string{c[0], "--run", runDir}, c[1:]...)
 		if _, err := run(t, args...); err != nil {
-			t.Errorf("a reference that DOES resolve was refused: %v (%v)", err, c[1])
+			t.Errorf("a reference that DOES resolve was refused: %v (%v)", err, c[0])
 		}
 	}
 }
@@ -104,7 +106,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	runDir := seatRun(t)
 	open := mintGap(t, runDir, "stays-open", "state-checks")
 	closed := mintGap(t, runDir, "gets-closed", "state-checks")
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", closed, "--as", "closed", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed"); err != nil {
 		t.Fatal(err)
@@ -114,19 +116,19 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		name, wants string
 		args        []string
 	}{
-		{"close a gap twice", "double-counts closure history", []string{"merge", "close",
+		{"close a gap twice", "double-counts closure history", []string{"close",
 			"--seat-id", "red-merge-r1", "--id", closed, "--as", "closed",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x"}},
-		{"regrade a closed gap", "changes a number nobody reads", []string{"merge", "regrade",
+		{"regrade a closed gap", "changes a number nobody reads", []string{"regrade",
 			"--seat-id", "red-merge-r1", "--id", closed, "--severity", "low", "--reason", "b"}},
 		{"file a grade motion on a closed gap", "disposition has already been made", []string{"motion", "grade", "file",
 			"--seat-id", "blue-respond-r1", "--id", closed, "--dimension", "severity",
 			"--proposed", "low", "--reason", "b"}},
 		{"rule a motion nobody filed", "which no filing created", []string{"motion", "grade", "rule",
 			"--seat-id", "red-merge-r1", "--id", "M9", "--as", "accepted", "--reason", "b"}},
-		{"spot-check an OPEN gap", "still OPEN", []string{"merge", "spot-check",
+		{"spot-check an OPEN gap", "still OPEN", []string{"spot-check",
 			"--seat-id", "red-merge-r1", "--ids", open}},
-		{"carry residue into a closed gap", "already finished", []string{"merge", "close",
+		{"carry residue into a closed gap", "already finished", []string{"close",
 			"--seat-id", "red-merge-r1", "--id", open, "--as", "closed",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 			"--superseded-by", closed}},
@@ -155,7 +157,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 	runDir := seatRun(t)
 	ancestor := mintGap(t, runDir, "the-ancestor", "state-checks")
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "the-successor", "--class", "state-checks",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
@@ -181,7 +183,7 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	ancestor := mintGap(t, runDir, "the-ancestor", "lineage-completion")
 
 	// THE LEGAL 7: mint a successor while the ancestor is still open.
-	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "the-successor", "--class", "lineage-completion",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
@@ -192,7 +194,7 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	successor := gapID(out)
 
 	// THE DEFECT: finish without closing the ancestor.
-	_, err = run(t, "merge", "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS")
+	_, err = run(t, "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS")
 	if err == nil {
 		t.Fatal("the seat finished with a superseded gap still open — the same defect counted twice, which is how a board reported 9 open gaps for 7 distinct ones")
 	}
@@ -203,20 +205,20 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	}
 
 	// KEEPING THE PROMISE clears it.
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", ancestor, "--as", "closed", "--superseded-by", successor,
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "replaced by its successor"); err != nil {
 		t.Fatal(err)
 	}
 	// The successor is now the live gap; PASS still requires it closed (the all-gaps guard).
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", successor, "--as", "closed",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./y",
 		"--reason", "successor resolved"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS"); err != nil {
+	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-merge-r1", "--as", "PASS"); err != nil {
 		t.Errorf("with the ancestor and successor both closed the verdict must go through: %v", err)
 	}
 }

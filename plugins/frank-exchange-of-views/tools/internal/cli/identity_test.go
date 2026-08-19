@@ -22,7 +22,7 @@ var findingID = regexp.MustCompile(`f-[0-9a-f]{8}`)
 
 func TestARecordedFindingIsToldItsID(t *testing.T) {
 	runDir := seatRun(t)
-	out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	out, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--key", "F1", "--quote", "§1", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err != nil {
@@ -39,12 +39,12 @@ func TestARecordedFindingIsToldItsID(t *testing.T) {
 // id disambiguates" test: sharing a label is no longer possible.)
 func TestTwoLensesGetRolePrefixedLabelsThatCannotCollide(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L2"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L2"); err != nil {
 		t.Fatal(err)
 	}
 	labels, ids := map[string]bool{}, map[string]bool{}
 	for _, seat := range []string{"red-lens-r1-L1", "red-lens-r1-L2"} {
-		out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seat,
+		out, err := run(t, "finding", "--run", runDir, "--seat-id", seat,
 			"--key", "F1", "--quote", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low")
 		if err != nil {
@@ -68,7 +68,7 @@ var labelRe = regexp.MustCompile(`L\d+-F\d+`)
 // with no label flag (there is none) still comes back carrying L{role}-F{N}.
 func TestEveryFindingGetsAToolAssignedLabel(t *testing.T) {
 	runDir := seatRun(t)
-	out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	out, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--key", "F1", "--quote", "§1", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err != nil {

@@ -37,9 +37,10 @@ type boardJSON struct {
 	Anomalies []string `json:"anomalies"`
 }
 
-func board(t *testing.T, runDir, seatRole, seatID string) boardJSON {
+// THE ROLE LEFT THE ARGS: the seat id selects the tree.
+func board(t *testing.T, runDir, seatID string) boardJSON {
 	t.Helper()
-	out, err := run(t, seatRole, "show", "--run", runDir, "--seat-id", seatID, "board")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seatID, "board")
 	if err != nil {
 		t.Fatalf("show board: %v", err)
 	}
@@ -69,19 +70,19 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	closedByRed := mintGap(t, runDir, "red-closes", "json-vs-markdown")
 	closedByBench := mintGap(t, runDir, "bench-closes", "json-vs-markdown")
 
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", closedByRed, "--as", "closed",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
-	if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
+	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 		"--id", closedByBench, "--as", "closed", "--principle", "p", "--tension", "t",
 		"--review-flag", "no", "--reason", "closed on the merits"); err != nil {
 		t.Fatalf("bench opinion: %v", err)
 	}
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if got := ids(b.Open); len(got) != 1 || got[0] != open1 {
 		t.Errorf("JSON board open = %v, want [%s]", got, open1)
 	}
@@ -106,14 +107,14 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored", "anchor-as-fields")
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
 		"--verified-by", "L4", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason", "re-read the cited source"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if len(b.Closed) != 1 {
 		t.Fatalf("closed = %v, want one gap", ids(b.Closed))
 	}
@@ -134,18 +135,18 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 // red/candidates/*.md files — label (tool-assigned), role from the seat id, grades, text.
 func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--key", "F1", "--quote", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L5"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L5"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
 		"--key", "F1", "--quote", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "findings")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "findings")
 	if err != nil {
 		t.Fatalf("show findings: %v", err)
 	}
@@ -184,14 +185,14 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 		// --independent: these are sources red went and found, not citations blue authored, so
 		// there is no anchor to name. The explicit form, because an omitted --anchor cannot say
 		// whether this was corroboration or a lookup the seat skipped.
-		if _, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 			"--quote", c.claim, "--url", c.ref, "--title", c.ref,
 			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 			"--access-date", "2026-07-24"); err != nil {
 			t.Fatalf("cite %q: %v", c.claim, err)
 		}
 	}
-	if b := board(t, runDir, "merge", "red-merge-r1"); b.Counts.Citations != 2 {
+	if b := board(t, runDir, "red-merge-r1"); b.Counts.Citations != 2 {
 		t.Errorf("counts.citations = %d, want 2 (two distinct references) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }
@@ -240,7 +241,7 @@ func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
 	}
 	f.Close()
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if b.Counts.Anomalies == 0 {
 		t.Fatal("a ruling on an unknown gap produced NO anomaly — this is the silent drop that let a board be wrong by six gaps for three rounds")
 	}

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // EVERY EXECUTION THROUGH THE HARNESS IS TRACKED, THE WAY A TRAJECTORY IS.
@@ -76,6 +77,26 @@ var (
 	execValues = map[string]map[string]bool{}
 )
 
+// roleOfArgs recovers the acting role from the --seat-id in an invocation, which is the only
+// place it appears now.
+func roleOfArgs(args []string) string {
+	for i, a := range args {
+		var id string
+		switch {
+		case a == "--seat-id" && i+1 < len(args):
+			id = args[i+1]
+		case strings.HasPrefix(a, "--seat-id="):
+			id = strings.TrimPrefix(a, "--seat-id=")
+		default:
+			continue
+		}
+		if r := cli.RoleOfSeat(id); r != "" && r != record.OperatorRole {
+			return r
+		}
+	}
+	return ""
+}
+
 func commandPathOf(args []string) string {
 	// THE LONGEST ARGV PREFIX THAT IS A REAL COMMAND PATH, asked of the cobra tree.
 	//
@@ -98,10 +119,21 @@ func commandPathOf(args []string) string {
 		}
 		toks = append(toks, a)
 	}
+	// THE ROLE IS PUT BACK ON, FROM THE SEAT ID. A seat no longer TYPES its role — the tree is
+	// scoped to the injected identity — but cli.CommandPaths still keys a command by (role, verb),
+	// because `closing`, `position`, `friction`, `register` and `show` each exist under several
+	// roles with different contracts. Comparing role-less argv against role-keyed paths reported
+	// every seat verb as never invoked: the plausible-zero shape this tally exists to catch,
+	// arriving in the tally.
 	known := knownPaths()
+	role := roleOfArgs(args)
 	for n := len(toks); n > 0; n-- {
-		if p := strings.Join(toks[:n], " "); known[p] {
-			return p
+		bare := strings.Join(toks[:n], " ")
+		if role != "" && known[role+" "+bare] {
+			return role + " " + bare
+		}
+		if known[bare] {
+			return bare
 		}
 	}
 	if len(toks) > 0 {

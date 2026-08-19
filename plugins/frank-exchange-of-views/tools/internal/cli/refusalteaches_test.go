@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -45,12 +46,12 @@ func refusals() []struct {
 		name string
 		args []string
 	}{
-		{"a verb refusing on a missing required flag", []string{"blue", "line-of-inquiry", "propose", "--seat-id", "blue-respond-r1"}},
-		{"a group invoked with no verb", []string{"blue", "line-of-inquiry", "--seat-id", "blue-respond-r1"}},
+		{"a verb refusing on a missing required flag", []string{"line-of-inquiry", "propose", "--seat-id", "blue-respond-r1"}},
+		{"a group invoked with no verb", []string{"line-of-inquiry", "--seat-id", "blue-respond-r1"}},
 		{"a role with no verb", []string{"blue"}},
 		{"an unknown top-level command", []string{"frobnicate"}},
 		{"a motion subject with no such verb", []string{"motion", "petition", "appeal", "--seat-id", "blue-respond-r1"}},
-		{"an unknown view", []string{"blue", "show", "nonesuch", "--seat-id", "blue-respond-r1"}},
+		{"an unknown view", []string{"show", "nonesuch", "--seat-id", "blue-respond-r1"}},
 	}
 }
 
@@ -118,7 +119,11 @@ func trim(s string) string {
 // This is the most common failure a real seat hits. Across nine probed seats: 9 of 21 non-zero
 // exits were this message, and SIX OF NINE produced it on their first tool call.
 func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
-	root := newRoot()
+	// A DISPATCHED SEAT, because this is about ORDERING — a command named before a flag on it —
+	// and a caller with no identity is answered about the identity instead, which is a different
+	// property with its own case below.
+	const seatID = "blue-respond-r1"
+	root := NewRootFor(seatID)
 	for _, tc := range []struct {
 		name string
 		argv []string
@@ -131,15 +136,17 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 		// say WHERE the verb lives — and `show` is exactly the name that must not be denied, since
 		// it exists on all four roles. TestABareSeatVerbIsToldWhereItLives holds that half; this
 		// one holds the ORDERING (command before flag), which is a different property.
-		{"real flags on a command that does not exist", []string{"feov-record", "show", "--run", "/x", "board"}, `"show" is not a top-level command`},
-		{"no flags at all", []string{"feov-record", "show"}, `"show" is not a top-level command`},
-		{"a command that does exist is left to cobra", []string{"feov-record", "blue", "--nonsuch"}, ""},
+		// `mint` is the merge seat's, and this caller is blue: the refusal names the seat that
+		// holds it, and it does so BEFORE complaining about --run.
+		{"real flags on a command that is not this seat's", []string{"feov-record", "mint", "--run", "/x", "board"}, `"mint" is not on your surface`},
+		{"no flags at all", []string{"feov-record", "mint"}, `"mint" is not on your surface`},
+		{"a command that does exist is left to cobra", []string{"feov-record", "edit", "--nonsuch"}, ""},
 		{"a bare flag is left to cobra", []string{"feov-record", "--version"}, ""},
 		{"help is left to cobra", []string{"feov-record", "--help"}, ""},
 		{"no arguments at all", []string{"feov-record"}, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := refuseUnknownCommandFirst(root, tc.argv)
+			err := refuseUnknownCommandFirst(root, tc.argv, seatID)
 			switch {
 			case tc.want == "" && err != nil:
 				t.Fatalf("refused %v, which it must leave alone: %v", tc.argv[1:], err)
@@ -207,22 +214,26 @@ func TestTheToolNamesItselfByArgv0(t *testing.T) {
 //
 // The genuinely-absent case must keep saying so, or this trades one false answer for another.
 func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
-	root := newRoot()
+	// THE ADDRESS IS A SEAT, NOT A PATH. It used to be "run it with its role in front"; there is
+	// no role level to put in front any more, so the answer to "where does this live" is which
+	// SEAT holds it — and that is still the fact a seat needs, because it decides whether it is
+	// dispatched wrong or looking at work that is not its.
+	root := NewRootFor(record.SampleSeatOf("blue"))
 
-	for _, tc := range []struct{ name, wantPath string }{
-		{"inquiry-support", "merge inquiry-support"},
-		{"close", "merge close"},
-		{"line-of-inquiry", "blue line-of-inquiry"},
-		{"verify", "lens verify"},
+	for _, tc := range []struct{ name, wantSeat string }{
+		{"inquiry-support", "merge"},
+		{"close", "merge"},
+		{"reproduce", "lens"},
+		{"halt", "bench"},
 	} {
 		got := unknownCommandRefusal(root, tc.name)
-		if !strings.Contains(got, tc.wantPath) {
-			t.Errorf("a bare %q does not say where it lives (want %q):\n%s\n\n"+
+		if !strings.Contains(got, "the "+tc.wantSeat+" seat's verb") {
+			t.Errorf("a bare %q does not say which seat holds it (want %q):\n%s\n\n"+
 				"A seat that believes the verb does not exist stops looking for it — measured: one went on to "+
-				"use a different verb entirely.", tc.name, tc.wantPath, got)
+				"use a different verb entirely.", tc.name, tc.wantSeat, got)
 		}
 		if strings.Contains(got, "no command named") {
-			t.Errorf("a bare %q is refused as nonexistent when it exists at %q:\n%s", tc.name, tc.wantPath, got)
+			t.Errorf("a bare %q is refused as nonexistent when the %s seat holds it:\n%s", tc.name, tc.wantSeat, got)
 		}
 	}
 

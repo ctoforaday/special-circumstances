@@ -60,7 +60,7 @@ type adversarialCase struct {
 
 func adversarialCases() []adversarialCase {
 	// The board every motion scenario argues over: one gap, minted by the merge.
-	mint := seatStep{"merge", "mint", "--seat-id", "red-merge-r1",
+	mint := seatStep{"mint", "--seat-id", "red-merge-r1",
 		"--key", "k1", "--class", "self-attestation", "--problem", "p",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "low",
@@ -71,7 +71,7 @@ func adversarialCases() []adversarialCase {
 	filePetition := seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1",
 		"--class", "safety", "--relief", "halt before the next round",
 		"--reason", "continuing would require asserting a consent gate that does not exist"}
-	propose := seatStep{"blue", "line-of-inquiry", "propose", "--seat-id", "blue-respond-r1",
+	propose := seatStep{"line-of-inquiry", "propose", "--seat-id", "blue-respond-r1",
 		"--reason", "a line worth taking", "--hypothesis", "it would settle the open question"}
 
 	return []adversarialCase{
@@ -126,8 +126,8 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:    "PASS is refused while a motion is unanswered",
-			setup:   []seatStep{mint, fileGrade, {"merge", "close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
-			act:     seatStep{"merge", "verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
+			setup:   []seatStep{mint, fileGrade, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			act:     seatStep{"verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
 			refused: "filed and never ruled",
 			guards: "A probe walked a run to `verdict PASS` AND `outcome VERIFIED` with a grade " +
 				"motion never ruled. The gate counted open GAPS only. PASS claims nothing is left " +
@@ -135,8 +135,8 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:  "PASS is allowed once every motion is answered",
-			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"merge", "close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
-			act:   seatStep{"merge", "verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
+			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			act:   seatStep{"verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
 			guards: "The gate above must not become unpassable. A check that no legitimate run can " +
 				"satisfy is removed by the first person it blocks.",
 		},
@@ -165,7 +165,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:    "a grade motion is refused on a gap already disposed of",
-			setup:   []seatStep{mint, {"merge", "close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			setup:   []seatStep{mint, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "contesting a settled grade"},
 			refused: "disposition has already been made",
 			guards:  "The other check lost in the replacement.",
@@ -278,14 +278,9 @@ func TestEveryAdversarialScenarioStatesWhatItGuards(t *testing.T) {
 func adversarialRun(t *testing.T) string {
 	t.Helper()
 	runDir := t.TempDir()
-	for _, s := range []struct{ role, id string }{
-		{"lens", "red-lens-r1-L1"},
-		{"merge", "red-merge-r1"},
-		{"blue", "blue-respond-r1"},
-		{"bench", "judge-r1"},
-	} {
-		if _, err := run(t, s.role, "register", "--run", runDir, "--seat-id", s.id); err != nil {
-			t.Fatalf("register %s: %v", s.id, err)
+	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
+			t.Fatalf("register %s: %v", id, err)
 		}
 	}
 	seedBlueReport(t, runDir)

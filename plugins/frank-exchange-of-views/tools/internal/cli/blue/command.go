@@ -14,10 +14,10 @@ import (
 
 const role = "blue"
 
-func NewCommand() *cobra.Command {
-	return seat.Role(role,
-		"blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.",
-		seat.Register("FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
+// Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
+func Verbs() []*cobra.Command {
+	return seat.RoleVerbs(role,
+		seat.Register("FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed"),
 		newEdit(),
 		newCite(),
 		newProve(),

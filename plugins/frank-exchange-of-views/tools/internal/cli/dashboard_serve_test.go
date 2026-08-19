@@ -102,7 +102,7 @@ func TestHostIPv4sSkipsLoopbackAndLinkLocal(t *testing.T) {
 // protocol registry calls co-resident-rules-disagree. A golden pins the STRING; nothing pinned the
 // AGREEMENT, so a reviewer regenerating a golden would not notice a security claim flip.
 func TestServeHelpMatchesTheTransport(t *testing.T) {
-	h := help(t, "dashboard", "--help")
+	h := help(t, "dashboard", "--help", "--seat-id", "operator")
 	if !strings.Contains(h, "HTTPS") {
 		t.Error("--serve help does not say HTTPS, but serveDashboard uses ListenAndServeTLS")
 	}

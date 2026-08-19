@@ -78,8 +78,10 @@ func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify",
 		`adjudicate ONE citation blue authored: --anchor c-<hex> (from `+"`show evidence`"+`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
 			`THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `+"`absent`"+` — `+
-			"`absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, "+
-			`which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.`,
+			"`absent` means you read blue's source and the claim is not in it. An unevidenced claim is not this verb's, and it is not "+
+			"automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it "+
+			"answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the "+
+			`TEXT stands up.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := record.NewPayload().Set("anchor", strings.TrimSpace(seat.Str(cmd, flags.Anchor)))
 			return writeVerify(s, cmd, p)
@@ -99,7 +101,9 @@ func newVerify() *cobra.Command {
 func newCorroborate() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("corroborate",
 		`corroborate a claim from a source YOU found — one blue never cited, so there is no anchor: --url <u> --title <t> --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
-			`To adjudicate a citation blue DID author, use `+"`verify`"+` instead: it names the citation by its anchor.`,
+			`THIS IS THE VERB FOR A CLAIM WITH NO CITATION when the source is obtainable — it answers whether the claim is true in the `+
+			`WORLD, where a finding answers whether the TEXT stands up, and it is what makes "nobody cited this" checkable instead of `+
+			"merely raised. To adjudicate a citation blue DID author, use `verify` instead: it names the citation by its anchor.",
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			p := record.NewPayload().Set("independent", true)
 			seat.SetSame(cmd, p, flags.URL, flags.Title)

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +26,7 @@ const hostile = "quotes \"like this\", $vars, 'apostrophes', `backticks`\nand a 
 
 func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 	runDir := seatRun(t)
-	out, err := runStdin(t, hostile, "lens", "friction", "--run", runDir,
+	out, err := runStdin(t, hostile, "friction", "--run", runDir,
 		"--seat-id", "red-lens-r1-L1", "--reason-file", "-")
 	if err != nil {
 		t.Fatalf("--reason-file - : %v (%s)", err, out)
@@ -60,7 +61,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		typ  string
 		args []string
 	}{
-		{"merge regrade", "reason", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
+		{"merge regrade", "reason", "regrade", []string{"regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
 		{"motion grade rule", "reason", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
 		{"motion grade file", "reason", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
 		{"motion petition file", "reason", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},
@@ -96,7 +97,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
 		t.Fatal(werr)
 	}
-	_, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--reason", "inline", "--reason-file", both)
 	if err == nil {
 		t.Fatal("passing --reason AND --reason-file was accepted; one of them was silently dropped")
@@ -118,9 +119,11 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 // requires the reading behind its verdict, which is exactly the payload channel this test used to
 // forbid it.
 func TestShortValueVerbsHaveNoPayloadChannel(t *testing.T) {
-	for _, c := range [][2]string{{"merge", "verdict"}} {
-		if h := help(t, c[0], c[1], "--help"); strings.Contains(h, "--reason ") {
-			t.Errorf("%s %s grew a payload channel; its fields are a label and a grade, and --reason would have nothing to fill", c[0], c[1])
+	// (verb, a seat that holds it) — the role that used to precede the verb is now the identity
+	// that selects the tree it is found in.
+	for _, c := range [][2]string{{"verdict", "red-merge-r1"}} {
+		if h := help(t, c[0], "--help", "--seat-id", c[1]); strings.Contains(h, "--reason ") {
+			t.Errorf("%s grew a payload channel; its fields are a label and a grade, and --reason would have nothing to fill", c[0])
 		}
 	}
 }
@@ -136,7 +139,7 @@ func runStdin(t *testing.T, stdin string, args ...string) (string, error) {
 	saved := os.Stdout
 	os.Stdout = w
 
-	root := newRoot()
+	root := NewRootFor(seatenv.SeatIDIn(args))
 	root.SetIn(strings.NewReader(stdin))
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
@@ -159,7 +162,7 @@ func runStdin(t *testing.T, stdin string, args ...string) (string, error) {
 // used to create no longer exists.
 func TestReasonFileReadsStdinThroughTheDashConvention(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := runStdin(t, hostile, "lens", "friction", "--run", runDir,
+	if _, err := runStdin(t, hostile, "friction", "--run", runDir,
 		"--seat-id", "red-lens-r1-L1", "--reason-file", "-"); err != nil {
 		t.Fatalf("--reason-file -: %v", err)
 	}

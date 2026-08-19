@@ -1,5 +1,5 @@
 <!--
-  report.md is ASSEMBLED FROM THE RECORD by `feov-record bench assemble`. Nothing is
+  report.md is ASSEMBLED FROM THE RECORD by the bench seat's assemble verb. Nothing is
   authored at assembly. Two ownership classes, marked per section below:
 
     [BLUE] — authored by blue INSIDE blue/report.md, audited by red every round (red
