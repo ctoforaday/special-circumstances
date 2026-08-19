@@ -38,9 +38,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── mint without class
 exit 2
@@ -82,9 +82,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── mint with unknown class
 exit 2
@@ -126,9 +126,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── class-new missing definition
 exit 2
@@ -170,9 +170,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── class-new unknown neighbor
 exit 2
@@ -214,9 +214,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── mint with bad grade
 exit 2
@@ -258,9 +258,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── mint with dangling supersedes
 exit 2
@@ -302,9 +302,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── close unknown gap
 exit 2
@@ -341,9 +341,9 @@ Enumerated values:
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── close without id
 exit 2
@@ -380,9 +380,9 @@ Enumerated values:
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── close without anchor
 exit 2
@@ -419,9 +419,9 @@ Enumerated values:
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── regression close without successor
 exit 2
@@ -458,9 +458,9 @@ Enumerated values:
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── regrade without basis
 exit 2
@@ -487,9 +487,9 @@ Flags:
       --severity grade     how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── opinion missing fields
 exit 2
@@ -521,18 +521,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -563,9 +563,9 @@ Enumerated values:
     FAIL  at least one gap is still open, or you are not satisfied it was answered
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── verdict outside the set
 exit 2
@@ -594,9 +594,9 @@ Enumerated values:
     FAIL  at least one gap is still open, or you are not satisfied it was answered
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── outcome in the wrong case
 exit 2
@@ -628,18 +628,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -689,9 +689,9 @@ Enumerated values:
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── grade motion dimension outside the set
 exit 2
@@ -732,18 +732,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -777,18 +777,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -822,18 +822,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -867,18 +867,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -912,17 +912,17 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        the round's ### BLUE section (prose via --reason)
   prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
   revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -956,17 +956,17 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        the round's ### BLUE section (prose via --reason)
   prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
   revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -985,11 +985,11 @@ Usage:
   feov-record [flags]
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 ── verb outside the lens role
 exit 2
@@ -1031,9 +1031,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── verb outside the blue role
 exit 2
@@ -1070,9 +1070,9 @@ Enumerated values:
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── verb outside the bench role
 exit 2
@@ -1114,9 +1114,9 @@ Enumerated values:
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── unknown verb
 exit 2
@@ -1148,18 +1148,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -1193,18 +1193,18 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 

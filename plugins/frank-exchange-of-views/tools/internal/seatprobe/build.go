@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -29,6 +31,12 @@ import (
 // Exec runs one tool invocation and returns its stdout.
 type Exec func(args ...string) (string, error)
 
+// ProbeAgentID is the harness handle the probe uses for a seat, at both ends of the binding: the
+// register the build writes, and the environment the seat is dispatched with. Derived from the
+// seat id so the two cannot drift, and prefixed so a probe record is never mistaken for a
+// production agent handle.
+func ProbeAgentID(seatID string) string { return "probe-" + seatID }
+
 // Seats are registered on every board: a motion names its filer, a ruling names its ruler, and an
 // unregistered seat is refused before any board state exists.
 var Seats = []struct{ Role, ID string }{
@@ -46,10 +54,32 @@ func Build(runDir string, b Board, exec Exec) error {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		return err
 	}
+	// REGISTER BINDS THE AGENT, so the build must register each seat AS the agent that will later
+	// be dispatched to hold it — otherwise the probe's seats arrive unbound and fall back to
+	// typing --seat-id on every call, which is the world before this mechanism rather than the one
+	// the probe is supposed to model.
+	//
+	// The probe can pre-assign what production cannot: it invents both ends. That is a real
+	// divergence and it is stated at the dispatch site — production's dispatcher never learns an
+	// agent handle, so a production seat types --seat-id exactly once, at register, and the
+	// binding takes over from there. What the probe reproduces faithfully is every call AFTER
+	// that one, which is all of them.
+	//
+	// The variable is set on THIS process because Exec spawns children that inherit it; the
+	// build is sequential, so there is no window where two seats' handles are both live.
 	for _, s := range Seats {
+		if err := os.Setenv(seatenv.AgentVar, ProbeAgentID(s.ID)); err != nil {
+			return err
+		}
 		if _, err := exec("register", "--run", runDir, "--seat-id", s.ID); err != nil {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
+	}
+	// The remaining build calls are the HARNESS staging a board, not a seat acting, so they must
+	// not carry a seat's handle: a mint written under a lens's agent id would bind that agent to
+	// whatever seat the fixture names next.
+	if err := os.Unsetenv(seatenv.AgentVar); err != nil {
+		return err
 	}
 
 	for i, g := range b.Gaps {

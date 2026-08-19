@@ -27,6 +27,30 @@ import (
 // subprocess cannot see: which error a verb returns, whether a payload key was
 // written at all, and the absent/present distinction the record format rests on.
 
+// testDispatchedSeat mirrors production's dispatchedSeat for a harness that drives cobra with an
+// args slice rather than os.Args: the flag wins, and an agent that has registered resolves to the
+// seat it bound itself to.
+//
+// The run directory comes from the args for the same reason the seat id does — a test's --run
+// never reaches the environment the binary reads.
+func testDispatchedSeat(args []string) string {
+	if id := seatenv.SeatIDIn(args); id != "" {
+		return id
+	}
+	runDir := ""
+	for i, a := range args {
+		if a == "--run" && i+1 < len(args) {
+			runDir = args[i+1]
+		}
+	}
+	if runDir == "" {
+		if r, err := seatenv.Resolve("", nil); err == nil {
+			runDir = r
+		}
+	}
+	return seatenv.Dispatched(seat.BoundSeat(runDir))
+}
+
 // run executes one command against a fresh root and captures what the seat sees.
 // Verb output goes to real stdout via fmt.Println, so stdout is redirected
 // rather than taken from cobra's writer.
@@ -35,9 +59,16 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// Output goes through cmd.OutOrStdout(), so a buffer set on the root captures every
 	// verb's stdout — no os.Stdout swap, no pipe. Errors are returned (SilenceErrors), so
 	// stderr carries nothing the tests read.
-	// THE TREE IS THE SEAT'S, and the seat id is in the args the test is about to send.
-	// Production reads FEOV_SEAT; a test drives cobra with a slice that never reaches the env.
-	root := NewRootFor(seatenv.SeatIDIn(args))
+	// THE TREE IS THE SEAT'S, resolved the way the binary resolves it: the flag if one is given,
+	// otherwise the seat this agent registered as.
+	//
+	// A HARNESS THAT ONLY READ THE FLAG WOULD MEASURE THE WRONG SURFACE. Production's newRoot
+	// calls dispatchedSeat, which falls back to the binding on the record — so a registered seat
+	// running with no --seat-id gets its own tree. A harness stopping at the flag hands that
+	// same call the EMPTY tree and reports "no such command", which is a fact about the harness
+	// and reads as a fact about the seat.
+	seatID := testDispatchedSeat(args)
+	root := NewRootFor(seatID)
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
@@ -45,7 +76,7 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// THE HARNESS REPRODUCES THE BINARY, and this pre-check is part of it: Execute runs
 	// refuseUnknownCommandFirst before cobra parses anything, so a command named by a caller with
 	// no identity is answered about the identity rather than about its flags.
-	if err = refuseUnknownCommandFirst(root, append([]string{"feov-record"}, args...), seatenv.SeatIDIn(args)); err == nil {
+	if err = refuseUnknownCommandFirst(root, append([]string{"feov-record"}, args...), seatID); err == nil {
 		err = ExecuteRoot(root)
 	}
 	// THE HARNESS REPRODUCES THE BINARY. A flag-PARSE refusal never reaches seat.Emit, so
@@ -82,8 +113,9 @@ func seedBlueReport(t *testing.T, runDir string) {
 func help(t *testing.T, args ...string) string {
 	t.Helper()
 	var out bytes.Buffer
-	// THE TREE IS THE SEAT'S, and the seat id is in the args the test is about to send.
-	// Production reads FEOV_SEAT; a test drives cobra with a slice that never reaches the env.
+	// THE TREE IS THE SEAT'S, and the seat id is in the args the test is about to send. Reading a
+	// surface needs no binding — cobra answers --help without reaching RunE — so the flag alone is
+	// the whole resolution here, which is also what an unregistered seat's own help read does.
 	root := NewRootFor(seatenv.SeatIDIn(args))
 	root.SetOut(&out)
 	root.SetErr(&out)

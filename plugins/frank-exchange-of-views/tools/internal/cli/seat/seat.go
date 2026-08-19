@@ -56,9 +56,9 @@ capability is a finding about the tooling, and that channel is how it gets fixed
 // that matches nothing falls through silently: absent duties and an honestly empty duty list are
 // the same bytes.
 //
-// The role is not a fact about the tree. It is a fact about WHO WAS DISPATCHED, the engine injects
-// it as FEOV_SEAT, and the tool now derives the tree FROM it rather than recovering it from a path
-// the seat had to type correctly.
+// The role is not a fact about the tree. It is a fact about WHO WAS DISPATCHED — bound at
+// `register` and read back from the record — and the tool derives the tree FROM it rather than
+// recovering it from a path the seat had to type correctly.
 const RoleKey = "feov.seat-role"
 
 // SeatKey carries the resolved seat ID beside its role, for refusals that must name the party.
@@ -111,6 +111,56 @@ func (c Context) Identity() record.Identity {
 // It stays error-free by design: the resolution that CAN fail (an injected run directory
 // disagreeing with a typed --run) is surfaced by Begin, which already has an error to return.
 // Threading one through Of would have changed every caller for a case only Begin acts on.
+// requireBound refuses an act by an agent that has not registered.
+//
+// THE ASYMMETRY IS THE MECHANISM. `register` is the one verb that may run unbound, because it is
+// what CREATES the binding; every other verb is refused until it has. Without this the binding is
+// advisory — a seat could skip register, keep typing --seat-id, and file events under any id the
+// tree will build, which is the self-asserted identity this replaces.
+//
+// IT FIRES ONLY WHERE THE MECHANISM EXISTS. No agent handle means no hook, which means a test, an
+// operator at a shell, or a harness with no PreToolUse — none of them can bind, and refusing them
+// would be demanding a mechanism their environment does not have. The check is therefore keyed on
+// the handle's PRESENCE, and its absence falls back to the flag exactly as before.
+//
+// COBRA ANSWERS --help WITHOUT REACHING RunE, so reading a surface is structurally exempt and needs
+// no arm here: an unregistered seat can still discover what it is about to register for.
+func requireBound(cmd *cobra.Command, s Context) error {
+	agent := seatenv.AgentID()
+	if agent == "" || cmd == nil || cmd.Name() == "register" {
+		return nil
+	}
+	bound, found, err := record.SeatOfAgent(s.RunDir, agent)
+	if err != nil {
+		return err
+	}
+	if found && bound != "" {
+		return nil
+	}
+	return feov.Errorf(feov.Validation,
+		"`register` is your first act and it has not happened: nothing on the record binds this agent to a seat, "+
+			"so %q is a claim rather than an identity. Run `register --seat-id %s` — it records who you are, and every "+
+			"call after it resolves your seat from that binding instead of trusting the flag. This is the ONE call that "+
+			"needs you to type your seat id.",
+		s.SeatID, s.SeatID)
+}
+
+// BoundSeat resolves this process's agent handle to the seat it registered as, against a run.
+//
+// It is a closure rather than a value because BOTH call sites need it at a moment when the run
+// directory has just been resolved and nothing has read the record yet — and because a nil one is
+// the honest way to say "there is no run to look in", which is a different state from "this agent
+// has not registered".
+func BoundSeat(runDir string) func() (string, error) {
+	if runDir == "" || seatenv.AgentID() == "" {
+		return nil
+	}
+	return func() (string, error) {
+		seat, _, err := record.SeatOfAgent(runDir, seatenv.AgentID())
+		return seat, err
+	}
+}
+
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
 	resolved, err := seatenv.Resolve(runDir, func() string { return InferRunDir("") })
@@ -121,7 +171,7 @@ func Of(cmd *cobra.Command) Context {
 	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	round := -1
-	if id, rerr := seatenv.ResolveSeat(seatID, record.RoundOf); rerr == nil {
+	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(runDir), record.RoundOf); rerr == nil {
 		seatID, round = id.ID, id.Round
 	}
 	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd)}
@@ -386,7 +436,7 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
 	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
 	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
-	if _, err := seatenv.ResolveSeat(seatFlag, record.RoundOf); err != nil {
+	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).RunDir), record.RoundOf); err != nil {
 		return Of(cmd), err
 	}
 	s := Of(cmd)
@@ -394,7 +444,10 @@ func Begin(cmd *cobra.Command) (Context, error) {
 		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")
 	}
 	if s.SeatID == "" {
-		return s, feov.Errorf(feov.MissingField, "--seat-id is required (the engine assigns it; it is in your prompt)")
+		return s, feov.Errorf(feov.MissingField, "--seat-id is required (state it once at `register`; after that it is bound and read back for you)")
+	}
+	if err := requireBound(cmd, s); err != nil {
+		return s, err
 	}
 	// THE ROLE CHECK IS GONE BECAUSE THERE IS NOTHING LEFT TO RECONCILE. It compared the role in
 	// the command PATH against the seat id, which was a real guard while a seat typed both: two

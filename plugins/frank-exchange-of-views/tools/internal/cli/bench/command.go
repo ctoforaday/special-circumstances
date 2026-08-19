@@ -16,7 +16,7 @@ const role = "bench"
 // Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
-		seat.Register("FIRST ACTION at the sitting: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed"),
+		seat.Register("FIRST ACTION at the sitting: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed"),
 		newOpinion(),
 		newHalt(),
 		newCertify(),

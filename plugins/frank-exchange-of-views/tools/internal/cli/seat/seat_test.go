@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -33,14 +34,22 @@ func TestAReadHonoursTheInjectedRunLikeAWrite(t *testing.T) {
 
 // A DISAGREEING --seat-id IS REFUSED, which Of's own comment claimed Begin did and nothing did.
 //
-// Measured before the fix: with FEOV_SEAT=blue-respond-r1 injected, a call passing
-// --seat-id blue-respond-r9 was accepted and filed under r9 — a seat no dispatch created,
-// carrying its own register event and its own shard. Attribution is the one fact a seat must
-// not be able to get wrong: found_by, estoppel and every parity check read it.
+// Measured before the fix: with an identity injected, a call passing --seat-id blue-respond-r9
+// was accepted and filed under r9 — a seat no dispatch created, carrying its own register event
+// and its own shard. Attribution is the one fact a seat must not be able to get wrong: found_by,
+// estoppel and every parity check read it.
+//
+// THE IDENTITY NOW COMES FROM THE RECORD, so this test stages the real thing: the agent registers,
+// which writes the binding, and only then does the contradicting flag arrive. It used to set
+// FEOV_SEAT — a variable with readers and no writer, so the guarantee was checked against a
+// source no run could produce.
 func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
 	run := t.TempDir()
 	t.Setenv(seatenv.Var, run)
-	t.Setenv(seatenv.SeatVar, "blue-respond-r1")
+	t.Setenv(seatenv.AgentVar, "agent_01")
+	if _, _, err := record.RegisterSeat(record.Identity{RunDir: run, SeatID: "blue-respond-r1", Round: 1}); err != nil {
+		t.Fatal(err)
+	}
 
 	c := &cobra.Command{Use: "friction"}
 	c.Flags().String(flags.Run, "", "")

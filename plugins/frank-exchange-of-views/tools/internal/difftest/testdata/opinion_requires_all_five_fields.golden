@@ -39,9 +39,9 @@ Enumerated values:
     carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed --principle p --tension t
 exit 2
@@ -79,9 +79,9 @@ Enumerated values:
     carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ═══ EVENTS ═══
 -- events-judge-r2-NONCE001.jsonl

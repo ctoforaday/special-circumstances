@@ -1,4 +1,4 @@
-prompt sha256: a173ffd25dbc433c598ccc2b62b66342ffee200fb700903131eaa233e784a780
+prompt sha256: c7a3275e7576fd4e9a71d3b0fac7c88a98966c81874f935e00ed693582aedd93
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -43,8 +43,10 @@ Rows reading "not computed" are honest, not gaps to fill — the envelope-derive
 SEAT_ID: blue-synthesize.
 THE RECORD TOOL IS THE CONTRACT: every board act happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
-YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id blue-synthesize on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat.
-You do NOT pass the run directory: it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
+YOUR SEAT ID SELECTS YOUR SURFACE, AND YOU STATE IT ONCE: `register` is your first act, it binds blue-synthesize to you on the record, and every call after it resolves your seat for you — so you type --seat-id at register and never again, and a value disagreeing with what you registered as is refused rather than obeyed.
+Until you have registered nothing says who is asking, which is why the help reads below carry it.
+What comes back IS what you may do: there is no wider tree behind it and nothing of yours is filed under another seat.
+You do NOT pass the run directory at all — it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
 Three steps, every sitting, before the act that needs them:
 
   1.

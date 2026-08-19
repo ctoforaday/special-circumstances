@@ -13,6 +13,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // AuthorAgentType is the ONE agent_type on the report.md write allowlist — the round-0
@@ -30,7 +31,16 @@ func PreDenyReason() string { return denyReason }
 
 // Input is the subset of the hook stdin JSON the gate reads.
 type Input struct {
-	AgentType string          `json:"agent_type"`
+	AgentType string `json:"agent_type"`
+	// AgentID is the harness's handle for the subagent making this call, and it is the ONLY
+	// field on the payload that discriminates one seat from another: session_id and prompt_id
+	// are byte-identical across the main session and every concurrent subagent
+	// (plans/hook-surface-spike.md §7). Measured present on 9 of 9 subagent calls across three
+	// tool types, stable within an agent, distinct across concurrent ones.
+	//
+	// It is ABSENT on a main-session call, and that absence is meaningful rather than missing
+	// data: the main session is not a seat. An empty AgentID injects nothing.
+	AgentID   string          `json:"agent_id"`
 	ToolName  string          `json:"tool_name"`
 	ToolInput json.RawMessage `json:"tool_input"`
 }
@@ -183,25 +193,40 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 	if json.Unmarshal(in.ToolInput, &ti) != nil || ti.Command == "" {
 		return OutcomeNone, ""
 	}
-	rewritten, ok := injectRunDir(ti.Command, runDir)
+	rewritten, ok := injectEnv(ti.Command, [][2]string{
+		{seatenv.Var, runDir},
+		// THE IDENTITY, WHICH IS THE HALF THAT WAS MISSING. FEOV_SEAT had readers and no
+		// writer, because nothing in the system could produce a seat id: only `register`
+		// knows which agent holds which seat, and that is downstream of the first call. What
+		// the harness CAN hand over is agent_id, so that is what travels — and the record
+		// resolves it to a seat, where the mapping is a field somebody wrote rather than a
+		// value recovered from a command string.
+		{seatenv.AgentVar, in.AgentID},
+	})
 	if !ok {
 		return OutcomeNone, ""
 	}
 	return OutcomeRewrite, rewritten
 }
 
-// injectRunDir prefixes `export FEOV_RUN='<runDir>'; ` to a command that invokes feov-record.
+// injectEnv prefixes `export VAR='value'; ` for each variable a command does not already
+// carry, to a command that invokes feov-record.
 //
 // `export …;` and NOT the inline `VAR=x cmd` form. Measured: blue's real command was
 // `cd C:/… && "…/feov-record" blue manifest-row …`, where an inline prefix binds to `cd` and
 // never crosses the `&&`. An export is a statement; it applies to everything after it.
 //
-// QUOTING IS A SECURITY BOUNDARY, not formatting. The value is single-quoted with `'` escaped
-// as `'\”`, and a value carrying a control character is REFUSED — returned unmodified —
+// QUOTING IS A SECURITY BOUNDARY, not formatting. Each value is single-quoted with `'` escaped
+// as `'\”`, and a value carrying a control character is REFUSED — that variable is dropped —
 // because a newline inside the emitted prefix would end the export statement and turn the
-// remainder into a command. The run directory comes from a file on disk, and a file on disk is
-// not a trusted input just because we wrote it once.
-func injectRunDir(command, runDir string) (string, bool) {
+// remainder into a command. The run directory comes from a file on disk, and the agent id comes
+// off the wire; neither is a trusted input just because we read it ourselves.
+//
+// PER-VARIABLE, NOT ALL-OR-NOTHING. A command already carrying FEOV_RUN still gets FEOV_AGENT_ID,
+// which is what a seat that copied an earlier rewritten command produces. Making the whole
+// injection idempotent on one variable would have silently skipped the other — the plausible
+// zero, one layer down: identity absent, and the absence looking exactly like a main-session call.
+func injectEnv(command string, vars [][2]string) (string, bool) {
 	// HEREDOCS ARE A BLIND SPOT, so the whole command is left alone when one is present.
 	//
 	// A newline counts as a command separator — multi-line scripts are ordinary — but inside a
@@ -216,17 +241,40 @@ func injectRunDir(command, runDir string) (string, bool) {
 	if !feovToken.MatchString(command) {
 		return "", false
 	}
-	// Idempotent: a command already carrying the export is returned untouched, so a double
-	// hook invocation (or a seat that copied a rewritten command) cannot stack prefixes.
-	if strings.Contains(command, "export FEOV_RUN=") {
+	var prefix strings.Builder
+	for _, kv := range vars {
+		name, value := kv[0], kv[1]
+		// An empty value is NOT injected as an empty string. `export FEOV_AGENT_ID='';` would
+		// make "the main session, which has no agent id" indistinguishable from "an agent whose
+		// id is the empty string" at every reader downstream.
+		if value == "" {
+			continue
+		}
+		// Idempotent per variable, so a double hook invocation (or a seat that copied a
+		// rewritten command) cannot stack prefixes.
+		if strings.Contains(command, "export "+name+"=") {
+			continue
+		}
+		if hasControl(value) {
+			continue
+		}
+		prefix.WriteString("export " + name + "='" + strings.ReplaceAll(value, `'`, `'\''`) + "'; ")
+	}
+	if prefix.Len() == 0 {
 		return "", false
 	}
-	for _, r := range runDir {
+	return prefix.String() + command, true
+}
+
+// hasControl reports whether a value carries a byte that would break out of the single-quoted
+// export statement it is about to be spliced into.
+func hasControl(v string) bool {
+	for _, r := range v {
 		if r < 0x20 || r == 0x7f {
-			return "", false
+			return true
 		}
 	}
-	return "export FEOV_RUN='" + strings.ReplaceAll(runDir, `'`, `'\''`) + "'; " + command, true
+	return false
 }
 
 // reportPathFrom extracts a blue/report.md path token referenced by the tool call (a

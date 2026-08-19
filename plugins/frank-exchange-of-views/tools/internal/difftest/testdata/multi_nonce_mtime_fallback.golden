@@ -38,17 +38,17 @@ Available Commands:
   friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   help         Help about any command
   motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  register     FIRST ACTION at the seat: `register`, no flags of its own — the hook injects your run, so --seat-id is the one you pass, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
+  register     FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
   reproduce    re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
   show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   verify       adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read blue's source and the claim is not in it. An unevidenced claim is not this verb's, and it is not automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
-  -v, --version          version for feov-record
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
