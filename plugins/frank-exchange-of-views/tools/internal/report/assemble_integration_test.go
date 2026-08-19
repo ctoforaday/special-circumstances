@@ -80,9 +80,9 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"class", "correctness", "likelihood", "medium", "impact", "high",
 		"acceptance_check", "race the eviction under -race", "check_kind", "document", "required_fix", "take the read lock in evict")
 	add("red-merge-r1", "position", "reason", "gap R1-1 stands until the race is shown impossible")
-	add("blue-r1", "position", "reason", "R1-1 is repaired by ordering the invalidation before the store")
-	add("blue-r1", "line-of-inquiry", "inquiry_id", "Q1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
-	add("blue-r1", "line-of-inquiry", "inquiry_id", "Q2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
+	add("blue-respond-r1", "position", "reason", "R1-1 is repaired by ordering the invalidation before the store")
+	add("blue-respond-r1", "line-of-inquiry", "inquiry_id", "Q1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
+	add("blue-respond-r1", "line-of-inquiry", "inquiry_id", "Q2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
 	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
 		"tension", "cost vs certainty", "review_flag", "false", "reason", "a model-check is owed before this closes")
 	add("judge-terminal", "outcome", "verdict", "CEILING", "reason", "the round ceiling arrived before red could pass the final revision")

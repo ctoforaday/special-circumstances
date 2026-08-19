@@ -98,8 +98,8 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 
 func TestInquiriesSplitByFate(t *testing.T) {
 	board := &record.Board{Events: []record.Event{
-		{Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "profile the hot path").Set("method", "bench")},
-		{Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q2").Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
+		{Type: "line-of-inquiry", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "profile the hot path").Set("method", "bench")},
+		{Type: "line-of-inquiry", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("inquiry_id", "Q2").Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
 		{Type: "line-of-inquiry", SeatID: "red-lens-r1", Payload: record.NewPayload().Set("inquiry_id", "Q3").Set("status", "declined").Set("line", "third-party audit").Set("reason", "out of scope")},
 	}}
 	exp := inquiries(board, "Research areas", accepted)
@@ -166,7 +166,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 				"by accident", status)
 			continue
 		}
-		board := &record.Board{Events: []record.Event{{Type: "line-of-inquiry", SeatID: "blue-r1",
+		board := &record.Board{Events: []record.Event{{Type: "line-of-inquiry", SeatID: "blue-respond-r1",
 			Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", status).Set("line", "the only line")}}}
 		in := map[string]bool{
 			"research":     strings.Contains(inquiries(board, "Research areas", accepted), "the only line"),
@@ -223,7 +223,7 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 		// fixture used to write the retired `avenue-rule` type, which nothing has written since
 		// the motion collapse and which no longer has a read arm.
 		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("subject", "inquiry").Set("motion_id", "Q1").Set("ruling", "out-of-scope").Set("reason", "a real question, not THIS run's")},
-		{Round: 1, Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("contests_ruling", "out-of-scope")},
+		{Round: 1, Type: "line-of-inquiry", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("contests_ruling", "out-of-scope")},
 	}}
 	exp := inquiries(board, "Research areas", accepted)
 	for _, want := range []string{"out-of-scope", "a real question, not THIS run's", "against red's"} {
@@ -236,7 +236,7 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 func TestDebateTranscriptFromEvents(t *testing.T) {
 	evs := []record.Event{
 		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("reason", "gap A stands")},
-		{Round: 1, Type: "position", SeatID: "blue-r1", Payload: record.NewPayload().Set("reason", "gap A repaired")},
+		{Round: 1, Type: "position", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("reason", "gap A repaired")},
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.

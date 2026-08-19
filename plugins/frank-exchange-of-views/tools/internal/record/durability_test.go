@@ -414,10 +414,59 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 }
 
 func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
-	for _, id := range []string{"red-lens-r1-L1", "red-merge-r12", "blue-lane-3", "blue-synthesize", "frontier", "judge-r1", "assemble", "a"} {
+	for _, id := range []string{
+		"red-lens-r1-L1", "red-merge-r12", "blue-lane-3", "blue-respond-r2", "blue-synthesize",
+		"frontier", "judge-r1", "judge-terminal", "judge-petition-red-merge-r1", "assemble", "operator",
+	} {
 		runDir := t.TempDir()
 		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: RoundOf(id)}); err != nil {
 			t.Errorf("RegisterSeat(%q) = %v, want accepted", id, err)
+		}
+	}
+}
+
+// AND IT REFUSES WHAT NO DISPATCH PRODUCES, which is the half that makes the list above a roster
+// rather than a sample.
+//
+// `a` USED TO BE IN THE ACCEPTED LIST. That is what the guard was: any string of safe characters,
+// so `red-lens-banana` and a bare `a` both registered and bound. Register is the one call that
+// takes a seat's word for who it is — after it, the wrong id is not a claim, it is the record.
+func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
+	for _, id := range []string{
+		"a",                             // the old contract: any safe string
+		"red-lens-banana",               // the prefix guard's blind spot
+		"red-lens-r1",                   // a lens with no lens index
+		"red-lens-r1-L1-oops",           // a real id with something appended
+		"blue-r1",                       // invented, and it was live in three fixtures
+		"judge-petition",                // the bare pre-#394 form: one shard for every sitting
+		"judge-petition-judge-petition", // there is no sitting about a sitting
+		"Red-Merge-R1",                  // the right shape in the wrong case
+	} {
+		runDir := t.TempDir()
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: 1}); err == nil {
+			t.Errorf("RegisterSeat(%q) was accepted; it binds for the whole run and no dispatch created it", id)
+		}
+	}
+}
+
+// THE ROSTER AND THE ROLE TABLE MUST NOT FORK. roleSeats matches PREFIXES for role lookup and
+// seatShapes matches whole ids for legitimacy — two statements of one vocabulary, which is exactly
+// the shape that drifts. Each shape's sample must land in its own role, and every role must have at
+// least one shape, so a role added to one table without the other fails here.
+func TestTheRosterAndTheRoleTableAgree(t *testing.T) {
+	covered := map[string]bool{}
+	for _, s := range seatShapes {
+		if got := roleOfSeat(s.sample); got != s.role {
+			t.Errorf("shape sample %q is role %q by the roster and %q by roleSeats", s.sample, s.role, got)
+		}
+		if !s.re.MatchString(s.sample) {
+			t.Errorf("shape sample %q does not match its own pattern %s", s.sample, s.re)
+		}
+		covered[s.role] = true
+	}
+	for role := range roleSeats {
+		if !covered[role] {
+			t.Errorf("role %q has a prefix in roleSeats and no shape in the roster, so every id under it registers unchecked", role)
 		}
 	}
 }
