@@ -1107,10 +1107,10 @@ func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
 		dir := t.TempDir()
 		// The #394 shape: distinct work under one seat id, and no terminal event, so selection
 		// falls to mtime and the earlier sitting's rulings vanish.
-		first := Event{TS: "2026-01-01T00:00:01Z", SeatID: "judge-petition", Nonce: "aaaaaaaa", Type: "petition-rule",
-			Key: "judge-petition:petition-rule:M1", Payload: NewPayload()}
-		second := Event{TS: "2026-01-01T00:00:02Z", SeatID: "judge-petition", Nonce: "bbbbbbbb", Type: "petition-rule",
-			Key: "judge-petition:petition-rule:M2", Payload: NewPayload()}
+		first := Event{TS: "2026-01-01T00:00:01Z", SeatID: "judge-petition", Nonce: "aaaaaaaa", Type: "motion-rule",
+			Key: "judge-petition:motion-rule:M1", Payload: NewPayload()}
+		second := Event{TS: "2026-01-01T00:00:02Z", SeatID: "judge-petition", Nonce: "bbbbbbbb", Type: "motion-rule",
+			Key: "judge-petition:motion-rule:M2", Payload: NewPayload()}
 		shard(t, dir, "judge-petition", "aaaaaaaa", []Event{reg("judge-petition", "aaaaaaaa"), first})
 		shard(t, dir, "judge-petition", "bbbbbbbb", []Event{reg("judge-petition", "bbbbbbbb"), second})
 

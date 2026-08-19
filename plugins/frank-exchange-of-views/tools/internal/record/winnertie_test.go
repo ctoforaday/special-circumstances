@@ -34,7 +34,7 @@ func TestAnMtimeTieResolvesDeterministically(t *testing.T) {
 			var lines []string
 			for _, e := range []Event{
 				{TS: "2026-01-01T00:00:00Z", SeatID: "judge-petition", Nonce: nonce, Type: "register", Key: "judge-petition:register:" + nonce, Payload: NewPayload()},
-				{TS: "2026-01-01T00:00:00Z", SeatID: "judge-petition", Nonce: nonce, Type: "petition-rule", Key: "judge-petition:petition-rule:" + nonce, Payload: NewPayload()},
+				{TS: "2026-01-01T00:00:00Z", SeatID: "judge-petition", Nonce: nonce, Type: "motion-rule", Key: "judge-petition:motion-rule:" + nonce, Payload: NewPayload()},
 			} {
 				b, err := MarshalEvent(e)
 				if err != nil {

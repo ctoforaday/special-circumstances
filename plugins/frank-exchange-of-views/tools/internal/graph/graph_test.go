@@ -28,7 +28,11 @@ func TestGapHoleHeuristic(t *testing.T) {
 			"OPEN":         {ID: "OPEN", Open: true, Mint: p("class", "c")},
 		},
 		Events: []record.Event{
-			{Type: "dispute", Payload: p("gap_id", "UNANSWERED")}, // no dispute-respond -> hole
+			// A GRADE MOTION FILED AND NEVER RULED. This fixture used a `dispute` event until the
+			// motion collapse retired the type; the counters then read zero for every run and the
+			// hole detector could not fire at all, while this test went on passing against a
+			// vocabulary nothing wrote.
+			{Type: "motion", Payload: p("motion_id", "M1").Set("subject", "grade").Set("gap_id", "UNANSWERED")},
 		},
 	}
 	m := gapFlowMermaid(b)
@@ -41,9 +45,9 @@ func TestGapHoleHeuristic(t *testing.T) {
 	if lineClass(m, "g_TORN") != "hole" {
 		t.Errorf("a torn closure (no reason) must be a hole:\n%s", m)
 	}
-	// An open gap with an unanswered dispute is a hole.
+	// An open gap with a filed-but-unruled grade motion is a hole.
 	if lineClass(m, "g_UNANSWERED") != "hole" {
-		t.Errorf("a dispute with no response must be a hole:\n%s", m)
+		t.Errorf("a grade motion with no ruling must be a hole:\n%s", m)
 	}
 	// A plain open gap is open, not a hole.
 	if lineClass(m, "g_OPEN") != "open" {
@@ -74,5 +78,21 @@ func TestSeatFlowTalliesEvents(t *testing.T) {
 	m := seatFlowMermaid(b)
 	if !strings.Contains(m, "mint×2") || !strings.Contains(m, "red-merge-r1") {
 		t.Errorf("seat flow should tally events per seat:\n%s", m)
+	}
+}
+
+// A RULED grade motion is not a hole — the counter must distinguish filed-and-answered from
+// filed-and-ignored, which is the entire reason it counts two numbers rather than one.
+func TestRuledGradeMotionIsNotAHole(t *testing.T) {
+	b := &record.Board{
+		GapOrder: []string{"ANSWERED"},
+		Gaps:     map[string]*record.Gap{"ANSWERED": {ID: "ANSWERED", Open: true, Mint: p("class", "c")}},
+		Events: []record.Event{
+			{Type: "motion", Payload: p("motion_id", "M1").Set("subject", "grade").Set("gap_id", "ANSWERED")},
+			{Type: "motion-rule", Payload: p("motion_id", "M1").Set("subject", "grade").Set("ruling", "accepted")},
+		},
+	}
+	if got := lineClass(gapFlowMermaid(b), "g_ANSWERED"); got != "open" {
+		t.Errorf("a ruled grade motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(b))
 	}
 }

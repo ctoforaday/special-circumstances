@@ -19,12 +19,17 @@ var nonID = regexp.MustCompile(`[^a-zA-Z0-9]`)
 func nodeID(prefix, s string) string { return prefix + "_" + nonID.ReplaceAllString(s, "_") }
 
 // perGap holds the dialectic tally the graph annotates each gap with — the numbers that make a
-// hole visible (a dispute with no answer, a gap closed with no argument on the record).
+// hole visible (a challenge with no ruling, a gap closed with no argument on the record).
 type perGap struct {
-	closings, disputes, disputeResponds, opinions int
+	closings, motionsFiled, motionsRuled, opinions int
 }
 
-func tallyByGap(evs []record.Event) map[string]*perGap {
+// tallyByGap takes the BOARD, not raw events, because a ruling cannot be attributed to a gap
+// from an event alone: `motion-rule` carries motion_id, never gap_id — the ask holds the gap and
+// the answer holds only the ask's id. record.Motions performs that join, so counting rulings off
+// the raw stream would bucket every one of them under the empty key and report zero rulings
+// forever, which is the shape of the defect this counter was ported to escape.
+func tallyByGap(b *record.Board) map[string]*perGap {
 	m := map[string]*perGap{}
 	get := func(id string) *perGap {
 		if id == "" {
@@ -35,17 +40,27 @@ func tallyByGap(evs []record.Event) map[string]*perGap {
 		}
 		return m[id]
 	}
-	for _, e := range evs {
+	for _, e := range b.Events {
 		g := e.Payload.Str("gap_id")
 		switch e.Type {
 		case "closing":
 			get(g).closings++
-		case "dispute":
-			get(g).disputes++
-		case "dispute-respond":
-			get(g).disputeResponds++
 		case "opinion":
 			get(g).opinions++
+		}
+	}
+	// A GRADE MOTION IS THIS GAP'S CHALLENGE. These counters read `dispute`/`dispute-respond`
+	// until the motion collapse retired both types, after which the unanswered-challenge detector
+	// below could only ever see zero — and reported "no unanswered challenges" and "no challenges"
+	// as the same picture.
+	for _, m := range record.Motions(b) {
+		if m.Subject != "grade" {
+			continue
+		}
+		g := m.Fields["gap_id"]
+		get(g).motionsFiled++
+		if m.Ruled() {
+			get(g).motionsRuled++
 		}
 	}
 	return m
@@ -133,7 +148,7 @@ func tallyLabel(t map[string]int) string {
 // dialectic tally, plus supersedes edges. A gap CLOSED with no closing and no opinion, or a
 // gap with a dispute but zero dispute-responds, is a hole the annotation makes visible.
 func gapFlowMermaid(b *record.Board) string {
-	tally := tallyByGap(b.Events)
+	tally := tallyByGap(b)
 	var out strings.Builder
 	out.WriteString("flowchart LR\n")
 	out.WriteString("  classDef open fill:#f7e0de,stroke:#c0453f,color:#161c26\n")
@@ -166,12 +181,12 @@ func gapFlowMermaid(b *record.Board) string {
 		// A hole is a genuine defect, not merely a quiet gap: a dispute nobody answered, or a
 		// TORN closure — closed with no recorded reason (no closure_class, no disposition). A
 		// merge close that carries its closure_class is NOT a hole, even with no opinion.
-		hole := (pg.disputes > 0 && pg.disputeResponds == 0) || (!g.Open && reason == "")
+		hole := (pg.motionsFiled > 0 && pg.motionsRuled == 0) || (!g.Open && reason == "")
 		if hole {
 			class = "hole"
 		}
 		label := fmt.Sprintf("%s · %s<br/>%s%s<br/>closing×%d dispute×%d/%d opinion×%d",
-			id, g.Mint.Str("class"), state, sep(reason), pg.closings, pg.disputes, pg.disputeResponds, pg.opinions)
+			id, g.Mint.Str("class"), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.opinions)
 		out.WriteString(fmt.Sprintf("  %s[\"%s\"]:::%s\n", nodeID("g", id), label, class))
 	}
 	// supersedes edges — a gap's lineage.
@@ -197,7 +212,7 @@ func sep(reason string) string {
 // Dot renders the gap lifecycle as a graphviz digraph — the escape hatch for a run dense enough
 // that mermaid's layout struggles. Same gaps, states, and lineage; graphviz does the layout.
 func Dot(b *record.Board) string {
-	tally := tallyByGap(b.Events)
+	tally := tallyByGap(b)
 	var out strings.Builder
 	out.WriteString("digraph run {\n  rankdir=LR;\n  node [shape=box, style=\"rounded,filled\", fontname=\"monospace\"];\n")
 	for _, id := range b.GapOrder {
@@ -220,10 +235,10 @@ func Dot(b *record.Board) string {
 				}
 			}
 		}
-		if (pg.disputes > 0 && pg.disputeResponds == 0) || (!g.Open && reason == "") {
+		if (pg.motionsFiled > 0 && pg.motionsRuled == 0) || (!g.Open && reason == "") {
 			fill = "#f6ead0"
 		}
-		out.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q];\n", id, fmt.Sprintf("%s\\n%s\\nclose%d disp%d/%d op%d", id, state, pg.closings, pg.disputes, pg.disputeResponds, pg.opinions), fill))
+		out.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q];\n", id, fmt.Sprintf("%s\\n%s\\nclose%d mot%d/%d op%d", id, state, pg.closings, pg.motionsFiled, pg.motionsRuled, pg.opinions), fill))
 	}
 	for _, id := range b.GapOrder {
 		g := b.Gaps[id]

@@ -110,24 +110,6 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 	}
 }
 
-// A dispute is a decline too: blue contesting the grade is exercising the same right.
-func TestDisputeCountsAsADecline(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []Event{
-		{Type: "dispute", SeatID: "blue-respond-r1", Round: 1, Payload: NewPayload().Set("gap_id", "R1-1")},
-	})
-	if _, applied, declined := DeclineStats(b); applied != 0 || declined != 1 {
-		t.Errorf("applied=%d declined=%d, want 0/1 — a dispute is blue declining", applied, declined)
-	}
-}
-
-// THE COUNT IS KEYED ON A FIELD, NOT ON PROSE (#283, and the defect was mine).
-//
-// It read `strings.Contains(text, "estoppel —")`. That returns ZERO both when the guard
-// never fires and when someone rewords the refusal — and zero is printed to an operator as
-// "red behaved". The miss and the healthy answer were the same bytes.
-//
-// This test is the one the old implementation cannot pass: the message is deliberately
-// rewritten, including dropping the em-dash the substring keyed on.
 func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 	fr := func(text string) Event {
 		return Event{Type: "friction", SeatID: "red-merge-r2", Round: 2, Payload: NewPayload().

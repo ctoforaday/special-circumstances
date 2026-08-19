@@ -197,7 +197,7 @@ func dialecticRefsResolve(b *record.Board) Check {
 	var bad []string
 	for _, e := range b.Events {
 		switch e.Type {
-		case "closing", "dispute", "dispute-respond", "opinion":
+		case "closing", "motion", "opinion":
 			gid := e.Payload.Str("gap_id")
 			if gid != "" && b.Gaps[gid] == nil {
 				bad = append(bad, fmt.Sprintf("%s/%s→%s", e.SeatID, e.Type, gid))
@@ -362,8 +362,13 @@ func Compute(b *record.Board) Stats {
 			switch e.Type {
 			case "closing":
 				withClosing[gid] = true
-			case "dispute":
-				withDispute[gid] = true
+			case "motion":
+				// The grade-challenge stat. It counted `dispute` events until the motion collapse
+				// retired the type, after which it reported 0 for every run — indistinguishable
+				// from a run where nobody challenged a grade.
+				if e.Payload.Str("subject") == "grade" {
+					withDispute[gid] = true
+				}
 			case "opinion":
 				withOpinion[gid] = true
 			}

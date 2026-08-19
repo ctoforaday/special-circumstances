@@ -998,8 +998,10 @@ func rulingsFromRecord(board *record.Board) []ruling {
 				disposition: "declared",
 				rationale:   e.Payload.Str("holding"),
 			})
-		case "petition-rule", "motion-rule":
-			if e.Type == "motion-rule" && e.Payload.Str("subject") != "petition" {
+		case "motion-rule":
+			// Only the PETITION subject reaches the precedent harvest: a grade or direction
+			// ruling answers a motion the motions view renders with its ask beside it.
+			if e.Payload.Str("subject") != "petition" {
 				continue
 			}
 			out = append(out, ruling{
