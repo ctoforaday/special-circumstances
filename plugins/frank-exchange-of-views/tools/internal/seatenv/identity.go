@@ -114,3 +114,32 @@ func ResolveSeat(flagSeatID string, inferRound func(string) int) (Seat, error) {
 	}
 	return Seat{ID: id, Round: inferRound(id)}, nil
 }
+
+// Dispatched is the seat id this process is running as, for callers that need it BEFORE flags are
+// parsed — the CLI builds its command tree from the seat's role, and cobra resolves the command
+// path before it parses any flag.
+//
+// The environment is the real channel: the engine injects FEOV_SEAT. The os.Args scan is for a
+// human or a test driving the binary by hand with --seat-id, which ResolveSeat still accepts; it
+// is a bounded read of two spellings and is not a second flag parser. Anything it cannot find
+// yields "", which builds the operator tree — the honest answer for a process with no seat.
+func Dispatched() string {
+	if env := strings.TrimSpace(os.Getenv(SeatVar)); env != "" {
+		return env
+	}
+	return SeatIDIn(os.Args)
+}
+
+// SeatIDIn reads a --seat-id out of an argument list. Exported for the CLI test harness, which
+// drives cobra with an args slice that never reaches os.Args.
+func SeatIDIn(args []string) string {
+	for i, a := range args {
+		if a == "--seat-id" && i+1 < len(args) {
+			return strings.TrimSpace(args[i+1])
+		}
+		if v, ok := strings.CutPrefix(a, "--seat-id="); ok {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}

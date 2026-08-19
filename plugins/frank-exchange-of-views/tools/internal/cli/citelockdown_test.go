@@ -21,7 +21,7 @@ func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe value<!--cite:c-abc123--> is stable over time.\n")
 	registerBlue(t, runDir)
 
-	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "value is stable", "--new", "value is steady", "--reason", "wording")
 	if err == nil {
 		t.Fatal("an edit straddling a citation anchor was accepted")
@@ -46,11 +46,11 @@ func TestCiteAnchorBijection(t *testing.T) {
 		"https://b": []byte("source b"),
 	}})
 
-	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", `"Alpha holds under load."`, "--url", "https://a", "--title", "A"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", `"Beta holds under load too."`, "--url", "https://b", "--title", "B"); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestCiteAnchorBijection(t *testing.T) {
 	assertBijection(t, runDir)
 
 	// An edit that does NOT touch an anchor keeps the bijection.
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "under load too", "--new", "under heavy load too", "--reason", "precision"); err != nil {
 		t.Fatalf("clean edit: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
 			writeReport(t, runDir, "# H\n\nThe value is stable over time. A second sentence"+c.anchor+" is anchored.\n")
 			registerBlue(t, runDir)
 
-			_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 				"--key", "E1", "--quote", "The value is stable", "--new", "The value is steady"+c.anchor,
 				"--reason", "pasting an anchor into the replacement")
 			if err == nil {

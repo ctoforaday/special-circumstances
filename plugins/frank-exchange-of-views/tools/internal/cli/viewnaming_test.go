@@ -63,7 +63,7 @@ var viewWriters = map[string][]string{
 // failing twice, or — the expensive case — decides the capability is missing and works around it
 // in prose, which is a capability lost for the whole run and reported nowhere.
 func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
-	help, err := run(t, "blue", "show", "--help")
+	help, err := run(t, "show", "--help")
 	if err != nil {
 		t.Fatalf("blue show --help: %v", err)
 	}

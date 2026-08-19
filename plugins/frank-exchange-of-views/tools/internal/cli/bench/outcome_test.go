@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"github.com/spf13/cobra"
 	"strings"
 	"testing"
 
@@ -59,7 +60,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 			if tc.reason != "" {
 				args = append(args, "--reason", tc.reason)
 			}
-			c := NewCommand()
+			c := testRoot()
 			c.SetArgs(args)
 			c.SetOut(&strings.Builder{})
 			c.SetErr(&strings.Builder{})
@@ -100,7 +101,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "verdict", record.NewPayload().Set("verdict", "PASS")); err != nil {
 		t.Fatal(err)
 	}
-	c := NewCommand()
+	c := testRoot()
 	t.Setenv(seatenv.Var, runDir)
 	t.Setenv(seatenv.SeatVar, "judge-r1")
 	c.SetArgs([]string{"outcome", "--as", "VERIFIED", "--reason", "red passed and no gap survived it"})
@@ -126,4 +127,12 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		return
 	}
 	t.Fatal("no outcome event was recorded")
+}
+
+// testRoot mounts this seat's verbs on a bare root — what the CLI now does for a dispatched bench
+// seat. The role GROUP this replaced no longer exists: the tree is scoped to the injected role.
+func testRoot() *cobra.Command {
+	c := &cobra.Command{Use: "bench", SilenceUsage: true, SilenceErrors: true}
+	c.AddCommand(Verbs()...)
+	return c
 }

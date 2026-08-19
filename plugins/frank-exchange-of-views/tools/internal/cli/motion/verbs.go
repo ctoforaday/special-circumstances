@@ -126,9 +126,10 @@ func newRule(subject, ruler string) *cobra.Command {
 			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
 				return err
 			}
-			if err := requireRuler(subject, ruler, s.SeatID); err != nil {
-				return err
-			}
+			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
+			// a seat that cannot rule this subject cannot name the command — the same boundary the
+			// verb set draws everywhere else, instead of a runtime comparison of two copies of the
+			// acting role.
 			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
 			if err := record.RequireUnruledMotion(s.RunDir, id); err != nil {
 				return err

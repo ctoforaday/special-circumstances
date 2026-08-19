@@ -22,6 +22,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
@@ -29,7 +31,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/merge"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/motion"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // The CHANGELOG THAT WAS HERE IS GONE (#407). 70 entries, ~1000 lines, 96% of this file,
@@ -75,7 +76,75 @@ func InvokedAs() string {
 	return n
 }
 
+// seatRoles maps a resolved role to its surface and its one-line description. Built here rather
+// than in each package so the root can answer "which seat am I" once.
+func seatVerbs(role string) ([]*cobra.Command, string) {
+	switch role {
+	case "lens":
+		return lens.Verbs(), "red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's."
+	case "merge":
+		return merge.Verbs(), "the red merge seat — the board's only writer."
+	case "blue":
+		return blue.Verbs(), "blue seats — revisions, manifest rows, directions. No board verbs at all."
+	case "bench":
+		return bench.Verbs(), "the bench — opinions, halt, certification. Never originates."
+	}
+	return nil, ""
+}
+
+// RoleOfSeat resolves the dispatched role from a seat id, or "" for no seat.
+func RoleOfSeat(seatID string) string {
+	if strings.TrimSpace(seatID) == "" {
+		return ""
+	}
+	for _, r := range []string{"lens", "merge", "blue", "bench", record.OperatorRole} {
+		if record.CheckSeatRole(r, seatID) == nil {
+			return r
+		}
+	}
+	return ""
+}
+
+// noSeatNote explains an OPERATOR surface to something that expected a seat's.
+//
+// THIS IS THE COST OF SCOPING THE TREE, PAID RATHER THAN HIDDEN. A seat verb is now absent from a
+// process with no identity, so "mint" answers "no such command" where it used to answer "--seat-id
+// is required". That is the failure requireRuler's own comment named — under a scoped surface "not
+// yours" reads as "does not exist", and a seat handed an unavailable verb logs friction and works
+// around it, losing the capability for the run. The surface cannot carry the verb (it does not know
+// which seat's), so the REFUSAL has to carry the reason.
+func noSeatNote(seatID string) string {
+	if strings.TrimSpace(seatID) == "" {
+		return "\n\nTHIS IS THE OPERATOR SURFACE, because nothing identified you: " + seatenv.SeatVar +
+			" is unset and no --seat-id was given. A seat's verbs are scoped to its role and the engine injects " +
+			"the identity that selects them, so a process with no identity has no seat verbs at all — they are " +
+			"missing rather than refused. Say who you are: a seat id, or `" + record.OperatorRole + "`."
+	}
+	if RoleOfSeat(seatID) == "" {
+		return "\n\nTHIS IS THE OPERATOR SURFACE, because " + seatID + " belongs to no role namespace. The " +
+			"engine assigns seat ids; a hand-invented one selects no seat's verbs, so they are missing rather " +
+			"than refused."
+	}
+	return ""
+}
+
+// newRoot builds the tree for whoever is running it — see NewRootFor.
 func newRoot() *cobra.Command {
+	return NewRootFor(seatenv.Dispatched())
+}
+
+// NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.
+//
+// THE ROLE LEVEL IS GONE. It used to be four groups under the root, so a merge seat typed
+// `feov-record merge mint` — restating a fact the engine had already injected as FEOV_SEAT, with
+// CheckSeatRole reconciling the two copies and refusing a disagreement. The tool's own refusal
+// message says the principle it was breaking: "the engine injects your identity; you do not type
+// it." A merge seat now runs `mint`; a lens seat running `mint` gets an unknown command, which is
+// the same boundary drawn by the only fact that decides it.
+//
+// The operator tree is the one with no seat: setup, capture, dashboard and the rest have no role
+// to scope to, and a human running them is not a seat.
+func NewRootFor(seatID string) *cobra.Command {
 	root := &cobra.Command{
 		Use:   InvokedAs(),
 		Short: "the seat-side record runtime (the verb set IS the role boundary)",
@@ -101,23 +170,40 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// markdown view with no JSON form, so there is exactly one way to reach each form.
 	root.PersistentFlags().Bool(flags.JSON, false, "emit a structured JSON result (and structured errors) instead of human text")
 
-	root.AddCommand(
-		lens.NewCommand(),
-		merge.NewCommand(),
-		motion.NewCommand(),
-		blue.NewCommand(),
-		bench.NewCommand(),
-		newVerify(),      // operator cross-check, not a seat role — read-only over the record
-		newGraph(),       // operator: render a run's actual behaviour from the record
-		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
-		newFriction(),    // operator: the friction channel — seats write it, the human reads it
-		newFetch(),       // operator: cached, hash-verified web read (replaces WebFetch) — feeds the run source cache
-		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
-		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
-		newDashboard(),   // operator: the live run dashboard.html (ported from render-run-dashboard.mjs)
-		newCapture(),     // operator: the post-hoc capture auditor (ported from capture-research-run.mjs)
-		newHook(),        // hook backend: the blue-report lockdown PreToolUse/PostToolUse gates (invoked by hooks.json)
-	)
+	// A SEAT IS NOT AN OPERATOR, and the two sets are disjoint by construction rather than by
+	// anyone remembering. Promoting the seat's verbs to the root put them beside the operator
+	// commands, and two names collide outright: `friction` is a seat's write verb AND the
+	// operator's read of the channel; `verify` is a lens's citation adjudication AND the
+	// operator's whole-record cross-check. One tree cannot hold both meanings, and picking a
+	// winner would hand some seat a verb that does the other thing.
+	//
+	// So the split is total. `fetch` and `count-claims` cross it because seats genuinely run them
+	// — a lens reads blue's cached source bytes, and blue's claim_count is defined as what
+	// count-claims prints — and neither name collides.
+	if role := RoleOfSeat(seatID); role != "" && role != record.OperatorRole {
+		verbs, short := seatVerbs(role)
+		seat.SetRole(root, role)
+		root.Short = short
+		root.Long = InvokedAs() + " — " + short
+		root.AddCommand(verbs...)
+		root.AddCommand(motion.NewCommandFor(role))
+		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
+		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
+	} else {
+		root.AddCommand(
+			newVerify(),      // operator cross-check, not a seat role — read-only over the record
+			newGraph(),       // operator: render a run's actual behaviour from the record
+			newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
+			newFriction(),    // operator: the friction channel — seats write it, the human reads it
+			newFetch(),       // operator: cached, hash-verified web read — feeds the run source cache
+			newSetup(),       // operator: build a research run's blackboard
+			newScorecard(),   // operator: a chair's in-run self-read scorecard
+			newDashboard(),   // operator: the live run dashboard.html
+			newCapture(),     // operator: the post-hoc capture auditor
+			newHook(),        // hook backend: the blue-report lockdown gates (invoked by hooks.json)
+		)
+	}
+
 	// THE HELP TEMPLATE CARRIES WHAT COBRA HAS NO MODEL FOR: an enum's per-value meanings.
 	// Cobra's help is rich about commands and flags; a flag's VALUE-SPACE is neither, so every
 	// vocabulary here had nowhere to put its semantics and they went into source comments.
@@ -130,9 +216,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	root.Args = cobra.ArbitraryArgs
 	root.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return seat.RefuseAndTeach(cmd, "you named no command, so nothing ran. The commands below are the whole surface.")
+			return seat.RefuseAndTeach(cmd, "you named no command, so nothing ran. The commands below are the whole surface."+noSeatNote(seatID))
 		}
-		return seat.RefuseAndTeach(cmd, unknownCommandRefusal(cmd.Root(), args[0]))
+		return seat.RefuseAndTeach(cmd, unknownCommandRefusal(cmd.Root(), args[0])+noSeatNote(seatID))
 	}
 
 	enumhelp.Install(root)

@@ -42,7 +42,7 @@ func TestShowReportAtAnAnchorReadsTheLiveTextAndSaysWhereItIs(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, windowReport)
 
-	out, err := run(t, "blue", "show", "report", "--run", runDir, "--anchor", "f-a1b2c3")
+	out, err := run(t, "show", "report", "--run", runDir, "--anchor", "f-a1b2c3")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,14 +69,14 @@ func TestTheWindowSizeChangesWhatComesBack(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, windowReport)
 
-	narrow, err := run(t, "blue", "show", "report", "--run", runDir, "--anchor", "f-a1b2c3", "--window", "0")
+	narrow, err := run(t, "show", "report", "--run", runDir, "--anchor", "f-a1b2c3", "--window", "0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(narrow, "a paragraph before the anchored one.") {
 		t.Errorf("--window 0 returned neighbours; the size is not reaching the reader:\n%s", narrow)
 	}
-	wide, err := run(t, "blue", "show", "report", "--run", runDir, "--anchor", "f-a1b2c3")
+	wide, err := run(t, "show", "report", "--run", runDir, "--anchor", "f-a1b2c3")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestShowReportRefusesAnAnchorThatIsNotThere(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, windowReport)
 
-	out, err := run(t, "blue", "show", "report", "--run", runDir, "--anchor", "f-deadbeef")
+	out, err := run(t, "show", "report", "--run", runDir, "--anchor", "f-deadbeef")
 	if err == nil {
 		t.Fatalf("a stale anchor produced output rather than a refusal:\n%s", out)
 	}
@@ -107,7 +107,7 @@ func TestWindowWithoutAnAnchorIsRefusedRatherThanIgnored(t *testing.T) {
 	runDir := t.TempDir()
 	writeReport(t, runDir, windowReport)
 
-	out, err := run(t, "blue", "show", "report", "--run", runDir, "--window", "1")
+	out, err := run(t, "show", "report", "--run", runDir, "--window", "1")
 	if err == nil {
 		t.Fatalf("--window alone returned the whole report and exited 0:\n%s", out)
 	}

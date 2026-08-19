@@ -45,21 +45,29 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.`
 
-// MotionFooter points at the one group a seat uses that is NOT under its role.
+// RoleKey carries the seat's ROLE on the root command.
 //
-// Every other verb a seat needs is listed by `<role> --help`. Motions are not: the group sits at
-// the ROOT, because any seat may FILE one and exactly one role RULES each subject, so mounting it
-// per role would either duplicate it four times or misreport who may rule.
+// It replaces roleOf's walk up the tree, and the walk is worth remembering. Role used to be read
+// from a verb's POSITION — a verb's parent was its role node — which was true only while every
+// verb's parent WAS its role. `show` became a group, so `blue show board`'s parent became `show`,
+// and every projection read reported its role as the string "show". record.SittingOf switches on
+// the role to decide what a seat owes; the switch matched nothing, and for weeks the only duty any
+// seat received was the friction line that sits above it. Nothing reported it, because a switch
+// that matches nothing falls through silently: absent duties and an honestly empty duty list are
+// the same bytes.
 //
-// That was survivable while a duty handed over a full invocation. It is not now: the work list
-// says "motion M1 was filed and never ruled — PASS is refused while it stands", and a merge seat
-// reading its own role help finds no motion verb, no motion group, and no pointer to either. The
-// duty names a thing the help does not reach, which is the one shape this contract cannot have if
-// the help page is the only page that instructs.
-const MotionFooter = `
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.`
+// The role is not a fact about the tree. It is a fact about WHO WAS DISPATCHED, the engine injects
+// it as FEOV_SEAT, and the tool now derives the tree FROM it rather than recovering it from a path
+// the seat had to type correctly.
+const RoleKey = "feov.seat-role"
+
+// SetRole stamps the resolved role on the root, where every verb can reach it.
+func SetRole(root *cobra.Command, role string) {
+	if root.Annotations == nil {
+		root.Annotations = map[string]string{}
+	}
+	root.Annotations[RoleKey] = role
+}
 
 // Context is what every verb needs and no verb should re-derive.
 type Context struct {
@@ -103,43 +111,14 @@ func Of(cmd *cobra.Command) Context {
 	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd)}
 }
 
-// roleOf reads the role from the command's POSITION in the tree: a verb's parent is its
-// role node (Role sets the node's Use to the role name), so `merge mint`'s role is `merge`
-// without anyone threading the string. Role is structure, not an argument.
-// roleOf answers WHICH SEAT is running this command, by walking up to the nearest ancestor that is
-// a role.
+// roleOf answers WHICH SEAT is running this command, from the identity the engine injected.
 //
-// IT WAS `cmd.Parent().Name()`, AND THAT WAS TRUE ONLY WHILE EVERY VERB'S PARENT WAS ITS ROLE.
-// `show` became a GROUP, so the parent of `blue show work list` is `show` — and every projection
-// read has since reported its role as the string "show".
-//
-// MEASURED 2026-08-15, and it is a live defect rather than a cosmetic one. record.SittingOf
-// switches on the role to decide what a seat still owes. With "show" arriving, the switch matched
-// NOTHING, so the only duty any seat has received since the group landed is the friction line —
-// which sits above the switch. Blue was never told about a computation gap it had not proved or a
-// round record it had not filed; the merge was never told about an open gap or an unruled motion;
-// the bench was never told about an unruled petition.
-//
-// And the second half is worse than the first. `complete` is `len(Outstanding) == 0`, so once a
-// seat filed friction the work list told it `complete: true` — while `verdict --as PASS` went on
-// refusing it over the open gaps the same view had just declined to mention. That is precisely the
-// failure sitting.go's own doctrine names: "a seat told it was finished by one surface and refused
-// by another learns to trust neither."
-//
-// Nothing reported it because a role string is read for a SWITCH, and a switch that matches nothing
-// falls through silently. The absent duties and an honestly empty duty list are the same bytes.
+// See RoleKey for what this replaced and what that cost.
 func roleOf(cmd *cobra.Command) string {
-	for c := cmd.Parent(); c != nil; c = c.Parent() {
-		if isRoleName(c.Name()) {
-			return c.Name()
-		}
+	if cmd == nil {
+		return ""
 	}
-	// The nearest parent, as before, for anything mounted outside a role group — the operator
-	// commands have no seat and must not be reported as one of the four.
-	if p := cmd.Parent(); p != nil {
-		return p.Name()
-	}
-	return ""
+	return cmd.Root().Annotations[RoleKey]
 }
 
 // isRoleName is the party set as the tree mounts it. It is stated here rather than imported

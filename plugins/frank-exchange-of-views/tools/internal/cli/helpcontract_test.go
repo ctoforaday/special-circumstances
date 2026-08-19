@@ -124,7 +124,7 @@ func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
 		args []string
 		says string
 	}{
-		{"a verb outside the role", []string{"lens", "mint", "--seat-id", "red-lens-r1-L1"}, `verb "mint" is outside`},
+		{"a verb outside the role", []string{"mint", "--seat-id", "red-lens-r1-L1"}, `verb "mint" is outside`},
 		{"a role with no verb", []string{"blue"}, "verb is required"},
 		{"an unknown top-level command", []string{"frobnicate"}, `no command named "frobnicate"`},
 	} {
@@ -237,12 +237,9 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 func seatRunForContracts(t *testing.T) string {
 	t.Helper()
 	runDir := t.TempDir()
-	for _, s := range []struct{ role, id string }{
-		{"lens", "red-lens-r1-L1"}, {"merge", "red-merge-r1"},
-		{"blue", "blue-respond-r1"}, {"bench", "judge-r1"},
-	} {
-		if _, err := run(t, s.role, "register", "--run", runDir, "--seat-id", s.id); err != nil {
-			t.Fatalf("register %s: %v", s.id, err)
+	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
+			t.Fatalf("register %s: %v", id, err)
 		}
 	}
 	seedBlueReport(t, runDir)
@@ -253,7 +250,7 @@ func seatRunForContracts(t *testing.T) string {
 	}
 	// REAL REFERENTS, so an --id in a probe names something. Without these the reference checks
 	// fire before the flag-specific ones and this gate measures the wrong refusal.
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "contract-seed", "--class", "self-attestation",
 		"--problem", "p", "--fix", "f",
 		"--check", "c", "--check-kind", "document",
@@ -261,7 +258,7 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "the gap a probe's --id names"); err != nil {
 		t.Fatalf("seed gap: %v", err)
 	}
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--reason", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
 		t.Fatalf("seed line of inquiry: %v", err)
 	}
@@ -276,7 +273,7 @@ func seatRunForContracts(t *testing.T) string {
 	// interface, and reading a fact out of prose is the shape this suite exists to remove. The
 	// first draft regexed a 64-hex out of the message, found nothing, and the gate then reported
 	// `--as` as unnamed when the real refusal was a missing --id.
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "a quoted sentence", "--script", scriptPath,
 		"--reason", "the computation a probe re-runs"); err != nil {
 		t.Fatalf("seed proof: %v", err)

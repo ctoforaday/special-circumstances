@@ -14,10 +14,9 @@ import (
 
 const role = "lens"
 
-// NewCommand assembles the role. Each verb builds itself in its own file.
-func NewCommand() *cobra.Command {
-	return seat.Role(role,
-		"red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.",
+// Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
+func Verbs() []*cobra.Command {
+	return seat.RoleVerbs(role,
 		seat.Register("FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
 		newFinding(),
 		newVerify(),

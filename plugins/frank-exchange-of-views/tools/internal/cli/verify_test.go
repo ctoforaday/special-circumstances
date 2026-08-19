@@ -178,7 +178,7 @@ func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
 func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	runDir := seatRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.",
 		"--problem", "the defect", "--fix", "drop the independence claim",
