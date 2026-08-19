@@ -78,6 +78,7 @@ enum EventType {
   EVENT_TYPE_SPOT_CHECK = 29;
   EVENT_TYPE_VERDICT = 30;
   EVENT_TYPE_VERIFY = 31;
+  EVENT_TYPE_INQUIRY_CHECK = 32;
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -291,11 +292,13 @@ message Event {
     ManifestRow manifest_row = 48;
     Friction friction = 49;
     FrictionNone friction_none = 50;
+    InquiryCheck inquiry_check = 51;
   }
 
-  // 51-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
-  // claimed now rather than negotiated later.
-  reserved 51 to 80;
+  // 52-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_check`, which
+  // is what the reserve is for — the block shrinks by one and nothing is renumbered.
+  reserved 52 to 80;
 }
 
 // TelemetryLine is the per-round projection, NOT a shard event.
@@ -611,6 +614,50 @@ message Reproduce {
   optional string recorded_output = 4;
   optional string observed_output = 5;
   optional string note = 6;
+}
+
+// InquiryCheck is a lens seat's read of ONE line of inquiry against the CURRENT report.
+//
+// The report's account of its own research — "we pursued X", "we deferred Y" — reached the page
+// as a row `assemble` GENERATES from the record. It was the one set of claims in the document
+// that nothing could answer, because a generated row carried no anchor and so no verification
+// could reach it. It now carries `<!--inquiry:q-<id>-->` and this is the answer to it.
+//
+// IT IS A LENS'S WORK, NOT THE MERGE SEAT'S. Reading the artifact at the leaf and saying whether
+// the text backs a claim is precisely a lens's discipline; the merge seat owns the board.
+//
+// THE STATE IS NOT THE RULING. `motion inquiry rule` answers "is this direction worth the run's
+// time" — a judgement about the RESEARCH. This answers "does the document still carry it" — a
+// read of the ARTIFACT. A line can be endorsed and cut at once: red agreed it was worth taking
+// and the section that took it has since been deleted.
+message InquiryCheck {
+  optional string avenue_id = 1;
+  optional InquiryState state = 2;
+  optional string reason = 3;
+}
+
+// InquiryState is THREE states because the question is two binary facts, and one combination
+// cannot occur.
+//
+// Is the line present in the report? Does the text still back it as stated? Present-and-backed,
+// present-and-unbacked, and absent are the whole truth table — absent-and-backed is not a state.
+// The set is therefore COMPLETE by construction rather than by enumeration, which is the property
+// a hand-listed vocabulary never has.
+//
+// A FOURTH VALUE WAS DELIBERATELY REFUSED. The retired `inquiry-support` set carried `weakened`
+// — "still there, and the support has eroded". That is a point on a continuum, not a state, and a
+// seat asked to place a judgement on a continuum will argue the placement instead of making the
+// call. Erosion that leaves the text still backing the line is CARRIED; erosion past that point is
+// HOLLOW. The judgement is forced to a decision rather than parked in a soft word.
+//
+// Each state names a different consequence, which is the test of whether a set earns its size:
+// carried owes nothing, hollow owes blue a repair or a rebuttal, and cut means the report's
+// account of its own research is false until the line is restored or withdrawn.
+enum InquiryState {
+  INQUIRY_STATE_UNSPECIFIED = 0;
+  INQUIRY_STATE_CARRIED = 1;
+  INQUIRY_STATE_HOLLOW = 2;
+  INQUIRY_STATE_CUT = 3;
 }
 
 // Avenue is a line of inquiry with a lifecycle. A PROPOSAL assigns the id and carries the

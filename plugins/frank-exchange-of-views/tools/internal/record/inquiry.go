@@ -268,27 +268,22 @@ func Inquiries(b *Board) []*Inquiry {
 			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
 			// the field MotionRule carries and the only prose channel it has.
 			a.RulingWhy, a.RuledRound = t.GetOpinion(), int(e.GetRound())
-		// LEFT UNCONVERTED DELIBERATELY — THE SCHEMA HAS NO `inquiry-support`.
+		// A LENS'S READ OF THE LINE AGAINST THE CURRENT REPORT.
 		//
-		// record.proto carries no message for it and EventType has no value for it, so there is
-		// nothing to type-switch on and nothing SetBody could stamp. The census the schema was
-		// built from (plans/record-protobuf.md, 31 types) predates the verb: `merge
-		// inquiry-support` landed 2026-08-17 (5a70b14) and the schema 2026-08-18 (d51e06e),
-		// and the census grep required the event type in Append's THIRD argument, where this
-		// verb puts it second.
+		// This replaces `merge inquiry-support`, which existed only because a generated row
+		// carried no anchor and so no verification could reach it. The row is anchored now and
+		// the read is a lens's work, which is what a lens does: check the artifact at the leaf.
 		//
-		// It is NOT deleted, because deleting it is the silent regression this migration exists
-		// to remove: Support/SupportWhy/SupportRound would go permanently empty, UnvotedInquiries
-		// would return every line on every round, sitting.go's merge duty would never discharge,
-		// and refs.go would refuse `verdict --as PASS` forever — all while compiling green.
-		// The fix is a schema change (an InquirySupport message + EVENT_TYPE_INQUIRY_SUPPORT,
-		// regenerated), which is not this agent's file to make.
-		case "inquiry-support":
-			a, ok := byID[id]
+		// THREE STATES, and the set is complete by construction rather than by enumeration —
+		// present-and-backed, present-and-unbacked, absent. The retired set's fourth value,
+		// `weakened`, was a point on a continuum, and a seat asked to place a judgement on a
+		// continuum argues the placement instead of making the call.
+		case *recordpb.InquiryCheck:
+			a, ok := byID[t.GetAvenueId()]
 			if !ok {
 				continue
 			}
-			a.Support, a.SupportWhy, a.SupportRound = e.Payload.Str("as"), e.Payload.Str("reason"), e.Round
+			a.Support, a.SupportWhy, a.SupportRound = recordpb.Word(t.GetState()), t.GetReason(), int(e.GetRound())
 		}
 	}
 	out := make([]*Inquiry, 0, len(order))
