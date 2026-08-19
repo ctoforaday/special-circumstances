@@ -5,56 +5,47 @@ import (
 	"testing"
 )
 
-// THE DEFAULT IS THE SHIPPED SET, AND IT IS ASSERTED RATHER THAN INTENDED.
+// AN AFFORDANCE IS ON THE LIST AND DOES NOT BLOCK.
 //
-// available.go takes a real cost — an experiment knob inside a production path. The whole defence
-// of that cost is that unset changes nothing, and a defence nobody checks is a comment. If this
-// ever fails, every seat in every real run is reading a list somebody meant only for a probe.
-func TestDutyArmDefaultIsTheShippedSet(t *testing.T) {
-	t.Setenv(DutyArmEnv, "")
-	if got := CurrentDutyArm(); got != DutyShipped {
-		t.Fatalf("unset %s = %q, want %q — the shipped behaviour must be what a run gets without opting in", DutyArmEnv, got, DutyShipped)
-	}
-	// A TYPO MUST NOT EMPTY THE WORKLIST. `off` and "unrecognised" want opposite treatment: the
-	// first is a deliberate floor arm, the second is a mistake, and silently returning the floor
-	// for a mistake would hand a seat an empty duty list that reads exactly like a clean board.
-	t.Setenv(DutyArmEnv, "availabel")
-	if got := CurrentDutyArm(); got != DutyShipped {
-		t.Errorf("a misspelled arm resolved to %q — it must fall back to shipped, never to off", got)
-	}
-}
-
-// AND `Available` NEVER DECIDES WHETHER A SITTING IS FINISHED.
+// This is the rule sitting.go states — a seat told it is unfinished by this view and cleared by
+// every write path learns to trust neither surface — and it is why `Available` used to be a
+// SECOND list. It never needed to be. The rule constrains what `complete` may be computed from,
+// which is a property of one field; making it a property of a whole separate surface is what put
+// a lens seat's entire real workload somewhere its completion check could not see.
 //
-// This is the rule sitting.go states and the reason Available is a second list rather than more
-// duties: a seat told it is unfinished by this view and cleared by every write path learns to
-// trust neither surface.
-func TestAvailableNeverGatesCompletion(t *testing.T) {
-	t.Setenv(DutyArmEnv, string(DutyAvailable))
-	b := &Board{Gaps: map[string]*Gap{}}
+// So the same guarantee, on one list: affordances appear, affordances carry Blocks:false, and
+// `complete` reads the blocking items alone.
+func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
+	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
+		{SeatID: "blue-respond-r1", Type: "blue_edit", Payload: NewPayload().Set("answers", "R1-2")},
+		// Both duties a blue seat owes on an empty board, discharged, so nothing blocks.
+		{SeatID: "blue-respond-r1", Type: "friction"},
+		{SeatID: "blue-respond-r1", Type: "revision"},
+	}}
 	s := SittingOf(b, "blue", "blue-respond-r1")
-	s.Available = append(s.Available, Duty{What: "an affordance"})
-	// Complete is computed from Outstanding alone; appending affordances cannot move it.
-	want := len(s.Outstanding) == 0
-	if s.Complete != want {
-		t.Fatalf("complete = %v with %d outstanding and %d available — completion must read Outstanding and nothing else",
-			s.Complete, len(s.Outstanding), len(s.Available))
-	}
-}
 
-// THE FLOOR ARM IS ACTUALLY EMPTY.
-//
-// A control that quietly still emits the shipped duties is not a control, and both arms would
-// report the same behaviour for a reason that has nothing to do with the seat.
-func TestOffArmEmitsNothing(t *testing.T) {
-	t.Setenv(DutyArmEnv, string(DutyOff))
-	b := &Board{Gaps: map[string]*Gap{}}
-	for _, role := range []string{"blue", "merge", "bench", "lens"} {
-		s := SittingOf(b, role, role+"-seat")
-		if len(s.Outstanding) != 0 || len(s.Available) != 0 {
-			t.Errorf("%s: off arm emitted %d outstanding and %d available — the floor arm must be empty or it is not a floor",
-				role, len(s.Outstanding), len(s.Available))
+	var afforded, blocking int
+	for _, it := range s.Open {
+		if it.Blocks {
+			blocking++
+		} else {
+			afforded++
 		}
+	}
+	if afforded == 0 {
+		t.Fatalf("an edit with no manifest row afforded nothing on the work list: %v", hows(s.Open))
+	}
+	if blocking != 0 {
+		t.Fatalf("nothing should block here; blocking items: %v", hows(s.Open))
+	}
+	if !s.Complete {
+		t.Errorf("complete = false with %d afforded and 0 blocking — an affordance must not gate closure; "+
+			"that is the whole constraint, and it is now a property of Item.Blocks rather than of a second list", afforded)
+	}
+	// And the other direction, which the two-list shape could not state at all: the seat is
+	// clear to close AND still has work in front of it.
+	if s.Complete && len(s.Open) == 0 {
+		t.Error("complete with an EMPTY list — the affordances vanished, which is the state a lens seat read before stopping")
 	}
 }
 
@@ -66,7 +57,6 @@ func TestOffArmEmitsNothing(t *testing.T) {
 // fail. A derivation that quietly matches nothing returns an empty affordance list, which reads
 // precisely like a board with nothing to offer.
 func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
-	t.Setenv(DutyArmEnv, string(DutyAvailable))
 
 	t.Run("manifest row missing after an edit", func(t *testing.T) {
 		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
@@ -113,7 +103,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 
 // A duty says WHAT is owed, so these read `what`. They used to read `how` — an invocation this
 // type no longer carries, because the help page is the only page that instructs.
-func hows(ds []Duty) []string {
+func hows(ds []Item) []string {
 	out := []string{}
 	for _, d := range ds {
 		out = append(out, d.What)
@@ -121,7 +111,7 @@ func hows(ds []Duty) []string {
 	return out
 }
 
-func mentions(ds []Duty, want string) bool {
+func mentions(ds []Item, want string) bool {
 	for _, d := range ds {
 		if strings.Contains(d.What, want) {
 			return true

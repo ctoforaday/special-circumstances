@@ -126,7 +126,7 @@ var enforcedElsewhere = map[string]string{
 	"file --class":     "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
 
 	// `show --view` IS NO LONGER SET-SHAPED, and that is the fix rather than the regression.
-	// Its usage was `board | findings | worklist | …` — a pipe list of nouns with no meanings,
+	// Its usage was `board | findings | work list | …` — a pipe list of nouns with no meanings,
 	// which is exactly what this gate's regex looks for. It is now a MENU: one line per view
 	// with its description and the verb that fills it, because a seat navigates by what the tool
 	// prints and a bare name list taught one to invent `blue line-of-inquiry`.

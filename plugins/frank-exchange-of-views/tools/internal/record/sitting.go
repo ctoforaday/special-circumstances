@@ -14,7 +14,7 @@ package record
 // command would be a second way to ask a question the first read should already answer, and this
 // surface is large enough already.
 //
-// So the worklist becomes the seat's own pending work. It was described as "the merge's
+// So the work list becomes the seat's own pending work. It was described as "the merge's
 // shrinking working set", and every other role defaulted somewhere unhelpful: blue's default read
 // was `changelog` — a record of what it had ALREADY done, handed to it before it had done
 // anything.
@@ -42,45 +42,48 @@ package record
 // their enums and their required-ness live, generated from the command that enforces them, so it
 // cannot disagree with the write path. Naming the verb inside `what` is a pointer; naming its
 // flags here would be the same second copy under a shorter name.
-type Duty struct {
+type Item struct {
 	What string `json:"what"`
+	// Blocks answers "is this what is stopping me closing" — the only distinction this list
+	// draws, and it is drawn PER ITEM rather than by splitting the list in two.
+	//
+	// It used to be two lists: `outstanding`, which gated `complete`, and `available`, which was
+	// documented as never touching it. The split was defensible one clause at a time — a duty
+	// must be enforced at a write path, an affordance is not an obligation, and inventing duties
+	// would make this view disagree with the gates. Its consequence was that a seat's completion
+	// check could only ever see the mechanically-enforced half, so a petition, an appeal, a
+	// corroboration and a re-run were not merely unlisted as owed: they were absent from the one
+	// surface a seat consults to ask whether there is anything left. Three seats interviewed
+	// about the verbs they never touched gave the same account of stopping — "the `outstanding`
+	// array emptied" — and one named the mechanism exactly: "things off the list weren't
+	// declined, they were invisible."
+	//
+	// So both halves are now on one list, and the honest distinction they were split to protect
+	// survives as this field. `complete` still agrees with the gates, because it is computed from
+	// the blocking items alone; nothing here invents an obligation. What changed is that work a
+	// seat may do no longer has to be absent in order to not be owed.
+	Blocks bool `json:"blocks"`
 }
 
-// SittingJSON says whether this seat's sitting is finished, and what is left if not.
+// SittingJSON is the seat's work: everything open to it, whether the sitting is finished, and —
+// on each item — whether that item is what is stopping it finishing.
 type SittingJSON struct {
 	Seat string `json:"seat"`
 	Role string `json:"role"`
-	// Complete is the answer to "may I end my turn". It is false whenever anything is
-	// outstanding, and a seat that ends anyway is ending against a stated list rather than in
-	// the dark — which is the difference this exists to make.
-	Complete    bool   `json:"complete"`
-	Outstanding []Duty `json:"outstanding"`
-	// Available is what this board AFFORDS, and it is deliberately not an obligation — see
-	// available.go. It never touches Complete: a seat reading it is being told what is open to
-	// it, not what it owes, and conflating the two is what the rule above forbids.
-	Available []Duty `json:"available"`
+	// Complete is the answer to "may I end my turn". It is false whenever a BLOCKING item is
+	// open, and a seat that ends anyway is ending against a stated list rather than in the dark
+	// — which is the difference this exists to make.
+	Complete bool   `json:"complete"`
+	Open     []Item `json:"open"`
 }
 
 // SittingOf computes what the given seat still owes on this board.
 func SittingOf(b *Board, role, seatID string) SittingJSON {
-	s := SittingJSON{Seat: seatID, Role: role, Outstanding: []Duty{}, Available: []Duty{}}
+	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
 	if b == nil {
 		return s
 	}
-	// THE ARM IS READ ONCE, HERE. Unset is the shipped behaviour, which is what every call site
-	// outside the probe gets — asserted, not assumed, by TestDutyArmDefaultIsTheShippedSet.
-	arm := CurrentDutyArm()
-	if arm == DutyOff {
-		// The floor arm: no duties, no affordances. `Complete` then reports true, which is
-		// honest for this arm and would be a lie in any other — it is the whole point of the
-		// control that the seat is told nothing about what it owes.
-		s.Complete = true
-		return s
-	}
-	if arm == DutyAvailable || arm == DutyAvailableOnBoard {
-		s.Available = AvailableOf(b, role, seatID)
-	}
-	add := func(what string) { s.Outstanding = append(s.Outstanding, Duty{What: what}) }
+	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
 
 	// EVERY SEAT CLOSES THE FRICTION CHANNEL. Silence is not the empty case: an absent friction
 	// log reads the same whether the sitting was clean or the channel went unused, and across
@@ -146,8 +149,11 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	//
 	// Written down because the absence reads as an oversight to anyone who has just fixed the
 	// roleOf defect and is looking for more of it. The acts a lens genuinely has open to it —
-	// verifying a citation nobody checked, re-running a proof nobody re-ran — are AFFORDANCES,
-	// and they live in AvailableOf where they carry no claim about being finished.
+	// verifying a citation nobody checked, corroborating one blue never cited, re-running a proof
+	// nobody re-ran — come from AvailableOf and land on this same list carrying Blocks:false. A
+	// lens therefore has an EMPTY blocking set and a non-empty work list, which is the accurate
+	// statement and was previously unsayable: the old shape could only express it as an empty
+	// work list, and a lens seat read that and stopped.
 	case "bench":
 		for _, m := range Motions(b) {
 			if m != nil && !m.Ruled() && m.Subject == "petition" {
@@ -155,8 +161,22 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 			}
 		}
 	}
-	s.Complete = len(s.Outstanding) == 0
+	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
+	// first. They carry Blocks:false, so they are visible without being owed.
+	s.Open = append(s.Open, AvailableOf(b, role, seatID)...)
+	s.Complete = !s.Blocked()
 	return s
+}
+
+// Blocked reports whether anything open is stopping closure. It is the one place `complete` is
+// derived from, so the field and the per-item flag cannot disagree.
+func (s SittingJSON) Blocked() bool {
+	for _, it := range s.Open {
+		if it.Blocks {
+			return true
+		}
+	}
+	return false
 }
 
 // seatVerb renders an invocation a seat can actually TYPE: `<role> <verb> …`.

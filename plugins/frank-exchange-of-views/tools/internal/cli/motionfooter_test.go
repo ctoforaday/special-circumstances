@@ -12,7 +12,7 @@ import (
 // A duty says WHAT is owed and nothing about how — the help page is the only page that instructs.
 // That holds only if every verb a duty points at is findable from the seat's own help. Motions
 // were the exception: the group sits at the ROOT (any seat files, one role rules), so
-// `merge --help` listed no motion verb and no pointer to one, while the worklist says "motion M1
+// `merge --help` listed no motion verb and no pointer to one, while the work list says "motion M1
 // was filed and never ruled — PASS is refused while it stands".
 
 func TestEveryRoleHelpPointsAtTheMotionGroup(t *testing.T) {

@@ -57,10 +57,12 @@ func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
 // The affordance must reach the seat, not merely exist — the surrounding derivation is what a
 // lens actually reads.
 func TestTheLensSeesTheAffordance(t *testing.T) {
-	t.Setenv(DutyArmEnv, string(DutyAvailable))
 	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{citeEvent("c-a08c9764", "x")}}
-	got := AvailableOf(b, "lens", "red-lens-r1-L1")
+	// Asked of the SITTING, not of AvailableOf: "reaches the seat" is a claim about the one list
+	// a seat reads, and this test passed for as long as the affordance existed on a surface the
+	// seat's completion check could not see.
+	got := SittingOf(b, "lens", "red-lens-r1-L1").Open
 	if !mentions(got, "c-a08c9764") {
-		t.Errorf("the lens is not shown the unverified citation: %v", hows(got))
+		t.Errorf("the lens is not shown the unverified citation on its work list: %v", hows(got))
 	}
 }

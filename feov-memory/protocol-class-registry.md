@@ -129,6 +129,37 @@ visible symptom and not the defect.
   anywhere enforces it, it is policy-without-mechanism. If the enforcer is right
   there and unusable because one name covers two contracts, it is this.
 
+### definition-forked-not-widened
+A definition that needed to GROW is left intact and a second carrier is created
+beside it for the new meaning. Nothing goes stale and nothing contradicts — each
+carrier is accurate about its own half — so the fork survives review and usually
+acquires a written justification that makes it read as designed. The consumer that
+reads only the original now gets a silently PARTIAL answer to the question it is
+still asking.
+- **Instances**: `Outstanding` was the definition of a seat's work; when work a
+  seat MAY do had to be included, `Available` was added beside it behind an arm and
+  documented as never touching `complete` — so a seat's completion check could only
+  ever see the mechanically-enforced half. Three seats interviewed about verbs they
+  never touched all stopped the same way and said so unprompted: "the `outstanding`
+  array emptied." The same object also acquired three names —
+  `worklist`, `available`, `scorecard` — one minted each time it was described with
+  a different word.
+- **Sweep question**: does the ORIGINAL carrier still answer the whole question its
+  consumers ask of it, or only the half it answered before the concept moved? And
+  could the new meaning have been a FIELD on the existing record rather than a
+  record beside it?
+- **Neighbour**: `archaeology-in-live-surface` — there the old carrier describes
+  something that no longer exists, so the fix is deletion. Here the old carrier is
+  alive and true about its half, so the fix is absorption.
+- **Distinguisher**: is the original still TRUE? Stale is archaeology.
+  True-but-partial, with a sibling carrying the remainder, is this.
+- **Note on why it recurs**: the fork is the backwards-compatibility instinct
+  running in a repository that has no consumers and no historical data to preserve.
+  Preserving the old definition's exact behaviour feels like care and costs
+  nothing visible, which is why the justification is always available and always
+  reads well. Named by the human after watching it happen several times: "every
+  time a definition change, you forked."
+
 ### archaeology-in-live-surface
 A surface an agent reads carries prose about a thing that NO LONGER EXISTS — a
 retired verb, a deleted file, a mode that was removed — so every seat spends

@@ -122,7 +122,7 @@ func (v *ShapedValue) Type() string { return v.kind }
 // GapID refuses anything that is not R<round>-<n>.
 func GapID() *ShapedValue {
 	return &ShapedValue{kind: "gap-id", re: gapIDShape,
-		hint: "a gap id looks like R2-3 (round, then the number the mint returned); `show board` and `show worklist` list them"}
+		hint: "a gap id looks like R2-3 (round, then the number the mint returned); `show board` and `show work list` list them"}
 }
 
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.

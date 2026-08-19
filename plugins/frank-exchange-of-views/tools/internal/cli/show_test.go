@@ -56,10 +56,10 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 
 	// merge's own view is the structured WORKLIST — its shrinking working set (OPEN gaps
 	// lean + a prose-free closed_index), the once-per-turn read it acts on. It is the
-	// last-wins default among the merge's views (board, findings, worklist all default to
-	// merge; worklist is registered last), so a bare `merge show` resolves here. The marker
-	// is `closed_index`, which ONLY the worklist carries — board/findings would also match a
-	// bare `"counts"`, so pinning on the unique key is what fixes the default to worklist.
+	// last-wins default among the merge's views (board, findings, work list all default to
+	// merge; work list is registered last), so a bare `merge show` resolves here. The marker
+	// is `closed_index`, which ONLY the work list carries — board/findings would also match a
+	// bare `"counts"`, so pinning on the unique key is what fixes the default to work list.
 	// EVERY ROLE NOW DEFAULTS TO ITS OWN PENDING WORK, which is what a bare `show` should
 	// answer. It did not: blue got `changelog` — a record of what it had ALREADY done, before it
 	// had done anything — the lens got `citation-ledger`, and the bench got `debate`. Asked what
@@ -164,7 +164,7 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	// NAMES FROM ViewNames(), not a hand-kept list: `friction` sat here after it stopped being a
 	// view, and the assertion went on passing — it demands an error, and an unknown view is an
 	// error too. A stale name in a list like this checks nothing while reading as coverage.
-	for _, v := range []string{"board", "findings", "worklist", "motions", "reason", "telemetry"} {
+	for _, v := range []string{"board", "findings", "work", "motions", "reason", "telemetry"} {
 		if _, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}

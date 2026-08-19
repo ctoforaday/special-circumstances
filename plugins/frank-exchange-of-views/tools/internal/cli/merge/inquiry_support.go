@@ -68,7 +68,7 @@ func newInquirySupport() *cobra.Command {
 	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID,
 		"the line of inquiry you are voting on — `show lines-of-inquiry` lists every one")
 	enumhelp.Flag(c, flags.As, record.MustEnum("inquiry-support", "as"),
-		"REQUIRED — what the report does for this line RIGHT NOW, from this round's read of the document rather than from the record you already have. `unsupported` and `absent` put it on blue's worklist; `weakened` is a flag blue may answer or accept")
+		"REQUIRED — what the report does for this line RIGHT NOW, from this round's read of the document rather than from the record you already have. `unsupported` and `absent` put it on blue's work list; `weakened` is a flag blue may answer or accept")
 	return c
 }
 

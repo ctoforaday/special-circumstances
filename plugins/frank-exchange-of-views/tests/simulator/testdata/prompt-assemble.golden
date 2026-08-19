@@ -1,4 +1,4 @@
-prompt sha256: ecc72c5f9790b983785ca85a1f9ea865c3c7939dd2f83b0f8dd33e4ae96b42f9
+prompt sha256: 1b882b264bd4423e7fe2395f32ae436facff573528a8a1bc9fd526820db9cf0a
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -47,7 +47,7 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
-EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `work` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.

@@ -62,7 +62,7 @@ var InquiryRulings = []EnumValue{
 //
 // `weakened` is the middle grade and earns its place the way a `low` corroboration does: it lets
 // red say the support has eroded without demanding a repair blue may reasonably decline. Only
-// `unsupported` and `absent` put the line on blue's worklist.
+// `unsupported` and `absent` put the line on blue's work list.
 var InquirySupports = []EnumValue{
 	Ev("supported", "the line is in the report and the text still backs it as stated"),
 	Ev("weakened", "still there, and the support has eroded — a flag, not a demand; blue is not obliged to act"),
@@ -73,7 +73,7 @@ var InquirySupports = []EnumValue{
 // InquirySupportNames is the bare vocabulary.
 func InquirySupportNames() []string { return Names(InquirySupports) }
 
-// SupportDemandsBlue reports whether this verdict puts the line on blue's worklist. `weakened` does
+// SupportDemandsBlue reports whether this verdict puts the line on blue's work list. `weakened` does
 // not: it is red saying "this is thinner than it was", which is an argument blue may answer or
 // accept, and a duty that fires on it would make every erosion a blocking repair.
 func SupportDemandsBlue(verdict string) bool {
@@ -333,7 +333,7 @@ func UnvotedInquiries(b *Board) []*Inquiry {
 	return out
 }
 
-// UnsupportedInquiries returns the lines red's latest verdict puts on BLUE's worklist — the report
+// UnsupportedInquiries returns the lines red's latest verdict puts on BLUE's work list — the report
 // no longer backs them, or does not carry them at all. `weakened` is deliberately not here: see
 // SupportDemandsBlue.
 func UnsupportedInquiries(b *Board) []*Inquiry {

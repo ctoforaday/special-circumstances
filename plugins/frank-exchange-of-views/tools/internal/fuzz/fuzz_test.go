@@ -1473,7 +1473,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	}
 	for _, v := range cli.ViewNames() {
 		switch v {
-		case "board", "findings", "friction", "worklist":
+		case "board", "findings", "friction", "work":
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
 		if out, err := tracked(bin, "merge", "show", v, "--run", runDir); err != nil {
@@ -2677,7 +2677,7 @@ func sumCounts(m map[string]int) int {
 
 // voteInquirySupport casts red's per-round support verdict on every line of inquiry that has none
 // this round. It spreads the four outcomes so each is exercised, and keeps `unsupported`/`absent`
-// rare — those put the line on BLUE's worklist, and a fuzz that made every line unsupported would
+// rare — those put the line on BLUE's work list, and a fuzz that made every line unsupported would
 // drive that duty and nothing else.
 func (r *runner) voteInquirySupport(seatID string) {
 	b, err := record.BoardState(r.runDir)

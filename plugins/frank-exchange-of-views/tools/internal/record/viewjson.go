@@ -34,9 +34,6 @@ type BoardJSON struct {
 	// replay has not reached yet — vanishing silently gives a board that is wrong by however
 	// many it dropped, with nothing to show for it. A seat that can see them can petition.
 	Anomalies []string `json:"anomalies"`
-	// Sitting rides here only under the carriage arm (see BoardJSONBytesFor). A nil pointer
-	// omits the key entirely, so the shipped board JSON is byte-identical to what it was.
-	Sitting *SittingJSON `json:"sitting"`
 }
 
 type CountsJSON struct {
@@ -282,27 +279,24 @@ func BoardJSONBytes(runDir string) ([]byte, error) {
 	return BoardJSONBytesFor(runDir, "", "")
 }
 
-// BoardJSONBytesFor is the board, optionally carrying the seat's sitting.
+// BoardJSONBytesFor is the board.
 //
-// THE CARRIAGE ARM. `board` is described in this package's own words as "the form a seat acts on"
-// and was read 2.7-4.3 times a sitting across 24 probe dispatches; `worklist`, which carries every
-// duty and affordance, was read 0.33-2.00 times. A list that rides only on the projection a seat
-// rarely opens mostly does not arrive, and its silence reads exactly like having nothing to say.
+// IT USED TO OPTIONALLY CARRY THE SEAT'S SITTING, under an arm, and the measurement behind that is
+// still true: `board` is described in this package's own words as "the form a seat acts on" and was
+// read 2.7-4.3 times a sitting across 24 probe dispatches, while the work list was read 0.33-2.00
+// times. A list that rides only on the projection a seat rarely opens mostly does not arrive.
 //
-// Under DutyAvailableOnBoard the sitting travels with the board as well. It is a SEPARATE arm from
-// the content change on purpose: "the list was too short" and "the list was in the wrong place" are
-// different diagnoses with different fixes, and an experiment that moved both at once could not
-// tell them apart.
+// The fix for that is not a second copy on a better-trafficked projection. Two surfaces answering
+// "what is left to do" is the defect one level up from the one it was correcting: whichever a seat
+// reads, it can no longer tell whether the other says something different. There is one work list,
+// it is what bare `show` returns for every role, and it is the command a seat is told to run. The
+// board is the gaps; the work is the work.
 func BoardJSONBytesFor(runDir, role, seatID string) ([]byte, error) {
 	b, err := BoardState(runDir)
 	if err != nil {
 		return nil, err
 	}
 	bj := BoardJSONOf(b)
-	if role != "" && CurrentDutyArm() == DutyAvailableOnBoard {
-		s := SittingOf(b, role, seatID)
-		bj.Sitting = &s
-	}
 	out, err := json.MarshalIndent(bj, "", "  ")
 	if err != nil {
 		return nil, err
@@ -310,21 +304,21 @@ func BoardJSONBytesFor(runDir, role, seatID string) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
-// WorklistJSON is the merge's SHRINKING working set: OPEN gaps only, in the lean shape a
+// WorkJSON is the merge's SHRINKING working set: OPEN gaps only, in the lean shape a
 // merge acts on turn to turn, plus a prose-free index of the closed gaps so a near-match
 // screen has ids and locations to hit without carrying every closed gap's full prose.
 //
 // It exists because the full board JSON grows monotonically (every closed gap stays, with
 // all its prose), and the merge re-read that whole thing every round only to act on the
-// open few. The worklist is the once-per-turn read: open gaps carry their grades + a
+// open few. The work list is the once-per-turn read: open gaps carry their grades + a
 // TRUNCATED problem synopsis (enough to recognise, not the whole record — the ledger/board
 // views still serve the full prose when a seat needs it), and closed gaps collapse to
 // {id, location, class}. Like every other JSON view it derives from BoardState.
-type WorklistJSON struct {
+type WorkJSON struct {
 	// Sitting answers "may I end my turn" on the read a seat already does first. A separate
 	// command would be a second way to ask a question this view should have been answering.
 	Sitting     SittingJSON       `json:"sitting"`
-	Open        []WorklistGapJSON `json:"open"`
+	Open        []WorkGapJSON     `json:"open"`
 	ClosedIndex []ClosedIndexJSON `json:"closed_index"`
 	Counts      struct {
 		Open   int `json:"open"`
@@ -340,7 +334,7 @@ type WorklistJSON struct {
 //
 // MEASURED 2026-08-16 BY ASKING THE MERGE. Dropped onto a board with three gaps, two open, it
 // reported: "The absence of any `blue edit` record suggests blue hasn't even tried. But I should
-// check the worklist again — does it say anything about blue's next move?" It then listed the
+// check the work list again — does it say anything about blue's next move?" It then listed the
 // three readings it could not choose between: blue is repairing in sequence and I should wait,
 // blue fixed one and missed two, or blue has no idea how to fix these.
 //
@@ -365,11 +359,11 @@ type CounterpartyJSON struct {
 	Reading string `json:"reading"`
 }
 
-// WorklistGapJSON is an open gap in its lean form: the grades a merge weighs, its class and
+// WorkGapJSON is an open gap in its lean form: the grades a merge weighs, its class and
 // location, a synopsis of the problem, and the lens findings that surfaced it. NOT the full
 // prose — required_fix and acceptance_check stay on the board (--view board / ledger) for the
-// seat that opens the gap; the worklist is for scanning the open set, not re-deriving it.
-type WorklistGapJSON struct {
+// seat that opens the gap; the work list is for scanning the open set, not re-deriving it.
+type WorkGapJSON struct {
 	ID              string `json:"id"`
 	Severity        any    `json:"severity"`
 	Likelihood      any    `json:"likelihood"`
@@ -378,7 +372,7 @@ type WorklistGapJSON struct {
 	Class           string `json:"class"`
 	Location        string `json:"location"`
 	ProblemSynopsis string `json:"problem_synopsis"`
-	// CheckKind rides the worklist too, though nothing else about the acceptance check does.
+	// CheckKind rides the work list too, though nothing else about the acceptance check does.
 	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
 	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
 	// and a seat scanning the open set has to know which of them cannot be answered in prose
@@ -398,7 +392,7 @@ type ClosedIndexJSON struct {
 	Class    string `json:"class"`
 }
 
-// synopsisLimit is the rune budget for an open gap's problem synopsis in the worklist — long
+// synopsisLimit is the rune budget for an open gap's problem synopsis in the work list — long
 // enough to recognise which gap this is, short enough that the open set stays a scan.
 const synopsisLimit = 140
 
@@ -412,18 +406,18 @@ func synopsis(s string) string {
 	return strings.TrimRight(string(r[:synopsisLimit]), " ") + "…"
 }
 
-// WorklistJSONOf projects the replayed board into the merge's working set. It walks the same
+// WorkJSONOf projects the replayed board into the merge's working set. It walks the same
 // GapOrder as BoardJSONOf so the two views agree on membership and order — open gaps to the
-// lean worklist shape, closed gaps to the prose-free index.
-func WorklistJSONOf(b *Board) WorklistJSON {
-	out := WorklistJSON{Open: []WorklistGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
+// lean work list shape, closed gaps to the prose-free index.
+func WorkJSONOf(b *Board) WorkJSON {
+	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
 	for _, id := range b.GapOrder {
 		g, ok := b.Gaps[id]
 		if !ok {
 			continue
 		}
 		if g.Open {
-			wg := WorklistGapJSON{
+			wg := WorkGapJSON{
 				ID:       g.ID,
 				Severity: g.Severity, Likelihood: g.Likelihood,
 				Impact: g.Impact, ComplexityCost: g.ComplexityCost,
@@ -451,7 +445,7 @@ func WorklistJSONOf(b *Board) WorklistJSON {
 	return out
 }
 
-// WorklistJSONBytes renders the worklist as indented JSON (a seat reads it in a terminal
+// WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal
 // transcript), mirroring BoardJSONBytes.
 // counterpartyOf counts what the OTHER party has done, so a seat can tell "not yet" from "not
 // coming". See CounterpartyJSON for the seat testimony that produced it.
@@ -502,12 +496,12 @@ func roundOfSeatOnBoard(b *Board, seatID string) int {
 	return r
 }
 
-func WorklistJSONBytes(runDir, role, seatID string) ([]byte, error) {
+func WorkJSONBytes(runDir, role, seatID string) ([]byte, error) {
 	b, err := BoardState(runDir)
 	if err != nil {
 		return nil, err
 	}
-	w := WorklistJSONOf(b)
+	w := WorkJSONOf(b)
 	w.Sitting = SittingOf(b, role, seatID)
 	w.Counterparty = counterpartyOf(b, role, roundOfSeatOnBoard(b, seatID))
 	out, err := json.MarshalIndent(w, "", "  ")

@@ -1,4 +1,4 @@
-prompt sha256: 0cb9157c45e5093456b693e666b62bc911ce568e8065733a4f418a9dd82d850f
+prompt sha256: 5c9381358a3a20a93c08b4c3b7af1690c3e2c64c2d4634be05500d4f5ee69ee6
 
 Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -48,7 +48,7 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
-EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `work` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.

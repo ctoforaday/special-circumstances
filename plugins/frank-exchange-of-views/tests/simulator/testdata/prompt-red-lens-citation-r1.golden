@@ -1,4 +1,4 @@
-prompt sha256: 4e2a0983ae8c8caef622d70ec0b7cc6eedd6024791c4d7023c26dad625992f18
+prompt sha256: 4332375fb6bf619d411f84b0a9caa97f793aa8766626907e39aa28910256c771
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -66,7 +66,7 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
-EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `work` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.

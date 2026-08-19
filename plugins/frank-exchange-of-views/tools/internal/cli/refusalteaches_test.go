@@ -189,7 +189,7 @@ func TestTheToolNamesItselfByArgv0(t *testing.T) {
 
 // A SEAT VERB TYPED WITHOUT ITS ROLE IS A WRONG ADDRESS, NOT A MISSING CAPABILITY.
 //
-// MEASURED 2026-08-17 on an elicitation probe. A red-merge seat holding a worklist duty that named
+// MEASURED 2026-08-17 on an elicitation probe. A red-merge seat holding a work list duty that named
 // `inquiry-support` typed `feov-record inquiry-support --help` and was told
 //
 //	no command named "inquiry-support" exists

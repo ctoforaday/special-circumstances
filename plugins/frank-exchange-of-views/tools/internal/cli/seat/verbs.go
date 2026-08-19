@@ -142,7 +142,7 @@ var views = []struct {
 	{"report", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", ""},
 	{"board", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", ""},
 	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
-	{"worklist", "STRUCTURED JSON: YOUR PENDING WORK and whether this sitting is finished (`sitting.complete`, with every outstanding duty and the verb that discharges it), plus the shrinking working set — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class); the once-per-turn read the merge acts on. `merge show` defaults here. Written by `mint` and `close`", "*"},
+	{"work", "**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left. An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do. Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class). Bare `show` defaults here for every role. Written by `mint` and `close`", "*"},
 	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
 	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
 	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
@@ -300,12 +300,12 @@ func renderView(cmd *cobra.Command, want string) error {
 			}
 			cmd.OutOrStdout().Write(b)
 			return nil
-		case "board", "findings", "friction", "motions", "worklist", "telemetry", "evidence":
+		case "board", "findings", "friction", "motions", "work", "telemetry", "evidence":
 			return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON)", role, want)
 		case "":
 			return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
 		default:
-			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/friction/motions/worklist are JSON by name)", role, want)
+			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/friction/motions/work list are JSON by name)", role, want)
 		}
 	}
 
@@ -429,11 +429,12 @@ func renderView(cmd *cobra.Command, want string) error {
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	// worklist is JSON by name too — the merge ACTS on it (scans the open set, screens
-	// candidates), so it reads structured fields, not prose. It is the shrinking
-	// once-per-turn read that the full board JSON is not.
-	if want == "worklist" {
-		b, err := record.WorklistJSONBytes(runDir, role, Of(cmd).SeatID)
+	// work is JSON by name too — the seat ACTS on it (scans the open set, screens candidates),
+	// so it reads structured fields, not prose. It is the shrinking once-per-turn read that the
+	// full board JSON is not, and it is the ONE command a seat is told to run: everything open
+	// to it, whether it may close, and which items are what stop it closing.
+	if want == "work" {
+		b, err := record.WorkJSONBytes(runDir, role, Of(cmd).SeatID)
 		if err != nil {
 			return err
 		}

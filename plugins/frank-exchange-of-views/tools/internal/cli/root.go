@@ -143,7 +143,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 // rather than only NO.
 //
 // MEASURED 2026-08-17, and it is the sharpest evidence this file has for the slip it already
-// documents. A red-merge seat, holding a worklist duty that named `inquiry-support`, typed
+// documents. A red-merge seat, holding a work list duty that named `inquiry-support`, typed
 //
 //	feov-record inquiry-support --help
 //

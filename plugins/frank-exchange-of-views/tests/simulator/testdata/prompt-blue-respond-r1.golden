@@ -1,4 +1,4 @@
-prompt sha256: 57c084d4617cb5f84986846024dcd53d1d0f44f10dc716bf2990ffd37a4e3e18
+prompt sha256: 57404d6661d451f193fa32748532cf750d55e467ea38ef7deb1676f106d2672f
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -9,7 +9,7 @@ You have Bash, Write and Edit, and for a whole class of questions running someth
 WORKING IT OUT IN YOUR HEAD IS NOT THE EXCEPTION — IT IS THE CASE THIS EXISTS FOR.
 Measured: a seat facing a gap that said the stated total did not match the per-source rows summed twelve integers inside its own reasoning, wrote the answer into the report, and moved on.
 The answer was RIGHT, which is exactly why nothing caught it: a correct figure with no derivation is indistinguishable from a confident guess, and a reader cannot vary the rate, re-check the sum, or locate the error on the day there is one.
-Every gap on the board and the worklist carries a check_kind AND an awaiting_proof flag — READ THEM — and a gap showing awaiting_proof: true is waiting on a program FROM YOU.
+Every gap on the board and the work projection carries a check_kind AND an awaiting_proof flag — READ THEM — and a gap showing awaiting_proof: true is waiting on a program FROM YOU.
 A gap whose check_kind is `computation` cannot be closed on prose at all: it closes only when you answer it with a PROOF naming that gap, and the merge is refused if it tries to close it any other way.
 Write a script under the run directory and record it against the exact sentence it backs, naming the script and, where one applies, the METHOD citation it uses.
 The tool runs it TWICE, caches the script and its output, and splices an invisible proof anchor at that sentence.
@@ -105,7 +105,7 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
-EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `work` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.
