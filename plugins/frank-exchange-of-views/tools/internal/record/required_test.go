@@ -18,9 +18,9 @@ import "testing"
 // round-scoped references and needs to know who is writing.
 func seatFor(typ string) string {
 	switch typ {
-	case "opinion", "petition-rule", "halt", "certify":
+	case "opinion", "halt", "certify":
 		return "judge-r1"
-	case "retire", "line-of-inquiry", "dispute", "manifest-row", "revision", "confidence":
+	case "retire", "line-of-inquiry", "manifest-row", "revision", "confidence":
 		return "blue-respond-r1"
 	default:
 		return "red-merge-r1"
@@ -53,8 +53,6 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"close":           {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x", "reason": "p"},
 		"closing":         {"gap_id": "R1-1", "reason": "t"},
 		"regrade":         {"reason": "b"},
-		"dispute":         {"gap_id": "R1-1", "reason": "e"},
-		"dispute-respond": {"gap_id": "R1-1", "reason": "r"},
 		"retire":          {"claim": "c", "reason": "r"},
 		"line-of-inquiry": {"status": "pursued", "line": "l"},
 		"inquiry-support": {"inquiry_id": "Q1", "as": "supported", "reason": "r"},

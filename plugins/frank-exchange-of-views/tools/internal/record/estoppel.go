@@ -95,10 +95,6 @@ func DeclineStats(b *Board) (offered, applied, declined int) {
 			if id := e.Payload.Str("answers"); id != "" {
 				answered[id] = true
 			}
-		case "dispute":
-			if id := e.Payload.Str("gap_id"); id != "" {
-				answered[id] = true
-			}
 		}
 	}
 	for id, g := range b.Gaps {

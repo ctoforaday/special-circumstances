@@ -1301,6 +1301,42 @@ golden re-records, the difftest envelope rename, and the telemetry-projection de
 is the bulk edit and it is deliberately not started — it cannot be left half-done without leaving
 the record half-typed.
 
+## PR3 task list — the legacy sweep, and what it turned out to be
+
+**Production Go is swept: zero legacy references outside tests.** The plan called every site an
+"arm deleted" and that was wrong for a third of them — several were LIVE detectors reading a dead
+vocabulary, so deleting them as written would have retired working logic into silence.
+
+| Site | Disposition |
+|---|---|
+| `refs.go` `requirePriorDispute` | **deleted** — no callers at all |
+| `estoppel.go` dispute arm | **deleted** — estoppel keys on TEXT AUTHORSHIP; a grade moves with the argument, so a grade challenge can never stand as blue's answer. Wrong when written, not merely stale. Its test went with it. |
+| `graph.go` unanswered-challenge detector | **PORTED** to motions — had reported "no unanswered challenges" and "no challenges" identically since the collapse |
+| `verify.go` `dialecticRefsResolve`, `GapsWithDispute` | **PORTED** — both always-zero |
+| `assemble.go` unanswered-petition warning | **PORTED**, and now stronger: its own comment said the pair was "counted rather than joined" because `petition-rule` carried no id. Motions have ids, so it is an exact count. |
+| `assemble.go` `### Grade disputes`, `### Petitions` · `view.go` disputes section · `viewjson.go` `rj.Disputes`/`DebateDisputeJSON` | **deleted** — second renderings of a dialectic `## Motions` already shows with each ruling beside its ask |
+| `view.go`, `capture.go` paired `petition-rule` | **deleted** from the pair; `motion-rule` already filters subject |
+
+**3a. REMAINING: 17 legacy references in 8 TEST files.** Not one kind, and they need judgement per
+fixture rather than substitution:
+
+- **Incidental fixtures** — `winnertie_test.go`, `replay_test.go` use `petition-rule` merely as
+  *an* event type for tie-breaking and shard-winner tests. Any live type serves; rename.
+- **Substantive fixtures** — `required_test.go:21,23,56,57` (a per-type requirement table),
+  `enums_test.go:182`, `assemble_test.go:243,244,247`, `viewjson_test.go:28`. These assert
+  behaviour about the retired types and must be ported or removed with their subject.
+- **`difftest/{scenarios,contract,fuzz}_test.go` — the sharp ones.** They drive the CLI with
+  `blue dispute`, `bench petition-rule`, `merge dispute-respond`. **Those verbs no longer exist**,
+  so these scenarios exercise a surface that is gone. Porting them means deciding what the
+  motion-era equivalent scenario is; deleting them means losing that coverage. Needs a real look,
+  not a rename.
+
+**3b. A REGRESSION THIS SWEEP CAUSED AND FIXED**, recorded because the class will recur: removing
+`petition-rule` from `capture.go` broke `TestHarvestPrecedents`, whose fixture was HALF-MIGRATED —
+`motion` for the filing, dead `petition-rule` for the ruling. A half-migrated fixture passes
+until the production side is finished, then fails in a way that looks like the production change
+is wrong. Two further capture assertions needed the same port.
+
 ## Decisions — all four open questions are resolved
 
 **Resolved by the operator on 2026-08-18, after #458 merged.** Nothing here is open; each is a
