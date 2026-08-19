@@ -115,10 +115,10 @@ var enumValueDoc = map[protoreflect.FullName]string{
 	"feov.record.v1.FRICTION_KIND_TOOL_ERROR": "the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat's own friction so the counts an operator reads stay about capability gaps",
 
 	// GradeDimension — which axis of a gap's grading is contested.
-	"feov.record.v1.GRADE_DIMENSION_SEVERITY":        "how bad it is if it bites",
-	"feov.record.v1.GRADE_DIMENSION_LIKELIHOOD":      "how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis",
-	"feov.record.v1.GRADE_DIMENSION_IMPACT":          "how far the damage reaches",
-	"feov.record.v1.GRADE_DIMENSION_COMPLEXITY_COST": "what the fix costs; it is what makes risk_accepted arguable",
+	"feov.record.v1.GRADE_DIMENSION_SEVERITY":   "how bad it is if it bites",
+	"feov.record.v1.GRADE_DIMENSION_LIKELIHOOD": "how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis",
+	"feov.record.v1.GRADE_DIMENSION_IMPACT":     "how far the damage reaches",
+	"feov.record.v1.GRADE_DIMENSION_COMPLEXITY": "what the fix costs; it is what makes risk_accepted arguable",
 
 	// PetitionClass — what kind of intervention is asked for.
 	"feov.record.v1.PETITION_CLASS_INTEGRITY": "the record or the process has been compromised",

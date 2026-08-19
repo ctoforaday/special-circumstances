@@ -510,7 +510,7 @@ func missingGap(verb string, e *Event, gapID string) string {
 // "" for the unspecified zero, matching what `p.Str("severity")` returned when the key was absent,
 // which is what MASS lookups and every caller's rendering already handle.
 func GradeStr(g recordpb.Grade) string {
-	return strings.ReplaceAll(recordpb.Word(g), "_", "-")
+	return recordpb.Word(g)
 }
 
 // GradeOf is GradeStr's inverse, for the write path: the seat's word to the schema's value.
@@ -520,7 +520,7 @@ func GradeStr(g recordpb.Grade) string {
 // and nothing can see them disagree. `false` means the word is not a grade at all; a caller must
 // refuse rather than record the zero, which the schema reserves for `undefined`.
 func GradeOf(word string) (recordpb.Grade, bool) {
-	vd, ok := recordpb.BySpelling(recordpb.Grade(0).Descriptor(), strings.ReplaceAll(word, "-", "_"))
+	vd, ok := recordpb.BySpelling(recordpb.Grade(0).Descriptor(), word)
 	if !ok {
 		return recordpb.Grade_GRADE_UNSPECIFIED, false
 	}

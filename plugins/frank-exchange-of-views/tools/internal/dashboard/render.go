@@ -16,8 +16,8 @@ import (
 // sevCode: grade codes for phone-width tables. sevRank orders them high→low for a stable,
 // sensible mint-breakdown render (JS used insertion order; structural equivalence lets us
 // pick any stable order, and high-first reads best).
-var sevCode = map[string]string{"certain": "c", "high": "h", "medium-high": "mh", "medium": "m", "low-medium": "lm", "low": "l", "trivial": "t", "realized": "r"}
-var sevRank = map[string]int{"certain": 7, "high": 6, "medium-high": 5, "medium": 4, "low-medium": 3, "low": 2, "trivial": 1, "realized": 0}
+var sevCode = map[string]string{"certain": "c", "high": "h", "medium_high": "mh", "medium": "m", "low_medium": "lm", "low": "l", "trivial": "t", "realized": "r"}
+var sevRank = map[string]int{"certain": 7, "high": 6, "medium_high": 5, "medium": 4, "low_medium": 3, "low": 2, "trivial": 1, "realized": 0}
 var shortName = map[string]string{"frontier": "front", "blue lanes": "lanes", "synthesis": "synth", "assembly": "asm"}
 
 func atoiOr(s string, d int) int {

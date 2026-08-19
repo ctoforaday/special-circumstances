@@ -63,7 +63,7 @@ import (
 // MEASURED 2026-08-16, by reading both tables instead of both stamps:
 //
 //	debate.js:262  { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
-//	MASS below     { trivial: 0.5, low: 1, "low-medium": 1.5, "medium": 2, "medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0 }
+//	MASS below     { trivial: 0.5, low: 1, "low_medium": 1.5, "medium": 2, "medium_high": 2.5, "high": 3, "certain": 3.5, "realized": 0 }
 //
 // Eight keys, eight values, identical — and GapMass matches gapMass on the missing-grade
 // rule too (absent multiplies as zero on both sides). The MAPPINGS agree. Only the STAMPS
@@ -99,8 +99,8 @@ const MassMappingVersion = "v2"
 var ToolVersion = "unset — internal/cli assigns the real version at init"
 
 var MASS = map[string]float64{
-	"trivial": 0.5, "low": 1, "low-medium": 1.5, "medium": 2,
-	"medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
+	"trivial": 0.5, "low": 1, "low_medium": 1.5, "medium": 2,
+	"medium_high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
 }
 
 // isGrade validates against the single canonical grade set (flags.Grades) — record does not

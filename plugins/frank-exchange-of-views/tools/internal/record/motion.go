@@ -49,8 +49,8 @@ var MotionVerdicts = map[string][]EnumValue{
 	},
 	"inquiry": {
 		Ev("endorsed", "worth this run's time — blue should take it up"),
-		Ev("out-of-scope", "a real question, but not THIS question"),
-		Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
+		Ev("out_of_scope", "a real question, but not THIS question"),
+		Ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 	},
 }
 

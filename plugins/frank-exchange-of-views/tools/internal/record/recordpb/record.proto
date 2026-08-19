@@ -795,7 +795,7 @@ enum GradeDimension {
   GRADE_DIMENSION_SEVERITY = 1;
   GRADE_DIMENSION_LIKELIHOOD = 2;
   GRADE_DIMENSION_IMPACT = 3;
-  GRADE_DIMENSION_COMPLEXITY_COST = 4;
+  GRADE_DIMENSION_COMPLEXITY = 4;
 }
 
 // PetitionMotion is the constitutional short-circuit: any party seat may petition the bench.

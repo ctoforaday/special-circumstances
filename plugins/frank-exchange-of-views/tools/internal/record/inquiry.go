@@ -48,8 +48,8 @@ func InquiryStatusNames() []string { return Names(InquiryStatuses) }
 // spelling for it is the aliasing this vocabulary exists to prevent.
 var InquiryRulings = []EnumValue{
 	Ev("endorsed", "worth this run's time — blue should take it up"),
-	Ev("out-of-scope", "a real question, but not THIS question"),
-	Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
+	Ev("out_of_scope", "a real question, but not THIS question"),
+	Ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 }
 
 // InquirySupports are red's per-round verdict on whether the REPORT still carries this line.
@@ -263,7 +263,7 @@ func Inquiries(b *Board) []*Inquiry {
 			// third copy; named in this agent's return so the lead places one.
 			a.Ruling = ""
 			if d, isDirection := t.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
-				a.Ruling = strings.ReplaceAll(recordpb.Word(d.Direction), "_", "-")
+				a.Ruling = recordpb.Word(d.Direction)
 			}
 			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
 			// the field MotionRule carries and the only prose channel it has.

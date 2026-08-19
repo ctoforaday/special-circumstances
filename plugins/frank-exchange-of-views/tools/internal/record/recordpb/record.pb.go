@@ -1129,11 +1129,11 @@ func (FrictionKind) EnumDescriptor() ([]byte, []int) {
 type GradeDimension int32
 
 const (
-	GradeDimension_GRADE_DIMENSION_UNSPECIFIED     GradeDimension = 0
-	GradeDimension_GRADE_DIMENSION_SEVERITY        GradeDimension = 1
-	GradeDimension_GRADE_DIMENSION_LIKELIHOOD      GradeDimension = 2
-	GradeDimension_GRADE_DIMENSION_IMPACT          GradeDimension = 3
-	GradeDimension_GRADE_DIMENSION_COMPLEXITY_COST GradeDimension = 4
+	GradeDimension_GRADE_DIMENSION_UNSPECIFIED GradeDimension = 0
+	GradeDimension_GRADE_DIMENSION_SEVERITY    GradeDimension = 1
+	GradeDimension_GRADE_DIMENSION_LIKELIHOOD  GradeDimension = 2
+	GradeDimension_GRADE_DIMENSION_IMPACT      GradeDimension = 3
+	GradeDimension_GRADE_DIMENSION_COMPLEXITY  GradeDimension = 4
 )
 
 // Enum value maps for GradeDimension.
@@ -1143,14 +1143,14 @@ var (
 		1: "GRADE_DIMENSION_SEVERITY",
 		2: "GRADE_DIMENSION_LIKELIHOOD",
 		3: "GRADE_DIMENSION_IMPACT",
-		4: "GRADE_DIMENSION_COMPLEXITY_COST",
+		4: "GRADE_DIMENSION_COMPLEXITY",
 	}
 	GradeDimension_value = map[string]int32{
-		"GRADE_DIMENSION_UNSPECIFIED":     0,
-		"GRADE_DIMENSION_SEVERITY":        1,
-		"GRADE_DIMENSION_LIKELIHOOD":      2,
-		"GRADE_DIMENSION_IMPACT":          3,
-		"GRADE_DIMENSION_COMPLEXITY_COST": 4,
+		"GRADE_DIMENSION_UNSPECIFIED": 0,
+		"GRADE_DIMENSION_SEVERITY":    1,
+		"GRADE_DIMENSION_LIKELIHOOD":  2,
+		"GRADE_DIMENSION_IMPACT":      3,
+		"GRADE_DIMENSION_COMPLEXITY":  4,
 	}
 )
 
@@ -5716,13 +5716,13 @@ const file_record_proto_rawDesc = "" +
 	"\fFrictionKind\x12\x1d\n" +
 	"\x19FRICTION_KIND_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16FRICTION_KIND_ESTOPPEL\x10\x01\x12\x1c\n" +
-	"\x18FRICTION_KIND_TOOL_ERROR\x10\x02*\xb0\x01\n" +
+	"\x18FRICTION_KIND_TOOL_ERROR\x10\x02*\xab\x01\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x12\x1e\n" +
 	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x12\x1a\n" +
-	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x12#\n" +
-	"\x1fGRADE_DIMENSION_COMPLEXITY_COST\x10\x04*\x9e\x01\n" +
+	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x12\x1e\n" +
+	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04*\x9e\x01\n" +
 	"\rPetitionClass\x12\x1e\n" +
 	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x12\x19\n" +

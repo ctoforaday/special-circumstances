@@ -23,9 +23,9 @@ type Grade string
 
 const (
 	Low        Grade = "low"
-	LowMedium  Grade = "low-medium"
+	LowMedium  Grade = "low_medium"
 	Medium     Grade = "medium"
-	MediumHigh Grade = "medium-high"
+	MediumHigh Grade = "medium_high"
 	High       Grade = "high"
 	Certain    Grade = "certain"
 	Realized   Grade = "realized"
