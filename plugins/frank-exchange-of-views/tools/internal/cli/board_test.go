@@ -71,7 +71,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", closedByRed, "--as", "closed",
-		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/x",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	id := mintGap(t, runDir, "anchored", "anchor-as-fields")
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
-		"--anchor-seat", "L4", "--anchor-tool", "git show", "--anchor-target", "7bc501e:report.md",
+		"--verified-by", "L4", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason", "re-read the cited source"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
@@ -135,14 +135,14 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--key", "F1", "--location", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+		"--key", "F1", "--quote", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L5"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
-		"--key", "F1", "--location", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
+		"--key", "F1", "--quote", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "findings")
@@ -184,8 +184,8 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 		// --independent: these are sources red went and found, not citations blue authored, so
 		// there is no anchor to name. The explicit form, because an omitted --anchor cannot say
 		// whether this was corroboration or a lookup the seat skipped.
-		if _, err := run(t, "lens", "verify", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-			"--claim", c.claim, "--reference", c.ref, "--independent",
+		if _, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+			"--quote", c.claim, "--url", c.ref, "--title", c.ref,
 			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 			"--access-date", "2026-07-24"); err != nil {
 			t.Fatalf("cite %q: %v", c.claim, err)

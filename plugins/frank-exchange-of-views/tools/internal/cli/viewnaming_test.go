@@ -51,7 +51,7 @@ var viewWriters = map[string][]string{
 	// All four, because the view answers two different questions with one table: what blue
 	// offered as backing (`cite`, `prove`) and what red made of it (`verify`, `reproduce`).
 	"evidence":         {"cite", "prove", "verify", "reproduce"},
-	"lines-of-inquiry": {"line-of-inquiry"},
+	"lines-of-inquiry": {"line-of-inquiry", "propose"},
 	"telemetry":        {},
 	"board":            {"mint", "close", "regrade", "retire"},
 }

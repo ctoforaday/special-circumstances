@@ -601,8 +601,8 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"retire without --reason", "retire", NewPayload().Set("claim", "c"), "retire requires --reason"},
 		{"retire complete", "retire", NewPayload().Set("claim", "c").Set("reason", "r"), ""},
 
-		{"line-of-inquiry with an unknown status", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "shelved").Set("line", "l"), "line-of-inquiry requires --status"},
-		{"line-of-inquiry with no status at all", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("line", "l"), "line-of-inquiry requires --status"},
+		{"line-of-inquiry with an unknown status", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "shelved").Set("line", "l"), "line-of-inquiry requires --as"},
+		{"line-of-inquiry with no status at all", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("line", "l"), "line-of-inquiry requires --as"},
 		{"line-of-inquiry with no id", "line-of-inquiry", NewPayload().Set("status", "pursued").Set("line", "l"), "line-of-inquiry requires an id"},
 		{"a deferred line of inquiry needs a reason", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "deferred").Set("line", "l"), "requires --reason"},
 		{"line-of-inquiry without --line", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued"), "line-of-inquiry requires --line"},
@@ -781,9 +781,9 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		wantErr string
 	}{
 		{"unknown gap", NewPayload().Set("gap_id", "R9-9"), "close of unknown gap"},
-		{"no anchor at all", NewPayload().Set("gap_id", "R1-1"), "requires the attestation anchor"},
-		{"a PARTIAL anchor is not an anchor", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1"), "requires the attestation anchor"},
-		{"anchor missing its target", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1").Set("anchor_tool", "git show"), "requires the attestation anchor"},
+		{"no anchor at all", NewPayload().Set("gap_id", "R1-1"), "requires the verification triple"},
+		{"a PARTIAL anchor is not an anchor", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1"), "requires the verification triple"},
+		{"anchor missing its target", NewPayload().Set("gap_id", "R1-1").Set("anchor_seat", "L1").Set("anchor_tool", "git show"), "requires the verification triple"},
 		{"a full anchor", anchored(), ""},
 		// --carried-from remains the honest alternative to re-verifying, but it is a
 		// CLAIM ABOUT THE RECORD and is now checked like one. This gap has never been
@@ -792,7 +792,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// exactly what anchored_closures_pct exists to detect. The genuine case (close
 		// with an anchor, then restate) is covered in required_test.go.
 		{"--carried-from cannot invent an earlier closure", NewPayload().Set("gap_id", "R1-1").Set("carried_from", "2"), "no closure of it exists in the record"},
-		{"closed_with_regression needs a successor", anchored().Set("closure_class", "closed_with_regression"), "requires --successor"},
+		{"closed_with_regression needs a successor", anchored().Set("closure_class", "closed_with_regression"), "requires --superseded-by"},
 		{"closed_with_regression with a successor", anchored().Set("closure_class", "closed_with_regression").Set("successor", "R2-1"), ""},
 	}
 	for _, tc := range cases {
@@ -876,11 +876,13 @@ func TestValidateClassRegistry(t *testing.T) {
 		}
 	})
 
-	t.Run("--class-new requires its full triple", func(t *testing.T) {
+	// COINING IS ITS OWN EVENT, so its contract is checked against a `class-new` payload rather
+	// than against a mint that happened to carry four extra fields.
+	t.Run("coining requires its full triple", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
 		for _, missing := range []string{"definition", "neighbor", "distinguisher"} {
-			p := mint(NewPayload().Set("class", "brand-new").Set("class_new", true))
+			p := NewPayload().Set("slug", "brand-new")
 			for _, f := range []string{"definition", "neighbor", "distinguisher"} {
 				if f == missing {
 					continue
@@ -891,23 +893,23 @@ func TestValidateClassRegistry(t *testing.T) {
 				}
 				p.Set(f, v)
 			}
-			err := validate(runDir, "red-merge-r1", "mint", p)
+			err := validate(runDir, "red-merge-r1", "class-new", p)
 			if err == nil {
-				t.Errorf("--class-new accepted without --%s", missing)
+				t.Errorf("a coining was accepted without --%s", missing)
 				continue
 			}
-			if !strings.Contains(err.Error(), "--class-new requires") {
+			if !strings.Contains(err.Error(), "--"+missing) {
 				t.Errorf("wrong refusal for missing --%s: %v", missing, err)
 			}
 		}
 	})
 
-	t.Run("--class-new needs a REAL neighbor", func(t *testing.T) {
+	t.Run("coining needs a REAL neighbor", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		p := mint(NewPayload().Set("class", "brand-new").Set("class_new", true).
-			Set("definition", "d").Set("neighbor", "not-a-class").Set("distinguisher", "q"))
-		err := validate(runDir, "red-merge-r1", "mint", p)
+		p := NewPayload().Set("slug", "brand-new").
+			Set("definition", "d").Set("neighbor", "not-a-class").Set("distinguisher", "q")
+		err := validate(runDir, "red-merge-r1", "class-new", p)
 		if err == nil {
 			t.Fatal("an invented neighbor was accepted")
 		}
@@ -927,9 +929,9 @@ func TestValidateClassRegistry(t *testing.T) {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
-		p := mint(NewPayload().Set("class", "another").Set("class_new", true).
-			Set("definition", "d").Set("neighbor", "run-local-class").Set("distinguisher", "q"))
-		if err := validate(runDir, "red-merge-r1", "mint", p); err != nil {
+		p := NewPayload().Set("slug", "another").
+			Set("definition", "d").Set("neighbor", "run-local-class").Set("distinguisher", "q")
+		if err := validate(runDir, "red-merge-r1", "class-new", p); err != nil {
 			t.Errorf("a run-local class was not a valid neighbor: %v", err)
 		}
 	})
@@ -968,7 +970,7 @@ func TestDeriveKey(t *testing.T) {
 		{name: "verdict is a singleton", typ: "verdict", p: NewPayload().Set("gap_id", "R1-1"), seatID: "red-merge-r1", want: "red-merge-r1:verdict"},
 		{name: "gap_id is the first label consulted", typ: "close", p: NewPayload().Set("gap_id", "R1-1").Set("label", "ignored"), seatID: "red-merge-r1", want: "red-merge-r1:close:R1-1"},
 		{name: "label when there is no gap_id", typ: "finding", p: NewPayload().Set("label", "F1"), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:F1"},
-		{name: "id, observation and reference are also labels", typ: "cite", p: NewPayload().Set("reference", "https://x"), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
+		{name: "id, observation, anchor and url are also labels", typ: "cite", p: NewPayload().Set("url", "https://x"), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
 		{
 			name: "with no label at all, a per-shard ordinal", typ: "friction", p: NewPayload(), seatID: "blue-lane-1",
 			prior: []Event{{Type: "friction"}, {Type: "friction"}, {Type: "position"}},

@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -121,8 +122,8 @@ var enforcedElsewhere = map[string]string{
 	// was deleted and this gate had a flag to compare against — the new verb had been shipped with
 	// a weaker contract than the one it retires, which is complete-the-concept one layer below
 	// where that rule usually gets applied.
-	"file --dimension":      "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
-	"file --petition-class": "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
+	"file --dimension": "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
+	"file --class":     "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
 
 	// `show --view` IS NO LONGER SET-SHAPED, and that is the fix rather than the regression.
 	// Its usage was `board | findings | worklist | …` — a pipe list of nouns with no meanings,
@@ -147,16 +148,25 @@ const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Valu
 // flag carries them in the command's enumerated-values section instead and its usage line goes
 // short — invisible to the regex, and a gate that stopped seeing seven flags the day they got
 // BETTER documentation would be read as noise and turned off.
+// setKey spells a command the way record.EnumFields does — by the EVENT TYPE it writes, since a
+// type can now have more than one verb. Operator commands write no record and keep their name.
+func setKey(c *cobra.Command) string {
+	if t := seat.RecordType(c); t != "" {
+		return t
+	}
+	return c.Name()
+}
+
 func setFlags(c *cobra.Command, out map[string]string) {
 	registered := enumhelp.Registered(c)
 	collect := func(f *pflag.Flag) {
 		switch {
 		case setInHelp.MatchString(f.Usage):
-			out[c.Name()+" --"+f.Name] = f.Usage
+			out[setKey(c)+" --"+f.Name] = f.Usage
 		case registered[f.Name] != nil:
 			// Keyed the same way, so the exemption tables and the "declared but absent" check
 			// both keep working; the value is the MENU, which is what a seat now reads.
-			out[c.Name()+" --"+f.Name] = record.Menu(registered[f.Name])
+			out[setKey(c)+" --"+f.Name] = record.Menu(registered[f.Name])
 		}
 	}
 	c.Flags().VisitAll(collect)

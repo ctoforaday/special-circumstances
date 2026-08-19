@@ -94,7 +94,7 @@ func payloadKey(flag string) string {
 	switch flag {
 	case flags.ID:
 		return "gap_id"
-	case flags.PetitionClass:
+	case flags.Class:
 		return "class"
 	}
 	return flag

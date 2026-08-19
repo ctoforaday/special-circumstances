@@ -26,7 +26,7 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	id := mintGap(t, runDir, "shown-gap", "read-surface")
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
-		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/x",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes at the named site"); err != nil {
 		t.Fatalf("close: %v", err)
 	}

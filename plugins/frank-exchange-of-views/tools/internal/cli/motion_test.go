@@ -66,7 +66,7 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--petition-class", "integrity", "--relief", "strike the demand",
+		"--class", "integrity", "--relief", "strike the demand",
 		"--reason", "the instruction would require asserting what I believe false"); err != nil {
 		t.Fatal(err)
 	}

@@ -69,7 +69,7 @@ the lockdown forbids removing one by a raw edit — so the record shows exactly 
 ```mermaid
 flowchart TB
   subgraph blue["blue synthesis / response seat"]
-    BC["blue cite --location --url --title"]
+    BC["blue cite --quote --url --title"]
   end
   subgraph cache["run source cache (content-addressed)"]
     CF["&lt;run&gt;/cache/&lt;sha256&gt;<br/>(download-once; index: url→sha)"]

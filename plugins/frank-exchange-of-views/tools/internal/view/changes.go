@@ -127,7 +127,7 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 		// The CONCRETE proposal, when red made one. Shown as the diff blue could apply
 		// verbatim — and labelled with what applying it costs and does not cost, because the
 		// cheapest path is always compliance and that gradient should be visible, not felt.
-		if fo, fn := g.Mint.Str("fix_old"), g.Mint.Str("fix_new"); fo != "" || fn != "" {
+		if fo, fn := g.Mint.Str("location"), g.Mint.Str("fix_new"); fn != "" {
 			out = append(out,
 				"**Red proposed exact text** (`fix_basis: "+g.Mint.Str("fix_basis")+"` — red stated this against the live document, so it applies cleanly):",
 				"",

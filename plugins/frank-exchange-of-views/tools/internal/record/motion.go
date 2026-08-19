@@ -68,7 +68,13 @@ var MotionFields = map[string]map[string][]EnumValue{
 		Ev("severity", "how bad the defect is in itself"),
 		Ev("likelihood", "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them"),
 		Ev("impact", "how bad the consequence is if it lands"),
-		Ev("complexity_cost", "what fixing it costs — the axis to contest when the fix is worth more than the defect. THE FLAG IS `--cx`, not `--complexity_cost`: the other three dimensions ARE their flag names and this one is not, which is a trap a seat walks into by learning the pattern from the other three (measured)"),
+		// ALL FOUR AXES ARE THEIR FLAG NAMES. This value spent releases spelled `complexity_cost`
+		// — the PAYLOAD key — while the flag was `--cx`, and the comment here documented the trap
+		// rather than removing it: three dimensions matched their flags and the fourth matched
+		// neither, which is a trap a seat walks into by learning the pattern from the other three
+		// (measured). The flag is `--complexity` and so is the dimension; the payload key stays
+		// `complexity_cost`, which is a schema name no seat types.
+		Ev("complexity", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
 	}},
 	"petition": {
 		"class": {

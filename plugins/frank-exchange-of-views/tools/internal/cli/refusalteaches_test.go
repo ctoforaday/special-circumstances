@@ -45,7 +45,8 @@ func refusals() []struct {
 		name string
 		args []string
 	}{
-		{"a verb outside the role", []string{"blue", "line-of-inquiry", "--seat-id", "blue-respond-r1"}},
+		{"a verb refusing on a missing required flag", []string{"blue", "line-of-inquiry", "propose", "--seat-id", "blue-respond-r1"}},
+		{"a group invoked with no verb", []string{"blue", "line-of-inquiry", "--seat-id", "blue-respond-r1"}},
 		{"a role with no verb", []string{"blue"}},
 		{"an unknown top-level command", []string{"frobnicate"}},
 		{"a motion subject with no such verb", []string{"motion", "petition", "appeal", "--seat-id", "blue-respond-r1"}},

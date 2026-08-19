@@ -36,7 +36,7 @@ import (
 // event durable and the write reconciled idempotently on retry — no wedge, no phantom op.
 func newEdit() *cobra.Command {
 	c := seat.Prose(seat.New("edit",
-		`replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --old "<exact current span>" --new "<replacement>" --reason "..."`,
+		`replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			reason, err := seat.Reason(cmd)
 			if err != nil {
@@ -45,10 +45,10 @@ func newEdit() *cobra.Command {
 			if strings.TrimSpace(reason) == "" {
 				return nil, fmt.Errorf("blue edit requires --reason: why this change (the argument red re-audits against)")
 			}
-			oldStr := seat.Str(cmd, flags.Old)
+			oldStr := seat.Str(cmd, flags.Quote)
 			newStr := seat.Str(cmd, flags.New)
 			if oldStr == "" {
-				return nil, fmt.Errorf("blue edit requires --old: the EXACT current span to replace (matched across the invisible marker layer, like the Edit tool)")
+				return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible marker layer, like the Edit tool)")
 			}
 			if oldStr == newStr {
 				return nil, fmt.Errorf("blue edit: --old and --new are identical — no change to make")
@@ -112,9 +112,9 @@ func newEdit() *cobra.Command {
 			return editResult{}, nil
 		}))
 
-	c.Flags().String(flags.Key, "", "a stable local handle (your own F1, F2 …) making a retried edit idempotent")
-	c.Flags().String(flags.Old, "", "REQUIRED — the EXACT current span to replace (matched across the invisible anchor layer; rejected if absent or if it contains a finding-marker or a citation anchor)")
-	c.Flags().String(flags.New, "", "the replacement text")
+	c.Flags().String(flags.Key, "", flags.DescKey)
+	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor")
+	c.Flags().String(flags.New, "", "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
 	return c
 }

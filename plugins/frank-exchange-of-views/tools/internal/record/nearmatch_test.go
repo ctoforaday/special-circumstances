@@ -75,7 +75,7 @@ func TestNearMatchLocationBonus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Same candidate text; only the presence of the matching --location differs.
+	// Same candidate text; only the presence of the matching --quote differs.
 	without := NearMatch(b, "off-by-one in the loop bound", "", 5)
 	with := NearMatch(b, "off-by-one in the loop bound", "parser.go:42", 5)
 	if len(without) != 1 || len(with) != 1 {

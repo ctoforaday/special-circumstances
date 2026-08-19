@@ -1,23 +1,23 @@
-prompt sha256: 6045dfc85fece3d7869cd6f918f5eb0685f025055e72ccfac79a0da5dbae8f84
+prompt sha256: c7a8c69d48a665da5e556a2a917c55d4e80d9ec5276f8f9b736075d17082b10f
 
 Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
 Undisposed grade disputes: [{"gap_id":"R1-1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
-Read the transcript in full from the RECORD (feov-record bench show debate --run research/2026-01-01_golden), and pull the board through the tool: feov-record bench show board --run research/2026-01-01_golden --format markdown.
+Read the transcript in full from the RECORD (the `debate` projection), and pull the board through the tool: the `board` projection.
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
-DECLARE: when you need to state something that binds how the record is READ without moving any gap's fate — a construction of a term, a correction of what the record MEANS rather than what it contains, or a holding you would offer for promotion to precedent — that is its own act: "/opt/feov/bin/feov-record" bench declare --reason "<the construction, correction or holding>".
-It takes no --id and no disposition, because it disposes of nothing; the opinion verb is for a docketed gap and demands both.
+DECLARE: when you need to state something that binds how the record is READ without moving any gap's fate — a construction of a term, a correction of what the record MEANS rather than what it contains, or a holding you would offer for promotion to precedent — that is its OWN ACT, with its own verb in your role's help.
+It takes no gap id and no disposition, because it disposes of nothing; the opinion verb is for a docketed gap and demands both.
 A declaration renders under "### LEAD" beside your opinions, so both parties read it, and the precedent harvest can see it.
 Do NOT fold a declaration into a petition ruling's opinion or an unrelated gap's rationale to get it on the record — that is where the one this verb was built for went unread.
 The resolution set at a terminal exit EXCLUDES carried — rule each dispute grade_adjusted (state the corrected grade in the rationale; assembly records the delta) or unresolved (the contested grade ships, recorded as contested in the report). deadlock: false.
-Record your terminal ruling as an opinion event (feov-record bench opinion --id <gap> ...) — it renders as "### LEAD (terminal disputes)" from the record.
-FRICTION (judge-terminal) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit with "/opt/feov/bin/feov-record" bench friction --reason "<the thing you reached for, and the shape the work actually wanted>" AND in the envelope's friction field; then, if nothing blocked you, say so on the record with "/opt/feov/bin/feov-record" bench friction --none --reason "<what you reached for and found>".
+Record your terminal ruling as an opinion event on that gap — it renders as "### LEAD (terminal disputes)" from the record.
+FRICTION (judge-terminal) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit ON THE RECORD — the verb is in your role's help, and it takes the thing you reached for and the shape the work actually wanted — AND in the envelope's friction field; then, if nothing blocked you, say so on the record through the same verb's EXPLICIT EMPTY FORM, which still owes a reason: what you reached for, and found.
 SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.
 MOST REFUSALS ARE YOURS and are not friction: a wrong verb, a wrong flag, a bad quote — take the correction and move on.
 A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding; report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  /opt/feov/bin/feov-record scorecard --run research/2026-01-01_golden --chair bench  and read how this chair is doing on the question in front of you so far.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read the scorecard for YOUR CHAIR (`bench`) through the tool — the operator command and the selector that names a chair are in the root --help — and read how this chair is doing on the question in front of you so far.
 It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
 Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
 SEAT_ID: judge-terminal.
@@ -42,6 +42,8 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.
 Return the judge envelope.

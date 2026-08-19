@@ -1,9 +1,9 @@
-$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity medium --likelihood medium --impact medium --location ## S2 --reason round one
+$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity medium --likelihood medium --impact medium --quote ## S2 --reason round one
 exit 0
 stdout:
 finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
-$ lens finding --run {RUN} --seat-id red-lens-r2-L1 --key F1 --severity medium --likelihood medium --impact medium --location ## S2 --reason round two
+$ lens finding --run {RUN} --seat-id red-lens-r2-L1 --key F1 --severity medium --likelihood medium --impact medium --quote ## S2 --reason round two
 exit 0
 stdout:
 finding recorded: L1-F2 — the run-unique label a gap's found_by names (id FINDING001)

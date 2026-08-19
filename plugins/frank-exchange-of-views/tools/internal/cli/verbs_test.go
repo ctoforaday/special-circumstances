@@ -40,7 +40,7 @@ func seedReferents(t *testing.T, runDir string) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--petition-class", "safety", "--relief", "the relief sought",
+		"--class", "safety", "--relief", "the relief sought",
 		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
@@ -50,8 +50,8 @@ func seedReferents(t *testing.T, runDir string) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "R1-3", "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "go test",
-		"--anchor-target", "./x", "--reason", "closed so the archive is not empty"); err != nil {
+		"--id", "R1-3", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test",
+		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
 	// THE LENS SEAT MUST HAVE SAT. `petition-rule --petitioner` refuses a seat that recorded
@@ -85,27 +85,27 @@ func TestVerbPayloads(t *testing.T) {
 		says string
 	}{
 		{
-			name: "lens verify records the access date under its payload name",
-			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--claim", "the claim", "--reference", "https://example.test/a",
-				"--independent", "--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
+			name: "lens corroborate records the access date under its payload name",
+			path: []string{"lens", "corroborate"}, seatID: "red-lens-r1-L1",
+			args: []string{"--quote", "the claim", "--url", "https://example.test/a", "--title", "Example A",
+				"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 				"--access-date", "2026-07-18"},
 			typ: "verify",
 			// The flag is --access-date; the payload key is access_date, and the
 			// citation render reads the payload key. --as lands under `outcome`.
-			want: map[string]string{"claim": "the claim", "reference": "https://example.test/a",
+			want: map[string]string{"claim": "the claim", "url": "https://example.test/a", "title": "Example A",
 				"outcome": "supports", "confidence": "high", "reason": "read at the leaf", "access_date": "2026-07-18"},
-			says: "independent source https://example.test/a verified: supports",
+			says: "corroborating source Example A verified: supports",
 		},
 		{
-			name: "lens verify without an access date leaves the key absent",
-			role: "lens", seatID: "red-lens-r1-L1",
-			args: []string{"--claim", "c", "--reference", "https://example.test/b", "--independent",
+			name: "lens corroborate without an access date leaves the key absent",
+			path: []string{"lens", "corroborate"}, seatID: "red-lens-r1-L1",
+			args: []string{"--quote", "c", "--url", "https://example.test/b", "--title", "Example B",
 				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
 			typ:    "verify",
-			want:   map[string]string{"reference": "https://example.test/b", "outcome": "weak", "confidence": "low"},
+			want:   map[string]string{"url": "https://example.test/b", "title": "Example B", "outcome": "weak", "confidence": "low"},
 			absent: []string{"access_date"},
-			says:   "independent source https://example.test/b verified: weak",
+			says:   "corroborating source Example B verified: weak",
 		},
 		{
 			name: "motion grade rule records the merge's answer",
@@ -128,7 +128,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue manifest-row records the receipt",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--id", "R1-2", "--row", "figures recomputed; acceptance check run: pass"},
+			args: []string{"--id", "R1-2", "--reason", "figures recomputed; acceptance check run: pass"},
 			typ:  "manifest-row",
 			want: map[string]string{"gap_id": "R1-2", "row": "figures recomputed; acceptance check run: pass"},
 			says: "manifest row recorded for R1-2",
@@ -136,21 +136,22 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "blue retire records what left and why",
 			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--claim", "the claim as it stood", "--reason", "refuted", "--superseded-by", "the replacement claim"},
+			args: []string{"--quote", "the claim as it stood", "--reason", "refuted", "--new", "the replacement claim"},
 			typ:  "retire",
 			want: map[string]string{"claim": "the claim as it stood", "reason": "refuted",
 				"superseded_by": "the replacement claim"},
 			says: "retired: the claim as it stood",
 		},
 		{
-			name: "blue line of inquiry records a dead end and what killed it",
-			role: "blue", seatID: "blue-lane-1",
-			args: []string{"--line", "search the offline archive", "--status", "abandoned",
-				"--reason", "the archive is unreachable", "--method", "full-text search"},
+			name: "blue line of inquiry propose records the direction and its hypothesis",
+			path: []string{"blue", "line-of-inquiry", "propose"}, seatID: "blue-lane-1",
+			args: []string{"--reason", "search the offline archive", "--method", "full-text search",
+				"--hypothesis", "the 1997 proceedings are scanned"},
 			typ: "line-of-inquiry",
-			want: map[string]string{"line": "search the offline archive", "status": "abandoned",
-				"reason": "the archive is unreachable", "method": "full-text search"},
-			says: "line of inquiry Q1 recorded (abandoned): search the offline archive",
+			want: map[string]string{"line": "search the offline archive", "status": "proposed",
+				"reason": "search the offline archive", "method": "full-text search",
+				"hypothesis": "the 1997 proceedings are scanned"},
+			says: "line of inquiry Q1 recorded (proposed): search the offline archive",
 		},
 		{
 			name: "motion petition rule records the ruling and its opinion",
@@ -233,7 +234,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		runDir := t.TempDir()
 		seedReferents(t, runDir)
 		out, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--ids", "R1-3", "--notes", "it still holds")
+			"--ids", "R1-3", "--reason", "it still holds")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -245,14 +246,15 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		if len(got) != 1 || got[0] != "R1-3" {
 			t.Errorf("ids = %q, want [R1-3] — the only CLOSED gap, which is what a spot-check samples", got)
 		}
-		if ev.Payload.Str("notes") != "it still holds" {
-			t.Errorf("notes = %q", ev.Payload.Str("notes"))
+		if ev.Payload.Str("reason") != "it still holds" {
+			t.Errorf("reason = %q — what the sample found lands in the one prose channel", ev.Payload.Str("reason"))
 		}
 	})
 
 	t.Run("with no ids at all the key is still an empty array", func(t *testing.T) {
 		runDir := t.TempDir()
-		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
 		}
 		ev := lastOfType(t, runDir, "spot-check")
@@ -274,7 +276,8 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 	runDir := t.TempDir()
 	seedReferents(t, runDir)
 	for _, ids := range []string{"R1-3", "R1-3"} {
-		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", ids); err != nil {
+		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", ids,
+			"--reason", "re-read the closure record"); err != nil {
 			t.Fatal(err)
 		}
 	}

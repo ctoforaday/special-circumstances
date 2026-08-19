@@ -1,7 +1,6 @@
 package merge
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -22,21 +21,14 @@ func newSpotCheck() *cobra.Command {
 	var ids flags.CSV
 
 	c := seat.New("spot-check",
-		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 [--notes "..."] | --none --reason "..." when the archive was empty at round start`,
+		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			none := seat.Given(cmd, flags.None)
-			if none && len(ids.Value()) > 0 {
-				return nil, fmt.Errorf("--none and --ids are contradictory: either you sampled closures or there were none to sample")
-			}
-			if none && strings.TrimSpace(seat.Str(cmd, flags.Reason)) == "" {
-				return nil, fmt.Errorf("--none requires --reason: an empty discharge that does not say WHY is indistinguishable from a skipped duty")
-			}
 			p := record.NewPayload()
 			seat.SetList(p, "ids", &ids)
-			seat.Set(cmd, p, "notes", flags.Notes)
+			seat.SetSame(cmd, p, flags.Reason)
 			if none {
 				p.Set("none", true)
-				seat.SetSame(cmd, p, flags.Reason)
 			}
 			if _, err := record.Append(s.Identity(), "spot-check", p); err != nil {
 				return nil, err
@@ -48,7 +40,6 @@ func newSpotCheck() *cobra.Command {
 		})
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this round")
-	c.Flags().String(flags.Notes, "", "what the spot-check found")
 	// AN HONESTLY-EMPTY ROUND IS A DISCHARGE, NOT A SKIP.
 	//
 	// This run's red-merge-r1 reported in friction that spot-check "cannot record an
@@ -62,8 +53,18 @@ func newSpotCheck() *cobra.Command {
 	// nothing was sampled but not WHY, so a later audit cannot tell "the archive was
 	// empty at round start, floor not applicable" from "the seat skipped its duty".
 	// --none --reason says which, and the bare form keeps working.
-	c.Flags().Bool(flags.None, false, "the archive was empty at round start, so there was nothing to sample (requires --reason)")
-	c.Flags().String(flags.Reason, "", "why there was nothing to sample")
+	c.Flags().Bool(flags.None, false, "the archive was empty at round start, so there was nothing to sample")
+	c.Flags().String(flags.Reason, "", "what the sample showed — or, with --none, why there was nothing to sample. ONE prose channel: it was two flags (--notes and --reason) filled by different branches of one verb, so what a spot-check found and why it found nothing were the same fact under two names")
+	// COBRA SAYS THIS, not the handler. Both rules were hand-written refusals inside RunE, which
+	// means neither could be read from `--help` and neither fired until after the seat had
+	// composed the whole invocation.
+	c.MarkFlagsMutuallyExclusive(flags.None, flags.IDs)
+	// ONE PROSE CHANNEL, ALWAYS REQUIRED — which is what collapsing --notes into --reason makes
+	// possible. The bare form used to be legal and recorded an empty array with no account of it,
+	// so "the archive was empty at round start" and "the seat skipped its duty" were the same
+	// event. Cobra has no one-way "--none needs --reason", and it does not need one: BOTH forms
+	// owe a reason.
+	_ = c.MarkFlagRequired(flags.Reason)
 	return c
 }
 

@@ -1,7 +1,6 @@
 package lens
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -35,9 +34,9 @@ import (
 //
 // No flag was required. A verification of nothing, about nothing, recorded and counted.
 //
-//   - WHICH citation was unrecordable. `--reference` is free text a seat types, so nothing
-//     joined a verification to the `<!--cite:c-…-->` anchor it checked, and `show evidence`
-//     had to list red's work beside blue's sources without connecting them (#382).
+//   - WHICH citation was unrecordable. The source was free text a seat typed, so nothing joined
+//     a verification to the `<!--cite:c-…-->` anchor it checked, and `show evidence` had to list
+//     red's work beside blue's sources without connecting them (#382).
 //   - WHAT IT FOUND was unrecordable in the one direction that matters. The verdict field had
 //     three values — high, medium, low — and no way to say the source does NOT hold up. So the
 //     strongest finding on this axis had to leave as prose, and the capture audit built to catch
@@ -62,68 +61,83 @@ import (
 // positive half, and folding it into `--as` looked like restoring a missing negative. It was not:
 // it was deleting the orthogonal axis. The word is free again, so the field has its name back.
 //
-// # Why --independent rather than an optional --anchor
+// # Why `corroborate` is a VERB and not a flag on this one
 //
-// Red verifies two different things: a citation BLUE authored (which has an anchor), and a
-// source red went and found itself (corroboration, which has none). An optional --anchor
-// collapses those into one shape where the absence means either "corroboration" or "I did not
-// look it up" — the plausible zero again. So the anchor is REQUIRED, and the other case is
-// stated with a flag of its own. `friction --none` is the same move for the same reason: an
-// explicit negative is a fact; an empty field is a question.
+// Red does two different things with a source: it adjudicates a citation BLUE authored (which
+// has an anchor to name), and it corroborates from a source red went and found itself (which has
+// no anchor, and must therefore name the source outright). Those are different contracts —
+// `--anchor` is required for one and meaningless for the other, `--url`/`--title` the reverse —
+// and one verb could hold both only by policing the combination in its own body and leaving
+// every flag optional to cobra.
+//
+// That is the shape this suite exists to remove, and `motion` already states the rule: cobra
+// cannot express "required only when", so a mode-discerned verb puts its contract into
+// hand-written validation where nothing can refuse it at parse. As two verbs, each marks what it
+// genuinely requires and cobra refuses the nonsense before the handler runs.
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify",
-		`adjudicate ONE citation: --anchor c-<hex> (from `+"`show evidence`"+`) or --independent, --claim "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
+		`adjudicate ONE citation blue authored: --anchor c-<hex> (from `+"`show evidence`"+`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
 			`THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `+"`absent`"+` — `+
 			"`absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, "+
 			`which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			anchor := strings.TrimSpace(seat.Str(cmd, flags.Anchor))
-			independent, _ := cmd.Flags().GetBool(flags.Independent)
-
-			switch {
-			case anchor == "" && !independent:
-				return nil, fmt.Errorf("lens verify requires --anchor <c-id> OR --independent: say WHICH citation you checked. Read the report, take the `<!--cite:c-…-->` token at the sentence, and resolve it with `lens show evidence --run <runDir>`. Pass --independent only for a source YOU found — corroboration blue never cited, which has no anchor to name")
-			case anchor != "" && independent:
-				return nil, fmt.Errorf("lens verify: --anchor and --independent are the two cases, not one. --anchor names a citation blue authored; --independent says this is a source you found yourself")
-			}
-
-			// THE SHAPE AND THE EXISTENCE ARE ON THE FLAG NOW. This block hand-rolled both — a
-			// regexp for the c-<hex> form and a scan of CitationLabels — and both moved to the
-			// typed flag (`flags.CitationAnchor().WithCheck(record.CitationExists)`), which
-			// seat.Begin resolves before this handler runs. Keeping a second copy here would be
-			// two readers of one rule, which is the thing this file's own header warns about.
-			//
-			// What stays is the part no flag can express: --anchor and --independent are the two
-			// CASES, and exactly one must be chosen. That is a relation between flags, and a
-			// pflag.Value sees only its own.
-
-			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim, flags.Reference)
-			seat.Set(cmd, p, "access_date", flags.AccessDate)
-			seat.Set(cmd, p, "outcome", flags.As)
-			seat.Set(cmd, p, "confidence", flags.Confidence)
-			if anchor != "" {
-				p.Set("anchor", anchor)
-			} else {
-				p.Set("independent", true)
-			}
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
-				return nil, err
-			}
-			if _, err := record.Append(s.Identity(), "verify", p); err != nil {
-				return nil, err
-			}
-			return verifyResult{Anchor: anchor, Independent: independent,
-				Outcome: p.Str("outcome"), Reference: seat.Str(cmd, flags.Reference)}, nil
+			p := record.NewPayload().Set("anchor", strings.TrimSpace(seat.Str(cmd, flags.Anchor)))
+			return writeVerify(s, cmd, p)
 		}))
 
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`. REQUIRED unless --independent")
-	c.Flags().Bool(flags.Independent, false, "this is a source YOU found, not one blue cited, so there is no anchor to name. The explicit form of 'no anchor', because an empty field cannot say whether you looked")
-	c.Flags().String(flags.Claim, "", "REQUIRED — the claim being verified, quoted from the report")
-	c.Flags().String(flags.Reference, "", "the source the claim rests on (for an --independent check this is the only identification it has)")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`")
+	_ = c.MarkFlagRequired(flags.Anchor)
+	verifyAxes(c)
+	return c
+}
+
+// corroborate: red reading a source IT found, for a claim blue made.
+//
+// The mirror of `verify` and not a mode of it. There is no anchor to name — blue never cited
+// this — so the source is named the way every source in this system is named, by --url and
+// --title, and both are required here because nothing else identifies what red read.
+func newCorroborate() *cobra.Command {
+	c := seat.Prose(seat.Records(seat.New("corroborate",
+		`corroborate a claim from a source YOU found — one blue never cited, so there is no anchor: --url <u> --title <t> --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
+			`To adjudicate a citation blue DID author, use `+"`verify`"+` instead: it names the citation by its anchor.`,
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			p := record.NewPayload().Set("independent", true)
+			seat.SetSame(cmd, p, flags.URL, flags.Title)
+			return writeVerify(s, cmd, p)
+		}), "verify"))
+
+	c.Flags().String(flags.URL, "", flags.DescURL)
+	c.Flags().String(flags.Title, "", flags.DescTitle)
+	_ = c.MarkFlagRequired(flags.URL)
+	_ = c.MarkFlagRequired(flags.Title)
+	verifyAxes(c)
+	return c
+}
+
+// verifyAxes are the flags both verbs share: WHAT was checked, what the source DID, how sure red
+// is of that, and when it was read. Registered from one place so the two verbs cannot drift into
+// describing the same four fields differently — which is how this vocabulary got into trouble.
+func verifyAxes(c *cobra.Command) {
+	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+" (the claim you are checking)")
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: `refutes` and `absent` are findings, not failures to grade")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: `refutes` you would defend and `refutes` you are unsure of are different facts")
-	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually fetched it; drives the staleness re-fetch trigger")
-	return c
+	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
+}
+
+// writeVerify records what both verbs agree on. The caller has already put the fact that
+// distinguishes them — an anchor, or the source it read — into the payload.
+func writeVerify(s seat.Context, cmd *cobra.Command, p *record.Payload) (seat.Result, error) {
+	seat.Set(cmd, p, "claim", flags.Quote)
+	seat.Set(cmd, p, "access_date", flags.AccessDate)
+	seat.Set(cmd, p, "outcome", flags.As)
+	seat.Set(cmd, p, "confidence", flags.Confidence)
+	if err := seat.SetReason(cmd, p, "reason"); err != nil {
+		return nil, err
+	}
+	if _, err := record.Append(s.Identity(), "verify", p); err != nil {
+		return nil, err
+	}
+	return verifyResult{Anchor: p.Str("anchor"), Source: p.Str("title"), Outcome: p.Str("outcome")}, nil
 }
 
 // citeAnchorShape is the citation id as it appears inside a `<!--cite:c-…-->` token. Checked
@@ -132,16 +146,15 @@ func newVerify() *cobra.Command {
 var citeAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
 
 type verifyResult struct {
-	Anchor      string `json:"anchor"`
-	Independent bool   `json:"independent"`
-	Outcome     string `json:"outcome"`
-	Reference   string `json:"reference"`
+	Anchor  string `json:"anchor,omitempty"`
+	Source  string `json:"source,omitempty"`
+	Outcome string `json:"outcome"`
 }
 
 func (r verifyResult) Human() string {
 	subject := "citation " + r.Anchor
-	if r.Independent {
-		subject = "independent source " + r.Reference
+	if r.Anchor == "" {
+		subject = "corroborating source " + r.Source
 	}
 	switch r.Outcome {
 	case "refutes":

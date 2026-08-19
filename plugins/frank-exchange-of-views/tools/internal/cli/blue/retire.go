@@ -29,15 +29,15 @@ import (
 // account for is arithmetic, not judgement.
 func newRetire() *cobra.Command {
 	c := seat.Prose(seat.New("retire",
-		`remove a claim from the report, on the record: --claim "<the claim, quoted>" --reason "..." [--superseded-by "<the claim that replaces it>"]`,
+		`remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			// --reason is the prose channel (Prose provides it); it lands under `reason`,
 			// which validate requires — substance leaves the report only with its reason.
-			p := seat.SetSame(cmd, record.NewPayload(), flags.Claim)
+			p := seat.Set(cmd, record.NewPayload(), "claim", flags.Quote)
 			if err := seat.SetReason(cmd, p, "reason"); err != nil {
 				return nil, err
 			}
-			seat.Set(cmd, p, "superseded_by", flags.SupersededBy)
+			seat.Set(cmd, p, "superseded_by", flags.New)
 
 			// THE REMOVAL IS CHECKED, NOT TAKEN ON TRUST.
 			//
@@ -51,7 +51,7 @@ func newRetire() *cobra.Command {
 			// events): a retirement of a claim that was never there subtracts from the
 			// accounted side and CANCELS REAL LOSS, blinding the one detector built to catch
 			// silent deletion.
-			claim := seat.Str(cmd, flags.Claim)
+			claim := seat.Str(cmd, flags.Quote)
 			basis := record.RemovalAsserted
 			if md, rerr := record.ReadBlueReport(s.RunDir); rerr == nil {
 				if strings.Contains(string(md), claim) {
@@ -71,11 +71,11 @@ func newRetire() *cobra.Command {
 			if _, err := record.Append(s.Identity(), "retire", p); err != nil {
 				return nil, err
 			}
-			return retireResult{Claim: seat.Str(cmd, flags.Claim)}, nil
+			return retireResult{Claim: seat.Str(cmd, flags.Quote)}, nil
 		}))
 
-	c.Flags().String(flags.Claim, "", "the claim being removed, quoted from the report as it stood")
-	c.Flags().String(flags.SupersededBy, "", "the claim that replaces it, when one does")
+	c.Flags().String(flags.Quote, "", flags.DescQuote+" — the claim being removed, as it stood before you edited it out")
+	c.Flags().String(flags.New, "", "the claim that replaces it, when one does — the same --quote/--new pair `edit` and `mint` take")
 	return c
 }
 

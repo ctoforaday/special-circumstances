@@ -24,7 +24,7 @@ func newFinding() *cobra.Command {
 	var severity, likelihood, impact flags.GradeValue
 
 	c := seat.Prose(seat.New("finding",
-		`a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --location "<the exact sentence, quoted from the report and nothing else>". `+
+		`a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --quote "<the exact sentence, quoted from the report and nothing else>". `+
 			`THE CHANNEL FOR ANY DEFECT IN THE TEXT, including the ones the evidence verbs cannot reach: a claim resting on NO citation and no proof, `+
 			"an assertion whose source you cannot obtain, a figure with no derivation. `verify` and `reproduce` judge evidence that EXISTS; "+
 			`this raises the claim that has none.`,
@@ -39,9 +39,9 @@ func newFinding() *cobra.Command {
 			if strings.TrimSpace(text) == "" {
 				return nil, fmt.Errorf("lens finding requires --reason: the explanation red re-audits the repair against")
 			}
-			location := seat.Str(cmd, flags.Location)
+			location := seat.Str(cmd, flags.Quote)
 			if strings.TrimSpace(location) == "" {
-				return nil, fmt.Errorf("lens finding requires --location: the EXACT text you are flagging, quoted from the report and nothing else — it is matched against blue/report.md to place the marker")
+				return nil, fmt.Errorf("lens finding requires --quote: the EXACT text you are flagging, quoted from the report and nothing else — it is matched against blue/report.md to place the marker")
 			}
 			// Crash-retry idempotency: a prior finding under this --key returns its
 			// label, no second event AND no second marker (BEFORE any write).
@@ -73,7 +73,7 @@ func newFinding() *cobra.Command {
 				next, err := InsertAnchor(old, location, marker)
 				switch {
 				case errors.Is(err, ErrMisQuote):
-					return nil, fmt.Errorf("lens finding: --location was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
+					return nil, fmt.Errorf("lens finding: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
 				case errors.Is(err, ErrInFence):
 					return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
 				}
@@ -87,7 +87,7 @@ func newFinding() *cobra.Command {
 			seat.SetGrade(p, "severity", &severity)
 			seat.SetGrade(p, "likelihood", &likelihood)
 			seat.SetGrade(p, "impact", &impact)
-			seat.SetSame(cmd, p, flags.Location)
+			seat.Set(cmd, p, "location", flags.Quote)
 			p.Set("reason", text)
 			if _, err := record.Append(s.Identity(), "finding", p); err != nil {
 				return nil, err
@@ -102,11 +102,11 @@ func newFinding() *cobra.Command {
 			return findingResult{Label: label, FindingID: findingID}, nil
 		}))
 
-	c.Flags().String(flags.Key, "", "a stable local handle (your own F1, F2 …) making a retried finding idempotent; the TOOL assigns the run-unique label L{role}-F{N}")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the run-unique label L{role}-F{N}")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
-	c.Flags().String(flags.Location, "", "REQUIRED — the EXACT text you are flagging, quoted from blue/report.md and nothing else. NOT a section heading plus a sentence: this whole string is matched against the report to place the finding-marker, so anything you prepend (a section name, a dash, a pipe) makes it match nothing. Name the section in --reason, where prose belongs")
+	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". The finding-marker is placed there")
 	return c
 }
 

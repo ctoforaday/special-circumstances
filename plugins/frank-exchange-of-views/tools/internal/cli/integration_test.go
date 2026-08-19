@@ -36,7 +36,7 @@ func seatRun(t *testing.T) string {
 		}
 	}
 	// A lens finding is now anchored into blue/report.md and rejected unless its
-	// --location quote is present (slice 1b). Seed a report carrying the quotes the
+	// --quote quote is present (slice 1b). Seed a report carrying the quotes the
 	// finding tests use, mirroring the real run where blue-synthesize wrote the report
 	// before red-lens files findings.
 	seedBlueReport(t, runDir)
@@ -52,11 +52,9 @@ func seatRun(t *testing.T) string {
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", key, "--class-new", class,
-		"--definition", "d", "--neighbor", "n", "--distinguisher", "x",
-		"--problem", "the defect", "--fix", "the fix",
+		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low")
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
 	if err != nil {
 		t.Fatalf("mint %s: %v", key, err)
 	}
@@ -169,7 +167,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	}
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
-		"--anchor-seat", "L1", "--anchor-tool", "git show", "--anchor-target", "7bc501e:report.md",
+		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason-file", prose); err != nil {
 		t.Fatalf("close: %v", err)
 	}
@@ -191,13 +189,13 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--key", "F1", "--location", "§2", "--reason", "a finding",
+		"--key", "F1", "--quote", "§2", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
 	mintGap(t, runDir, "shared-record", "one-record")
-	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--line", "considered rewriting the parser", "--status", "declined",
+	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+		"--reason", "considered rewriting the parser", "--as", "declined",
 		"--reason", "the input grammar is not stable enough to justify it this round"); err != nil {
 		t.Logf("blue line of inquiry shape rejected: %v", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -111,65 +112,61 @@ func dedupe(in []string) []string {
 // So the mapping is asserted, not trusted: for every field record declares required, the
 // verb's help must actually say REQUIRED.
 func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
-	verbRole := map[string]string{
-		"mint": "merge", "close": "merge", "regrade": "merge",
-		"closing": "merge", "inquiry-support": "merge",
-		"retire": "blue", "line-of-inquiry": "blue",
-		"opinion": "bench", "halt": "bench", "certify": "bench", "outcome": "bench",
-		"finding": "lens", "observe": "lens", "verify": "lens",
-		// Every role has these; blue is a representative seat for the help check.
-		"friction": "blue", "position": "blue", "revision": "blue", "manifest-row": "blue",
+	// THE VERBS COME FROM THE TREE, not from a table of what exists. This gate used to carry a
+	// hand-kept event-type -> role map, and it broke the moment a verb that carried two contracts
+	// was split into the two verbs it already was: `line-of-inquiry` became a GROUP, the map still
+	// named it, and the check read a help page with no flags on it.
+	//
+	// An event type now has one verb or several — `verify` and `corroborate` both write a verify,
+	// `close` and `carry` both write a close — so every LEAF that writes the type is checked.
+	byType := map[string][]*cobra.Command{}
+	var walk func(*cobra.Command)
+	walk = func(c *cobra.Command) {
+		if c.HasSubCommands() {
+			for _, sub := range c.Commands() {
+				walk(sub)
+			}
+			return
+		}
+		if t := seat.RecordType(c); t != "" {
+			byType[t] = append(byType[t], c)
+		}
 	}
-	// AN EVENT TYPE IS NOT ALWAYS A VERB. `friction-none` is what `friction --none` records, so
-	// it has required fields and no command of its own — its flags live on `friction`, which is
-	// checked above. The gate's model is one-verb-per-type; this is where that does not hold.
+	walk(newRoot())
+
+	// AN EVENT TYPE IS NOT ALWAYS A VERB. `friction-none` is what `friction --none` records, so it
+	// has required fields and no command of its own — its flags live on `friction`.
 	noVerbOfItsOwn := map[string]string{
 		"friction-none": "recorded by `friction --none`; its flags are on that verb",
 	}
-	// A FIELD THE VERB SUPPLIES IS NOT A FLAG THE SEAT MUST TYPE, and marking it produced help
-	// that contradicted itself: `blue line of inquiry --status` read "REQUIRED — proposed (… the default)".
-	// seat.suppliedByTheVerb is the one statement of that distinction; this mirrors its keys so
-	// the two gates cannot disagree about the same flag.
-	suppliedByTheVerb := map[string]bool{"line-of-inquiry/status": true}
 
-	for verb, required := range record.RequiredFields {
-		if why := noVerbOfItsOwn[verb]; why != "" {
+	for typ, required := range record.RequiredFields {
+		if noVerbOfItsOwn[typ] != "" {
 			continue
 		}
-		role, ok := verbRole[verb]
-		if !ok {
-			t.Errorf("record declares requirements for %q but this test does not know its role — the table grew and the check did not", verb)
+		verbs := byType[typ]
+		if len(verbs) == 0 {
+			t.Errorf("record declares requirements for %q but no command in the tree writes it — the table outlived its verb", typ)
 			continue
 		}
-		h := help(t, role, verb, "--help")
-		for _, key := range required {
-			if suppliedByTheVerb[verb+"/"+key] {
-				continue
+		for _, c := range verbs {
+			path := c.CommandPath()
+			for _, key := range required {
+				if seat.Supplied(c, key) != "" {
+					continue
+				}
+				flag := flags.ForPayloadKey(key)
+				t.Run(path+"/"+flag, func(t *testing.T) {
+					f := c.Flags().Lookup(flag)
+					if f == nil {
+						t.Fatalf("%s declares %q required, but it registers no --%s — the payload key does not map to a real flag, so the requirement is invisible in the contract",
+							path, key, flag)
+					}
+					if !strings.Contains(f.Usage, "REQUIRED") {
+						t.Errorf("%s: --%s is required but its flag line does not say so:\n%s", path, flag, f.Usage)
+					}
+				})
 			}
-			flag := flags.ForPayloadKey(key)
-			t.Run(verb+"/"+flag, func(t *testing.T) {
-				if !strings.Contains(h, "--"+flag+" ") {
-					t.Fatalf("%s %s declares %q required, but no --%s flag exists — the payload key does not map to a real flag, so the requirement is invisible in the contract",
-						role, verb, key, flag)
-				}
-				// Only the FLAG TABLE lines, not the verb's usage sentence — that
-				// sentence names the flags too, and matching it made this test fail on
-				// prose rather than on the annotation it is checking.
-				var seen bool
-				for _, line := range strings.Split(h, "\n") {
-					trimmed := strings.TrimSpace(line)
-					if !strings.HasPrefix(trimmed, "--"+flag+" ") {
-						continue
-					}
-					seen = true
-					if !strings.Contains(trimmed, "REQUIRED") {
-						t.Errorf("%s %s: --%s is required but its flag line does not say so:\n%s", role, verb, flag, line)
-					}
-				}
-				if !seen {
-					t.Errorf("%s %s: --%s never appears in the flag table", role, verb, flag)
-				}
-			})
 		}
 	}
 }

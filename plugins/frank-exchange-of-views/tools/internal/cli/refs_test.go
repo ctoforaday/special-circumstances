@@ -39,14 +39,14 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"closing --id", "no mint event created", []string{"merge", "closing", "--seat-id", "red-merge-r1",
 			"--id", "R9-9", "--reason", "t"}},
 		{"manifest-row --id", "no mint event created", []string{"blue", "manifest-row", "--seat-id", "blue-respond-r1",
-			"--id", "R9-9", "--row", "r"}},
+			"--id", "R9-9", "--reason", "r"}},
 		{"close --successor", "no mint event created", []string{"merge", "close", "--seat-id", "red-merge-r1",
-			"--id", real, "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "t",
-			"--anchor-target", "x", "--successor", "R9-9"}},
+			"--id", real, "--as", "closed", "--verified-by", "L1", "--verified-with", "t",
+			"--verified-against", "x", "--superseded-by", "R9-9"}},
 		{"mint --found-by", "no lens recorded", []string{"merge", "mint", "--seat-id", "red-merge-r1",
 			"--key", "k2", "--class", "reference-integrity", "--problem", "p",
 			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
-			"--impact", "medium", "--cx", "low", "--found-by", "L9-F9"}},
+			"--impact", "medium", "--complexity", "low", "--found-by", "L9-F9"}},
 		{"spot-check --ids", "no mint event created", []string{"merge", "spot-check", "--seat-id", "red-merge-r1",
 			"--ids", "R9-9"}},
 		// The petitioner is no longer a field the ruler RESTATES, so there is no seat reference
@@ -58,6 +58,11 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			args := append(cmdPath(c.args), "--run", runDir)
 			args = append(args, c.args[len(cmdPath(c.args)):]...)
+			// SUPPLY THE PROSE, so the refusal under test is the REFERENCE one. Cobra refuses a
+			// missing required flag at parse, before the reference check the case is named for.
+			if !hasFlag(args, "--reason") && !hasFlag(args, "--reason-file") {
+				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
+			}
 			_, err := run(t, args...)
 			if err == nil {
 				t.Fatalf("%s accepted a reference to something that does not exist — it would be dropped at replay, and the seat would never know", c.name)
@@ -79,7 +84,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 		{"bench", "opinion", "--seat-id", "judge-r1", "--id", first, "--as", "carried",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--reason", "the ruling"},
 		{"merge", "close", "--seat-id", "red-merge-r1", "--id", first, "--as", "closed",
-			"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--successor", second, "--reason", "verified"},
+			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {
 		args := append([]string{c[0], c[1], "--run", runDir}, c[2:]...)
 		if _, err := run(t, args...); err != nil {
@@ -100,8 +105,8 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	open := mintGap(t, runDir, "stays-open", "state-checks")
 	closed := mintGap(t, runDir, "gets-closed", "state-checks")
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", closed, "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "go test",
-		"--anchor-target", "./x", "--reason", "closed"); err != nil {
+		"--id", closed, "--as", "closed", "--verified-by", "L1", "--verified-with", "go test",
+		"--verified-against", "./x", "--reason", "closed"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,7 +116,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	}{
 		{"close a gap twice", "double-counts closure history", []string{"merge", "close",
 			"--seat-id", "red-merge-r1", "--id", closed, "--as", "closed",
-			"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x"}},
+			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x"}},
 		{"regrade a closed gap", "changes a number nobody reads", []string{"merge", "regrade",
 			"--seat-id", "red-merge-r1", "--id", closed, "--severity", "low", "--reason", "b"}},
 		{"file a grade motion on a closed gap", "disposition has already been made", []string{"motion", "grade", "file",
@@ -123,12 +128,17 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 			"--seat-id", "red-merge-r1", "--ids", open}},
 		{"carry residue into a closed gap", "already finished", []string{"merge", "close",
 			"--seat-id", "red-merge-r1", "--id", open, "--as", "closed",
-			"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
-			"--successor", closed}},
+			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
+			"--superseded-by", closed}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			args := append(cmdPath(c.args), "--run", runDir)
 			args = append(args, c.args[len(cmdPath(c.args)):]...)
+			// SUPPLY THE PROSE, so the refusal under test is the REFERENCE one. Cobra refuses a
+			// missing required flag at parse, before the reference check the case is named for.
+			if !hasFlag(args, "--reason") && !hasFlag(args, "--reason-file") {
+				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
+			}
 			_, err := run(t, args...)
 			if err == nil {
 				t.Fatalf("%s was accepted", c.name)
@@ -148,7 +158,7 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "the-successor", "--class", "state-checks",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 		"--supersedes", ancestor); err != nil {
 		t.Errorf("superseding an OPEN gap must be accepted — it is what 9 of 9 real mints did: %v", err)
 	}
@@ -174,7 +184,7 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "the-successor", "--class", "lineage-completion",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 		"--supersedes", ancestor)
 	if err != nil {
 		t.Fatalf("superseding an OPEN gap is what 7 of 9 real mints did, and the protocol requires it: %v", err)
@@ -194,15 +204,15 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 
 	// KEEPING THE PROMISE clears it.
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", ancestor, "--as", "closed", "--successor", successor,
-		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x",
+		"--id", ancestor, "--as", "closed", "--superseded-by", successor,
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "replaced by its successor"); err != nil {
 		t.Fatal(err)
 	}
 	// The successor is now the live gap; PASS still requires it closed (the all-gaps guard).
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", successor, "--as", "closed",
-		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./y",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./y",
 		"--reason", "successor resolved"); err != nil {
 		t.Fatal(err)
 	}
@@ -220,4 +230,15 @@ func cmdPath(args []string) []string {
 		n++
 	}
 	return append([]string{}, args[:n]...)
+}
+
+// hasFlag reports whether an argv already carries a flag, so a case that sets its own prose is
+// not given a second copy (both-given is itself a refusal).
+func hasFlag(args []string, name string) bool {
+	for _, a := range args {
+		if a == name {
+			return true
+		}
+	}
+	return false
 }

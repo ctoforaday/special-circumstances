@@ -1,7 +1,7 @@
-prompt sha256: e941f3dadf2c29fc7cbbd91e11b1358dd086665926ab16052fe3a874e0798478
+prompt sha256: ec683c2a6f0f6970f9251707759ed285265b4c4178cbd0fee1c6237c7160a3a6
 
 Research debate opening for topic: "the seat prompt contract".
-Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY with "/opt/feov/bin/feov-record" blue line-of-inquiry --run research/2026-01-01_golden --seat-id <your SEAT_ID> --line "<the approach or question you would follow>" --hypothesis "<what would be true if it pays off>" --status proposed.
+Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
 ONE line of inquiry per hypothesis, and the tool assigns each an id (Q1, Q2 …).
 THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too-thin or out-of-scope, and cannot hold you to when the run drifts.
 On the record it has an id, a fate, and an argument.
@@ -9,7 +9,7 @@ The hypotheses opening a run are the ones that shape everything downstream and w
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, run  /opt/feov/bin/feov-record scorecard --run research/2026-01-01_golden --chair blue  and read how this chair is doing on the question in front of you so far.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read the scorecard for YOUR CHAIR (`blue`) through the tool — the operator command and the selector that names a chair are in the root --help — and read how this chair is doing on the question in front of you so far.
 It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
 Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
 SEAT_ID: frontier.
@@ -34,6 +34,8 @@ The help is the only authoritative one.
 WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
 Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
 If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `worklist` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
 It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.
 Return one line per hypothesis.

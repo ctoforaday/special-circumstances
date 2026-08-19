@@ -2224,13 +2224,15 @@ type Mint struct {
 	Definition    *string `protobuf:"bytes,5,opt,name=definition,proto3,oneof" json:"definition,omitempty"`
 	Neighbor      *string `protobuf:"bytes,6,opt,name=neighbor,proto3,oneof" json:"neighbor,omitempty"`
 	Distinguisher *string `protobuf:"bytes,7,opt,name=distinguisher,proto3,oneof" json:"distinguisher,omitempty"`
-	// location is section heading + quoted sentence — enough to find the defect again.
+	// location is the defect's span, quoted verbatim from the report and matched against it.
 	Location    *string `protobuf:"bytes,8,opt,name=location,proto3,oneof" json:"location,omitempty"`
 	Problem     *string `protobuf:"bytes,9,opt,name=problem,proto3,oneof" json:"problem,omitempty"`
 	RequiredFix *string `protobuf:"bytes,10,opt,name=required_fix,json=requiredFix,proto3,oneof" json:"required_fix,omitempty"`
-	// The fix pair is validated against the LIVE report and refused unless the span is present and
-	// unique, so a seat cannot prescribe text without having read what it prescribes against.
-	FixOld          *string    `protobuf:"bytes,11,opt,name=fix_old,json=fixOld,proto3,oneof" json:"fix_old,omitempty"`
+	// fix_new is the text that span should become — validated against the LIVE report, so a seat
+	// cannot prescribe text without having read what it prescribes against.
+	//
+	// `fix_old` HELD THE SAME SPAN AS `location`, checked by a second matcher. A gap's location and
+	// the span its proposal replaces were never two facts.
 	FixNew          *string    `protobuf:"bytes,12,opt,name=fix_new,json=fixNew,proto3,oneof" json:"fix_new,omitempty"`
 	FixBasis        *string    `protobuf:"bytes,13,opt,name=fix_basis,json=fixBasis,proto3,oneof" json:"fix_basis,omitempty"`
 	AcceptanceCheck *string    `protobuf:"bytes,14,opt,name=acceptance_check,json=acceptanceCheck,proto3,oneof" json:"acceptance_check,omitempty"`
@@ -2349,13 +2351,6 @@ func (x *Mint) GetProblem() string {
 func (x *Mint) GetRequiredFix() string {
 	if x != nil && x.RequiredFix != nil {
 		return *x.RequiredFix
-	}
-	return ""
-}
-
-func (x *Mint) GetFixOld() string {
-	if x != nil && x.FixOld != nil {
-		return *x.FixOld
 	}
 	return ""
 }
@@ -2748,11 +2743,12 @@ func (x *Regrade) GetBasis() string {
 // SpotCheck re-reads archived closures. THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM
 // THE SEAT: a `none` claim the board contradicts is rendered as the contradiction it is.
 type SpotCheck struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ids           []string               `protobuf:"bytes,1,rep,name=ids,proto3" json:"ids,omitempty"`
-	Notes         *string                `protobuf:"bytes,2,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
-	None          *bool                  `protobuf:"varint,3,opt,name=none,proto3,oneof" json:"none,omitempty"`
-	Reason        *string                `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Ids   []string               `protobuf:"bytes,1,rep,name=ids,proto3" json:"ids,omitempty"`
+	None  *bool                  `protobuf:"varint,3,opt,name=none,proto3,oneof" json:"none,omitempty"`
+	// ONE PROSE CHANNEL. `notes` held what the spot-check found and `reason` held why there was
+	// nothing to sample — the same field, split by which branch wrote it.
+	Reason        *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2792,13 +2788,6 @@ func (x *SpotCheck) GetIds() []string {
 		return x.Ids
 	}
 	return nil
-}
-
-func (x *SpotCheck) GetNotes() string {
-	if x != nil && x.Notes != nil {
-		return *x.Notes
-	}
-	return ""
 }
 
 func (x *SpotCheck) GetNone() bool {
@@ -3165,7 +3154,6 @@ type Cite struct {
 	Location      *string                `protobuf:"bytes,5,opt,name=location,proto3,oneof" json:"location,omitempty"`
 	AccessDate    *string                `protobuf:"bytes,6,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
 	CiteKey       *string                `protobuf:"bytes,7,opt,name=cite_key,json=citeKey,proto3,oneof" json:"cite_key,omitempty"`
-	Claim         *string                `protobuf:"bytes,8,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
 	Text          *string                `protobuf:"bytes,9,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3250,13 +3238,6 @@ func (x *Cite) GetCiteKey() string {
 	return ""
 }
 
-func (x *Cite) GetClaim() string {
-	if x != nil && x.Claim != nil {
-		return *x.Claim
-	}
-	return ""
-}
-
 func (x *Cite) GetText() string {
 	if x != nil && x.Text != nil {
 		return *x.Text
@@ -3266,9 +3247,13 @@ func (x *Cite) GetText() string {
 
 // Verify is red reading a source at the leaf.
 type Verify struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Claim     *string                `protobuf:"bytes,1,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
-	Reference *string                `protobuf:"bytes,2,opt,name=reference,proto3,oneof" json:"reference,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Claim *string                `protobuf:"bytes,1,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
+	// A SOURCE IS NAMED BY url + title, here as in Cite. `reference` was a free-text third
+	// spelling on the one verb that reads a source red found itself, so the corroboration a run
+	// rests on was identified less precisely than the citations it audits.
+	Url   *string `protobuf:"bytes,9,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	Title *string `protobuf:"bytes,10,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	// anchor names the citation checked; independent marks a source red found itself. One or the
 	// other — a verification of nothing was recordable before this verb required them.
 	Anchor        *string        `protobuf:"bytes,3,opt,name=anchor,proto3,oneof" json:"anchor,omitempty"`
@@ -3318,9 +3303,16 @@ func (x *Verify) GetClaim() string {
 	return ""
 }
 
-func (x *Verify) GetReference() string {
-	if x != nil && x.Reference != nil {
-		return *x.Reference
+func (x *Verify) GetUrl() string {
+	if x != nil && x.Url != nil {
+		return *x.Url
+	}
+	return ""
+}
+
+func (x *Verify) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
 	}
 	return ""
 }
@@ -4626,11 +4618,14 @@ type Outcome struct {
 	// A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
 	// builder, where the dot sits at the end of the PREVIOUS line. They come from the frozen key
 	// census (testdata/payload-keys.txt), which is why it exists. verdict_basis is read by
-	// report/assemble.go; deadlocked and exhausted record HOW the sitting ended, which DeriveVerdict
-	// says is otherwise not on the record at all.
+	// report/assemble.go; `ended` records HOW the sitting ended, which DeriveVerdict says is
+	// otherwise not on the record at all.
+	//
+	// IT WAS TWO BOOLEANS, `deadlocked` and `exhausted`, and every reader took them apart in a
+	// switch — which is an enum written as two fields, with a fourth state (both true) that meant
+	// nothing and a first-match rule deciding it silently.
 	VerdictBasis  *string `protobuf:"bytes,4,opt,name=verdict_basis,json=verdictBasis,proto3,oneof" json:"verdict_basis,omitempty"`
-	Deadlocked    *bool   `protobuf:"varint,5,opt,name=deadlocked,proto3,oneof" json:"deadlocked,omitempty"`
-	Exhausted     *bool   `protobuf:"varint,6,opt,name=exhausted,proto3,oneof" json:"exhausted,omitempty"`
+	Ended         *string `protobuf:"bytes,7,opt,name=ended,proto3,oneof" json:"ended,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4693,18 +4688,11 @@ func (x *Outcome) GetVerdictBasis() string {
 	return ""
 }
 
-func (x *Outcome) GetDeadlocked() bool {
-	if x != nil && x.Deadlocked != nil {
-		return *x.Deadlocked
+func (x *Outcome) GetEnded() string {
+	if x != nil && x.Ended != nil {
+		return *x.Ended
 	}
-	return false
-}
-
-func (x *Outcome) GetExhausted() bool {
-	if x != nil && x.Exhausted != nil {
-		return *x.Exhausted
-	}
-	return false
+	return ""
 }
 
 type Position struct {
@@ -4998,7 +4986,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\xda\b\n" +
+	"\b_up_mass\"\xbf\b\n" +
 	"\x04Mint\x12\x1a\n" +
 	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\x19\n" +
@@ -5013,19 +5001,18 @@ const file_record_proto_rawDesc = "" +
 	"\aproblem\x18\t \x01(\tH\bR\aproblem\x88\x01\x01\x12&\n" +
 	"\frequired_fix\x18\n" +
 	" \x01(\tH\tR\vrequiredFix\x88\x01\x01\x12\x1c\n" +
-	"\afix_old\x18\v \x01(\tH\n" +
-	"R\x06fixOld\x88\x01\x01\x12\x1c\n" +
-	"\afix_new\x18\f \x01(\tH\vR\x06fixNew\x88\x01\x01\x12 \n" +
-	"\tfix_basis\x18\r \x01(\tH\fR\bfixBasis\x88\x01\x01\x12.\n" +
-	"\x10acceptance_check\x18\x0e \x01(\tH\rR\x0facceptanceCheck\x88\x01\x01\x12=\n" +
+	"\afix_new\x18\f \x01(\tH\n" +
+	"R\x06fixNew\x88\x01\x01\x12 \n" +
+	"\tfix_basis\x18\r \x01(\tH\vR\bfixBasis\x88\x01\x01\x12.\n" +
+	"\x10acceptance_check\x18\x0e \x01(\tH\fR\x0facceptanceCheck\x88\x01\x01\x12=\n" +
 	"\n" +
-	"check_kind\x18\x0f \x01(\x0e2\x19.feov.record.v1.CheckKindH\x0eR\tcheckKind\x88\x01\x01\x126\n" +
-	"\bseverity\x18\x10 \x01(\x0e2\x15.feov.record.v1.GradeH\x0fR\bseverity\x88\x01\x01\x12:\n" +
+	"check_kind\x18\x0f \x01(\x0e2\x19.feov.record.v1.CheckKindH\rR\tcheckKind\x88\x01\x01\x126\n" +
+	"\bseverity\x18\x10 \x01(\x0e2\x15.feov.record.v1.GradeH\x0eR\bseverity\x88\x01\x01\x12:\n" +
 	"\n" +
-	"likelihood\x18\x11 \x01(\x0e2\x15.feov.record.v1.GradeH\x10R\n" +
+	"likelihood\x18\x11 \x01(\x0e2\x15.feov.record.v1.GradeH\x0fR\n" +
 	"likelihood\x88\x01\x01\x122\n" +
-	"\x06impact\x18\x12 \x01(\x0e2\x15.feov.record.v1.GradeH\x11R\x06impact\x88\x01\x01\x12C\n" +
-	"\x0fcomplexity_cost\x18\x13 \x01(\x0e2\x15.feov.record.v1.GradeH\x12R\x0ecomplexityCost\x88\x01\x01\x12\x1e\n" +
+	"\x06impact\x18\x12 \x01(\x0e2\x15.feov.record.v1.GradeH\x10R\x06impact\x88\x01\x01\x12C\n" +
+	"\x0fcomplexity_cost\x18\x13 \x01(\x0e2\x15.feov.record.v1.GradeH\x11R\x0ecomplexityCost\x88\x01\x01\x12\x1e\n" +
 	"\n" +
 	"supersedes\x18\x14 \x03(\tR\n" +
 	"supersedes\x12\x19\n" +
@@ -5043,8 +5030,6 @@ const file_record_proto_rawDesc = "" +
 	"\b_problemB\x0f\n" +
 	"\r_required_fixB\n" +
 	"\n" +
-	"\b_fix_oldB\n" +
-	"\n" +
 	"\b_fix_newB\f\n" +
 	"\n" +
 	"_fix_basisB\x13\n" +
@@ -5053,7 +5038,7 @@ const file_record_proto_rawDesc = "" +
 	"\t_severityB\r\n" +
 	"\v_likelihoodB\t\n" +
 	"\a_impactB\x12\n" +
-	"\x10_complexity_cost\"\xcb\x01\n" +
+	"\x10_complexity_costJ\x04\b\v\x10\fR\afix_old\"\xcb\x01\n" +
 	"\bClassNew\x12\x17\n" +
 	"\x04slug\x18\x01 \x01(\tH\x00R\x04slug\x88\x01\x01\x12#\n" +
 	"\n" +
@@ -5104,15 +5089,13 @@ const file_record_proto_rawDesc = "" +
 	"\v_likelihoodB\t\n" +
 	"\a_impactB\x12\n" +
 	"\x10_complexity_costB\b\n" +
-	"\x06_basis\"\x8c\x01\n" +
+	"\x06_basis\"t\n" +
 	"\tSpotCheck\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\tR\x03ids\x12\x19\n" +
-	"\x05notes\x18\x02 \x01(\tH\x00R\x05notes\x88\x01\x01\x12\x17\n" +
-	"\x04none\x18\x03 \x01(\bH\x01R\x04none\x88\x01\x01\x12\x1b\n" +
-	"\x06reason\x18\x04 \x01(\tH\x02R\x06reason\x88\x01\x01B\b\n" +
-	"\x06_notesB\a\n" +
+	"\x03ids\x18\x01 \x03(\tR\x03ids\x12\x17\n" +
+	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12\x1b\n" +
+	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01B\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reason\"\xaa\x02\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xaa\x02\n" +
 	"\aOpinion\x12\x1a\n" +
 	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12%\n" +
 	"\vdisposition\x18\x02 \x01(\tH\x01R\vdisposition\x88\x01\x01\x12!\n" +
@@ -5172,7 +5155,7 @@ const file_record_proto_rawDesc = "" +
 	"\v_finding_idB\x0e\n" +
 	"\f_finding_keyB\b\n" +
 	"\x06_labelB\a\n" +
-	"\x05_text\"\xef\x02\n" +
+	"\x05_text\"\xd7\x02\n" +
 	"\x04Cite\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
@@ -5181,40 +5164,40 @@ const file_record_proto_rawDesc = "" +
 	"\blocation\x18\x05 \x01(\tH\x04R\blocation\x88\x01\x01\x12$\n" +
 	"\vaccess_date\x18\x06 \x01(\tH\x05R\n" +
 	"accessDate\x88\x01\x01\x12\x1e\n" +
-	"\bcite_key\x18\a \x01(\tH\x06R\aciteKey\x88\x01\x01\x12\x19\n" +
-	"\x05claim\x18\b \x01(\tH\aR\x05claim\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\t \x01(\tH\bR\x04text\x88\x01\x01B\b\n" +
+	"\bcite_key\x18\a \x01(\tH\x06R\aciteKey\x88\x01\x01\x12\x17\n" +
+	"\x04text\x18\t \x01(\tH\aR\x04text\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_urlB\t\n" +
 	"\a_sha256B\b\n" +
 	"\x06_titleB\v\n" +
 	"\t_locationB\x0e\n" +
 	"\f_access_dateB\v\n" +
-	"\t_cite_keyB\b\n" +
-	"\x06_claimB\a\n" +
-	"\x05_text\"\xaf\x03\n" +
+	"\t_cite_keyB\a\n" +
+	"\x05_textJ\x04\b\b\x10\tR\x05claim\"\xd3\x03\n" +
 	"\x06Verify\x12\x19\n" +
-	"\x05claim\x18\x01 \x01(\tH\x00R\x05claim\x88\x01\x01\x12!\n" +
-	"\treference\x18\x02 \x01(\tH\x01R\treference\x88\x01\x01\x12\x1b\n" +
-	"\x06anchor\x18\x03 \x01(\tH\x02R\x06anchor\x88\x01\x01\x12%\n" +
-	"\vindependent\x18\x04 \x01(\bH\x03R\vindependent\x88\x01\x01\x12$\n" +
-	"\vaccess_date\x18\x05 \x01(\tH\x04R\n" +
+	"\x05claim\x18\x01 \x01(\tH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
+	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
+	"\x05title\x18\n" +
+	" \x01(\tH\x02R\x05title\x88\x01\x01\x12\x1b\n" +
+	"\x06anchor\x18\x03 \x01(\tH\x03R\x06anchor\x88\x01\x01\x12%\n" +
+	"\vindependent\x18\x04 \x01(\bH\x04R\vindependent\x88\x01\x01\x12$\n" +
+	"\vaccess_date\x18\x05 \x01(\tH\x05R\n" +
 	"accessDate\x88\x01\x01\x12<\n" +
-	"\aoutcome\x18\x06 \x01(\x0e2\x1d.feov.record.v1.SourceOutcomeH\x05R\aoutcome\x88\x01\x01\x12?\n" +
+	"\aoutcome\x18\x06 \x01(\x0e2\x1d.feov.record.v1.SourceOutcomeH\x06R\aoutcome\x88\x01\x01\x12?\n" +
 	"\n" +
-	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceH\x06R\n" +
+	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceH\aR\n" +
 	"confidence\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\b \x01(\tH\aR\x04text\x88\x01\x01B\b\n" +
-	"\x06_claimB\f\n" +
-	"\n" +
-	"_referenceB\t\n" +
+	"\x04text\x18\b \x01(\tH\bR\x04text\x88\x01\x01B\b\n" +
+	"\x06_claimB\x06\n" +
+	"\x04_urlB\b\n" +
+	"\x06_titleB\t\n" +
 	"\a_anchorB\x0e\n" +
 	"\f_independentB\x0e\n" +
 	"\f_access_dateB\n" +
 	"\n" +
 	"\b_outcomeB\r\n" +
 	"\v_confidenceB\a\n" +
-	"\x05_text\"\xe1\x02\n" +
+	"\x05_textJ\x04\b\x02\x10\x03R\treference\"\xe1\x02\n" +
 	"\x05Proof\x12\x1e\n" +
 	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12 \n" +
 	"\tproof_key\x18\x02 \x01(\tH\x01R\bproofKey\x88\x01\x01\x12 \n" +
@@ -5377,25 +5360,21 @@ const file_record_proto_rawDesc = "" +
 	"\bVerdict_\x126\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
 	"\n" +
-	"\b_verdict\"\xcc\x02\n" +
+	"\b_verdict\"\xaf\x02\n" +
 	"\aOutcome\x129\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x1a.feov.record.v1.RunOutcomeH\x00R\averdict\x88\x01\x01\x12\x19\n" +
 	"\x05prose\x18\x02 \x01(\tH\x01R\x05prose\x88\x01\x01\x12$\n" +
 	"\vverdict_why\x18\x03 \x01(\tH\x02R\n" +
 	"verdictWhy\x88\x01\x01\x12(\n" +
-	"\rverdict_basis\x18\x04 \x01(\tH\x03R\fverdictBasis\x88\x01\x01\x12#\n" +
-	"\n" +
-	"deadlocked\x18\x05 \x01(\bH\x04R\n" +
-	"deadlocked\x88\x01\x01\x12!\n" +
-	"\texhausted\x18\x06 \x01(\bH\x05R\texhausted\x88\x01\x01B\n" +
+	"\rverdict_basis\x18\x04 \x01(\tH\x03R\fverdictBasis\x88\x01\x01\x12\x19\n" +
+	"\x05ended\x18\a \x01(\tH\x04R\x05ended\x88\x01\x01B\n" +
 	"\n" +
 	"\b_verdictB\b\n" +
 	"\x06_proseB\x0e\n" +
 	"\f_verdict_whyB\x10\n" +
-	"\x0e_verdict_basisB\r\n" +
-	"\v_deadlockedB\f\n" +
-	"\n" +
-	"_exhausted\",\n" +
+	"\x0e_verdict_basisB\b\n" +
+	"\x06_endedJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\n" +
+	"deadlockedR\texhausted\",\n" +
 	"\bPosition\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
 	"\x05_text\"1\n" +
