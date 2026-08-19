@@ -434,19 +434,18 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	// than any real run presents, and every mistyped path it measured was friction production
 	// had already designed away.
 	//
-	// THE SEAT IS INJECTED AND PRODUCTION DOES NOT DO THAT, so this arm of the instrument is
-	// EASIER than the run it models, and knowing which way it leans is the point of saying so.
-	// #348 designed ResolveSeat to prefer an injected seat over --seat-id; the hook half was
-	// never built (internal/seatenv/identity.go: "these constants have readers and no writer"),
-	// so a production seat reads its id off the dispatch prompt and types --seat-id. Since the
-	// tree is now SCOPED by that id, a seat that fumbles it gets an empty surface rather than a
-	// refused write — which makes this the gap most worth closing before the next probe is
-	// treated as a measurement of production. Leaving it injected here keeps THIS instrument
-	// comparable with the runs already recorded against it; changing it silently would rebase
-	// every prior number.
+	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects, and the
+	// binding is already on the record: Build registered this seat under the same handle.
+	//
+	// WHERE THE PROBE STILL DIVERGES, stated because an instrument that hides its lean cannot be
+	// read. Production's dispatcher never learns an agent handle — Workflow's agent() returns a
+	// result, not one — so a production seat types --seat-id exactly ONCE, at register, and every
+	// call after that resolves from the binding. The probe pre-assigns both ends, so its seats
+	// skip that first typed flag. It reproduces every call after it, which is all of them; what
+	// it cannot exercise is the single bootstrap call.
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
-		seatenv.SeatVar+"="+b.Seat,
+		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
 		// Every board is a single round-1 sitting. Injected rather than inferred: the regex
 		// fallback over a seat id cannot tell "round 0" from "no round in this name", which is
 		// the defect #348 put this variable here to end.

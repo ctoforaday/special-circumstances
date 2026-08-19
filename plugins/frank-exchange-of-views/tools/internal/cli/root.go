@@ -116,10 +116,11 @@ func RoleOfSeat(seatID string) string {
 // which seat's), so the REFUSAL has to carry the reason.
 func noSeatNote(seatID string) string {
 	if strings.TrimSpace(seatID) == "" {
-		return "\n\n--seat-id IS REQUIRED HERE, because nothing identified you: " + seatenv.SeatVar +
-			" is unset and no --seat-id was given. The surface is scoped to whoever is asking, so there is no " +
-			"tree to show until you say who that is — a seat id, or `" + record.OperatorRole + "`. In a real run " +
-			"the engine injects it and you never type it."
+		return "\n\n--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not " +
+			"registered, so the record cannot say which seat it holds, and no --seat-id was given. The " +
+			"surface is scoped to whoever is asking, so there is no tree to show until you say who that " +
+			"is — a seat id, or `" + record.OperatorRole + "`. You type it ONCE, at `register`; after that " +
+			"the binding is on the record and every later call resolves it for you."
 	}
 	if RoleOfSeat(seatID) == "" {
 		return "\n\n" + seatID + " does not belong to any role namespace, so it selects no surface. The engine " +
@@ -131,7 +132,21 @@ func noSeatNote(seatID string) string {
 
 // newRoot builds the tree for whoever is running it — see NewRootFor.
 func newRoot() *cobra.Command {
-	return NewRootFor(seatenv.Dispatched())
+	return NewRootFor(dispatchedSeat())
+}
+
+// dispatchedSeat answers who is running this process, BEFORE cobra parses anything.
+//
+// The run directory is resolved the way the seat's own verbs resolve it — injected FEOV_RUN
+// first, then the live-run marker — because that is what the hook actually supplies, and a
+// pre-parse scan of os.Args for --run would be a second flag parser guessing at the same fact.
+// Where no run resolves there is no record to ask, so the answer is the flag or nothing.
+func dispatchedSeat() string {
+	runDir, err := seatenv.Resolve("", func() string { return seat.InferRunDir("") })
+	if err != nil {
+		return seatenv.Dispatched(nil)
+	}
+	return seatenv.Dispatched(seat.BoundSeat(runDir))
 }
 
 // NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.
@@ -379,7 +394,7 @@ func Execute() {
 	defer record.InstallSignalGuard()()
 
 	root := newRoot()
-	if err := refuseUnknownCommandFirst(root, os.Args, seatenv.Dispatched()); err != nil {
+	if err := refuseUnknownCommandFirst(root, os.Args, dispatchedSeat()); err != nil {
 		// THROUGH THE SAME EMITTER AS EVERY OTHER TOP-LEVEL REFUSAL. This branch printed a bare
 		// sentence, so `--json` callers got prose from the one path that answers before cobra —
 		// a channel whose entire contract is that it is machine-readable.

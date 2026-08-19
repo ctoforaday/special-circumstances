@@ -137,3 +137,78 @@ func applyExports(t *testing.T, payload string) {
 		t.Fatalf("no exports to apply — the rewrite carried nothing:\n%s", payload)
 	}
 }
+
+// AN AGENT THAT NEVER REGISTERED CANNOT ACT, and that refusal is what makes the binding a
+// mechanism rather than a note.
+//
+// Without it a seat could skip `register`, keep typing --seat-id, and file events under any id
+// the tree will build for it — which is exactly the self-asserted identity this replaces. The
+// binding would be advisory, and an advisory guarantee is one the audit reads as enforced.
+func TestAnUnregisteredAgentIsRefused(t *testing.T) {
+	runDir := seatRun(t)
+	t.Setenv(seatenv.AgentVar, "agent_never_registered")
+
+	_, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "acting without an identity")
+	if err == nil {
+		t.Fatal("an agent with no binding on the record filed an event anyway — the seat id was taken on trust, which is the thing this replaces")
+	}
+	// THE REFUSAL MUST NAME THE ONE REMEDY. A seat handed an unexplained refusal logs friction
+	// and works around it, losing the capability for the run — measured, and the reason every
+	// refusal in this tree carries its own way out.
+	if !strings.Contains(err.Error(), "register") {
+		t.Errorf("the refusal does not name the act that fixes it: %v", err)
+	}
+}
+
+// AND REGISTER ITSELF MUST RUN UNBOUND, or the mechanism cannot start. This is the bootstrap and
+// the one asymmetry in it: register is what CREATES the binding, so it is the single verb that
+// may act on a claim.
+func TestRegisterIsTheOneVerbThatMayRunUnbound(t *testing.T) {
+	runDir := seatRun(t)
+	t.Setenv(seatenv.AgentVar, "agent_bootstrapping")
+
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+		t.Fatalf("register was refused for want of the binding it exists to write — the mechanism cannot start: %v", err)
+	}
+	// And now the SAME agent may act, with no --seat-id at all. That is the whole point: the id
+	// is typed once, at register, and never again.
+	if _, err := run(t, "friction", "--run", runDir, "--reason", "the tool has no path for X"); err != nil {
+		t.Fatalf("a registered agent still could not act without retyping its seat id: %v", err)
+	}
+	if got := lastOfType(t, runDir, "friction").SeatID; got != "red-lens-r1-L1" {
+		t.Errorf("the event was filed under %q; the binding did not carry the identity", got)
+	}
+}
+
+// NO HANDLE MEANS NO DEMAND. A test, an operator at a shell, or any harness without a PreToolUse
+// hook cannot bind — refusing them would be requiring a mechanism their environment does not
+// have. The check is keyed on the handle's PRESENCE, and this is the arm that says so.
+func TestWithoutAHandleTheFlagStillWorks(t *testing.T) {
+	runDir := seatRun(t)
+	t.Setenv(seatenv.AgentVar, "")
+
+	if _, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "no hook in this environment"); err != nil {
+		t.Fatalf("an unhooked caller was held to a binding it has no way to create: %v", err)
+	}
+}
+
+// A --seat-id CONTRADICTING THE BINDING IS REFUSED, naming both — the guarantee that used to be
+// checked against FEOV_SEAT, a variable no run could set, and is now checked against the record.
+func TestAFlagContradictingTheBindingIsRefused(t *testing.T) {
+	runDir := seatRun(t)
+	t.Setenv(seatenv.AgentVar, "agent_lens_one")
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L2", "--reason", "x")
+	if err == nil {
+		t.Fatal("an event was filed under a seat this agent did not register as; every found_by and estoppel downstream reads that attribution")
+	}
+	for _, want := range []string{"red-lens-r1-L1", "red-lens-r1-L2"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name BOTH ids so the seat can see which is which; missing %q in %v", want, err)
+		}
+	}
+}
