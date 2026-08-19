@@ -66,3 +66,47 @@ func TestEveryArmIsActuallyDispatchedDifferently(t *testing.T) {
 		t.Errorf("%d distinct constitutions for %d arms", len(seen), len(seatprobe.NamingArms))
 	}
 }
+
+// THE SENTENCE THE REPORT PRINTS ABOUT THE ARM MUST MATCH THE ARM.
+//
+// namingTreatment exists to catch a manufactured null result: an arm whose treatment did not
+// land, reported beside the finding it would otherwise fake. Its guards were written when every
+// arm was subtractive, and it checked `before == 0` before it looked at the arm at all. The strip
+// made `before == 0` true of every run and turned `partial` and `complete` additive — so the
+// guard fired on all three, telling the reader that a null result in `complete` was a fixture
+// artifact, on the one arm whose treatment was real.
+//
+// It is a report line rather than a computation, which is why nothing failed: the numbers behind
+// it stayed correct while the sentence about them inverted. This pins the direction.
+func TestTheNamingTreatmentLineReadsTheArmsDirection(t *testing.T) {
+	sf := seatprobe.NewSurface(cli.CommandPaths())
+	agents := filepath.Join("..", "..", "..", "agents")
+	if _, err := os.Stat(filepath.Join(agents, "blue-researcher.md")); err != nil {
+		t.Skipf("constitutions not reachable from here: %v", err)
+	}
+	for _, arm := range seatprobe.NamingArms {
+		got := namingTreatment("blue", agents, sf, arm, false)
+		if strings.Contains(got, "NOT MEASURED") {
+			t.Fatalf("%s: %s", arm, got)
+		}
+		// The count is unconditional. A sentence interpreting the treatment is worth nothing if
+		// it can be right about a number the reader never sees.
+		if !strings.Contains(got, "under arm "+string(arm)) {
+			t.Errorf("%s: the line reports no count: %s", arm, got)
+		}
+		removes := strings.Contains(got, "remove")
+		if arm == seatprobe.NamingNone {
+			if !removes {
+				t.Errorf("`none` is the subtractive arm and its line never mentions removal: %s", got)
+			}
+			continue
+		}
+		if removes {
+			t.Errorf("%s APPENDS a verb list; its line describes removal, which is the previous "+
+				"experiment's direction printed over this one: %s", arm, got)
+		}
+		if strings.Contains(got, "ADDED NOTHING") {
+			t.Errorf("%s: the arm's own treatment did not land: %s", arm, got)
+		}
+	}
+}
