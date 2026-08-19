@@ -51,10 +51,21 @@ plugins/*/tools/dist/
 # Linux — scripts/check is a DIRECTORY, so the build refuses — which is exactly why the file
 # that got through was a Windows .exe.
 *.exe
-plugins/*/tools/feov-record
-plugins/*/tools/sc-*
-plugins/*/tools/gray-area
-plugins/*/tools/gray-area-capture
+#
+# ...and the list of names above was itself the defect one level up. It named every binary
+# that had gone wrong so far — feov-record, sc-*, gray-area, gray-area-capture — which is a
+# hand-kept allowlist of the accidents already made. `go build ./cmd/seatprobe` from tools/
+# dropped a 12 MB `seatprobe` straight through it, because the list could only know about
+# commands that existed when it was written.
+#
+# What is actually true of this directory does not need keeping: Go drops a build at
+# tools/<cmdname>, extensionless, and every tracked file at that level is go.mod or go.sum.
+# So ignore the extensionless ones and re-admit the rest. Subdirectories are re-admitted
+# explicitly — git cannot re-include a file whose parent directory is excluded, so dropping
+# that line would hide the entire source tree rather than one binary.
+plugins/*/tools/*
+!plugins/*/tools/*.*
+!plugins/*/tools/*/
 **/trajectories/agent-transcripts.tar.gz
 
 # Agent memory is the harness's RAW ACCRUAL path (machine-local, resolved through
