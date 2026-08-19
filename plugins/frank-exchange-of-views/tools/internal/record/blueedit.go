@@ -1,5 +1,9 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
+
 // AnchorIDs returns the distinct finding-marker ids EXPECTED in blue/report.md — the id of
 // every `anchor` event on the record, in first-seen order. The blue-report lockdown's
 // PostToolUse backstop compares this to the ids actually present to catch a dropped marker.
@@ -10,12 +14,21 @@ func AnchorIDs(runDir string) ([]string, error) {
 	}
 	seen := map[string]bool{}
 	var out []string
-	for _, e := range m.Events {
-		if e.Type == "anchor" {
-			if id := e.Payload.Str("id"); id != "" && !seen[id] {
-				seen[id] = true
-				out = append(out, id)
-			}
+	for i := range m.Events {
+		body, ok := recordpb.Body(&m.Events[i])
+		if !ok {
+			// No body at all, so no anchor id. An anchor event that carries nothing cannot
+			// name a marker, and the old code reached the same answer by a different route:
+			// Payload.Str on an absent key returned "", which the id != "" filter dropped.
+			continue
+		}
+		a, isAnchor := body.(*recordpb.Anchor)
+		if !isAnchor {
+			continue
+		}
+		if id := a.GetId(); id != "" && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
 		}
 	}
 	return out, nil
@@ -33,8 +46,22 @@ func ExistingBlueEditByKey(runDir, seatID, key string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	for _, e := range m.Events {
-		if e.Type == "blue_edit" && e.SeatID == seatID && e.Payload.Str("edit_key") == key {
+	for i := range m.Events {
+		e := &m.Events[i]
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			// No body: nothing can carry an edit_key, so this event cannot be the prior
+			// record of THIS edit. Reporting "not found" here is the safe direction — the
+			// caller re-applies the write idempotently rather than skipping it.
+			continue
+		}
+		// key is non-empty (guarded above), so GetEditKey()'s zero value for an ABSENT
+		// edit_key can never match it. The old `Payload.Str("edit_key") == key` had the
+		// same property for the same reason.
+		if be, isBlueEdit := body.(*recordpb.BlueEdit); isBlueEdit && be.GetEditKey() == key {
 			return true, nil
 		}
 	}

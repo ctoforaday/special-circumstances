@@ -1,6 +1,10 @@
 package record
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
 
 // ESTOPPEL — red is bound by the fix it prescribed.
 //
@@ -37,15 +41,19 @@ const minEstoppelOverlap = 40
 func AppliedVerbatim(b *Board) map[string]string {
 	out := map[string]string{}
 	for _, e := range b.Events {
-		if e.Type != "blue_edit" || !e.Payload.Bool("applied_verbatim") {
+		// THE BODY IS THE FILTER. "not a blue_edit" is the same set the `e.Type != "blue_edit"`
+		// test selected, and it cannot go stale against the enum the way a second reading of the
+		// type could.
+		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
+		if !ok || !ed.GetAppliedVerbatim() {
 			continue
 		}
-		id := e.Payload.Str("answers")
+		id := ed.GetAnswers()
 		g, ok := b.Gaps[id]
 		if !ok || g.Mint == nil {
 			continue
 		}
-		if fixNew := g.Mint.Str("fix_new"); fixNew != "" {
+		if fixNew := g.Mint.GetFixNew(); fixNew != "" {
 			out[id] = fixNew
 		}
 	}
@@ -90,15 +98,14 @@ func DeclineStats(b *Board) (offered, applied, declined int) {
 	verbatim := AppliedVerbatim(b)
 	answered := map[string]bool{}
 	for _, e := range b.Events {
-		switch e.Type {
-		case "blue_edit":
-			if id := e.Payload.Str("answers"); id != "" {
+		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
+			if id := ed.GetAnswers(); id != "" {
 				answered[id] = true
 			}
 		}
 	}
 	for id, g := range b.Gaps {
-		if g.Mint == nil || g.Mint.Str("fix_basis") != "verified" {
+		if g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
 			continue
 		}
 		offered++
@@ -135,7 +142,7 @@ func ProposalAppliedVerbatim(runDir, gapID, old, new string) (bool, error) {
 	// THE SPAN IS THE GAP'S OWN `location`. It was a separate `fix_old` holding the same
 	// sentence, matched by a second matcher — a gap's location and the span its proposal
 	// replaces were never two facts.
-	return g.Mint.Str("location") == old && g.Mint.Str("fix_new") == new, nil
+	return g.Mint.GetLocation() == old && g.Mint.GetFixNew() == new, nil
 }
 
 // FrictionKindEstoppel marks a friction event as an estoppel REFUSAL rather than a seat's
@@ -163,6 +170,14 @@ const FrictionKindEstoppel = "estoppel"
 const FrictionKindToolError = "tool_error"
 
 // FrictionKindKey is the payload key carrying the kind.
+//
+// THESE THREE CONSTANTS ARE THE PRE-SCHEMA CARRIER AND ARE NOW VESTIGIAL. `Friction.kind` is a
+// generated enum (recordpb.FrictionKind), and this file's own counter reads it there. They are
+// left standing only because their remaining writers — cli/hook.go and cli/merge/mint.go — belong
+// to a later wave; nothing in this package uses them. Route a write through
+// recordpb.FrictionKind_FRICTION_KIND_*, never back through these words, and delete all three
+// once the last writer converts. A payload KEY in particular means nothing once the payload is
+// gone.
 const FrictionKindKey = "kind"
 
 // EstoppelRejections counts the mints refused because their location was text red itself
@@ -174,7 +189,11 @@ const FrictionKindKey = "kind"
 func EstoppelRejections(b *Board) int {
 	n := 0
 	for _, e := range b.Events {
-		if e.Type == "friction" && e.Payload.Str(FrictionKindKey) == FrictionKindEstoppel {
+		// THE FIELD IS NOW THE SCHEMA'S, and the count reads the enum rather than a word. An
+		// absent kind is FRICTION_KIND_UNSPECIFIED — a seat's own report, which is exactly what
+		// the missing key meant before, so a friction with no kind still does not count.
+		if fr, ok := recordpb.BodyAs[*recordpb.Friction](e); ok &&
+			fr.GetKind() == recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL {
 			n++
 		}
 	}
@@ -184,6 +203,12 @@ func EstoppelRejections(b *Board) int {
 // CheckKindComputation is the acceptance-check kind that prose cannot settle. It was compared
 // as a bare literal in the close gate and in two projections, which is three chances to disagree
 // about the one rule that decides whether a gap can close at all.
+//
+// THE SCHEMA OWNS THE VALUE NOW: recordpb.CheckKind_CHECK_KIND_COMPUTATION, which is what
+// GapsAwaitingProof compares against. This word survives only for the unconverted readers
+// (sitting.go, viewjson.go, cli/merge/close.go). A comparison against a Mint's check_kind belongs
+// on the ENUM; where a lowercase spelling is genuinely needed for a projection, it is
+// recordpb.Spelling of the value, not this literal.
 const CheckKindComputation = "computation"
 
 // proofNames is ProofAnswers against a board the caller already has. The projections run it per
@@ -194,7 +219,7 @@ func proofNames(b *Board, gapID string) bool {
 		return false
 	}
 	for _, e := range b.Events {
-		if e.Type == "proof" && e.Payload.Str("answers") == gapID {
+		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() == gapID {
 			return true
 		}
 	}
@@ -248,7 +273,7 @@ func ClaimAppearsInAnEdit(runDir, claim string) bool {
 		return false
 	}
 	for _, e := range b.Events {
-		if e.Type == "blue_edit" && strings.Contains(e.Payload.Str("old"), claim) {
+		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && strings.Contains(ed.GetOld(), claim) {
 			return true
 		}
 	}
@@ -276,7 +301,7 @@ func GapsAwaitingProof(runDir string) []string {
 		if g == nil || !g.Open || g.Mint == nil {
 			continue
 		}
-		if g.Mint.Str("check_kind") == CheckKindComputation && !proofNames(b, id) {
+		if g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, id) {
 			out = append(out, id)
 		}
 	}

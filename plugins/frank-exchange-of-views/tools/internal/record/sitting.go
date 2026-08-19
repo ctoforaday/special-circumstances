@@ -1,5 +1,9 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
+
 // WHAT THIS SEAT STILL OWES, ON THE READ IT ALREADY DOES.
 //
 // A seat had no way to know it was finished. Asked directly, the merge named a real mechanism —
@@ -88,7 +92,8 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	// EVERY SEAT CLOSES THE FRICTION CHANNEL. Silence is not the empty case: an absent friction
 	// log reads the same whether the sitting was clean or the channel went unused, and across
 	// eighteen recorded sittings it was the second every time.
-	if !seatDid(b, seatID, "friction") && !seatDid(b, seatID, "friction-none") {
+	if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_FRICTION) &&
+		!seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_FRICTION_NONE) {
 		add("the friction channel is open — you have neither reported a capability gap nor said that nothing blocked you")
 	}
 
@@ -111,7 +116,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		for _, a := range UnsupportedInquiries(b) {
 			add("red voted line of inquiry " + a.ID + " `" + a.Support + "` — the report no longer backs it as stated, or does not carry it at all")
 		}
-		if !seatDid(b, seatID, "revision") {
+		if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)")
 		}
 	case "merge":
@@ -136,7 +141,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		for _, a := range UnvotedInquiries(b) {
 			add("line of inquiry " + a.ID + " has no support verdict this round — PASS is refused while the report's own account of its research is unchecked")
 		}
-		if !seatDid(b, seatID, "verdict") {
+		if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
@@ -192,9 +197,13 @@ func (s SittingJSON) Blocked() bool {
 func seatVerb(role, invocation string) string { return role + " " + invocation }
 
 // seatDid reports whether this seat recorded an event of this type in this run.
-func seatDid(b *Board, seatID, typ string) bool {
+//
+// The type is an EventType rather than a string: a caller that mistypes `"spot_check"` for
+// `"spot-check"` used to get a silent false — a duty that reads as undischarged forever, or as
+// discharged when it was not, depending on which side of the comparison drifted.
+func seatDid(b *Board, seatID string, typ recordpb.EventType) bool {
 	for _, e := range b.Events {
-		if e.SeatID == seatID && e.Type == typ {
+		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}
 	}
@@ -209,7 +218,7 @@ func gapsAwaitingProofOn(b *Board) []string {
 		if g == nil || !g.Open || g.Mint == nil {
 			continue
 		}
-		if g.Mint.Str("check_kind") == CheckKindComputation && !proofNames(b, id) {
+		if g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, id) {
 			out = append(out, id)
 		}
 	}

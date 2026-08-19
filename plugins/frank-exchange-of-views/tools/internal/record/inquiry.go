@@ -1,6 +1,11 @@
 package record
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
 
 // LINES OF INQUIRY HAVE A LIFECYCLE NOW, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
 //
@@ -95,7 +100,19 @@ func MintInquiryID(runDir string) (string, error) {
 	}
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") != "" && e.Payload.Str("supersedes_status") == "" {
+		// THE BODY IS THE TYPE. `line-of-inquiry` is carried by the `Avenue` message
+		// (EVENT_TYPE_AVENUE) — the schema kept the pre-rename spelling for the message and its
+		// id field, so `inquiry_id` is `avenue_id` here. Matching on the body cannot go stale
+		// against the enum the way `e.Type == "line-of-inquiry"` could.
+		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
+		if !ok {
+			continue
+		}
+		// A PROPOSAL, NOT A MOVE. `supersedes_status` is PRESENT on a move and absent on a
+		// proposal — the schema says so in as many words — so the id counter reads the pointer,
+		// not the string. `GetSupersedesStatus() == ""` would count a move whose marker was
+		// written empty as a fresh proposal and mint an id that already exists.
+		if av.GetAvenueId() != "" && av.SupersedesStatus == nil {
 			n++
 		}
 	}
@@ -118,10 +135,19 @@ type Inquiry struct {
 	Ruling     string   // red's fate, if ruled
 	RulingWhy  string
 	RuledRound int
-	// Contests is the ruling blue moved AGAINST, recorded by `blue line of inquiry` at the moment of
-	// the move. Read from the field rather than re-derived from (status, ruling): the write
+	// Contests was the ruling blue moved AGAINST, recorded by `blue line-of-inquiry` at the moment
+	// of the move. Read from the field rather than re-derived from (status, ruling): the write
 	// path already decided what counts as contesting, and a second derivation downstream is a
 	// second definition that can disagree with it.
+	//
+	// IT IS NOW ALWAYS EMPTY, AND SAYING SO HERE IS THE POINT. Its carrier was the payload key
+	// `contests_ruling`, which the schema deliberately does not have — recordpb's key census calls
+	// it "the legacy spelling of an appeal … the one legacy field with no counterpart at all", and
+	// #344 replaced the mechanism with `motion inquiry appeal`. Nothing has written it since;
+	// blue/inquiry.go:109 records why. The field stays because report/assemble.go still renders
+	// it, and because the CONCEPT is live: its post-#344 carrier is a `motion-appeal` event
+	// (MotionAppeal, subject DIRECTION) on this line's id, which this projection has never read.
+	// Wiring that is new behaviour rather than a conversion, so it is reported, not done here.
 	Contests string
 	// Support is red's latest verdict on whether the REPORT still carries this line, with the
 	// round it was cast in. SupportRound is what makes "voted THIS round" answerable — the duty
@@ -136,21 +162,21 @@ func Inquiries(b *Board) []*Inquiry {
 	byID := map[string]*Inquiry{}
 	var order []string
 	for _, e := range b.Events {
-		id := e.Payload.Str("inquiry_id")
-		if id == "" {
-			// A direction motion carries the line of inquiry's id under `motion_id`, because to the
-			// motion machinery it IS the motion's id — the proposal is the filing, so there is
-			// no second identity to mint. Keying only on `inquiry_id` dropped every ruling made
-			// through the new verb before it reached the switch below.
-			if e.Type == "motion-rule" && e.Payload.Str("subject") == "inquiry" {
-				id = e.Payload.Str("motion_id")
-			}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no line
+			// of inquiry, which is the same outcome the old `Str("inquiry_id") == ""` reached —
+			// but reached here by asking the question rather than by a lookup that misses.
+			continue
+		}
+		switch t := body.(type) {
+		case *recordpb.Avenue:
+			// The id is `avenue_id`: the schema kept the pre-rename spelling, and the old
+			// `inquiry_id` key is the same fact under the newer word.
+			id := t.GetAvenueId()
 			if id == "" {
 				continue
 			}
-		}
-		switch e.Type {
-		case "line-of-inquiry":
 			a, ok := byID[id]
 			if !ok {
 				a = &Inquiry{ID: id}
@@ -158,36 +184,105 @@ func Inquiries(b *Board) []*Inquiry {
 				order = append(order, id)
 			}
 			// A creation carries the substance; a MOVE carries only the new status and why,
-			// so the substance must not be blanked by it.
-			if v := e.Payload.Str("line"); v != "" {
+			// so the substance must not be blanked by it. These stay VALUE tests rather than
+			// presence tests on purpose: the question they ask is "did this event bring
+			// substance", and a move that carried `line` as an empty string must not blank a
+			// proposal's line either. `av.Line != nil` would let it.
+			if v := t.GetLine(); v != "" {
 				a.Line = v
 			}
-			if v := e.Payload.Str("hypothesis"); v != "" {
+			if v := t.GetHypothesis(); v != "" {
 				a.Hypothesis = v
 			}
-			if v := e.Payload.Str("method"); v != "" {
+			if v := t.GetMethod(); v != "" {
 				a.Method = v
 			}
-			a.Status, a.Reason, a.Round, a.SeatID = e.Payload.Str("status"), e.Payload.Str("reason"), e.Round, e.SeatID
-			a.Contests = e.Payload.Str("contests_ruling")
-			a.History = append(a.History, fmt.Sprintf("r%d %s", e.Round, a.Status))
-		case "motion-rule":
+			// STATUS IS OVERWRITTEN BY EVERY EVENT, including one that carried none — that is
+			// what "latest status" means, and the old `Str("status")` did exactly this.
+			//
+			// `Word` is what makes the absent case survive: an unset status is the enum zero, and
+			// Word maps the zero to "" rather than to the literal `unspecified`. Rendering the
+			// zero's name would put a line in the lines-of-inquiry projection under a fate no
+			// seat ever chose, and into History as "r2 unspecified". The value form is used
+			// deliberately — `Word(t.Status)` would pass a typed nil pointer into an interface
+			// that is not nil, and panic on the absent case this line exists to handle.
+			//
+			// AvenueStatus needs no hyphen join: none of proposed/pursued/deferred/declined/
+			// abandoned carries an underscore. DirectionRuling below is the opposite case.
+			a.Status = recordpb.Word(t.GetStatus())
+			a.Reason, a.Round, a.SeatID = t.GetReason(), int(e.GetRound()), e.GetSeatId()
+			// `contests_ruling` HAS NO FIELD, AND THAT IS THE SCHEMA'S DECISION, NOT THIS
+			// CONVERSION'S. It was set as a side effect of moving a line to `pursued` against an
+			// adverse ruling; #344 replaced it with `motion inquiry appeal`, blue/inquiry.go:109
+			// records that nothing has written it since, and recordpb's key census calls it "the
+			// legacy spelling of an appeal … the one legacy field with no counterpart at all".
+			// So the read is dropped rather than converted, and Inquiry.Contests is now always
+			// empty. THE CONCEPT IS NOT DEAD: its post-#344 carrier is a `motion-appeal` event on
+			// this line's id, which this projection has never read. Wiring that is new behaviour,
+			// not a conversion, so it is reported rather than done here.
+			a.History = append(a.History, fmt.Sprintf("r%d %s", e.GetRound(), a.Status))
+		case *recordpb.MotionRule:
 			// THE CURRENT SPELLING, and reading it here is not optional.
 			//
-			// A direction motion joins on the line of inquiry's own id, so `motion direction rule` writes
-			// a motion-rule whose motion_id IS an A-number. Until this arm existed, a ruling
+			// A direction motion joins on the line of inquiry's own id, so `motion inquiry rule`
+			// writes a motion-rule whose motion_id IS a Q-number. Until this arm existed, a ruling
 			// made through the new verb never reached `--view lines-of-inquiry` — the projection
 			// blue reads to decide whether to pursue, comply or drop. The line simply stayed
 			// "Awaiting a decision", which is what an unruled line looks like, so red's ruling
 			// was indistinguishable from red not having sat.
-			if e.Payload.Str("subject") != "inquiry" {
+			//
+			// The subject the CLI spells `inquiry` is MOTION_SUBJECT_DIRECTION in the schema —
+			// the same subject under the schema's word, and the only one whose ruling set is
+			// DirectionRuling (endorsed / out-of-scope / too-thin).
+			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
+				continue
+			}
+			id := t.GetMotionId()
+			if id == "" {
 				continue
 			}
 			a, ok := byID[id]
 			if !ok {
 				continue
 			}
-			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("reason"), e.Round
+			// AN ABSENT RULING IS THE EMPTY WORD, and the oneof is what says so: a motion-rule
+			// whose `ruling` arm is unset, or is set to another subject's arm, carried no
+			// direction ruling and must leave Inquiry.Ruling empty — `GetDirection()` alone
+			// returns UNSPECIFIED for all three cases and cannot tell them apart.
+			//
+			// DIRECTION IS ONE OF THE TWO HYPHENATED VOCABULARIES word.go warns about, and the
+			// `_` -> `-` join is not cosmetic. `Spelling` derives the word from the generated
+			// constant, so DIRECTION_RULING_OUT_OF_SCOPE reads `out_of_scope`; the seat types
+			// `out-of-scope`, InquiryRulings above spells it with a hyphen, `motion inquiry rule
+			// --as` validates against the hyphen, and report/assemble renders it into the
+			// document. The underscore form is a word no surface recognizes.
+			//
+			// SHARED CODE, DECLARED, NOT DEFINED HERE (contract rule 2). viewjson.go marks the
+			// identical join for Grade as `gradeWord`, and word.go names `record.GradeStr` as
+			// where it belongs. Written inline at this file's two sites rather than as a private
+			// third copy; named in this agent's return so the lead places one.
+			a.Ruling = ""
+			if d, isDirection := t.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
+				a.Ruling = strings.ReplaceAll(recordpb.Word(d.Direction), "_", "-")
+			}
+			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
+			// the field MotionRule carries and the only prose channel it has.
+			a.RulingWhy, a.RuledRound = t.GetOpinion(), int(e.GetRound())
+		// LEFT UNCONVERTED DELIBERATELY — THE SCHEMA HAS NO `inquiry-support`.
+		//
+		// record.proto carries no message for it and EventType has no value for it, so there is
+		// nothing to type-switch on and nothing SetBody could stamp. The census the schema was
+		// built from (plans/record-protobuf.md, 31 types) predates the verb: `merge
+		// inquiry-support` landed 2026-08-17 (5a70b14) and the schema 2026-08-18 (d51e06e),
+		// and the census grep required the event type in Append's THIRD argument, where this
+		// verb puts it second.
+		//
+		// It is NOT deleted, because deleting it is the silent regression this migration exists
+		// to remove: Support/SupportWhy/SupportRound would go permanently empty, UnvotedInquiries
+		// would return every line on every round, sitting.go's merge duty would never discharge,
+		// and refs.go would refuse `verdict --as PASS` forever — all while compiling green.
+		// The fix is a schema change (an InquirySupport message + EVENT_TYPE_INQUIRY_SUPPORT,
+		// regenerated), which is not this agent's file to make.
 		case "inquiry-support":
 			a, ok := byID[id]
 			if !ok {
@@ -215,7 +310,10 @@ func RequireInquiryRef(runDir, id string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") == id {
+		// EVERY Avenue event answers this, proposal or move, exactly as the old type test did —
+		// the check is that the id was ever WRITTEN by the line-of-inquiry verb, not that the
+		// event was the proposal.
+		if av, ok := recordpb.BodyAs[*recordpb.Avenue](e); ok && av.GetAvenueId() == id {
 			return nil
 		}
 	}
@@ -230,8 +328,10 @@ func RequireInquiryRef(runDir, id string) error {
 func CurrentRound(b *Board) int {
 	max := 0
 	for _, e := range b.Events {
-		if e.Round > max {
-			max = e.Round
+		// An event with no round reads as 0, which is what the old `int` field held when the key
+		// was absent — round 0 is a real round, so there is nothing here for presence to say.
+		if r := int(e.GetRound()); r > max {
+			max = r
 		}
 	}
 	return max
@@ -310,8 +410,19 @@ func InquiryRuling(runDir, inquiryID string) string {
 	// has written it since the motion collapse and the dual-read that justified reading it is gone.
 	ruling := ""
 	for _, e := range b.Events {
-		if e.Type == "motion-rule" && e.Payload.Str("subject") == "inquiry" && e.Payload.Str("motion_id") == inquiryID {
-			ruling = e.Payload.Str("ruling")
+		mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION || mr.GetMotionId() != inquiryID {
+			continue
+		}
+		// THE LATEST RULING WINS, INCLUDING A LATER ONE THAT CARRIED NONE. The old
+		// `Str("ruling")` overwrote with "" for a motion-rule that named no verdict, and the
+		// oneof is what preserves that: an unset `ruling` arm, or another subject's arm, is not
+		// a direction ruling. `GetDirection()` alone returns UNSPECIFIED for all three and
+		// cannot tell "red ruled nothing" from "red is not on this event".
+		// The hyphen join, for the reason given at the same read in `Inquiries`.
+		ruling = ""
+		if d, isDirection := mr.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
+			ruling = strings.ReplaceAll(recordpb.Word(d.Direction), "_", "-")
 		}
 	}
 	return ruling

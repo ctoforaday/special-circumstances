@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE W1.8 ARCHIVE SPOT-CHECK FLOOR, COMPUTED FROM THE BOARD.
@@ -99,23 +101,32 @@ func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		// Found by the sweep at 1 seed in 60 once an unrelated change shifted the RNG stream:
 		// rare, real, and exactly the kind of gate that would have fired on a live run months
 		// later with nobody able to say why.
-		if PartyOf(e) == "merge" && e.Type != "register" {
-			mergeSat[e.Round] = true
+		if PartyOf(e) == "merge" && e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
+			mergeSat[int(e.GetRound())] = true
 		}
-		if e.Type != "spot-check" {
+		// The BODY is the type test. Named `body` because the projection struct this loop fills
+		// is ALSO called SpotCheck — record.SpotCheck is the audit row, recordpb.SpotCheck the
+		// event body.
+		body, ok := recordpb.BodyAs[*recordpb.SpotCheck](e)
+		if !ok {
 			continue
 		}
-		discharged[e.Round] = true
+		round := int(e.GetRound())
+		discharged[round] = true
 		sc := SpotCheck{
-			Round: e.Round, SeatID: e.SeatID,
-			Sampled: e.Payload.StrList("ids"), Prose: e.Payload.Str("reason"),
-			Archived: archivedBefore(e.Round),
+			Round: round, SeatID: e.GetSeatId(),
+			// ONE PROSE CHANNEL. `notes` and `reason` were two payload keys filled by different
+			// branches of one verb; SpotCheck.reason is the field that replaces BOTH, so a
+			// record written under `notes` maps here and not to nothing.
+			Sampled: body.GetIds(), Prose: body.GetReason(),
+			Archived: archivedBefore(round),
 		}
-		if v, ok := e.Payload.Get("none"); ok {
-			if bv, isBool := v.(bool); isBool && bv {
-				sc.None = true
-				sc.NoneReason = e.Payload.Str("reason")
-			}
+		// PRESENT AND TRUE, exactly as before: the old read asked Get("none") for presence and
+		// then required the value to be a true bool. An absent `none` is false here, and a
+		// recorded `none: false` is a seat NOT claiming an empty archive — the same two answers.
+		if body.GetNone() {
+			sc.None = true
+			sc.NoneReason = body.GetReason()
 		}
 		checks = append(checks, sc)
 		// THE CLAIM THE BOARD CAN REFUSE. "There was nothing to sample" is checkable, and it is

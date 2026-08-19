@@ -76,6 +76,26 @@ func eventTypeOf(fd protoreflect.FieldDescriptor) (EventType, error) {
 	return EventType(vd.Number()), nil
 }
 
+// BodyAs reads the body and asserts it is exactly T, keeping NO BODY and WRONG TYPE
+// distinguishable from each other by returning false for both while never returning a usable
+// zero value that a caller might act on.
+//
+// Placed centrally because all ten converting agents reach for this same shape — read the body,
+// assert the message, proceed. Ten private copies of it would be the duplication this migration
+// exists to remove, reproduced one level up.
+func BodyAs[T proto.Message](ev *Event) (T, bool) {
+	var zero T
+	body, ok := Body(ev)
+	if !ok {
+		return zero, false
+	}
+	typed, ok := body.(T)
+	if !ok {
+		return zero, false
+	}
+	return typed, true
+}
+
 // Body returns the event's body message, and whether it had one.
 //
 // A no-match returns false rather than a zero-valued message: an event with no body and an event

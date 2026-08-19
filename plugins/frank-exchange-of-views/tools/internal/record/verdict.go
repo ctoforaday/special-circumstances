@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE VERDICT IS THE LAST BIG DERIVED-NOT-ASSERTED VIOLATION (#308).
@@ -52,15 +54,33 @@ func DeriveVerdict(runDir string) (verdict, why string, ok bool) {
 	maxRound := 0
 	passed := false
 	halted := false
-	for _, e := range b.Events {
-		if e.Round > maxRound {
-			maxRound = e.Round
+	for i := range b.Events {
+		e := &b.Events[i]
+		if r := int(e.GetRound()); r > maxRound {
+			maxRound = r
 		}
-		switch e.Type {
-		case "halt":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_HALT:
+			// A HALT COUNTS ON ITS TYPE, not on its body being readable. The Halt body carries
+			// only the bench's opinion, which this function never reads, and the failure mode
+			// is asymmetric: a halt that did not register here lets a run that was STOPPED on
+			// safety grounds report VERIFIED. So the absence of a body is not allowed to
+			// suppress the halt.
 			halted = true
-		case "verdict":
-			if e.Payload.Str("verdict") == "PASS" {
+		case recordpb.EventType_EVENT_TYPE_VERDICT:
+			// A verdict event with NO body is not a pass. It cannot be — the PASS lives in the
+			// body's enum and there is nothing else to read it from — but it is also not
+			// silently equivalent to a recorded FAIL, and it does not become one here: it
+			// leaves `passed` untouched, and if nothing else decides the run, DeriveVerdict
+			// returns ok=false rather than guessing.
+			// Named `hasBody`, not `ok`: this function's third RESULT is named ok, and a
+			// shadow of it here would make any later bare `return` report the loop's last
+			// body-presence as the verdict's derivability.
+			body, hasBody := recordpb.Body(e)
+			if !hasBody {
+				continue
+			}
+			if v, isVerdict := body.(*recordpb.Verdict_); isVerdict && v.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
 				passed = true
 			}
 		}

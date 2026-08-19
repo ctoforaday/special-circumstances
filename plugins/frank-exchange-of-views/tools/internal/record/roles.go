@@ -64,11 +64,18 @@ func roleOfSeat(seatID string) string {
 // fallback precisely because it is the thing being retired: `strings.HasPrefix(e.SeatID,
 // "red-merge")` decided whether a position rendered as RED or BLUE, so an id that failed to
 // match its expected prefix rendered as the wrong party with nothing to notice.
+// The fallback is guarded on the STAMPED VALUE being usable, not merely present. `role` is
+// optional in the schema, so it now has three states where it had two: stamped, stamped-empty,
+// and absent. The old code's single `!= ""` collapsed the last two, and that collapse is the
+// correct one HERE — both mean "no role was stamped", and both must reach the id fallback. This
+// is deliberately not `e.Role != nil`: a record carrying an explicit empty role would otherwise
+// return "" as if that were the party, which is the wrong-party-silently failure the field was
+// added to end.
 func PartyOf(e Event) string {
-	if e.Role != "" {
-		return e.Role
+	if role := e.GetRole(); role != "" {
+		return role
 	}
-	return roleOfSeat(e.SeatID)
+	return roleOfSeat(e.GetSeatId())
 }
 
 // RequireDispatchedSeat asserts the seat id is one the engine created, with no claim about which

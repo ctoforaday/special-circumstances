@@ -3,6 +3,8 @@ package record
 import (
 	"crypto/rand"
 	"encoding/hex"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // CITATION IDENTITY MIRRORS FINDING IDENTITY — see findingid.go for the full argument.
@@ -49,22 +51,35 @@ func CitedSources(runDir string) ([]Source, error) {
 	}
 	seen := map[string]bool{}
 	var out []Source
-	for _, e := range m.Events {
-		if e.Type != "cite" {
+	for i := range m.Events {
+		body, ok := recordpb.Body(&m.Events[i])
+		if !ok {
+			// No body at all, so nothing to cite. The old code reached the same answer by a
+			// different route: Payload.Str on an absent key returned "", which the label
+			// filter below dropped.
 			continue
 		}
-		label := e.Payload.Str("label")
+		c, isCite := body.(*recordpb.Cite)
+		if !isCite {
+			continue
+		}
+		// The empty-label filter is UNCHANGED and still load-bearing. Under the old shape it
+		// was the discriminator between blue's authored cite and red's `lens cite` (see the
+		// note below); red now writes a `verify` event, which the type switch already excludes.
+		// It stays because a cite with no label names no anchor, and CitationLabels — the
+		// EXPECTED set the lockdown compares against the report — must not gain a phantom.
+		label := c.GetLabel()
 		if label == "" || seen[label] {
 			continue
 		}
 		seen[label] = true
 		out = append(out, Source{
 			Label:      label,
-			URL:        e.Payload.Str("url"),
-			Sha256:     e.Payload.Str("sha256"),
-			Title:      e.Payload.Str("title"),
-			AccessDate: e.Payload.Str("access_date"),
-			Location:   e.Payload.Str("location"),
+			URL:        c.GetUrl(),
+			Sha256:     c.GetSha256(),
+			Title:      c.GetTitle(),
+			AccessDate: c.GetAccessDate(),
+			Location:   c.GetLocation(),
 		})
 	}
 	return out, nil
@@ -83,9 +98,13 @@ func CitationLabels(runDir string) ([]string, error) {
 	}
 	seen := map[string]bool{}
 	var out []string
-	for _, e := range m.Events {
-		if e.Type == "cite" {
-			if id := e.Payload.Str("label"); id != "" && !seen[id] {
+	for i := range m.Events {
+		body, ok := recordpb.Body(&m.Events[i])
+		if !ok {
+			continue
+		}
+		if c, isCite := body.(*recordpb.Cite); isCite {
+			if id := c.GetLabel(); id != "" && !seen[id] {
 				seen[id] = true
 				out = append(out, id)
 			}
@@ -108,9 +127,20 @@ func ExistingCiteByKey(runDir, seatID, key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, e := range m.Events {
-		if e.Type == "cite" && e.SeatID == seatID && e.Payload.Str("cite_key") == key {
-			return e.Payload.Str("label"), nil
+	for i := range m.Events {
+		e := &m.Events[i]
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		// key is non-empty (guarded above), so GetCiteKey()'s zero value for an ABSENT
+		// cite_key can never match it — the old `Payload.Str("cite_key") == key` had the same
+		// property for the same reason.
+		if c, isCite := body.(*recordpb.Cite); isCite && c.GetCiteKey() == key {
+			return c.GetLabel(), nil
 		}
 	}
 	return "", nil
@@ -166,9 +196,21 @@ func ExistingProofByKey(runDir, seatID, key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, e := range m.Events {
-		if e.Type == "proof" && e.SeatID == seatID && e.Payload.Str("proof_key") == key {
-			return e.Payload.Str("sha256"), nil
+	for i := range m.Events {
+		e := &m.Events[i]
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		// The proof's sha was written under the payload key `sha256` and is READ BACK under
+		// `proof_sha` by every joiner — reproduce writes `proof_sha` for the same value, and
+		// `lens reproduce --id` takes it. The schema carries the one fact once, on
+		// Proof.proof_sha; this is that same value, not a rename of a different field.
+		if p, isProof := body.(*recordpb.Proof); isProof && p.GetProofKey() == key {
+			return p.GetProofSha(), nil
 		}
 	}
 	return "", nil
@@ -220,25 +262,53 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 	// Red's re-runs, keyed by the proof they checked, so the join happens once here rather
 	// than in every reader.
 	verified := map[string]*ProofVerification{}
-	for _, e := range m.Events {
-		if e.Type != "reproduce" {
+	for i := range m.Events {
+		e := &m.Events[i]
+		body, ok := recordpb.Body(e)
+		if !ok {
 			continue
 		}
-		rep := false
-		if v, ok := e.Payload.Get("reproduced"); ok {
-			if b, isBool := v.(bool); isBool {
-				rep = b
-			}
+		r, isReproduce := body.(*recordpb.Reproduce)
+		if !isReproduce {
+			continue
 		}
-		verified[e.Payload.Str("proof_sha")] = &ProofVerification{
-			SeatID: e.SeatID, Round: e.Round, Reproduced: rep,
-			Sound: e.Payload.Str("soundness") == "sound", Note: e.Payload.Str("reason"),
-			Recorded: e.Payload.Str("recorded_output"), Observed: e.Payload.Str("observed_output"),
+		verified[r.GetProofSha()] = &ProofVerification{
+			SeatID: e.GetSeatId(), Round: int(e.GetRound()),
+			// `reproduced` is COMPUTED by the tool and always written; an absent one reads
+			// false, which is what the old bool-assertion default did with a missing or
+			// wrongly-typed key. ProofVerification.Reproduced is a plain bool and cannot
+			// carry the absence, so the presence distinction stops here as it did before.
+			Reproduced: r.GetReproduced(),
+			// The seat types --as sound|unsound; the string compare against "sound" becomes
+			// the enum it was standing in for. UNSPECIFIED (absent) is not sound, exactly as
+			// an absent `soundness` key was not.
+			Sound: r.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
+			// --reason lands on Reproduce.note. The flag and the field are two vocabularies
+			// (recordpb/required.go says so outright: a close stores `prose`, an opinion
+			// `rationale`, and the flag for both is --reason); `note` is the only prose
+			// channel this message has.
+			Note:     r.GetNote(),
+			Recorded: r.GetRecordedOutput(), Observed: r.GetObservedOutput(),
 		}
 	}
+	// THREE FIELDS OF THIS PROJECTION HAVE NO FIELD ON `recordpb.Proof`, and they are left
+	// UNCONVERTED rather than defaulted — see the report to the lead. `blue prove` writes
+	// `script`, `exit` and `drift` onto the proof event (cli/blue/prove.go:85,86,90) and
+	// report/proofs.go renders all three: the script's path names the code fence's language,
+	// the exit code is a line of the Proofs section, and `drift` is describeDrift's SENTENCE
+	// ("exit code moved 2 -> 3"), which the schema's `optional bool drift` cannot carry.
+	// Zero-filling them would render a drifting proof as a clean one, in a section whose whole
+	// subject is whether the computation held — the plausible zero this migration exists to
+	// remove. The schema decision is the lead's; the compile error is the loud miss.
 	var out []Proof
-	for _, e := range m.Events {
-		if e.Type != "proof" {
+	for i := range m.Events {
+		e := &m.Events[i]
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		pf, isProof := body.(*recordpb.Proof)
+		if !isProof {
 			continue
 		}
 		exit := 0
@@ -250,16 +320,19 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 			}
 		}
 		out = append(out, Proof{
-			Label:  e.Payload.Str("proof_id"),
-			SHA:    e.Payload.Str("sha256"),
-			Basis:  e.Payload.Str("proof_basis"),
+			Label: pf.GetProofId(),
+			// Written as `sha256`, joined on as `proof_sha` — one fact, one field now.
+			SHA:    pf.GetProofSha(),
+			Basis:  pf.GetProofBasis(),
 			Script: e.Payload.Str("script"),
 			Exit:   exit,
-			Cites:  e.Payload.Str("cites"),
-			Reason: e.Payload.Str("reason"),
+			Cites:  pf.GetCites(),
+			// --reason lands on Proof.text, the message's only prose channel — the same
+			// flag/field split recordpb/required.go records for Verify.text.
+			Reason: pf.GetText(),
 			Drift:  e.Payload.Str("drift"),
 			// nil when nobody re-ran it, which the report states rather than omits.
-			Verified: verified[e.Payload.Str("sha256")],
+			Verified: verified[pf.GetProofSha()],
 		})
 	}
 	return out, nil

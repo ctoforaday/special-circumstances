@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A lens role segment in a seat id: "red-lens-r3-L2" -> "L2". The role is the
@@ -39,7 +41,7 @@ func NextFindingLabel(runDir, seatID string) (string, error) {
 	prefix := role + "-F"
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == "finding" && strings.HasPrefix(e.Payload.Str("label"), prefix) {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && strings.HasPrefix(f.GetLabel(), prefix) {
 			n++
 		}
 	}
@@ -60,8 +62,9 @@ func ExistingFindingByKey(runDir, seatID, key string) (string, error) {
 		return "", err
 	}
 	for _, e := range m.Events {
-		if e.Type == "finding" && e.SeatID == seatID && e.Payload.Str("finding_key") == key {
-			return e.Payload.Str("label"), nil
+		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
+		if ok && e.GetSeatId() == seatID && f.GetFindingKey() == key {
+			return f.GetLabel(), nil
 		}
 	}
 	return "", nil

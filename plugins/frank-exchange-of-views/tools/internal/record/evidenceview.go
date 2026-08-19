@@ -2,6 +2,8 @@ package record
 
 import (
 	"encoding/json"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE EVIDENCE VIEW — what backs the report, and what has been checked of it.
@@ -62,8 +64,13 @@ type EvidenceSourceJSON struct {
 	Sha256     string `json:"sha256"`
 	AccessDate string `json:"access_date"`
 	// Location is the sentence the anchor sits at — what the source is offered as backing for.
+	//
+	// It is also the ONLY copy of that sentence. A cite carried it twice — `claim` re-quoted
+	// what `location` already held to place the anchor — and Cite reserves field 8 to keep the
+	// second spelling from coming back. There is no `claim` on a source here because there is
+	// no second span to render; `Verify.claim` is a different field and is still on a
+	// verification below.
 	Location string `json:"location"`
-	Claim    string `json:"claim"`
 	SeatID   string `json:"seat_id"`
 	Round    int    `json:"round"`
 
@@ -78,18 +85,30 @@ type EvidenceProofJSON struct {
 	// Anchor is the p-<hex> in the report; Sha256 is what `lens reproduce --id` takes. Both are
 	// here because the seat holds the first and the verb wants the second, and that gap is what
 	// made `reproduce` unreachable from the document.
-	Anchor   string `json:"anchor"`
-	Sha256   string `json:"sha256"`
-	Basis    string `json:"basis"`
-	Script   string `json:"script"`
-	Exit     int    `json:"exit"`
-	Location string `json:"location"`
+	Anchor string `json:"anchor"`
+	Sha256 string `json:"sha256"`
+	Basis  string `json:"basis"`
 	// Cites is the citation anchor of the METHOD this computation applies, when blue named one —
 	// the link between the two evidence classes, and the only one on the record.
-	Cites  string `json:"cites"`
-	Drift  string `json:"drift"`
+	Cites string `json:"cites"`
+	// Drift records that the tool's two runs of the same script disagreed, which makes the
+	// result a measurement of a moving system rather than a proof. It is the schema's boolean:
+	// the payload once carried a sentence here, and `Proof.drift` keeps only whether it drifted.
+	Drift  bool   `json:"drift"`
 	SeatID string `json:"seat_id"`
 	Round  int    `json:"round"`
+
+	// THREE FIELDS ARE GONE FROM THIS ROW AND THAT IS A LOSS, NOT A TIDY-UP.
+	//
+	//   script, exit — the frozen key census rules both OFF the record: the script is a file in
+	//   the proof cache and the exit status belongs to proof.Result, the in-process execution
+	//   struct. Rendering `"exit": 0` from a field nothing can write would state success on
+	//   every proof ever recorded.
+	//
+	//   location — `Proof` carries no span at all. A citation's anchor resolves to the sentence
+	//   it backs; a proof's no longer does, which is half of what this view was built for. It is
+	//   reported rather than rendered as an empty string, because "" and "nobody wrote one down"
+	//   are the plausible zero this file exists to refuse.
 
 	// Verified is red's re-run, or nil when nobody re-ran it. Nil is not "failed" and not
 	// "clean": it is unchecked, and a reader that could not tell those apart would rate an
@@ -123,8 +142,13 @@ type EvidenceVerificationJSON struct {
 	Confidence string `json:"confidence"`
 	// Text is red's reading — required, because a verdict with nothing behind it is the
 	// assertion the verb exists to replace.
-	Text       string `json:"text"`
-	Reference  string `json:"reference"`
+	Text string `json:"text"`
+	// URL and Title name the source red read. They replace `reference`, a free-text third
+	// spelling of a source on the one verb that reads one red found itself: the corroboration a
+	// run rests on was identified less precisely than the citations it audits. A source is named
+	// by url + title here as it is on a cite.
+	URL        string `json:"url"`
+	Title      string `json:"title"`
 	AccessDate string `json:"access_date"`
 	SeatID     string `json:"seat_id"`
 	Round      int    `json:"round"`
@@ -174,21 +198,39 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 	// so each source carries its own; the rest are corroboration and stand alone.
 	byAnchor := map[string][]EvidenceVerificationJSON{}
 	for _, e := range b.Events {
-		if e.Type != "verify" {
+		// BodyAs returns false for BOTH no body and a body of another type. Neither is a
+		// verification, and neither is rendered as a check with every field blank.
+		vf, ok := recordpb.BodyAs[*recordpb.Verify](e)
+		if !ok {
 			continue
 		}
+		// OUTCOME AND CONFIDENCE ARE ENUMS NOW, AND THIS VIEW RENDERS THE SEAT'S WORD. Every
+		// consumer — Refuted(), the assembly screen, a seat reading the JSON — speaks
+		// `supports`/`refutes`/`high`, so the value's spelling is what crosses the boundary, not
+		// `SOURCE_OUTCOME_REFUTES`. `Word` maps the UNSPECIFIED zero back to "" for the same
+		// reason the old read did: the pre-migration record had no outcome word for an absent
+		// outcome, and `unspecified` is a word no seat ever typed.
+		//
+		// CAVEAT, and it is not mine to fix: `supports-with-bridge` is spelled with a HYPHEN on
+		// every seat-facing surface (enums.go:173) while `Word` derives `supports_with_bridge`
+		// from the generated name. That one value crosses this boundary differently than it did.
 		v := EvidenceVerificationJSON{
-			Claim:      e.Payload.Str("claim"),
-			Anchor:     e.Payload.Str("anchor"),
-			Outcome:    e.Payload.Str("outcome"),
-			Confidence: e.Payload.Str("confidence"),
-			Text:       e.Payload.Str("reason"),
-			Reference:  e.Payload.Str("reference"),
-			AccessDate: e.Payload.Str("access_date"),
-			SeatID:     e.SeatID,
-			Round:      e.Round,
+			Claim:      vf.GetClaim(),
+			Anchor:     vf.GetAnchor(),
+			Outcome:    recordpb.Word(vf.GetOutcome()),
+			Confidence: recordpb.Word(vf.GetConfidence()),
+			Text:       vf.GetText(),
+			URL:        vf.GetUrl(),
+			Title:      vf.GetTitle(),
+			AccessDate: vf.GetAccessDate(),
+			SeatID:     e.GetSeatId(),
+			Round:      int(e.GetRound()),
 		}
 		out.Counts.Verifications++
+		// THE SPLIT IS STILL ON THE ANCHOR, not on `Verify.independent`, and the empty string is
+		// deliberate. A verification indexed under "" would join no source and disappear from
+		// both arrays; sending it to `independent` keeps it visible. The schema now carries an
+		// explicit `independent` bool alongside — a second carrier this view does not read.
 		if v.Anchor == "" {
 			out.Independent = append(out.Independent, v)
 			continue
@@ -199,31 +241,35 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 	// Red's re-runs, keyed by the proof sha they checked — the one join the record supports.
 	reruns := map[string]*EvidenceReproductionJSON{}
 	for _, e := range b.Events {
-		if e.Type != "reproduce" {
+		r, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
+		if !ok {
 			continue
 		}
-		rep := false
-		if v, ok := e.Payload.Get("reproduced"); ok {
-			if got, isBool := v.(bool); isBool {
-				rep = got
-			}
-		}
-		reruns[e.Payload.Str("proof_sha")] = &EvidenceReproductionJSON{
-			Reproduced: rep,
-			Sound:      e.Payload.Str("soundness") == "sound",
-			Note:       e.Payload.Str("reason"),
-			SeatID:     e.SeatID,
-			Round:      e.Round,
+		reruns[r.GetProofSha()] = &EvidenceReproductionJSON{
+			// Reproduced is COMPUTED and written on every re-run, so its absence and a recorded
+			// false both mean "these bytes did not match" for a reader of this view — which is
+			// what the old `Payload.Get` + bool assertion already resolved to.
+			Reproduced: r.GetReproduced(),
+			Sound:      r.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
+			Note:       r.GetNote(),
+			SeatID:     e.GetSeatId(),
+			Round:      int(e.GetRound()),
 		}
 	}
 
 	for _, e := range b.Events {
-		switch e.Type {
-		case "cite":
+		// TWO ARMS, so this stays `Body` plus a type switch rather than two `BodyAs` passes:
+		// one walk of the events, and an event is a cite or a proof or neither.
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		switch bd := body.(type) {
+		case *recordpb.Cite:
 			// A blue cite carries a `label`; red's `lens cite` does not. That discriminator is
 			// the same one CitedSources and CitationLabels use — see the #341 note in
 			// citationid.go for what conflating the two costs.
-			label := e.Payload.Str("label")
+			label := bd.GetLabel()
 			if label == "" {
 				continue
 			}
@@ -235,38 +281,28 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 			}
 			out.Sources = append(out.Sources, EvidenceSourceJSON{
 				Anchor:     label,
-				URL:        e.Payload.Str("url"),
-				Title:      e.Payload.Str("title"),
-				Sha256:     e.Payload.Str("sha256"),
-				AccessDate: e.Payload.Str("access_date"),
-				Location:   e.Payload.Str("location"),
-				Claim:      e.Payload.Str("claim"),
-				SeatID:     e.SeatID,
-				Round:      e.Round,
+				URL:        bd.GetUrl(),
+				Title:      bd.GetTitle(),
+				Sha256:     bd.GetSha256(),
+				AccessDate: bd.GetAccessDate(),
+				Location:   bd.GetLocation(),
+				SeatID:     e.GetSeatId(),
+				Round:      int(e.GetRound()),
 				Verified:   checks,
 			})
-		case "proof":
-			exit := 0
-			if v, ok := e.Payload.Get("exit"); ok {
-				switch n := v.(type) {
-				case float64:
-					exit = int(n)
-				case int:
-					exit = n
-				}
-			}
-			sha := e.Payload.Str("sha256")
+		case *recordpb.Proof:
+			// `proof_sha` is the proof's sha256 — the record spells it once, on the field the
+			// `reproduce` join is keyed by, so the two halves of that join cannot be two names
+			// for one number. The JSON keeps `sha256`, which is what `reproduce --id` takes.
+			sha := bd.GetProofSha()
 			out.Proofs = append(out.Proofs, EvidenceProofJSON{
-				Anchor:   e.Payload.Str("proof_id"),
+				Anchor:   bd.GetProofId(),
 				Sha256:   sha,
-				Basis:    e.Payload.Str("proof_basis"),
-				Script:   e.Payload.Str("script"),
-				Exit:     exit,
-				Location: e.Payload.Str("location"),
-				Cites:    e.Payload.Str("cites"),
-				Drift:    e.Payload.Str("drift"),
-				SeatID:   e.SeatID,
-				Round:    e.Round,
+				Basis:    bd.GetProofBasis(),
+				Cites:    bd.GetCites(),
+				Drift:    bd.GetDrift(),
+				SeatID:   e.GetSeatId(),
+				Round:    int(e.GetRound()),
 				Verified: reruns[sha],
 			})
 			// `verify` is handled in the indexing pass above — it has to be, because a source

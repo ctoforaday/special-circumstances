@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // EVERY REFERENCE IS CHECKED AGAINST THE THING IT REFERENCES.
@@ -88,8 +90,8 @@ func requireFindings(runDir string, labels []string, verb, flag string) error {
 	}
 	have := map[string]bool{}
 	for _, e := range m.Events {
-		if e.Type == "finding" {
-			if l := e.Payload.Str("label"); l != "" {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
+			if l := f.GetLabel(); l != "" {
 				have[l] = true
 			}
 		}
@@ -158,7 +160,7 @@ func requireSeat(runDir, seatID, verb, flag string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.SeatID == seatID {
+		if e.GetSeatId() == seatID {
 			return nil
 		}
 	}
@@ -256,7 +258,7 @@ func requireSupersededAreClosed(runDir string) error {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.StrList("supersedes") {
+		for _, anc := range g.Mint.GetSupersedes() {
 			superseded[anc] = id
 		}
 	}
