@@ -78,6 +78,82 @@ func promptPath(m []string, real map[string]bool) string {
 var promptMotion = regexp.MustCompile(
 	`\bmotion\s+(` + strings.Join(record.MotionSubjects, "|") + `)\s+(file|rule|appeal)\b`)
 
+// AND A COMMAND NAMED WITHOUT ITS ROLE IS STILL A COMMAND.
+//
+// promptVerb requires the role — `feov-record blue show board`, `} merge mint`. That shape is what
+// a prompt writes when it hands a seat something to TYPE, so the gate was built around it, and the
+// motion matcher above was added when the same hole showed up for `motion grade file`. The note
+// there says seven live commands sat outside the question the gate exists to ask. This is the
+// third instance of one class, so the fix is derived rather than enumerated.
+//
+// MEASURED. `skills/research-protocol/SKILL.md` is inside agentFacingFiles and is not in
+// promptCatalogue, so its ceiling was already zero — and it carried a fourteen-line catalogue:
+//
+//	RECORD — no file; read through the tool:
+//	  show            no projection named: YOUR PENDING WORK and whether this sitting is finished
+//	  show report     the artifact under audit, anchors intact
+//	  show board      open gaps with full grading; --format markdown adds the closure archive
+//	  show worklist   your open set plus sitting.complete and every outstanding duty
+//	  …
+//
+// promptVerb finds ZERO commands in that block. Every line omits the role, because a catalogue
+// written for a human reader drops the prefix that a copy-pasteable invocation needs — which is
+// exactly the register a hand-kept second copy of the help page is written in. The file was read
+// by three gates and passed all of them, and the block survived #474's strip, the `worklist` ->
+// `work` rename, and a sibling sweep that named it.
+//
+// So: the role-less form of every real command path, generated from the tree. ONE-WORD paths are
+// excluded — `mint`, `close`, `edit`, `verify`, `friction` are ordinary English and matching them
+// bare would fire on prose describing the act, which is the register the prompts are supposed to
+// be written in. Two-or-more-word paths (`show board`, `class new`, `line-of-inquiry propose`) are
+// not English; they are invocations with the role filed off.
+func promptRolelessPaths(real map[string]bool) *regexp.Regexp {
+	seen := map[string]bool{}
+	var alts []string
+	for p := range real {
+		f := strings.Fields(p)
+		if len(f) < 2 {
+			continue
+		}
+		var tail string
+		switch f[0] {
+		case "lens", "merge", "blue", "bench":
+			tail = strings.Join(f[1:], " ")
+		default:
+			// Root-level paths (`motion grade file`) already carry no role; promptMotion covers
+			// the motion subtree, and including the rest here costs nothing and closes it too.
+			tail = p
+		}
+		if len(strings.Fields(tail)) < 2 || seen[tail] {
+			continue
+		}
+		seen[tail] = true
+		alts = append(alts, regexp.QuoteMeta(tail))
+	}
+	if len(alts) == 0 {
+		panic("no multi-word command paths at all — this matcher would match nothing and report a clean board forever")
+	}
+	// Longest first, so `show lines-of-inquiry` is not shadowed by a prefix of itself.
+	sort.Slice(alts, func(i, j int) bool { return len(alts[i]) > len(alts[j]) })
+	return regexp.MustCompile(`(?:^|[^\w-])(` + strings.Join(alts, "|") + `)(?:$|[^\w-])`)
+}
+
+// rolelessTail maps a matched role-less tail back to the command paths it could name, so the
+// gates report a real path rather than the fragment they matched.
+func rolelessTail(tail string, real map[string]bool) []string {
+	if real[tail] {
+		return []string{tail}
+	}
+	var out []string
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		if real[role+" "+tail] {
+			out = append(out, role+" "+tail)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // AND CODE COMMENTS ARE NOT A SURFACE A SEAT READS.
 //
 // The corpus is scanned as raw bytes, so a verb named only inside a `//` comment in debate.js
@@ -293,6 +369,29 @@ func TestEveryRecordingVerbIsDiscoverableFromHelp(t *testing.T) {
 // ONE number over the whole rendered set, not one per file: the goldens are derived, so per-file
 // pins would be seventeen hand-kept copies of a single fact, and moving a clause between seats
 // would churn them all without changing anything true.
+// namedIn is what both catalogue gates count, so they cannot disagree about what a named command
+// is. They used to hold two copies of the same three-matcher loop, and the role-less matcher would
+// have had to be added to both — which is how one of them ends up a matcher behind.
+func namedIn(text string, real map[string]bool, roleless *regexp.Regexp) map[string]bool {
+	named := map[string]bool{}
+	for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
+		if p := promptPath(m, real); real[p] {
+			named[p] = true
+		}
+	}
+	for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
+		if p := "motion " + m[1] + " " + m[2]; real[p] {
+			named[p] = true
+		}
+	}
+	for _, m := range roleless.FindAllStringSubmatch(text, -1) {
+		for _, p := range rolelessTail(m[1], real) {
+			named[p] = true
+		}
+	}
+	return named
+}
+
 func TestNoRenderedPromptNamesACommand(t *testing.T) {
 	const pinned = 0
 
@@ -300,6 +399,7 @@ func TestNoRenderedPromptNamesACommand(t *testing.T) {
 	for _, p := range cli.CommandPaths() {
 		real[p] = true
 	}
+	roleless := promptRolelessPaths(real)
 	named := map[string]bool{}
 	var files int
 	for _, path := range agentFacingFiles(t) {
@@ -311,15 +411,8 @@ func TestNoRenderedPromptNamesACommand(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, m := range promptVerb.FindAllStringSubmatch(string(b), -1) {
-			if p := promptPath(m, real); real[p] {
-				named[p] = true
-			}
-		}
-		for _, m := range promptMotion.FindAllStringSubmatch(string(b), -1) {
-			if p := "motion " + m[1] + " " + m[2]; real[p] {
-				named[p] = true
-			}
+		for p := range namedIn(string(b), real, roleless) {
+			named[p] = true
 		}
 	}
 	if files == 0 {
@@ -374,10 +467,27 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 		}
 	}
 
+	// EVERY AGENT-FACING FILE, NOT ONLY THE RENDERED ONES.
+	//
+	// This gate skipped anything that was not a `.golden`, so the CONSTITUTIONS — which a seat
+	// receives as its system prompt, and which are agent-facing by definition — were never checked
+	// for flags at all. Found by reading them rather than by any failure. They carried
+	// `fetch --url <the cited url>`, `prove --quote "<the sentence>" --script <path>
+	// [--answers <gap>]`, `--supersedes <that gap>`, `blue cite --quote … --url <u> --title <t>`,
+	// and `--check-kind document | computation | source` — the last of which is quoted in THIS
+	// TEST'S OWN comment above as the example of what must not survive a strip.
+	//
+	// The three prompt gates had three different file scopes: the command ratchet read authored
+	// files, this one read rendered ones, and nothing read both. A surface covered by one gate
+	// reads as a surface that is covered.
 	spelled := map[string]bool{}
 	var files int
 	for _, path := range agentFacingFiles(t) {
-		if !strings.HasSuffix(path, ".golden") {
+		// THE SLASH COMMAND IS FOR THE OPERATOR, and this is a rule about what SEATS are told.
+		// `/research` is invoked by a human who has to type `--topic`, `--lanes`, `--max-rounds`;
+		// its help is the only place those exist, and banning them there would be the rule aimed
+		// at the wrong audience. It stays in the command ratchet, which is about seat verbs.
+		if filepath.Base(filepath.Dir(path)) == "commands" {
 			continue
 		}
 		files++
@@ -388,7 +498,11 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 		// THE ANCHOR TOKENS ARE NOT FLAGS. `<!--cite:c-…-->` contains the literal `--cite`, and a
 		// gate that counted it would report a flag the prompt does not spell — a false positive
 		// trains its reader to skip the whole gate, which costs more than the flag it caught.
-		text := anchorToken.ReplaceAllString(string(b), "")
+		// AND CODE COMMENTS ARE NOT A SURFACE A SEAT READS — the same reason jsComment exists for
+		// the verb gates. It was not needed while this gate read only rendered goldens, which have
+		// no comments; widening the scope to authored files brought debate.js's `// mint
+		// --supersedes` history into a gate that had never had to think about it.
+		text := anchorToken.ReplaceAllString(jsComment.ReplaceAllString(string(b), ""), "")
 		for _, m := range promptFlag.FindAllStringSubmatch(text, -1) {
 			if vocabulary[m[1]] {
 				spelled[m[1]] = true
@@ -457,23 +571,13 @@ func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 	for _, p := range cli.CommandPaths() {
 		real[p] = true
 	}
+	roleless := promptRolelessPaths(real)
 	for _, path := range agentFacingFiles(t) {
 		b, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
-		text := jsComment.ReplaceAllString(string(b), "")
-		named := map[string]bool{}
-		for _, m := range promptVerb.FindAllStringSubmatch(text, -1) {
-			if p := promptPath(m, real); real[p] {
-				named[p] = true
-			}
-		}
-		for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
-			if p := "motion " + m[1] + " " + m[2]; real[p] {
-				named[p] = true
-			}
-		}
+		named := namedIn(jsComment.ReplaceAllString(string(b), ""), real, roleless)
 		base := filepath.Base(path)
 		if strings.HasSuffix(base, ".golden") {
 			// Counted in aggregate below instead: per-file pins on seventeen derived files would
@@ -780,5 +884,53 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 			"The seat runs the command, the tool refuses, and per the friction footer it logs and works\n"+
 			"around it — so the capability is lost for the run while every sweep stays green.",
 			len(msgs), strings.Join(msgs, "\n  "))
+	}
+}
+
+// THE GATE IS TESTED AGAINST THE BLOCK IT MISSED.
+//
+// A matcher added to close a hole is a claim that the hole is closed, and the only evidence for it
+// is that the corpus is clean now — which it also was before, for the wrong reason. So the exact
+// text that walked past three gates is pinned here as a fixture. It is verbatim from
+// skills/research-protocol/SKILL.md as it stood at e5b6e71~1.
+//
+// promptVerb finds ZERO commands in it. If a future simplification of the matchers takes the count
+// back to zero, this fails and says which form went dark.
+func TestTheCatalogueThatWalkedPastThreeGatesIsCaught(t *testing.T) {
+	const missed = "RECORD — no file; read through the tool:\n" +
+		"  show            no projection named: YOUR PENDING WORK and whether this sitting is finished\n" +
+		"  show report     the artifact under audit, anchors intact (blue edit holds you to carrying them)\n" +
+		"  show board      open gaps with full grading; --format markdown adds the closure archive's prose\n" +
+		"  show worklist   your open set plus sitting.complete and every outstanding duty\n" +
+		"  show motions    the docket: every ask in the filer's words, and its ruling if it has one\n"
+
+	real := map[string]bool{}
+	for _, p := range cli.CommandPaths() {
+		real[p] = true
+	}
+	if got := len(promptVerb.FindAllStringSubmatch(missed, -1)); got != 0 {
+		t.Fatalf("promptVerb now matches %d times in the historical block — this fixture no longer "+
+			"reproduces the blind spot it was written for, so rewrite it against a form that does", got)
+	}
+	named := namedIn(missed, real, promptRolelessPaths(real))
+	if len(named) == 0 {
+		t.Fatal("the role-less catalogue that shipped in SKILL.md is invisible to the gates again.\n" +
+			"Every line omits the role, because a catalogue written for a human reader drops the prefix\n" +
+			"a copy-pasteable invocation needs — and that is the register a hand-kept copy of the help\n" +
+			"page is always written in.")
+	}
+	// `show worklist` is deliberately NOT expected: that view is now `work`, and a gate that
+	// matched a name the tree no longer carries would be checking its own memory.
+	for _, want := range []string{"show report", "show board", "show motions"} {
+		var hit bool
+		for p := range named {
+			if strings.HasSuffix(p, want) {
+				hit = true
+				break
+			}
+		}
+		if !hit {
+			t.Errorf("the block names %q and no gate reports it", want)
+		}
 	}
 }

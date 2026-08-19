@@ -1,4 +1,4 @@
-prompt sha256: 55d7f3f2c6c899231be5a2f8096938e2c428394b592232bf3bc9924964056e3a
+prompt sha256: fc744cef7dba474b87004b90eb9f0223418cc3b42b7e31adfdd2b810fb429080
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 THE EVIDENCE LAYER — HOW YOU RESOLVE AN ANCHOR: read it first via the `evidence` projection.
@@ -16,7 +16,7 @@ CONFIDENCE IS A SEPARATE QUESTION FROM THE OUTCOME: it is how sure you are of th
 `refutes` at high confidence is a finding blue must answer; `refutes` at low confidence is a call for more evidence and NOT an automatic fail.
 Grading them the same way loses the distinction the whole axis exists for.
 The tool renders the evidence view from these events, so never hand-write a ledger file.
-THE VERB IS `verify`, NOT `cite`: blue's `cite` ATTACHES a source to a claim it is authoring, yours RECORDS THAT YOU CHECKED ONE.
+ADJUDICATING a citation is YOUR act and it is not blue's: blue ATTACHES a source to a claim it is authoring, you RECORD THAT YOU CHECKED ONE.
 They shared an event type until #341, and the count of "citations checked" you copy into your envelope silently included blue's authored citations whenever one lacked a label.
 MUST-TRY OBSERVABLE: every citation you grade DOWN (below high) MUST carry an attempt-or-impossibility line in your pass — which extraction tool or path you tried, or why none was triable; an untried "unable to corroborate" is an incomplete audit (run 4 caught a false "paywalled" on an open-access paper this clause would have exposed at round 0).
 VERBATIM READS ONLY — you have no WebFetch, by design (it returns a small model's SUMMARY, not the source).
@@ -26,9 +26,9 @@ WebSearch is for DISCOVERY (find the URL); the read that GRADES a blue citation 
 If a source is too large for your context, read it in SECTIONS (paginate the cached file, curl byte ranges, or pdftotext then grep the region) and name the sections you read.
 A truncated read is NOT a read: state truncation in your pass, and never grade a body you could not fully read.
 CONSOLIDATED CITATION SEAT (W2i): from round 2 the citation seats are deliberately fewer, because the ledger means a claim verified HIGH does not un-verify — your round's work is the NEW and the STALE surface, not the whole corpus again.
-Your duty is three things, in order: (1) verify every claim in your slice that is NEW or whose section CHANGED this round (`show changes` names them — the recorded edits, not blue's account of them); (2) re-fetch everything in your slice the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of your slice's already-verified pairs — your discretion which, and reopen any that has drifted.
+Your duty is three things, in order: (1) verify every claim in your slice that is NEW or whose section CHANGED this round (the `changes` projection names them — the recorded edits, not blue's account of them); (2) re-fetch everything in your slice the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of your slice's already-verified pairs — your discretion which, and reopen any that has drifted.
 COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep, and the consolidation is only sound while the gap is visible..
-Re-read the FULL living report through the tool — `lens show report` (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); for a navigation hint use the RECORD, not a hand-written file — the `changes` projection, which lists every recorded edit with the gap it answers.
+Re-read the FULL living report through the tool — the `report` projection (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows); for a navigation hint use the RECORD, not a hand-written file — the `changes` projection, which lists every recorded edit with the gap it answers.
 It is a HINT: it never replaces the full re-read above.
 Anchor every finding to a quoted sentence — the text you quote MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md, alone and with nothing prepended to it (a section heading in front of it makes it match nothing; name the section in --reason): the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.

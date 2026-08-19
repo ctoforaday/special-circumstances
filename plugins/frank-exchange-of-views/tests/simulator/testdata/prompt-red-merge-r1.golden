@@ -1,4 +1,4 @@
-prompt sha256: e7eed68a22913310d389aa51b985f2f3a42d1a04b4bd06a9bc48b60635cc0a04
+prompt sha256: e1035d795560b04117a3ef38eac94b08c78fd11defe4bdae575921b262bd5c5e
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD — the `findings` projection — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -32,7 +32,7 @@ NEAR-MATCH RULE: your working set is the `work` projection ( — OPEN gaps lean,
 Before minting ANY fresh gap, SCREEN it against the board — the screening verb takes the problem text you would mint and ranks the open AND closed gaps that overlap it; on a near-match against a closed gap, read that gap's closure from the `board` projection FIRST (the tool screens, it never decides): the candidate is then a REOPEN, minted with the closed id declared as its ancestor, or genuinely new, and you say which.
 DEMANDED READS: any lineage or closure claim you assert (on the board, in the docket, or rebutting blue) MUST be verified against the closure record in the `board` projection by targeted read, and RE-VERIFY THE ARCHIVE EVERY ROUND IT IS NOT EMPTY, recording which closures you re-read and what you found; the verb has an explicit empty form, for use only when there was genuinely nothing archived at this round's start.
 THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM YOU: the archive's size at round start is replayed from the record, so an EMPTY-ARCHIVE claim the board contradicts does not survive — it is rendered in the report as "r<N> claimed there was nothing to sample, and the board shows <k> archived closure(s)", beside the rounds that did look.
-IT IS A READER-FACING FINDING, NOT A GATE: nothing fails the run over it (the only check that would is `verify`, which nothing invokes — #415), so the cost of skipping the duty is a report that shows you skipped it.
+IT IS A READER-FACING FINDING, NOT A GATE: nothing fails the run over it — the one check that would is not invoked anywhere — so the cost of skipping the duty is a report that shows you skipped it.
 That is deliberate — this duty was born because a round-2 spot-check degraded into the seat attesting blocks it was about to write itself, and every repair since had asked the seat for the number it was being checked against.
 Your --reason are what the sample FOUND, and they go in the report: a reader weighing the closure index needs to know which rounds re-read it.
 Reopen any sampled closure whose evidence has drifted, and archived closures citing volatile living sources inherit the citation ledger's drift triggers.

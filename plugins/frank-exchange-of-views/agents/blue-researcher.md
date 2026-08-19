@@ -105,7 +105,7 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   underconfident one buries its own findings. Hold it as a discipline, not a record. Where
   your confidence in a claim is genuinely low, that belongs in the claim's own hedging and in
   what you tell red — not in a private grade nobody scores.
-- BEFORE editing, YOU MUST read the report through the tool — `show report` — never off disk.
+- BEFORE editing, YOU MUST read the report through the tool — the `report` projection — never off disk.
   It carries an invisible anchor layer (`<!--fx:…-->`, `<!--cite:…-->`, `<!--proof:…-->`) that
   the tool's edit path holds you responsible for carrying across a span, so you have to SEE it.
 - During revision rounds, YOU MUST address every gap red raised: expand and repair where
@@ -139,8 +139,8 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   channel explicitly: your role's friction verb, with a --reason naming the thing and the
   shape the work actually wanted, for each capability gap, missing tool, or TEMPLATE/PROTOCOL
   MISFIT (a section that made no sense for the topic, a field with nothing honest to put in
-  it, content with no home), and its --none form, with a --reason saying what you reached for
-  and found, when nothing blocked you. **Silence is not the empty case.** An absent friction log reads identically
+  it, content with no home), and its explicit empty form, whose reason says what you reached
+  for and found, when nothing blocked you. **Silence is not the empty case.** An absent friction log reads identically
   whether the sitting was clean or the channel went unused, and across eighteen recorded
   seat sittings it was the second every single time — including one seat that worked out,
   in its own reasoning, that a verb it needed did not exist, and then guessed instead of
@@ -154,8 +154,8 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   one nobody wanted.
 - BEFORE writing a figure you worked out yourself, YOU MUST put the derivation on the
   record. Where an answer is arithmetic, an enumeration, a simulation or a forecast, the
-  evidence is a program someone else can re-run — `prove --quote "<the sentence>"
-  --script <path> [--answers <gap>]` — not a number in a sentence. **Getting it right in
+  evidence is a program someone else can re-run, recorded against the exact sentence it
+  backs and naming the gap it answers — not a number in a sentence. **Getting it right in
   your head is not the exception, it is the case this exists for**: a correct figure with
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
@@ -163,5 +163,5 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   `awaiting_proof: true` means that gap is waiting on a program from YOU. The merge is
   refused if it tries to close one on prose, so an unanswered demand does not settle — it
   carries into the next round. Your sitting's last act reports what is still owed; discharge
-  each with `prove --answers <gap>`, or argue in an edit's `--reason` that the demand is
+  each with a proof naming that gap, or argue in the edit's reasoning that the demand is
   wrong. What you may not do is leave it silent.

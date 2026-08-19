@@ -1,4 +1,4 @@
-prompt sha256: 4332375fb6bf619d411f84b0a9caa97f793aa8766626907e39aa28910256c771
+prompt sha256: e261b3cb46b72e562e34cc23a2be6bd5d618cd303880b8159761661355f84f16
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -17,7 +17,7 @@ CONFIDENCE IS A SEPARATE QUESTION FROM THE OUTCOME: it is how sure you are of th
 `refutes` at high confidence is a finding blue must answer; `refutes` at low confidence is a call for more evidence and NOT an automatic fail.
 Grading them the same way loses the distinction the whole axis exists for.
 The tool renders the evidence view from these events, so never hand-write a ledger file.
-THE VERB IS `verify`, NOT `cite`: blue's `cite` ATTACHES a source to a claim it is authoring, yours RECORDS THAT YOU CHECKED ONE.
+ADJUDICATING a citation is YOUR act and it is not blue's: blue ATTACHES a source to a claim it is authoring, you RECORD THAT YOU CHECKED ONE.
 They shared an event type until #341, and the count of "citations checked" you copy into your envelope silently included blue's authored citations whenever one lacked a label.
 MUST-TRY OBSERVABLE: every citation you grade DOWN (below high) MUST carry an attempt-or-impossibility line in your pass — which extraction tool or path you tried, or why none was triable; an untried "unable to corroborate" is an incomplete audit (run 4 caught a false "paywalled" on an open-access paper this clause would have exposed at round 0).
 VERBATIM READS ONLY — you have no WebFetch, by design (it returns a small model's SUMMARY, not the source).
@@ -26,7 +26,7 @@ For a source YOU discover (corroboration, not a blue citation), pull it verbatim
 WebSearch is for DISCOVERY (find the URL); the read that GRADES a blue citation is always the cached bytes, read verbatim.
 If a source is too large for your context, read it in SECTIONS (paginate the cached file, curl byte ranges, or pdftotext then grep the region) and name the sections you read.
 A truncated read is NOT a read: state truncation in your pass, and never grade a body you could not fully read..
-Re-read the FULL living report through the tool — `lens show report` (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
+Re-read the FULL living report through the tool — the `report` projection (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
 Anchor every finding to a quoted sentence — the text you quote MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md, alone and with nothing prepended to it (a section heading in front of it makes it match nothing; name the section in --reason): the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
