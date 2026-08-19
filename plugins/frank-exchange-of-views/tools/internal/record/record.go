@@ -266,6 +266,13 @@ func RegisterSeat(id Identity) (nonce, shard string, err error) {
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
+	// THE ROSTER GATE, AND IT BELONGS HERE RATHER THAN AT EVERY VERB. Register is the one call
+	// that takes a seat's word for who it is; everything after it reads the binding this call
+	// writes. So this is where an id no dispatch could have produced has to be refused — after
+	// it, the wrong id is not a claim any more, it is the record.
+	if err := RequireDispatchableSeat(seatID); err != nil {
+		return "", "", err
+	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
 	// `setup` makes run directories; every seat is dispatched into one that is already there. So

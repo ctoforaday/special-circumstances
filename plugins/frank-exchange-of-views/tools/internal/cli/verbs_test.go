@@ -155,7 +155,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "motion petition rule records the ruling and its opinion",
-			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition",
+			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition-red-merge-r1",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  "motion-rule",
 			want: map[string]string{"motion_id": "M2", "subject": "petition",

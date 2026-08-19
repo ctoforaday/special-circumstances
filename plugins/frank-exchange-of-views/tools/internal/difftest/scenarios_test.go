@@ -187,10 +187,10 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("merge", "petition", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "safety",
 					"--reason", "the design erodes a consent gate", "--relief", "halt and escalate"),
-				base("register", "--run", "{RUN}", "--seat-id", "judge-petition"),
-				base("bench", "petition-rule", "--run", "{RUN}", "--seat-id", "judge-petition", "--petitioner", "red-merge-r1",
+				base("register", "--run", "{RUN}", "--seat-id", "judge-petition-red-merge-r1"),
+				base("bench", "petition-rule", "--run", "{RUN}", "--seat-id", "judge-petition-red-merge-r1", "--petitioner", "red-merge-r1",
 					"--class", "safety", "--as", "granted", "--reason", "the relief binds the coming seats"),
-				base("halt", "--run", "{RUN}", "--seat-id", "judge-petition", "--reason", "continuing would compromise the consent gate"),
+				base("halt", "--run", "{RUN}", "--seat-id", "judge-petition-red-merge-r1", "--reason", "continuing would compromise the consent gate"),
 			},
 		},
 		{
