@@ -45,8 +45,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 $ mint --run {RUN} --seat-id red-merge-r1 --check-kind document --check run it --problem no class given
 exit 2
@@ -90,8 +90,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --severity catastrophic --problem bad grade
 exit 2
@@ -135,8 +135,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --supersedes R9-9 --problem dangling lineage
 exit 2
@@ -180,8 +180,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check grep the sites --severity high --likelihood high --impact medium --complexity low --problem a real one
 exit 0

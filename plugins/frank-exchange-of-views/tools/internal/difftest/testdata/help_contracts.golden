@@ -16,8 +16,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 $ feov-record help
@@ -38,8 +38,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 $ feov-record --help
@@ -56,8 +56,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 $ feov-record lens help
@@ -78,8 +78,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 $ feov-record merge help
@@ -100,8 +100,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 $ feov-record blue help
@@ -122,8 +122,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 $ feov-record bench help
@@ -144,8 +144,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 $ feov-record --version
@@ -171,7 +171,7 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 

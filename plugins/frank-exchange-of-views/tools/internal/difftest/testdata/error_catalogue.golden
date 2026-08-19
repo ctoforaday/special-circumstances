@@ -39,8 +39,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── mint without class
 exit 2
@@ -83,8 +83,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── mint with unknown class
 exit 2
@@ -127,8 +127,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── class-new missing definition
 exit 2
@@ -171,8 +171,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── class-new unknown neighbor
 exit 2
@@ -215,8 +215,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── mint with bad grade
 exit 2
@@ -259,8 +259,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── mint with dangling supersedes
 exit 2
@@ -303,8 +303,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── close unknown gap
 exit 2
@@ -342,8 +342,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── close without id
 exit 2
@@ -381,8 +381,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── close without anchor
 exit 2
@@ -420,8 +420,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── regression close without successor
 exit 2
@@ -459,8 +459,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── regrade without basis
 exit 2
@@ -488,8 +488,8 @@ Flags:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── opinion missing fields
 exit 2
@@ -521,7 +521,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -530,8 +530,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -564,8 +564,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── verdict outside the set
 exit 2
@@ -595,8 +595,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── outcome in the wrong case
 exit 2
@@ -628,7 +628,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -637,8 +637,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -690,8 +690,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── grade motion dimension outside the set
 exit 2
@@ -732,7 +732,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -741,8 +741,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -777,7 +777,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -786,8 +786,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -822,7 +822,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -831,8 +831,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -867,7 +867,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -876,8 +876,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -912,7 +912,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        the round's ### BLUE section (prose via --reason)
   prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
   revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
@@ -920,8 +920,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -956,7 +956,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        the round's ### BLUE section (prose via --reason)
   prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
   revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
@@ -964,8 +964,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -987,8 +987,8 @@ Usage:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 ── verb outside the lens role
@@ -1032,8 +1032,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── verb outside the blue role
 exit 2
@@ -1071,8 +1071,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── verb outside the bench role
 exit 2
@@ -1115,8 +1115,8 @@ Enumerated values:
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
 
 ── unknown verb
 exit 2
@@ -1148,7 +1148,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -1157,8 +1157,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -1193,7 +1193,7 @@ Available Commands:
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
+  register        FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed
   regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
@@ -1202,8 +1202,8 @@ Available Commands:
 Flags:
   -h, --help             help for feov-record
       --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --run string       the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.

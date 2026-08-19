@@ -1,4 +1,4 @@
-prompt sha256: e261b3cb46b72e562e34cc23a2be6bd5d618cd303880b8159761661355f84f16
+prompt sha256: 3b3deed4be0c0d0c672fefd284f543933ab8164b5d5f942693123bf6b63c0041
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -47,16 +47,16 @@ Rows reading "not computed" are honest, not gaps to fill — the envelope-derive
 SEAT_ID: red-lens-r1-L1.
 THE RECORD TOOL IS THE CONTRACT: every board act happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
+YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id red-lens-r1-L1 and --run research/2026-01-01_golden on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat.
 Three steps, every sitting, before the act that needs them:
 
   1.
-"/opt/feov/bin/feov-record" --help — the GROUPS.
-Yours is `lens`; others exist and some of what you owe lives in them.
+"/opt/feov/bin/feov-record" --seat-id red-lens-r1-L1 --run research/2026-01-01_golden --help — every verb your seat can run, each with what it is for.
   2.
-"/opt/feov/bin/feov-record" <group> --help — the commands in that group, and what each is for.
+"/opt/feov/bin/feov-record" --seat-id red-lens-r1-L1 --run research/2026-01-01_golden <group> --help — where a verb sits under a group, what is in that group.
 Do this BEFORE using any command in a group you have not yet opened.
   3.
-"/opt/feov/bin/feov-record" <group> <command> --help — the flags, which are required, and what each value may be.
+"/opt/feov/bin/feov-record" --seat-id red-lens-r1-L1 --run research/2026-01-01_golden <group> <command> --help — the flags, which are required, and what each value may be.
 Do this BEFORE running the command.
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
 Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes.
