@@ -40,10 +40,15 @@ var RequiredFields = map[string][]string{
 	"regrade":         {"reason"},
 	"retire":          {"claim", "reason"},
 	"line-of-inquiry": {"status", "line"},
-	"inquiry-support": {"inquiry_id", "as", "reason"},
-	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "reason"},
-	"halt":            {"reason"},
-	"certify":         {"reason"},
+	// The per-round review of the report against the record's lines of inquiry. `reason` is its
+	// ONLY field: it names no line (presence is not the question — the rows are generated from
+	// the record) and carries no verdict (a shortfall in the body is minted as an ordinary gap).
+	// Required for the reason `friction-none`'s is: an explicit negative is worth more than
+	// silence only when it says what was looked at.
+	"inquiry-review": {"reason"},
+	"opinion":        {"gap_id", "disposition", "principle", "tension", "review_flag", "reason"},
+	"halt":           {"reason"},
+	"certify":        {"reason"},
 	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
 	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
 	// ENDED is not, and on a judged deadlock nothing else records it.

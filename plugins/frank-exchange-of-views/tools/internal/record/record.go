@@ -1012,19 +1012,22 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			}
 			return fmt.Errorf("record: a %s line of inquiry requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
-	// `inquiry-support` HAS NO ARM BECAUSE IT HAS NO BODY, and that is a schema gap rather than a
-	// retirement. `merge inquiry-support` still exists, still writes an event, and is still the
-	// only channel that can refuse the report's account of its own research — record.UnvotedInquiries
-	// gates `verdict --as PASS` on it. record.proto carries no message and EventType carries no
-	// value for it, so nothing here can be written that would compile.
+	// THE PER-ROUND READ OF THE REPORT AGAINST THE RECORD'S LINES OF INQUIRY.
 	//
-	// Its three checks are therefore UNENFORCED as of this change, and they are recorded rather
-	// than deleted: --id must be present (requireInquiry returns nil on "", so absence needs its
-	// own refusal), the id must name a line the record has (a dangling vote discharges the duty
-	// for a line that is not there while the real one stays unvoted), and --reason must be
-	// non-blank after TrimSpace (a verdict with no quoted text is the self-attestation the
-	// channel exists to end). Restoring them needs an `InquirySupport` body and an
-	// `EVENT_TYPE_INQUIRY_SUPPORT`, which is a schema change and a schema_version decision.
+	// The retired `inquiry-support` carried three checks; ONE survives and the other two retired
+	// with the shape rather than being dropped. `--id must be present` and `--id must name a line
+	// the record has` policed a PER-LINE vote, and there is no per-line vote: the lines reach the
+	// report on the worklist, generated from the record, so presence is not a question and the
+	// review names no line at all. Nothing dangles because nothing is joined.
+	//
+	// The survivor is the one that mattered, and it is the `friction --none` rule verbatim: a
+	// review with no quoted text is the self-attestation this channel exists to end. TrimSpace,
+	// not `== ""`, because a --reason of one space discharges the duty and says nothing — the
+	// stricter of the two tests is kept deliberately.
+	case *recordpb.InquiryReview:
+		if strings.TrimSpace(b.GetReason()) == "" {
+			return fmt.Errorf("record: inquiry-review requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where a line's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
+		}
 	case *recordpb.Halt:
 		// The safety boundary reaches the human as the words the bench chose, relayed
 		// verbatim — so a halt with no written opinion cannot do its one job.

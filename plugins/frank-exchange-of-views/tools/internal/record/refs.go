@@ -324,31 +324,34 @@ func requirePassClosesAllGaps(runDir string) error {
 			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
 			len(unruled), strings.Join(unruled, ", "))
 	}
-	// AND EVERY LINE OF INQUIRY VOTED THIS ROUND.
+	// AND THE REPORT'S ACCOUNT OF ITS OWN RESEARCH READ, THIS ROUND.
 	//
-	// The report's account of its own research — "we pursued X", "we deferred Y", "we abandoned Z"
-	// — reaches the reader as a row `assemble` GENERATES from the record. It carries no citation
-	// anchor, so `lens verify` cannot reach it and the ordinary adversarial route does not apply.
-	// Without this gate it is the one class of claim in the document that nothing could refuse.
+	// The lines of inquiry — "we pursued X", "we deferred Y", "we abandoned Z" — reach the reader
+	// as rows `assemble` GENERATES from the record. They carry no citation anchor, so `lens
+	// verify` cannot reach them and the ordinary adversarial route does not apply. Without this
+	// gate they are the one class of claim in the document that nothing could refuse.
 	//
-	// PER ROUND, not once: the report is regenerated every round, so a verdict cast before this
+	// ONE STATEMENT, NOT ONE PER LINE. Whether the report CARRIES a line is not a question: the
+	// rows are generated from the record, so blue cannot cut them. What the read judges is whether
+	// the BODY delivered the research each line claims — and where it did not, that is an ORDINARY
+	// GAP, already refused above by requirePassClosesAllGaps. This gate therefore asks only that
+	// the read HAPPENED, and it asks it the way `friction --none` does: silence cannot clear a
+	// duty, so "nothing to say" is still said.
+	//
+	// PER ROUND, not once: the report is regenerated every round, so a review recorded before this
 	// round's edits answers a question about a document that no longer exists. That is the whole
-	// content of "red verifies every turn" — a carried-forward vote would be a stale read wearing
+	// content of "red verifies every turn" — a carried-forward review would be a stale read wearing
 	// the shape of a fresh one, which is this repository's recurring defect rather than a fix for
 	// it.
-	if unvoted := UnvotedInquiries(b); len(unvoted) != 0 {
-		ids := make([]string, len(unvoted))
-		for i, a := range unvoted {
-			ids[i] = a.ID
-		}
-		sort.Strings(ids)
-		return fmt.Errorf("record: verdict PASS refused — %d line(s) of inquiry have no support verdict this round: %s. "+
-			"READ THE REPORT ONCE (`show report`), list the lines with `show lines-of-inquiry`, and vote every one "+
-			"against that single read — this is one pass over the document, not one pass per line: "+
-			"`inquiry-support --id <id> --as supported|weakened|unsupported|absent --reason \"<what the report says there>\"`. "+
-			"A PASS claims the report is sound, and its account of what this run investigated is part of the report; "+
-			"vote them, or issue `--as FAIL`",
-			len(ids), strings.Join(ids, ", "))
+	if InquiryReviewDue(b) {
+		return fmt.Errorf("record: verdict PASS refused — this round has no line-of-inquiry review. " +
+			"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
+			"`show lines-of-inquiry`, and answer in one act: `inquiry-review --reason \"<what the report " +
+			"says at those lines>\"`. Where a line's research is thin, missing or unsupported by the text, " +
+			"MINT A GAP for it — the shortfall is an ordinary defect and gets the ordinary lifecycle; this " +
+			"event only records that the read happened, because an absent review reads exactly like a sound " +
+			"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
+			"of the report; record the review, or issue `--as FAIL`")
 	}
 	return nil
 }

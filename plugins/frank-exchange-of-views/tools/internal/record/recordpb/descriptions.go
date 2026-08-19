@@ -64,14 +64,8 @@ var enumValueDoc = map[protoreflect.FullName]string{
 	"feov.record.v1.CONFIDENCE_LOW":    "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further",
 
 	// Soundness — reproducing is not proving.
-	"feov.record.v1.SOUNDNESS_SOUND": "you READ the script and it computes what it claims to compute",
-
-	// The three states of a line of inquiry against the CURRENT report. Two binary facts —
-	// present, and backed — with the impossible fourth combination left out.
-	"feov.record.v1.INQUIRY_STATE_CARRIED": "the report still carries this line and the text backs it as stated — nothing is owed",
-	"feov.record.v1.INQUIRY_STATE_HOLLOW":  "the line is still in the report and the text NO LONGER backs it — blue owes a repair or a rebuttal, and saying so is not the same as saying it was cut",
-	"feov.record.v1.INQUIRY_STATE_CUT":     "the line is not in the report at all — the document has dropped a direction it claims to have taken, so its account of its own research is false until the line is restored or withdrawn",
-	"feov.record.v1.SOUNDNESS_UNSOUND":     "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible",
+	"feov.record.v1.SOUNDNESS_SOUND":   "you READ the script and it computes what it claims to compute",
+	"feov.record.v1.SOUNDNESS_UNSOUND": "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible",
 
 	// AvenueStatus — a line of inquiry's fate.
 	"feov.record.v1.AVENUE_STATUS_PROPOSED":  "you intend to follow this line; the tool assigns it an id and red may rule on it",

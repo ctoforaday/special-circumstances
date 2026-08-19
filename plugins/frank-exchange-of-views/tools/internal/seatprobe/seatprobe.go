@@ -41,6 +41,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // RoleVerbs is what each role may do, as the tree offers it. A verb absent from a seat's role is
@@ -122,17 +123,73 @@ func isRole(s string) bool {
 }
 
 // verbOfEvent maps a recorded event type back to the verb that wrote it, where the two differ.
-// Everything not listed here is its own name.
-var verbOfEvent = map[string]string{
-	"blue_edit":     "edit",
-	"gap_mint":      "mint",
-	"mint":          "mint",
-	"proof":         "prove",
-	"motion":        "motion file",
-	"motion-rule":   "motion rule",
-	"motion-appeal": "motion appeal",
-	"cite":          "cite",
-	"anchor":        "finding",
+// Everything not listed here is its own name — `recordpb.Word`, which is the enum's own spelling.
+//
+// THE KEY IS THE ENUM, NOT ITS WORD, and that is the half the migration bought. A string key
+// could name a type the schema does not have and nothing would refuse it: `gap_mint` sat in this
+// table until the conversion, mapping an event type that appears NOWHERE else in the tree —
+// neither written by any verb nor declared by the schema — to `mint`. A dead key in a lookup
+// table returns nothing, which reads exactly like a type that simply never occurred.
+//
+// IT NOW CARRIES THE HYPHENS TOO, and that is not decoration. The values here are CLI VERB PATHS
+// — they are compared against `Surface.Verbs`, which comes from the cobra tree — while the enum
+// spells its words with underscores (`spot_check`). Before the schema landed, the event type was
+// a string spelled the CLI's way, so the identity default happened to match; it no longer does,
+// and every multiword verb would otherwise be counted under a name no expectation is written
+// against while the real verb reported as NEVER REACHED. This table is where the two
+// vocabularies are joined, and it is the only place they are.
+//
+// TWO ENTRIES ARE PRESERVED DEFECTS, carried forward unchanged rather than quietly repaired
+// while converting: `class-new` and `line-of-inquiry` match no path the tree offers (`class new`
+// takes a space, and an avenue's verb is `line-of-inquiry propose` or `line-of-inquiry move`,
+// which the event type alone does not distinguish). They named nothing before this change and
+// name nothing after it. Reported, not fixed here.
+var verbOfEvent = map[recordpb.EventType]string{
+	recordpb.EventType_EVENT_TYPE_ANCHOR:         "finding",
+	recordpb.EventType_EVENT_TYPE_AVENUE:         "line-of-inquiry",
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:      "edit",
+	recordpb.EventType_EVENT_TYPE_CLASS_NEW:      "class-new",
+	recordpb.EventType_EVENT_TYPE_FRICTION_NONE:  "friction-none",
+	recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW: "inquiry-support",
+	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:   "manifest-row",
+	recordpb.EventType_EVENT_TYPE_MOTION:         "motion file",
+	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL:  "motion appeal",
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE:    "motion rule",
+	recordpb.EventType_EVENT_TYPE_PROOF:          "prove",
+	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:     "spot-check",
+}
+
+// motionSubject is the SUBGROUP a seat typed, read off whichever motion body the event carries.
+//
+// A type switch rather than a switch on `e.GetType()`: the three bodies are the only messages
+// that have a subject at all, so asking the body cannot go stale against the enum.
+func motionSubject(e *record.Event) string {
+	if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+		return subjectVerb(m.GetSubject())
+	}
+	if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok {
+		return subjectVerb(m.GetSubject())
+	}
+	if m, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e); ok {
+		return subjectVerb(m.GetSubject())
+	}
+	return ""
+}
+
+// subjectVerb spells a motion subject the way the COMMAND TREE spells it, which for one of the
+// three is not the enum's word.
+//
+// `MOTION_SUBJECT_DIRECTION` is typed `motion inquiry rule` / `motion inquiry appeal` — the
+// schema re-conceived the subject as a DIRECTION (it rules on a line of inquiry blue proposed,
+// and `DirectionMotion` carries the avenue's own id) while the CLI subgroup, its help text and
+// every board expectation still say `inquiry`. Rendering the enum's word here would report a
+// verb no role offers, making both `motion inquiry` expectations unmeetable BY CONSTRUCTION —
+// the failure mode this file's own comment warns about, arriving through the rename.
+func subjectVerb(s recordpb.MotionSubject) string {
+	if s == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
+		return "inquiry"
+	}
+	return recordpb.Word(s)
 }
 
 // Choices is what one seat did with what it had.
@@ -156,7 +213,7 @@ func Read(sf Surface, runDir, seatID string) (*Choices, error) {
 	}
 	c := &Choices{SeatID: seatID, Used: map[string]int{}}
 	for _, e := range b.Events {
-		if e.SeatID != seatID {
+		if e.GetSeatId() != seatID {
 			continue
 		}
 		// THE ROLE COMES OFF THE EVENT, which is what #348 put it there for. Deriving it from
@@ -164,23 +221,28 @@ func Read(sf Surface, runDir, seatID string) (*Choices, error) {
 		// record.RoleOf is a different concept entirely (the LENS index, L5/L6), so reaching for
 		// it by name would have silently reported every party seat as roleless.
 		if c.Role == "" {
-			c.Role = e.Role
+			c.Role = e.GetRole()
 		}
-		verb := e.Type
-		if v, ok := verbOfEvent[e.Type]; ok {
-			verb = v
+		verb, ok := verbOfEvent[e.GetType()]
+		if !ok {
+			verb = recordpb.Word(e.GetType())
 		}
 		// A MOTION'S VERB INCLUDES ITS SUBJECT, because that is the command a seat actually
 		// types and the expectations are written in those words. Reporting every filing as
 		// `motion file` would make `motion grade file` unmeetable BY CONSTRUCTION — an
 		// expectation that can never be met is the same plausible zero one layer up, and I
 		// wrote it into the first draft of this file.
-		if subject := e.Payload.Str("subject"); subject != "" && strings.HasPrefix(verb, "motion ") {
+		if subject := motionSubject(e); subject != "" && strings.HasPrefix(verb, "motion ") {
 			verb = "motion " + subject + strings.TrimPrefix(verb, "motion")
 		}
 		c.Used[verb]++
-		if e.Type == "friction" {
-			c.Friction = append(c.Friction, e.Payload.Str("reason"))
+		// THE BODY IS THE TYPE, so asking for a Friction body asks the same question
+		// `e.Type == "friction"` did — and a FrictionNone event, which is a different fact, is
+		// refused by the assertion rather than by a second string compare that could drift from
+		// it. `text` is the field the schema gives the seat's own sentence; `reason` was the
+		// payload key that carried it.
+		if f, ok := recordpb.BodyAs[*recordpb.Friction](e); ok {
+			c.Friction = append(c.Friction, f.GetText())
 		}
 	}
 	if c.Role == "" {

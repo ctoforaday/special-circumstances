@@ -52,39 +52,6 @@ var InquiryRulings = []EnumValue{
 	Ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 }
 
-// InquirySupports are red's per-round verdict on whether the REPORT still carries this line.
-//
-// This is a different question from InquiryRulings and the two must not be confused. A ruling
-// answers "is this direction worth the run's time" — red's judgement about the RESEARCH. A support
-// verdict answers "is this line present in the report, and does the text still back it as stated"
-// — red's leaf read of the ARTIFACT. A line can be endorsed and unsupported at once: red agreed it
-// was worth taking and the section that took it has since been cut.
-//
-// WHY IT EXISTS. A line of inquiry reached the report as an unaudited row: `assemble` generates it
-// from the record, so it carries no citation anchor and `lens verify` cannot reach it. "We pursued
-// X" was the one claim in the document that nothing checked, which is the shape this repository
-// keeps finding — a fact stated where nothing can refuse it.
-//
-// `weakened` is the middle grade and earns its place the way a `low` corroboration does: it lets
-// red say the support has eroded without demanding a repair blue may reasonably decline. Only
-// `unsupported` and `absent` put the line on blue's work list.
-var InquirySupports = []EnumValue{
-	Ev("supported", "the line is in the report and the text still backs it as stated"),
-	Ev("weakened", "still there, and the support has eroded — a flag, not a demand; blue is not obliged to act"),
-	Ev("unsupported", "the line is in the report and the text no longer backs it — blue owes a repair or a rebuttal"),
-	Ev("absent", "the line is NOT in the report at all — the record claims a direction the document does not carry"),
-}
-
-// InquirySupportNames is the bare vocabulary.
-func InquirySupportNames() []string { return Names(InquirySupports) }
-
-// SupportDemandsBlue reports whether this verdict puts the line on blue's work list. `weakened` does
-// not: it is red saying "this is thinner than it was", which is an argument blue may answer or
-// accept, and a duty that fires on it would make every erosion a blocking repair.
-func SupportDemandsBlue(verdict string) bool {
-	return verdict == "unsupported" || verdict == "absent"
-}
-
 // InquiryRulingNames is the bare vocabulary.
 func InquiryRulingNames() []string { return Names(InquiryRulings) }
 
@@ -149,12 +116,13 @@ type Inquiry struct {
 	// (MotionAppeal, subject DIRECTION) on this line's id, which this projection has never read.
 	// Wiring that is new behaviour rather than a conversion, so it is reported, not done here.
 	Contests string
-	// Support is red's latest verdict on whether the REPORT still carries this line, with the
-	// round it was cast in. SupportRound is what makes "voted THIS round" answerable — the duty
-	// is per-round, so a verdict from two rounds ago is not a verdict for this one.
-	Support      string
-	SupportWhy   string
-	SupportRound int
+	// THERE IS NO PER-LINE SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
+	// Three fields here — Support, SupportWhy, SupportRound — carried red's per-round answer to
+	// "does the report still CARRY this line". That made presence the question. Presence is not a
+	// question: the lines reach the report on the WORKLIST, generated from this projection, so
+	// blue cannot cut them. What remains — did blue's body deliver the research — is an ordinary
+	// GAP, minted and closed like any other, and the per-round statement that the read HAPPENED is
+	// InquiryReviewDue's business, not this struct's.
 }
 
 // Inquiries replays the line of inquiry events into current state, in proposal order.
@@ -268,22 +236,9 @@ func Inquiries(b *Board) []*Inquiry {
 			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
 			// the field MotionRule carries and the only prose channel it has.
 			a.RulingWhy, a.RuledRound = t.GetOpinion(), int(e.GetRound())
-		// A LENS'S READ OF THE LINE AGAINST THE CURRENT REPORT.
-		//
-		// This replaces `merge inquiry-support`, which existed only because a generated row
-		// carried no anchor and so no verification could reach it. The row is anchored now and
-		// the read is a lens's work, which is what a lens does: check the artifact at the leaf.
-		//
-		// THREE STATES, and the set is complete by construction rather than by enumeration —
-		// present-and-backed, present-and-unbacked, absent. The retired set's fourth value,
-		// `weakened`, was a point on a continuum, and a seat asked to place a judgement on a
-		// continuum argues the placement instead of making the call.
-		case *recordpb.InquiryCheck:
-			a, ok := byID[t.GetAvenueId()]
-			if !ok {
-				continue
-			}
-			a.Support, a.SupportWhy, a.SupportRound = recordpb.Word(t.GetState()), t.GetReason(), int(e.GetRound())
+			// THERE IS NO InquiryReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
+			// review is ONE event per round about the report as a whole; it names no line, so there
+			// is nothing here for it to join to. Its reader is InquiryReviewDue.
 		}
 	}
 	out := make([]*Inquiry, 0, len(order))
@@ -423,31 +378,56 @@ func InquiryRuling(runDir, inquiryID string) string {
 	return ruling
 }
 
-// UnvotedInquiries returns the lines red has not cast a support verdict on THIS round.
+// InquiryReviewDue reports whether this round still owes a read of the report against the lines
+// of inquiry the record carries.
 //
-// The vote is per-round by design: the question is whether the report STILL carries the line, and
-// a report that changed this round has not been checked by a verdict cast before it did. A verdict
-// that carried forward would answer a question about a document that no longer exists.
-func UnvotedInquiries(b *Board) []*Inquiry {
+// # ONE QUESTION PER ROUND, NOT ONE PER LINE, and the correction is the whole change
+//
+// This was `UnvotedInquiries`, which returned the LINES red had not yet cast a per-line verdict
+// on — `supported` / `weakened` / `unsupported` / `absent`, later `carried` / `hollow` / `cut`.
+// Every one of those vocabularies made PRESENCE the question, and presence is not a question. The
+// lines reach the report on the WORKLIST, generated from `Inquiries` above, so blue cannot cut
+// them: a line is on the page because the record says it is. `absent` and `cut` named a state no
+// writer could produce, and the other values were grades on a continuum wearing a closed set's
+// clothes.
+//
+// What is genuinely open is whether blue's BODY delivered the research a line claims — thin
+// treatment, a hypothesis never tested, a method never run. That is a defect in the report, so it
+// is an ORDINARY GAP: mint it, and it gets the id, the grade, the blue duty and the PASS gate
+// every other gap already has. A second vocabulary for the same fact is the aliasing this package
+// exists to remove, which is why nothing replaces `UnsupportedInquiries` — the work list it fed
+// is the gap board.
+//
+// # The discharge is modelled on `friction --none`
+//
+// Silence cannot clear a duty. An absent review reads identically whether the report was read and
+// found sound or nobody looked at it, so "nothing to say" must still be SAID: one
+// EVENT_TYPE_INQUIRY_REVIEW, this round, carrying what the read found. validate requires its
+// reason for the reason `friction --none` requires one.
+//
+// # Board-wide, and per ROUND
+//
+// Any seat's review answers it — the read is one pass over one document, and the per-line gate
+// counted a vote from any seat the same way. Per round because the report is regenerated every
+// round: a review recorded before this round's edits answers a question about a document that no
+// longer exists.
+//
+// A board with NO lines of inquiry owes nothing. There is no account of research on the page to
+// read, and the per-line gate was likewise silent on an empty set — so this is behaviour held,
+// not a hole opened.
+func InquiryReviewDue(b *Board) bool {
+	if len(Inquiries(b)) == 0 {
+		return false
+	}
 	now := CurrentRound(b)
-	var out []*Inquiry
-	for _, a := range Inquiries(b) {
-		if a.Support == "" || a.SupportRound < now {
-			out = append(out, a)
+	for _, e := range b.Events {
+		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
+		// stale against the enum. No field is read — the event's existence in this round IS the
+		// fact — but the type test still goes through the body so a renamed enum value fails to
+		// compile rather than silently matching nothing.
+		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && int(e.GetRound()) == now {
+			return false
 		}
 	}
-	return out
-}
-
-// UnsupportedInquiries returns the lines red's latest verdict puts on BLUE's work list — the report
-// no longer backs them, or does not carry them at all. `weakened` is deliberately not here: see
-// SupportDemandsBlue.
-func UnsupportedInquiries(b *Board) []*Inquiry {
-	var out []*Inquiry
-	for _, a := range Inquiries(b) {
-		if SupportDemandsBlue(a.Support) {
-			out = append(out, a)
-		}
-	}
-	return out
+	return true
 }

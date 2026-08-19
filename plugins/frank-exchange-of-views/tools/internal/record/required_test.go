@@ -55,13 +55,17 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 		"regrade":         {"reason": "b"},
 		"retire":          {"claim": "c", "reason": "r"},
 		"line-of-inquiry": {"status": "pursued", "line": "l"},
-		"inquiry-support": {"inquiry_id": "Q1", "as": "supported", "reason": "r"},
-		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "reason": "r"},
-		"halt":            {"reason": "o"},
-		"certify":         {"reason": "s"},
-		"outcome":         {"verdict": "VERIFIED", "reason": "p"},
-		"finding":         {"label": "L1-F1"},
-		"observe":         {"label": "L1-O1"},
+		// The per-round review names no line and casts no verdict: `--id` and `--as` retired with
+		// the per-line shape, because presence is not a question and a shortfall is an ordinary
+		// gap. `reason` is the whole payload, and the assertion below is unchanged — a review
+		// missing it must still be REFUSED, for the reason `friction-none` is.
+		"inquiry-review": {"reason": "r"},
+		"opinion":        {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "reason": "r"},
+		"halt":           {"reason": "o"},
+		"certify":        {"reason": "s"},
+		"outcome":        {"verdict": "VERIFIED", "reason": "p"},
+		"finding":        {"label": "L1-F1"},
+		"observe":        {"label": "L1-O1"},
 		// The verb that took no required flag at all: a bare `lens verify` recorded an event and
 		// counted as red's audit volume. `outcome` is the payload key behind --as.
 		"verify": {"claim": "c", "outcome": "supports", "confidence": "high", "reason": "what the source says"},

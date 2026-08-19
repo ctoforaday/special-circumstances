@@ -130,10 +130,12 @@ var EnumFields = map[string][]EnumField{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	"inquiry-support": {{
-		Key: "as", Flag: flags.As, Values: InquirySupports,
-		Why: "the duty that clears blue's work list keys on `unsupported` and `absent` by exact match, so an unrecognized spelling silently discharges red's vote AND never reaches blue — the line reads as checked and nobody checked it",
-	}},
+	// `inquiry-review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
+	// Its predecessor `inquiry-support` carried a four-value `--as` (supported / weakened /
+	// unsupported / absent) answering "does the report still carry this line". Presence is not a
+	// question — the lines are generated onto the page from the record, so blue cannot cut them —
+	// and the surviving question, whether the body delivered the research, is an ORDINARY GAP with
+	// the grade vocabulary it already has. The review carries prose and nothing else.
 	// dispute, dispute-respond, petition, petition-rule and avenue-rule ARE ABSENT AND THAT IS
 	// DELIBERATE (#344). EnumFields is checked at the WRITE, and nothing writes those types any
 	// more — the verbs are gone. Their READ paths are permanent (record/compat.go), but a reader

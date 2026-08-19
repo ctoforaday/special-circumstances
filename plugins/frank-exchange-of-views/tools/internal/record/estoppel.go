@@ -145,40 +145,17 @@ func ProposalAppliedVerbatim(runDir, gapID, old, new string) (bool, error) {
 	return g.Mint.GetLocation() == old && g.Mint.GetFixNew() == new, nil
 }
 
-// FrictionKindEstoppel marks a friction event as an estoppel REFUSAL rather than a seat's
-// own complaint. It is the single symbol the writer and the counter share.
+// THE THREE FRICTION-KIND WORDS ARE GONE, and the deletion is the point rather than a tidy-up.
+// `FrictionKindEstoppel`, `FrictionKindToolError` and `FrictionKindKey` were the PRE-SCHEMA
+// carrier: two words and the payload key that held them. `Friction.kind` is now a generated enum,
+// so the words were a SECOND SPELLING of values the schema already owns — and the key named a
+// slot in a payload that no longer exists, which made its own doc comment false.
 //
-// THE DEFECT IT REPLACES (#283, and it was mine). The count was derived by matching the
-// prose substring "estoppel —" in the friction text. That reads ZERO both when the guard
-// never fires and when someone rewords the message — and zero was printed as "red behaved".
-// A measurement whose miss is indistinguishable from its healthy answer is not a
-// measurement; see [[facts-are-fields]]. The fact is now a FIELD, written by the tool at the
-// moment it refuses.
-const FrictionKindEstoppel = "estoppel"
-
-// FrictionKindToolError marks a friction event as a TOOL FAULT — unparseable input, an
-// undecodable row, a check that could not run — rather than a seat reporting a capability it
-// lacked.
-//
-// It is a distinct kind for the reason FrictionKindEstoppel is: friction is otherwise a SEAT's
-// report, and folding tool faults into that count would move a number an operator reads for a
-// reason unrelated to what it measures. Filter by kind; the counts stay honest.
-//
-// It exists because an error nobody learns about is one nothing improves on. A tool that cannot
-// parse its own input either prints somewhere unread or says nothing; this is the third option,
-// and it is durable where a hook's reason string is not.
-const FrictionKindToolError = "tool_error"
-
-// FrictionKindKey is the payload key carrying the kind.
-//
-// THESE THREE CONSTANTS ARE THE PRE-SCHEMA CARRIER AND ARE NOW VESTIGIAL. `Friction.kind` is a
-// generated enum (recordpb.FrictionKind), and this file's own counter reads it there. They are
-// left standing only because their remaining writers — cli/hook.go and cli/merge/mint.go — belong
-// to a later wave; nothing in this package uses them. Route a write through
-// recordpb.FrictionKind_FRICTION_KIND_*, never back through these words, and delete all three
-// once the last writer converts. A payload KEY in particular means nothing once the payload is
-// gone.
-const FrictionKindKey = "kind"
+// They were not harmless while they stood. A constant still in scope is an invitation to convert
+// an enum compare back into a string round-trip, which is exactly the drift this migration
+// removes: the estoppel count was once derived by matching the prose substring "estoppel —",
+// reading ZERO both when the guard never fired and when someone reworded the message (#283).
+// Write `recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL` / `_TOOL_ERROR`; read the field.
 
 // EstoppelRejections counts the mints refused because their location was text red itself
 // prescribed and blue applied verbatim.
@@ -200,16 +177,12 @@ func EstoppelRejections(b *Board) int {
 	return n
 }
 
-// CheckKindComputation is the acceptance-check kind that prose cannot settle. It was compared
-// as a bare literal in the close gate and in two projections, which is three chances to disagree
-// about the one rule that decides whether a gap can close at all.
-//
-// THE SCHEMA OWNS THE VALUE NOW: recordpb.CheckKind_CHECK_KIND_COMPUTATION, which is what
-// GapsAwaitingProof compares against. This word survives only for the unconverted readers
-// (sitting.go, viewjson.go, cli/merge/close.go). A comparison against a Mint's check_kind belongs
-// on the ENUM; where a lowercase spelling is genuinely needed for a projection, it is
-// recordpb.Spelling of the value, not this literal.
-const CheckKindComputation = "computation"
+// `CheckKindComputation` IS GONE for the same reason. It was the acceptance-check kind prose
+// cannot settle, compared as a bare literal at three sites in three packages — three chances to
+// disagree about the one rule that decides whether a gap can close at all. The schema owns the
+// value (`recordpb.CheckKind_CHECK_KIND_COMPUTATION`) and the QUESTION now has one home:
+// `Gap.NeedsComputation()` in replay.go, which every one of those sites calls. Where a lowercase
+// spelling is genuinely needed for a projection it is `recordpb.Spelling`, never a literal.
 
 // proofNames is ProofAnswers against a board the caller already has. The projections run it per
 // open gap, and re-reading the whole record each time would make a board render quadratic in its
