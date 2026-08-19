@@ -177,3 +177,48 @@ func TestViewReadsCountsTheBareFormAsTheWorkList(t *testing.T) {
 		t.Errorf("total = %d, want 3 — a command that never invokes the tool is not a projection read", v.Total)
 	}
 }
+
+// A REDACTION THAT REDACTS NOTHING MUST NOT PASS FOR THE TREATMENT.
+//
+// The directive arm inverted: it used to APPEND the surface-discovery duty, because that duty
+// lived only in debate.js's dispatch prompt and no constitution carried it. It is constitutional
+// now, so the arm strips instead. The failure mode of a stripper is silence — it finds no block,
+// returns the shipped bytes, and the run reports itself as the treatment arm while measuring the
+// control. That is the plausible zero, in the instrument.
+func TestStrippingRefusesToBeANoOp(t *testing.T) {
+	const body = "# seat\n\nidentity line\n\n" +
+		"## Your surface comes from `--help`, and reading it is a first act\n\n" +
+		"read it before you act.\n\n" +
+		"## Something else\n\nkept.\n"
+	if !HasHelpDirective(body) {
+		t.Fatal("the fixture does not carry the duty, so this test proves nothing")
+	}
+	got := StripHelpDirective(body)
+	if HasHelpDirective(got) {
+		t.Error("the duty survived the strip — the arm would report a treatment it did not apply")
+	}
+	if !strings.Contains(got, "## Something else") || !strings.Contains(got, "kept.") {
+		t.Errorf("the strip took more than the duty:\n%s", got)
+	}
+	if !strings.Contains(got, "identity line") {
+		t.Errorf("the strip took the seat's identity with it:\n%s", got)
+	}
+}
+
+// AND THE SHIPPED CONSTITUTIONS CARRY IT, so the strip has something to remove. If they ever stop,
+// this arm silently becomes a second copy of the control.
+func TestTheShippedConstitutionsAreWhatTheArmStrips(t *testing.T) {
+	paths, err := filepath.Glob(filepath.Join("..", "..", "..", "agents", "*.md"))
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("no constitutions found (%v)", err)
+	}
+	for _, p := range paths {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !HasHelpDirective(string(b)) {
+			t.Errorf("%s carries no surface-discovery duty, so -strip-help-directive is a no-op against it and the arm measures nothing", filepath.Base(p))
+		}
+	}
+}

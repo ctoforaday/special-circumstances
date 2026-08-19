@@ -133,8 +133,21 @@ const generatedHeading = "YOUR COMPLETE VERB SURFACE"
 // `src` is the real file's bytes; the caller writes the result to a temp file and passes it as
 // --system-prompt-file. The shipped file is never modified: an experiment that edits the artifact
 // it is measuring cannot be run twice.
-func Constitution(src []byte, sf Surface, role string, arm Naming, directive bool) []byte {
+func Constitution(src []byte, sf Surface, role string, arm Naming, stripDirective bool) []byte {
 	text := string(src)
+	// THE DIRECTIVE IS STRIPPED, NOT ADDED, AND THE INVERSION IS THE POINT.
+	//
+	// It used to be appended by this flag, because it lived only in debate.js's dispatch prompt
+	// and no constitution carried it. It is constitutional now — a seat that is given no list
+	// and not told where the list is has neither — so the SHIPPED bytes contain it and adding it
+	// would stack a second copy while reporting the arm as a treatment.
+	//
+	// This is the same inversion `none` and `partial` went through when the verb names were
+	// stripped: the arm labels are stable, what they are relative to is not, and reading a table
+	// across runs without that in hand compares two different experiments.
+	if stripDirective {
+		text = StripHelpDirective(text)
+	}
 	switch arm {
 	case NamingNone:
 		text = Redact(text, sf)
@@ -143,11 +156,34 @@ func Constitution(src []byte, sf Surface, role string, arm Naming, directive boo
 	case NamingComplete:
 		text += "\n\n" + CompleteSurfaceBlock(sf, role)
 	}
-	if directive {
-		text += "\n" + HelpDirective
-	}
 	return []byte(text)
 }
+
+// directiveHeading opens the constitutional surface-discovery duty.
+const directiveHeading = "## Your surface comes from"
+
+// StripHelpDirective removes the surface-discovery duty from a constitution, for the arm that
+// measures what it buys.
+//
+// IT REFUSES TO SILENTLY DO NOTHING. A redaction that finds nothing to redact returns the shipped
+// bytes and reports itself as the treatment arm — the plausible zero, in the instrument. The
+// caller gets the text back unchanged only when there was genuinely no block, and
+// TestStrippingRefusesToBeANoOp is what holds that.
+func StripHelpDirective(text string) string {
+	i := strings.Index(text, directiveHeading)
+	if i < 0 {
+		return text
+	}
+	rest := text[i+len(directiveHeading):]
+	j := strings.Index(rest, "\n## ")
+	if j < 0 {
+		return strings.TrimRight(text[:i], "\n") + "\n"
+	}
+	return strings.TrimRight(text[:i], "\n") + "\n\n" + rest[j+1:]
+}
+
+// HasHelpDirective reports whether a constitution carries the duty at all.
+func HasHelpDirective(text string) bool { return strings.Contains(text, directiveHeading) }
 
 // CompleteSurfaceBlock is the whole role surface, GENERATED.
 //
