@@ -25,9 +25,13 @@ func newFinding() *cobra.Command {
 
 	c := seat.Prose(seat.New("finding",
 		`a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --quote "<the exact sentence, quoted from the report and nothing else>". `+
-			`THE CHANNEL FOR ANY DEFECT IN THE TEXT, including the ones the evidence verbs cannot reach: a claim resting on NO citation and no proof, `+
-			"an assertion whose source you cannot obtain, a figure with no derivation. `verify` and `reproduce` judge evidence that EXISTS; "+
-			`this raises the claim that has none.`,
+			`A FINDING IS A DEFECT IN THE TEXT — whether what the report SAYS stands up as written. It is not a verdict on the world. `+
+			"For a claim resting on NO citation, that distinction decides the verb: where the source is one you could go and read, `corroborate` "+
+			`puts it on the record and the finding then says what it showed; where there is nothing to fetch — the source cannot be obtained, no `+
+			`source exists to look for, or the defect IS the writing (a figure with no derivation, an internal contradiction, an unfalsifiable `+
+			"universal) — raise it here. `verify` and `reproduce` judge evidence blue already produced. "+
+			`NOTE THE ASYMMETRY RATHER THAN LETTING IT CHOOSE: this verb cannot fail, needing no fetch and risking no `+"`absent`"+`, and the `+
+			`evidence verbs can.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {
