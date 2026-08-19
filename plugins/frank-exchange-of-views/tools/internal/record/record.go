@@ -36,6 +36,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -183,43 +184,19 @@ func randomNonce() string {
 	return hex.EncodeToString(b)
 }
 
-// Event is the log line. Field order matches the oracle's object literal so the
-// serialized form is byte-comparable, not merely structurally equal.
-type Event struct {
-	Seq int `json:"seq"`
-	// TS is when the event happened, and it is what replay ORDERS BY.
-	//
-	// Without it, events merged by shard FILENAME, so a whole seat replayed before the
-	// next seat began and every cross-seat reference was ordered by how seat names
-	// happen to sort. The bench closing a gap red minted was dropped silently because
-	// the gap did not exist yet at replay time; the merge seat disposing a lens
-	// observation worked only because red-lens sorts before red-merge.
-	//
-	// Wall clock from many short-lived processes is not monotonic and can go backwards,
-	// so it is never sufficient ALONE — (TS, SeatID, Seq) is the full ordering key, and
-	// the tail of it is deterministic when clocks tie or skew.
-	TS     string `json:"ts"`
-	SeatID string `json:"seatId"`
-	Nonce  string `json:"nonce"`
-	Round  int    `json:"round"`
-	// Role is the seat's PARTY as a field. Stamped ONCE, at the write, and never recomputed by a
-	// reader — a reader that prefix-matched the seat id itself would render the wrong party
-	// silently whenever an id failed to match its expected prefix.
-	//
-	// IT IS STILL DERIVED: `roleOfSeat(seatID)` prefix-matches the seat id at the write. One
-	// derivation instead of four is the whole gain; it does not make the value a fact.
-	//
-	// seat.Context.Role IS NOT THE SUBSTITUTE, and reaching for it would be a regression. It
-	// answers which command GROUP a verb is mounted under, not which party is writing — see
-	// isRoleName in cli/seat, which says so deliberately. `motion grade file` run by
-	// `blue-respond-r1` is party `blue` and command-group `grade`; threading the context's Role
-	// would relabel every motion event's author. What would make this a fact is the dispatcher
-	// injecting the party the way it will inject the round (#290), and nothing does yet.
-	Role    string   `json:"role,omitempty"`
-	Type    string   `json:"type"`
-	Key     string   `json:"key"`
-	Payload *Payload `json:"payload"`
-}
+// Event IS the schema's event — `record.Event` and `recordpb.Event` are ONE TYPE, not two that
+// convert at a boundary.
+//
+// A hand-written struct that marshalled itself to proto would be exactly the value object this
+// migration exists to delete: two declarations of one shape kept in step by hand, where the schema
+// can refuse a wrong write and the hand-written half cannot. The cost of the alias is real and is
+// paid at every reader — generated spellings differ (`TS` -> `Ts`, `SeatID` -> `SeatId`) and every
+// field is read through its `GetX()` accessor, because presence is meaningful and a zero value is
+// not the same fact as an absent one.
+//
+// The field documentation that lived here now lives on the schema, where a reader of any language
+// finds it: see `ts`, `role` and `seq` in record.proto.
+type Event = recordpb.Event
 
 // Identity is WHO IS WRITING, carried to the write instead of recovered at it.
 //
