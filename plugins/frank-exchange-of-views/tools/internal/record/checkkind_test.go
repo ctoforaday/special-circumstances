@@ -40,14 +40,14 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 		t.Errorf("board view check_kind = %v — a seat cannot know which gaps demand a program", got)
 	}
 
-	// The worklist is the SCANNING read a seat plans its sitting from, so the demand's TYPE has
+	// The work list is the SCANNING read a seat plans its sitting from, so the demand's TYPE has
 	// to be on it even though the rest of the acceptance check deliberately is not.
 	got = map[string]string{}
-	for _, g := range WorklistJSONOf(b).Open {
+	for _, g := range WorkJSONOf(b).Open {
 		got[g.ID] = g.CheckKind
 	}
 	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
-		t.Errorf("worklist check_kind = %v — the read a seat plans from cannot say which gaps prose will not close", got)
+		t.Errorf("work check_kind = %v — the read a seat plans from cannot say which gaps prose will not close", got)
 	}
 }
 
@@ -150,9 +150,9 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	if len(fromBoard) != 1 || !fromBoard["R1-2"] {
 		t.Fatalf("board says %v awaits proof, the debt query says [R1-2]", fromBoard)
 	}
-	for _, g := range WorklistJSONOf(b).Open {
+	for _, g := range WorkJSONOf(b).Open {
 		if g.AwaitingProof != fromBoard[g.ID] {
-			t.Errorf("worklist and board disagree on %s: %v vs %v", g.ID, g.AwaitingProof, fromBoard[g.ID])
+			t.Errorf("work and board disagree on %s: %v vs %v", g.ID, g.AwaitingProof, fromBoard[g.ID])
 		}
 	}
 

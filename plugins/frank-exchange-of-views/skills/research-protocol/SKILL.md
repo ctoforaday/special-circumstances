@@ -56,25 +56,13 @@ research/<date>_<slug>/
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
 └── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
 
-RECORD — no file; read through the tool:
-  show            no projection named: YOUR PENDING WORK and whether this sitting is finished
-  show report     the artifact under audit, anchors intact (blue edit holds you to carrying them)
-  show board      open gaps with full grading; --format markdown adds the closure archive's prose
-  show worklist   your open set plus sitting.complete and every outstanding duty
-  show findings   lens findings (findings are events, not files)
-  show evidence   WHAT BACKS THE REPORT: every source by its <!--cite:c-…--> anchor, every proof
-                    by its <!--proof:p-…--> anchor with the sha256 reproduce takes and red's
-                    re-run, and red's verified claims with trust grades. How you resolve an anchor
-  show motions    the docket: every ask in the filer's words, and its ruling if it has one
-  show changes    the diff stack: what red prescribed, what blue applied, and the decline rate
-  show lines-of-inquiry   the lines of inquiry, their hypotheses, and their fates
-  show debate     the FULL three-party transcript — every round: ### RED / ### RED CLOSING /
-                    ### BLUE / ### BLUE CLOSING / ### LEAD (adjudication sits LAST: the bench
-                    rules on the closings, the transcript, and the final artifact state only)
-  show telemetry  JSONL, one line per round: open count, max severity, mass under the pinned
-                    mapping, new mints by severity AND BY CLASS with the class repeat rate,
-                    repair-regression ratio, edge deltas. The SIGNAL the stopping judgment
-                    reads — a series, never a snapshot
+RECORD — no file at all; read through the tool. Every projection, what each is for, and the
+verb that WRITES each one are in your role's `--help`, which is generated from the command tree
+and cannot disagree with it. A catalogue here would be a second copy that can.
+
+  run this first, and again before you stop: your work — everything open to you, each item
+  saying whether it is what blocks you closing, plus whether the sitting may close at all.
+  `complete: true` with items still open means the gates are satisfied, NOT that you are done.
 
 trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
                     + agent-transcripts.tar.gz (gitignored)
@@ -91,7 +79,8 @@ under RECORD above has no file at all — read it with `show <name>`.
 ceiling, never the terminator of record. Red owns PASS/FAIL — *is it defensible*. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
 against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
-reads `show telemetry` and files a reasoned, cost-stated opinion; the operator acts on it,
+reads the telemetry projection — the series, never a snapshot — and files a reasoned,
+cost-stated opinion; the operator acts on it,
 stopping a run past its value and resuming with a reduced `maxRounds` for the honest UNVERIFIED
 assembly — cache replay makes the stop ~$0 (measured). **Stopping is not passing**: the verdict
 stays UNVERIFIED with the open count stated. Automatic severity-floor termination was evaluated

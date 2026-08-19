@@ -44,7 +44,7 @@ var viewWriters = map[string][]string{
 	// The motion group fills it: the ask, the answer, and the press-on. All three, because a
 	// view that named only `file` would leave a reader wondering where a ruling comes from.
 	"motions":  {"motion", "rule", "appeal"},
-	"worklist": {"mint"},
+	"work":     {"mint"},
 	"findings": {"finding"},
 	"debate":   {"position"},
 	"changes":  {"edit"},

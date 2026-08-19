@@ -51,7 +51,7 @@ capability is a finding about the tooling, and that channel is how it gets fixed
 // the ROOT, because any seat may FILE one and exactly one role RULES each subject, so mounting it
 // per role would either duplicate it four times or misreport who may rule.
 //
-// That was survivable while a duty handed over a full invocation. It is not now: the worklist
+// That was survivable while a duty handed over a full invocation. It is not now: the work list
 // says "motion M1 was filed and never ruled — PASS is refused while it stands", and a merge seat
 // reading its own role help finds no motion verb, no motion group, and no pointer to either. The
 // duty names a thing the help does not reach, which is the one shape this contract cannot have if
@@ -110,7 +110,7 @@ func Of(cmd *cobra.Command) Context {
 // a role.
 //
 // IT WAS `cmd.Parent().Name()`, AND THAT WAS TRUE ONLY WHILE EVERY VERB'S PARENT WAS ITS ROLE.
-// `show` became a GROUP, so the parent of `blue show worklist` is `show` — and every projection
+// `show` became a GROUP, so the parent of `blue show work list` is `show` — and every projection
 // read has since reported its role as the string "show".
 //
 // MEASURED 2026-08-15, and it is a live defect rather than a cosmetic one. record.SittingOf
@@ -121,7 +121,7 @@ func Of(cmd *cobra.Command) Context {
 // the bench was never told about an unruled petition.
 //
 // And the second half is worse than the first. `complete` is `len(Outstanding) == 0`, so once a
-// seat filed friction the worklist told it `complete: true` — while `verdict --as PASS` went on
+// seat filed friction the work list told it `complete: true` — while `verdict --as PASS` went on
 // refusing it over the open gaps the same view had just declined to mention. That is precisely the
 // failure sitting.go's own doctrine names: "a seat told it was finished by one surface and refused
 // by another learns to trust neither."

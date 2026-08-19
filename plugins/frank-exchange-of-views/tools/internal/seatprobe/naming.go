@@ -334,11 +334,11 @@ func ReadHelpUse(trajectoryPath, binName string) (HelpUse, error) {
 // THE DUTY LIST IS A THIRD CHANNEL, AND IT WAS UNCONTROLLED. record.SittingOf derives a
 // Duty{What, How} for each live circumstance — the situation, its consequence, and the exact
 // command that discharges it — which is the same fact the constitution's naming carries, arriving
-// only when it applies. It rides on ONE projection: `worklist`. `show board` does not carry it.
+// only when it applies. It rides on ONE projection: `work list`. `show board` does not carry it.
 //
 // Measured 2026-08-15, across the 24 dispatches of the first naming matrix:
 //
-//	arm             worklist reads/cell   board reads/cell   surface reached
+//	arm             work list reads/cell   board reads/cell   surface reached
 //	none                   2.00                 4.00              8.83
 //	partial                0.67                 3.17              6.83
 //	complete               0.33                 4.33              8.33
@@ -351,26 +351,26 @@ func ReadHelpUse(trajectoryPath, binName string) (HelpUse, error) {
 // wearing the result's clothes.
 //
 // It is NOT a clean mediator either, and this must not be swapped for the opposite over-claim:
-// `complete` had the FEWEST worklist reads and the second-highest reach, so "reading the worklist
+// `complete` had the FEWEST work list reads and the second-highest reach, so "reading the work list
 // raises reach" is refuted by the same table that raises the confound.
 //
 // The instrument's job is to stop any future run reporting a naming effect without the channel that
 // competes with it. Hence this, printed beside HelpUse on every probe report.
 //
 // AND THE DESIGN FINDING IS INDEPENDENT OF THE EXPERIMENT: `board` is described in this tool's own
-// words as "the form a seat acts on" and is read 2.7–4.3 times a sitting; `worklist` carries every
+// words as "the form a seat acts on" and is read 2.7–4.3 times a sitting; `work list` carries every
 // duty and is read 0.33–2.00 times. The one channel that delivers situation-plus-verb at the moment
 // it applies is the one the tool steers seats away from.
 type ViewReads struct {
 	// ByView counts each projection the seat opened. A bare `show` resolves to the role's
-	// default, which is `worklist` for every role, and is counted as such.
+	// default, which is `work list` for every role, and is counted as such.
 	ByView map[string]int
-	// Worklist is the duty-carrying read; Board is the one seats reach for instead.
-	Worklist, Board, Total int
+	// Work is the seat's one work-list read; Board is the one seats reach for instead.
+	Work, Board, Total int
 }
 
 // showCall matches a projection read. The bare form (`<role> show` with flags or nothing after it)
-// is the seat's pending work — the worklist — so a token starting with a dash is not a view name.
+// is the seat's pending work — the work list — so a token starting with a dash is not a view name.
 var showCall = regexp.MustCompile(`(?:lens|merge|blue|bench)\s+show(?:\s+([a-z][a-z-]*))?`)
 
 // ReadViewReads extracts which projections were opened, from a captured trajectory.
@@ -414,16 +414,16 @@ func ReadViewReads(trajectoryPath, binName string) (ViewReads, error) {
 			}
 			view := m[1]
 			if view == "" {
-				// The bare form is the role default, and that default is the worklist for
+				// The bare form is the role default, and that default is the work list for
 				// every role. Counting it as "unknown" would undercount the one channel this
 				// measurement exists for.
-				view = "worklist"
+				view = "work"
 			}
 			v.ByView[view]++
 			v.Total++
 			switch view {
-			case "worklist":
-				v.Worklist++
+			case "work":
+				v.Work++
 			case "board":
 				v.Board++
 			}
@@ -437,8 +437,8 @@ func (v ViewReads) Line() string {
 	if v.Total == 0 {
 		return "no projection opened at all — the duty list reached this seat through no channel"
 	}
-	return fmt.Sprintf("worklist×%d (the ONLY carrier of the duty list), board×%d, %d projection reads total",
-		v.Worklist, v.Board, v.Total)
+	return fmt.Sprintf("work list×%d (the ONLY carrier of the duty list), board×%d, %d projection reads total",
+		v.Work, v.Board, v.Total)
 }
 
 func invokesBin(command, want string) bool {

@@ -12,15 +12,18 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
-// newScorecard is the operator command that prints a chair's scorecard for THIS run — the
-// in-run self-read a seat runs before its docket (debate.js's prompt calls it). Ported from
+// newScorecard is the operator command that prints a chair's scorecard for THIS run.
+//
+// It is NOT the seat's work list, and its Short used to call it "the seat's in-run self-read"
+// three lines under a comment saying "Not a seat verb". That contradiction is how a third name
+// for one thing gets built: scorecard measures how the run is GOING, `show` says what is LEFT. Ported from
 // scorecards.mjs's CLI. It reads the record IN-PROCESS (BoardState → board/findings/debate
 // projections) instead of self-spawning `merge show`, plus the journal envelopes + telemetry;
 // mid-run the envelope-derived rows read "not computed". Not a seat verb.
 func newScorecard() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "scorecard --run <dir> --chair blue|red|bench",
-		Short:         "print a chair's scorecard for this run (operator; the seat's in-run self-read)",
+		Short:         "print a chair's scorecard for this run (operator, not a seat verb — a seat's own read is `<role> show`)",
 		Long:          "scorecard computes the given chair's scorecard rows from the run's record (board/findings/debate, read in-process), its journal envelopes, and its board telemetry, and prints the markdown section — the same numbers the dashboard and the human see. Ported from scorecards.mjs. The envelope-derived rows read \"not computed\" until capture assembles the journal.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,

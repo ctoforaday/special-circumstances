@@ -2,79 +2,38 @@ package record
 
 import (
 	"fmt"
-	"os"
-	"strings"
 )
 
 // WHAT THIS BOARD MAKES AVAILABLE, WHICH IS NOT WHAT THIS SEAT OWES.
 //
-// # Why this is a second list rather than more duties
+// This file used to open by arguing that the affordances had to be a SECOND list, kept off
+// `complete` so the view could not disagree with the gates. The argument was sound and the
+// conclusion was wrong, and the difference is worth keeping because it is a shape that recurs.
 //
-// sitting.go states the rule that stops the duty list growing: "Nothing here invents an
-// obligation… Inventing a duty here would make this view disagree with the gates, and a seat told
-// it was finished by one surface and refused by another learns to trust neither." That rule is
-// correct and this file does not touch it. `Outstanding` still gates `sitting.complete`, and every
-// entry in it is still refused at a write path or scored at capture.
+// The rule it was protecting — sitting.go's "nothing here invents an obligation", because a seat
+// told it is finished by one surface and refused by another learns to trust neither — is real and
+// still holds. But a duty is derived only where omission already carries a mechanical consequence,
+// so it can name 4 of blue's verbs, 5 of merge's, 3 of bench's and 2 of lens's. Every act whose
+// omission is merely a QUALITY loss — a line of inquiry never revisited, a repair with no manifest
+// row, an archive never sampled, a citation nobody verified, a source blue never cited, a proof
+// nobody re-ran, a grade accepted and never moved — got no line. Those are exactly the acts the
+// probe boards bait and the measured runs skip.
 //
-// The rule has a consequence nobody chose, though. A duty is derived ONLY where omission already
-// carries a mechanical consequence, so the channel can name 4 of blue's 17 verbs, 5 of merge's 17,
-// 3 of bench's 14 and 2 of lens's 10. Every verb whose omission is merely a QUALITY loss — a line
-// of inquiry never revisited, a repair with no manifest row, an archive never sampled, a citation
-// nobody verified, a proof nobody re-ran, a grade accepted and never moved — gets no line at all.
-// Those are precisely the acts the probe boards are built to bait, and precisely the ones the
-// measured runs skip.
+// Protecting the rule by making a SEPARATE list made those acts absent from the surface a seat
+// consults to ask whether anything is left. Three seats interviewed about verbs they never touched
+// all stopped the same way and said so in the same words — the outstanding array emptied — and one
+// put the mechanism exactly: the work list "supplied the goal, and a goal crowds out survey.
+// Things off the list weren't declined. They were invisible."
 //
-// So the fact a seat needs — "this act is open to you, here, now" — is separated from the claim it
-// must not be confused with — "you are not finished until you do it". Available NEVER affects
-// Complete. A seat reading it is being told what the board affords, not what it owes, and the two
-// are different sentences in the JSON as well as in the doc.
+// The rule never required a second LIST. It required that `complete` be computed from the
+// enforced half only. That is a property of one field, not of two surfaces, so it is now a flag
+// on each item (record.Item.Blocks) and there is one list. See sitting.go.
 //
-// # Measured, and it is why the carriage matters as much as the content
-//
-// Across 24 probe dispatches the duty-carrying projection `worklist` was read 0.33–2.00 times a
-// sitting while `board` — described in this tool's own words as "the form a seat acts on" — was
-// read 2.7–4.3 times. A list that only rides on the projection a seat rarely opens is a list that
-// mostly does not arrive, and its silence is indistinguishable from having nothing to say.
-
-// DutyArm selects how much of this machinery is live. It exists for the probe, and the DEFAULT IS
-// THE SHIPPED BEHAVIOUR: unset means exactly what the tool did before this file existed.
-//
-// An experiment knob inside a production path is a real cost and it is taken deliberately. The
-// alternative — a second binary built from a patched tree — measures the patch rather than the
-// tool, which is the mistake one level up from the one this is being used to correct. It is
-// asserted by TestDutyArmDefaultIsTheShippedSet, so a knob that silently changed the default would
-// fail rather than quietly rewrite what every seat reads.
-type DutyArm string
-
-const (
-	// DutyOff emits neither list — the floor, for asking whether the channel does anything.
-	DutyOff DutyArm = "off"
-	// DutyShipped is Outstanding only: what the tool has always sent.
-	DutyShipped DutyArm = "shipped"
-	// DutyAvailable adds the affordance list to the worklist.
-	DutyAvailable DutyArm = "available"
-	// DutyAvailableOnBoard also carries the sitting on `board`, the projection seats read.
-	DutyAvailableOnBoard DutyArm = "available+board"
-)
-
-// DutyArmEnv is the variable the probe sets on the seat's process.
-const DutyArmEnv = "FEOV_DUTY_ARM"
-
-// CurrentDutyArm reads the arm, defaulting to the shipped behaviour. An unrecognised value is
-// TREATED AS SHIPPED rather than as off: a typo that silently emptied the seat's worklist would
-// look exactly like a board with nothing outstanding.
-func CurrentDutyArm() DutyArm {
-	switch DutyArm(strings.TrimSpace(os.Getenv(DutyArmEnv))) {
-	case DutyOff:
-		return DutyOff
-	case DutyAvailable:
-		return DutyAvailable
-	case DutyAvailableOnBoard:
-		return DutyAvailableOnBoard
-	default:
-		return DutyShipped
-	}
-}
+// The carriage argument that used to close this comment is also settled and is left here because
+// it is the measurement, not the opinion: across 24 probe dispatches the duty-carrying projection
+// was read 0.33-2.00 times a sitting while `board` was read 2.7-4.3. The answer to a list that
+// does not arrive is not a second copy of it somewhere better-trafficked. It is one list, on the
+// one command a seat is told to run.
 
 // AvailableOf derives the acts this board affords this seat right now.
 //
@@ -87,12 +46,15 @@ func CurrentDutyArm() DutyArm {
 // (whether you disagree, whether the claim should go) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
-func AvailableOf(b *Board, role, seatID string) []Duty {
-	out := []Duty{}
+func AvailableOf(b *Board, role, seatID string) []Item {
+	out := []Item{}
 	if b == nil {
 		return out
 	}
-	add := func(what string) { out = append(out, Duty{What: what}) }
+	// Blocks is FALSE on every one of these: an affordance is open work, not owed work,
+	// and that distinction is the whole content of the rule this file used to split a list
+	// in half to honour.
+	add := func(what string) { out = append(out, Item{What: what}) }
 
 	switch role {
 	case "blue":

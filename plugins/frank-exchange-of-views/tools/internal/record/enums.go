@@ -129,7 +129,7 @@ var EnumFields = map[string][]EnumField{
 	}},
 	"inquiry-support": {{
 		Key: "as", Flag: flags.As, Values: InquirySupports,
-		Why: "the duty that clears blue's worklist keys on `unsupported` and `absent` by exact match, so an unrecognized spelling silently discharges red's vote AND never reaches blue — the line reads as checked and nobody checked it",
+		Why: "the duty that clears blue's work list keys on `unsupported` and `absent` by exact match, so an unrecognized spelling silently discharges red's vote AND never reaches blue — the line reads as checked and nobody checked it",
 	}},
 	// dispute, dispute-respond, petition, petition-rule and avenue-rule ARE ABSENT AND THAT IS
 	// DELIBERATE (#344). EnumFields is checked at the WRITE, and nothing writes those types any

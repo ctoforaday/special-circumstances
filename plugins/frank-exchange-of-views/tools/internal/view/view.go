@@ -229,7 +229,7 @@ func ledgerMD(b *record.Board) []byte {
 	}
 	// UNCREDITED, not undisposed (#327). `observe` and `dispose` are retired: a finding is
 	// addressed by being named in some gap's found_by, and that is the only way. This footer
-	// is the merge's live worklist of lens work it has neither minted nor credited — the same
+	// is the merge's live work list of lens work it has neither minted nor credited — the same
 	// question the old "undisposed" footer asked, against the channel that still exists.
 	credited := map[string]bool{}
 	for _, g := range b.Gaps {

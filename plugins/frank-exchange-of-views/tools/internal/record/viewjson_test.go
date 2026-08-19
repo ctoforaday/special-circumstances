@@ -108,11 +108,11 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	}
 }
 
-// TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse pins the merge's shrinking working set:
+// TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse pins the merge's shrinking working set:
 // OPEN gaps only in a lean shape (grades + class + location + a TRUNCATED problem synopsis +
 // found_by, but NOT required_fix/acceptance_check), and closed gaps collapsed to a prose-free
 // {id, location, class} index. This is the once-per-turn read the full board is not.
-func TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
+func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	runDir := t.TempDir()
 	m := "red-merge-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
@@ -133,13 +133,13 @@ func TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := WorklistJSONOf(b)
+	w := WorkJSONOf(b)
 
 	if len(w.Open) != 1 || w.Open[0].ID != "R1-1" {
-		t.Fatalf("worklist Open = %+v, want the single open gap R1-1", w.Open)
+		t.Fatalf("work list Open = %+v, want the single open gap R1-1", w.Open)
 	}
 	if len(w.ClosedIndex) != 1 || w.ClosedIndex[0].ID != "R1-2" {
-		t.Fatalf("worklist ClosedIndex = %+v, want the single closed gap R1-2", w.ClosedIndex)
+		t.Fatalf("work list ClosedIndex = %+v, want the single closed gap R1-2", w.ClosedIndex)
 	}
 	if w.Counts.Open != 1 || w.Counts.Closed != 1 {
 		t.Errorf("counts = %+v, want open 1 closed 1", w.Counts)
@@ -155,7 +155,7 @@ func TestWorklistIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	blob, _ := json.Marshal(w)
 	for _, secret := range []string{"SECRET_FIX_PROSE", "SECRET_CHECK_PROSE", "a closed problem"} {
 		if strings.Contains(string(blob), secret) {
-			t.Errorf("the worklist must not carry prose %q — it is lean by design:\n%s", secret, blob)
+			t.Errorf("the work list must not carry prose %q — it is lean by design:\n%s", secret, blob)
 		}
 	}
 	// The lean open gap keeps its grades, class, location and found_by.

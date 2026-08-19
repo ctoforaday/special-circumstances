@@ -90,7 +90,6 @@ func main() {
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
 		patterns   = flag.String("patterns", "none", "red's gap-pattern memory: `none`, `file` (staged at inputs/red-gap-patterns.md — the MOUNTED FILE form), or `duty` (staged AND named in the prompt, selected by the classes of this board's gaps — the DUTY form)")
 		naming     = flag.String("naming", string(seatprobe.NamingNone), "how much of the verb surface the constitution states: `none` (THE SHIPPED CONFIGURATION — the constitutions name no verb, and redaction is a belt-and-braces pass over them), `partial` (a CONSTRUCTED few-verb list, the shape a hand-kept list in a constitution had), or `complete` (the whole surface, generated from the tree)")
-		duty       = flag.String("duty", string(record.DutyShipped), "how much the BOARD tells the seat: `off` (no duties at all), `shipped` (the enforced duties only), `available` (plus what the board affords), `available+board` (and carried on `show board`, the projection seats actually read)")
 		directive  = flag.Bool("help-directive", false, "append production's `read --help before your first act` instruction, which debate.js carries and the probe prompt never has")
 	)
 	flag.Parse()
@@ -101,18 +100,12 @@ func main() {
 	}
 	// A TYPO HERE WOULD RUN THE SHIPPED ARM AND REPORT THE ONE YOU ASKED FOR. record's own
 	// resolver falls back to shipped on purpose (an unrecognised value must not empty a real
-	// seat's worklist), so the probe validates the spelling itself rather than inheriting a
+	// seat's work list), so the probe validates the spelling itself rather than inheriting a
 	// fallback that is correct for production and silent for an experiment.
 	switch *patterns {
 	case "none", "file", "duty":
 	default:
 		fail("no patterns arm %q — one of none, file, duty", *patterns)
-	}
-	dutyArm := record.DutyArm(*duty)
-	switch dutyArm {
-	case record.DutyOff, record.DutyShipped, record.DutyAvailable, record.DutyAvailableOnBoard:
-	default:
-		fail("no duty arm %q — one of off, shipped, available, available+board", *duty)
 	}
 
 	if *dir == "" {
@@ -155,7 +148,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive, dutyArm, *patterns)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive, *patterns)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				failed[i] = true
@@ -168,7 +161,7 @@ func main() {
 
 	fmt.Println("# Seat probe")
 	fmt.Println()
-	fmt.Printf("%d board(s), model %s, naming arm %s, duty arm %s, help-directive %t. What each seat CHOSE, of what its role offers.\n\n", len(names), *model, arm, dutyArm, *directive)
+	fmt.Printf("%d board(s), model %s, naming arm %s, help-directive %t. What each seat CHOSE, of what its role offers.\n\n", len(names), *model, arm, *directive)
 	for _, r := range results {
 		fmt.Println(r)
 	}
@@ -248,7 +241,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, arm seatprobe.Naming, directive bool, dutyArm record.DutyArm, patterns string) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, arm seatprobe.Naming, directive bool, patterns string) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -303,7 +296,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 				return "", fmt.Errorf("patterns arm %q: the corpus did not stage (%s) — a run that reports on memory it never delivered is the defect this arm exists to test", patterns, r.Reason)
 			}
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, ask, arm, directive, surface, dutyArm, patterns, b); err != nil {
+		if err := dispatch(b, runDir, bin, constDir, model, ask, arm, directive, surface, patterns, b); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
@@ -342,7 +335,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 	// THE ARM, ON THE RESULT. A choice report that does not say which treatment produced it is a
 	// number waiting to be compared against a number from a different condition — which is how the
 	// "4 of 14" figure came to be cited as a fact about seats rather than about one arm.
-	report += fmt.Sprintf("\n**arm**: naming=%s duty=%s help-directive=%t\n", arm, dutyArm, directive)
+	report += fmt.Sprintf("\n**arm**: naming=%s help-directive=%t\n", arm, directive)
 	// THE TREATMENT, MEASURED RATHER THAN ASSUMED. naming.go's type doc says this count "is
 	// printed with the result" and nothing printed it, so an arm whose redactor had stopped
 	// matching would produce a `none` run byte-identical to `partial`, both arms would report the
@@ -355,8 +348,8 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		report += "**help use**: NOT MEASURED (no trajectory)\n"
 	}
 	// THE THIRD CHANNEL, BESIDE THE NAMING AND THE HELP. record.SittingOf hands a seat the
-	// situation AND the verb that discharges it, and it rides on `worklist` alone. Measured across
-	// the first naming matrix, worklist reads varied THREEFOLD with the arm — so a naming effect
+	// situation AND the verb that discharges it, and it rides on `show` alone. Measured across
+	// the first naming matrix, work-list reads varied THREEFOLD with the arm — so a naming effect
 	// reported without this number has a rival explanation sitting underneath it, and the first
 	// version of that report was published before anyone asked.
 	if vr, err := seatprobe.ReadViewReads(trajectoryPath(runDir), filepath.Base(bin)); err == nil {
@@ -376,7 +369,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, arm seatprobe.Naming, directive bool, sf seatprobe.Surface, dutyArm record.DutyArm, patterns string, board seatprobe.Board) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, arm seatprobe.Naming, directive bool, sf seatprobe.Surface, patterns string, board seatprobe.Board) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -450,11 +443,6 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 		// fallback over a seat id cannot tell "round 0" from "no round in this name", which is
 		// the defect #348 put this variable here to end.
 		seatenv.RoundVar+"=1",
-		// The duty arm reaches the seat through the TOOL it runs, not through its prompt: the
-		// seat inherits this environment, so every feov-record call it makes resolves the arm
-		// the same way. Setting it on the build calls instead would have changed how the board
-		// was constructed rather than how it reads.
-		record.DutyArmEnv+"="+string(dutyArm),
 	)
 	// The directory is created HERE, by the function that owns the path, rather than by the
 	// caller. Moving the trajectory out of the run directory and leaving its mkdir behind in

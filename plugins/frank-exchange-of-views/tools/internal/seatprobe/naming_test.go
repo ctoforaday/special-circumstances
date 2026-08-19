@@ -144,16 +144,16 @@ func itoa(n int) string {
 // top of it. A reader built in that repair and never checked would be the same defect once more:
 // its no-match and its honest zero are the same number, and "this seat opened no projection" is a
 // real outcome the report prints.
-func TestViewReadsCountsTheBareFormAsTheWorklist(t *testing.T) {
+func TestViewReadsCountsTheBareFormAsTheWorkList(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "traj.jsonl")
-	// A bare `show` resolves to the role default, which is the worklist for every role. Counting
+	// A bare `show` resolves to the role default, which is the work list for every role. Counting
 	// it as an unnamed view would undercount the ONE carrier of the duty list — the number this
 	// whole measurement exists to report.
 	lines := []string{
 		`{"message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"/x/feov-record blue show --run /r"}}]}}`,
 		`{"message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"/x/feov-record blue show board"}}]}}`,
-		`{"message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"/x/feov-record blue show worklist"}}]}}`,
+		`{"message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"/x/feov-record blue show work"}}]}}`,
 		`{"message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"grep show board /etc/passwd"}}]}}`,
 	}
 	if err := os.WriteFile(p, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
@@ -163,8 +163,8 @@ func TestViewReadsCountsTheBareFormAsTheWorklist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Worklist != 2 {
-		t.Errorf("worklist = %d, want 2 (the bare form plus the explicit one)", v.Worklist)
+	if v.Work != 2 {
+		t.Errorf("work list = %d, want 2 (the bare form plus the explicit one)", v.Work)
 	}
 	if v.Board != 1 {
 		t.Errorf("board = %d, want 1", v.Board)

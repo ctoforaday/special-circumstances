@@ -11,7 +11,7 @@ import (
 // "NOTHING YET" AND "NOTHING COMING" MUST NOT BE THE SAME READ.
 //
 // MEASURED 2026-08-16 BY ASKING THE MERGE. On a board with two gaps open it reported: "The absence
-// of any `blue edit` record suggests blue hasn't even tried. But I should check the worklist again
+// of any `blue edit` record suggests blue hasn't even tried. But I should check the work list again
 // — does it say anything about blue's next move?" It then listed the three situations it could not
 // choose between: blue is repairing in sequence and I should wait, blue fixed one and missed two,
 // or blue has no idea how to fix these. Those want different acts — wait, dispose, escalate — and
@@ -19,10 +19,10 @@ import (
 //
 // The counterparty block is derived from events the run already carries, so this asserts the two
 // states produce DIFFERENT readings rather than asserting any particular wording.
-func TestTheWorklistSeparatesNotYetFromNotComing(t *testing.T) {
+func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	read := func(t *testing.T, runDir string) record.CounterpartyJSON {
 		t.Helper()
-		out, err := run(t, "merge", "show", "worklist", "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := run(t, "merge", "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -30,7 +30,7 @@ func TestTheWorklistSeparatesNotYetFromNotComing(t *testing.T) {
 			Counterparty record.CounterpartyJSON `json:"counterparty"`
 		}
 		if err := json.Unmarshal([]byte(out), &w); err != nil {
-			t.Fatalf("worklist did not parse: %v", err)
+			t.Fatalf("work list did not parse: %v", err)
 		}
 		return w.Counterparty
 	}
