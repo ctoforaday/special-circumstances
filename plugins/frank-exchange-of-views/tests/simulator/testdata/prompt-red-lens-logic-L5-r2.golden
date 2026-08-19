@@ -1,4 +1,4 @@
-prompt sha256: 3ff95ec2e2cb7c3ce29a4afa1d2e05762cf2734838a54bf1920e8853107cdc87
+prompt sha256: 1f1822bf970a15be889d6df5ac2a20c7d3e79c24ee90ae40fefe753ce72e1448
 
 Red audit, round 2, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -30,8 +30,10 @@ Rows reading "not computed" are honest, not gaps to fill — the envelope-derive
 SEAT_ID: red-lens-r2-L5.
 THE RECORD TOOL IS THE CONTRACT: every board act happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
-YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id red-lens-r2-L5 on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat.
-You do NOT pass the run directory: it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
+YOUR SEAT ID SELECTS YOUR SURFACE, AND YOU STATE IT ONCE: `register` is your first act, it binds red-lens-r2-L5 to you on the record, and every call after it resolves your seat for you — so you type --seat-id at register and never again, and a value disagreeing with what you registered as is refused rather than obeyed.
+Until you have registered nothing says who is asking, which is why the help reads below carry it.
+What comes back IS what you may do: there is no wider tree behind it and nothing of yours is filed under another seat.
+You do NOT pass the run directory at all — it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
 Three steps, every sitting, before the act that needs them:
 
   1.

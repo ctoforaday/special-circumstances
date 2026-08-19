@@ -1,4 +1,4 @@
-prompt sha256: 0002a0106b125596b29d793c19eecc532fb55e98bd4a73a5c51f0f2aa982e6a6
+prompt sha256: e9a746266bd4dba4d5f06d21e56079bd31a9b8f3704d05be1acebd17c7189097
 
 Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
 Undisposed grade disputes: [{"gap_id":"R1-1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
@@ -23,8 +23,10 @@ Rows reading "not computed" are honest, not gaps to fill — the envelope-derive
 SEAT_ID: judge-terminal.
 THE RECORD TOOL IS THE CONTRACT: every board act happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
-YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id judge-terminal on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat.
-You do NOT pass the run directory: it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
+YOUR SEAT ID SELECTS YOUR SURFACE, AND YOU STATE IT ONCE: `register` is your first act, it binds judge-terminal to you on the record, and every call after it resolves your seat for you — so you type --seat-id at register and never again, and a value disagreeing with what you registered as is refused rather than obeyed.
+Until you have registered nothing says who is asking, which is why the help reads below carry it.
+What comes back IS what you may do: there is no wider tree behind it and nothing of yours is filed under another seat.
+You do NOT pass the run directory at all — it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
 Three steps, every sitting, before the act that needs them:
 
   1.
