@@ -31,7 +31,7 @@ func TestTheShippedConstitutionsNameNoVerb(t *testing.T) {
 				for v, n := range named {
 					left = append(left, v+"×"+itoa(n))
 				}
-				t.Errorf("%s names %d verb(s): %s\n\nA constitution that names a slice of the surface does not under-inform a seat, it SATISFIES it — measured at 58%% surface exposure against 100%% with the help directive alone. Name the ACT; the verb is the help's to state.",
+				t.Errorf("%s names %d verb(s): %s\n\nA constitution that names a slice of the surface does not under-inform a seat, it SATISFIES it — 58%% surface exposure against 95%% with the names removed (2026-08-15), and re-measured 2026-08-19 over two models the arm that names the WHOLE surface is the worst of the four. Name the ACT; the verb is the help's to state.",
 					name, len(named), strings.Join(left, ", "))
 			}
 		})

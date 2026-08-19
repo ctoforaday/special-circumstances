@@ -1,8 +1,107 @@
 # What naming the surface in the constitution actually buys
 
-Measured 2026-08-15. Instrument: `cmd/seatprobe`, model haiku, 24 dispatches — 4 arms × 2 boards
-(`arithmetic`, blue seat; `audit`, merge seat) × 3 replicates. Raw cell reports are not committed;
-regenerate with `seatprobe -naming <arm> [-help-directive]`.
+Two measurements. **The 2026-08-19 re-run is the current record**; the 2026-08-15 run is kept below
+because it is what the design decisions were made on and its confound is still instructive.
+
+Raw cell reports are not committed; regenerate with `seatprobe -naming <arm> [-help-directive]`.
+
+---
+
+# Re-run, 2026-08-19 — two models, and the constitutions no longer name verbs
+
+Instrument: `cmd/seatprobe`, 72 dispatches — 4 arms × 9 boards × 2 models (opus, haiku), one
+replicate per cell. All four roles are represented (lens, merge, blue, bench) rather than two.
+
+Three things changed under the instrument since the first run, and each moves what an arm MEANS:
+
+- The constitutions were stripped of every command name, so `none` is now the SHIPPED bytes and
+  `partial` is a CONSTRUCTED three-verb block appended to them. In the first run this was reversed:
+  `partial` was the shipped file and `none` was a redaction of it. **The arm labels are stable; what
+  they are relative to is not**, and the `partial` treatment in particular is much weaker now — three
+  names in an appended block, against names woven through the shipped prose.
+- Four verbs were split into eight (`verify`/`corroborate`, `close`/`carry`, and two subgroups), so
+  the denominator grew: blue offered 18 verbs then and 23 acts now.
+- Cobra now teaches on refusal for pre-handler errors too (`ExecuteRoot` + `seat.Taught`), so a
+  missing required flag returns the verb's own help rather than a bare usage line.
+
+## Two quantities, kept apart
+
+**SEEN** is surface EXPOSURE — the verbs of the seat's own role that appeared in help output the
+seat received. This is the 58/95/100 metric. **Reached-for** is USE. They are different questions
+and the first run's headline figure answers only the first.
+
+SEEN is measured per BLOCK, not per line, because the board stages ROOT help as setup material and
+root's command list contains `friction` and `verify` — names that are also role verbs. A line-level
+match credits every seat with two verbs before it acts, and flatters exactly the arms that open help
+least. A block counts only when every name in it is one of the role's own.
+
+## Result
+
+| model | arm | opened | SEEN(top) | SEEN(leaf) | reached-for | help/sitting | 1st call | unmet |
+|---|---|---|---|---|---|---|---|---|
+| haiku | `none` | 9/9 | **100.0%** | 99.0% | 32.3% | 1.0 | 0/9 | 22/43 |
+| haiku | `none+directive` | 9/9 | **100.0%** | 99.0% | 29.9% | 2.8 | 5/9 | 24/43 |
+| haiku | `partial` | 8/9 | **88.9%** | 93.2% | 32.2% | 2.4 | 0/9 | 22/43 |
+| haiku | `complete` | 6/9 | **66.7%** | 78.8% | 29.0% | 1.3 | 0/9 | 21/43 |
+| opus | `none` | 9/9 | **100.0%** | 100.0% | 40.0% | 5.4 | 9/9 | 13/43 |
+| opus | `none+directive` | 9/9 | **100.0%** | 100.0% | 39.9% | 5.8 | 9/9 | 13/43 |
+| opus | `partial` | 9/9 | **100.0%** | 100.0% | 41.5% | 4.9 | 8/9 | 12/43 |
+| opus | `complete` | 8/9 | **88.9%** | 95.1% | 37.9% | 4.9 | 9/9 | 13/43 |
+
+`opened` is sittings that received a listing of their own role's verbs at all. SEEN(top) saturates
+at one `<role> --help` call, so per sitting it is 0 or 100 and the arm figure restates `opened`;
+SEEN(leaf) counts ACTS, so a subgroup child requires opening the subgroup and it does not saturate.
+
+## What it says
+
+**The direction of the first run replicates, and it was never an inversion.** Naming a partial list
+lowered exposure then (`partial` 58% against `none` 95%) and lowers it now (88.9% against 100% on
+haiku). The effect is far smaller, which is what a weaker treatment should do.
+
+**`complete` is the worst arm on exposure, in both models.** The first run found that stating the
+complete surface bought nothing over stating nothing, on the REACHED metric (t = 0.61). On exposure
+it is not neutral but negative: 66.7% on haiku, 88.9% on opus. Told everything, the seat has no
+occasion to open the page — and what it was told is a snapshot, while the page is the tree.
+
+**The `--help` directive is now inert.** It took 95% → 100% in the first run. `none` now reaches
+100% without it, so there is nothing left for it to add, and it adds nothing: exposure flat, unmet
+22 → 24 on haiku, 13 → 13 on opus. It still moves the behaviour it names — haiku's first-call help
+rate goes 0/9 → 5/9 — which is the first run's finding intact: **making a seat read the surface does
+not make it use the surface.**
+
+**Model choice moves USE; the arm moves EXPOSURE.** These are close to orthogonal on this data. Opus
+reaches for ~40% of its surface against haiku's ~30%, opens help 5 times a sitting against haiku's
+1, opens it as its FIRST act in 9/9 sittings against haiku's 0/9, and leaves 13 of 43 board
+expectations unmet against haiku's 21–24 — at IDENTICAL exposure (both 100% in `none`). Opus is also
+markedly less sensitive to naming: `partial` costs it nothing at all, where it costs haiku a sitting.
+
+**Naming changes where the knowledge came from, not how much work got done.** Unmet expectations
+barely move across arms within a model (haiku 21–24, opus 12–13). This is not a result that naming
+is harmful to outcomes. It is the narrower claim the design rests on: both routes inform the seat,
+and only one of them cannot go stale when the tree grows a subgroup nobody updated the prose for.
+
+## What it does not say
+
+One replicate per cell — the first run had three, and traded board coverage for them. A 9-vs-8
+`opened` count is one sitting, and nothing here separates a real effect from a coin flip at that
+size. What carries weight is the direction agreeing across two models and 9 boards, not any single
+cell.
+
+`opus-partial`'s `docket` board exhausted its turn budget mid-sitting on the first attempt and was
+re-dispatched onto a REBUILT board ~30 minutes later; same treatment, different point in time.
+
+The `complete` arm appends 11–20 verb names depending on role, which also lengthens the
+constitution. Naming volume and prompt length are not separated here.
+
+Reach remains a proxy. A seat that reached for 11 verbs has not thereby done better work than one
+that reached for 6.
+
+---
+
+# Original run, 2026-08-15 — one model, and the shipped constitution named verbs
+
+Instrument: `cmd/seatprobe`, model haiku, 24 dispatches — 4 arms × 2 boards
+(`arithmetic`, blue seat; `audit`, merge seat) × 3 replicates.
 
 ## Why this was run
 
@@ -31,6 +130,9 @@ fixes.
 | `partial` | shipped text, unmodified — the condition every prior probe ran under |
 | `complete` | shipped text plus the whole role surface, GENERATED from the cobra tree |
 | `none+directive` | `none`, plus production's "read `--help` before your first act" clause |
+
+**These are the 2026-08-15 arms.** `partial` meaning "shipped text, unmodified" is what makes this
+run's `partial` the strong treatment and the re-run's the weak one — see the re-run's note above.
 
 ## Result
 

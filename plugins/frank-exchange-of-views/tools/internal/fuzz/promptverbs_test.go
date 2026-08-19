@@ -227,6 +227,12 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 // directive to read `--help` took it to 100% with no variance. A gate demanding the list back is
 // a gate arguing for the 58%.
 //
+// Re-measured 2026-08-19 over 72 sittings, two models, all four roles, with the strip already
+// landed: `none` reaches 100% exposure on both opus and haiku, `partial` costs haiku a sitting
+// (88.9%) and opus none, and `complete` is the WORST arm in both (66.7% / 88.9%). The directive is
+// now inert because `none` saturates without it. Direction replicated; see
+// docs/seat-surface-naming.md for the table and for what it does not say.
+//
 // So the question moves one step: not "is it named where a seat reads", but IS IT REACHABLE FROM
 // WHAT A SEAT IS TOLD TO READ. A seat is told to run `--help` at the root, at its role, and at the
 // group before using any verb in one — so a verb is discoverable exactly when that walk reaches it
@@ -425,7 +431,9 @@ var (
 // not under-inform a seat, it SATISFIES it: measured across 54 elicitation sittings, removing the
 // partial list raised the share of the real surface a seat actually saw from 58% to 95%, and
 // adding the directive to read `--help` took it to 100% with no variance between sittings. Every
-// command named here is a reason for a seat not to look.
+// command named here is a reason for a seat not to look. Re-measured 2026-08-19 after the strip,
+// over 72 sittings and two models: `none` holds 100% on both, and naming the COMPLETE surface is
+// worse than naming nothing (66.7% haiku, 88.9% opus) — docs/seat-surface-naming.md.
 //
 // Lowering an entry is the whole point: when a strip lands, re-pin it to the new number in the
 // same change. The test prints the number to pin.
