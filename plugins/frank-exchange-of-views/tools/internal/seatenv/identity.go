@@ -123,11 +123,20 @@ func ResolveSeat(flagSeatID string, inferRound func(string) int) (Seat, error) {
 // human or a test driving the binary by hand with --seat-id, which ResolveSeat still accepts; it
 // is a bounded read of two spellings and is not a second flag parser. Anything it cannot find
 // yields "", which builds the operator tree — the honest answer for a process with no seat.
+// THE FLAG WINS HERE, AND THE INJECTION WINS AT EXECUTION. They answer different questions.
+//
+// Tree selection asks WHICH SURFACE AM I LOOKING AT; execution asks WHO IS ACTING. Letting the
+// flag choose the tree is what lets any seat read any other seat's surface —
+// `--seat-id red-merge-r1 --help` from a blue seat shows merge's verbs — without a second
+// mechanism, because cobra answers --help without ever reaching RunE, so nothing is attributed
+// and there is nothing to police. The moment a command actually RUNS, ResolveSeat applies the
+// rule it always has: a --seat-id that disagrees with the injected identity is refused, because
+// attribution is the one fact a seat must not be able to get wrong.
 func Dispatched() string {
-	if env := strings.TrimSpace(os.Getenv(SeatVar)); env != "" {
-		return env
+	if flag := SeatIDIn(os.Args); flag != "" {
+		return flag
 	}
-	return SeatIDIn(os.Args)
+	return strings.TrimSpace(os.Getenv(SeatVar))
 }
 
 // SeatIDIn reads a --seat-id out of an argument list. Exported for the CLI test harness, which

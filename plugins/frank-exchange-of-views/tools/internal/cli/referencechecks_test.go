@@ -200,7 +200,9 @@ func TestEveryCheckedFlagIsInTheTable(t *testing.T) {
 			walk(sub, p)
 		}
 	}
-	walk(newRoot(), "")
+	for _, r := range AllRoots() {
+		walk(r, "")
+	}
 
 	sort.Strings(missing)
 	if len(missing) > 0 {

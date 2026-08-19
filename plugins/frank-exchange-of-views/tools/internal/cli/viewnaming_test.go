@@ -139,7 +139,9 @@ func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
 			walkAll(sub)
 		}
 	}
-	walkAll(newRoot())
+	for _, r := range AllRoots() {
+		walkAll(r)
+	}
 
 	named := regexp.MustCompile(`--view\s+([a-z][a-z-]*)`)
 	seen := map[string]bool{}

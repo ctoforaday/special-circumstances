@@ -135,6 +135,21 @@ func CommandPaths() []string {
 	return out
 }
 
+// AllRoots is every tree the tool can build: one per seat role, plus the operator's.
+//
+// NO SINGLE ROOT HOLDS THE WHOLE SURFACE any more — the tree is scoped to the dispatched identity
+// — so anything asking a question ABOUT THE SURFACE has to ask it of all of them. A gate that kept
+// walking one root would go on passing while it saw a quarter of the tool, which is the shape this
+// repository keeps paying for.
+func AllRoots() map[string]*cobra.Command {
+	out := map[string]*cobra.Command{}
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		out[role] = NewRootFor(dispatchedSeatFor(role))
+	}
+	out[record.OperatorRole] = NewRootFor(record.OperatorRole)
+	return out
+}
+
 // dispatchedSeatFor is a seat id of the given role, for building that role's tree in the gates and
 // the surface walk. It is derived from the role tables rather than written down here.
 func dispatchedSeatFor(role string) string { return record.SampleSeatOf(role) }

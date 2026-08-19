@@ -37,9 +37,10 @@ type boardJSON struct {
 	Anomalies []string `json:"anomalies"`
 }
 
-func board(t *testing.T, runDir, seatRole, seatID string) boardJSON {
+// THE ROLE LEFT THE ARGS: the seat id selects the tree.
+func board(t *testing.T, runDir, seatID string) boardJSON {
 	t.Helper()
-	out, err := run(t, seatRole, "show", "--run", runDir, "--seat-id", seatID, "board")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seatID, "board")
 	if err != nil {
 		t.Fatalf("show board: %v", err)
 	}
@@ -81,7 +82,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 		t.Fatalf("bench opinion: %v", err)
 	}
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if got := ids(b.Open); len(got) != 1 || got[0] != open1 {
 		t.Errorf("JSON board open = %v, want [%s]", got, open1)
 	}
@@ -113,7 +114,7 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if len(b.Closed) != 1 {
 		t.Fatalf("closed = %v, want one gap", ids(b.Closed))
 	}
@@ -191,7 +192,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 			t.Fatalf("cite %q: %v", c.claim, err)
 		}
 	}
-	if b := board(t, runDir, "merge", "red-merge-r1"); b.Counts.Citations != 2 {
+	if b := board(t, runDir, "red-merge-r1"); b.Counts.Citations != 2 {
 		t.Errorf("counts.citations = %d, want 2 (two distinct references) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }
@@ -240,7 +241,7 @@ func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
 	}
 	f.Close()
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if b.Counts.Anomalies == 0 {
 		t.Fatal("a ruling on an unknown gap produced NO anomaly — this is the silent drop that let a board be wrong by six gaps for three rounds")
 	}

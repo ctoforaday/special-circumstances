@@ -51,7 +51,9 @@ func TestEveryRegisteredFlagIsInTheDeclaredVocabulary(t *testing.T) {
 	declared["version"] = true
 
 	found := map[string][]string{}
-	walkFlags(newRoot(), "", found)
+	for _, r := range AllRoots() {
+		walkFlags(r, "", found)
+	}
 
 	if len(found) == 0 {
 		t.Fatal("walked the command tree and found no flags at all — the walk is broken, and a broken walk would pass this test silently forever")
@@ -74,7 +76,9 @@ func TestEveryRegisteredFlagIsInTheDeclaredVocabulary(t *testing.T) {
 // would have caught the file's original state, where 20 of 24 constants were orphans.
 func TestEveryDeclaredFlagIsActuallyRegistered(t *testing.T) {
 	found := map[string][]string{}
-	walkFlags(newRoot(), "", found)
+	for _, r := range AllRoots() {
+		walkFlags(r, "", found)
+	}
 
 	var orphans []string
 	for _, n := range flags.All() {
@@ -132,7 +136,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 			byType[t] = append(byType[t], c)
 		}
 	}
-	walk(newRoot())
+	for _, r := range AllRoots() {
+		walk(r)
+	}
 
 	// AN EVENT TYPE IS NOT ALWAYS A VERB. `friction-none` is what `friction --none` records, so it
 	// has required fields and no command of its own — its flags live on `friction`.

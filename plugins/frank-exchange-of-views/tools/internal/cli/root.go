@@ -115,10 +115,10 @@ func RoleOfSeat(seatID string) string {
 // which seat's), so the REFUSAL has to carry the reason.
 func noSeatNote(seatID string) string {
 	if strings.TrimSpace(seatID) == "" {
-		return "\n\nTHIS IS THE OPERATOR SURFACE, because nothing identified you: " + seatenv.SeatVar +
-			" is unset and no --seat-id was given. A seat's verbs are scoped to its role and the engine injects " +
-			"the identity that selects them, so a process with no identity has no seat verbs at all — they are " +
-			"missing rather than refused. Say who you are: a seat id, or `" + record.OperatorRole + "`."
+		return "\n\n--seat-id IS REQUIRED HERE, because nothing identified you: " + seatenv.SeatVar +
+			" is unset and no --seat-id was given. The surface is scoped to whoever is asking, so there is no " +
+			"tree to show until you say who that is — a seat id, or `" + record.OperatorRole + "`. In a real run " +
+			"the engine injects it and you never type it."
 	}
 	if RoleOfSeat(seatID) == "" {
 		return "\n\nTHIS IS THE OPERATOR SURFACE, because " + seatID + " belongs to no role namespace. The " +
@@ -180,7 +180,14 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// So the split is total. `fetch` and `count-claims` cross it because seats genuinely run them
 	// — a lens reads blue's cached source bytes, and blue's claim_count is defined as what
 	// count-claims prints — and neither name collides.
-	if role := RoleOfSeat(seatID); role != "" && role != record.OperatorRole {
+	// NO IDENTITY IS NOT A MODE. It used to fall through to the operator surface, which made
+	// "nobody said who I am" a way of selecting a tree — and a tree nobody selects is one nobody
+	// can be refused from. The surface is scoped to whoever is asking, so there is nothing to show
+	// until that is answered; `--seat-id operator` is how an operator answers it.
+	switch role := RoleOfSeat(seatID); {
+	case strings.TrimSpace(seatID) == "":
+		// No verbs at all. root.RunE below carries the reason.
+	case role != "" && role != record.OperatorRole:
 		verbs, short := seatVerbs(role)
 		seat.SetRole(root, role)
 		root.Short = short
@@ -189,7 +196,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		root.AddCommand(motion.NewCommandFor(role))
 		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
 		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
-	} else {
+	default:
 		root.AddCommand(
 			newVerify(),      // operator cross-check, not a seat role — read-only over the record
 			newGraph(),       // operator: render a run's actual behaviour from the record
@@ -317,7 +324,7 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string) error {
 			return nil
 		}
 	}
-	return seat.RefuseAndTeach(root, unknownCommandRefusal(root, name))
+	return seat.RefuseAndTeach(root, unknownCommandRefusal(root, name)+noSeatNote(seatenv.Dispatched()))
 }
 
 // Execute runs the CLI. Abort-safety is armed first: a seat killed mid-command

@@ -197,7 +197,9 @@ func TestVerbPayloads(t *testing.T) {
 			// `path`, as three already do.
 			path := tc.path
 			if path == nil {
-				path = []string{tc.role, tc.typ}
+				// The verb alone: the seat id selects the tree, so the role is no longer
+				// part of what a seat types.
+				path = []string{tc.typ}
 			}
 			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
 			args = append(args, tc.args...)

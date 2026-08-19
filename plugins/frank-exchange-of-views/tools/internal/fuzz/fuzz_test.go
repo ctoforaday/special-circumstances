@@ -316,7 +316,7 @@ func (r *runner) register(role, seatID string) {
 		return
 	}
 	r.registered[seatID] = true
-	_, _ = r.exec(role, "register", "--seat-id", seatID)
+	_, _ = r.exec("register", "--seat-id", seatID)
 }
 
 var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
@@ -1357,7 +1357,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// merge reads is a view nobody checks from the seat that actually reads it.
 	for _, role := range []string{"blue", "lens", "merge", "bench"} {
 		for _, v := range viewNamesForFuzz {
-			args := []string{role, "show", v, "--run", runDir}
+			args := []string{"show", v, "--run", runDir}
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
 			}
@@ -1382,9 +1382,13 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		// window that worked on the merge and not on blue would mean the projection had grown
 		// a per-role surface — and --window 0 is the degenerate size that must still resolve to
 		// the anchored line rather than to nothing.
-		for _, role := range []string{"blue", "lens", "merge", "bench"} {
+		// A SEAT ID PER ROLE, because the tree is scoped to the dispatched identity: without one
+		// the binary builds the OPERATOR surface, where `show` does not exist at all.
+		for _, sid := range map[string]string{
+			"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
+		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
-				args := append([]string{role, "show", "report", "--anchor", a, "--run", runDir}, extra...)
+				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
 				out, err := tracked(bin, args...)
 				if err != nil {
 					res.err = strings.Join(args, " ") + " failed:\n" + truncate(string(out))
