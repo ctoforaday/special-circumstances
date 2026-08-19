@@ -203,7 +203,6 @@ var promptView = regexp.MustCompile(`--view\s+([a-z][a-z-]+)`)
 // check. A second `show` inside one invocation is never right.
 var promptViewSub = regexp.MustCompile(`(?:feov-record"?|})\s+(?:lens|merge|blue|bench)\s+show\s+([a-z][a-z-]*)`)
 
-
 var promptShowDoubled = regexp.MustCompile(`\bshow\s+(?:--\S+\s+\S+\s+)+show\b`)
 
 // agentFacingFiles are the surfaces a seat reads: the orchestrator's prompts, the role
