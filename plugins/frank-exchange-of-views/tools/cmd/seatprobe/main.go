@@ -89,7 +89,7 @@ func main() {
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
 		patterns   = flag.String("patterns", "none", "red's gap-pattern memory: `none`, `file` (staged at inputs/red-gap-patterns.md — the MOUNTED FILE form), or `duty` (staged AND named in the prompt, selected by the classes of this board's gaps — the DUTY form)")
-		naming     = flag.String("naming", string(seatprobe.NamingPartial), "how much of the verb surface the constitution states: `none` (names redacted), `partial` (as it ships — the condition every prior probe ran under), or `complete` (the whole surface, generated from the tree)")
+		naming     = flag.String("naming", string(seatprobe.NamingNone), "how much of the verb surface the constitution states: `none` (THE SHIPPED CONFIGURATION — the constitutions name no verb, and redaction is a belt-and-braces pass over them), `partial` (a CONSTRUCTED few-verb list, the shape a hand-kept list in a constitution had), or `complete` (the whole surface, generated from the tree)")
 		duty       = flag.String("duty", string(record.DutyShipped), "how much the BOARD tells the seat: `off` (no duties at all), `shipped` (the enforced duties only), `available` (plus what the board affords), `available+board` (and carried on `show board`, the projection seats actually read)")
 		directive  = flag.Bool("help-directive", false, "append production's `read --help before your first act` instruction, which debate.js carries and the probe prompt never has")
 	)
@@ -466,13 +466,19 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 // armConstitution writes the arm's constitution beside the trajectory and returns its path.
 //
 // It lands OUTSIDE the run directory, for the same reason the trajectory does: a seat that can read
-// the treatment applied to it is a seat reading the experiment rather than the board. The `partial`
-// arm with no directive is passed through untouched, so the status quo is byte-for-byte the file
-// every earlier probe used and the ladder has a real baseline rather than a re-rendered one.
+// the treatment applied to it is a seat reading the experiment rather than the board.
+//
+// EVERY ARM IS RENDERED. There was a short-circuit here — `partial` with no directive returned the
+// shipped file untouched — and it was correct exactly as long as `partial` MEANT the shipped file.
+// It stopped meaning that when the constitutions stopped naming verbs: `partial` became a
+// constructed treatment, and the short-circuit went on returning the shipped bytes, so the arm
+// dispatched was byte-identical to `none`. Two arms, one treatment, and a difference of zero
+// between them that reads as a finding about naming.
+//
+// Caught mid-experiment, by reading the path rather than by any test: TestTheThreeArmsDiffer
+// exercises Constitution(), and the bug lived in the caller that decides whether to call it. The
+// test below now covers this function, which is the one the probe actually takes.
 func armConstitution(src, runDir string, sf seatprobe.Surface, role string, arm seatprobe.Naming, directive bool) (string, error) {
-	if arm == seatprobe.NamingPartial && !directive {
-		return src, nil
-	}
 	b, err := os.ReadFile(src)
 	if err != nil {
 		return "", err
