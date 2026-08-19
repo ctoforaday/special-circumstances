@@ -506,7 +506,7 @@ func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
 		// own required flags is a verb that can forget, and the forgetting is silent —
 		// the help simply looks like everything is optional. Every role passes through
 		// this loop, so every verb is annotated by construction.
-		markRequired(v, v.Name())
+		markTree(v)
 		names = append(names, v.Name())
 		c.AddCommand(v)
 	}

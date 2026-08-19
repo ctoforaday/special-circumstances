@@ -13,33 +13,31 @@ import (
 
 // close: retire a gap, WITH the evidence that it is retired.
 //
-// The anchor triple (who verified, with what, against what) is required because
-// E0.5a found unanchored closures unauditable after the fact — the record said a
-// thing was checked and could not say by whom, how, or against what. --carried-
-// from is the honest alternative: this closure is not a fresh act, it is last
-// round's, restated.
+// The verification triple (who checked, with what, against what) is required because E0.5a found
+// unanchored closures unauditable after the fact — the record said a thing was checked and could
+// not say by whom, how, or against what.
+//
+// # Why `carry` is a VERB and not a flag on this one
+//
+// A carry is not a closure with a flag set; it is a DIFFERENT ACT with a different contract, and
+// `validate` said so in four branches keyed off `--carried-from`: a carry needs no verification
+// triple, is exempt from --reason (it restates a closure that already gave one), is exempt from
+// the open-gap check (the gap is closed — that is the point), and must name a real prior closure.
+//
+// One verb held both, so cobra could require nothing: the triple was three optional flags, and
+// the seat that could not produce them found `--carried-from` offered in the same help as the
+// easier way out. Two verbs, and each requires what it actually requires.
 func newClose() *cobra.Command {
 	c := seat.New("close",
-		`close a gap WITH its verification anchor: --id R2-3 --as closed|closed_with_regression|... (--anchor-seat L1 --anchor-tool "git show" --anchor-target "7bc501e:path" | --carried-from <round>) [--successor R3-1] --reason "<what was verified and why it holds>"`,
+		`close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			class := seat.Str(cmd, flags.As)
-			if class == "" {
-				class = "closed"
-			}
-			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-			p.Set("closure_class", class)
-			seat.Set(cmd, p, "anchor_seat", flags.AnchorSeat)
-			seat.Set(cmd, p, "anchor_tool", flags.AnchorTool)
-			seat.Set(cmd, p, "anchor_target", flags.AnchorTarget)
-			seat.Set(cmd, p, "carried_from", flags.CarriedFrom)
-			seat.SetSame(cmd, p, flags.Successor)
-			// The SHARED prose channel, not a private one. close hand-rolled its own
-			// --file read and so was the only prose-bearing verb with no --text at all —
-			// the same shape as the --prose-file divergence, one layer down: a verb that
-			// opts out of the shared helper drifts from it by construction.
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			p, err := closurePayload(cmd)
+			if err != nil {
 				return nil, err
 			}
+			seat.Set(cmd, p, "anchor_seat", flags.VerifiedBy)
+			seat.Set(cmd, p, "anchor_tool", flags.VerifiedWith)
+			seat.Set(cmd, p, "anchor_target", flags.VerifiedAgainst)
 			// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
 			//
 			// This is what makes --check-kind a demand rather than a label. Red asked for a
@@ -62,26 +60,88 @@ func newClose() *cobra.Command {
 			if _, err := record.Append(s.Identity(), "close", p); err != nil {
 				return nil, err
 			}
-			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: class}, nil
+			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: p.Str("closure_class")}, nil
 		})
 
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
-	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word"))
-	c.Flags().String(flags.AnchorSeat, "", "WHO verified the closure (the seat)")
-	c.Flags().String(flags.AnchorTool, "", "WITH WHAT it was verified (the tool or command)")
-	c.Flags().String(flags.AnchorTarget, "", "AGAINST WHAT — the exact file, ref or URL read")
-	c.Flags().String(flags.CarriedFrom, "", "the round this closure was carried from, when it is not a fresh act")
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Successor, "the gap id carrying the unresolved remainder forward")
+	closureFlags(c)
+	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
+	c.Flags().String(flags.VerifiedWith, "", "WITH WHAT — the tool or command that showed it")
+	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the exact file, ref or URL read")
+	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
+	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
+	// unanchored one that spent the seat's turn before saying so.
+	c.MarkFlagsRequiredTogether(flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
+	_ = c.MarkFlagRequired(flags.VerifiedBy)
 	return seat.Prose(c)
+}
+
+// carry: restate a closure made in an earlier round.
+//
+// Not a mode of `close`. It carries no fresh verification because it makes no fresh claim — the
+// round it names already did, and the record is checked against that: a carry of a gap with no
+// prior closure is refused, because otherwise it is a laundering path for exactly the seat that
+// could not produce a verification triple.
+func newCarry() *cobra.Command {
+	c := seat.Records(seat.New("carry",
+		`restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. `+
+			`It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.`,
+		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			p, err := closurePayload(cmd)
+			if err != nil {
+				return nil, err
+			}
+			seat.Set(cmd, p, "carried_from", flags.CarriedFrom)
+			if _, err := record.Append(s.Identity(), "close", p); err != nil {
+				return nil, err
+			}
+			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: p.Str("closure_class"), Carried: true}, nil
+		}), "close")
+
+	closureFlags(c)
+	c.Flags().String(flags.CarriedFrom, "", "the round whose closure this restates")
+	_ = c.MarkFlagRequired(flags.CarriedFrom)
+	return seat.Prose(c)
+}
+
+// closureFlags are what both verbs take: which gap, how it ended, and where the remainder went.
+func closureFlags(c *cobra.Command) {
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
+	_ = c.MarkFlagRequired(flags.ID)
+	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word"))
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.SupersededBy, "the gap id carrying the unresolved remainder forward")
+}
+
+// closurePayload builds what a closure records before either verb adds its own evidence.
+func closurePayload(cmd *cobra.Command) (*record.Payload, error) {
+	class := seat.Str(cmd, flags.As)
+	if class == "" {
+		class = "closed"
+	}
+	p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
+	p.Set("closure_class", class)
+	seat.Set(cmd, p, "successor", flags.SupersededBy)
+	// The SHARED prose channel, not a private one. close hand-rolled its own --file read and so
+	// was the only prose-bearing verb with no --text at all — a verb that opts out of the shared
+	// helper drifts from it by construction.
+	if err := seat.SetReason(cmd, p, "reason"); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // closeResult names the closed gap and the closure class it was retired under.
 type closeResult struct {
-	GapID string `json:"gap_id"`
-	Class string `json:"class"`
+	GapID   string `json:"gap_id"`
+	Class   string `json:"class"`
+	Carried bool   `json:"carried,omitempty"`
 }
 
-func (r closeResult) Human() string { return "closed " + r.GapID + " (" + r.Class + ")" }
+func (r closeResult) Human() string {
+	if r.Carried {
+		return "carried the closure of " + r.GapID + " (" + r.Class + ")"
+	}
+	return "closed " + r.GapID + " (" + r.Class + ")"
+}
 
 // computationGapKind reports whether the named gap was minted as a computation check.
 func computationGapKind(runDir, gapID string) (bool, error) {

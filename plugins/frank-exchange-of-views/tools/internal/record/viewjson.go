@@ -177,7 +177,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 			gj.CheckKind = g.Mint.Str("check_kind")
 			gj.AwaitingProof = g.Open && gj.CheckKind == CheckKindComputation && !proofNames(b, g.ID)
 			gj.FixBasis = g.Mint.Str("fix_basis")
-			gj.FixOld = g.Mint.Str("fix_old")
+			gj.FixOld = g.Mint.Str("location")
 			gj.FixNew = g.Mint.Str("fix_new")
 			gj.FoundBy = strs(g.Mint.StrList("found_by"))
 			gj.Supersedes = strs(g.Mint.StrList("supersedes"))

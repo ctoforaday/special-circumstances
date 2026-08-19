@@ -98,6 +98,37 @@ invariant was assumed to hold on its own.
   RULES and nothing checked it. The duty existed; the mechanism did not — which
   is the class, exactly.
 
+### two-contracts-one-verb
+One verb name covers two acts whose REQUIRED fields differ, so no static
+declaration can require either half — and the contract falls back to prose inside
+the handler, where nothing refuses it at parse and `--help` cannot state it.
+The surface then grows synonym flags to keep the two modes apart, which is the
+visible symptom and not the defect.
+- **Instances**: `blue line-of-inquiry` was a proposal (no id, status defaulted)
+  and a move (id, status and reason all required), told apart by whether `--id`
+  was passed — so both forms ran with every flag optional and a whole
+  `conditionallyRequired` mechanism existed in the seat package to describe this
+  one verb. `lens verify` was adjudicating a citation blue authored (`--anchor`
+  required) and corroborating a source red found (`--anchor` meaningless, the
+  source the only identification) — one flag, `--independent`, standing in for
+  the second contract. `merge close` was a fresh anchored closure and a
+  `--carried-from` restatement, which `validate` distinguished in FOUR branches:
+  a carry needs no verification triple, is exempt from `--reason`, is exempt from
+  the open-gap check, and must name a real prior closure. `merge mint` also
+  coined gap classes, with a boolean whose whole meaning was "I also passed three
+  other flags", writing a second event that had nothing to do with the board.
+- **What it costs**: the seat that cannot produce a verification triple finds the
+  easier mode offered in the same help. Four of these verbs shipped with cobra's
+  `MarkFlagRequired` used on none of their fields, because marking any of them
+  broke the other invocation.
+- **Sweep question**: does this verb's REQUIRED set depend on which flags were
+  passed? If yes, it is two verbs, and the split is what lets each one require
+  what it actually requires.
+- **Neighbour**: `policy-without-mechanism` — a rule with no enforcer.
+- **Distinguisher**: does an enforcer EXIST that could hold the rule? If nothing
+  anywhere enforces it, it is policy-without-mechanism. If the enforcer is right
+  there and unusable because one name covers two contracts, it is this.
+
 ### archaeology-in-live-surface
 A surface an agent reads carries prose about a thing that NO LONGER EXISTS — a
 retired verb, a deleted file, a mode that was removed — so every seat spends

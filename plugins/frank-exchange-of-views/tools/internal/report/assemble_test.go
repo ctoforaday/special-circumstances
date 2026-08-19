@@ -86,11 +86,11 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if s := verdictStamp(halted); !strings.Contains(s, "HALTED") || !strings.Contains(s, "Bench disposition") {
 		t.Errorf("HALTED stamp must point at the recorded halt opinion: %q", s)
 	}
-	deadlock := record.NewPayload().Set("verdict", "UNVERIFIED").Set("deadlocked", true)
+	deadlock := record.NewPayload().Set("verdict", "UNVERIFIED").Set("ended", "deadlock")
 	if s := verdictStamp(deadlock); !strings.Contains(s, "UNVERIFIED by judged deadlock") {
 		t.Errorf("deadlock reason not stamped: %q", s)
 	}
-	exhausted := record.NewPayload().Set("verdict", "UNVERIFIED").Set("exhausted", true)
+	exhausted := record.NewPayload().Set("verdict", "UNVERIFIED").Set("ended", "ceiling")
 	if s := verdictStamp(exhausted); !strings.Contains(s, "UNVERIFIED by safety ceiling") {
 		t.Errorf("exhausted reason not stamped: %q", s)
 	}
@@ -302,7 +302,7 @@ func TestVerdictBasisReachesTheReader(t *testing.T) {
 // read identically to one written from memory of what the document probably said.
 func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 	verified := record.NewPayload().Set("fix_basis", "verified").
-		Set("fix_old", "the parser is linear").Set("fix_new", "the parser is linear except on backtracking")
+		Set("location", "the parser is linear").Set("fix_new", "the parser is linear except on backtracking")
 	s := fixProposal(verified)
 	for _, want := range []string{"**verified**", "with the text in front of it", "the parser is linear except on backtracking"} {
 		if !strings.Contains(s, want) {

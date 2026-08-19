@@ -132,7 +132,10 @@ func ProposalAppliedVerbatim(runDir, gapID, old, new string) (bool, error) {
 	if !ok || g.Mint == nil {
 		return false, nil
 	}
-	return g.Mint.Str("fix_old") == old && g.Mint.Str("fix_new") == new, nil
+	// THE SPAN IS THE GAP'S OWN `location`. It was a separate `fix_old` holding the same
+	// sentence, matched by a second matcher — a gap's location and the span its proposal
+	// replaces were never two facts.
+	return g.Mint.Str("location") == old && g.Mint.Str("fix_new") == new, nil
 }
 
 // FrictionKindEstoppel marks a friction event as an estoppel REFUSAL rather than a seat's

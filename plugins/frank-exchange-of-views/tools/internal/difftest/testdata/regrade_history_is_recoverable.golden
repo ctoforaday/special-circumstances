@@ -3,7 +3,7 @@ exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --cx high --problem graded high at mint
+$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
 exit 0
 stdout:
 minted R1-1
@@ -11,7 +11,32 @@ minted R1-1
 $ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
 exit 2
 stderr:
-feov-record: merge: record: regrade requires --reason (grade movement is recorded with its reason)
+feov-record: at least one of the flags in the group [reason reason-file] is required
+
+same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  {TOOL} regrade [flags]
+
+Flags:
+      --complexity grade   what fixing it costs, on the same scale
+  -h, --help               help for regrade
+      --id gap-id          the gap id
+      --impact grade       how bad the consequence is if it lands
+      --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
+      --reason string      REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -      read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --severity grade     how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 $ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0

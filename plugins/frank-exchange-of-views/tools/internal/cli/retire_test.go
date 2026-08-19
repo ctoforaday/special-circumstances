@@ -16,7 +16,7 @@ func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
 
 	_, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--claim", "Five independent approaches agree.", "--reason", "overclaim")
+		"--quote", "Five independent approaches agree.", "--reason", "overclaim")
 	if err == nil {
 		t.Fatal("a claim still present in the report was retired — the record now says it left while it sits there")
 	}
@@ -34,12 +34,12 @@ func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--old", "Five independent approaches agree.", "--new", "Two approaches agree.",
+		"--quote", "Five independent approaches agree.", "--new", "Two approaches agree.",
 		"--answers", "R1-1", "--reason", "narrow the claim"); err != nil {
 		t.Fatalf("edit refused: %v", err)
 	}
 	if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--claim", "Five independent approaches agree.", "--reason", "the independence was never established"); err != nil {
+		"--quote", "Five independent approaches agree.", "--reason", "the independence was never established"); err != nil {
 		t.Fatalf("retiring a claim an edit removed was refused: %v", err)
 	}
 	ev := lastOfType(t, runDir, "retire")
@@ -59,7 +59,7 @@ func TestAPhantomRetireIsMarkedAsserted(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSomething entirely else.\n")
 
 	if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--claim", "a claim that was never in this report", "--reason", "fuzz"); err != nil {
+		"--quote", "a claim that was never in this report", "--reason", "fuzz"); err != nil {
 		t.Fatalf("retire refused: %v", err)
 	}
 	ev := lastOfType(t, runDir, "retire")

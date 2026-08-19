@@ -17,16 +17,15 @@ func newManifestRow() *cobra.Command {
 	c := seat.Prose(seat.New("manifest-row",
 		`one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+			// --reason IS the row. `--row` was a second word for the same prose on the one
+			// verb whose payload key happened to share its name, and the verb already fell back
+			// to the prose channel when it was absent — two spellings, one value.
 			text, err := seat.Reason(cmd)
 			if err != nil {
 				return nil, err
 			}
-			row := seat.Str(cmd, flags.Row)
-			if row == "" {
-				row = text
-			}
 			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-			p.Set("row", row)
+			p.Set("row", text)
 			if _, err := record.Append(s.Identity(), "manifest-row", p); err != nil {
 				return nil, err
 			}
@@ -34,11 +33,6 @@ func newManifestRow() *cobra.Command {
 		}))
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this receipt covers")
-	// THE ALTERNATIVE IS NAMED IN THE SAME SENTENCE, as --problem's is on mint. The field is
-	// required and this flag is not the only way to fill it: the verb falls back to the prose
-	// channel, so a help that said REQUIRED without saying that would describe a constraint the
-	// tool does not have.
-	c.Flags().String(flags.Row, "", "what you checked and what it showed, compressed to one line (or pass it via --reason)")
 	return c
 }
 

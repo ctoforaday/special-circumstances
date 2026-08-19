@@ -13,7 +13,7 @@ import (
 // protects a finding marker, so the set of cite events stays a strict bijection with the
 // citation anchors in the document.
 
-// TestBlueEditRejectsSpanContainingCitation pins the spanMarker site: an --old span that
+// TestBlueEditRejectsSpanContainingCitation pins the spanMarker site: an --quote span that
 // straddles a "<!--cite:-->" anchor is refused, and the message names it as a citation.
 func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
 	runDir := t.TempDir()
@@ -22,7 +22,7 @@ func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
 	registerBlue(t, runDir)
 
 	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "value is stable", "--new", "value is steady", "--reason", "wording")
+		"--key", "E1", "--quote", "value is stable", "--new", "value is steady", "--reason", "wording")
 	if err == nil {
 		t.Fatal("an edit straddling a citation anchor was accepted")
 	}
@@ -47,11 +47,11 @@ func TestCiteAnchorBijection(t *testing.T) {
 	}})
 
 	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", blueSeat,
-		"--location", `"Alpha holds under load."`, "--url", "https://a", "--title", "A"); err != nil {
+		"--quote", `"Alpha holds under load."`, "--url", "https://a", "--title", "A"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", blueSeat,
-		"--location", `"Beta holds under load too."`, "--url", "https://b", "--title", "B"); err != nil {
+		"--quote", `"Beta holds under load too."`, "--url", "https://b", "--title", "B"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,7 +59,7 @@ func TestCiteAnchorBijection(t *testing.T) {
 
 	// An edit that does NOT touch an anchor keeps the bijection.
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--old", "under load too", "--new", "under heavy load too", "--reason", "precision"); err != nil {
+		"--key", "E1", "--quote", "under load too", "--new", "under heavy load too", "--reason", "precision"); err != nil {
 		t.Fatalf("clean edit: %v", err)
 	}
 	assertBijection(t, runDir)
@@ -109,7 +109,7 @@ func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
 			registerBlue(t, runDir)
 
 			_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-				"--key", "E1", "--old", "The value is stable", "--new", "The value is steady"+c.anchor,
+				"--key", "E1", "--quote", "The value is stable", "--new", "The value is steady"+c.anchor,
 				"--reason", "pasting an anchor into the replacement")
 			if err == nil {
 				t.Fatal("an edit whose --new duplicated an anchor was ACCEPTED")

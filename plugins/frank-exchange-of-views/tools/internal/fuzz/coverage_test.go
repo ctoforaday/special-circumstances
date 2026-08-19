@@ -39,13 +39,13 @@ var flagExemptions = map[string]string{
 	"now":            "dashboard's clock injection, for its own deterministic tests",
 	"model":          "dashboard's tier labels, read from run-config in a real run",
 	"judgment-model": "as above",
-	"deadlocked":     "bench outcome's judged-deadlock flag. debate.js CANNOT produce one — deadlock is hardcoded false whenever red raised anything new (#289) — so nothing can drive it until the bench has a real stopping call. The tripwire in TestFuzzDebate asserts every verdict is DERIVED, which is the same fact from the other side",
 }
 
 // enumExemptions are enum values no sweep can reach, each with its reason.
 var enumExemptions = map[string]string{
-	"outcome --as HALTED":     "a halt reshapes every downstream oracle, so it is driven by TestFuzzHaltPath rather than the random sweep (the same reason `bench halt` is exempt from the command-path gate)",
-	"outcome --as UNVERIFIED": "reachable only on a judged deadlock, which debate.js cannot produce while `deadlock` is hardcoded false (#289) — the value exists for a terminal state the engine has no path to",
+	"outcome --as HALTED":      "a halt reshapes every downstream oracle, so it is driven by TestFuzzHaltPath rather than the random sweep (the same reason `bench halt` is exempt from the command-path gate)",
+	"outcome --as UNVERIFIED":  "reachable only on a judged deadlock, which debate.js cannot produce while `deadlock` is hardcoded false (#289) — the value exists for a terminal state the engine has no path to",
+	"outcome --ended deadlock": "the same terminal state from the other side: `--ended deadlock` says HOW an UNVERIFIED run ended, and UNVERIFIED is itself unreachable (above). It was two booleans until the flag audit, and the exemption travelled with the fact rather than with the spelling",
 }
 
 func unreachedFlags() []string {

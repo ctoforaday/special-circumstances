@@ -23,7 +23,7 @@ var findingID = regexp.MustCompile(`f-[0-9a-f]{8}`)
 func TestARecordedFindingIsToldItsID(t *testing.T) {
 	runDir := seatRun(t)
 	out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--key", "F1", "--location", "§1", "--reason", "a finding",
+		"--key", "F1", "--quote", "§1", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestTwoLensesGetRolePrefixedLabelsThatCannotCollide(t *testing.T) {
 	labels, ids := map[string]bool{}, map[string]bool{}
 	for _, seat := range []string{"red-lens-r1-L1", "red-lens-r1-L2"} {
 		out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seat,
-			"--key", "F1", "--location", "§1", "--reason", "a finding",
+			"--key", "F1", "--quote", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low")
 		if err != nil {
 			t.Fatal(err)
@@ -69,7 +69,7 @@ var labelRe = regexp.MustCompile(`L\d+-F\d+`)
 func TestEveryFindingGetsAToolAssignedLabel(t *testing.T) {
 	runDir := seatRun(t)
 	out, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--key", "F1", "--location", "§1", "--reason", "a finding",
+		"--key", "F1", "--quote", "§1", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err != nil {
 		t.Fatalf("a finding must record and receive a label: %v", err)

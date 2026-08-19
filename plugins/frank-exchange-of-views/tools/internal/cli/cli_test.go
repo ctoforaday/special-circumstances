@@ -39,7 +39,7 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	root.SetOut(&out)
 	root.SetErr(&out)
 	root.SetArgs(args)
-	err = root.Execute()
+	err = ExecuteRoot(root)
 	// THE HARNESS REPRODUCES THE BINARY. A flag-PARSE refusal never reaches seat.Emit, so
 	// Execute() renders it as a --json envelope itself; a harness that skipped that step would
 	// measure a wire shape the binary does not produce.
@@ -54,7 +54,7 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 
 // seedBlueReport writes a blue/report.md whose prose contains the quoted sentences
 // the finding tests anchor to (slice 1b: a lens finding is rejected unless its
-// --location quote is present in the report). One generous body covers the tokens
+// --quote quote is present in the report). One generous body covers the tokens
 // the suite uses (§1..§3, the parser quote, sec 1, a quoted sentence).
 func seedBlueReport(t *testing.T, runDir string) {
 	t.Helper()
@@ -143,10 +143,20 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 	}{
 		{"lens finding without --run", []string{"lens", "finding", "--seat-id", "red-lens-r1-L1"}, "lens: --run <runDir> is required"},
 		{"lens finding without --seat-id", []string{"lens", "finding", "--run", "X"}, "lens: --seat-id is required"},
-		{"merge mint without --run", []string{"merge", "mint", "--seat-id", "red-merge-r1"}, "merge: --run <runDir> is required"},
-		{"merge mint without --seat-id", []string{"merge", "mint", "--run", "X"}, "merge: --seat-id is required"},
-		{"blue revision without --run", []string{"blue", "revision", "--seat-id", "blue-lane-1"}, "blue: --run <runDir> is required"},
-		{"bench opinion without --seat-id", []string{"bench", "opinion", "--run", "X"}, "bench: --seat-id is required"},
+		// EACH CASE CARRIES THE VERB'S OTHER REQUIRED FLAGS. Cobra refuses a missing required
+		// flag at PARSE, before Begin reaches the run and seat-id checks, so a case that omits
+		// them measures whichever refusal fires first rather than the one it is named for.
+		{"merge mint without --run", []string{"merge", "mint", "--seat-id", "red-merge-r1",
+			"--check", "c", "--check-kind", "document", "--impact", "medium", "--likelihood", "medium",
+			"--class", "x", "--problem", "p"}, "merge: --run <runDir> is required"},
+		{"merge mint without --seat-id", []string{"merge", "mint", "--run", "X",
+			"--check", "c", "--check-kind", "document", "--impact", "medium", "--likelihood", "medium",
+			"--class", "x", "--problem", "p"}, "merge: --seat-id is required"},
+		{"blue revision without --run", []string{"blue", "revision", "--seat-id", "blue-lane-1",
+			"--reason", "what changed this round"}, "blue: --run <runDir> is required"},
+		{"bench opinion without --seat-id", []string{"bench", "opinion", "--run", "X",
+			"--id", "R1-1", "--as", "carried", "--principle", "p", "--tension", "t",
+			"--review-flag", "no", "--reason", "r"}, "bench: --seat-id is required"},
 		{"register is not exempt", []string{"lens", "register", "--run", "X"}, "lens: --seat-id is required"},
 	}
 	for _, tc := range cases {
@@ -174,13 +184,6 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 			// verbs whose flags cobra marks refuse at PARSE time, before Begin reaches the
 			// run/seat-id checks — so a case that omits both measures whichever fires first
 			// rather than the one it is named for.
-			if strings.Contains(err.Error(), "required flag") || strings.Contains(err.Error(), "one of the flags in the group") {
-				args = append(args, "--reason", "supplied so the refusal under test is the run/seat one")
-				_, err = run(t, args...)
-				if err == nil {
-					t.Fatal("the verb ran without its preconditions")
-				}
-			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
 			}
@@ -340,7 +343,7 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 
 	out, err = run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID,
 		"--key", "F1", "--severity", "high", "--likelihood", "medium", "--impact", "high",
-		"--location", "§2", "--reason", "the finding prose")
+		"--quote", "§2", "--reason", "the finding prose")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,10 +377,10 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	runDir := t.TempDir()
 	seedBlueReport(t, runDir)
 	seatID := "red-lens-r1-L1"
-	// --location and --reason are required (1b); likelihood/impact are still optional,
+	// --quote and --reason are required (1b); likelihood/impact are still optional,
 	// so they are the unpassed flags whose absence this pins.
 	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID,
-		"--key", "F1", "--severity", "high", "--location", "§1", "--reason", "t"); err != nil {
+		"--key", "F1", "--severity", "high", "--quote", "§1", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
 	keys := payloadKeys(lastOfType(t, runDir, "finding"))
@@ -552,21 +555,23 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	}
 }
 
-// --class-new both names the class and mints it, so it wins over --class and
-// emits a second event registering the slug.
-func TestMintClassNewWinsOverClassAndRecordsTheSlug(t *testing.T) {
+// COINING IS ITS OWN VERB, and a mint against the coined slug records that this run coined it —
+// derived from the registry rather than asserted by a boolean the seat sets.
+func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
+	if _, err := run(t, "merge", "class", "new", "--run", runDir, "--seat-id", seatID,
+		"--class", "brand-new", "--definition", "d", "--neighbor", "n", "--distinguisher", "q"); err != nil {
+		t.Fatal(err)
+	}
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "ignored", "--class-new", "brand-new",
-		"--definition", "d", "--neighbor", "n", "--distinguisher", "q",
-		"--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
+		"--class", "brand-new", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := lastOfType(t, runDir, "mint")
 	if got := m.Payload.Str("class"); got != "brand-new" {
-		t.Errorf("class = %q, want the --class-new slug", got)
+		t.Errorf("class = %q, want the slug from --class", got)
 	}
 	if v, _ := m.Payload.Get("class_new"); v != true {
 		t.Errorf("class_new = %v, want true", v)
@@ -704,24 +709,27 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1")
+	// --reason is supplied so the refusal under test is the ANCHOR one: cobra refuses a missing
+	// required flag at parse, before the handler that checks the anchor ever runs.
+	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
+		"--reason", "closed after verification")
 	if err == nil {
 		t.Fatal("an unanchored closure was accepted")
 	}
-	if !strings.Contains(err.Error(), "attestation anchor") {
+	if !strings.Contains(err.Error(), "verified-by") {
 		t.Errorf("error = %q", err)
 	}
 
-	// A partial anchor is not an anchor.
+	// A partial verification is not a verification, and cobra says so at parse.
 	_, err = run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
-		"--anchor-seat", "L1")
+		"--reason", "closed after verification", "--verified-by", "L1")
 	if err == nil {
-		t.Fatal("a partial anchor was accepted")
+		t.Fatal("a partial verification was accepted")
 	}
 
 	// The full triple closes it.
 	out, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
-		"--anchor-seat", "L1", "--anchor-tool", "git show", "--anchor-target", "7bc501e:f",
+		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:f",
 		"--reason", "verified against the ref")
 	if err != nil {
 		t.Fatal(err)
@@ -736,7 +744,8 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 
 	// Closing an unknown gap is refused before anything is written.
 	_, err = run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R9-9",
-		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x")
+		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
+		"--reason", "supplied so the refusal under test is the reference one")
 	if err == nil {
 		t.Fatal("a closure of an unknown gap was accepted")
 	}
@@ -769,12 +778,12 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 		t.Fatalf("could not read the successor id from %q", succOut)
 	}
 	base := []string{"merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
-		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
+		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 		"--reason", "verified", "--as", "closed_with_regression"}
 	if _, err := run(t, base...); err == nil {
 		t.Fatal("closed_with_regression was accepted without a successor — lineage dropped")
 	}
-	if _, err := run(t, append(base, "--successor", successor)...); err != nil {
+	if _, err := run(t, append(base, "--superseded-by", successor)...); err != nil {
 		t.Fatalf("a successor'd regression close was refused: %v", err)
 	}
 }
@@ -792,7 +801,7 @@ func TestCloseFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
-		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x", "--reason-file", f); err != nil {
+		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason-file", f); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastOfType(t, runDir, "close").Payload.Str("reason"); got != "the whole closure record" {
@@ -800,7 +809,7 @@ func TestCloseFile(t *testing.T) {
 	}
 
 	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
-		"--anchor-seat", "L1", "--anchor-tool", "t", "--anchor-target", "x",
+		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 		"--reason-file", filepath.Join(t.TempDir(), "gone.md"))
 	if err == nil {
 		t.Fatal("a missing --file was ignored")
@@ -813,9 +822,12 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{"regrade without --reason", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "regrade requires --reason"},
-		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "mint requires --check"},
-		{"mint without --class", []string{"merge", "mint", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "mint requires --class"},
+		// The expectation is the FLAG NAME. Cobra refuses these now, and its message names what
+		// is missing without restating what it is for — which the command's own --help already
+		// documents, and which the seat is required to have read before running the command.
+		{"regrade without --reason", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}, "reason"},
+		{"mint without --check", []string{"merge", "mint", "--class", "x", "--problem", "p"}, "check"},
+		{"mint without --class", []string{"merge", "mint", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "class"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -831,7 +843,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				t.Fatal(err)
 			}
 			if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-				"--key", "F1", "--location", "l", "--reason", "t",
+				"--key", "F1", "--quote", "l", "--reason", "t",
 				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 				t.Fatal(err)
 			}
@@ -841,11 +853,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				t.Fatal("the verb was accepted without its reason")
 			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
-				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
-			}
-			// The role leads the message, so the seat knows which contract it broke.
-			if !strings.HasPrefix(err.Error(), "merge:") {
-				t.Errorf("the error does not lead with the role: %q", err)
+				t.Errorf("error = %q, want it to name the missing flag %q", err, tc.wantErr)
 			}
 		})
 	}
@@ -860,26 +868,28 @@ func TestBlueVerbContracts(t *testing.T) {
 		if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", seatID, "--reason", "refuted"); err == nil {
 			t.Error("a retirement with no quoted claim was accepted")
 		}
-		if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", seatID, "--claim", "the claim"); err == nil {
+		if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", seatID, "--quote", "the claim"); err == nil {
 			t.Error("a retirement with no reason was accepted")
 		}
 		if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", seatID,
-			"--claim", "the claim as it stood", "--reason", "refuted"); err != nil {
+			"--quote", "the claim as it stood", "--reason", "refuted"); err != nil {
 			t.Errorf("a complete retirement was refused: %v", err)
 		}
 	})
 
-	t.Run("a declined line of inquiry needs its reason", func(t *testing.T) {
-		if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seatID,
-			"--status", "declined", "--line", "the road not taken"); err == nil {
-			t.Error("a declined line of inquiry with no reason was accepted — that is decoration")
+	t.Run("a line of inquiry is proposed, then moved with what changed", func(t *testing.T) {
+		out, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seatID,
+			"--reason", "the road taken", "--hypothesis", "it leads somewhere")
+		if err != nil {
+			t.Fatalf("a proposal needs no fate: %v", err)
 		}
-		if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seatID,
-			"--status", "pursued", "--line", "the road taken"); err != nil {
-			t.Errorf("a pursued line of inquiry needs no reason: %v", err)
+		id := inquiryIDOf(out)
+		if _, err := run(t, "blue", "line-of-inquiry", "move", "--run", runDir, "--seat-id", seatID,
+			"--id", id, "--as", "declined"); err == nil {
+			t.Error("a move with no reason was accepted — a status that slides silently is decoration")
 		}
-		if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", seatID,
-			"--status", "invented", "--line", "l", "--reason", "r"); err == nil {
+		if _, err := run(t, "blue", "line-of-inquiry", "move", "--run", runDir, "--seat-id", seatID,
+			"--id", id, "--as", "invented", "--reason", "r"); err == nil {
 			t.Error("an undefined line of inquiry status was accepted; the render groups BY status")
 		}
 	})
@@ -925,8 +935,12 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 			if err == nil {
 				t.Fatalf("an opinion was accepted without --%s", missing)
 			}
-			if !strings.Contains(err.Error(), "opinions, not dispositions") {
-				t.Errorf("the refusal must say why: %v", err)
+			// The refusal NAMES the missing flag. What the field is for lives in
+			// `bench opinion --help`, which the seat is required to have read before running
+			// the command — restating it in the error would be a second copy of the same text,
+			// free to drift from the one cobra generates.
+			if !strings.Contains(err.Error(), missing) {
+				t.Errorf("the refusal does not name --%s: %v", missing, err)
 			}
 		})
 	}
@@ -1077,7 +1091,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 	for _, id := range []string{"R1-1", "R1-2"} {
 		if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "closed",
-			"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x", "--reason", "resolved"); err != nil {
+			"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1136,7 +1150,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	// own test); this test is about render + checkpoint on a legitimate PASS.
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", seatID,
 		"--id", "R1-1", "--as", "closed",
-		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./x", "--reason", "resolved"); err != nil {
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := run(t, "merge", "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS")
@@ -1303,8 +1317,11 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
 	}
+	// COBRA REFUSES IT AT PARSE now, because the collapse to one prose channel made --reason
+	// unconditionally required: what a sample found and why there was nothing to sample were
+	// always the same field, and only the branch that wrote it differed.
 	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--none"); err == nil ||
-		!strings.Contains(err.Error(), "--reason") {
+		!strings.Contains(err.Error(), "reason") {
 		t.Fatalf("--none with no reason must be refused, got %v", err)
 	}
 }
@@ -1316,22 +1333,24 @@ func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--none", "--reason", "x", "--ids", "R1-4"); err == nil || !strings.Contains(err.Error(), "contradictory") {
+		"--none", "--reason", "x", "--ids", "R1-4"); err == nil || !strings.Contains(err.Error(), "none") {
 		t.Fatalf("claiming both nothing-to-sample and a sample must be refused, got %v", err)
 	}
 }
 
-// The bare form still works and still records an empty array. The friction claimed the
-// tool could not record an empty round; it could, and TestSpotCheckIdsAreAlwaysAnArray
-// caught the attempt to break that. What was missing was the REASON, not the record.
+// A spot-check with no sample still records an empty array — and now also records WHY, because
+// the reason is required in both forms. The bare form used to be legal and recorded an empty
+// array with no account of it, so "the archive was empty at round start" and "the seat skipped
+// its duty" were the same event.
 func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	runDir := t.TempDir()
 	if _, err := run(t, "merge", "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
-		t.Fatalf("the bare form must keep working: %v", err)
+	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--reason", "nothing was sampled this round"); err != nil {
+		t.Fatalf("the no-sample form must keep working: %v", err)
 	}
 	if keys := payloadKeys(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
 		t.Error("ids must still be present as an empty array")
@@ -1352,9 +1371,9 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 		t.Fatal(err)
 	}
 	minted, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--class-new", "some-class", "--definition", "d", "--neighbor", "n", "--distinguisher", "x",
+		"--class", "some-class",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
-		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low")
+		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low")
 	if err != nil {
 		t.Fatalf("mint: %v", err)
 	}
@@ -1368,11 +1387,20 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	// closure rather than accepted on its say-so.
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", id, "--as", "closed",
-		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/x",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason-file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
 	}
 	if !payloadKeys(lastOfType(t, runDir, "close"))["reason"] {
 		t.Error("the prose from --file must reach the event")
 	}
+}
+
+// inquiryIDOf pulls the tool-assigned line-of-inquiry id out of a propose result.
+func inquiryIDOf(out string) string {
+	m := regexp.MustCompile(`\b(Q\d+)\b`).FindStringSubmatch(out)
+	if m == nil {
+		return ""
+	}
+	return m[1]
 }

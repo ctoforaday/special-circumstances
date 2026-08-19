@@ -91,7 +91,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 					if o.Name == f.Name || !requiredInHelp.MatchString(o.Usage) {
 						return
 					}
-					args = append(args, "--"+o.Name, placeholderFor(o, path))
+					args = append(args, "--"+o.Name, placeholderFor(c, o, path))
 				})
 				_, err := run(t, args...)
 				if err == nil {
@@ -182,7 +182,15 @@ func seatFor(role string) string {
 // placeholderFor supplies a value a flag will ACCEPT, so the refusal under test is the missing
 // one rather than a rejected neighbour. Enum flags need a legal member; everything else takes a
 // token.
-func placeholderFor(f *pflag.Flag, path []string) string {
+func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
+	// AN ENUM'S PLACEHOLDER COMES FROM THE COMMAND'S OWN SET. It used to be a switch on the flag
+	// WORD — `case "as": return "closed"` — which is the same mistake this vocabulary keeps
+	// making one layer up: --as is one word with a value space per verb, so a single answer is
+	// right for `close` and wrong for `verify`, and the wrong one made this gate report the flag
+	// under test as unnamed when the refusal was about the placeholder.
+	if vals := enumhelp.Registered(c)[f.Name]; len(vals) > 0 {
+		return vals[0].Name
+	}
 	// AN ID MUST NAME SOMETHING THAT EXISTS, or the reference check fires first and masks the
 	// refusal under test. Which id depends on what the verb points AT — a gap, a line of inquiry, or a
 	// motion — and getting that wrong made this gate report every bench-opinion flag as
@@ -214,18 +222,14 @@ func placeholderFor(f *pflag.Flag, path []string) string {
 		return vals[0]
 	}
 	switch f.Name {
-	case "severity", "likelihood", "impact", "cx", "proposed":
+	case "severity", "likelihood", "impact", "complexity", "proposed":
 		return "medium"
 	case "check-kind":
 		return "document"
-	case "petition-class":
-		return "safety"
 	case "dimension":
 		return "severity"
-	case "as":
-		return "closed"
-	case "confidence":
-		return "high"
+	case "url":
+		return "https://example.test/source"
 	}
 	return "placeholder"
 }
@@ -253,12 +257,12 @@ func seatRunForContracts(t *testing.T) string {
 		"--key", "contract-seed", "--class", "self-attestation",
 		"--problem", "p", "--fix", "f",
 		"--check", "c", "--check-kind", "document",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--cx", "low",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 		"--reason", "the gap a probe's --id names"); err != nil {
 		t.Fatalf("seed gap: %v", err)
 	}
-	if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--line", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
+	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+		"--reason", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
 		t.Fatalf("seed line of inquiry: %v", err)
 	}
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
@@ -273,7 +277,7 @@ func seatRunForContracts(t *testing.T) string {
 	// first draft regexed a 64-hex out of the message, found nothing, and the gate then reported
 	// `--as` as unnamed when the real refusal was a missing --id.
 	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--location", "a quoted sentence", "--script", scriptPath,
+		"--quote", "a quoted sentence", "--script", scriptPath,
 		"--reason", "the computation a probe re-runs"); err != nil {
 		t.Fatalf("seed proof: %v", err)
 	}
@@ -302,7 +306,7 @@ var (
 //
 // The `Short` of every verb is what a seat reads FIRST — it is the line in `Available Commands`,
 // which is now also the line a refusal prints. Several restate an enum inline to show the flag
-// shape: `--as sound|unsound`, `--as supports|refutes|…`, `--status proposed|pursued|…`.
+// shape: `--as sound|unsound`, `--as supports|refutes|…`, `--as proposed|pursued|…`.
 //
 // That is a SECOND rendering of a set the flag help already carries properly, and the second one
 // is the lossy copy: it has no meanings and nothing regenerates it. The `--view` list in `show`'s

@@ -36,7 +36,7 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 	s := script(t, runDir, "nine.js", "let d=[];for(let i=2;i<9;i++)if(9%i===0)d.push(i);console.log('divisors:',d.join(','));")
 
 	out, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
-		"--location", "Nine is composite, so the protocol rejects a false claim.",
+		"--quote", "Nine is composite, so the protocol rejects a false claim.",
 		"--script", s, "--reason", "trial division settles it")
 	if err != nil {
 		t.Fatalf("prove: %v", err)
@@ -67,11 +67,11 @@ func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
 	seat := proveSeat(t, runDir, "# H\n\nNine is composite by trial division. The protocol therefore rejects it.\n")
 	s := script(t, runDir, "n.js", "console.log('composite');")
 	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
-		"--location", "Nine is composite by trial division.", "--script", s, "--reason", "r"); err != nil {
+		"--quote", "Nine is composite by trial division.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", seat,
-		"--key", "E1", "--old", "by trial division. The protocol therefore rejects it",
+		"--key", "E1", "--quote", "by trial division. The protocol therefore rejects it",
 		"--new", "by trial division. The protocol rejects it", "--reason", "shorter")
 	if err == nil {
 		t.Fatal("an edit dropped a proof anchor; the computation backing the claim would vanish silently")
@@ -87,7 +87,7 @@ func TestRedReproducesAProof(t *testing.T) {
 	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", "console.log('no divisors in 2..6');")
 	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
-		"--location", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
+		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
 	sha := lastOfType(t, runDir, "proof").Payload.Str("sha256")
@@ -116,7 +116,7 @@ func TestAMovingProofIsGradedObserved(t *testing.T) {
 	s := script(t, runDir, "moves.js", "console.log(Math.random());")
 
 	out, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
-		"--location", "The sampled value varies between runs.", "--script", s, "--reason", "sampling a live system")
+		"--quote", "The sampled value varies between runs.", "--script", s, "--reason", "sampling a live system")
 	if err != nil {
 		t.Fatalf("a non-deterministic computation was refused; it is a measurement, not an error: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
 	s := script(t, runDir, "mystery.rb", "puts 1")
 
 	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
-		"--location", "A sentence to anchor to.", "--script", s, "--reason", "r"); err == nil {
+		"--quote", "A sentence to anchor to.", "--script", s, "--reason", "r"); err == nil {
 		t.Fatal("a script with no known interpreter was accepted as evidence")
 	}
 	if countType(t, runDir, "friction") == 0 {
@@ -150,7 +150,7 @@ func TestProveRefusesAMisquotedLocation(t *testing.T) {
 	seat := proveSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "ok.js", "console.log('x');")
 	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
-		"--location", "a sentence that is not in the report", "--script", s, "--reason", "r"); err == nil {
+		"--quote", "a sentence that is not in the report", "--script", s, "--reason", "r"); err == nil {
 		t.Fatal("a proof anchored to text the report does not contain was accepted")
 	}
 }

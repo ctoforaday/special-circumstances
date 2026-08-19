@@ -232,11 +232,13 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
   // Four lens seats per round were told to close a channel nobody had told them about.
   for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble', 'red-lens-1-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
-    // The COMMAND, not the phrase "friction verb": the clause names `<role> friction` now, so a
-    // seat can run what it is told to run. Asserting the old prose would pass over a clause that
-    // never shows the invocation — which is exactly how these verbs went uninstructed.
-    assert.ok(/\b(lens|merge|blue|bench) friction --none\b/.test(c.prompt) && c.prompt.includes("envelope's friction field"),
-      `${seat} missing friction-report clause (envelope + the role-qualified command)`)
+    // THE DUTY AND THE EXPLICIT NEGATIVE, not the invocation. A prompt that spells the command
+    // hands the seat a slice of the surface and it stops reading the help — measured at 58%
+    // surface exposure with a partial list against 100% with the help directive alone. What the
+    // clause must still carry is the duty, the fact that silence is NOT the empty case, and the
+    // envelope half; the verb and its flags are the help's to state.
+    assert.ok(/EXPLICIT EMPTY FORM/.test(c.prompt) && /SILENCE IS NOT THE EMPTY CASE/.test(c.prompt) && c.prompt.includes("envelope's friction field"),
+      `${seat} missing friction-report clause (the duty, the explicit negative, and the envelope half)`)
   }
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
   // Transcript-forbidden, stated POSITIVELY: the clause used to prohibit writing to debate.md,
@@ -244,9 +246,9 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
   // narrative — one seat, through one verb — and that is the form a lens can actually act on.
   assert.ok(/Only red-merge records the round's "### RED" narrative, via a position event/.test(lens.prompt),
     'a lens is not a debate party — the round narrative is the merge\'s, via the position verb')
-  // The COMMAND again, not the phrase "finding verb" — same reason as the friction clause above.
-  assert.ok(/lens finding --key /.test(lens.prompt) && lens.prompt.includes('L1-F'),
-    'lens records findings via the verb with a tool-assigned role-scoped label (L1-F{N})')
+  // The ACT and the fact the LABEL IS THE TOOL'S — same reason as the friction clause above.
+  assert.ok(/Record EACH finding as an event/.test(lens.prompt) && lens.prompt.includes('L1-F'),
+    'lens records findings as events with a tool-assigned role-scoped label (L1-F{N})')
 })
 
 // ---- Run-3 docket rows 6/7: lane diversity + floor ----
@@ -443,7 +445,7 @@ test('the merge reads this round\'s findings from the record view, not a candida
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
   assert.ok(merge.prompt.includes('FIRST ACTION'), 'reading findings is the first action')
-  assert.ok(merge.prompt.includes('show findings'), 'the merge reads the findings view from the record')
+  assert.ok(merge.prompt.includes('`findings` projection'), 'the merge reads the findings PROJECTION from the record, named as a projection rather than as an invocation')
   assert.ok(!merge.prompt.includes('red/candidates'), 'the candidate-file cat is retired')
 })
 
@@ -454,7 +456,7 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
   await world.run(script, { ...ARGS, maxRounds: 2 })
   for (const c of world.calls) assert.ok(!c.prompt.includes('red/findings.md'), `findings.md leaked into: ${c.opts.label}`)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
-  assert.ok(merge.prompt.includes('MINT each open gap') && merge.prompt.includes('feov-record merge'), 'merge writes the board through the tool, not hand-written markdown')
+  assert.ok(merge.prompt.includes('MINT each open gap') && merge.prompt.includes('one gap per call'), 'merge writes the board through the tool, not hand-written markdown')
   assert.ok(merge.prompt.includes('NEAR-MATCH RULE'), 'near-match forces the archive read before a fresh id (§4.5 cond 3)')
   assert.ok(merge.prompt.includes('drift triggers'), 'volatile-source closures inherit drift re-checks (§4.5 cond 4)')
   const judge = world.calls.find(c => c.opts.label.startsWith('judge'))
@@ -465,7 +467,7 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
   // Two tokens, not one phrase: the projection now comes FIRST (`show board --run <dir> --format
   // markdown`) so the group's subcommand is adjacent to `show`, which is what makes a stale name
   // catchable. Asserting the contiguous string would have been asserting the argument ORDER.
-  assert.ok(judge.prompt.includes('show board') && judge.prompt.includes('--format markdown') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board through the tool (no materialized-path read); ledger and archive collapsed into board --format markdown')
+  assert.ok(judge.prompt.includes('`board` projection') && judge.prompt.includes('DEMANDED READS'), 'judge ACTIVELY PULLS the board through the tool (no materialized-path read)')
 })
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
@@ -633,8 +635,8 @@ test('claim_count reaches the round record at synthesis and every blue response'
   await world.run(script, ARGS)
   const synth = world.calls.find(c => c.opts.label.startsWith('blue-synthesize')).prompt
   const respond = world.calls.find(c => c.opts.label.startsWith('blue-respond-r1')).prompt
-  assert.ok(synth.includes('claim_count') && synth.includes('blue revision'), 'synthesis records the round with claim_count')
-  assert.ok(respond.includes('claim_count') && respond.includes('blue revision'), 'each response records the round with claim_count')
+  assert.ok(synth.includes('claim_count') && /RECORD THE ROUND/.test(synth), 'synthesis records the round with claim_count')
+  assert.ok(respond.includes('claim_count') && /Record the round/i.test(respond), 'each response records the round with claim_count')
 })
 
 test('lanes=5: the full roster deploys and disconfirming-first holds its redundancy-floor second seat', async () => {
@@ -968,11 +970,11 @@ test('W2c: the petition sitting names `bench halt` as the halt channel, not peti
   }))
   await world.run(script, { ...ARGS, maxRounds: 5, binDir: '/bin' })
   const sitting = world.calls.find((c) => c.opts.label.startsWith('judge-petition'))
-  assert.ok(sitting.prompt.includes('bench halt'), 'the sitting prompt names the halt verb')
+  assert.ok(/HALT THE RUN/.test(sitting.prompt), 'the sitting prompt names the halt ACT as its own channel')
   assert.ok(sitting.prompt.includes('VERBATIM'), 'and says the opinion reaches the human verbatim')
   assert.ok(!world.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'the round never continued past the halt')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
-  assert.ok(assemble.prompt.includes('--as HALTED') && assemble.prompt.includes('terminal halt'), 'the halt is recorded via bench outcome (verdict HALTED) and the tool composes the terminal halt from the record')
+  assert.ok(assemble.prompt.includes('it is HALTED') && assemble.prompt.includes('terminal halt'), 'the halt is recorded as the run\'s terminal verdict and the tool composes the terminal halt from the record')
 })
 
 test('W2c: no petitions -> no sitting (zero cost); granted relief binds subsequent seats', async () => {
@@ -1064,11 +1066,12 @@ test('priors-are-poison half-2 (binDir): the in-run self-read runs `feov-record 
   })
   const promptOf = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
   const blue = promptOf('blue-synthesize')
-  // With binDir set, the self-read is the Go subcommand — the command IS the tool, so no --bin.
-  assert.ok(blue.includes('/plug/bin/feov-record scorecard --run') && blue.includes('--chair blue'), 'blue reads its own scorecard via feov-record scorecard')
-  assert.ok(promptOf('red-merge-r1').includes('--chair red'), 'the merge, a red chair, reads the red scorecard')
+  // With binDir set, the self-read is the tool's own operator command rather than a script the
+  // prompt has to spell — the ACT is asserted, and which command performs it belongs to --help.
+  assert.ok(/YOUR IN-RUN SCORECARD/.test(blue) && /YOUR CHAIR \(`blue`\) through the tool/.test(blue), 'blue reads its own scorecard through the tool')
+  assert.ok(/YOUR CHAIR \(`red`\)/.test(promptOf('red-merge-r1')), 'the merge, a red chair, reads the red scorecard')
   assert.ok(!blue.includes('scorecards.mjs'), 'the clause is binary-only — the node scorecards.mjs fallback is retired')
-  assert.ok(!/feov-record scorecard[^\n]*--bin/.test(blue), 'the scorecard self-read takes no --bin')
+  assert.ok(!/--bin\b/.test(blue), 'the scorecard self-read takes no --bin')
   assert.ok(!blue.includes('repair_regression_ratio 0.63'), 'the cross-run seed is still not injected')
 })
 
@@ -1081,7 +1084,7 @@ test('W2h: no scorecards arg -> the chair still gets its in-run scorecard, with 
   const chairs = world.calls.filter((c) => /YOUR IN-RUN SCORECARD/.test(c.prompt))
   assert.ok(chairs.length > 0, 'the clause does not depend on the scorecards arg')
   for (const c of chairs) {
-    assert.ok(/feov-record scorecard --run/.test(c.prompt), 'it is the tool that computes it')
+    assert.ok(/YOUR CHAIR \(`(blue|red|bench)`\) through the tool/.test(c.prompt), 'it is the tool that computes it')
     assert.ok(!/\d+\.\d\d/.test(c.prompt.match(/YOUR IN-RUN SCORECARD[^.]*\./)[0]), 'no prior number is seeded')
   }
 })
@@ -1207,7 +1210,7 @@ test('CEILING is distinct from UNVERIFIED: a judged deadlock and a PASS keep the
   const out = await ceiling.run(script, { ...ARGS, maxRounds: 2 })
   assert.equal(out.verdict, 'CEILING')
   const asm = ceiling.calls.find((c) => c.opts.label.startsWith('assemble')).prompt
-  assert.ok(/--as CEILING/.test(asm), 'the tool is driven to record the CEILING verdict via bench outcome; the stamp text (never red-audited, re-audit debt OUT of the run) is tested in internal/report')
+  assert.ok(/it is CEILING/.test(asm), 'the assembler is told the run\'s terminal verdict is CEILING; the stamp text (never red-audited, re-audit debt OUT of the run) is tested in internal/report')
 })
 
 // The docket carries PERSISTING disputes: re-raised, or descending by supersedes. A gap
@@ -1309,7 +1312,7 @@ test('W2e: every bench sitting that RULES is told it can declare, not just the a
     const c = world.calls.find((x) => x.opts.label.startsWith(seat))
     assert.ok(c, `${seat} sat`)
     assert.ok(/DECLARE:/.test(c.prompt), `${seat} is not told the declare verb exists`)
-    assert.ok(c.prompt.includes('bench declare --reason'), `${seat} gets the command, not just the concept`)
+    assert.ok(/its OWN ACT, with its own verb in your role's help/.test(c.prompt), `${seat} is told the declaration is its own act with its own verb, and where to find it`)
     assert.ok(/binds how the record is READ/.test(c.prompt), `${seat} is told what distinguishes it from an opinion`)
   }
 

@@ -55,10 +55,10 @@ func Build(runDir string, b Board, exec Exec) error {
 	for i, g := range b.Gaps {
 		if _, err := exec("merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
-			"--location", g.Location, "--problem", g.Problem, "--fix", g.Fix,
+			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
 			"--severity", g.Severity, "--likelihood", g.Likelihood,
-			"--impact", g.Impact, "--cx", g.Complexity,
+			"--impact", g.Impact, "--complexity", g.Complexity,
 			"--reason", g.Problem+" (baits "+g.Baits+": "+g.Why+")"); err != nil {
 			return fmt.Errorf("mint %s: %w", g.Key, err)
 		}
@@ -69,8 +69,8 @@ func Build(runDir string, b Board, exec Exec) error {
 		// to sample, so a board that wants the duty exercised has to give it something.
 		id := fmt.Sprintf("R1-%d", i+1)
 		if _, err := exec("merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--id", id, "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "git show",
-			"--anchor-target", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
+			"--id", id, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
+			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			return fmt.Errorf("close %s: %w", id, err)
 		}
 	}
@@ -85,8 +85,8 @@ func Build(runDir string, b Board, exec Exec) error {
 		// reports a failed board as a harness fault rather than as a fixture speaking a retired
 		// model. That is `facts-are-fields` in a fixture — the record MINTS the id and says so on
 		// stdout, and composing it from a loop index is a hope about someone else's counter.
-		out, err := exec("blue", "line-of-inquiry", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--line", a.Line, "--hypothesis", a.Hypothesis)
+		out, err := exec("blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+			"--reason", a.Line, "--hypothesis", a.Hypothesis)
 		if err != nil {
 			return fmt.Errorf("line of inquiry %d: %w", i+1, err)
 		}
@@ -112,7 +112,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		case "grade":
 			args = append(args, "--id", m.GapID, "--dimension", m.Dimension, "--proposed", m.Proposed)
 		case "petition":
-			args = append(args, "--petition-class", m.Class, "--relief", m.Relief)
+			args = append(args, "--class", m.Class, "--relief", m.Relief)
 		}
 		if _, err := exec(args...); err != nil {
 			return fmt.Errorf("motion %d (%s): %w", i+1, m.Subject, err)
@@ -134,7 +134,7 @@ func Build(runDir string, b Board, exec Exec) error {
 			return err
 		}
 		args := []string{"blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--location", pr.Location, "--script", script,
+			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
 			args = append(args, "--answers", pr.Answers)
@@ -148,7 +148,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		// A REACHABLE url, because `cite` FETCHES and caches. An unreachable one is refused and
 		// logged as friction, which is correct behaviour and useless here.
 		if _, err := exec("blue", "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--key", fmt.Sprintf("C%d", i+1), "--location", claim,
+			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 			"--title", "the pinned source", "--url", "https://example.com/",
 			"--reason", "the source this claim rests on"); err != nil {
 			return fmt.Errorf("cite %d (%q): %w — the board declares this claim and its expectations are about acting on it; building without it would produce a board whose demands cannot be met", i+1, claim, err)

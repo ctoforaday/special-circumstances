@@ -40,6 +40,59 @@ Lists every tool invocation as `file:line uuid seat tool target` — so a reader
 
 **And *why* it was unresolvable is a field, not prose.** Every unresolved row carries a `capture_category` from a closed set, because two very different conditions used to produce byte-identical rows: an event that named no seat at all, and a seat that should have a transcript and does not. The second is worth an alarm — one transcript in sixteen arrived *after* its stat, so that race is real. `capture_error` still says it in English for a human reading one row; `capture_category` says it in a word a counter can add up.
 
+## Seat coverage: `coverage`
+
+```
+gray-area coverage
+```
+
+Answers the question any seat-scoped inspection must ask before printing a number: **does the manifest name every seat transcript that exists?** #189 established there are no phantom seats — every `kind: "seat"` row names a file that is there. That is a statement about the *rows*, and it does not bound the rows that were never written.
+
+```
+19 seat row(s) named, 20 transcript(s) on disk
+  UNNAMED   agent-a9c4e78… — on disk, and no manifest row accounts for it
+```
+
+**This is not the glob `plans/gray-area.md` §3 refuses.** That rules out sweeping `~/.claude/projects/` *guessing which files belong to which seat* — attribution by guessing, whose failure mode is a false citation. This reads **one** directory, derived from the transcript path the harness itself handed over at SessionStart, and attributes nothing: its output is a set difference over ids, and it cannot emit a citation at all. Auditing the handover is not replacing it.
+
+**It exits 1 when it could not measure and 0 when it did**, whatever it found. Unnamed transcripts are a finding for a human; an unmeasurable board is a broken instrument, and an instrument reporting a clean board when it cannot see is the failure this plugin is about. A missing seat directory in a session that recorded seats is loud; in a session that recorded none it is consistent, and the two are distinguished rather than collapsed.
+
+## Pull request bodies: `pr`
+
+```
+gray-area pr <body.md> [transcript.jsonl]
+```
+
+A pull request body stops being testimony and becomes a record under inspection: its backticked commands are adjudicated against what the session actually ran, with the same `CITED` / `NO-EVIDENCE` / `UNCHECKABLE` verdicts the checkpoint audit uses.
+
+**The trajectory records what was RUN, never what the run SAID.** So ``` `go run ./check` → 26 passed ``` splits into an act this record can check and an outcome it cannot see at all, and the row says so:
+
+```
+CITED       body.md:3  `go run ./check` -> 26 passed, 2 failed
+    evidence: …/937047bc.jsonl:15484 389b0d59 2026-08-18T07:52:57Z  cd scripts && go run ./check
+    searched: [go run ./check] across 3535 citable events
+    NOT MEASURED: the asserted outcome (-> 26 passed, 2 failed) — the trajectory records invocations, not their output
+```
+
+Staying silent about the outcome would let `CITED` read as endorsing a number nothing checked. **Exit is 0 even with findings**: a body is read after the fact by a human, and failing on a `NO-EVIDENCE` row would turn "the tokens did not match" into "the pull request is wrong". A body with no backticked command reports that in those words rather than printing an empty list.
+
+## Repetition: `rework` and `stalls`
+
+Two inspections over the trajectory, needing no claim source at all.
+
+```
+gray-area rework [transcript.jsonl]   acts done more than once
+gray-area stalls [transcript.jsonl]   acts repeated 3+ times BACK-TO-BACK
+```
+
+`stalls` counts **consecutive** repetition because [[anti-spinning]]'s 3-strike rule is about a repair loop, not about ordinary iteration — the same check run three times across a session is normal work. It exists alongside the strike-counting hook because that hook counts TOOL failures only, and is documented as blind to a command that exits 0 while the work still failed.
+
+**A row reports repetition, not waste.** Five writes to one file may be five careful increments. Every occurrence is cited with file, line and uuid, and the reader decides.
+
+**The trajectory records what was RUN, never what the run SAID** — result bodies are conversation content, and this plugin does not copy them. So whether a run of identical invocations was retries or deliberate re-runs is printed as **not measured** rather than guessed. That boundary is the answer to the question a miner like this has to get right: a verdict the record cannot support is a false positive wearing the tool's authority.
+
+**Every listing ends with its own coverage** — how many citable tool uses were searched, how many could not be keyed, how many acts happened exactly once. An empty listing with that line is a clean session; without it, an empty listing and an unreadable transcript are the same bytes.
+
 **`kind` says what the row IS, and it is not inferred from which hook delivered it.** `SubagentStop` does not only fire for subagents: measured across 165 such events in one session, 146 carried no `agent_type`, had no file at the path they predicted, and landed at the **main agent's turn end** — 0 of them inside any of 3406 mid-turn windows, where a real subagent completion must land. Those rows are written as `kind: "turn-end"`; a genuine subagent is `kind: "seat"`; the session's own trajectory is `kind: "session"`. Only the conjunction (no type **and** no file) reclassifies, so a typed row whose transcript is missing stays a seat and stays an alarm. **Count seats by the field, not by the hook** — reading every `SubagentStop` as a seat is what made this manifest look 72% blind when every seat in it resolved.
 
 Rows are still stat'ed even when `agent_type` is empty. The correlation is one session's evidence and what makes a seat untyped is undetermined, so the row reports what it observed rather than what was predicted — a row that cannot contradict the expectation has stopped being a measurement.

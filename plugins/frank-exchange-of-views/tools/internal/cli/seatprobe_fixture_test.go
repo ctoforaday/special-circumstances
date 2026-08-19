@@ -101,10 +101,10 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	for i, g := range b.Gaps {
 		args := []string{"merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
-			"--location", g.Location, "--problem", g.Problem, "--fix", g.Fix,
+			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
 			"--severity", g.Severity, "--likelihood", g.Likelihood,
-			"--impact", g.Impact, "--cx", g.Complexity,
+			"--impact", g.Impact, "--complexity", g.Complexity,
 			"--reason", g.Problem + " (baits " + g.Baits + ": " + g.Why + ")"}
 		if _, err := run(t, args...); err != nil {
 			t.Fatalf("mint %s: %v", g.Key, err)
@@ -116,15 +116,15 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// nothing to sample, so a board that wants the duty exercised has to give it something.
 		id := fmt.Sprintf("R1-%d", i+1)
 		if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--id", id, "--as", "closed", "--anchor-seat", "L1", "--anchor-tool", "git show",
-			"--anchor-target", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
+			"--id", id, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
+			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			t.Fatalf("close %s: %v", id, err)
 		}
 	}
 
 	for i, a := range b.Inquiries {
-		if _, err := run(t, "blue", "line-of-inquiry", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--line", a.Line, "--hypothesis", a.Hypothesis); err != nil {
+		if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+			"--reason", a.Line, "--hypothesis", a.Hypothesis); err != nil {
 			t.Fatalf("line of inquiry %d: %v", i, err)
 		}
 		if a.Ruled == "" {
@@ -149,7 +149,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		case "grade":
 			args = append(args, "--id", m.GapID, "--dimension", m.Dimension, "--proposed", m.Proposed)
 		case "petition":
-			args = append(args, "--petition-class", m.Class, "--relief", m.Relief)
+			args = append(args, "--class", m.Class, "--relief", m.Relief)
 		}
 		if _, err := run(t, args...); err != nil {
 			t.Fatalf("motion %d (%s): %v", i+1, m.Subject, err)
@@ -174,7 +174,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 			t.Fatal(err)
 		}
 		args := []string{"blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--location", pr.Location, "--script", script,
+			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
 			args = append(args, "--answers", pr.Answers)
@@ -198,7 +198,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// The url is a real, reachable one because `cite` FETCHES and caches: an unreachable
 		// source is refused and logged as friction, which is correct behaviour and useless here.
 		if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
-			"--key", fmt.Sprintf("C%d", i+1), "--location", claim,
+			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 			"--title", "the pinned source", "--url", "https://example.com/",
 			"--reason", "the source this claim rests on"); err != nil {
 			t.Fatalf("cite %d (%q) did not land: %v\n\nThe board declares this claim and its expectations are about acting on it. Building without it would produce a board whose demands cannot be met, and a report that blames the seat for the fixture.", i+1, claim, err)

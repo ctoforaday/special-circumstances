@@ -244,7 +244,7 @@ func Execute() {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
 		os.Exit(2)
 	}
-	if err := root.Execute(); err != nil {
+	if err := ExecuteRoot(root); err != nil {
 		// A --json CALLER GETS JSON, INCLUDING WHEN THE FLAGS THEMSELVES ARE REFUSED.
 		//
 		// `seat.Emit` renders every refusal a HANDLER produces as a structured envelope. A
@@ -270,6 +270,28 @@ func Execute() {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
 		os.Exit(2)
 	}
+}
+
+// ExecuteRoot runs the tree and attaches the failing verb's own help to the refusals COBRA
+// raises — an unknown flag, a missing required flag, a flag group violated.
+//
+// Those refusals name a flag word and stop: "required flag(s) \"verified-by\" not set" tells a
+// seat which word it missed and nothing about what the word wants or what else the verb takes.
+// The flag table is the answer, and cobra already renders it — so the diagnosis leads and cobra's
+// own help follows, which is the shape every other refusal in this tool has.
+//
+// It is scoped to SEAT VERBS and to errors the handler did not already answer. A handler's
+// refusal is a teaching message already (seat.Taught marks them), and an operator command's
+// refusals were never flag-shaped.
+//
+// Exported for the same reason EmitTopLevelError is: the test harness drives the tree directly,
+// and a fix living only in Execute() would be invisible to every test.
+func ExecuteRoot(root *cobra.Command) error {
+	cmd, err := root.ExecuteC()
+	if err == nil || cmd == nil || seat.Taught(err) || seat.RecordType(cmd) == "" {
+		return err
+	}
+	return seat.RefuseAndTeach(cmd, err.Error())
 }
 
 // EmitTopLevelError renders an error that never reached seat.Emit, and reports whether it did.

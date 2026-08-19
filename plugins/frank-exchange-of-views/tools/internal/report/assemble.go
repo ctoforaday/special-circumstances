@@ -344,10 +344,10 @@ func verdictStamp(o *record.Payload) string {
 		return "**Verdict:** HALTED — the bench ended this run. The halt opinion is on the record below (Bench disposition) and is relayed to the human verbatim, never smoothed." + basis
 	default:
 		by := ""
-		switch {
-		case payloadBool(o, "deadlocked"):
+		switch o.Str("ended") {
+		case "deadlock":
 			by = " by judged deadlock"
-		case payloadBool(o, "exhausted"):
+		case "ceiling":
 			by = " by safety ceiling"
 		}
 		return fmt.Sprintf("**Verdict:** %s%s%s", o.Str("verdict"), by, basis)
@@ -781,7 +781,7 @@ func archiveSpotChecks(board *record.Board) string {
 // concrete span-and-replacement that goes with it.
 //
 // `fix_basis` is DERIVED at the mint, never claimed: it reads `verified` only when red supplied
-// both --fix-old and --fix-new and the tool validated that span against the live report. That
+// both the span and its replacement and the tool validated that span against the live report. That
 // validation is a forced re-read, and it exists because all three of one smoke's round-2 gaps
 // were contradictions between blue's new text and text red had never re-read before prescribing.
 //
@@ -795,7 +795,7 @@ func fixProposal(mint *record.Payload) string {
 	switch mint.Str("fix_basis") {
 	case "verified":
 		s := "\nfix_basis: **verified** — red stated an exact replacement and the tool checked the span against the live report, so this demand was written with the text in front of it."
-		if old, nw := mint.Str("fix_old"), mint.Str("fix_new"); old != "" && nw != "" {
+		if old, nw := mint.Str("location"), mint.Str("fix_new"); old != "" && nw != "" {
 			s += fmt.Sprintf("\n  - replace: %q\n  - with: %q", old, nw)
 		}
 		return s

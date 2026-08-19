@@ -122,7 +122,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	runDir := seatRun(t)
 
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--petition-class", "safety",
+		"--class", "safety",
 		"--reason", "continuing would require asserting a consent gate exists where it does not",
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
 		t.Fatalf("motion petition file: %v", err)
@@ -180,9 +180,9 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--claim", "the API returns 200 on a malformed body",
+		"--quote", "the API returns 200 on a malformed body",
 		"--reason", "refuted at the leaf — it returns 400, verified against the handler",
-		"--superseded-by", "the API returns 400 on a malformed body"); err != nil {
+		"--new", "the API returns 400 on a malformed body"); err != nil {
 		t.Fatalf("blue retire: %v", err)
 	}
 	ev := lastOfType(t, runDir, "retire")
@@ -206,7 +206,7 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 		{"red-lens-r1-L2", "L2-F1"}, // and L2-F1
 	} {
 		if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", l.seat,
-			"--key", "F1", "--location", "§1", "--reason", "a finding",
+			"--key", "F1", "--quote", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 			t.Fatalf("finding %s: %v", l.label, err)
 		}
@@ -232,8 +232,8 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 
 	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", first, "--as", "closed",
-		"--anchor-seat", "L1", "--anchor-tool", "go test", "--anchor-target", "./internal/parser",
-		"--successor", next,
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
+		"--superseded-by", next,
 		"--reason", "the named site is repaired; the same class survives at the sibling site"); err != nil {
 		t.Fatalf("close with successor: %v", err)
 	}

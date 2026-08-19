@@ -33,11 +33,11 @@ import (
 // dangling citation — never a wedge, never a phantom event.
 func newCite() *cobra.Command {
 	c := seat.Prose(seat.New("cite",
-		`cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --location "<the exact sentence, quoted from the report and nothing else — NOT a heading plus a sentence, it is matched literally>" --url <u> --title <t> [--claim "..."] [--key <your C1>]`,
+		`cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			location := seat.Str(cmd, flags.Location)
-			if strings.TrimSpace(location) == "" {
-				return nil, fmt.Errorf("blue cite requires --location: a section heading plus the QUOTED sentence to anchor the citation")
+			quote := seat.Str(cmd, flags.Quote)
+			if strings.TrimSpace(quote) == "" {
+				return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from blue/report.md and nothing else")
 			}
 			url := seat.Str(cmd, flags.URL)
 			if strings.TrimSpace(url) == "" {
@@ -77,10 +77,10 @@ func newCite() *cobra.Command {
 			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
 			// in-fence -> reject; nothing is written and no cite is recorded.
 			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
-				next, aerr := lens.InsertAnchor(old, location, marker)
+				next, aerr := lens.InsertAnchor(old, quote, marker)
 				switch {
 				case errors.Is(aerr, lens.ErrMisQuote):
-					return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --location); check the section and wording")
+					return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
 				case errors.Is(aerr, lens.ErrInFence):
 					return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
 				}
@@ -96,23 +96,19 @@ func newCite() *cobra.Command {
 				Set("url", url).
 				Set("sha256", sha).
 				Set("title", title).
-				Set("location", location).
+				Set("location", quote).
 				Set("access_date", record.Now().Format("2006-01-02"))
 			seat.Set(cmd, p, "cite_key", flags.Key)
-			if claim := seat.Str(cmd, flags.Claim); strings.TrimSpace(claim) != "" {
-				p.Set("claim", claim)
-			}
 			if _, err := record.Append(s.Identity(), "cite", p); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: label, URL: url, Sha256: sha}, nil
 		}))
 
-	c.Flags().String(flags.Location, "", "REQUIRED — where the claim sits: a section heading plus the QUOTED sentence (anchors the invisible citation; rejected if not found)")
-	c.Flags().String(flags.URL, "", "REQUIRED — the source URL (fetched once and cached; red re-reads the exact bytes)")
-	c.Flags().String(flags.Title, "", "REQUIRED — the source's name, as it appears in the composed bibliography")
-	c.Flags().String(flags.Claim, "", "the claim this source backs, quoted from the report (optional)")
-	c.Flags().String(flags.Key, "", "a stable local handle (your own C1, C2 …) making a retried cite idempotent; the TOOL assigns the c-<hex> label")
+	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
+	c.Flags().String(flags.URL, "", "REQUIRED — "+flags.DescURL)
+	c.Flags().String(flags.Title, "", "REQUIRED — "+flags.DescTitle)
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
 	return c
 }
 

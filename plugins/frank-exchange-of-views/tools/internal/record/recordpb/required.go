@@ -44,7 +44,7 @@ var required = map[protoreflect.FullName]Requirement{
 	"feov.record.v1.Mint.impact":           {"impact", "it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded"},
 	"feov.record.v1.Mint.acceptance_check": {"check", "the acceptance check red will run at re-audit — the pre-agreed contract"},
 	"feov.record.v1.Mint.check_kind":       {"check-kind", "document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote one"},
-	"feov.record.v1.Mint.class":            {"class", "the defect's kind (or --class-new with --definition/--neighbor/--distinguisher)"},
+	"feov.record.v1.Mint.class":            {"class", "the defect's kind — a slug the registry has, or one coined first with `merge class new`"},
 	"feov.record.v1.Mint.problem":          {"problem", "what is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-audited"},
 
 	// close — the gap ends. gap_id and the argument.

@@ -23,21 +23,22 @@ const nearMatchTopN = 5
 
 func newNearMatch() *cobra.Command {
 	c := seat.New("near-match",
-		`screen a candidate against the board before minting: --candidate "<problem text>" [--location "<section>"] — returns the top `+strconv.Itoa(nearMatchTopN)+` gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.`,
+		`screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top `+strconv.Itoa(nearMatchTopN)+` gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			cand := strings.TrimSpace(seat.Str(cmd, flags.Candidate))
-			if cand == "" {
-				return nil, fmt.Errorf("near-match requires --candidate: the candidate gap's problem text to screen against the board")
-			}
+			cand := strings.TrimSpace(seat.Str(cmd, flags.Problem))
 			b, err := record.BoardState(s.RunDir)
 			if err != nil {
 				return nil, err
 			}
-			matches := record.NearMatch(b, cand, seat.Str(cmd, flags.Location), nearMatchTopN)
+			matches := record.NearMatch(b, cand, seat.Str(cmd, flags.Quote), nearMatchTopN)
 			return nearMatchResult{Matches: matches}, nil
 		})
-	c.Flags().String(flags.Candidate, "", "the candidate gap's problem text to screen against the board")
-	c.Flags().String(flags.Location, "", "the candidate's section/location, for the location-match bonus")
+	// THE SAME TWO WORDS `mint` TAKES. This verb screens what that one would file, and it spelled
+	// the identical two facts --candidate and --location — so a seat learned one vocabulary to ask
+	// the question and a different one to act on the answer.
+	c.Flags().String(flags.Problem, "", "what is wrong, as you would state it in the mint — screened against the board for a near-duplicate")
+	_ = c.MarkFlagRequired(flags.Problem)
+	c.Flags().String(flags.Quote, "", flags.DescQuote+" — scored for a location-match bonus")
 	return c
 }
 

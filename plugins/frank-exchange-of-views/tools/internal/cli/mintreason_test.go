@@ -31,10 +31,10 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	const why = "blue may well have done the work; what is missing is the record of it"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "argued", "--class", "metric-conflation",
-		"--location", "The access log retains for 45 days.",
+		"--quote", "The access log retains for 45 days.",
 		"--problem", "the figure conflicts with the universal",
 		"--fix", "reconcile them", "--check", "no two sections disagree", "--check-kind", "document",
-		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low",
+		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--reason", why); err != nil {
 		t.Fatal(err)
 	}
@@ -55,9 +55,9 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	// argued something beyond the problem statement when it did not.
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "viareason", "--class", "metric-conflation",
-		"--location", "The audit log retains for 30 days.",
+		"--quote", "The audit log retains for 30 days.",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
-		"--severity", "low", "--likelihood", "low", "--impact", "low", "--cx", "low",
+		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--reason", "the problem arrived through reason"); err != nil {
 		t.Fatal(err)
 	}

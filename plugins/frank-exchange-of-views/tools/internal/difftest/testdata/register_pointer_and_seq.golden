@@ -18,7 +18,7 @@ exit 0
 stdout:
 friction recorded
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity medium --likelihood high --impact medium --location ## S2 --reason unfounded leap
+$ lens finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity medium --likelihood high --impact medium --quote ## S2 --reason unfounded leap
 exit 0
 stdout:
 finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)
