@@ -65,25 +65,31 @@ func TestAnUnknownRoundIsNotZero(t *testing.T) {
 	}
 }
 
-// The injected round is a FACT and wins over any inference from the id's shape.
-func TestTheInjectedRoundWinsOverTheIDsShape(t *testing.T) {
-	t.Setenv(RoundVar, "4")
-	s, err := ResolveSeat("", bound("judge-terminal"), func(string) int { return 0 })
+// THE ROUND COMES FROM THE INFERENCE, and there is no longer a second source to prefer over it.
+//
+// Two tests lived here: one that the injected round won over the id's shape, and one that a
+// malformed injected round was refused. Both exercised FEOV_ROUND, which nothing in this
+// repository ever set — so they proved a precedence rule between a real source and an empty one.
+// The variable is gone; what replaces them is record.RoundOf's own contract test, which checks the
+// thing that actually decides a round now, including the not-known case that answering 0 hid.
+func TestTheRoundComesFromTheResolverItIsGiven(t *testing.T) {
+	s, err := ResolveSeat("", bound("judge-terminal"), func(string) int { return 4 })
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s.Round != 4 {
-		t.Errorf("the injected round must win, got %d — the seat id says nothing about the round here, which is exactly when guessing hurts", s.Round)
+		t.Errorf("round = %d, want 4 — the resolver is the source", s.Round)
 	}
 }
 
-// A malformed injected round is a DISPATCH bug and must be loud. Falling through to the regex
-// would answer a question nobody asked correctly.
-func TestAMalformedInjectedRoundIsRefused(t *testing.T) {
-	for _, bad := range []string{"two", "-1"} {
-		t.Setenv(RoundVar, bad)
-		if _, err := ResolveSeat("", bound("red-merge-r2"), nil); err == nil {
-			t.Errorf("FEOV_ROUND=%q was accepted; a malformed round is a dispatch bug, not something to guess around", bad)
-		}
+// AND WITH NO RESOLVER, UNKNOWN — not 0. Round 0 is synthesis, a real round in which real events
+// happen, so a caller that cannot know must not be handed it.
+func TestNoResolverMeansUnknownRatherThanZero(t *testing.T) {
+	s, err := ResolveSeat("judge-terminal", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.HasRound() {
+		t.Errorf("round = %d, want unknown", s.Round)
 	}
 }

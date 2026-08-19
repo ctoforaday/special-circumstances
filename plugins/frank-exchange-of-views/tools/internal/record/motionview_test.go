@@ -13,11 +13,11 @@ import (
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := t.TempDir()
 	for _, s := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundOf(s)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
 		Set("gap_id", "R1-1").Set("class", "self-attestation").
 		Set("location", "L").Set("problem", "p").Set("required_fix", "f").
 		Set("acceptance_check", "c").Set("check_kind", "computation").
@@ -26,7 +26,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "motion", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, "motion", NewPayload().
 		Set("motion_id", "M1").Set("subject", "grade").Set("reason", basis).
 		Set("gap_id", "R1-1").Set("dimension", "severity").Set("proposed", "medium")); err != nil {
 		t.Fatal(err)
@@ -57,7 +57,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "motion-rule", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "motion-rule", NewPayload().
 		Set("motion_id", "M1").Set("subject", "grade").Set("ruling", "rejected").Set("reason", "the grades stand")); err != nil {
 		t.Fatal(err)
 	}
@@ -80,11 +80,11 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := t.TempDir()
 	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundOf(sid)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundIn(runDir)(sid)}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
 		Set("gap_id", "R1-1").Set("class", "self-attestation").
 		Set("location", "L").Set("problem", "p").Set("required_fix", "f").
 		Set("acceptance_check", "c").Set("check_kind", "document").
@@ -92,14 +92,14 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 		Set("complexity_cost", "low").Set("existence", "verified")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "motion", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, "motion", NewPayload().
 		Set("motion_id", "M1").Set("subject", "grade").Set("reason", "b").Set("gap_id", "R1-1").
 		Set("dimension", "severity").Set("proposed", "low")); err != nil {
 		t.Fatal(err)
 	}
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "close", NewPayload().
 		Set("gap_id", "R1-1").Set("disposition", "closed").
 		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "blue/report.md").
 		Set("reason", "verified at the leaf")); err != nil {

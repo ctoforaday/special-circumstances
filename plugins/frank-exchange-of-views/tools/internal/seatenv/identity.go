@@ -2,7 +2,6 @@ package seatenv
 
 import (
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -37,9 +36,11 @@ import (
 // key. session_id and prompt_id are IDENTICAL across the main session and every concurrent
 // subagent, so agent_id is the ONLY field that discriminates one seat from another.
 //
-// AND THE PART THAT IS NOT TRUE YET, which this file's presence makes easy to misread: nothing
-// sets SeatVar or RoundVar anywhere in this repository. These constants have readers and no writer.
-// Every round in production is still the regex over the seat id, phantom archive included (#396).
+// AND THE PART THAT WAS NOT TRUE, which this file's presence made easy to misread: nothing set
+// FEOV_SEAT or FEOV_ROUND anywhere in this repository. Both had readers and no writer, so both
+// branches were scenery — and both are now gone. The seat is bound at `register` and read from the
+// record; the round is derived from a seat id whose shape the roster gate validates, and it answers
+// NOT-KNOWN rather than 0 where the name carries no round (#327/#396).
 //
 // WHAT THIS DELIBERATELY DOES NOT TOUCH. The seat id remains the SHARD KEY and the concurrency
 // namespace. A lens index recovered from a seat name turned out to be exactly what made a
@@ -50,7 +51,6 @@ import (
 // surface for the same reason FEOV_RUN is: a seat never types them, and documenting them would
 // invite exactly the hand-typed path this removes.
 const (
-	RoundVar = "FEOV_ROUND"
 	// AgentVar carries the harness's own handle for the subagent, and it is the one identity
 	// variable that HAS a writer: the PreToolUse hook reads agent_id off the payload and exports
 	// it beside FEOV_RUN.
@@ -125,20 +125,15 @@ func ResolveSeat(flagSeatID string, bound func() (string, error), inferRound fun
 		return Seat{Round: -1}, nil
 	}
 
-	// An injected round is a FACT the dispatcher knows. Only when none arrives does the legacy
-	// regex run, and its answer is then explicitly a guess about string shape.
-	if raw := strings.TrimSpace(os.Getenv(RoundVar)); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil {
-			return Seat{}, feov.Errorf(feov.Validation,
-				"%s=%q is not a number. The round is injected by the engine as a field; a malformed one is a "+
-					"dispatch bug, and guessing from the seat id here is what this replaced", RoundVar, raw)
-		}
-		if n < 0 {
-			return Seat{}, feov.Errorf(feov.Validation, "%s=%d is negative; rounds start at 0 (synthesis)", RoundVar, n)
-		}
-		return Seat{ID: id, Round: n}, nil
-	}
+	// THE ROUND IS DERIVED, AND THAT STOPPED BEING A GUESS. FEOV_ROUND used to be read here
+	// first, as "a FACT the dispatcher knows" — and the dispatcher never knew it: nothing in
+	// production ever set the variable, so the branch was scenery and the derivation below was
+	// always the only path.
+	//
+	// It is now sound rather than merely sole. record.RoundOf reads the round out of a seat id
+	// whose SHAPE the roster gate refuses at register unless it is one the engine produces, and
+	// it answers NOT-KNOWN for the ids that genuinely carry no round instead of answering 0 —
+	// which was the phantom-archive defect (#327/#396).
 	if inferRound == nil {
 		return Seat{ID: id, Round: -1}, nil
 	}

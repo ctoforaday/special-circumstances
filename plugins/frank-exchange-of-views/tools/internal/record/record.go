@@ -121,59 +121,6 @@ func shardPath(recDir, seatID, nonce string) string {
 	return filepath.Join(recDir, fmt.Sprintf("events-%s-%s.jsonl", seatID, nonce))
 }
 
-var roundRe = regexp.MustCompile(`-r(\d+)`)
-
-// RoundOf returns the round an event belongs to.
-//
-// THE INJECTED ROUND WINS, AND THE REGEX IS THE FALLBACK (#348). The dispatcher knows the round
-// as a fact — it is inherited from the agent that was dispatched — so it is read from the
-// environment first. The pattern match over the seat id remains only for callers nothing
-// injected for: the tests, and any pre-#348 binary path.
-//
-// WHY THE FALLBACK IS DANGEROUS AND STAYS ANYWAY. `judge-terminal` carries no round, so the
-// regex returns 0 — and a bench closure at run END then looks like a closure BEFORE ROUND 1.
-// That put a phantom entry in the archive and made the W1.8 spot-check floor demand samples from
-// rounds whose seats had done nothing wrong (found at 1 seed in 60, by luck, in #327). The regex
-// cannot distinguish "round 0" from "no round in this name", which is the whole defect; the
-// injected value can, because it is a fact rather than a shape.
-//
-// Deleting the fallback outright would make every un-injected caller round 0 silently, which is
-// the same failure with fewer witnesses. It goes when the hook injects on every path (#290).
-//
-// STATE OF THAT CONDITION. The seat half is CLOSED: the PreToolUse hook exports the agent handle,
-// `register` binds it to a seat on the record, and identity is read back from there — FEOV_SEAT is
-// gone, having never had a writer at all.
-//
-// THE ROUND HALF IS NOT, and this fallback is still the only path in production. Nothing sets
-// FEOV_ROUND, so judge-terminal still stamps round 0 on every append (#396). agent_id cannot fix
-// it: a handle says WHO, never WHICH ROUND, and the round is a fact only the dispatcher holds. The
-// regex below remains a guess about string shape, and this comment is what says so.
-//
-// What DID change: #290's gate is no longer unmeasured. PreToolUse carries agent_id — 9 of 9
-// subagent calls across three tool types, stable within an agent, distinct across concurrent ones,
-// and byte-identical to the id that agent reports at SubagentStop (plans/hook-surface-spike.md §7).
-// Since session_id and prompt_id are IDENTICAL across the main session and every concurrent
-// subagent, agent_id is the only field that can namespace a seat at all. The mechanism to inject
-// on every path is therefore measured rather than hoped for; it is still unbuilt.
-func RoundOf(seatID string) int {
-	if raw := strings.TrimSpace(os.Getenv("FEOV_ROUND")); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
-			return n
-		}
-		// A malformed injected round is a DISPATCH bug. Falling through to the regex would
-		// answer a question nobody asked correctly; the caller sees the guess for what it is.
-	}
-	m := roundRe.FindStringSubmatch(seatID)
-	if m == nil {
-		return 0
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
 
 // nonceFn is indirected for the differential harness: both implementations accept

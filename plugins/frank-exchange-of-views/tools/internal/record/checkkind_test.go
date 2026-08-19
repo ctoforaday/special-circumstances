@@ -14,11 +14,11 @@ import "testing"
 // was satisfied. The answer was right, which is why nothing caught it.
 func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	for id, kind := range map[string]string{"R1-1": "computation", "R1-2": "document"} {
-		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
+		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
 			Set("gap_id", id).Set("class", "self-attestation").
 			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
 			Set("acceptance_check", "c").Set("check_kind", kind).
@@ -54,7 +54,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 // AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
 func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	b, err := BoardState(runDir)
@@ -66,7 +66,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "friction-none",
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, "friction-none",
 		NewPayload().Set("reason", "read the board and my verb list; every refusal was my own error")); err != nil {
 		t.Fatal(err)
 	}
@@ -95,13 +95,13 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	runDir := t.TempDir()
 	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundOf(s)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	mint := func(id, kind string) {
 		t.Helper()
-		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
+		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
 			Set("gap_id", id).Set("class", "self-attestation").
 			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
 			Set("acceptance_check", "c").Set("check_kind", kind).
@@ -125,7 +125,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 		}
 	}
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "proof", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, "proof", NewPayload().
 		Set("answers", "R1-1").Set("location", "L").Set("script", "s.py").
 		Set("proof_id", "p-1").Set("reproducible", true)); err != nil {
 		t.Fatal(err)
@@ -157,7 +157,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "close", NewPayload().
 		Set("gap_id", "R1-2").Set("disposition", "risk_accepted").
 		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "x").
 		Set("reason", "the demand outweighed the defect")); err != nil {

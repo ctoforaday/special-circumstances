@@ -446,10 +446,11 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
 		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
-		// Every board is a single round-1 sitting. Injected rather than inferred: the regex
-		// fallback over a seat id cannot tell "round 0" from "no round in this name", which is
-		// the defect #348 put this variable here to end.
-		seatenv.RoundVar+"=1",
+		// THE ROUND IS NO LONGER INJECTED, because it is no longer a guess. Every board is a
+		// single round-1 sitting and every probe seat id carries `-r1` (see seatprobe.Seats), so
+		// the derivation answers 1 for all four. FEOV_ROUND existed because the old derivation
+		// could not tell "round 0" from "no round in this name"; it can now, and the variable is
+		// gone rather than left set to a value the tool would compute anyway.
 	)
 	// The directory is created HERE, by the function that owns the path, rather than by the
 	// caller. Moving the trajectory out of the run directory and leaving its mkdir behind in

@@ -174,7 +174,7 @@ func TestEveryIDKindHasADistinctPrefixLetter(t *testing.T) {
 // writeSeat registers the seat every minter counts events from.
 func writeSeat(t *testing.T, runDir string) error {
 	t.Helper()
-	_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")})
+	_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")})
 	return err
 }
 
@@ -183,7 +183,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	t.Helper()
 	switch kind {
 	case "gap":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
 			Set("gap_id", id).Set("class", "self-attestation").
 			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
 			Set("acceptance_check", "c").Set("check_kind", "document").
@@ -191,15 +191,15 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 			Set("complexity_cost", "low").Set("existence", "verified"))
 		return err
 	case "line-of-inquiry":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "line-of-inquiry", NewPayload().
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "line-of-inquiry", NewPayload().
 			Set("inquiry_id", id).Set("status", "proposed").Set("line", "a line").Set("reason", "r"))
 		return err
 	case "motion":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "motion", NewPayload().
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "motion", NewPayload().
 			Set("motion_id", id).Set("subject", "petition").Set("reason", "b").Set("class", "safety"))
 		return err
 	case "finding":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "finding", NewPayload().
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "finding", NewPayload().
 			Set("label", id).Set("location", "L").Set("problem", "p").Set("severity", "medium"))
 		return err
 	}

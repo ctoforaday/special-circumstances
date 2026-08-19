@@ -83,13 +83,13 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundOf("blue-synthesize")}); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundIn(runDir)("blue-synthesize")}); err != nil {
 		t.Fatal(err)
 	}
 	cite := record.NewPayload().
 		Set("label", "c-1").Set("url", "https://ex/coherence").Set("sha256", "deadbeef").
 		Set("title", "Coherence Proof").Set("access_date", "2026-08-03")
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundOf("blue-synthesize")}, "cite", cite); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundIn(runDir)("blue-synthesize")}, "cite", cite); err != nil {
 		t.Fatal(err)
 	}
 

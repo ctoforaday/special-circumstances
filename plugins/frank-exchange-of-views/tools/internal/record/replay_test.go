@@ -321,32 +321,58 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 	}
 }
 
+// THE ROUND, AND WHETHER THE NAME ANSWERS IT AT ALL.
+//
+// This used to assert a bare int, so `assemble` and `judge-terminal` pinned to 0 — the same value
+// `red-lens-r0-L1` pins to, and 0 is SYNTHESIS, a real round with real events. The two cases were
+// indistinguishable by construction, and that is #327: a bench closure at run END read as a
+// closure BEFORE round 1, put a phantom entry in the archive, and made the W1.8 spot-check floor
+// demand samples from rounds whose seats had done nothing wrong.
+//
+// The three answers are now distinct: a round the name states, round 0 stated by a seat that
+// genuinely runs in synthesis, and NOT ANSWERED.
 func TestRoundOf(t *testing.T) {
 	cases := []struct {
-		in   string
-		want int
+		in    string
+		want  int
+		known bool
 	}{
-		{"red-lens-r3-L5", 3},
-		{"red-merge-r12", 12},
-		{"judge-r1", 1},
-		{"blue-respond-r7", 7},
-		{"frontier", 0},
-		{"blue-synthesize", 0},
-		{"assemble", 0},
-		{"judge-petition", 0},
-		{"", 0},
-		{"no-round-here", 0},
-		{"red-lens-r0-L1", 0},
-		{"first-r2-then-r9", 2}, // the FIRST match wins, not the last
-		// The round marker is a HYPHEN-DELIMITED segment of an engine-assigned seat
-		// id, so a bare "r5" is round 0 — there is no seat named that, and matching
-		// it would also make "frontier" round 0 by accident rather than by rule.
-		{"r5", 0},
-		{"red-lens-rX-L1", 0},
+		// The name states it.
+		{"red-lens-r3-L5", 3, true},
+		{"red-merge-r12", 12, true},
+		{"judge-r1", 1, true},
+		{"blue-respond-r7", 7, true},
+		{"red-lens-r0-L1", 0, true},
+		{"first-r2-then-r9", 2, true}, // the FIRST match wins, not the last
+		// A petition sitting is named for its petitioner, so it inherits that seat's round —
+		// which is why the bare `judge-petition` was retired (#394).
+		{"judge-petition-red-merge-r1", 1, true},
+		// Round 0 BY RULE rather than by accident: these are dispatched before the round loop
+		// (debate.js puts `let round = 0` after them), so synthesis is exactly where they act.
+		{"frontier", 0, true},
+		{"blue-synthesize", 0, true},
+		{"blue-lane-2", 0, true},
+		// The name cannot answer. These act AFTER the last round, and answering 0 said the
+		// opposite of the truth.
+		{"assemble", 0, false},
+		{"judge-terminal", 0, false},
+		// Not a debate seat, and not a seat id at all.
+		{"operator", 0, false},
+		{"", 0, false},
+		{"no-round-here", 0, false},
+		// The round marker is a HYPHEN-DELIMITED segment of an engine-assigned seat id, so a
+		// bare "r5" does not answer — there is no seat named that, and matching it would also
+		// make "frontier" round 0 by accident rather than by rule.
+		{"r5", 0, false},
+		{"red-lens-rX-L1", 0, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.in, func(t *testing.T) {
-			if got := RoundOf(tc.in); got != tc.want {
+			got, known := RoundOf(tc.in)
+			if known != tc.known {
+				t.Fatalf("RoundOf(%q) known = %v, want %v — a name that cannot answer must say so, not answer 0", tc.in, known, tc.known)
+			}
+			if known && got != tc.want {
 				t.Errorf("RoundOf(%q) = %d, want %d", tc.in, got, tc.want)
 			}
 		})
@@ -394,7 +420,7 @@ func TestGapMassAndGradeStr(t *testing.T) {
 func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}); err != nil {
 		t.Fatal(err)
 	}
 	for i := 1; i <= 3; i++ {
@@ -405,14 +431,14 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 		if want := fmt.Sprintf("R1-%d", i); got != want {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
-		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "mint", NewPayload().
+		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "mint", NewPayload().
 			Set("gap_id", got).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// A new round restarts the counter; the id namespace is per-round.
 	seat2 := "red-merge-r2"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seat2, Round: RoundOf(seat2)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seat2, Round: RoundIn(runDir)(seat2)}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := MintGapID(runDir, 2)
@@ -429,10 +455,10 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 func TestExistingMintByKey(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "mint", NewPayload().
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "mint", NewPayload().
 		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
 	}
@@ -648,14 +674,14 @@ func TestValidateVerbContracts(t *testing.T) {
 func opinionRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
 		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
 		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
 		t.Fatal(err)
