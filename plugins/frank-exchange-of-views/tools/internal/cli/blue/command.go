@@ -17,7 +17,7 @@ const role = "blue"
 // Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
-		seat.Register("FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
+		seat.Register("FIRST ACTION at the seat: `register`, no flags of its own — just your --run and --seat-id, and a value that disagrees with the run you were dispatched into is refused rather than obeyed"),
 		newEdit(),
 		newCite(),
 		newProve(),

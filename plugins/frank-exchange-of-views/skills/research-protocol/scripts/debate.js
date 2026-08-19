@@ -203,15 +203,14 @@ const scorecardClause = (tool) => {
   return ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read the scorecard for YOUR CHAIR (\`${chair}\`) through the tool — the operator command and the selector that names a chair are in the root --help — and read how this chair is doing on the question in front of you so far. It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding). Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.`
 }
 
-const RECORD_ROLE = { 'red-lens': 'lens', 'red-merge': 'merge', blue: 'blue', bench: 'bench' }
 const recordClause = (seatId, tool) =>
   `${scorecardClause(tool)} SEAT_ID: ${seatId}. THE RECORD TOOL IS THE CONTRACT: every board act happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status.
 
-THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run. Three steps, every sitting, before the act that needs them:
+THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run. YOUR SEAT ID SELECTS YOUR SURFACE: pass --seat-id ${seatId} and --run ${runDir} on every call, including the help reads below, and what comes back IS what you may do — there is no wider tree behind it and nothing of yours is filed under another seat. Three steps, every sitting, before the act that needs them:
 
-  1. "${binDir}/feov-record" --help — the GROUPS. Yours is \`${RECORD_ROLE[tool]}\`; others exist and some of what you owe lives in them.
-  2. "${binDir}/feov-record" <group> --help — the commands in that group, and what each is for. Do this BEFORE using any command in a group you have not yet opened.
-  3. "${binDir}/feov-record" <group> <command> --help — the flags, which are required, and what each value may be. Do this BEFORE running the command.
+  1. "${binDir}/feov-record" --seat-id ${seatId} --run ${runDir} --help — every verb your seat can run, each with what it is for.
+  2. "${binDir}/feov-record" --seat-id ${seatId} --run ${runDir} <group> --help — where a verb sits under a group, what is in that group. Do this BEFORE using any command in a group you have not yet opened.
+  3. "${binDir}/feov-record" --seat-id ${seatId} --run ${runDir} <group> <command> --help — the flags, which are required, and what each value may be. Do this BEFORE running the command.
 
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS. Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes. MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed. The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree. The help is the only authoritative one.
 

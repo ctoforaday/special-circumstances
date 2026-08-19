@@ -161,8 +161,8 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// The two flags EVERY verb needs, declared once and inherited. Persistent
 	// flags are the mechanism the first cut of this CLI re-implemented by
 	// re-declaring --run and --seat-id on all sixteen verbs.
-	root.PersistentFlags().String(flags.Run, "", "the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
-	root.PersistentFlags().String(flags.SeatID, "", "your seat id, assigned by the engine and bound to this role's namespace")
+	root.PersistentFlags().String(flags.Run, "", "the run directory. REQUIRED on every call: the dispatch prompt names it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
+	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). REQUIRED on every call, and it SELECTS this surface: the verbs listed are the ones your seat may run")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
 	// format is primarily view-selected: board/findings/friction are JSON by name, the rest

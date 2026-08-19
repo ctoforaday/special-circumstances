@@ -879,19 +879,27 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
     const c = world.calls.find((x) => x.opts.label.startsWith(s))
     assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/plug/bin/feov-record'), `${s} missing record clause`)
   }
-  // Each seat is handed its ROLE, not a script path: seat identity is bound to
-  // the role namespace, so a seat pointed at the wrong one is refused by the tool.
   const roleOf = (label) => world.calls.find((x) => x.opts.label.startsWith(label)).prompt
-  // THE SUBJECT IS ROLE BINDING, not any particular command. The prompt used to carry a
-  // `feov-record <role> register` invocation and this matched on that; the contract names no
-  // commands now — the help is the only page that instructs — so it asserts what it was always
-  // about: the seat is told which role is ITS role, and a seat pointed at another is refused by
-  // the tool.
-  const dispatches = (label, role) => roleOf(label).includes('Yours is `' + role + '`')
-  assert.ok(dispatches('red-lens', 'lens'), 'lens dispatched to the lens role')
-  assert.ok(dispatches('red-merge-r1', 'merge'), 'merge dispatched to the merge role')
-  assert.ok(dispatches('blue-respond-r1', 'blue'), 'blue dispatched to the blue role')
-  assert.ok(dispatches('assemble', 'bench'), 'assembly dispatched to the bench role')
+  // THE SUBJECT IS ROLE BINDING, and what CARRIES it moved. This used to assert the prompt told
+  // the seat which command GROUP was its own ('Yours is `lens`'). There are no role groups: the
+  // tree is scoped to the injected seat identity, so the ID is the binding — pass it and you get
+  // your surface, and there is no wider one behind it. What the prompt owes is therefore that the
+  // seat id it DECLARES is the one it tells the seat to PASS. A prompt stating one id and handing
+  // over another would bind a seat to a surface that is not its own, which is precisely what the
+  // role-group sentence used to guard.
+  //
+  // WHICH id belongs to which role is not asserted here and must not be: `assemble` carries no
+  // role in its name at all, so recovering one from the string is the shape this suite keeps
+  // deleting. That mapping is a record (record.roleSeats), pinned by seat-roster.golden.
+  const bindsItsOwnID = (label) => {
+    const p = roleOf(label)
+    const declared = /SEAT_ID: (\S+?)\./.exec(p)
+    if (!declared) return false
+    return p.includes('--seat-id ' + declared[1] + ' ')
+  }
+  for (const s of ['red-lens', 'red-merge-r1', 'blue-respond-r1', 'assemble']) {
+    assert.ok(bindsItsOwnID(s), `${s} declares a SEAT_ID it does not hand the tool — the id IS the surface`)
+  }
 
   // THE HELP IS THE ONLY PAGE THAT INSTRUCTS, and the seat is REQUIRED to walk it in three
   // steps before the act that needs them: root for the groups, the group for its commands, the
@@ -900,7 +908,7 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
   // read the help only after two invented calls had failed.
   const lens = roleOf('red-lens')
   assert.ok(/REQUIRED/.test(lens), 'reading the help is stated as required, not suggested')
-  assert.ok(lens.includes('--help — the GROUPS'), 'step 1: the root help, for the groups')
+  assert.ok(lens.includes('--help — every verb your seat can run'), 'step 1: the root help, which IS the seat surface')
   assert.ok(lens.includes('<group> --help'), 'step 2: the group help, before using a command in it')
   assert.ok(lens.includes('<group> <command> --help'), 'step 3: the command help, before running it')
   assert.ok(/BEFORE using any command in a group you have not yet opened/.test(lens), 'the group rung is ordered before use')
