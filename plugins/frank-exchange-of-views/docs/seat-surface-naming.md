@@ -1,9 +1,12 @@
 # What naming the surface in the constitution actually buys
 
 Three measurements. **The 2026-08-20 run is the current record**; the two earlier runs are kept below
-because it is what the design decisions were made on and its confound is still instructive.
+because the design decisions were made on them and their confounds are still instructive.
 
-Raw cell reports are not committed; regenerate with `seatprobe -naming <arm> [-help-directive]`.
+Raw reports are not committed; regenerate with `seatprobe -board all -bin <feov-record> -dir <out>
+-constitutions <plugin>/agents`. The `-naming` and `-help-directive` flags the two earlier runs used
+NO LONGER EXIST — the arms were deleted once the question was settled, so those runs can be read but
+not reproduced against today's probe.
 
 ---
 
