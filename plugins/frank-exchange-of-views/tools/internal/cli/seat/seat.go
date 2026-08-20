@@ -32,6 +32,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -617,6 +618,25 @@ func SetGrade(p *record.Payload, key string, g *flags.GradeValue) *record.Payloa
 		p.Set(key, string(g.Grade))
 	}
 	return p
+}
+
+// GradeOrNil is SetGrade for a proto body: the typed value when the seat passed it, and nil when
+// it did not. ABSENT AND ZERO ARE DIFFERENT and the distinction is the whole reason this returns a
+// pointer — Grade's zero is UNSPECIFIED, so writing it for an omitted flag would record a grade the
+// seat never gave, and every downstream reader would see a graded axis rather than an ungraded one.
+//
+// It refuses rather than guesses on a word the schema does not know: record.GradeOf returns false,
+// and nil here means the field stays absent, which is what the pre-migration record did when the
+// key was never set.
+func GradeOrNil(g *flags.GradeValue) *recordpb.Grade {
+	if !g.Given() {
+		return nil
+	}
+	v, ok := record.GradeOf(string(g.Grade))
+	if !ok {
+		return nil
+	}
+	return &v
 }
 
 // SetList writes a comma-list field. These are ALWAYS present in the event, even

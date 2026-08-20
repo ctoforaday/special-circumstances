@@ -5,11 +5,14 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // verify: red adjudicates ONE citation — which one, and what the source actually did for it.
@@ -81,8 +84,9 @@ func newVerify() *cobra.Command {
 			"`absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, "+
 			`which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := record.NewPayload().Set("anchor", strings.TrimSpace(seat.Str(cmd, flags.Anchor)))
-			return writeVerify(s, cmd, p)
+			return writeVerify(s, cmd, &recordpb.Verify{
+				Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor))),
+			})
 		}))
 
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`")
@@ -101,9 +105,11 @@ func newCorroborate() *cobra.Command {
 		`corroborate a claim from a source YOU found — one blue never cited, so there is no anchor: --url <u> --title <t> --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
 			`To adjudicate a citation blue DID author, use `+"`verify`"+` instead: it names the citation by its anchor.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := record.NewPayload().Set("independent", true)
-			seat.SetSame(cmd, p, flags.URL, flags.Title)
-			return writeVerify(s, cmd, p)
+			return writeVerify(s, cmd, &recordpb.Verify{
+				Independent: proto.Bool(true),
+				Url:         proto.String(seat.Str(cmd, flags.URL)),
+				Title:       proto.String(seat.Str(cmd, flags.Title)),
+			})
 		}), "verify"))
 
 	c.Flags().String(flags.URL, "", flags.DescURL)
@@ -126,18 +132,39 @@ func verifyAxes(c *cobra.Command) {
 
 // writeVerify records what both verbs agree on. The caller has already put the fact that
 // distinguishes them — an anchor, or the source it read — into the payload.
-func writeVerify(s seat.Context, cmd *cobra.Command, p *record.Payload) (seat.Result, error) {
-	seat.Set(cmd, p, "claim", flags.Quote)
-	seat.Set(cmd, p, "access_date", flags.AccessDate)
-	seat.Set(cmd, p, "outcome", flags.As)
-	seat.Set(cmd, p, "confidence", flags.Confidence)
-	if err := seat.SetReason(cmd, p, "reason"); err != nil {
+func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) (seat.Result, error) {
+	body.Claim = proto.String(seat.Str(cmd, flags.Quote))
+	body.AccessDate = proto.String(seat.Str(cmd, flags.AccessDate))
+	// BOTH WORDS ARE REFUSED RATHER THAN ZEROED. `refutes` and `absent` are the negative half this
+	// axis was widened to carry, and the zero is UNSPECIFIED — a mistyped verdict recorded as the
+	// zero is a citation nobody graded, which reads exactly like one nobody checked.
+	if w := seat.Str(cmd, flags.As); w != "" {
+		o, ok := record.SourceOutcomeOf(w)
+		if !ok {
+			return nil, feov.Errorf(feov.Validation, "lens verify: %q is not a source outcome this record can carry", w)
+		}
+		body.Outcome = &o
+	}
+	if w := seat.Str(cmd, flags.Confidence); w != "" {
+		cf, ok := record.ConfidenceOf(w)
+		if !ok {
+			return nil, feov.Errorf(feov.Validation, "lens verify: %q is not a confidence this record can carry", w)
+		}
+		body.Confidence = &cf
+	}
+	text, err := seat.Reason(cmd)
+	if err != nil {
 		return nil, err
 	}
-	if _, err := record.Append(s.Identity(), "verify", p); err != nil {
+	body.Text = proto.String(text)
+	if _, err := record.Append(s.Identity(), body); err != nil {
 		return nil, err
 	}
-	return verifyResult{Anchor: p.Str("anchor"), Source: p.Str("title"), Outcome: p.Str("outcome")}, nil
+	return verifyResult{
+		Anchor:  body.GetAnchor(),
+		Source:  body.GetTitle(),
+		Outcome: recordpb.Word(body.GetOutcome()),
+	}, nil
 }
 
 // citeAnchorShape is the citation id as it appears inside a `<!--cite:c-…-->` token. Checked

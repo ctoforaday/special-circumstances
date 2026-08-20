@@ -6,10 +6,12 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // finding: a lens's graded observation, for the merge to dispose.
@@ -82,20 +84,23 @@ func newFinding() *cobra.Command {
 				return nil, err
 			}
 
-			p := record.NewPayload().Set("label", label).Set("finding_id", findingID)
-			seat.Set(cmd, p, "finding_key", flags.Key)
-			seat.SetGrade(p, "severity", &severity)
-			seat.SetGrade(p, "likelihood", &likelihood)
-			seat.SetGrade(p, "impact", &impact)
-			seat.Set(cmd, p, "location", flags.Quote)
-			p.Set("reason", text)
-			if _, err := record.Append(s.Identity(), "finding", p); err != nil {
+			body := &recordpb.Finding{
+				Label:      proto.String(label),
+				FindingId:  proto.String(findingID),
+				FindingKey: proto.String(seat.Str(cmd, flags.Key)),
+				Location:   proto.String(seat.Str(cmd, flags.Quote)),
+				Text:       proto.String(text),
+				Severity:   seat.GradeOrNil(&severity),
+				Likelihood: seat.GradeOrNil(&likelihood),
+				Impact:     seat.GradeOrNil(&impact),
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			// The anchor event is EXPECTED for the immortal-marker detector: "finding
 			// <id> has a marker at <location>". Keyed on the id (idempotent per finding).
-			ap := record.NewPayload().Set("id", findingID).Set("location", location)
-			if _, err := record.Append(s.Identity(), "anchor", ap); err != nil {
+			ap := &recordpb.Anchor{Id: proto.String(findingID), Location: proto.String(location)}
+			if _, err := record.Append(s.Identity(), ap); err != nil {
 				return nil, err
 			}
 			// The LABEL leads: it is the run-unique identity a gap's found_by names.
