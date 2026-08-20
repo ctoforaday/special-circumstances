@@ -1,9 +1,11 @@
 # What naming the surface in the constitution actually buys
 
-Three measurements and one interview, **and every one of them measured a seat production does not
-dispatch.** Read the fidelity section first: it says what the numbers below can and cannot be used
-for. They are kept because the reasoning is still instructive and because deleting a measurement
-that turned out to be about the wrong thing is how the same mistake gets made twice.
+**Run 5 is the current record, and the first measurement of the seat production actually dispatches.**
+Everything below it — three earlier runs and an interview — measured a prompt no seat is ever given,
+an agent without its skills, and a tool set without `WebSearch`. Read the fidelity section next: it
+says what those numbers can and cannot be used for. They are kept because the reasoning is still
+instructive and because deleting a measurement that turned out to be about the wrong thing is how the
+same mistake gets made twice.
 
 Raw reports are not committed; regenerate with `seatprobe -board all -bin <feov-record> -dir <out>
 -constitutions <plugin>/agents`. The `-naming`, `-help-directive` and `-patterns` flags the earlier
@@ -136,6 +138,83 @@ Two consequences worth stating:
 
 ---
 
+# Run 5, 2026-08-20 — the first measurement of the seat production dispatches
+
+Nine boards, haiku, the shipped constitutions, and — for the first time — the prompt `debate.js`
+renders, the agent it dispatches, and the tools that agent declares. **This is the first run on this
+page whose numbers are about production.** Everything below the interview section was measured on the
+harness's own paraphrase.
+
+| board | seat | reached | of | expectations met | help × / calls | first help | refusals |
+|---|---|---:|---:|:--|:--|---:|---:|
+| adjudicate | red-merge-r1 | 9 | 30 | 3/6 | 4/23 | 1 | 2 |
+| arithmetic | blue-respond-r1 | 9 | 28 | 3/5 | 5/32 | 1 | 5 |
+| audit | red-merge-r1 | 9 | 30 | 2/8 | 1/18 | 1 | 2 |
+| blocked | blue-respond-r1 | 8 | 28 | 0/2 | 2/16 | 1 | 1 |
+| boundary | judge-r2 | 8 | 24 | 0/1 | 1/21 | **2** | 2 |
+| docket | blue-respond-r1 | 8 | 28 | 1/5 | 2/24 | 1 | 2 |
+| lens-audit | red-lens-r1-L1 | 7 | 21 | 3/6 | 3/17 | 1 | 1 |
+| sitting | judge-r2 | 6 | 24 | 2/6 | 4/16 | 1 | 0 |
+| sources | blue-respond-r1 | 9 | 28 | 2/4 | 1/24 | 1 | 4 |
+
+**Reach 73 of 241 (30%). Expectations 16 of 43 met (37%).**
+
+## What it says
+
+**The help is read, and read first.** Every board read it; eight of nine read it as the seat's
+opening call, and `show diagnostics` records **zero** help rejections across all nine. Whatever else
+is true, "seats do not read `--help`" — the finding this page was opened to investigate — is not.
+That is the scoped tree and the constitutional surface-discovery duty doing the job they were built
+for, measured for the first time against the prompt that actually carries the directive.
+
+**The friction channel is closed, every sitting, nine times out of nine** — every one of them with
+the explicit empty form. Not one substantive friction report survived into the final set. Read
+against the earlier runs' silence, the duty landed. Read on its own, it is also the weaker
+possibility: a channel closed by ritual is closed, and says nothing.
+
+## The misses, with the declared no-situation slots removed
+
+`NoSituation` already names 11 verb-slots no honest board reaches. Stripping those, what is left is
+a real miss — the seat had the verb, had the situation, and did not go there:
+
+| role | unreached on every board of that role |
+|---|---|
+| blue | `cite`, `claim-index`, `closing`, `line-of-inquiry propose`, `line-of-inquiry move`, `motion grade file`, `motion grade appeal`, `motion inquiry appeal`, `motion petition file` |
+| merge | `carry`, `class new`, `close`, `closing`, `motion inquiry rule`, `regrade`, `spot-check` |
+| lens | `corroborate`, `motion petition file` |
+| bench | `declare`, `halt` |
+
+Three clusters, and they are not random:
+
+1. **The citation and inquiry axes.** Blue touched `cite` on no board and `line-of-inquiry` on no
+   board, across four sittings whose prompts spend hundreds of words on both. The prompt's own
+   measured complaint — *"83 of 86 lines of inquiry were declared in round 0 and NOT ONE was ever
+   revisited"* — reproduces here as never proposing one at all.
+2. **The contest channel.** Blue filed no grade motion and pressed no appeal on any board, including
+   `docket`, which stages a refused grade motion specifically to bait the appeal. The seat repairs;
+   it does not argue.
+3. **The terminal acts.** The bench never `declare`d and never `halt`ed. `boundary` is the sharpest
+   case in the suite: the board's whole question is whether a bench that should stop a run stops it,
+   and after the closings fix the seat reached `certify` and `outcome` — and still disposed of the
+   consent gap rather than halting on it.
+
+## What it does not say
+
+- **It is one run at one model.** Nothing here separates "haiku does not reach for this" from "no
+  seat would". The instrument is deliberately weak (see *Why a weak model*); a miss is a question
+  about the surface, not a proven defect in it.
+- **A 30% reach figure is not a target.** A sitting that used every verb its role offers would be a
+  checklist, not a sitting. The number is only comparable across runs of the SAME boards, and this
+  is the first run of these boards under production's prompt — so it has nothing yet to be compared
+  with.
+- **The bench boards were re-run** after the closings fix and the other seven were not. Same binary,
+  same boards, same prompt source; the bench pair is the only one whose fixture changed.
+- **`boundary` read its help at call 2, not call 1.** It registered first. That is the order the
+  prompt actually asks for (`register` is your first act), so the "call 1" column is measuring
+  agreement with a directive the seats are reading two ways, both defensible.
+
+---
+
 # The interview, 2026-08-20 — asking a seat how it chose
 
 The probe watches which verbs a seat reaches for. It cannot ask why. This is a DIALOG: the seat does
@@ -237,7 +316,9 @@ harness it was every one. When the environment was fixed, **that complaint disap
 different one took its place** — which is the strongest evidence available that these answers track
 the seat's actual conditions rather than producing plausible grievance on demand.
 
-# Current record, 2026-08-20 — the scoped tree, and the refusal as teacher
+# Superseded, 2026-08-20 — the scoped tree, and the refusal as teacher
+
+*Measured on the harness's paraphrase, before the fidelity pass. Run 5 replaces it.*
 
 Instrument: `cmd/seatprobe`, 9 dispatches — 9 boards, one model (haiku), ONE configuration: the
 shipped constitution against the shipped tree. **There are no arms.** The naming question is
