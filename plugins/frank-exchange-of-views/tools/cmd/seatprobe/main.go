@@ -86,6 +86,7 @@ func main() {
 		parallel   = flag.Int("parallel", 2, "how many boards to run at once")
 		reportOnly = flag.Bool("report-only", false, "skip build and dispatch; report on what is already there")
 		keep       = flag.Bool("keep", false, "keep an existing board directory instead of rebuilding it")
+		buildOnly  = flag.Bool("build-only", false, "stage the board and STOP — no seat is dispatched and nothing is scored. For a harness that drives its own dispatch (the interview) and needs the same fixture. NOT -report-only, which skips the build and reports on whatever is already there")
 		printSit   = flag.Bool("print-sitting", false, "print the named board's SITTING text and exit — the situation a seat is dispatched into. For a harness that drives the dispatch itself (the interview) and must hand the seat the same situation this probe would")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
@@ -156,7 +157,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, *patterns)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface, *patterns)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				failed[i] = true
@@ -243,7 +244,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, patterns string) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface, patterns string) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -297,6 +298,17 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 			if r := setup.MirrorGapPatterns(memoryDirs(), runDir); !r.Written {
 				return "", fmt.Errorf("patterns arm %q: the corpus did not stage (%s) — a run that reports on memory it never delivered is the defect this arm exists to test", patterns, r.Reason)
 			}
+		}
+		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
+		// holds a session open across turns — needs the board this probe would have built, staged
+		// the same way, and then needs this binary to stop. Scoring a sitting that never happened
+		// would print "reached for 0" and mean nothing: the plausible zero, manufactured.
+		//
+		// It returns HERE rather than through a second staging function, so there is one build
+		// path. A copy would drift the first time a board changed, and then the interview and the
+		// probe would be asking about different fixtures while reporting on one.
+		if buildOnly {
+			return "", nil
 		}
 		if err := dispatch(b, runDir, bin, constDir, model, ask, surface, patterns, b); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
