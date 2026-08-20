@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -119,4 +120,21 @@ func configuredMaxRounds(runDir string) int {
 		return 0
 	}
 	return n
+}
+
+// RunOutcomeOf is the seat's verdict word to the schema's value, and it lives beside DeriveVerdict
+// for the reason GradeOf lives beside GradeStr: a conversion that exists in only one direction is
+// how two vocabularies drift apart. The writer invents its own mapping, the reader keeps another,
+// and nothing can see them disagree.
+//
+// The seat types `VERIFIED`; the schema spells `verified`. Case is presentation and is folded here
+// rather than at each call site, because a caller that forgets returns the zero — and the zero is
+// UNSPECIFIED, which would record a run as having no verdict at all rather than refusing the word.
+// `false` means it is not a verdict; a caller must refuse rather than record the zero.
+func RunOutcomeOf(word string) (recordpb.RunOutcome, bool) {
+	vd, ok := recordpb.BySpelling(recordpb.RunOutcome(0).Descriptor(), strings.ToLower(strings.TrimSpace(word)))
+	if !ok {
+		return recordpb.RunOutcome_RUN_OUTCOME_UNSPECIFIED, false
+	}
+	return recordpb.RunOutcome(vd.Number()), true
 }

@@ -2,10 +2,12 @@ package bench
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // declare: the bench states something that binds how the record is READ, without moving any
@@ -56,7 +58,7 @@ func newDeclare() *cobra.Command {
 			if text == "" {
 				return nil, feov.Errorf(feov.MissingField, "bench declare requires --reason: the declaration IS the reasoning. A holding with no stated content binds nothing and teaches nobody, and this verb exists because the alternative was prose on a channel nothing reads")
 			}
-			if _, err := record.Append(s.Identity(), "declare", record.NewPayload().Set("holding", text)); err != nil {
+			if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text)}); err != nil {
 				return nil, err
 			}
 			return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `show debate`, where both seats read it"}, nil

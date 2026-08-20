@@ -2,9 +2,11 @@ package bench
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // halt: the safety boundary.
@@ -20,7 +22,7 @@ func newHalt() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.Identity(), "halt", record.NewPayload().Set("reason", text)); err != nil {
+			if _, err := record.Append(s.Identity(), &recordpb.Halt{Opinion: proto.String(text)}); err != nil {
 				return nil, err
 			}
 			return seat.Msg{Message: "JUDICIAL HALT recorded — capture relays this verbatim"}, nil

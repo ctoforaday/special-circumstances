@@ -2,11 +2,13 @@ package bench
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // opinion: a ruling that has to BE an opinion.
@@ -24,13 +26,15 @@ func newOpinion() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			p := record.NewPayload()
-			flags.Set(p, "gap_id", cmd, flags.ID)
-			flags.Set(p, "disposition", cmd, flags.As)
-			seat.SetSame(cmd, p, flags.Principle, flags.Tension)
-			seat.Set(cmd, p, "review_flag", flags.ReviewFlag)
-			p.Set("reason", text)
-			if _, err := record.Append(s.Identity(), "opinion", p); err != nil {
+			body := &recordpb.Opinion{
+				GapId:       proto.String(seat.Str(cmd, flags.ID)),
+				Disposition: proto.String(seat.Str(cmd, flags.As)),
+				Principle:   proto.String(seat.Str(cmd, flags.Principle)),
+				Tension:     proto.String(seat.Str(cmd, flags.Tension)),
+				ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
+				Rationale:   proto.String(text),
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil

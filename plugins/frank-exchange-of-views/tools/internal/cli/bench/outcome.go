@@ -7,11 +7,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // outcome: the run's terminal verdict, recorded as a fact.
@@ -69,20 +71,28 @@ func newOutcome() *cobra.Command {
 			// VERDICT while saying nothing about how the sitting ended.
 			reason := strings.TrimSpace(seat.Str(cmd, flags.Reason))
 
-			p := record.NewPayload().
-				Set("verdict", verdict).
-				Set("verdict_basis", basis)
-			seat.Set(cmd, p, "ended", flags.Ended)
+			// THE WORD IS REFUSED HERE, not recorded as the zero. RunOutcome's zero is
+			// UNSPECIFIED, so a verdict the schema does not know would land as a run with no
+			// verdict at all — which reads downstream exactly like a run that never reached one.
+			v, ok := record.RunOutcomeOf(verdict)
+			if !ok {
+				return nil, feov.Errorf(feov.Validation,
+					"bench outcome: %q is not a verdict this record can carry", verdict)
+			}
+			body := &recordpb.Outcome{Verdict: &v, VerdictBasis: proto.String(basis)}
+			if e := seat.Str(cmd, flags.Ended); e != "" {
+				body.Ended = proto.String(e)
+			}
 			if reason != "" {
-				p.Set("reason", reason)
+				body.Prose = proto.String(reason)
 			}
 			// THE DERIVATION'S OWN REASONING, recorded rather than discarded. It was computed on
 			// every call and used only to phrase an error, so the report stamped a verdict and
 			// could never say why it was that one.
 			if basisWhy != "" {
-				p.Set("verdict_why", basisWhy)
+				body.VerdictWhy = proto.String(basisWhy)
 			}
-			if _, err := record.Append(s.Identity(), "outcome", p); err != nil {
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			return outcomeResult{Verdict: verdict, Ended: ended}, nil
