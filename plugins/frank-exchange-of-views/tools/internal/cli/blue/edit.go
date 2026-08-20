@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
@@ -13,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // edit: the ONLY write path to blue/report.md for a response seat.
@@ -79,12 +81,13 @@ func newEdit() *cobra.Command {
 			}
 
 			// Event-first: commit the diff-stack op, then apply the write.
-			p := record.NewPayload()
-			seat.Set(cmd, p, "edit_key", flags.Key)
-			seat.Set(cmd, p, "answers", flags.Answers)
-			p.Set("old", oldStr)
-			p.Set("new", newStr)
-			p.Set("reason", reason)
+			body := &recordpb.BlueEdit{
+				EditKey: proto.String(seat.Str(cmd, flags.Key)),
+				Answers: proto.String(seat.Str(cmd, flags.Answers)),
+				Old:     proto.String(oldStr),
+				New:     proto.String(newStr),
+				Text:    proto.String(reason),
+			}
 			// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
 			//
 			// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
@@ -100,10 +103,10 @@ func newEdit() *cobra.Command {
 					return nil, err
 				}
 				if verbatim {
-					p.Set("applied_verbatim", true)
+					body.AppliedVerbatim = proto.Bool(true)
 				}
 			}
-			if _, err := record.Append(s.Identity(), "blue_edit", p); err != nil {
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {

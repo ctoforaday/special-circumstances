@@ -6,12 +6,14 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // cite: blue's ONLY mechanism for citing a source.
@@ -62,7 +64,7 @@ func newCite() *cobra.Command {
 			sha, _, _, err := fetchcache.Resolve(s.RunDir, url, fetchcache.Default)
 			if err != nil {
 				msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
-				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", msg)); ferr != nil {
+				if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
 					return nil, ferr
 				}
 				return nil, errors.New(msg)
@@ -91,15 +93,16 @@ func newCite() *cobra.Command {
 
 			// The anchor is committed; the cite event follows. access_date is engine-supplied
 			// from the record clock (pinned under the golden harness), not typed by the seat.
-			p := record.NewPayload().
-				Set("label", label).
-				Set("url", url).
-				Set("sha256", sha).
-				Set("title", title).
-				Set("location", quote).
-				Set("access_date", record.Now().Format("2006-01-02"))
-			seat.Set(cmd, p, "cite_key", flags.Key)
-			if _, err := record.Append(s.Identity(), "cite", p); err != nil {
+			body := &recordpb.Cite{
+				Label:      proto.String(label),
+				Url:        proto.String(url),
+				Sha256:     proto.String(sha),
+				Title:      proto.String(title),
+				Location:   proto.String(quote),
+				AccessDate: proto.String(record.Now().Format("2006-01-02")),
+				CiteKey:    proto.String(seat.Str(cmd, flags.Key)),
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: label, URL: url, Sha256: sha}, nil

@@ -2,11 +2,14 @@ package blue
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // line of inquiry: a line of inquiry, and what became of it.
@@ -69,22 +72,28 @@ func newInquiryPropose() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			p := record.NewPayload().Set("inquiry_id", id)
-			seat.SetSame(cmd, p, flags.Method)
-			seat.Set(cmd, p, "hypothesis", flags.Hypothesis)
+			proposed := recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED
+			body := &recordpb.Avenue{
+				AvenueId:   proto.String(id),
+				Method:     proto.String(seat.Str(cmd, flags.Method)),
+				Hypothesis: proto.String(seat.Str(cmd, flags.Hypothesis)),
+				Status:     &proposed,
+			}
 			// The record keeps its own word: the payload key is `line`, the flag is --reason.
 			// Flag words are not payload keys (see internal/flags).
-			p.Set("line", seat.Str(cmd, flags.Reason))
+			body.Line = proto.String(seat.Str(cmd, flags.Reason))
 			// A fresh proposal with no stated fate is `proposed` — the state the old shape could
-			// not express, which forced blue to declare a fate before it had one.
-			p.Set("status", "proposed")
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			// not express, which forced blue to declare a fate before it had one. It is set on the
+			// body above, where the enum makes it a value rather than a spelling.
+			why, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
+			body.Reason = proto.String(why)
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
-			return inquiryResult{ID: id, Status: "proposed", Line: p.Str("line")}, nil
+			return inquiryResult{ID: id, Status: "proposed", Line: body.GetLine()}, nil
 		}), "line-of-inquiry"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
@@ -102,23 +111,30 @@ func newInquiryMove() *cobra.Command {
 			if err := record.RequireInquiryRef(s.RunDir, id); err != nil {
 				return nil, err
 			}
-			p := record.NewPayload().
-				Set("inquiry_id", id).
-				Set("supersedes_status", "1").
-				Set("status", seat.Str(cmd, flags.As))
+			st, known := record.AvenueStatusOf(seat.Str(cmd, flags.As))
+			if !known {
+				return nil, feov.Errorf(feov.Validation, "blue line-of-inquiry: %q is not a fate a line can take", seat.Str(cmd, flags.As))
+			}
+			body := &recordpb.Avenue{
+				AvenueId:         proto.String(id),
+				SupersedesStatus: proto.String("1"),
+				Status:           &st,
+			}
 			// THE CONTEST IS `motion inquiry appeal` (#344), NOT A FIELD HERE. `contests_ruling`
 			// was set as a side effect of moving a line to `pursued` against an adverse ruling,
 			// and that coupling can only record disagreement that WINS: in one real record the
 			// merge ruled a line too thin, blue argued the reasoning at the leaf and then
 			// declined the line anyway — the ordinary outcome of an argument — and the field
 			// recorded nothing. It appears zero times in the whole record.
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			why, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
+			body.Reason = proto.String(why)
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
-			return inquiryResult{ID: id, Status: p.Str("status"), Moved: true}, nil
+			return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true}, nil
 		}), "line-of-inquiry"))
 
 	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "the line of inquiry whose fate you are moving (A1, A2 …) — `show lines-of-inquiry` lists every one")

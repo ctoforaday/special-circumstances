@@ -5,12 +5,14 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // prove: settle a claim by COMPUTING it, and leave the computation as the evidence.
@@ -58,7 +60,7 @@ func newProve() *cobra.Command {
 				// A proof that will not run is not evidence, and the failure is a capability
 				// signal — the same treatment `blue cite` gives an unreachable source.
 				msg := err.Error()
-				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", msg)); ferr != nil {
+				if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
 					return nil, ferr
 				}
 				return nil, err
@@ -78,24 +80,30 @@ func newProve() *cobra.Command {
 				return nil, err
 			}
 
-			p := record.NewPayload().
-				Set("proof_id", label).
-				Set("sha256", res.SHA).
-				Set("proof_basis", res.Basis).
-				Set("script", res.Script).
-				Set("exit", res.Exit).
-				Set("location", location).
-				Set("output", truncateOutput(res.Output))
-			if res.Drift != "" {
-				p.Set("drift", res.Drift)
+			// `location` and `output` do not survive onto the event, and neither is a silent drop.
+			// The output stays in the proof cache addressed by proof_sha — content is not a fact
+			// about the debate, and the census records that reasoning against the key. The anchor
+			// is spliced into the report at `location`, and no reader ever read it back off the
+			// proof event: report/proofs.go renders script, exit, basis and drift.
+			body := &recordpb.Proof{
+				ProofId:    proto.String(label),
+				ProofSha:   proto.String(res.SHA),
+				ProofBasis: proto.String(res.Basis),
+				Script:     proto.String(res.Script),
+				Exit:       proto.Int32(int32(res.Exit)),
+				ProofKey:   proto.String(seat.Str(cmd, flags.Key)),
+				Answers:    proto.String(seat.Str(cmd, flags.Answers)),
+				Cites:      proto.String(seat.Str(cmd, flags.Cites)),
 			}
-			seat.Set(cmd, p, "proof_key", flags.Key)
-			seat.Set(cmd, p, "answers", flags.Answers)
-			seat.Set(cmd, p, "cites", flags.Cites)
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			if res.Drift != "" {
+				body.Drift = proto.String(res.Drift)
+			}
+			why, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.Identity(), "proof", p); err != nil {
+			body.Text = proto.String(why)
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil

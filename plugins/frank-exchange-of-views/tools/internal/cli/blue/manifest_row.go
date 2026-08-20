@@ -2,10 +2,12 @@ package blue
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // manifest-row: the correctness manifest's receipt, one per repaired gap.
@@ -24,9 +26,11 @@ func newManifestRow() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-			p.Set("row", text)
-			if _, err := record.Append(s.Identity(), "manifest-row", p); err != nil {
+			body := &recordpb.ManifestRow{
+				GapId: proto.String(seat.Str(cmd, flags.ID)),
+				Row:   proto.String(text),
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			return manifestRowResult{GapID: seat.Str(cmd, flags.ID)}, nil
