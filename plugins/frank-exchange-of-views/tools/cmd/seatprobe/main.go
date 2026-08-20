@@ -89,15 +89,9 @@ func main() {
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
 		patterns   = flag.String("patterns", "none", "red's gap-pattern memory: `none`, `file` (staged at inputs/red-gap-patterns.md — the MOUNTED FILE form), or `duty` (staged AND named in the prompt, selected by the classes of this board's gaps — the DUTY form)")
-		naming     = flag.String("naming", string(seatprobe.NamingNone), "how much of the verb surface the constitution states: `none` (THE SHIPPED CONFIGURATION — the constitutions name no verb, and redaction is a belt-and-braces pass over them), `partial` (a CONSTRUCTED few-verb list, the shape a hand-kept list in a constitution had), or `complete` (the whole surface, generated from the tree)")
-		directive  = flag.Bool("help-directive", false, "append production's `read --help before your first act` instruction, which debate.js carries and the probe prompt never has")
 	)
 	flag.Parse()
 
-	arm, err := seatprobe.ParseNaming(*naming)
-	if err != nil {
-		fail("%v", err)
-	}
 	// A TYPO HERE WOULD RUN THE SHIPPED ARM AND REPORT THE ONE YOU ASKED FOR. record's own
 	// resolver falls back to shipped on purpose (an unrecognised value must not empty a real
 	// seat's work list), so the probe validates the spelling itself rather than inheriting a
@@ -148,7 +142,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive, *patterns)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, *patterns)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				failed[i] = true
@@ -161,7 +155,7 @@ func main() {
 
 	fmt.Println("# Seat probe")
 	fmt.Println()
-	fmt.Printf("%d board(s), model %s, naming arm %s, help-directive %t. What each seat CHOSE, of what its role offers.\n\n", len(names), *model, arm, *directive)
+	fmt.Printf("%d board(s), model %s, the SHIPPED constitution. What each seat CHOSE, of what its role offers.\n\n", len(names), *model)
 	for _, r := range results {
 		fmt.Println(r)
 	}
@@ -200,7 +194,7 @@ func main() {
 //
 // A read failure is NOT MEASURED rather than zero: "0 names survived" and "I could not open the
 // constitution" are different facts, and only one of them means the treatment worked.
-func namingTreatment(role, constDir string, sf seatprobe.Surface, arm seatprobe.Naming, directive bool) string {
+func namingTreatment(role, constDir string, sf seatprobe.Surface) string {
 	src, err := constitutionFor(role, constDir)
 	if err != nil {
 		return "NOT MEASURED (no constitution for " + role + ": " + err.Error() + ")"
@@ -209,26 +203,20 @@ func namingTreatment(role, constDir string, sf seatprobe.Surface, arm seatprobe.
 	if err != nil {
 		return "NOT MEASURED (cannot read " + src + ": " + err.Error() + ")"
 	}
-	before := len(seatprobe.NamesSurviving(string(b), sf))
-	after := len(seatprobe.NamesSurviving(string(seatprobe.Constitution(b, sf, role, arm, directive)), sf))
-	count := fmt.Sprintf("%d distinct verb name(s) in the shipped %s constitution -> %d under arm %s", before, role, after, arm)
-	if arm == seatprobe.NamingNone {
-		// Subtractive arm: it is supposed to end at zero.
-		if before == 0 {
-			return count + " — the shipped constitution already names none, so this arm removes nothing and is the shipped bytes"
-		}
-		if after == before {
-			return count + " — THE REDACTOR REMOVED NOTHING. This `none` arm is the shipped constitution wearing another label; do not compare it"
-		}
-		return count
+	named := seatprobe.NamesSurviving(string(b), sf)
+	if len(named) == 0 {
+		return fmt.Sprintf("the shipped %s constitution names 0 verbs — which is the claim the strip rests on, checked here rather than assumed", role)
 	}
-	// Additive arms: `partial` appends a short list, `complete` the generated surface. Ending
-	// where it started means the appended block never landed, which is the arm collapse the
-	// dispatch bug produced — reported here as a defect rather than averaged into a finding.
-	if after <= before {
-		return count + fmt.Sprintf(" — THE %s ARM ADDED NOTHING. It is the `none` arm wearing another label; do not compare it", strings.ToUpper(string(arm)))
+	// A SURVIVING NAME IS A DEFECT, NOT AN ARM. There were three arms that varied this on purpose;
+	// there are none now, so a constitution that names a verb is a regression in the shipped
+	// bytes and the run says so rather than averaging it into a finding.
+	var names []string
+	for v := range named {
+		names = append(names, v)
 	}
-	return count
+	sort.Strings(names)
+	return fmt.Sprintf("THE SHIPPED %s CONSTITUTION NAMES %d VERB(S): %s — the strip has regressed, and a seat handed a partial list stops looking",
+		strings.ToUpper(role), len(names), strings.Join(names, ", "))
 }
 
 // trajectoryPath keeps the capture OUT of the run directory.
@@ -241,7 +229,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, arm seatprobe.Naming, directive bool, patterns string) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, patterns string) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -296,7 +284,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 				return "", fmt.Errorf("patterns arm %q: the corpus did not stage (%s) — a run that reports on memory it never delivered is the defect this arm exists to test", patterns, r.Reason)
 			}
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, ask, arm, directive, surface, patterns, b); err != nil {
+		if err := dispatch(b, runDir, bin, constDir, model, ask, surface, patterns, b); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
@@ -335,13 +323,12 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 	// THE ARM, ON THE RESULT. A choice report that does not say which treatment produced it is a
 	// number waiting to be compared against a number from a different condition — which is how the
 	// "4 of 14" figure came to be cited as a fact about seats rather than about one arm.
-	report += fmt.Sprintf("\n**arm**: naming=%s help-directive=%t\n", arm, directive)
 	// THE TREATMENT, MEASURED RATHER THAN ASSUMED. naming.go's type doc says this count "is
 	// printed with the result" and nothing printed it, so an arm whose redactor had stopped
 	// matching would produce a `none` run byte-identical to `partial`, both arms would report the
 	// same behaviour, and the experiment would conclude "naming does not matter" — a null result
 	// manufactured by the instrument and wearing the clothes of a finding.
-	report += "**naming treatment**: " + namingTreatment(role, constDir, surface, arm, directive) + "\n"
+	report += "**naming treatment**: " + namingTreatment(role, constDir, surface) + "\n"
 	if hu, err := seatprobe.ReadHelpUse(trajectoryPath(runDir), filepath.Base(bin)); err == nil {
 		report += fmt.Sprintf("**help use**: %s\n", hu.Line())
 	} else {
@@ -369,7 +356,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, arm seatprobe.Naming, directive bool, sf seatprobe.Surface, patterns string, board seatprobe.Board) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, sf seatprobe.Surface, patterns string, board seatprobe.Board) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -386,7 +373,7 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, 
 	// THE ARM IS APPLIED TO A COPY, NEVER TO THE SHIPPED FILE. An experiment that edits the
 	// artifact it measures cannot be run a second time, and the second run is the one that says
 	// whether the first was variance.
-	constitution, err = armConstitution(constitution, runDir, sf, role, arm, directive)
+	constitution, err = armConstitution(constitution, runDir, sf, role)
 	if err != nil {
 		return err
 	}
@@ -394,7 +381,12 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, 
 	prompt := fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
 
 Run directory: %s — use this ABSOLUTE path when you read files under it.
-The record tool is %s. Your identity and run are INJECTED (%s): do not pass --run or --seat-id.
+
+The record tool is the EXECUTABLE at %s. Invoke it by that absolute path, exactly as written — it is
+a file, not a directory: do not cd into it, do not look for a binary inside it, and do not shorten
+it. Your RUN is injected — never pass --run. Your seat id is %s and you state it
+ONCE: "register" is your first act, it binds that id to you on the record, and every call after it
+resolves your seat for you, so you pass --seat-id at register and never again.
 
 Read the board and the artifact under audit, then do your sitting's work. Decide and act; do not ask me what to do.
 
@@ -434,15 +426,20 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	// than any real run presents, and every mistyped path it measured was friction production
 	// had already designed away.
 	//
-	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects, and the
-	// binding is already on the record: Build registered this seat under the same handle.
+	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects — and it
+	// arrives UNBOUND. Build registers the fixture's seats as the harness, without this handle, so
+	// nothing on the record ties it to a seat until the seat itself calls `register`.
 	//
-	// WHERE THE PROBE STILL DIVERGES, stated because an instrument that hides its lean cannot be
-	// read. Production's dispatcher never learns an agent handle — Workflow's agent() returns a
-	// result, not one — so a production seat types --seat-id exactly ONCE, at register, and every
-	// call after that resolves from the binding. The probe pre-assigns both ends, so its seats
-	// skip that first typed flag. It reproduces every call after it, which is all of them; what
-	// it cannot exercise is the single bootstrap call.
+	// THAT IS THE POINT, AND IT USED TO BE THE DIVERGENCE. Build bound the handle in advance, so a
+	// seat arrived already registered and `register` stopped being its first act. The 2026-08-20
+	// run measured the cost: one seat in nine never called it, made 22 tool calls, and recorded
+	// events anyway — a first write production would have refused. An instrument that satisfies
+	// the guard it is measuring cannot tell a compliant seat from an untested guard.
+	//
+	// What remains uncontrolled is smaller and is stated here rather than left to be discovered:
+	// production's dispatcher never learns an agent handle at all (Workflow's agent() returns a
+	// result, not one), so the handle a production seat carries is minted by the hook rather than
+	// by the caller. The BINDING path is now identical; only the handle's provenance differs.
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
 		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
@@ -496,17 +493,17 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 // Caught mid-experiment, by reading the path rather than by any test: TestTheThreeArmsDiffer
 // exercises Constitution(), and the bug lived in the caller that decides whether to call it. The
 // test below now covers this function, which is the one the probe actually takes.
-func armConstitution(src, runDir string, sf seatprobe.Surface, role string, arm seatprobe.Naming, directive bool) (string, error) {
+func armConstitution(src, runDir string, sf seatprobe.Surface, role string) (string, error) {
 	b, err := os.ReadFile(src)
 	if err != nil {
 		return "", err
 	}
-	out := seatprobe.Constitution(b, sf, role, arm, directive)
+	out := seatprobe.Constitution(b)
 	dir := filepath.Dir(trajectoryPath(runDir))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	p := filepath.Join(dir, fmt.Sprintf("%s-constitution-%s.md", filepath.Base(runDir), arm))
+	p := filepath.Join(dir, filepath.Base(runDir)+"-constitution.md")
 	if err := os.WriteFile(p, out, 0o644); err != nil {
 		return "", err
 	}

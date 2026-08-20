@@ -76,6 +76,71 @@ func Attempted(trajectoryPath, binName string, sf Surface, role string) (map[str
 	return out, sc.Err()
 }
 
+// commandWords reduces the tokens after the binary to the ones that can name a command.
+//
+// A token following a flag is that flag's VALUE and can never be the verb. Dropping those is what
+// stops `--seat-id red-lens-r1-L1` and `--reason "close it"` from nominating one.
+//
+// THE ROLE IS NOT PART OF THE VERB. The surface names verbs role-relatively (`show`, not
+// `blue show`), because that is how an expectation is written — and since the tree was scoped to
+// the seat, it is also how a seat types them. A leading role word is dropped rather than matched,
+// so a trajectory from either era resolves the same way.
+//
+// EXTRACTED SO THERE IS ONE RESOLVER, WHICH IS THE WHOLE POINT. There were two: this one, and a
+// regex in ReadViewReads that required the role prefix — `(?:lens|merge|blue|bench)\s+show`. When
+// the role level went away, the regex matched nothing, and every sitting reported "no projection
+// opened at all" while seats were opening projections up to FOURTEEN times. A second reader of one
+// fact went stale silently and reported the absence as a finding about the seats.
+func commandWords(fields []string) []string {
+	var cand []string
+	value := false
+	for _, f := range fields {
+		if strings.HasPrefix(f, "-") {
+			value = true
+			continue
+		}
+		if value {
+			value = false // a flag's argument
+			continue
+		}
+		switch f {
+		case "blue", "lens", "merge", "bench":
+			continue
+		}
+		cand = append(cand, f)
+	}
+	return cand
+}
+
+// binFields returns the tokens following the tool's own name, or nil when the command does not
+// invoke it.
+func binFields(command, binName string) []string {
+	fields := strings.Fields(strings.NewReplacer("\"", " ", "'", " ").Replace(command))
+	for i, f := range fields {
+		base := strings.TrimSuffix(strings.ToLower(filepath.Base(f)), ".exe")
+		if base == strings.TrimSuffix(strings.ToLower(binName), ".exe") {
+			return fields[i+1:]
+		}
+	}
+	return nil
+}
+
+// ShowViewIn answers which projection a command opened: the view name, "work" for the bare form
+// (every role's default), or "" when the command is not a show at all.
+func ShowViewIn(command, binName string) (string, bool) {
+	words := commandWords(binFields(command, binName))
+	for i, w := range words {
+		if w != "show" {
+			continue
+		}
+		if i+1 < len(words) {
+			return words[i+1], true
+		}
+		return "work", true
+	}
+	return "", false
+}
+
 // verbIn finds the verb a shell command invokes, or "".
 //
 // THE LONGEST MATCHING PREFIX WINS, and that is not fussiness: `motion grade file` and `motion`
@@ -104,27 +169,7 @@ func verbIn(command, binName string, verbs map[string]bool) string {
 	// calls as having reached for no verb at all. Which is precisely the reading this file exists
 	// to eliminate, one level up, in the instrument written to eliminate it.
 	//
-	// A token following a flag is that flag's VALUE and can never be the verb. Dropping those is
-	// what stops `--seat-id red-lens-r1-L1` and `--reason "close it"` from nominating one.
-	var cand []string
-	value := false
-	for _, f := range fields[start:] {
-		if strings.HasPrefix(f, "-") {
-			value = true
-			continue
-		}
-		if value {
-			value = false // a flag's argument
-			continue
-		}
-		// The role is not part of the verb: the surface names verbs role-relatively (`show`,
-		// not `blue show`), because that is how an expectation is written.
-		switch f {
-		case "blue", "lens", "merge", "bench":
-			continue
-		}
-		cand = append(cand, f)
-	}
+	cand := commandWords(fields[start:])
 	for i := range cand {
 		for n := min(3, len(cand)-i); n >= 1; n-- {
 			if v := strings.Join(cand[i:i+n], " "); verbs[v] {

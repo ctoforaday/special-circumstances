@@ -155,3 +155,41 @@ func TestAFlagValueNeverNominatesAVerb(t *testing.T) {
 		t.Fatalf("counted %v — prose inside a flag's value was read as verbs", got)
 	}
 }
+
+// THE SCOPED TREE BROKE THE VIEW COUNTER AND NOTHING SAID SO.
+//
+// ReadViewReads had its own matcher — `(?:lens|merge|blue|bench)\s+show` — from the era when a
+// seat typed `blue show board`. The role level went away, the regex matched nothing, and every
+// sitting in a nine-board run reported "no projection opened at all — the duty list reached this
+// seat through no channel" while one of those seats had run `show` FOURTEEN times.
+//
+// That is this repository's own defect, committed by the instrument built to measure it: a second
+// reader of one fact, gone stale, returning a plausible zero that reads exactly like a finding
+// about the seats.
+func TestShowViewSurvivesTheRoleLevelGoingAway(t *testing.T) {
+	const bin = "feov-record"
+	for _, tc := range []struct {
+		name, cmd, want string
+		ok              bool
+	}{
+		{"scoped: bare show is the work list", "/tmp/feov-record show --run /r", "work", true},
+		{"scoped: named view", "/tmp/feov-record show board --run /r", "board", true},
+		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-merge-r1 show findings`, "findings", true},
+		// The old spelling still resolves, so a trajectory from either era reads the same.
+		{"role-prefixed still reads", "/tmp/feov-record merge show board --run /r", "board", true},
+		{"not a show at all", "/tmp/feov-record mint --problem p --run /r", "", false},
+		// A flag VALUE must never nominate a view — the defect verbIn was already hardened for.
+		{"show inside a reason is not a read", `/tmp/feov-record friction --reason show me the board`, "", false},
+		{"another tool entirely", "grep -rn show /src", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := ShowViewIn(tc.cmd, bin)
+			if ok != tc.ok {
+				t.Fatalf("ShowViewIn(%q) ok = %v, want %v (got view %q)", tc.cmd, ok, tc.ok, got)
+			}
+			if got != tc.want {
+				t.Errorf("ShowViewIn(%q) = %q, want %q", tc.cmd, got, tc.want)
+			}
+		})
+	}
+}
