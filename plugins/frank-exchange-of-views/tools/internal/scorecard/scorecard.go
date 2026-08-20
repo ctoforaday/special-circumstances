@@ -26,6 +26,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -294,11 +295,16 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	manifestedGaps := map[string]bool{}
 	if board != nil {
 		for _, e := range board.Events {
-			if e.Type == "manifest-row" {
-				manifested++
-				if id := e.Payload.Str("gap_id"); id != "" {
-					manifestedGaps[id] = true
-				}
+			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
+			// falls back to when no denominator exists, so an event of this type whose body did
+			// not decode must still be counted — a short count would read as a low one, which is
+			// the plausible-zero this metric exists to make visible.
+			if e.GetType() != recordpb.EventType_EVENT_TYPE_MANIFEST_ROW {
+				continue
+			}
+			manifested++
+			if mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e); ok && mr.GetGapId() != "" {
+				manifestedGaps[mr.GetGapId()] = true
 			}
 		}
 	}
@@ -348,7 +354,7 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	retires := 0
 	if board != nil {
 		for _, e := range board.Events {
-			if e.Type == "retire" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_RETIRE {
 				retires++
 			}
 		}
@@ -379,10 +385,8 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	expectedSet := map[string]bool{}
 	if board != nil {
 		for _, e := range board.Events {
-			if e.Type == "anchor" {
-				if id := e.Payload.Str("id"); id != "" {
-					expectedSet[id] = true
-				}
+			if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() != "" {
+				expectedSet[a.GetId()] = true
 			}
 		}
 	}
@@ -408,10 +412,8 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	citeExpectedSet := map[string]bool{}
 	if board != nil {
 		for _, e := range board.Events {
-			if e.Type == "cite" {
-				if id := e.Payload.Str("label"); id != "" {
-					citeExpectedSet[id] = true
-				}
+			if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok && c.GetLabel() != "" {
+				citeExpectedSet[c.GetLabel()] = true
 			}
 		}
 	}
