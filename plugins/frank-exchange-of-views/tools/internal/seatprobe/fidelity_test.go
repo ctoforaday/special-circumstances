@@ -1,6 +1,7 @@
 package seatprobe
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -198,6 +199,58 @@ func TestEveryBenchBoardCarriesTheClosingsItsPromptPromises(t *testing.T) {
 		}
 		if !strings.Contains(d.Prompt, "closings") {
 			t.Errorf("board %q: the bench prompt no longer mentions closings — this gate is now staging state nobody asked for", name)
+		}
+	}
+}
+
+// A BOARD WHOSE PROMPT SENDS THE SEAT TO THE TRANSCRIPT MUST STAGE ONE.
+//
+// blue's dispatched prompt says: "BEFORE drafting, read the transcript from the RECORD — the
+// `debate` projection — the gap JSON above is a lossy summary of it… read red's latest '### RED'
+// narrative there". All four blue boards rendered 74 bytes: a header and no sections.
+//
+// FOUND BY THE SEAT, IN AN INTERVIEW, AND ONLY THEN CHECKED: "The debate projection was truncated
+// or empty. I reached for something, got back what looked incomplete, and moved on without
+// reporting it." Its own trajectory shows the call returning exactly 71 bytes.
+//
+// AND IT IS THE SECOND TIME. The closings commit fixed this class for the bench, swept for
+// siblings, and reported "the lens and merge prompts assert nothing about record state the board
+// does not carry" — an enumeration that never re-read blue's. The sweep was the defect. So this
+// gate does not enumerate: it asks the PROMPT which boards make the claim, and asks BUILD whether
+// it files anything that renders into the transcript.
+func TestEveryBoardSentToTheTranscriptStagesOne(t *testing.T) {
+	for name, b := range Boards() {
+		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
+		if err != nil {
+			t.Errorf("board %q: %v", name, err)
+			continue
+		}
+		if !strings.Contains(d.Prompt, "`debate` projection") {
+			continue
+		}
+		// What does Build actually file? `position` renders "### RED"/"### BLUE"; `closing`
+		// renders "### RED CLOSING"/"### BLUE CLOSING". Anything else leaves the header alone.
+		var filed []string
+		q := 0
+		exec := func(args ...string) (string, error) {
+			if len(args) > 0 && (args[0] == "position" || args[0] == "closing") {
+				filed = append(filed, args[0])
+			}
+			// Build reads the minted id back off stdout rather than recomposing it, so the stub
+			// has to answer like the tool does or the build stops before it reaches the filing.
+			if len(args) > 1 && args[0] == "line-of-inquiry" && args[1] == "propose" {
+				q++
+				return fmt.Sprintf("recorded line of inquiry Q%d\n", q), nil
+			}
+			return "", nil
+		}
+		if err := Build(t.TempDir(), b, exec); err != nil {
+			t.Errorf("board %q: build: %v", name, err)
+			continue
+		}
+		if len(filed) == 0 {
+			t.Errorf("board %q sends its seat to the `debate` projection and stages nothing that renders into it — the seat reads a header and no sections, and what it does next is scored as its judgement",
+				name)
 		}
 	}
 }

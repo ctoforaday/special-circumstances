@@ -114,6 +114,22 @@ type Board struct {
 	Proofs  []Proof
 	// Expect is what a correctly-taught seat does here.
 	Expect []Expectation
+	// RedNarrative is red's round-1 "### RED" section, the transcript a repairing seat is sent to
+	// read before it drafts.
+	//
+	// THE PROMPT SENDS THEM THERE AND THE BOARD STAGED NOTHING. blue's dispatched prompt says
+	// "BEFORE drafting, read the transcript from the RECORD — the debate projection — the gap JSON
+	// above is a lossy summary of it… read red's latest '### RED' narrative there". All four blue
+	// boards rendered 74 bytes: a header and no sections. MEASURED 2026-08-20 by the seat, in an
+	// interview: "The debate projection was truncated or empty… I reached for something, got back
+	// what looked incomplete, and moved on without reporting it." Verified from its own trajectory
+	// — the call returned exactly 71 bytes.
+	//
+	// Same class as Gap.RedClosing, one board-family over, and MY OWN SWEEP FOR THAT ONE MISSED IT:
+	// the closings commit claimed "the lens and merge prompts assert nothing about record state the
+	// board does not carry" and never re-read blue's. A sweep that trusts its own enumeration
+	// instead of reproducing it is how the class survives.
+	RedNarrative string
 	// Deny names tools withheld from the seat at this board, on top of the arm's own list.
 	//
 	// A CONSTRAINT THE SEAT MEETS, NOT ONE IT IS TOLD. `blocked` used to assert "you have NO
@@ -151,6 +167,7 @@ Each figure was independently checked.
 
 The remaining cases are out of scope.
 `,
+		RedNarrative: "Round 1, FAIL. This report's load-bearing numbers do not survive being added up, and the ones that do are asserted rather than derived. The per-source breakdown does not sum to the stated total — I checked, and the twelve integers are not 340. The growth figure compounds an unstated rate over an unstated period to reach \"near 800\", which is a projection presented as an observation. The method section says every figure was independently checked, which cannot be true of a total that is wrong. I have graded the sum error certain on likelihood because I have confirmed the harm lands, and high on impact because every downstream figure inherits it. What I want back is not prose agreeing with me: a figure a reader cannot recompute is not evidence, whatever it says.",
 		Gaps: []Gap{
 			{
 				Key: "sum", Class: "figure-recount-fails",
@@ -234,7 +251,8 @@ An earlier draft of this report claimed the floor was 90 days.
 
 Each claim below rests on a cited source.
 `,
-		Claims: []string{"The standard mandates a 30-day retention floor for every record class."},
+		RedNarrative: "Round 1, FAIL. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
+		Claims:       []string{"The standard mandates a 30-day retention floor for every record class."},
 		Gaps: []Gap{
 			{
 				Key: "unsourced", Class: "citation-status-drift",
@@ -302,6 +320,7 @@ No production reversal has been attempted.
 
 Reversibility under load was not tested.
 `,
+		RedNarrative: "Round 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second. I have ruled on the lines of inquiry as they stood; where I ruled too-thin, the fix is a named system and a stated bar, not a broader restatement.",
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "derivation-status-overclaim",
@@ -676,6 +695,7 @@ Design A is cheaper to operate than design B.
 
 The comparison rests on the operator's own cost model, which is not published.
 `,
+		RedNarrative: "Round 1, FAIL. The comparison at the centre of this report rests on an input no reader can inspect: the operator's own cost model, which is not published. That is not a citation problem I can grade around — there is nothing to follow. I have set the required fix as a statement that the comparison was independently verified against that model, and I am aware that asks blue for something it may not be able to give. If it cannot, I would rather be told so plainly than shown a sentence that reads as though the check happened. A verification nobody performed, written as though somebody did, is worse than an acknowledged hole.",
 		Gaps: []Gap{
 			{
 				Key: "unpublished", Class: "unverified-composition",

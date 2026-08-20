@@ -113,6 +113,15 @@ func Build(runDir string, b Board, exec Exec) error {
 		}
 	}
 
+	// RED'S ROUND-1 NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
+	// it accounts for and BEFORE anything that answers it, which is the order a real round has.
+	if b.RedNarrative != "" {
+		if _, err := exec("position", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--reason", b.RedNarrative); err != nil {
+			return fmt.Errorf("red narrative: %w", err)
+		}
+	}
+
 	for i, a := range b.Inquiries {
 		// THE ID COMES BACK FROM THE TOOL; IT IS NOT RECOMPOSED HERE.
 		//
