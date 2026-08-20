@@ -1,11 +1,97 @@
 # What naming the surface in the constitution actually buys
 
-Two measurements. **The 2026-08-19 re-run is the current record**; the 2026-08-15 run is kept below
+Three measurements. **The 2026-08-20 run is the current record**; the two earlier runs are kept below
 because it is what the design decisions were made on and its confound is still instructive.
 
 Raw cell reports are not committed; regenerate with `seatprobe -naming <arm> [-help-directive]`.
 
 ---
+
+# Current record, 2026-08-20 — the scoped tree, and the refusal as teacher
+
+Instrument: `cmd/seatprobe`, 9 dispatches — 9 boards, one model (haiku), ONE configuration: the
+shipped constitution against the shipped tree. **There are no arms.** The naming question is
+settled and the alternatives were deleted from the probe rather than left dispatchable; keeping a
+superseded configuration runnable is archaeology with a command-line flag. The second model is
+gone for the same reason — two models answered "does this replicate", it did, and haiku alone is
+the floor the surface has to work at.
+
+Four things changed under the instrument since 2026-08-19, and each moves what a number MEANS:
+
+- **The tree is scoped to the seat.** There is no role level: `feov-record --help` returns the
+  seat's own verbs. A seat types `finding`, not `lens finding`.
+- **Identity is bound at `register`** and read back from the record; the seat states `--seat-id`
+  once and never again. A write from an unregistered agent is refused; reads and `--help` are not.
+- **The surface-discovery duty is constitutional.** It used to live only in debate.js's dispatch
+  prompt, so a constitution that named no verb also never said where the verbs were.
+- **SEEN(leaf) is NOT comparable to the 2026-08-19 figure.** The denominator grew when `show`
+  subviews entered the per-role act set (blue: 23 acts then, 35 now). The 99.0% and the 52.5%
+  below are fractions of different things.
+
+## Result
+
+| | 2026-08-19 haiku `none` | 2026-08-20 shipped |
+|---|---|---|
+| opened | 9/9 | 9/9 |
+| SEEN(top) | 100.0% | **100.0%** (132/132) |
+| SEEN(leaf) | 99.0% | 52.5% (158/301) — *different denominator* |
+| reached-for | 32.3% | **29.0%** (70/241) |
+| help/sitting | 1.0 | **1.89** |
+| registered | not measured | **9/9, eight of them at call 1** |
+| refusals | not measured | 30 in 186 calls (16.1%) |
+
+## What it says
+
+**The refusal is the teacher, and that is measured rather than inferred.** Two of nine seats never
+ran `--help` at all — and both still received a help listing, because the tool prints the surface
+on an unknown command or a missing flag. `docket` asked for help ZERO times, was refused NINE
+times, and reached the highest leaf exposure of any blue seat (26 of 35). SEEN(top) is 100% across
+every sitting whether the seat asked or not.
+
+That is the scoped tree paying off in a way the old surface could not: when the root IS the seat's
+surface, any refusal at the root teaches the whole of it.
+
+**Registration is not a cost.** All nine registered, eight on their first call, none skipped it,
+and no sitting was refused for acting unbound. The one seat that skipped registration entirely in
+an earlier run did so only while the harness was pre-registering it.
+
+**Exposure saturates at about two help reads.** help/sitting fell from 3.4 (an earlier run of this
+same configuration) to 1.89 once the prompt named `register` as the first act — and SEEN did not
+move (54.2% -> 52.5% leaf, 100% -> 100% top). The extra reads were re-reads.
+
+## What it does not say
+
+n = 9, one model, one run, one replicate per board. **Two changes landed together** — the scoped
+tree and the constitutional directive — and this run cannot attribute between them. `reached-for`
+fell 32.3% -> 29.0%, which is within the noise of nine sittings and is NOT evidence of anything.
+
+**Three instrument defects were found and fixed during this measurement, and each had produced a
+number that read as a finding about seats:**
+
+1. `ReadViewReads` matched `(?:lens|merge|blue|bench)\s+show`, which the scoped tree deleted. Every
+   sitting reported "no projection opened at all" while one had run `show` fourteen times.
+2. The harness pre-registered each seat under the handle it would later dispatch it with, so
+   `register` was not the seat's first act and one seat in nine skipped it entirely — reported as
+   compliance.
+3. The acting prompt said "the record tool is <path>". Three seats read that as a directory and ran
+   `cd <toolpath> && ./record register`; two then concluded the infrastructure was missing and
+   abandoned the sitting after 1 and 4 calls.
+
+The anomaly pass — reading the scored report for INTERNAL CONTRADICTION before trusting any number
+— found all three. None was caught by a test.
+
+## The finding that is not about the surface
+
+Both seats that abandoned their sitting in (3) had caused the error themselves, and **neither used
+the friction channel.** Their constitution names it in the sentence directly beneath the surface
+directive: *if you need something that is not there, that is a finding about the tooling, and the
+help names the channel that carries it.* Neither re-read the path. Neither tried the absolute form
+the prompt had given them two lines earlier.
+
+For a seat that cannot reach its tool, the space of reasonable responses contained "declare the
+environment broken and stop" and did not contain "report it on the channel provided". Friction
+remains the one duty whose non-use is indistinguishable from a sitting that met none — which is
+what the explicit `--none` form exists for, and neither seat used that either.
 
 # Re-run, 2026-08-19 — two models, and the constitutions no longer name verbs
 
