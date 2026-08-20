@@ -4,11 +4,14 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // close: retire a gap, WITH the evidence that it is retired.
@@ -35,9 +38,9 @@ func newClose() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			seat.Set(cmd, p, "anchor_seat", flags.VerifiedBy)
-			seat.Set(cmd, p, "anchor_tool", flags.VerifiedWith)
-			seat.Set(cmd, p, "anchor_target", flags.VerifiedAgainst)
+			p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
+			p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
+			p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
 			// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
 			//
 			// This is what makes --check-kind a demand rather than a label. Red asked for a
@@ -57,10 +60,10 @@ func newClose() *cobra.Command {
 						seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
 				}
 			}
-			if _, err := record.Append(s.Identity(), "close", p); err != nil {
+			if _, err := record.Append(s.Identity(), p); err != nil {
 				return nil, err
 			}
-			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: p.Str("closure_class")}, nil
+			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass())}, nil
 		})
 
 	closureFlags(c)
@@ -90,11 +93,11 @@ func newCarry() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			seat.Set(cmd, p, "carried_from", flags.CarriedFrom)
-			if _, err := record.Append(s.Identity(), "close", p); err != nil {
+			p.CarriedFrom = proto.String(seat.Str(cmd, flags.CarriedFrom))
+			if _, err := record.Append(s.Identity(), p); err != nil {
 				return nil, err
 			}
-			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: p.Str("closure_class"), Carried: true}, nil
+			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass()), Carried: true}, nil
 		}), "close")
 
 	closureFlags(c)
@@ -112,21 +115,29 @@ func closureFlags(c *cobra.Command) {
 }
 
 // closurePayload builds what a closure records before either verb adds its own evidence.
-func closurePayload(cmd *cobra.Command) (*record.Payload, error) {
-	class := seat.Str(cmd, flags.As)
-	if class == "" {
-		class = "closed"
+func closurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
+	word := seat.Str(cmd, flags.As)
+	if word == "" {
+		word = "closed"
 	}
-	p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-	p.Set("closure_class", class)
-	seat.Set(cmd, p, "successor", flags.SupersededBy)
+	class, ok := record.ClosureClassOf(word)
+	if !ok {
+		return nil, feov.Errorf(feov.Validation,
+			"merge close: %q is not a closure class — an unrecognized class lands in no bucket and the gap reads as closed for no stated reason", word)
+	}
 	// The SHARED prose channel, not a private one. close hand-rolled its own --file read and so
 	// was the only prose-bearing verb with no --text at all — a verb that opts out of the shared
 	// helper drifts from it by construction.
-	if err := seat.SetReason(cmd, p, "reason"); err != nil {
+	prose, err := seat.Reason(cmd)
+	if err != nil {
 		return nil, err
 	}
-	return p, nil
+	return &recordpb.Close{
+		GapId:        proto.String(seat.Str(cmd, flags.ID)),
+		ClosureClass: &class,
+		Successor:    proto.String(seat.Str(cmd, flags.SupersededBy)),
+		Prose:        proto.String(prose),
+	}, nil
 }
 
 // closeResult names the closed gap and the closure class it was retired under.
@@ -156,5 +167,5 @@ func computationGapKind(runDir, gapID string) (bool, error) {
 	if g == nil || g.Mint == nil {
 		return false, nil
 	}
-	return g.Mint.Str("check_kind") == record.CheckKindComputation, nil
+	return g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil
 }

@@ -421,6 +421,19 @@ message Mint {
   // key would read as "lineage unknown" where the truth is "lineage none".
   repeated string supersedes = 20;
   repeated string found_by = 21;
+
+  // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
+  //
+  // `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
+  // answers and a bench weighs. cli/merge/mint.go stores it only when the two DIFFER, so a mint
+  // that passed its problem through --reason does not carry it twice.
+  //
+  // IT WAS MISSING FROM THIS SCHEMA AND FROM THE FROZEN KEY CENSUS, so both mechanisms that exist
+  // to catch a dropped key missed it, and internal/record/viewjson.go reported the hole in place
+  // rather than deleting the line — which would have rendered red's argument as absent on every
+  // gap while every test stayed green. Added here rather than excused: a test
+  // (TestAGapCarriesRedsArgumentAndNotOnlyItsProblem) asserts it reaches the projection.
+  optional string mint_reason = 22;
 }
 
 // ClassNew registers a coined gap class in the run's registry.

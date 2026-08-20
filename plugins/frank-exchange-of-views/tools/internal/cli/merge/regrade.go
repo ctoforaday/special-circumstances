@@ -2,10 +2,12 @@ package merge
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // regrade: same id, moved grade, stated reason.
@@ -20,16 +22,18 @@ func newRegrade() *cobra.Command {
 	c := seat.New("regrade",
 		`same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-			seat.SetGrade(p, "severity", &severity)
-			seat.SetGrade(p, "likelihood", &likelihood)
-			seat.SetGrade(p, "impact", &impact)
-			seat.SetGrade(p, "complexity_cost", &cx)
+			body := &recordpb.Regrade{GapId: proto.String(seat.Str(cmd, flags.ID))}
+			body.Severity = seat.GradeOrNil(&severity)
+			body.Likelihood = seat.GradeOrNil(&likelihood)
+			body.Impact = seat.GradeOrNil(&impact)
+			body.ComplexityCost = seat.GradeOrNil(&cx)
 			// Flag word --reason (the one prose word), payload key stays basis.
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			basis, err := seat.Reason(cmd)
+			if err != nil {
 				return nil, err
 			}
-			if _, err := record.Append(s.Identity(), "regrade", p); err != nil {
+			body.Basis = proto.String(basis)
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil

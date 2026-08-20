@@ -2268,8 +2268,20 @@ type Mint struct {
 	ComplexityCost *Grade `protobuf:"varint,19,opt,name=complexity_cost,json=complexityCost,proto3,enum=feov.record.v1.Grade,oneof" json:"complexity_cost,omitempty"`
 	// ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
 	// key would read as "lineage unknown" where the truth is "lineage none".
-	Supersedes    []string `protobuf:"bytes,20,rep,name=supersedes,proto3" json:"supersedes,omitempty"`
-	FoundBy       []string `protobuf:"bytes,21,rep,name=found_by,json=foundBy,proto3" json:"found_by,omitempty"`
+	Supersedes []string `protobuf:"bytes,20,rep,name=supersedes,proto3" json:"supersedes,omitempty"`
+	FoundBy    []string `protobuf:"bytes,21,rep,name=found_by,json=foundBy,proto3" json:"found_by,omitempty"`
+	// mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
+	//
+	// `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
+	// answers and a bench weighs. cli/merge/mint.go stores it only when the two DIFFER, so a mint
+	// that passed its problem through --reason does not carry it twice.
+	//
+	// IT WAS MISSING FROM THIS SCHEMA AND FROM THE FROZEN KEY CENSUS, so both mechanisms that exist
+	// to catch a dropped key missed it, and internal/record/viewjson.go reported the hole in place
+	// rather than deleting the line — which would have rendered red's argument as absent on every
+	// gap while every test stayed green. Added here rather than excused: a test
+	// (TestAGapCarriesRedsArgumentAndNotOnlyItsProblem) asserts it reaches the projection.
+	MintReason    *string `protobuf:"bytes,22,opt,name=mint_reason,json=mintReason,proto3,oneof" json:"mint_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2442,6 +2454,13 @@ func (x *Mint) GetFoundBy() []string {
 		return x.FoundBy
 	}
 	return nil
+}
+
+func (x *Mint) GetMintReason() string {
+	if x != nil && x.MintReason != nil {
+		return *x.MintReason
+	}
+	return ""
 }
 
 // ClassNew registers a coined gap class in the run's registry.
@@ -5102,7 +5121,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\xbf\b\n" +
+	"\b_up_mass\"\xf5\b\n" +
 	"\x04Mint\x12\x1a\n" +
 	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\x19\n" +
@@ -5132,7 +5151,9 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"supersedes\x18\x14 \x03(\tR\n" +
 	"supersedes\x12\x19\n" +
-	"\bfound_by\x18\x15 \x03(\tR\afoundByB\t\n" +
+	"\bfound_by\x18\x15 \x03(\tR\afoundBy\x12$\n" +
+	"\vmint_reason\x18\x16 \x01(\tH\x12R\n" +
+	"mintReason\x88\x01\x01B\t\n" +
 	"\a_gap_idB\v\n" +
 	"\t_mint_keyB\b\n" +
 	"\x06_classB\f\n" +
@@ -5154,7 +5175,8 @@ const file_record_proto_rawDesc = "" +
 	"\t_severityB\r\n" +
 	"\v_likelihoodB\t\n" +
 	"\a_impactB\x12\n" +
-	"\x10_complexity_costJ\x04\b\v\x10\fR\afix_old\"\xcb\x01\n" +
+	"\x10_complexity_costB\x0e\n" +
+	"\f_mint_reasonJ\x04\b\v\x10\fR\afix_old\"\xcb\x01\n" +
 	"\bClassNew\x12\x17\n" +
 	"\x04slug\x18\x01 \x01(\tH\x00R\x04slug\x88\x01\x01\x12#\n" +
 	"\n" +

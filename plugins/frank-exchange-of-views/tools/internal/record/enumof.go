@@ -2,6 +2,7 @@ package record
 
 import (
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -70,4 +71,23 @@ func PetitionClassOf(word string) (recordpb.PetitionClass, bool) {
 // declare a fate before it had one.
 func AvenueStatusOf(word string) (recordpb.AvenueStatus, bool) {
 	return enumOf[recordpb.AvenueStatus](recordpb.AvenueStatus(0).Descriptor(), word)
+}
+
+// VerdictOf resolves red's round verdict. PASS is checked against the open board by exact match,
+// so any other spelling would skip the check entirely and record an unadjudicated pass — which is
+// why this refuses rather than returning the zero.
+func VerdictOf(word string) (recordpb.Verdict, bool) {
+	return enumOf[recordpb.Verdict](recordpb.Verdict(0).Descriptor(), strings.ToLower(strings.TrimSpace(word)))
+}
+
+// ClosureClassOf resolves HOW a gap ended. An unrecognized class lands in no bucket and the gap
+// reads as closed for no stated reason, which is why the set is closed and this refuses.
+func ClosureClassOf(word string) (recordpb.ClosureClass, bool) {
+	return enumOf[recordpb.ClosureClass](recordpb.ClosureClass(0).Descriptor(), word)
+}
+
+// CheckKindOf resolves WHAT WOULD SETTLE an acceptance check — read a document, run a computation,
+// or verify a source. It is a different question from whether the check can be discharged now.
+func CheckKindOf(word string) (recordpb.CheckKind, bool) {
+	return enumOf[recordpb.CheckKind](recordpb.CheckKind(0).Descriptor(), word)
 }

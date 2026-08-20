@@ -4,10 +4,12 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // spot-check: re-verify archived closures, and say which.
@@ -24,13 +26,14 @@ func newSpotCheck() *cobra.Command {
 		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			none := seat.Given(cmd, flags.None)
-			p := record.NewPayload()
-			seat.SetList(p, "ids", &ids)
-			seat.SetSame(cmd, p, flags.Reason)
-			if none {
-				p.Set("none", true)
+			body := &recordpb.SpotCheck{
+				Ids:    ids.Value(),
+				Reason: proto.String(seat.Str(cmd, flags.Reason)),
 			}
-			if _, err := record.Append(s.Identity(), "spot-check", p); err != nil {
+			if none {
+				body.None = proto.Bool(true)
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
 			if none {

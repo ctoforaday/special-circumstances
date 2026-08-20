@@ -2,11 +2,13 @@ package merge
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // inquiry-support: red's per-round verdict that the REPORT still carries a line of inquiry.
@@ -55,11 +57,19 @@ func newInquirySupport() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			p := record.NewPayload().
-				Set("inquiry_id", seat.Str(cmd, flags.ID)).
-				Set("as", seat.Str(cmd, flags.As)).
-				Set("reason", text)
-			if _, err := record.Append(s.Identity(), "inquiry-support", p); err != nil {
+			// THE SCHEMA COLLAPSED THIS EVENT AND THE VERB HAS NOT CAUGHT UP. InquiryReview
+			// carries `reason` alone: the per-line grade is retired because "a line is treated
+			// thinly" is a DEFECT IN THE REPORT, which the schema says belongs on the board as a
+			// minted gap with the lifecycle, the blue duty, the grade and the PASS gate every
+			// other gap has — "a second vocabulary for the same fact is exactly the aliasing this
+			// schema exists to remove".
+			//
+			// So --id and --as no longer reach the record. That is the schema's decision, not a
+			// conversion slip, and it is written here rather than left as a silent drop: the
+			// follow-through this branch still owes is removing the two flags from the surface,
+			// because a flag a seat can pass and the record ignores is worse than one that does
+			// not exist.
+			if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
 				return nil, err
 			}
 			return inquirySupportResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
