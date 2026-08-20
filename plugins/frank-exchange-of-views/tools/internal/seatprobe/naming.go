@@ -217,10 +217,6 @@ type ViewReads struct {
 	Work, Board, Total int
 }
 
-// showCall matches a projection read. The bare form (`<role> show` with flags or nothing after it)
-// is the seat's pending work — the work list — so a token starting with a dash is not a view name.
-var showCall = regexp.MustCompile(`(?:lens|merge|blue|bench)\s+show(?:\s+([a-z][a-z-]*))?`)
-
 // ReadViewReads extracts which projections were opened, from a captured trajectory.
 func ReadViewReads(trajectoryPath, binName string) (ViewReads, error) {
 	v := ViewReads{ByView: map[string]int{}}
@@ -256,16 +252,15 @@ func ReadViewReads(trajectoryPath, binName string) (ViewReads, error) {
 			if !invokesBin(cmd, want) {
 				continue
 			}
-			m := showCall.FindStringSubmatch(cmd)
-			if m == nil {
+			// THROUGH THE SHARED RESOLVER, not a second regex of its own. This used to match
+			// `(?:lens|merge|blue|bench)\s+show` — and when the role level went away it matched
+			// nothing, so every sitting reported "no projection opened at all" while seats were
+			// opening projections up to fourteen times. The bare form is the role default, which
+			// is the work list for every role; counting it as unknown would undercount the one
+			// channel this measurement exists for.
+			view, ok := ShowViewIn(cmd, want)
+			if !ok {
 				continue
-			}
-			view := m[1]
-			if view == "" {
-				// The bare form is the role default, and that default is the work list for
-				// every role. Counting it as "unknown" would undercount the one channel this
-				// measurement exists for.
-				view = "work"
 			}
 			v.ByView[view]++
 			v.Total++
