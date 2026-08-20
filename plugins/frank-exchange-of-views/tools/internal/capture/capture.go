@@ -27,6 +27,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -538,8 +539,8 @@ func RecordParityAudit(runDir string, redRounds, blueBlocks int) Audit {
 	rounds := map[int]bool{}
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
-			if e.Type == "revision" {
-				rounds[e.Round] = true
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_REVISION {
+				rounds[int(e.GetRound())] = true
 			}
 		}
 	}
@@ -618,18 +619,18 @@ func BackfillAudit(runDir string) Audit {
 	order := []string{}
 	unparsed := 0
 	for _, e := range board.Events {
-		ts, perr := record.ParseStamp(e.TS)
+		ts, perr := record.ParseStamp(e.GetTs())
 		if perr != nil {
 			unparsed++
 			continue
 		}
-		s := seats[e.SeatID]
+		s := seats[e.GetSeatId()]
 		if s == nil {
 			s = &seatSpan{}
-			seats[e.SeatID] = s
-			order = append(order, e.SeatID)
+			seats[e.GetSeatId()] = s
+			order = append(order, e.GetSeatId())
 		}
-		if e.Type == "register" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
 			// A seat can register more than once — a re-dispatch rotates the nonce
 			// (RegisterSeat). The EARLIEST register is when this seat first existed.
 			if s.registered.IsZero() || ts.Before(s.registered) {
@@ -719,10 +720,10 @@ func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleF
 		}
 		// A CARRIED closure attests nothing — it is last round's verification restated, and
 		// holding a seat to a tool call it never made this round is a false finding.
-		if g.Closure.Str("carried_from") != "" {
+		if g.Closure.GetCarriedFrom() != "" {
 			continue
 		}
-		seat, tool, target := g.Closure.Str("anchor_seat"), g.Closure.Str("anchor_tool"), g.Closure.Str("anchor_target")
+		seat, tool, target := g.Closure.GetAnchorSeat(), g.Closure.GetAnchorTool(), g.Closure.GetAnchorTarget()
 		if seat != "" && tool != "" && target != "" {
 			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target})
 		}
@@ -976,39 +977,53 @@ func rulingsFromRecord(board *record.Board) []ruling {
 	// the `motion` event, which is the only place that fact exists.
 	filedBy := map[string]string{}
 	for _, e := range board.Events {
-		if e.Type == "motion" {
-			filedBy[e.Payload.Str("motion_id")] = e.SeatID
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+			filedBy[m.GetMotionId()] = e.GetSeatId()
 		}
 	}
 
 	var out []ruling
 	for _, e := range board.Events {
-		switch e.Type {
-		case "opinion":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_OPINION:
+			o, ok := recordpb.BodyAs[*recordpb.Opinion](e)
+			if !ok {
+				continue
+			}
 			out = append(out, ruling{
 				kind:        "docket",
-				gapID:       e.Payload.Str("gap_id"),
-				disposition: e.Payload.Str("disposition"),
-				rationale:   e.Payload.Str("reason"),
+				gapID:       o.GetGapId(),
+				disposition: o.GetDisposition(),
+				rationale:   o.GetRationale(),
 			})
-		case "declare":
+		case recordpb.EventType_EVENT_TYPE_DECLARE:
 			// No gap and no fate — that is the point of the verb. The holding IS the ruling.
+			d, ok := recordpb.BodyAs[*recordpb.Declare](e)
+			if !ok {
+				continue
+			}
 			out = append(out, ruling{
 				kind:        "declaration",
 				disposition: "declared",
-				rationale:   e.Payload.Str("holding"),
+				rationale:   d.GetHolding(),
 			})
-		case "motion-rule":
+		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			// Only the PETITION subject reaches the precedent harvest: a grade or direction
 			// ruling answers a motion the motions view renders with its ask beside it.
-			if e.Payload.Str("subject") != "petition" {
+			//
+			// THE SUBJECT IS NOW THE ONEOF, not a string compare. A petition ruling carries its
+			// verdict on the `petition` arm, so reading the arm IS the subject test — a grade
+			// ruling cannot answer it, where the old `Str("subject") != "petition"` depended on a
+			// field that could disagree with the value beside it.
+			r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+			if !ok || r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
 				continue
 			}
 			out = append(out, ruling{
 				kind:        "petition",
-				petitioner:  filedBy[e.Payload.Str("motion_id")],
-				disposition: e.Payload.Str("ruling"),
-				rationale:   e.Payload.Str("reason"),
+				petitioner:  filedBy[r.GetMotionId()],
+				disposition: recordpb.Word(r.GetPetition()),
+				rationale:   r.GetOpinion(),
 			})
 		}
 	}
