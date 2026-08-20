@@ -59,3 +59,41 @@ func TestTheActingPromptTeachesTheBindingContract(t *testing.T) {
 		}
 	}
 }
+
+// AND THE ELICITATION PROMPT IS THE SAME CARRIER, which is how it was missed.
+//
+// The acting prompt was corrected twice — once for the identity contract, once for the tool path
+// reading as a directory — and ElicitPrompt carried both defects untouched, one function away.
+// Fixing a carrier and leaving its sibling is the failure this repository names
+// definition-forked-not-widened, committed here by the person who had just written about it.
+//
+// It matters more in this arm than in the acting one. The interview's first question is "what are
+// your options" — and a seat with no identity gets an EMPTY tree, so the honest answer to a
+// question about judgement becomes a report that nothing exists.
+//
+// CHECKED BY CALLING IT rather than by reading the source: this prompt is a function, so the gate
+// can hold the actual bytes a seat receives.
+func TestTheElicitationPromptTeachesTheSameContract(t *testing.T) {
+	got := ElicitPrompt("lens", "red-lens-r1-L1", "/runs/x", "/bin/feov-record", Boards()["lens-audit"])
+
+	if strings.Contains(got, "do not pass --run or --seat-id") {
+		t.Error("the elicitation prompt still says the identity is injected — the seat passes no --seat-id, the tree is scoped to nobody, and it reports an empty surface as its options")
+	}
+	for _, want := range []string{
+		"never pass --run", // the run IS injected
+		"--seat-id",        // the identity is not
+		"SELECTS YOUR SURFACE",
+		"EXECUTABLE", // the tool path is a file
+		"not a directory",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the elicitation prompt does not carry %q", want)
+		}
+	}
+	// It must still be a question about judgement rather than a task.
+	for _, want := range []string{"DO NOT ACT", "WHAT ARE YOUR OPTIONS", "IS ANYTHING MISSING"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the elicitation prompt lost %q — it is no longer asking the question it exists for", want)
+		}
+	}
+}

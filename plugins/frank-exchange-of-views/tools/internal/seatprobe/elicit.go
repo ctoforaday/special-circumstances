@@ -38,7 +38,11 @@ func ElicitPrompt(role, seatID, runDir, bin string, b Board) string {
 	return fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
 
 Run directory: %s — use this ABSOLUTE path when you read files under it.
-The record tool is %s. Your identity and run are INJECTED (%s): do not pass --run or --seat-id.
+
+The record tool is the EXECUTABLE at %s. Invoke it by that absolute path, exactly as written — it is
+a file, not a directory: do not cd into it, do not look for a binary inside it, and do not shorten
+it. Your RUN is injected — never pass --run. Your seat id is %s, and it SELECTS YOUR SURFACE: pass
+--seat-id on your reads, or the tool cannot tell which seat is asking and will show you nothing.
 
 DO NOT ACT. Record nothing, change nothing, write no files. This sitting is a question about
 judgement, not a task — nothing you say here goes on the record.
