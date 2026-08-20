@@ -157,3 +157,47 @@ func TestEveryBoardNamesASeatProductionDispatches(t *testing.T) {
 		}
 	}
 }
+
+// A BENCH BOARD CARRIES THE CLOSINGS ITS PROMPT PROMISES.
+//
+// debate.js tells the judge its ruling basis is confined to "the two closings, the transcript, and
+// the final state", and that both sides have already filed. The probe's judge boards staged none —
+// and the miss was found by the SEAT, not by a gate: the boundary bench filed friction naming the
+// null closings, ruled on artifact state instead, and asked for a human check. It was right, and
+// the expectation it missed (`halt`) was scored against it on a board it could not read as told.
+//
+// This is the same class the whole fidelity pass is about, one level down: the PROMPT became
+// production's while the BOARD was still round-1 shaped. Anything the prompt asserts about the
+// record is a claim the fixture owes.
+func TestEveryBenchBoardCarriesTheClosingsItsPromptPromises(t *testing.T) {
+	for name, b := range Boards() {
+		role := ""
+		for _, s := range Seats {
+			if s.ID == b.Seat {
+				role = s.Role
+			}
+		}
+		if role != "bench" {
+			continue
+		}
+		if len(b.Gaps) == 0 {
+			t.Errorf("board %q seats the bench with no gap — there is nothing to rule on", name)
+		}
+		for _, g := range b.Gaps {
+			if strings.TrimSpace(g.RedClosing) == "" || strings.TrimSpace(g.BlueClosing) == "" {
+				t.Errorf("board %q gap %q reaches the bench without both closings — the judge is told to rule on them and would find null",
+					name, g.Key)
+			}
+		}
+		// And the prompt must actually still promise them, or this gate is guarding a duty that
+		// moved. Reproduce it rather than recall it.
+		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
+		if err != nil {
+			t.Errorf("board %q: %v", name, err)
+			continue
+		}
+		if !strings.Contains(d.Prompt, "closings") {
+			t.Errorf("board %q: the bench prompt no longer mentions closings — this gate is now staging state nobody asked for", name)
+		}
+	}
+}

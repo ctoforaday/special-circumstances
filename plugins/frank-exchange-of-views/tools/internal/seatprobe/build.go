@@ -84,16 +84,32 @@ func Build(runDir string, b Board, exec Exec) error {
 			"--reason", g.Problem+" (baits "+g.Baits+": "+g.Why+")"); err != nil {
 			return fmt.Errorf("mint %s: %w", g.Key, err)
 		}
+		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM. The bench's prompt states its ruling basis
+		// is "the two closings, the transcript, and the final state" and that both sides have
+		// already filed — so a bench board without them hands the seat a docket it cannot rule on
+		// the way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction
+		// naming the null closings, ruled on artifact state instead, and asked for a human check.
+		gapID := fmt.Sprintf("R1-%d", i+1)
+		for _, c := range []struct{ seat, text string }{
+			{"red-merge-r1", g.RedClosing}, {"blue-respond-r1", g.BlueClosing},
+		} {
+			if c.text == "" {
+				continue
+			}
+			if _, err := exec("closing", "--run", runDir, "--seat-id", c.seat,
+				"--id", gapID, "--reason", c.text); err != nil {
+				return fmt.Errorf("closing %s by %s: %w", gapID, c.seat, err)
+			}
+		}
 		if !g.Closed {
 			continue
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
-		id := fmt.Sprintf("R1-%d", i+1)
 		if _, err := exec("close", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--id", id, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
+			"--id", gapID, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
-			return fmt.Errorf("close %s: %w", id, err)
+			return fmt.Errorf("close %s: %w", gapID, err)
 		}
 	}
 

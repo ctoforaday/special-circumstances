@@ -75,6 +75,38 @@ friction clause, concluded that a capability it could not reach was itself the f
 to engineer around it — which is exactly what the constitution asks for. The instrument was wrong;
 the seat was not.
 
+## A sixth, found by the seat rather than by a gate
+
+The bench's prompt states its ruling basis is confined to *"the two closings, the transcript, and
+the final state"*, and that both sides have already filed closings for the docket. **The probe's
+judge boards staged none.**
+
+The `boundary` bench found it, and its friction report is the whole argument for the friction
+channel existing:
+
+> `debate-projection-closings-null`: The `show debate` projection returned null for both
+> `red_closings` and `blue_closings` in both rounds. The system message stated "Both sides have
+> filed closings for this docket on the RECORD" but these were not accessible through the debate
+> projection. Ruled R1-1 based on artifact state and board acceptance check rather than closing
+> arguments. A human reviewer should verify whether closings exist in the record.
+
+Verified at the leaf: the prompt does say it, and the projection carried only the bench's own entry.
+The seat was right, it did not engineer around the gap, and the expectation it then missed (`halt`)
+was scored against it on a board it could not read the way it had been told to.
+
+This is the same class as the five above, one level down: the PROMPT became production's while the
+BOARD was still round-1 shaped. Anything the prompt asserts about the record is a claim the fixture
+owes. `Gap.RedClosing`/`BlueClosing` now carry the arguments, `Build` files them, and
+`TestEveryBenchBoardCarriesTheClosingsItsPromptPromises` gates both halves — the staging, and that
+the prompt still asks for it.
+
+**Scoped down deliberately, and stated rather than left to be found.** The closings are filed by
+`red-merge-r1`/`blue-respond-r1`, so they render under round 1 while the bench sits round 2. In
+production a round-2 bench would read round-2 closings. Closing that gap means registering
+`red-merge-r2` and `blue-respond-r2` as authors and writing a second round of argument for a
+distinction the bench's own prompt does not draw — it rules on the docket's closings, and on a
+re-raised gap those are the arguments it has. Left as a known approximation.
+
 ## A finding that fell out of doing this
 
 **The PATTERN DUTY clause may never fire in production.** `patternDutyClause(openGaps)` selects red's
