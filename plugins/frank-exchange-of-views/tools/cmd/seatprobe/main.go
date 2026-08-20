@@ -95,6 +95,7 @@ func main() {
 		printSit   = flag.Bool("print-sitting", false, "print the named board's SITTING text and exit — the situation a seat is dispatched into. For a harness that drives the dispatch itself (the interview) and must hand the seat the same situation this probe would")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
+		memoryDir  = flag.String("memory", "", "directory holding red's accumulated gap patterns, staged into inputs/red-gap-patterns.md as run-setup stages it (default: the repo's feov-memory/red-gap-patterns, resolved from the working directory — pass this when running from anywhere but the tools module)")
 		debatePath = flag.String("debate", "", "path to the shipped debate.js the probe takes its prompts from (default: the plugin's skills/research-protocol/scripts/debate.js)")
 	)
 	flag.Parse()
@@ -163,7 +164,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, debateScript(*debatePath), *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, debateScript(*debatePath), *memoryDir, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				failed[i] = true
@@ -270,7 +271,7 @@ func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDir string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -324,7 +325,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, r
 		// inputs/red-gap-patterns.md in blue's very first batched read, unconditionally, because
 		// every real run has the file. A probe that withheld it would hand the seat a prompt whose
 		// opening instruction fails, and score what it did next.
-		if r := setup.MirrorGapPatterns(memoryDirs(), runDir); !r.Written {
+		if r := setup.MirrorGapPatterns(memoryDirs(memoryDir), runDir); !r.Written {
 			return "", fmt.Errorf("red's gap-pattern corpus did not stage (%s) — the dispatched prompt names the file in its first instruction, so a run without it is measuring a broken read", r.Reason)
 		}
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
@@ -697,7 +698,17 @@ func readAnswer(path string) string {
 }
 
 // memoryDirs is where red's accumulated gap patterns live, as run-setup reads them.
-func memoryDirs() []string {
+//
+// THE DEFAULT IS RELATIVE TO THE WORKING DIRECTORY, AND THAT IS A REAL CONSTRAINT, not a detail.
+// The probe is a development instrument run from the tools module, and this walks up from there.
+// Run it from anywhere else and the corpus does not stage — which fails the board loudly (the
+// dispatched prompt names inputs/red-gap-patterns.md in blue's first instruction, so a run without
+// it is measuring a broken read) but tells the caller nothing about how to fix it. The interview
+// harness, which runs from its own scratch directory, hit exactly that. Hence the flag.
+func memoryDirs(flagValue string) []string {
+	if flagValue != "" {
+		return []string{flagValue}
+	}
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil
