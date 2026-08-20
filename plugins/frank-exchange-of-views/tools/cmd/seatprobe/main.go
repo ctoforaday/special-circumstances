@@ -421,15 +421,20 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	// than any real run presents, and every mistyped path it measured was friction production
 	// had already designed away.
 	//
-	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects, and the
-	// binding is already on the record: Build registered this seat under the same handle.
+	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects — and it
+	// arrives UNBOUND. Build registers the fixture's seats as the harness, without this handle, so
+	// nothing on the record ties it to a seat until the seat itself calls `register`.
 	//
-	// WHERE THE PROBE STILL DIVERGES, stated because an instrument that hides its lean cannot be
-	// read. Production's dispatcher never learns an agent handle — Workflow's agent() returns a
-	// result, not one — so a production seat types --seat-id exactly ONCE, at register, and every
-	// call after that resolves from the binding. The probe pre-assigns both ends, so its seats
-	// skip that first typed flag. It reproduces every call after it, which is all of them; what
-	// it cannot exercise is the single bootstrap call.
+	// THAT IS THE POINT, AND IT USED TO BE THE DIVERGENCE. Build bound the handle in advance, so a
+	// seat arrived already registered and `register` stopped being its first act. The 2026-08-20
+	// run measured the cost: one seat in nine never called it, made 22 tool calls, and recorded
+	// events anyway — a first write production would have refused. An instrument that satisfies
+	// the guard it is measuring cannot tell a compliant seat from an untested guard.
+	//
+	// What remains uncontrolled is smaller and is stated here rather than left to be discovered:
+	// production's dispatcher never learns an agent handle at all (Workflow's agent() returns a
+	// result, not one), so the handle a production seat carries is minted by the hook rather than
+	// by the caller. The BINDING path is now identical; only the handle's provenance differs.
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
 		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
