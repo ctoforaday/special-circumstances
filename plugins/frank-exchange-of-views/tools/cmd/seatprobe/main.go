@@ -381,7 +381,10 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, 
 	prompt := fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
 
 Run directory: %s — use this ABSOLUTE path when you read files under it.
-The record tool is %s. Your RUN is injected — never pass --run. Your seat id is %s and you state it
+
+The record tool is the EXECUTABLE at %s. Invoke it by that absolute path, exactly as written — it is
+a file, not a directory: do not cd into it, do not look for a binary inside it, and do not shorten
+it. Your RUN is injected — never pass --run. Your seat id is %s and you state it
 ONCE: "register" is your first act, it binds that id to you on the record, and every call after it
 resolves your seat for you, so you pass --seat-id at register and never again.
 

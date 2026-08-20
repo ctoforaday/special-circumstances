@@ -46,6 +46,13 @@ func TestTheActingPromptTeachesTheBindingContract(t *testing.T) {
 	if strings.Contains(prompt, "do not pass --run or --seat-id") {
 		t.Error("the prompt still says the identity is injected — it is bound at register, and a seat obeying this is refused on its opening call")
 	}
+	// AND THE TOOL IS AN EXECUTABLE, SAID SO. "The record tool is <path>" reads as a LOCATION:
+	// measured 2026-08-20, three of nine seats ran `cd <toolpath> && ./record register …`, and two
+	// of them then concluded the infrastructure did not exist and abandoned the sitting after 1 and
+	// 4 tool calls. A harness that produces that is measuring its own prompt.
+	if !strings.Contains(prompt, "EXECUTABLE") || !strings.Contains(prompt, "not a directory") {
+		t.Error("the prompt does not say the tool path is an executable — a seat reads it as a directory and cds into it")
+	}
 	for _, want := range []string{"register", "--seat-id", "ONCE"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("the prompt does not carry %q: the seat has to be told it states its id once, at register", want)
