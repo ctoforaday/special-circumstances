@@ -10,6 +10,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -386,11 +387,18 @@ func readTerminalVerdict(runDir string) string {
 	}
 	// The bench's own terminal act, latest wins.
 	for i := len(b.Events) - 1; i >= 0; i-- {
-		if b.Events[i].Type != "outcome" {
+		if b.Events[i].GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
 			continue
 		}
-		if v := b.Events[i].Payload.Str("verdict"); v != "" {
-			return v
+		o, ok := recordpb.BodyAs[*recordpb.Outcome](b.Events[i])
+		if !ok {
+			continue
+		}
+		// Word maps the enum back to the schema's own spelling and returns "" for the zero value,
+		// which is the same empty this loop already skipped on — an outcome event whose verdict was
+		// never set must not read as a verdict.
+		if v := recordpb.Word(o.GetVerdict()); v != "" {
+			return strings.ToUpper(v)
 		}
 	}
 	// Or what the record decides for itself. ok is false only where the record genuinely

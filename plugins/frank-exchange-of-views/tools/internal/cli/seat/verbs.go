@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -63,12 +65,12 @@ func Friction(help string) *cobra.Command {
 		if none {
 			// An empty discharge that does not say what you looked for is indistinguishable
 			// from a skipped duty — the same rule spot-check applies to its own --none.
-			if _, err := record.Append(s.Identity(), "friction-none", record.NewPayload().Set("reason", text)); err != nil {
+			if _, err := record.Append(s.Identity(), &recordpb.FrictionNone{Text: proto.String(text)}); err != nil {
 				return nil, err
 			}
 			return Msg{Message: "recorded: nothing blocked this sitting"}, nil
 		}
-		if _, err := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", text)); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(text)}); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "friction recorded"}, nil
@@ -85,7 +87,7 @@ func Position(help string) *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := record.Append(s.Identity(), "position", record.NewPayload().Set("reason", text)); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Position{Text: proto.String(text)}); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "position recorded"}, nil
@@ -98,9 +100,10 @@ func Closing(help string) *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		p := Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-		p.Set("reason", text)
-		if _, err := record.Append(s.Identity(), "closing", p); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Closing{
+			GapId: proto.String(Str(cmd, flags.ID)),
+			Text:  proto.String(text),
+		}); err != nil {
 			return nil, err
 		}
 		return closingResult{ID: Str(cmd, flags.ID)}, nil
