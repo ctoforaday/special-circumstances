@@ -15,9 +15,14 @@
 //
 //	--print --output-format stream-json --verbose   the full trajectory, as events
 //	--model haiku                                   the instrument (see below)
-//	--system-prompt-file <constitution>             the seat's real constitution
-//	--allowedTools "Bash Read Write Edit Grep Glob" the tools a seat actually has
+//	--agent frank-exchange-of-views:<agent>         the definition production dispatches, with
+//	                                                its skills and its declared tools
+//	--allowedTools <the agent's own tools: line>    PERMISSION, not availability — nobody is at
+//	                                                the keyboard to answer an approval prompt
 //	--add-dir <runDir>                              access to the board
+//
+// The PROMPT is not written here at all: internal/debatejs runs the shipped debate.js and the
+// probe dispatches what it hands the board's seat, verbatim.
 //
 // AND IT CARRIES THINKING. Verified rather than assumed: a stream-json run emits `thinking` blocks
 // alongside `text` and `tool_use`, so the harness can log what the seat was reasoning about when
@@ -333,7 +338,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, r
 		if buildOnly {
 			return "", nil
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, debateScript(debatePath), ask, surface); err != nil {
+		if err := dispatch(b, runDir, bin, constDir, model, debateScript(debatePath), ask); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
@@ -405,7 +410,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, r
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, ask bool, sf seatprobe.Surface) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, ask bool) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -422,11 +427,6 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 	// THE ARM IS APPLIED TO A COPY, NEVER TO THE SHIPPED FILE. An experiment that edits the
 	// artifact it measures cannot be run a second time, and the second run is the one that says
 	// whether the first was variance.
-	constitution, err = armConstitution(constitution, runDir, sf, role)
-	if err != nil {
-		return err
-	}
-
 	// THE PROMPT IS debate.js's, RENDERED BY RUNNING IT.
 	//
 	// What stood here was a paraphrase written in this file: ~950 characters against production's
@@ -488,6 +488,24 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 		"--add-dir", runDir,
 		"--max-turns", "60",
 	}
+	// THE PERMISSION GRANT, TAKEN FROM THE AGENT'S OWN `tools:` LINE. Nobody is at the keyboard,
+	// and an ungranted Bash call comes back "This command requires approval" — measured: the seat's
+	// first two calls, both `--seat-id … --help` and exactly the act under test, were refused; it
+	// concluded the record tool was not responding and spent the sitting reasoning about a blocker
+	// the harness had created. `--permission-mode auto` and `dontAsk` do not help; both still refuse
+	// the record binary.
+	//
+	// Passing this alongside --agent does NOT narrow the seat's tools — measured, an agent
+	// dispatched with `--allowedTools Bash` still lists WebSearch and ToolSearch as its own. The
+	// old defect was a hand-written list passed with --system-prompt-file, where the list was the
+	// only tool source. Reading the declaration is what keeps the grant from becoming that list
+	// again.
+	granted, err := seatprobe.GrantedTools(constitution)
+	if err != nil {
+		return fmt.Errorf("board %q: %w", b.Name, err)
+	}
+	args = append(args, "--allowedTools")
+	args = append(args, granted...)
 	if len(deny) > 0 {
 		args = append(args, "--disallowedTools")
 		args = append(args, deny...)
@@ -517,11 +535,12 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
 		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
-		// THE ROUND IS NO LONGER INJECTED, because it is no longer a guess. Every board is a
-		// single round-1 sitting and every probe seat id carries `-r1` (see seatprobe.Seats), so
-		// the derivation answers 1 for all four. FEOV_ROUND existed because the old derivation
-		// could not tell "round 0" from "no round in this name"; it can now, and the variable is
-		// gone rather than left set to a value the tool would compute anyway.
+		// THE ROUND IS NO LONGER INJECTED, because it is no longer a guess. Every probe seat id
+		// carries its round (see seatprobe.Seats — three sit round 1, and the bench sits round 2,
+		// which is the first round a judge can sit at all), so the derivation answers it. FEOV_ROUND
+		// existed because the old derivation could not tell "round 0" from "no round in this name";
+		// it can now, and the variable is gone rather than left set to a value the tool would
+		// compute anyway.
 	)
 	// The directory is created HERE, by the function that owns the path, rather than by the
 	// caller. Moving the trajectory out of the run directory and leaving its mkdir behind in
@@ -550,38 +569,6 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 		return fmt.Errorf("claude: %w (trajectory in %s)", err, out.Name())
 	}
 	return nil
-}
-
-// armConstitution writes the arm's constitution beside the trajectory and returns its path.
-//
-// It lands OUTSIDE the run directory, for the same reason the trajectory does: a seat that can read
-// the treatment applied to it is a seat reading the experiment rather than the board.
-//
-// EVERY ARM IS RENDERED. There was a short-circuit here — `partial` with no directive returned the
-// shipped file untouched — and it was correct exactly as long as `partial` MEANT the shipped file.
-// It stopped meaning that when the constitutions stopped naming verbs: `partial` became a
-// constructed treatment, and the short-circuit went on returning the shipped bytes, so the arm
-// dispatched was byte-identical to `none`. Two arms, one treatment, and a difference of zero
-// between them that reads as a finding about naming.
-//
-// Caught mid-experiment, by reading the path rather than by any test: TestTheThreeArmsDiffer
-// exercises Constitution(), and the bug lived in the caller that decides whether to call it. The
-// test below now covers this function, which is the one the probe actually takes.
-func armConstitution(src, runDir string, sf seatprobe.Surface, role string) (string, error) {
-	b, err := os.ReadFile(src)
-	if err != nil {
-		return "", err
-	}
-	out := seatprobe.Constitution(b)
-	dir := filepath.Dir(trajectoryPath(runDir))
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	p := filepath.Join(dir, filepath.Base(runDir)+"-constitution.md")
-	if err := os.WriteFile(p, out, 0o644); err != nil {
-		return "", err
-	}
-	return p, nil
 }
 
 // constitutionFor finds the agent definition a seat actually runs under.

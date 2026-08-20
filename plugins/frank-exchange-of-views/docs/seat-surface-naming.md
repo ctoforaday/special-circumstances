@@ -49,6 +49,32 @@ There is no fallback. A board naming a seat `debate.js` does not dispatch fails 
 had to be loud, because a written substitute would fire exactly when the capture broke, which is the
 moment the run most needs to stop.
 
+## A fifth divergence, found by fixing the second
+
+`--allowedTools` was doing **two** jobs and only one of them was visible.
+
+| | |
+|---|---|
+| **Availability** | which tools the seat HAS. Under `--agent`, the definition's `tools:` line decides it — measured: an agent dispatched with `--allowedTools Bash` still lists WebSearch and ToolSearch as its own. |
+| **Permission** | whether a call is allowed to RUN. Headless, with nobody at the keyboard, an ungranted `Bash` call comes back *"This command requires approval"*. |
+
+The old list was passed with `--system-prompt-file`, where it was the only tool source, so it set
+both. Replacing it with the agent's own declaration fixed availability and silently removed the
+grant. The next run measured the cost: the seat's first two calls — both
+`--seat-id … --help`, exactly the act under test — were refused, it concluded the record tool was
+not responding, and it spent its whole sitting reasoning about a blocker the harness had created.
+The report scored it *reached for 1 of 21*.
+
+`--permission-mode auto` and `dontAsk` do not fix it; both still refuse the record binary (measured
+directly). So the grant is now **derived from the agent definition's `tools:` line at dispatch** —
+a field read, not a list written — and `GrantedTools` errors on every shape that would produce an
+empty one. An empty grant and a seat that chose not to read its help are the same number.
+
+Worth naming plainly: **the seat's behaviour under that broken condition was correct.** It read the
+friction clause, concluded that a capability it could not reach was itself the finding, and refused
+to engineer around it — which is exactly what the constitution asks for. The instrument was wrong;
+the seat was not.
+
 ## A finding that fell out of doing this
 
 **The PATTERN DUTY clause may never fire in production.** `patternDutyClause(openGaps)` selects red's
