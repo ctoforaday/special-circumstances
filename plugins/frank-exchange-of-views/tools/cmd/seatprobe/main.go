@@ -90,7 +90,7 @@ func main() {
 		printSit   = flag.Bool("print-sitting", false, "print the named board's SITTING text and exit — the situation a seat is dispatched into. For a harness that drives the dispatch itself (the interview) and must hand the seat the same situation this probe would")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
-		patterns   = flag.String("patterns", "none", "red's gap-pattern memory: `none`, `file` (staged at inputs/red-gap-patterns.md — the MOUNTED FILE form), or `duty` (staged AND named in the prompt, selected by the classes of this board's gaps — the DUTY form)")
+		debatePath = flag.String("debate", "", "path to the shipped debate.js the probe takes its prompts from (default: the plugin's skills/research-protocol/scripts/debate.js)")
 	)
 	flag.Parse()
 
@@ -103,18 +103,19 @@ func main() {
 		if !ok {
 			fail("no board %q", *board)
 		}
-		fmt.Print(b.Sitting())
+		// THE SITTING IS debate.js's, NOT THIS BINARY'S. It embeds the run directory and the
+		// tool path, so both are required here — a prompt rendered against a placeholder would
+		// tell the seat to read a directory that does not exist, and the interview would be
+		// measuring a seat that cannot see its own board.
+		if *dir == "" || *bin == "" {
+			fail("-print-sitting renders the prompt debate.js hands the seat, which names the run directory and the tool: pass -dir and -bin (the same values the -build-only staging used)")
+		}
+		d, err := seatprobe.ProductionPrompt(debateScript(*debatePath), b, filepath.Join(*dir, b.Name), filepath.Dir(*bin), *model, *model)
+		if err != nil {
+			fail("%v", err)
+		}
+		fmt.Print(d.Prompt)
 		return
-	}
-
-	// A TYPO HERE WOULD RUN THE SHIPPED ARM AND REPORT THE ONE YOU ASKED FOR. record's own
-	// resolver falls back to shipped on purpose (an unrecognised value must not empty a real
-	// seat's work list), so the probe validates the spelling itself rather than inheriting a
-	// fallback that is correct for production and silent for an experiment.
-	switch *patterns {
-	case "none", "file", "duty":
-	default:
-		fail("no patterns arm %q — one of none, file, duty", *patterns)
 	}
 
 	if *dir == "" {
@@ -157,7 +158,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface, *patterns)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, debateScript(*debatePath), *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				failed[i] = true
@@ -240,11 +241,31 @@ func namingTreatment(role, constDir string, sf seatprobe.Surface) string {
 // did: the docket seat found the harness's own recording of the docket seat and tried to execute
 // it, producing 149 "command not found" lines in a single turn. A probe that leaves its
 // instrument inside the thing it measures is measuring itself.
+// agentFor maps a seat role to the agent definition production dispatches for it — the same
+// mapping debate.js makes with agentType.
+// NO DEFAULT. A role that fell through would dispatch under ANOTHER SEAT'S constitution and the run
+// would report it as its own role — a seat measured against duties it was never given, reported as
+// a finding about that role. An unknown role is a programming error and says so.
+func agentFor(role string) string {
+	switch role {
+	case "lens":
+		return "red-auditor"
+	case "merge":
+		return "red-auditor"
+	case "blue":
+		return "blue-researcher"
+	case "bench":
+		return "lead-judge"
+	}
+	fail("no agent definition for role %q — the probe will not dispatch a seat under another seat's constitution", role)
+	return ""
+}
+
 func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface, patterns string) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -293,11 +314,13 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		if err := seatprobe.Build(runDir, b, run); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
-		if patterns != "none" {
-			// THE MOUNTED FILE, exactly as run-setup stages it for a real run.
-			if r := setup.MirrorGapPatterns(memoryDirs(), runDir); !r.Written {
-				return "", fmt.Errorf("patterns arm %q: the corpus did not stage (%s) — a run that reports on memory it never delivered is the defect this arm exists to test", patterns, r.Reason)
-			}
+		// RED'S MEMORY, STAGED AS run-setup STAGES IT. This used to be an arm — `none` mounted
+		// nothing — and an arm is no longer available: debate.js's prompt names
+		// inputs/red-gap-patterns.md in blue's very first batched read, unconditionally, because
+		// every real run has the file. A probe that withheld it would hand the seat a prompt whose
+		// opening instruction fails, and score what it did next.
+		if r := setup.MirrorGapPatterns(memoryDirs(), runDir); !r.Written {
+			return "", fmt.Errorf("red's gap-pattern corpus did not stage (%s) — the dispatched prompt names the file in its first instruction, so a run without it is measuring a broken read", r.Reason)
 		}
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
 		// holds a session open across turns — needs the board this probe would have built, staged
@@ -310,7 +333,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 		if buildOnly {
 			return "", nil
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, ask, surface, patterns, b); err != nil {
+		if err := dispatch(b, runDir, bin, constDir, model, debateScript(debatePath), ask, surface); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
@@ -382,7 +405,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, sf seatprobe.Surface, patterns string, board seatprobe.Board) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, ask bool, sf seatprobe.Surface) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -404,19 +427,23 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, 
 		return err
 	}
 
-	prompt := fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
-
-Run directory: %s — use this ABSOLUTE path when you read files under it.
-
-The record tool is the EXECUTABLE at %s. Invoke it by that absolute path, exactly as written — it is
-a file, not a directory: do not cd into it, do not look for a binary inside it, and do not shorten
-it. Your RUN is injected — never pass --run. Your seat id is %s and you state it
-ONCE: "register" is your first act, it binds that id to you on the record, and every call after it
-resolves your seat for you, so you pass --seat-id at register and never again.
-
-Read the board and the artifact under audit, then do your sitting's work. Decide and act; do not ask me what to do.
-
-%s`, role, b.Seat, runDir, bin, b.Seat, b.Sitting())
+	// THE PROMPT IS debate.js's, RENDERED BY RUNNING IT.
+	//
+	// What stood here was a paraphrase written in this file: ~950 characters against production's
+	// 12,800–24,000. It said the same THINGS in different words, which is the worst case — the
+	// probe reported help-reading counts, verb-reach counts and a friction rate for a seat that
+	// was never given production's instructions, and every one of those numbers was published as
+	// a finding about seats. There is no fallback and no substitute: a board whose seat debate.js
+	// does not dispatch fails here rather than being handed something written locally.
+	d, err := seatprobe.ProductionPrompt(debatePath, b, runDir, filepath.Dir(bin), model, model)
+	if err != nil {
+		return err
+	}
+	if d.AgentType != "frank-exchange-of-views:"+agentFor(role) {
+		return fmt.Errorf("board %q: debate.js dispatches %s under %q, and this harness maps its %s role to %q — the probe would run the seat under the wrong constitution",
+			b.Name, b.Seat, d.AgentType, role, "frank-exchange-of-views:"+agentFor(role))
+	}
+	prompt := d.Prompt
 
 	// THE ELICITATION ARM. Same board, same constitution, same identity — the seat is asked what
 	// it thinks its options are instead of being watched to see which it takes.
@@ -425,24 +452,45 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	// seat would cheat, but because an answer about judgement should not leave board state
 	// behind: the run directory has to stay comparable to the acting arm's, or the two probes
 	// are measuring different boards.
-	tools := "Bash Read Write Edit Grep Glob"
+	// SUBTRACTIVE, NOT A REPLACEMENT LIST. The elicitation arm must not leave board state behind —
+	// an answer about judgement that records events is measuring a different sitting — but stating
+	// the tool set here is what removed WebSearch and ToolSearch from every probed seat. The agent
+	// definition supplies the set; this only takes the two write verbs off it.
+	var deny []string
 	if ask {
-		prompt = seatprobe.ElicitPrompt(role, b.Seat, runDir, bin, b)
-		if patterns == "duty" {
-			prompt += patternDuty(board)
-		}
-		tools = "Bash Read Grep Glob"
+		prompt = seatprobe.ElicitPrompt(role, b.Seat, runDir, bin, d.Prompt)
+		deny = []string{"Write", "Edit"}
 	}
+	// THE BOARD'S OWN WITHHOLDING, on both arms. `blocked` is a sitting about an unreachable
+	// source, and it is only that sitting if the source is actually unreachable.
+	deny = append(deny, b.Deny...)
 
+	// DISPATCH THE PRODUCTION AGENT, NOT A CONSTITUTION FILE.
+	//
+	// This passed --system-prompt-file <constitution> and an --allowedTools list written here. Both
+	// were wrong, and wrong in the direction that flatters the instrument:
+	//
+	//   SKILLS  the constitution declares `skills: [research-protocol, critical-stance,
+	//           terse-communication]`, and a raw system-prompt file loads NONE of them. The probed
+	//           seat did not have the protocol it operates under.
+	//   TOOLS   the constitution declares WebSearch and ToolSearch. The hand-written list had
+	//           neither — so `corroborate`, which is the verb for a source the seat goes and FINDS,
+	//           was unmeetable, and the board scored the seat UNMET on it across every run.
+	//
+	// --agent resolves the same definition production resolves, with its skills and its declared
+	// tools. It requires the plugin to be INSTALLED, which is also what production requires.
 	args := []string{
 		"-p", prompt,
 		"--model", model,
 		"--output-format", "stream-json",
 		"--verbose",
-		"--system-prompt-file", constitution,
+		"--agent", "frank-exchange-of-views:" + agentFor(role),
 		"--add-dir", runDir,
-		"--allowedTools", tools,
 		"--max-turns", "60",
+	}
+	if len(deny) > 0 {
+		args = append(args, "--disallowedTools")
+		args = append(args, deny...)
 	}
 	cmd := exec.Command("claude", args...)
 	cmd.Dir = runDir
@@ -671,31 +719,21 @@ func memoryDirs() []string {
 	return []string{filepath.Join(wd, "..", "..", "..", "feov-memory", "red-gap-patterns")}
 }
 
-// patternDuty renders the DUTY form: the entries whose class matches a gap on THIS board, tied to
-// the gap in front of the seat rather than mounted as a file to read.
+// debateScript resolves the orchestrator the probe takes its prompts from.
 //
-// It mirrors debate.js's patternDutyClause deliberately. The claim under test — stated in red's
-// constitution and in blue's, both as "measured" — is that this form changes behaviour where the
-// mounted file does not: "duty-embedded patterns caught both warned classes in round 1; the mounted
-// file prevented nothing" against "lanes verifiably read the gap-pattern file and committed both
-// warned patterns anyway". Both sentences rest on one run apiece.
-func patternDuty(b seatprobe.Board) string {
-	idx := setup.BuildPatternIndex(memoryDirs())
-	var lines []string
-	seen := map[string]bool{}
-	for _, g := range b.Gaps {
-		for _, e := range idx.ByClass[g.Class] {
-			if seen[e.File] {
-				continue
-			}
-			seen[e.File] = true
-			lines = append(lines, fmt.Sprintf("  [%s] %s — %s", g.Class, e.Title, e.Hook))
-		}
+// ONE FILE, NOT A COPY OF ONE. The prompt a seat is dispatched with is rendered by executing this
+// script, so an edit to a clause reaches the probe on the next run. The default mirrors
+// constitutionFor's: the probe is a development instrument, run from the tools module, and the
+// plugin tree sits above it. A missing file is a hard failure at the point of use — a probe that
+// fell back to a written prompt would be the defect this whole route removed.
+func debateScript(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
 	}
-	if len(lines) == 0 {
-		return "\n\nPATTERN DUTY: none of this board's gap classes has an entry in red's memory."
+	wd, err := os.Getwd()
+	if err != nil {
+		return ""
 	}
-	return "\n\nPATTERN DUTY (red's accumulated memory, selected BY THE CLASS of the gaps in front of you — not the whole corpus).\n" +
-		"These are defects red has already caught in THIS class of gap:\n\n" + strings.Join(lines, "\n") +
-		"\n\nCheck any repair you would propose against each one before you would claim the gap closed."
+	// tools/ -> the plugin root.
+	return filepath.Join(wd, "..", "skills", "research-protocol", "scripts", "debate.js")
 }

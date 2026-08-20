@@ -41,7 +41,7 @@ var Seats = []struct{ Role, ID string }{
 	{"lens", "red-lens-r1-L1"},
 	{"merge", "red-merge-r1"},
 	{"blue", "blue-respond-r1"},
-	{"bench", "judge-r1"},
+	{"bench", "judge-r2"},
 }
 
 // Build materialises a board into runDir.
@@ -142,7 +142,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r1"}[m.Subject]
+		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r2"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", runDir, "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {

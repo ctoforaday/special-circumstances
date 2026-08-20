@@ -1,12 +1,80 @@
 # What naming the surface in the constitution actually buys
 
-Three measurements and one interview. **The 2026-08-20 run is the current record**; the two earlier runs are kept below
-because the design decisions were made on them and their confounds are still instructive.
+Three measurements and one interview, **and every one of them measured a seat production does not
+dispatch.** Read the fidelity section first: it says what the numbers below can and cannot be used
+for. They are kept because the reasoning is still instructive and because deleting a measurement
+that turned out to be about the wrong thing is how the same mistake gets made twice.
 
 Raw reports are not committed; regenerate with `seatprobe -board all -bin <feov-record> -dir <out>
--constitutions <plugin>/agents`. The `-naming` and `-help-directive` flags the two earlier runs used
-NO LONGER EXIST — the arms were deleted once the question was settled, so those runs can be read but
-not reproduced against today's probe.
+-constitutions <plugin>/agents`. The `-naming`, `-help-directive` and `-patterns` flags the earlier
+runs used NO LONGER EXIST — those runs can be read but not reproduced against today's probe.
+
+---
+
+# Fidelity, 2026-08-20 — the probe was not dispatching production's seat
+
+Four divergences between what the probe dispatched and what `debate.js` dispatches. Each was prose
+nothing compiled, and each moved the numbers in the direction that flatters the instrument.
+
+| | The probe did | Production does | What it cost |
+|---|---|---|---|
+| **Agent** | `--system-prompt-file <constitution>` | `agentType: 'frank-exchange-of-views:<agent>'` | a raw system-prompt file loads NO skills. Every probed seat sat without `research-protocol` — the protocol it operates under. |
+| **Tools** | an `--allowedTools` list written in the harness | the agent definition's own set | the list had neither `WebSearch` nor `ToolSearch`, so `corroborate` — the verb for a source the seat goes and FINDS — was **unperformable**. Every run scored the seat UNMET on it, and the interview then recorded a seat "judging against" a verb it had no means to use. |
+| **Prompt** | ~950 characters written in `cmd/seatprobe/main.go` | 12,800–24,000 characters rendered by `debate.js` | not a summary — a **paraphrase**, saying similar things in different words. Every help-reading count, verb-reach count and friction rate ever published by this probe was measured on a prompt no seat is given. |
+| **Seat** | `judge-r1` on two boards | never | a judge sits only when the contested docket is non-empty, and round 1 has nothing that persists and no pending dispute. The tool's roster accepts `judge-r\d+`, so nothing refused it: the seat was valid, registered, dispatched and scored, and the orchestrator has never seated it. |
+
+## What survives
+
+- **The `corroborate` finding is void.** It was unperformable, not declined.
+- **Every help-reading and verb-reach number is suspect** and is not evidence for or against the
+  scoped tree. They were taken against a prompt that names the verbs' *concepts* in a seventh of
+  production's words, with a different statement of the identity contract.
+- **The interview's qualitative findings mostly survive**, because they are about what the seat
+  *thought was happening* — the refusal-as-teacher reading, the durability argument about friction —
+  and those were reported against the situation the seat was actually in. They are now hypotheses to
+  re-ask, not results.
+- **The `--seat-id`-every-call defect the seat named in the interview was real and is fixed** — that
+  one was a defect in the harness's environment, not in its prompt.
+
+## What replaced it
+
+The probe composes no prompt at all. `internal/debatejs` runs the shipped `debate.js` under goja with
+`agent()` stubbed, and the probe dispatches the prompt it captures for the board's seat, verbatim,
+under the `agentType` that prompt was dispatched with. The stub envelopes are built **from the
+board**, so the open-gap JSON and the contested docket the prompt embeds are the record the fixture
+stages. A clause edited in `debate.js` reaches the probe on the next run, because there is no second
+copy.
+
+There is no fallback. A board naming a seat `debate.js` does not dispatch fails the run — the miss
+had to be loud, because a written substitute would fire exactly when the capture broke, which is the
+moment the run most needs to stop.
+
+## A finding that fell out of doing this
+
+**The PATTERN DUTY clause may never fire in production.** `patternDutyClause(openGaps)` selects red's
+memory by the `class` of the gaps blue is repairing — and `openGaps` comes from red's ENVELOPE, whose
+schema declares gap items as refs only: `id`, `severity`, `likelihood`, `impact`, `complexity_cost`,
+`supersedes`. `class` is not among them. `patternsForGaps` reads `g.class || g.gap_class`, finds
+neither, returns `[]`, and the clause renders as the empty string.
+
+So the duty arrives only if a red seat volunteers a field the schema does not ask for. Both
+constitutions cite the duty form as the one that *works* — "duty-embedded patterns caught both warned
+classes in round 1; the mounted file prevented nothing" — and the delivery it rests on is gated on an
+optional field nobody is told to send. An empty clause and a clause with nothing to say are the same
+bytes: this is the plausible zero again, in the delivery path of the mechanism the constitutions
+advertise. Not fixed here — the probe's capture emits the declared shape, so it is measuring the
+guaranteed case. Filed as its own question.
+
+Two consequences worth stating:
+
+- **`blocked` no longer asserts its own blocker.** It said "you have NO network access" in a sentence
+  the harness wrote; a seat can believe a sentence, work around it, or ignore it, and the three are
+  indistinguishable in the transcript. The board now withholds `WebSearch`/`WebFetch`, so the seat
+  discovers the block by reaching for it.
+- **Red's gap-pattern corpus is staged unconditionally**, as `run-setup` stages it. It stopped being
+  an arm: `debate.js` names `inputs/red-gap-patterns.md` in blue's first batched read, so a probe
+  that withheld it would hand the seat a prompt whose opening instruction fails and then score what
+  it did next.
 
 ---
 
