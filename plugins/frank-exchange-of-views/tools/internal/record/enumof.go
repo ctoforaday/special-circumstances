@@ -50,3 +50,17 @@ func SourceOutcomeOf(word string) (recordpb.SourceOutcome, bool) {
 func ConfidenceOf(word string) (recordpb.Confidence, bool) {
 	return enumOf[recordpb.Confidence](recordpb.Confidence(0).Descriptor(), word)
 }
+
+// GradeDimensionOf resolves the axis a grade motion contests. The seat's word for one of these is
+// `cx` while the schema spells `complexity_cost` — that fold is the flag's business, not this
+// function's, and it is why the surface has its own alias rather than a second spelling here.
+func GradeDimensionOf(word string) (recordpb.GradeDimension, bool) {
+	return enumOf[recordpb.GradeDimension](recordpb.GradeDimension(0).Descriptor(), word)
+}
+
+// PetitionClassOf resolves the ground a petition stands on. Four values, and the distinction
+// between them is what the bench rules against — a petition filed under the wrong one asks a
+// different question than the seat meant.
+func PetitionClassOf(word string) (recordpb.PetitionClass, bool) {
+	return enumOf[recordpb.PetitionClass](recordpb.PetitionClass(0).Descriptor(), word)
+}

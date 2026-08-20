@@ -4,12 +4,15 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // file: a seat asks for something, and the tool assigns the id everything else joins on.
@@ -41,14 +44,47 @@ func newFile(subject string, required []string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("reason", basis)
-			for _, f := range required {
-				p.Set(payloadKey(f), seat.Str(cmd, f))
+			// THE UNTYPED LOOP CANNOT SURVIVE A TYPED FILING, and that is the migration working
+			// rather than a cost of it. `for _, f := range required { p.Set(payloadKey(f), …) }`
+			// wrote whatever the flags happened to hold under whatever key payloadKey returned —
+			// which is how `--petition-class` landed under the key `petition-class` while every
+			// reader looked for `class`, and nothing could see the two disagree. The filing is now
+			// a oneof, so a grade's fields cannot be written onto a petition at all.
+			subj, ok := record.MotionSubjectEnum(subject)
+			if !ok {
+				return feov.Errorf(feov.Validation, "motion %s file: %q is not a motion subject", subject, subject)
+			}
+			body := &recordpb.Motion{
+				MotionId: proto.String(id),
+				Subject:  &subj,
+				Basis:    proto.String(basis),
+			}
+			switch subj {
+			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
+				dim, known := record.GradeDimensionOf(seat.Str(cmd, flags.Dimension))
+				if !known {
+					return feov.Errorf(feov.Validation, "motion grade file: %q is not a grade dimension", seat.Str(cmd, flags.Dimension))
+				}
+				prop, known := record.GradeOf(seat.Str(cmd, flags.Proposed))
+				if !known {
+					return feov.Errorf(feov.Validation, "motion grade file: %q is not a grade", seat.Str(cmd, flags.Proposed))
+				}
+				body.Filing = &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
+					GapId:     proto.String(seat.Str(cmd, flags.ID)),
+					Dimension: &dim,
+					Proposed:  &prop,
+				}}
+			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
+				cls, known := record.PetitionClassOf(seat.Str(cmd, flags.Class))
+				if !known {
+					return feov.Errorf(feov.Validation, "motion petition file: %q is not a petition class", seat.Str(cmd, flags.Class))
+				}
+				body.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: &cls}}
 			}
 			if r := seat.Str(cmd, flags.Relief); r != "" {
-				p.Set("relief", r)
+				body.Relief = proto.String(r)
 			}
-			if _, err := record.Append(s.Identity(), "motion", p); err != nil {
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, filed{ID: id, Subject: subject}, nil)
@@ -120,7 +156,7 @@ func newRule(subject, ruler string) *cobra.Command {
 			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
 			// petition should be told it named the wrong subgroup, not that grade motions belong
 			// to the merge — which is true, irrelevant, and sends it to the wrong fix.
-			if err := record.RequireMotionSubjectRef(s.RunDir, subject, id); err != nil {
+			if err := record.RequireMotionSubjectRef(s.RunDir, mustSubject(subject), id); err != nil {
 				return err
 			}
 			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
@@ -137,13 +173,48 @@ func newRule(subject, ruler string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).
-				Set("ruling", seat.Str(cmd, flags.As)).Set("reason", opinion)
+			// THE VERDICT SET IS KEYED ON (SUBJECT, RULING) and the schema says so with a oneof:
+			// granted|denied can only reach the petition arm, accepted|rejected the grade arm. The
+			// old payload carried `subject` and `ruling` as two independent strings that a writer
+			// could set inconsistently, and record.go's validate existed to catch exactly that.
+			subj := mustSubject(subject)
+			body := &recordpb.MotionRule{
+				MotionId: proto.String(id),
+				Subject:  &subj,
+				Opinion:  proto.String(opinion),
+			}
+			word := seat.Str(cmd, flags.As)
+			switch subj {
+			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
+				v, ok := enumOf[recordpb.GradeRuling](recordpb.GradeRuling(0).Descriptor(), word)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion grade rule: %q is not a ruling on a grade motion", word)
+				}
+				body.Ruling = &recordpb.MotionRule_Grade{Grade: v}
+			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
+				v, ok := enumOf[recordpb.PetitionRuling](recordpb.PetitionRuling(0).Descriptor(), word)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion petition rule: %q is not a ruling on a petition", word)
+				}
+				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
+			case recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION:
+				v, ok := enumOf[recordpb.DirectionRuling](recordpb.DirectionRuling(0).Descriptor(), word)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion inquiry rule: %q is not a ruling on a direction", word)
+				}
+				body.Ruling = &recordpb.MotionRule_Direction{Direction: v}
+			}
 			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
 			// because a denial binds nobody — and a grant that names no addressee is exactly the
 			// state the bench filed friction about: a direction issued knowing it had no carrier.
-			seat.Set(cmd, p, "binds", flags.Binds)
-			if _, err := record.Append(s.Identity(), "motion-rule", p); err != nil {
+			if w := seat.Str(cmd, flags.Binds); w != "" {
+				b, ok := enumOf[recordpb.RulingBinds](recordpb.RulingBinds(0).Descriptor(), w)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion %s rule: %q is not an addressee the relief can bind", subject, w)
+				}
+				body.Binds = &b
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, ruled{ID: id, Ruling: seat.Str(cmd, flags.As)}, nil)
@@ -184,7 +255,7 @@ func newAppeal(subject string) *cobra.Command {
 				return err
 			}
 			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireRuledMotion(s.RunDir, subject, id); err != nil {
+			if err := record.RequireRuledMotion(s.RunDir, mustSubject(subject), id); err != nil {
 				return err
 			}
 			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
@@ -194,8 +265,12 @@ func newAppeal(subject string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("reason", reason)
-			if _, err := record.Append(s.Identity(), "motion-appeal", p); err != nil {
+			subj := mustSubject(subject)
+			if _, err := record.Append(s.Identity(), &recordpb.MotionAppeal{
+				MotionId: proto.String(id),
+				Subject:  &subj,
+				Reason:   proto.String(reason),
+			}); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, appealed{ID: id}, nil)
@@ -236,3 +311,26 @@ type appealed struct {
 }
 
 func (r appealed) Human() string { return "motion " + r.ID + " appealed" }
+
+// mustSubject resolves a subject word registered by this package's own command tree, where an
+// unknown word is a programming error rather than seat input: subject() is called with literals.
+// The zero would be UNSPECIFIED, which reads downstream as a motion about nothing.
+func mustSubject(word string) recordpb.MotionSubject {
+	subj, ok := record.MotionSubjectEnum(word)
+	if !ok {
+		panic("motion: " + word + " is registered as a subgroup and is not a motion subject — the command tree and the schema disagree")
+	}
+	return subj
+}
+
+// enumOf resolves a seat's word to a typed ruling. It mirrors record.enumOf, which is unexported
+// there for the same reason it is unexported here: the EXPORTED pairs (GradeOf, ConfidenceOf …)
+// carry each enum's own fold rules, and a caller reaching past them to a generic would lose those.
+// The three ruling sets have no folds — they are the schema's spelling exactly.
+func enumOf[E ~int32](d protoreflect.EnumDescriptor, word string) (E, bool) {
+	vd, ok := recordpb.BySpelling(d, word)
+	if !ok {
+		return E(0), false
+	}
+	return E(vd.Number()), true
+}
