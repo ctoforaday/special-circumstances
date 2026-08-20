@@ -86,11 +86,25 @@ func main() {
 		parallel   = flag.Int("parallel", 2, "how many boards to run at once")
 		reportOnly = flag.Bool("report-only", false, "skip build and dispatch; report on what is already there")
 		keep       = flag.Bool("keep", false, "keep an existing board directory instead of rebuilding it")
+		printSit   = flag.Bool("print-sitting", false, "print the named board's SITTING text and exit — the situation a seat is dispatched into. For a harness that drives the dispatch itself (the interview) and must hand the seat the same situation this probe would")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
 		patterns   = flag.String("patterns", "none", "red's gap-pattern memory: `none`, `file` (staged at inputs/red-gap-patterns.md — the MOUNTED FILE form), or `duty` (staged AND named in the prompt, selected by the classes of this board's gaps — the DUTY form)")
 	)
 	flag.Parse()
+
+	// THE SITTING TEXT, FOR A CALLER THAT DRIVES ITS OWN DISPATCH. The interview harness holds a
+	// session open across turns, which this binary does not do — but it must put the seat in the
+	// SAME situation, and the situation lives here. Printing it is how the two stay one fixture
+	// rather than two that drift.
+	if *printSit {
+		b, ok := seatprobe.Boards()[*board]
+		if !ok {
+			fail("no board %q", *board)
+		}
+		fmt.Print(b.Sitting())
+		return
+	}
 
 	// A TYPO HERE WOULD RUN THE SHIPPED ARM AND REPORT THE ONE YOU ASKED FOR. record's own
 	// resolver falls back to shipped on purpose (an unrecognised value must not empty a real
