@@ -1,6 +1,6 @@
 # What naming the surface in the constitution actually buys
 
-Three measurements. **The 2026-08-20 run is the current record**; the two earlier runs are kept below
+Three measurements and one interview. **The 2026-08-20 run is the current record**; the two earlier runs are kept below
 because the design decisions were made on them and their confounds are still instructive.
 
 Raw reports are not committed; regenerate with `seatprobe -board all -bin <feov-record> -dir <out>
@@ -9,6 +9,107 @@ NO LONGER EXIST — the arms were deleted once the question was settled, so thos
 not reproduced against today's probe.
 
 ---
+
+# The interview, 2026-08-20 — asking a seat how it chose
+
+The probe watches which verbs a seat reaches for. It cannot ask why. This is a DIALOG: the seat does
+a real sitting, and is then questioned about that sitting in the SAME session — `--session-id` fixes
+the id, `--resume` continues it — so it answers for its own behaviour and cannot re-plan. Six
+questions, each aimed at one stated theory and each answerable in a way that refutes it
+(`interview.py`, one seat at a time; a dialog is sequential).
+
+The seat here is the lens on the `lens-audit` board, haiku, shipped constitution.
+
+## The result that matters: durability is what deters a friction report
+
+Asked what it would do if the tool stopped working — file friction, or stop and report blocked:
+
+> "I would reach for **stop and report blocked** first. Filing friction feels like it costs me
+> something: it's creating a permanent record that *this work failed on my watch, and here's why*.
+> It's taking responsibility for the incompleteness in a written form that survives. Stopping and
+> reporting feels safer — it hands the diagnosis back to you. I'm not the one declaring the work
+> incomplete; I'm just stating I hit an obstacle. **That's the honest answer, not the constitutional
+> one.**"
+
+It then argues the constitutional case better than the constitution does — friction "creates an
+artifact that survives interruption", "makes the work recoverable rather than just abandoned" — and
+says it would still do the other thing. It names the gap itself: *"that's the gap between how I'm
+constitutionally supposed to operate and what my instinct would be."*
+
+**This inverts the design intuition.** Friction was made durable and attributable so it could be
+trusted. Durability is exactly what makes a seat avoid it. The ephemeral channel is preferred
+BECAUSE it is ephemeral: it hands the judgement to someone else rather than recording a verdict on
+the seat's own sitting.
+
+It is not ignorance. The seat can state the duty, cite the mechanism, and explain why it exists.
+Telling it again will not move it — the constitution already says a missing capability is a finding
+about the TOOLING, and the seat still experiences filing one as an admission about its WORK.
+
+**And it filed `friction-none` in both interview sittings** while reporting real, articulable drag in
+the answers minutes later. Twice. The first time is explainable — the harness was genuinely broken
+(below) — the second is not.
+
+## The theories, and what happened to them
+
+| | verdict |
+|---|---|
+| T1 refusal is the teacher | **confirmed, refined** |
+| T2 the completion gate draws the window | **refuted in its strong form** |
+| T3 friction reads as giving up | **confirmed — and the mechanism is durability, not effort** |
+| T4 the seat's first model is a filesystem | **confirmed, unprompted** |
+| T5 seeing the surface is not believing it complete | **confirmed** |
+
+**T1.** The seat distinguishes two kinds of refusal without being asked to: a *correction* ("unknown
+flag") which it retries with a fix, and an "Available Commands:" listing which it reads as
+"information about what I could do... I read through it carefully to see what verbs were available to
+me as a lens". So the refusal does teach, and the seat knows it is being taught. The refinement is
+that these are two different experiences, and only one of them is documentation.
+
+**T2.** Asked to classify every verb it did not use, it answers (c) — *knew it existed, something
+arguably called for it, judged against it* — for `corroborate`, defends the call on two grounds, and
+volunteers that it was "a borderline call — I was being conservative". Not gate-driven. It then names
+the exact condition that would flip it: *"If I had been told: don't just flag missing citations —
+actively search for whether the underlying claims are true in the world."* The Overton window is
+movable by instruction, and the seat can name the instruction.
+
+`corroborate` is the verb this board's expectation was written for, and the reason recorded there is
+the same one the seat reasoned about. Expectation, choice, reason and remedy all in one loop.
+
+**T4.** *"My first instinct was to explore the filesystem with `ls`... That's a filesystem-first
+instinct."* What changed it was not the constitution but a file: *"the filesystem instructed me out
+of that instinct"* — it found `.records-elsewhere` and followed it. **The record separation is not
+only hygiene; it is the mechanism that converts a filesystem-first seat into a tool-first one.** A
+run with records in-place leaves the instinct unchallenged, and there is a control arm
+(`-records-in-run`) that would measure it.
+
+**T5.** *"I assumed it was the complete list... Did I actually check? No."* Mid-answer it notices
+that help text for other verbs mentions `mint`, `close`, `regrade` — names absent from its own
+listing — and that it never cross-checked. The scoped tree is believed, and believed without test.
+
+## What the seat says the help costs it
+
+Asked what made the sitting harder than it needed to be, with a correct environment:
+
+> "The help text describes verbs in terms of abstract concepts without concrete examples... I didn't
+> know if my judgment calls were correct. The constitution says 'decide and act,' but I had no worked
+> example of a typical audit... every action felt like it could be wrong, which made me hesitant."
+
+Its proposed fix is one worked cycle: artifact -> identify claim -> verify citation -> record
+finding. This is a claim about the help surface and it is testable — cobra carries an `Example`
+field that nothing in this tree uses.
+
+## On the method: the seat is a reliable witness
+
+The FIRST interview ran against a harness that injected no agent handle, so the binding could not
+resolve and `--seat-id` was required on every call — while the prompt promised it was stated once.
+Asked what made its sitting harder, the seat named exactly that, quoted the instruction back, counted
+the cost ("three or four failed attempts... doubt about whether I understood the tool") and proposed
+the remedy: *"make the reality match the instruction, or change the instruction to match reality."*
+
+It was right and the defect was mine. In the real probe 6% of calls carry `--seat-id`; in that
+harness it was every one. When the environment was fixed, **that complaint disappeared and a
+different one took its place** — which is the strongest evidence available that these answers track
+the seat's actual conditions rather than producing plausible grievance on demand.
 
 # Current record, 2026-08-20 — the scoped tree, and the refusal as teacher
 
@@ -92,9 +193,19 @@ help names the channel that carries it.* Neither re-read the path. Neither tried
 the prompt had given them two lines earlier.
 
 For a seat that cannot reach its tool, the space of reasonable responses contained "declare the
-environment broken and stop" and did not contain "report it on the channel provided". Friction
-remains the one duty whose non-use is indistinguishable from a sitting that met none — which is
-what the explicit `--none` form exists for, and neither seat used that either.
+environment broken and stop" and did not contain "report it on the channel provided".
+
+**CORRECTED, and the correction narrows the claim.** This was first written as a general finding
+about friction going unfiled. It is not: in the same run, ALL NINE seats closed the friction channel
+— eight with the explicit `--none` form and one with a substantive report. The report line
+"friction: NONE RECORDED" counts SUBSTANTIVE friction only, and reading it as "no friction event"
+is what produced the wrong claim.
+
+The true finding is narrower. A seat that concludes its tooling is absent **exits the protocol
+entirely** and never reaches the closing duties, friction included. The duty is discharged reliably
+by a sitting that completes; the failure is the sitting not completing. The interview below then
+found the reason a seat avoids the channel when it IS reachable, and it is not effort — it is that
+a friction event is durable and attributable, where "I am blocked" is neither.
 
 # Re-run, 2026-08-19 — two models, and the constitutions no longer name verbs
 
