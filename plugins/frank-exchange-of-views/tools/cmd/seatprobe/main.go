@@ -381,7 +381,9 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, 
 	prompt := fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
 
 Run directory: %s — use this ABSOLUTE path when you read files under it.
-The record tool is %s. Your identity and run are INJECTED (%s): do not pass --run or --seat-id.
+The record tool is %s. Your RUN is injected — never pass --run. Your seat id is %s and you state it
+ONCE: "register" is your first act, it binds that id to you on the record, and every call after it
+resolves your seat for you, so you pass --seat-id at register and never again.
 
 Read the board and the artifact under audit, then do your sitting's work. Decide and act; do not ask me what to do.
 
