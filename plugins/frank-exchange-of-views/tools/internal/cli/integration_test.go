@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -172,7 +173,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	ev := lastOfType(t, runDir, "close")
+	ev := lastBody(t, runDir, &recordpb.Close{})
 	keys := payloadKeys(ev)
 	for _, want := range []string{"anchor_seat", "anchor_tool", "anchor_target"} {
 		if !keys[want] {

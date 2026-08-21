@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
 )
@@ -42,8 +43,8 @@ func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
 		"--quote", "Five independent approaches agree.", "--reason", "the independence was never established"); err != nil {
 		t.Fatalf("retiring a claim an edit removed was refused: %v", err)
 	}
-	ev := lastOfType(t, runDir, "retire")
-	if got := ev.Payload.Str("removal_basis"); got != "verified" {
+	ev := lastBody(t, runDir, &recordpb.Retire{})
+	if got := ev.GetRemovalBasis(); got != "verified" {
 		t.Errorf("removal_basis = %q, want verified — the record can show this claim leaving", got)
 	}
 }
@@ -62,8 +63,8 @@ func TestAPhantomRetireIsMarkedAsserted(t *testing.T) {
 		"--quote", "a claim that was never in this report", "--reason", "fuzz"); err != nil {
 		t.Fatalf("retire refused: %v", err)
 	}
-	ev := lastOfType(t, runDir, "retire")
-	if got := ev.Payload.Str("removal_basis"); got != "asserted" {
+	ev := lastBody(t, runDir, &recordpb.Retire{})
+	if got := ev.GetRemovalBasis(); got != "asserted" {
 		t.Errorf("removal_basis = %q, want asserted — nothing on the record shows this claim was ever present", got)
 	}
 }

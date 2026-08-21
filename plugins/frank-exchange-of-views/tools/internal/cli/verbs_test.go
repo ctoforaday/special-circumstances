@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
 )
@@ -241,13 +242,13 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		if !strings.Contains(out, "spot-checked R1-3") {
 			t.Errorf("stdout = %q", out)
 		}
-		ev := lastOfType(t, runDir, "spot-check")
+		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 		got := ev.Payload.StrList("ids")
 		if len(got) != 1 || got[0] != "R1-3" {
 			t.Errorf("ids = %q, want [R1-3] — the only CLOSED gap, which is what a spot-check samples", got)
 		}
-		if ev.Payload.Str("reason") != "it still holds" {
-			t.Errorf("reason = %q — what the sample found lands in the one prose channel", ev.Payload.Str("reason"))
+		if ev.GetReason() != "it still holds" {
+			t.Errorf("reason = %q — what the sample found lands in the one prose channel", ev.GetReason())
 		}
 	})
 
@@ -257,7 +258,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 			"--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
 		}
-		ev := lastOfType(t, runDir, "spot-check")
+		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 		if !payloadKeys(ev)["ids"] {
 			t.Fatal("the ids key is absent; an absent list reads as \"not checked\" rather than \"checked nothing\"")
 		}
@@ -305,11 +306,11 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 		"--id", "R1-1", "--severity", "certain", "--reason", "new evidence in §4"); err != nil {
 		t.Fatal(err)
 	}
-	ev := lastOfType(t, runDir, "regrade")
-	if got := ev.Payload.Str("severity"); got != "certain" {
+	ev := lastBody(t, runDir, &recordpb.Regrade{})
+	if got := ev.GetSeverity(); got != "certain" {
 		t.Errorf("severity = %q", got)
 	}
-	if got := ev.Payload.Str("reason"); got != "new evidence in §4" {
+	if got := ev.GetBasis(); got != "new evidence in §4" {
 		t.Errorf("basis = %q", got)
 	}
 	// The grades NOT passed must be absent, so the replay leaves them alone.

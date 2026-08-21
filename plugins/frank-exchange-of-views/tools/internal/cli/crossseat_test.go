@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
 )
@@ -106,8 +107,8 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		t.Fatalf("red regrade: %v", err)
 	}
 
-	ev := lastOfType(t, runDir, "regrade")
-	if got := ev.Payload.Str("severity"); got != "low" {
+	ev := lastBody(t, runDir, &recordpb.Regrade{})
+	if got := ev.GetSeverity(); got != "low" {
 		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", got)
 	}
 	if !payloadKeys(ev)["reason"] {
@@ -133,11 +134,11 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 		t.Fatalf("motion petition rule: %v", err)
 	}
 
-	pet := lastOfType(t, runDir, "motion")
+	pet := lastBody(t, runDir, &recordpb.Motion{})
 	if pet.Payload.Str("class") != "safety" || !payloadKeys(pet)["relief"] {
 		t.Errorf("the petition lost its class or relief (payload %v) — relief that is not recorded cannot bind anybody", pet.Payload.Keys())
 	}
-	rule := lastOfType(t, runDir, "motion-rule")
+	rule := lastBody(t, runDir, &recordpb.MotionRule{})
 	if got := rule.Payload.Str("ruling"); got != "granted" {
 		t.Errorf("the ruling recorded %q, want granted", got)
 	}
@@ -145,7 +146,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	// `petitioner` off the ruling — a field the ruler restated, which is why two petitions from
 	// one seat in one round could not be told apart. The ruling names the MOTION, and the motion
 	// names its filer, so the join is a fact rather than a restatement.
-	if got := rule.Payload.Str("motion_id"); got != "M1" {
+	if got := rule.GetMotionId(); got != "M1" {
 		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
 	}
 	if got := pet.SeatID; got != "red-merge-r1" {
@@ -162,7 +163,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 		"--none", "--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
-	ev := lastOfType(t, runDir, "spot-check")
+	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 	if !payloadKeys(ev)["reason"] {
 		t.Error("the empty spot-check lost its reason, which is the only thing distinguishing it from a skipped duty")
 	}
@@ -185,7 +186,7 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 		"--new", "the API returns 400 on a malformed body"); err != nil {
 		t.Fatalf("blue retire: %v", err)
 	}
-	ev := lastOfType(t, runDir, "retire")
+	ev := lastBody(t, runDir, &recordpb.Retire{})
 	for _, want := range []string{"claim", "reason", "superseded_by"} {
 		if !payloadKeys(ev)[want] {
 			t.Errorf("the retirement lost %s (payload %v) — an unaccounted claim drop is the detector hit this verb exists to make impossible", want, ev.Payload.Keys())
@@ -238,8 +239,8 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 		t.Fatalf("close with successor: %v", err)
 	}
 
-	ev := lastOfType(t, runDir, "close")
-	if got := ev.Payload.Str("successor"); got != next {
+	ev := lastBody(t, runDir, &recordpb.Close{})
+	if got := ev.GetSuccessor(); got != next {
 		t.Errorf("the closure records successor %q, want %s — a partial repair whose residue is unnamed reads as a complete one", got, next)
 	}
 	if gapIsOpen(t, runDir, first) {
@@ -259,7 +260,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 		"--reason", "continuing would compromise the consent gate"); err != nil {
 		t.Fatalf("bench halt: %v", err)
 	}
-	if got := lastOfType(t, runDir, "halt").SeatID; got != "judge-r1" {
+	if got := lastBody(t, runDir, &recordpb.Halt{}).SeatID; got != "judge-r1" {
 		t.Errorf("the halt is attributed to %q, want judge-r1 — an unattributed halt cannot be reviewed", got)
 	}
 

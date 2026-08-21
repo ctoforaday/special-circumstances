@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +31,7 @@ func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--reason-file - : %v (%s)", err, out)
 	}
-	if got := lastOfType(t, runDir, "friction").Payload.Str("reason"); got != hostile {
+	if got := lastBody(t, runDir, &recordpb.Friction{}).GetText(); got != hostile {
 		t.Errorf("the payload did not survive stdin.\n got: %q\nwant: %q", got, hostile)
 	}
 }
@@ -163,8 +164,8 @@ func TestReasonFileReadsStdinThroughTheDashConvention(t *testing.T) {
 		"--seat-id", "red-lens-r1-L1", "--reason-file", "-"); err != nil {
 		t.Fatalf("--reason-file -: %v", err)
 	}
-	ev := lastOfType(t, runDir, "friction")
-	if got := ev.Payload.Str("reason"); got != hostile {
+	ev := lastBody(t, runDir, &recordpb.Friction{})
+	if got := ev.GetText(); got != hostile {
 		t.Errorf("text = %q, want the stdin content intact", got)
 	}
 }

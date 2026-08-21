@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 )

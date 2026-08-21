@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
 )
@@ -46,8 +47,8 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 		t.Fatalf("a properly addressed ruling was refused: %v", err)
 	}
 
-	ev := lastOfType(t, runDir, "motion-rule")
-	if got := ev.Payload.Str("motion_id"); got != "M1" {
+	ev := lastBody(t, runDir, &recordpb.MotionRule{})
+	if got := ev.GetMotionId(); got != "M1" {
 		t.Errorf("motion_id = %q, want M1 — the record must carry the join, not leave it to be inferred", got)
 	}
 	if got := ev.Payload.Str("ruling"); got != "rejected" {

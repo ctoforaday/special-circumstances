@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,12 +77,12 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	if !strings.Contains(rep, "<!--fx:f-abc123-->") {
 		t.Errorf("finding-marker was dropped: %q", rep)
 	}
-	ev := lastOfType(t, runDir, "blue_edit")
-	if ev.Payload.Str("old") != "rising over time" || ev.Payload.Str("new") != "climbing sharply" {
-		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.Payload.Str("old"), ev.Payload.Str("new"))
+	ev := lastBody(t, runDir, &recordpb.BlueEdit{})
+	if ev.GetOld() != "rising over time" || ev.GetNew() != "climbing sharply" {
+		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.GetOld(), ev.GetNew())
 	}
-	if ev.Payload.Str("reason") != "sharper phrasing" {
-		t.Errorf("reason not recorded: %q", ev.Payload.Str("reason"))
+	if ev.GetText() != "sharper phrasing" {
+		t.Errorf("reason not recorded: %q", ev.GetText())
 	}
 }
 
@@ -193,7 +194,7 @@ func TestBlueEditRecordsTheGapItAnswers(t *testing.T) {
 		"--answers", gap, "--reason", "drop the independence claim"); err != nil {
 		t.Fatalf("blue edit --answers: %v", err)
 	}
-	if got := lastOfType(t, runDir, "blue_edit").Payload.Str("answers"); got != gap {
+	if got := lastBody(t, runDir, &recordpb.BlueEdit{}).GetAnswers(); got != gap {
 		t.Errorf("answers = %q, want %q — without it required_fix and the actual change cannot be joined", got, gap)
 	}
 }
@@ -276,7 +277,7 @@ func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
 		"--reason", "clearer phrasing, self-directed"); err != nil {
 		t.Fatalf("a self-directed edit was refused: %v", err)
 	}
-	if got := lastOfType(t, runDir, "blue_edit").Payload.Str("answers"); got != "" {
+	if got := lastBody(t, runDir, &recordpb.BlueEdit{}).GetAnswers(); got != "" {
 		t.Errorf("answers = %q, want empty", got)
 	}
 }
@@ -304,8 +305,8 @@ func TestMintWithoutAConcreteProposalIsBasisProposed(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 
-	ev := lastOfType(t, runDir, "mint")
-	if got := ev.Payload.Str("fix_basis"); got != "proposed" {
+	ev := lastBody(t, runDir, &recordpb.Mint{})
+	if got := ev.GetFixBasis(); got != "proposed" {
 		t.Errorf("fix_basis = %q, want %q — a prose fix red did not check against the document is proposed", got, "proposed")
 	}
 }
@@ -323,11 +324,11 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 		"--new", "Five verification approaches agree."); err != nil {
 		t.Fatalf("a legal concrete proposal was refused: %v", err)
 	}
-	ev := lastOfType(t, runDir, "mint")
-	if got := ev.Payload.Str("fix_basis"); got != "verified" {
+	ev := lastBody(t, runDir, &recordpb.Mint{})
+	if got := ev.GetFixBasis(); got != "verified" {
 		t.Errorf("fix_basis = %q, want %q — a replacement validated against the live report is verified", got, "verified")
 	}
-	if ev.Payload.Str("location") == "" || ev.Payload.Str("fix_new") == "" {
+	if ev.GetLocation() == "" || ev.GetFixNew() == "" {
 		t.Error("the proposal itself was not recorded, so blue cannot apply what red proposed")
 	}
 }

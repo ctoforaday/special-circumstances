@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -101,26 +103,44 @@ func events(t *testing.T, runDir string) []record.Event {
 // fixtures seed events from several seats. It silently returned the SEEDED dispute instead
 // of the one the test had just filed, which reads as the verb writing the wrong payload.
 // The canonical order is (TS, SeatID, Seq), the same key replay uses.
-func lastOfType(t *testing.T, runDir, typ string) record.Event {
+func lastOfType(t *testing.T, runDir string, typ recordpb.EventType) *record.Event {
 	t.Helper()
 	evs := events(t, runDir)
 	sort.SliceStable(evs, func(i, j int) bool {
 		a, b := evs[i], evs[j]
-		if a.TS != b.TS {
-			return a.TS < b.TS
+		if a.GetTs() != b.GetTs() {
+			return a.GetTs() < b.GetTs()
 		}
-		if a.SeatID != b.SeatID {
-			return a.SeatID < b.SeatID
+		if a.GetSeatId() != b.GetSeatId() {
+			return a.GetSeatId() < b.GetSeatId()
 		}
-		return a.Seq < b.Seq
+		return a.GetSeq() < b.GetSeq()
 	})
 	for i := len(evs) - 1; i >= 0; i-- {
-		if evs[i].Type == typ {
+		if evs[i].GetType() == typ {
 			return evs[i]
 		}
 	}
 	t.Fatalf("no %s event in the log", typ)
-	return record.Event{}
+	return nil
+}
+
+// lastBody is lastOfType with the body already typed, which is what every caller wanted.
+//
+// The type argument and the EventType are the SAME FACT — asking for a *recordpb.Cite and then
+// naming EVENT_TYPE_CITE beside it is the agreement this migration keeps removing — so the type is
+// derived from the body by the same SetBody the write path uses.
+func lastBody[T proto.Message](t *testing.T, runDir string, zero T) T {
+	t.Helper()
+	typ, err := recordpb.SetBody(&record.Event{}, zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, ok := recordpb.BodyAs[T](lastOfType(t, runDir, typ))
+	if !ok {
+		t.Fatalf("the last %s event does not carry a %T", typ, zero)
+	}
+	return body
 }
 
 // payloadKeys is how the absent/present distinction is asserted: a flag the seat
@@ -353,14 +373,14 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 		t.Errorf("finding said %q", out)
 	}
 
-	ev := lastOfType(t, runDir, "finding")
-	if got := ev.Payload.Str("label"); got != "L1-F1" {
+	ev := lastBody(t, runDir, &recordpb.Finding{})
+	if got := ev.GetLabel(); got != "L1-F1" {
 		t.Errorf("label = %q", got)
 	}
-	if got := ev.Payload.Str("severity"); got != "high" {
+	if got := ev.GetSeverity(); got != "high" {
 		t.Errorf("severity = %q", got)
 	}
-	if got := ev.Payload.Str("reason"); got != "the finding prose" {
+	if got := ev.GetText(); got != "the finding prose" {
 		t.Errorf("text = %q", got)
 	}
 	if ev.Round != 1 {
@@ -403,7 +423,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	ev := lastOfType(t, runDir, "mint")
+	ev := lastBody(t, runDir, &recordpb.Mint{})
 	keys := payloadKeys(ev)
 	for _, k := range []string{"supersedes", "found_by"} {
 		if !keys[k] {
@@ -569,15 +589,15 @@ func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := lastOfType(t, runDir, "mint")
-	if got := m.Payload.Str("class"); got != "brand-new" {
+	m := lastBody(t, runDir, &recordpb.Mint{})
+	if got := m.GetClass(); got != "brand-new" {
 		t.Errorf("class = %q, want the slug from --class", got)
 	}
 	if v, _ := m.Payload.Get("class_new"); v != true {
 		t.Errorf("class_new = %v, want true", v)
 	}
-	cn := lastOfType(t, runDir, "class-new")
-	if got := cn.Payload.Str("slug"); got != "brand-new" {
+	cn := lastBody(t, runDir, &recordpb.ClassNew{})
+	if got := cn.GetSlug(); got != "brand-new" {
 		t.Errorf("class-new slug = %q", got)
 	}
 	for _, k := range []string{"definition", "neighbor", "distinguisher"} {
@@ -606,7 +626,7 @@ func TestProseChannelResolution(t *testing.T) {
 		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", "red-merge-r1", "--reason-file", f); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastOfType(t, runDir, "position").Payload.Str("reason"); got != body {
+		if got := lastBody(t, runDir, &recordpb.Position{}).GetText(); got != body {
 			t.Errorf("text = %q, want the file's content without its terminator %q", got, body)
 		}
 	})
@@ -682,7 +702,7 @@ func TestProseChannelResolution(t *testing.T) {
 			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the flag" {
+		if got := lastBody(t, runDir, &recordpb.Mint{}).GetProblem(); got != "from the flag" {
 			t.Errorf("problem = %q, want --problem to win", got)
 		}
 	})
@@ -693,7 +713,7 @@ func TestProseChannelResolution(t *testing.T) {
 			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the prose channel" {
+		if got := lastBody(t, runDir, &recordpb.Mint{}).GetProblem(); got != "from the prose channel" {
 			t.Errorf("problem = %q", got)
 		}
 	})
@@ -737,8 +757,8 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	if !strings.Contains(out, "closed R1-1 (closed)") {
 		t.Errorf("close said %q", out)
 	}
-	ev := lastOfType(t, runDir, "close")
-	if got := ev.Payload.Str("closure_class"); got != "closed" {
+	ev := lastBody(t, runDir, &recordpb.Close{})
+	if got := ev.GetClosureClass(); got != "closed" {
 		t.Errorf("closure_class = %q, want the default \"closed\"", got)
 	}
 
@@ -804,7 +824,7 @@ func TestCloseFile(t *testing.T) {
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason-file", f); err != nil {
 		t.Fatal(err)
 	}
-	if got := lastOfType(t, runDir, "close").Payload.Str("reason"); got != "the whole closure record" {
+	if got := lastBody(t, runDir, &recordpb.Close{}).GetProse(); got != "the whole closure record" {
 		t.Errorf("prose = %q", got)
 	}
 
@@ -899,8 +919,8 @@ func TestBlueVerbContracts(t *testing.T) {
 			"--reason", "what changed"); err != nil {
 			t.Fatal(err)
 		}
-		ev := lastOfType(t, runDir, "revision")
-		if got := ev.Payload.Str("reason"); got != "what changed" {
+		ev := lastBody(t, runDir, &recordpb.Revision{})
+		if got := ev.GetText(); got != "what changed" {
 			t.Errorf("text = %q", got)
 		}
 	})
@@ -955,7 +975,7 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 	if !strings.Contains(out, "opinion recorded: R1-1 carried") {
 		t.Errorf("opinion said %q", out)
 	}
-	if got := lastOfType(t, runDir, "opinion").Payload.Str("reason"); got != "the rationale" {
+	if got := lastBody(t, runDir, &recordpb.Opinion{}).GetRationale(); got != "the rationale" {
 		t.Errorf("rationale = %q", got)
 	}
 }
@@ -980,8 +1000,8 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 			if strings.TrimSpace(out) != "friction recorded" {
 				t.Errorf("friction said %q", out)
 			}
-			ev := lastOfType(t, runDir, "friction")
-			if got := ev.Payload.Str("reason"); got != "the capability I needed" {
+			ev := lastBody(t, runDir, &recordpb.Friction{})
+			if got := ev.GetText(); got != "the capability I needed" {
 				t.Errorf("text = %q", got)
 			}
 			if keys := payloadKeys(ev); len(keys) != 1 || !keys["reason"] {
@@ -1179,7 +1199,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		t.Errorf("the mirror holds no shards: %v", entries)
 	}
 	// The verdict itself is on the record.
-	if got := lastOfType(t, runDir, "verdict").Payload.Str("verdict"); got != "PASS" {
+	if got := lastBody(t, runDir, &recordpb.Verdict_{}).GetVerdict(); got != "PASS" {
 		t.Errorf("verdict payload = %q", got)
 	}
 }
@@ -1204,8 +1224,8 @@ func TestVersionIsStampedOnTheFirstAct(t *testing.T) {
 	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatal(err)
 	}
-	reg := lastOfType(t, runDir, "register")
-	if got := reg.Payload.Str("tool_version"); got != Version {
+	reg := lastBody(t, runDir, &recordpb.Register{})
+	if got := reg.GetToolVersion(); got != Version {
 		t.Errorf("tool_version = %q, want %q", got, Version)
 	}
 	if record.ToolVersion != Version {
@@ -1304,7 +1324,7 @@ func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
 	if !strings.Contains(out, "nothing to sample") {
 		t.Errorf("output %q should say the discharge was empty", out)
 	}
-	ev := lastOfType(t, runDir, "spot-check")
+	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 	keys := payloadKeys(ev)
 	if !keys["none"] || !keys["reason"] {
 		t.Errorf("the event must carry both the empty marker and its reason; got %v", keys)
