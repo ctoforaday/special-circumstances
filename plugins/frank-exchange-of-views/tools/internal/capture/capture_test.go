@@ -2,6 +2,9 @@ package capture
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,10 +26,7 @@ func recordWithRounds(t *testing.T, n int) string {
 		seat := "red-merge-r" + itoa(r)
 		// The shard filename's nonce must be exactly 8 hex chars (record's shardRe).
 		nonce := "0000000" + string("0123456789abcdef"[r%16])
-		e := record.Event{Seq: 0, SeatID: seat, Nonce: nonce, Round: r, Type: "mint",
-			Key: seat + ":mint:R" + itoa(r) + "-1",
-			Payload: record.NewPayload().Set("gap_id", "R"+itoa(r)+"-1").Set("problem", "p").
-				Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium")}
+		e := record.recordtest.At(t, seat, nonce, 0, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{GapId: proto.String("R" + itoa(r) + "-1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		line, err := record.MarshalEvent(e)
 		if err != nil {
 			t.Fatal(err)
@@ -273,8 +273,7 @@ func seedRevisions(t *testing.T, runDir string, rounds int) {
 	for r := 1; r <= rounds; r++ {
 		seat := "blue-respond-r" + itoa(r)
 		nonce := "2000000" + string("0123456789abcdef"[r%16])
-		e := record.Event{Seq: 0, SeatID: seat, Nonce: nonce, Round: r, Type: "revision",
-			Key: seat + ":revision", Payload: record.NewPayload().Set("reason", "round "+itoa(r)+" edits")}
+		e := record.recordtest.At(t, seat, nonce, 0, r, seat+":revision", &recordpb.Revision{Text: proto.String("round " + itoa(r) + " edits")})
 		line, err := record.MarshalEvent(e)
 		if err != nil {
 			t.Fatal(err)
@@ -356,9 +355,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		t.Fatal("fixture must exceed the old 600-char cap")
 	}
 	board := &record.Board{Events: []record.Event{
-		{Round: 2, Type: "opinion", SeatID: "judge-r2", Payload: record.NewPayload().
-			Set("gap_id", "R2-3").Set("disposition", "risk_accepted").
-			Set("reason", "complexity exceeds bounded likelihood x impact")},
+		recordtest.Event(t, "judge-r2", 2, &recordpb.Opinion{Disposition: proto.String("risk_accepted")}),
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
 		{Round: 2, Type: "motion", SeatID: "blue-respond-r2", Payload: record.NewPayload().
@@ -366,12 +363,10 @@ func TestHarvestPrecedents(t *testing.T) {
 		{Round: 2, Type: "motion-rule", SeatID: "judge-r2", Payload: record.NewPayload().
 			Set("motion_id", "M4").Set("subject", "petition").Set("ruling", "granted").
 			Set("reason", "scope narrowed to shipped artifacts")},
-		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().
-			Set("gap_id", "R1-9").Set("disposition", "carried").Set("reason", longRationale)},
+		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{Disposition: proto.String("carried"), Rationale: proto.String(longRationale)}),
 		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
 		// construction — the one verb whose whole purpose is stating a holding.
-		{Round: 2, Type: "declare", SeatID: "judge-r2", Payload: record.NewPayload().
-			Set("holding", "verified means an act of looking, never confidence in the critique")},
+		recordtest.Event(t, "judge-r2", 2, &recordpb.Declare{}),
 		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
 		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().

@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -70,9 +72,9 @@ func lineClass(mermaid, node string) string {
 func TestSeatFlowTalliesEvents(t *testing.T) {
 	b := &record.Board{
 		Events: []record.Event{
-			{Round: 1, SeatID: "red-merge-r1", Type: "register"},
-			{Round: 1, SeatID: "red-merge-r1", Type: "mint"},
-			{Round: 1, SeatID: "red-merge-r1", Type: "mint"},
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Register{}),
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{}),
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{}),
 		},
 	}
 	m := seatFlowMermaid(b)

@@ -1,6 +1,9 @@
 package scorecard
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +22,7 @@ func seedReport(t *testing.T, runDir, body string) {
 }
 
 func anchorEv(id string) record.Event {
-	return record.Event{Type: "anchor", Payload: record.NewPayload().Set("id", id).Set("location", "§x")}
+	return record.recordtest.Event(t, "", 0, &recordpb.Anchor{Id: proto.String(id), Location: proto.String("§x")})
 }
 
 // The immortal-marker tampering detector: an anchored finding id absent from the report
@@ -52,7 +55,7 @@ func TestDroppedFindingMarkersAllPresent(t *testing.T) {
 }
 
 func citeEv(label string) record.Event {
-	return record.Event{Type: "cite", Payload: record.NewPayload().Set("label", label).Set("url", "https://x").Set("title", "T")}
+	return record.recordtest.Event(t, "", 0, &recordpb.Cite{Label: proto.String(label), Url: proto.String("https://x"), Title: proto.String("T")})
 }
 
 // §V.6 — the unbacked_citations detector: a cite event whose anchor is gone from the

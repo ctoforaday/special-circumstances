@@ -1,6 +1,9 @@
 package capture
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,12 +36,9 @@ func bfSeat(t *testing.T, dir, seat string, nonce string, t0 time.Time, offsets 
 		}
 		lines = append(lines, append(b, '\n')...)
 	}
-	add(record.Event{Seq: 0, TS: t0.Format(bfStamp), SeatID: seat, Nonce: nonce, Round: 1,
-		Type: "register", Key: seat + ":register", Payload: record.NewPayload()})
+	add(record.recordtest.Stamped(recordtest.At(t, seat, nonce, 0, 1, seat+":register", &recordpb.Register{}), t0.Format(bfStamp)))
 	for i, off := range offsets {
-		add(record.Event{Seq: i + 1, TS: t0.Add(off).Format(bfStamp), SeatID: seat, Nonce: nonce, Round: 1,
-			Type: "finding", Key: seat + ":finding:F" + string(rune('1'+i)),
-			Payload: record.NewPayload().Set("reason", "r")})
+		add(record.recordtest.Stamped(recordtest.At(t, seat, nonce, i+1, 1, seat+":finding:F"+string(rune('1'+i)), &recordpb.Finding{Text: proto.String("r")}), t0.Add(off).Format(bfStamp)))
 	}
 	if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), lines, 0o644); err != nil {
 		t.Fatal(err)
@@ -123,8 +123,7 @@ func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.
 	bfSeat(t, dir, "red-lens-r1-L1", "0000000d", t0, []time.Duration{time.Minute, 2 * time.Minute})
 
 	recs := filepath.Join(dir, "records")
-	bad := record.Event{Seq: 0, TS: "not-a-timestamp", SeatID: "red-merge-r1", Nonce: "0000000e",
-		Round: 1, Type: "finding", Key: "red-merge-r1:finding:F1", Payload: record.NewPayload()}
+	bad := record.recordtest.Stamped(recordtest.At(t, "red-merge-r1", "0000000e", 0, 1, "red-merge-r1:finding:F1", &recordpb.Finding{}), "not-a-timestamp")
 	b, err := record.MarshalEvent(bad)
 	if err != nil {
 		t.Fatal(err)
@@ -153,9 +152,7 @@ func TestBackfillAuditSkipsASeatWithNoRegister(t *testing.T) {
 	}
 	var lines []byte
 	for i := 0; i < 6; i++ {
-		e := record.Event{Seq: i, TS: t0.Add(10*time.Minute + time.Duration(i)*time.Millisecond).Format(bfStamp),
-			SeatID: "red-lens-r1-L1", Nonce: "0000000f", Round: 1, Type: "finding",
-			Key: "red-lens-r1-L1:finding:F" + string(rune('1'+i)), Payload: record.NewPayload()}
+		e := record.recordtest.Stamped(recordtest.At(t, "red-lens-r1-L1", "0000000f", i, 1, "red-lens-r1-L1:finding:F"+string(rune('1'+i)), &recordpb.Finding{}), t0.Add(10*time.Minute+time.Duration(i)*time.Millisecond).Format(bfStamp))
 		b, err := record.MarshalEvent(e)
 		if err != nil {
 			t.Fatal(err)
