@@ -574,19 +574,8 @@ func MintGapID(runDir string, round int) (string, error) {
 // after a successful mint retries the SAME command, and --key (its stable local
 // label) returns the EXISTING id instead of double-minting.
 func ExistingMintByKey(runDir, seatID, key string) (string, error) {
-	if key == "" {
-		return "", nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return "", err
-	}
-	for _, e := range m.Events {
-		if e.Type == "mint" && e.SeatID == seatID && e.Payload.Str("mint_key") == key {
-			return e.Payload.Str("gap_id"), nil
-		}
-	}
-	return "", nil
+	result, _, err := ExistingByKey(runDir, seatID, "mint", key)
+	return result, err
 }
 
 // ---- class registry ----

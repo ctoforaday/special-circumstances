@@ -26,17 +26,6 @@ func AnchorIDs(runDir string) ([]string, error) {
 // idempotently) rather than append a second stack op — the event-first ordering keeps the
 // stack durable across the crash window between the event append and the report write.
 func ExistingBlueEditByKey(runDir, seatID, key string) (bool, error) {
-	if key == "" {
-		return false, nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return false, err
-	}
-	for _, e := range m.Events {
-		if e.Type == "blue_edit" && e.SeatID == seatID && e.Payload.Str("edit_key") == key {
-			return true, nil
-		}
-	}
-	return false, nil
+	_, found, err := ExistingByKey(runDir, seatID, "blue_edit", key)
+	return found, err
 }

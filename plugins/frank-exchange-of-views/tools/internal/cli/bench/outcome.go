@@ -29,10 +29,10 @@ import (
 // every reader took apart in a switch, which is an enum with a fourth state nobody defined.
 func newOutcome() *cobra.Command {
 	c := seat.New("outcome", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		// REQUIRED BY THE RECORD AND MARKED BY THE MECHANISM. This was a hand-rolled refusal in
+		// RunE, so `--help` could not say the flag was required and the message arrived only after
+		// the seat had composed the whole call.
 		verdict := seat.Str(cmd, flags.As)
-		if verdict == "" {
-			return nil, fmt.Errorf("outcome: --as <verdict> is required (%s)", record.MustEnum("outcome", "verdict").Usage("the run's terminal verdict"))
-		}
 		// THE TOOL DECIDES; THE FLAG IS A CROSS-CHECK (#308).
 		//
 		// --as used to be the SOURCE of the run's terminal verdict: debate.js computed it in
@@ -65,7 +65,16 @@ func newOutcome() *cobra.Command {
 		// that a derived verdict needs no defence. Wrong twice: it invents a per-flag
 		// contract on a verb that had one rule, and "the record derived it" explains the
 		// VERDICT while saying nothing about how the sitting ended.
-		reason := strings.TrimSpace(seat.Str(cmd, flags.Reason))
+		// THE CHANNEL, NOT THE FLAG. This read --reason directly and registered its own copy of
+		// it, so the run's terminal account — which this flag's own help calls "the only evidence
+		// the determination ever had" on a judged deadlock — had no file form and no stdin form.
+		// A bench with a paragraph had to fight the shell for the most consequential prose field
+		// in the run.
+		prose, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		reason := strings.TrimSpace(prose)
 
 		p := record.NewPayload().
 			Set("verdict", verdict).
@@ -86,8 +95,9 @@ func newOutcome() *cobra.Command {
 		return outcomeResult{Verdict: verdict, Ended: ended}, nil
 	})
 
+	seat.Prose(c)
+	c.Flags().Lookup(flags.Reason).Usage = "how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had"
 	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
-	c.Flags().String(flags.Reason, "", "how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had")
 	enumhelp.Flag(c, flags.Ended, record.MustEnum("outcome", "ended"), "what STOPPED the run, when it was not a pass — a judgement or a ceiling")
 	return c
 }

@@ -47,7 +47,13 @@ var RequiredFields = map[string][]string{
 	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
 	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
 	// ENDED is not, and on a judged deadlock nothing else records it.
-	"outcome": {"reason"},
+	// `verdict` was enforced ONLY in the cobra verb, in RunE — which this file's neighbour warns
+	// against in the `outcome` case itself: "a requirement the CLI holds and the record does not
+	// is one every other caller skips". It also meant --help could not mark --as required and the
+	// refusal fired after the seat had composed the whole invocation, which is the same defect
+	// `spot-check` names in its own comment. Declared here, the mechanism marks the flag and
+	// validate enforces it, and the hand-rolled check in RunE is gone.
+	"outcome": {"reason", "verdict"},
 	// A VERIFICATION OF NOTHING WAS RECORDABLE. `lens verify` required no flag at all: the bare
 	// verb printed "source verified:" and appended an event, which then counted as red's audit
 	// volume. The four fields here are what makes the row mean something — WHICH citation

@@ -636,6 +636,16 @@ func Prose(c *cobra.Command) *cobra.Command {
 	return c
 }
 
+// ProseRequired adds the channel and makes it mandatory THROUGH EITHER SPELLING.
+//
+// A verb that reached for cobra's MarkFlagRequired got a rule naming one flag, which refuses the
+// file form — so `spot-check`, whose reason is always owed, could not be discharged with a
+// heredoc. One argument, one requirement, stated by the channel rather than by each verb.
+func ProseRequired(c *cobra.Command) *cobra.Command {
+	new(flags.Prose).RegisterRequired(c)
+	return c
+}
+
 // Reason resolves that channel through flags.ReadPayload — the ONE resolver: --reason
 // inline, --reason-file from disk, or `--reason-file -` from stdin, with both-given refused
 // and the trailing newline a shell heredoc leaves behind trimmed off.

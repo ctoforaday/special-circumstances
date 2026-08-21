@@ -101,19 +101,8 @@ func CitationLabels(runDir string) ([]string, error) {
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.
 func ExistingCiteByKey(runDir, seatID, key string) (string, error) {
-	if key == "" {
-		return "", nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return "", err
-	}
-	for _, e := range m.Events {
-		if e.Type == "cite" && e.SeatID == seatID && e.Payload.Str("cite_key") == key {
-			return e.Payload.Str("label"), nil
-		}
-	}
-	return "", nil
+	result, _, err := ExistingByKey(runDir, seatID, "cite", key)
+	return result, err
 }
 
 // TWO KINDS OF `cite` EVENT SHARE ONE TYPE — and conflating them inflates red's audit metric.
@@ -159,19 +148,8 @@ func NewProofID() string {
 // after the event landed re-runs the same key and gets the recorded sha back rather than
 // executing the script a second time and splicing a second anchor.
 func ExistingProofByKey(runDir, seatID, key string) (string, error) {
-	if key == "" {
-		return "", nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return "", err
-	}
-	for _, e := range m.Events {
-		if e.Type == "proof" && e.SeatID == seatID && e.Payload.Str("proof_key") == key {
-			return e.Payload.Str("sha256"), nil
-		}
-	}
-	return "", nil
+	result, _, err := ExistingByKey(runDir, seatID, "proof", key)
+	return result, err
 }
 
 // Proof is one recorded computation, drawn from a blue `prove` event — the composer input
