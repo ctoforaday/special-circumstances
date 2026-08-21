@@ -1,6 +1,7 @@
 package seatprobe
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,10 @@ import (
 // to read its help score identically.
 func TestEveryDispatchedAgentGrantsTheToolsItsSeatNeeds(t *testing.T) {
 	for _, agent := range []string{"red-auditor", "blue-researcher", "lead-judge"} {
-		p := filepath.Join("..", "..", "..", "agents", agent+".md")
+		p, err := repotree.Plugin("agents", agent+".md")
+		if err != nil {
+			t.Fatal(err)
+		}
 		got, err := GrantedTools(p)
 		if err != nil {
 			t.Errorf("%s: %v", agent, err)

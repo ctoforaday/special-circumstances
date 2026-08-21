@@ -1,12 +1,13 @@
 package main
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // THE SURVIVING-NAME COUNT IS PRINTED WITH THE RESULT, and these pin the line.
@@ -33,10 +34,13 @@ func TestNamingTreatmentSaysNotMeasuredRatherThanZero(t *testing.T) {
 // in is the defect, not an arm.
 func TestTheShippedConstitutionsNameNoVerbAtDispatch(t *testing.T) {
 	sf := seatprobe.NewSurface(cli.CommandPaths())
-	// EXPLICIT, because the default resolves relative to the working directory — which is the
-	// package dir under `go test`, and is why a probe launched from the wrong directory failed
-	// all nine boards at once.
-	agents := filepath.Join("..", "..", "..", "agents")
+	// The default now resolves through repotree and would be correct here too; this stays
+	// explicit so the gate names the directory it is asserting about rather than inheriting it
+	// from the code under test.
+	agents, err := repotree.Plugin("agents")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, role := range []string{"blue", "lens", "merge", "bench"} {
 		src, err := constitutionFor(role, agents)
 		if err != nil {

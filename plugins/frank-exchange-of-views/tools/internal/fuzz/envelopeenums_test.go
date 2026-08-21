@@ -2,13 +2,13 @@ package fuzz
 
 import (
 	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // AN ENVELOPE THAT DECLARES A VALUE THE RECORD REFUSES IS A PATH THAT CANNOT WORK.
@@ -74,8 +74,10 @@ var envelopeEnumExempt = map[string]string{
 }
 
 func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
-	root := filepath.Join("..", "..", "..")
-	path := filepath.Join(root, "skills", "research-protocol", "scripts", "debate.js")
+	path, err := repotree.DebateJS()
+	if err != nil {
+		t.Fatal(err)
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("cannot read the engine script: %v", err)

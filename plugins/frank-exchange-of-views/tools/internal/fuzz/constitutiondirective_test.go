@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // THE SURFACE-DISCOVERY DUTY IS CONSTITUTIONAL, and every seat carries it identically.
@@ -41,9 +42,9 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 				"understanding that every help page carries it, so this end of that trade has to hold", w)
 		}
 	}
-	paths, err := filepath.Glob(filepath.Join("..", "..", "..", "agents", "*.md"))
-	if err != nil || len(paths) == 0 {
-		t.Fatalf("found no constitutions (%v) — a scan that reads nothing reports every file clean", err)
+	paths, err := repotree.Constitutions()
+	if err != nil {
+		t.Fatal(err)
 	}
 	for _, p := range paths {
 		b, err := os.ReadFile(p)
@@ -63,7 +64,10 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 // AND IT STILL NAMES NO VERB. The directive is what replaces the list; a directive that grew a
 // list would be the thing it exists to remove, arriving through the same door.
 func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
-	paths, _ := filepath.Glob(filepath.Join("..", "..", "..", "agents", "*.md"))
+	paths, err := repotree.Constitutions()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, p := range paths {
 		b, err := os.ReadFile(p)
 		if err != nil {
@@ -124,9 +128,9 @@ func TestEveryConstitutionStatesTheFrictionDutyAndNoneRestatesTheVerb(t *testing
 		"not your mistake, it is the finding",
 		"An absent friction log reads identically",
 	}
-	paths, err := filepath.Glob(filepath.Join("..", "..", "..", "agents", "*.md"))
-	if err != nil || len(paths) == 0 {
-		t.Fatalf("found no constitutions (%v) — a scan that reads nothing reports every file clean", err)
+	paths, err := repotree.Constitutions()
+	if err != nil {
+		t.Fatal(err)
 	}
 	for _, p := range paths {
 		b, err := os.ReadFile(p)

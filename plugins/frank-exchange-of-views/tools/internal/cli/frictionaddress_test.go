@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // THE CHANNEL FOR REPORTING THAT A CAPABILITY IS UNREACHABLE WAS ITSELF UNREACHABLE.
@@ -67,9 +69,9 @@ func TestTheOperatorFrictionReadStillWorks(t *testing.T) {
 // survivable; this makes it not happen. A backticked `friction --reason` in a seat's own
 // constitution is an instruction to run a command that exits 2.
 func TestNoConstitutionTeachesTheRolelessFrictionForm(t *testing.T) {
-	paths, err := filepath.Glob(filepath.Join("..", "..", "..", "agents", "*.md"))
-	if err != nil || len(paths) == 0 {
-		t.Fatalf("found no constitutions to check (%v) — a scan that reads nothing reports every file clean", err)
+	paths, err := repotree.Constitutions()
+	if err != nil {
+		t.Fatal(err)
 	}
 	for _, p := range paths {
 		b, err := os.ReadFile(p)

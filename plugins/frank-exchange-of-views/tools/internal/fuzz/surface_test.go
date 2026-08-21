@@ -1,9 +1,8 @@
 package fuzz
 
 import (
-	"io/fs"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -51,23 +50,22 @@ func TestEveryAppendableEventTypeIsInTheCoverageGate(t *testing.T) {
 	}
 
 	found := map[string][]string{}
-	root := filepath.Join("..", "..", "internal")
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return err
-		}
+	sources, err := repotree.ToolSources()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range sources {
 		b, rerr := os.ReadFile(path)
 		if rerr != nil {
-			return rerr
+			t.Fatal(rerr)
 		}
 		for _, m := range appendCall.FindAllStringSubmatch(string(b), -1) {
 			found[m[1]] = append(found[m[1]], path)
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walking %s: %v", root, err)
 	}
+	// repotree.ToolSources refuses an empty tree; this refuses an empty HARVEST. They are
+	// different misses — the walk can reach every file and still match nothing if the call shape
+	// changes — and only the second one is this gate's own.
 	if len(found) == 0 {
 		t.Fatal("the walk found no Append call sites at all — a broken walk passes this test silently forever")
 	}

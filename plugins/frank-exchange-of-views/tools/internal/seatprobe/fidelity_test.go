@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -67,7 +68,10 @@ func TestEveryRoleMapsToItsProductionAgent(t *testing.T) {
 	// And the agents it names must exist as files, or the dispatch fails at runtime with the
 	// probe reporting a failed board rather than a missing mapping.
 	for _, agent := range want {
-		p := filepath.Join("..", "..", "..", "agents", agent+".md")
+		p, err := repotree.Plugin("agents", agent+".md")
+		if err != nil {
+			t.Fatal(err)
+		}
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("agent %q is dispatched and has no definition at %s", agent, p)
 		}
@@ -79,7 +83,11 @@ func TestEveryRoleMapsToItsProductionAgent(t *testing.T) {
 // and no run would say so.
 func TestTheAuditingConstitutionsDeclareTheToolsTheirVerbsNeed(t *testing.T) {
 	for _, agent := range []string{"red-auditor", "blue-researcher"} {
-		b, err := os.ReadFile(filepath.Join("..", "..", "..", "agents", agent+".md"))
+		cp, cerr := repotree.Plugin("agents", agent+".md")
+		if cerr != nil {
+			t.Fatal(cerr)
+		}
+		b, err := os.ReadFile(cp)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,7 +1,7 @@
 package seatprobe
 
 import (
-	"path/filepath"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"strings"
 	"testing"
 )
@@ -10,7 +10,13 @@ import (
 // moved file breaks every gate at once rather than leaving some of them scanning a path that no
 // longer exists and passing on the miss.
 func debateScriptForTest() string {
-	return filepath.Join("..", "..", "..", "skills", "research-protocol", "scripts", "debate.js")
+	p, err := repotree.DebateJS()
+	if err != nil {
+		// The callers are tests that read this file immediately; an unreadable path fails there
+		// with the same message it would have failed with before, naming what it could not find.
+		return "repotree: " + err.Error()
+	}
+	return p
 }
 
 // THE PROMPT A SEAT IS DISPATCHED WITH IS debate.js's, AND THIS GATE HOLDS THE ACTUAL BYTES.

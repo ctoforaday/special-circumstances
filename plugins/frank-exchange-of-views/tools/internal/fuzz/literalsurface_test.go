@@ -1,10 +1,10 @@
 package fuzz
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -49,20 +49,19 @@ func TestNoStringLiteralNamesARetiredSurface(t *testing.T) {
 		regexp.MustCompile(`--trust\s`),
 	}
 
-	root := filepath.Join("..", "..", "internal")
+	// repotree.ToolSources both FINDS the tree without counting `..` from this file's own
+	// location and REFUSES an empty result. Both halves matter to a gate shaped like this one:
+	// every assertion below is a negative, so a walk that reached nothing would report a clean
+	// tree in the same words it uses for a clean tree.
+	//
+	// It skips _test.go for us: test files construct retired spellings on purpose — this file
+	// names four of them in its own patterns, and the golden fixtures replay old command lines.
+	sources, err := repotree.ToolSources()
+	if err != nil {
+		t.Fatal(err)
+	}
 	var hits []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-		// Test files construct retired spellings on purpose — this file names four of them in its
-		// own patterns, and the golden fixtures replay old command lines.
-		if strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
+	for _, path := range sources {
 		// capability.go is a HISTORY, and the same exemption applies for the same reason (#407).
 		// Its entries say what a binary AT AN OLD VERSION cannot do, and they are printed by
 		// setup's preflight to an operator whose binary IS at that version — where `--view` and
@@ -72,12 +71,12 @@ func TestNoStringLiteralNamesARetiredSurface(t *testing.T) {
 		// EMITTED AT a seat and wrong here: the wording is the payload, and burying it in a
 		// comment is exactly the unreachable prose #407 removed.
 		if strings.HasSuffix(filepath.ToSlash(path), "internal/record/capability.go") {
-			return nil
+			continue
 		}
 		fset := token.NewFileSet()
 		f, perr := parser.ParseFile(fset, path, nil, 0)
 		if perr != nil {
-			return perr
+			t.Fatal(perr)
 		}
 		ast.Inspect(f, func(n ast.Node) bool {
 			lit, ok := n.(*ast.BasicLit)
@@ -92,10 +91,6 @@ func TestNoStringLiteralNamesARetiredSurface(t *testing.T) {
 			}
 			return true
 		})
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 	sort.Strings(hits)
 	if len(hits) > 0 {

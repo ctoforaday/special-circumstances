@@ -52,6 +52,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-merge-r1." — or the
@@ -1174,7 +1175,10 @@ globalThis.pipeline = async function(items){ var st=Array.prototype.slice.call(a
 
 func debateWrapped(t *testing.T) string {
 	t.Helper()
-	p := filepath.Join("..", "..", "..", "skills", "research-protocol", "scripts", "debate.js")
+	p, err := repotree.DebateJS()
+	if err != nil {
+		t.Fatal(err)
+	}
 	b, err := os.ReadFile(p)
 	if err != nil {
 		t.Fatalf("read debate.js: %v", err)

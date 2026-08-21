@@ -79,6 +79,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 func main() {
@@ -95,7 +97,7 @@ func main() {
 		printSit   = flag.Bool("print-sitting", false, "print the named board's SITTING text and exit — the situation a seat is dispatched into. For a harness that drives the dispatch itself (the interview) and must hand the seat the same situation this probe would")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
-		memoryDir  = flag.String("memory", "", "directory holding red's accumulated gap patterns, staged into inputs/red-gap-patterns.md as run-setup stages it (default: the repo's feov-memory/red-gap-patterns, resolved from the working directory — pass this when running from anywhere but the tools module)")
+		memoryDir  = flag.String("memory", "", "directory holding red's accumulated gap patterns, staged into inputs/red-gap-patterns.md as run-setup stages it (default: the repo's feov-memory/red-gap-patterns, located by searching upward for the repository rather than by counting up from the working directory — pass this to stage a corpus from somewhere else)")
 		debatePath = flag.String("debate", "", "path to the shipped debate.js the probe takes its prompts from (default: the plugin's skills/research-protocol/scripts/debate.js)")
 	)
 	flag.Parse()
@@ -342,7 +344,11 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 		// inputs/red-gap-patterns.md in blue's very first batched read, unconditionally, because
 		// every real run has the file. A probe that withheld it would hand the seat a prompt whose
 		// opening instruction fails, and score what it did next.
-		if r := setup.MirrorGapPatterns(memoryDirs(memoryDir), runDir); !r.Written {
+		mem, err := memoryDirs(memoryDir)
+		if err != nil {
+			return "", err
+		}
+		if r := setup.MirrorGapPatterns(mem, runDir); !r.Written {
 			return "", fmt.Errorf("red's gap-pattern corpus did not stage (%s) — the dispatched prompt names the file in its first instruction, so a run without it is measuring a broken read", r.Reason)
 		}
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
@@ -606,12 +612,14 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 // surface; handing the seat a summary written for the harness would test the summary.
 func constitutionFor(role, dir string) (string, error) {
 	if dir == "" {
-		// tools/cmd/seatprobe -> tools -> the plugin root.
-		wd, err := os.Getwd()
-		if err != nil {
+		// ANCHORED TO THE REPOSITORY, NOT TO THE WORKING DIRECTORY. This used to be
+		// `filepath.Join(wd, "..", "agents")`, correct only when the probe was launched from the
+		// tools module — and the same directory was reached by three different `..` counts in
+		// this one file, each right for its own launch point and wrong everywhere else.
+		var err error
+		if dir, err = repotree.Plugin("agents"); err != nil {
 			return "", err
 		}
-		dir = filepath.Join(wd, "..", "agents")
 	}
 	name := map[string]string{
 		"lens":  "red-auditor.md",
@@ -727,41 +735,48 @@ func readAnswer(path string) string {
 
 // memoryDirs is where red's accumulated gap patterns live, as run-setup reads them.
 //
-// THE DEFAULT IS RELATIVE TO THE WORKING DIRECTORY, AND THAT IS A REAL CONSTRAINT, not a detail.
-// The probe is a development instrument run from the tools module, and this walks up from there.
-// Run it from anywhere else and the corpus does not stage — which fails the board loudly (the
-// dispatched prompt names inputs/red-gap-patterns.md in blue's first instruction, so a run without
-// it is measuring a broken read) but tells the caller nothing about how to fix it. The interview
-// harness, which runs from its own scratch directory, hit exactly that. Hence the flag.
-func memoryDirs(flagValue string) []string {
+// THE DEFAULT USED TO BE RELATIVE TO THE WORKING DIRECTORY, and that was a real constraint rather
+// than a detail: it walked up four levels on the assumption the probe had been launched from the
+// tools module. Run from anywhere else, the corpus did not stage — which fails the board loudly
+// (the dispatched prompt names inputs/red-gap-patterns.md in blue's first instruction, so a run
+// without it is measuring a broken read) but tells the caller nothing about how to fix it. The
+// interview harness, running from its own scratch directory, hit exactly that; the -memory flag
+// was the workaround. It is now an override rather than a requirement.
+func memoryDirs(flagValue string) ([]string, error) {
 	if flagValue != "" {
-		return []string{flagValue}
+		return []string{flagValue}, nil
 	}
-	wd, err := os.Getwd()
+	root, err := repotree.Root()
 	if err != nil {
-		return nil
+		// NAMED, NOT SWALLOWED. Returning nil here reached MirrorGapPatterns as "no memory dir",
+		// which is what an EMPTY corpus also says — the operator saw a board fail and no reason
+		// to look at where the probe was launched from.
+		return nil, fmt.Errorf("cannot locate the repository to find red's gap-pattern corpus (%w) — "+
+			"pass -memory with the directory to stage", err)
 	}
-	// tools/ -> plugin -> plugins -> repo root
-	return []string{filepath.Join(wd, "..", "..", "..", "feov-memory", "red-gap-patterns")}
+	return []string{filepath.Join(root, "feov-memory", "red-gap-patterns")}, nil
 }
 
 // debateScript resolves the orchestrator the probe takes its prompts from.
 //
 // ONE FILE, NOT A COPY OF ONE. The prompt a seat is dispatched with is rendered by executing this
 // script, so an edit to a clause reaches the probe on the next run. The default mirrors
-// constitutionFor's: the probe is a development instrument, run from the tools module, and the
-// plugin tree sits above it. A missing file is a hard failure at the point of use — a probe that
-// fell back to a written prompt would be the defect this whole route removed.
+// constitutionFor's — both go through repotree, which finds the plugin tree by searching for it,
+// so the probe no longer has to be launched from the tools module for its defaults to land. A
+// missing file is a hard failure at the point of use: a probe that fell back to a written prompt
+// would be the defect this whole route removed.
 func debateScript(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	wd, err := os.Getwd()
+	// One address for the shipped script, shared with the three gates that parse it — see
+	// repotree.DebateJS. The old form joined `..` onto the working directory and so was only
+	// correct when the probe was launched from the tools module.
+	p, err := repotree.DebateJS()
 	if err != nil {
 		return ""
 	}
-	// tools/ -> the plugin root.
-	return filepath.Join(wd, "..", "skills", "research-protocol", "scripts", "debate.js")
+	return p
 }
 
 // promptNamesTheBinary refuses a prompt that sends the seat somewhere other than the binary this

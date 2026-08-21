@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // THE CONSTITUTIONS NAME NO VERB, AND THAT IS NOW THE INVARIANT.
@@ -22,7 +23,11 @@ func TestTheShippedConstitutionsNameNoVerb(t *testing.T) {
 	sf := NewSurface(cli.CommandPaths())
 	for _, name := range []string{"red-auditor.md", "blue-researcher.md", "blue-synthesizer.md", "lead-judge.md"} {
 		t.Run(name, func(t *testing.T) {
-			b, err := os.ReadFile(filepath.Join("..", "..", "..", "agents", name))
+			p, perr := repotree.Plugin("agents", name)
+			if perr != nil {
+				t.Fatal(perr)
+			}
+			b, err := os.ReadFile(p)
 			if err != nil {
 				t.Fatal(err)
 			}
