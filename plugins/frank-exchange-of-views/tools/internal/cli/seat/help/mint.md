@@ -4,4 +4,6 @@ turn lens findings into a graded gap on the board, when a defect is real and bel
 
 ## detail
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.

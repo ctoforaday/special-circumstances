@@ -4,4 +4,6 @@ attach a source to a sentence, when a claim needs evidence a reader can follow t
 
 ## detail
 
-cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
+The tool fetches the source, caches it, and splices an invisible immortal anchor at the sentence — you never type a footnote. The anchor survives every later edit, because `edit` refuses a replacement that drops one.
+
+To RESOLVE an anchor you meet while reading, rather than create one, read the `evidence` projection: every source is listed there by its anchor id.

@@ -4,4 +4,6 @@ restate an earlier round's closure, when the work is done and you are not re-att
 
 ## detail
 
-restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
+It makes no fresh claim, so it needs no verification triple — you are RESTATING a closure the record already holds, not attesting one. The record must already hold a closure of this gap, or the carry is refused.
+
+Use `close` when you did the checking THIS round. Re-closing carried work here double-counts the closure history.

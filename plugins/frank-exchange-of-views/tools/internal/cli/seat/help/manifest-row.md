@@ -4,4 +4,6 @@ your receipt for one repaired gap: what you checked, and what checking it showed
 
 ## detail
 
-one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
+One receipt per repaired gap: what you checked, and what checking it showed.
+
+It goes on the RECORD, not in the envelope. It is scored from the record at capture and it reaches the reader — the report carries your manifest, and a closed gap with no row is named there as a repair nobody audited, including its author.

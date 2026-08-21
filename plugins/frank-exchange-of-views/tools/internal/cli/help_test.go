@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -91,5 +92,43 @@ func TestEveryHelpDocumentIsClaimedByAVerb(t *testing.T) {
 		if _, ok := seat.HelpSourceFor(k); !ok {
 			t.Errorf("a verb claims help key %q and no help/%s.md exists", k, k)
 		}
+	}
+}
+
+// THE DETAIL DOES NOT ENUMERATE FLAGS, BECAUSE COBRA ALREADY DOES.
+//
+// Every verb's page prints a `Flags:` block with each flag's own description, and an
+// `Enumerated values:` block glossing every value of every enum flag — richer than any prose
+// summary, and generated from the flags themselves rather than kept in step by hand. A usage line
+// in the detail is a SECOND COPY of that, and it was the first clause a seat read on the page:
+// `close`'s detail opened with seven flags and their placeholders before saying anything about
+// when to close rather than carry.
+//
+// It is the same defect the menu split fixed, one level down — mechanics occupying the position
+// where judgement belongs — and the same failure mode: the copy goes stale silently, because
+// nothing compiles a sentence against a flag set.
+//
+// ZERO, NOT A THRESHOLD. All 32 documents were written without naming a flag, so the bright line
+// is reachable: say what the field MEANS ("it needs no verification triple", "the explicit empty
+// form") rather than what it is called. A verb that genuinely cannot be explained without naming
+// a flag is a verb whose flag descriptions are not carrying their weight, and that is where the
+// fix belongs.
+func TestDetailsDoNotRestateTheFlagsCobraPrints(t *testing.T) {
+	flagToken := regexp.MustCompile(`--[a-z][a-z-]*`)
+	checked := 0
+	for _, n := range seat.HelpNames() {
+		_, detail, err := seat.LoadHelp(n)
+		if err != nil {
+			t.Errorf("help/%s.md: %v", n, err)
+			continue
+		}
+		checked++
+		if found := flagToken.FindAllString(detail, -1); len(found) > 0 {
+			t.Errorf("help/%s.md detail names %v — cobra prints every flag with its own description, and its enum values with a gloss for each. Describe what the field MEANS instead; a flag named in prose is a second copy that nothing keeps in step.",
+				n, found)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no help document was checked — this gate would pass forever")
 	}
 }

@@ -4,4 +4,4 @@ what a human should re-examine after the run ends — the bench keeps no memory 
 
 ## detail
 
-the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
+The bench keeps no memory between runs, so what a human should re-examine exists only if it is recorded. This is not a ruling and it moves no gap: the report promotes it into `Read this first`.

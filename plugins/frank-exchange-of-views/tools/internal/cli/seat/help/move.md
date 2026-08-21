@@ -4,4 +4,6 @@ say what became of a direction you proposed — every open line owes this before
 
 ## detail
 
-say what became of a line you already proposed: --id A1 --as line-of-inquirystatus --reason "<what you learned that changed its fate>". Re-recording `pursued` with what you learned is a reaffirmation, and settles the line for this round.
+Re-recording `pursued` with what you learned is a REAFFIRMATION, and settles the line for this round.
+
+Any line sitting at proposed or pursued owes this before the round ends. The fate is not the point; the account of what changed it is — a line abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.

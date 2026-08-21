@@ -4,4 +4,6 @@ stamp how the run ENDED, as a fact — a different question from red's PASS or F
 
 ## detail
 
-record the run's terminal verdict as a fact: --as outcomeverdict --reason "<how the run ended, in your words>" [--ended outcomeended]
+The run's terminal determination, and a different question from red's PASS or FAIL.
+
+The verdict is derived from the record. Your reason is the bench's account of the sitting — and on a judged deadlock it is the only evidence that determination will ever have.
