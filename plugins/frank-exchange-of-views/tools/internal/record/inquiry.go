@@ -322,8 +322,34 @@ func InquiryRuling(runDir, inquiryID string) string {
 // The vote is per-round by design: the question is whether the report STILL carries the line, and
 // a report that changed this round has not been checked by a verdict cast before it did. A verdict
 // that carried forward would answer a question about a document that no longer exists.
-func UnvotedInquiries(b *Board) []*Inquiry {
-	now := CurrentRound(b)
+func UnvotedInquiries(b *Board) []*Inquiry { return UnvotedInquiriesAt(b, CurrentRound(b)) }
+
+// UnvotedInquiriesAt asks the same question AS OF a stated round, which is what a seat's own duty
+// list needs.
+//
+// # The round is the SEAT's, not the board's maximum
+//
+// CurrentRound is the highest round on any event, and a bare `register` carries one. So a seat that
+// has merely been dispatched — written nothing, decided nothing — advances the board's idea of
+// "now" past every earlier seat, and every round-scoped duty those seats discharged becomes
+// permanently unsatisfiable. The vote is on the record, at its own round, and the gate compares it
+// against a later one forever.
+//
+// MEASURED 2026-08-21, and it cost a seat its sitting. A round-1 merge voted on Q1, was told "line
+// of inquiry Q1 voted absent", and found `show work` still saying "Q1 has no support verdict this
+// round". It voted three more times with different wording, different formatting, inline and from
+// a file — 10 to 12 calls — then filed friction:
+//
+//	the tool returned 'line of inquiry Q1 voted absent' each time, but the votes do not persist
+//	in any projection ... This appears to be a harness/record persistence issue rather than a
+//	user error, as the command syntax matched the help text exactly and the tool gave success
+//	responses.
+//
+// It was right that the fault was the tool's and wrong only about which fault: the events persisted
+// perfectly. CurrentRound was 2, and the ONLY round-2 event on that board was `judge-r2` calling
+// `register`. Its own summary of the cost is the argument for this fix: "A seat can't trust its own
+// actions. I can't tell if the tool accepted my command or silently failed."
+func UnvotedInquiriesAt(b *Board, now int) []*Inquiry {
 	var out []*Inquiry
 	for _, a := range Inquiries(b) {
 		if a.Support == "" || a.SupportRound < now {
