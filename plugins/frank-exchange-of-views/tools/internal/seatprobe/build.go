@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -74,6 +76,27 @@ func Build(runDir string, b Board, exec Exec) error {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
 	}
+
+	// THE BOARD DECLARES ITS CLASS VOCABULARY, because a real run does and this fixture stands in
+	// for one. `run-setup` stages the registry on a production run; the probe does not go through
+	// setup, so it stages its own.
+	//
+	// AFTER THE REGISTERS, AND THAT ORDER IS LOAD-BEARING. The probe separates a run's records to a
+	// temp root so the seat cannot read the board off disk, and it does that by handing the record
+	// ROOT to the tool subprocess in its environment — which this function does not carry. Staged
+	// before the first register, `RecordsDir` resolves in THIS process, finds no separation marker,
+	// and creates <runDir>/records; the first register subprocess then refuses to separate a run
+	// that already keeps events locally. Staged here, the marker exists and the registry lands
+	// where the tool will read it.
+	//
+	// MEASURED TWICE, both loudly. The advisory branch going strict stopped 8 of 9 boards on their
+	// first mint; fixing that in the wrong place stopped 9 of 9 on their first register. The probe
+	// refused to score either one ("this run is not a result"), which is the only reason both were
+	// five-minute diagnoses rather than runs reported with a thinner board.
+	if err := record.StageForRun(runDir, BoardClasses...); err != nil {
+		return fmt.Errorf("stage the class registry: %w", err)
+	}
+
 	for i, g := range b.Gaps {
 		if _, err := exec("mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
@@ -233,3 +256,16 @@ func mintedInquiryID(out string) string {
 }
 
 var mintedID = regexp.MustCompile(`\b(Q\d+)\b`)
+
+// BoardClasses is the gap-class vocabulary the staged boards mint under.
+//
+// Every entry is a slug from the shipped registry (feov-memory/class-registry.json), not a
+// placeholder: a board is a fixture for a REAL sitting, and a seat that opens `class` should find
+// the taxonomy its gaps are actually filed under rather than a set invented for the harness.
+var BoardClasses = []string{
+	"citation-status-drift", "claim-contradicts-own-record", "cross-section-contradiction",
+	"derivation-status-overclaim", "doctrine-vs-implementation", "false-universal",
+	"figure-recount-fails", "incomplete-repair-propagation", "metric-conflation",
+	"risk-coverage-omission", "self-attestation", "unverified-composition",
+	"verification-scope-blindspot",
+}

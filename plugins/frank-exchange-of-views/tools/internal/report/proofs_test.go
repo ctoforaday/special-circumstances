@@ -28,7 +28,7 @@ func seedProof(t *testing.T, runDir, sha, script, output string) {
 // auditable by red — and the assembled report carried the RAW anchor while mentioning the
 // computation zero times. The evidence existed everywhere except the document a human reads.
 func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	const sha = "abc123def4567890"
 	seedProof(t, runDir, sha, "console.log('divisors of 9:', 3);", "divisors of 9: 3\n")
 
@@ -59,7 +59,7 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 // An `observed` proof must say so IN THE REPORT, with its drift — a reader must be able to
 // tell a measurement of a moving system from a proof.
 func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	const sha = "feed0000"
 	seedProof(t, runDir, sha, "console.log(Math.random());", "0.42\n")
 
@@ -75,7 +75,7 @@ func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
 // A missing artifact is STATED. A proofs section quietly short of its proof is worse than
 // one that admits the artifact is gone.
 func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	out := weaveProofs(runDir, "A claim<!--proof:p-9-->.\n", []record.Proof{{
 		Label: "p-9", SHA: "notonthisdisk", Basis: "reproducible", Script: "gone.js",
 	}})
@@ -106,7 +106,7 @@ func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 
 // One proof cited twice shares one number, like a citation reused.
 func TestOneProofUsedTwiceSharesItsNumber(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seedProof(t, runDir, "s1", "x", "y")
 	out := weaveProofs(runDir, "First<!--proof:p-a-->. Second<!--proof:p-a-->.\n",
 		[]record.Proof{{Label: "p-a", SHA: "s1", Basis: "reproducible", Script: "a.js"}})

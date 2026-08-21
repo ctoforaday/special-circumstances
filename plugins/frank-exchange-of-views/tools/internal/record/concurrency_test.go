@@ -19,7 +19,7 @@ import (
 // six shards (single-writer each, so no shard race) contending on the SHARED
 // surfaces — the seat pointer and the projection files.
 func TestConcurrentSeatsRace(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	const seats = 6
 	const perSeat = 4
 
@@ -101,7 +101,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 // guess about with a ten-second staleness timeout, and could get wrong in both
 // directions.
 func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}

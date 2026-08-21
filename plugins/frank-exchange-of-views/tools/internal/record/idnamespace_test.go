@@ -84,7 +84,7 @@ func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 	// that minted `A10` while another minted `A1` followed by `0` would not.
 	minted := map[string][]string{}
 	for _, k := range kinds {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		if err := writeSeat(t, runDir); err != nil {
 			t.Fatal(err)
 		}

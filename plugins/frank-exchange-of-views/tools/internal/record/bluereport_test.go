@@ -13,7 +13,7 @@ func blueReportPath(runDir string) string {
 }
 
 func TestMutateBlueReportWritesAndReads(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestMutateBlueReportWritesAndReads(t *testing.T) {
 
 // A REJECT (transform returns an error) writes NOTHING and propagates the error.
 func TestMutateBlueReportRejectWritesNothing(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestMutateBlueReportRejectWritesNothing(t *testing.T) {
 
 // Concurrent inserts serialize under the lock; both land (no lost update).
 func TestMutateBlueReportConcurrentInsertsBothLand(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}

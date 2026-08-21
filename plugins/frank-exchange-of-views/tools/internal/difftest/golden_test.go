@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // Golden tests are what SURVIVES the oracle.
@@ -96,6 +98,14 @@ func TestGolden(t *testing.T) {
 	for _, sc := range scenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			runDir := t.TempDir()
+			// EVERY SCENARIO DECLARES ITS CLASS VOCABULARY, as a real run does. These runs are
+			// built by hand, and used to be exempt from the class check by accident: no registry
+			// staged meant `--class` accepted any string, so every mint in every golden here
+			// passed a check that was not running. Staging it is what makes the golden a record
+			// of the shipped behaviour rather than of an unconfigured corner of it.
+			if err := record.StageForRun(runDir, goldenClasses...); err != nil {
+				t.Fatalf("stage the class registry: %v", err)
+			}
 			seed(t, runDir, sc.seed)
 			// A lens finding anchors into blue/report.md (slice 1b) and is rejected
 			// unless its --quote quote is present. Ensure a report carrying the
@@ -231,4 +241,15 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// goldenClasses is the vocabulary the scenarios mint under. It deliberately EXCLUDES the slugs
+// scenarios use to prove an unknown class is refused (`invented`, `invented-class`, `novel`,
+// `banana`) — those are the point of their scenarios, and adding them here would turn four
+// refusal goldens green while recording nothing.
+//
+// A scenario that stages its OWN registry still does: seed() runs after this and overwrites the
+// file, which is how the class_registry oracle keeps driving a hand-made registry.
+var goldenClasses = []string{
+	"scope-creep", "attestation-inflation", "citation-drift", "safety", "x", "a",
 }

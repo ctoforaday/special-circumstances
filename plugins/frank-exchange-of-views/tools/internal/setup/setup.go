@@ -762,11 +762,17 @@ func scorecardFiles(dir string) []string {
 // Staging the file is what makes the key shared. A class not in it is UNDECLARED rather than
 // forbidden: `--class-new` introduces one with its definition, neighbour and distinguisher,
 // which is how the taxonomy is supposed to grow.
+//
+// AND A FAILURE HERE NOW STOPS THE RUN RATHER THAN LOOSENING IT. The advisory branch is gone
+// (record.knownClasses), so an unstaged registry no longer means "--class accepts any string"
+// — it means every mint is REFUSED. That is the right way round: a run that cannot name its
+// own vocabulary produces a board nobody can interpret afterwards, and the reasons below say
+// which of the two failures the operator is looking at.
 func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
 	src := filepath.Join(repoMemoryDir, "class-registry.json")
 	b, err := os.ReadFile(src)
 	if err != nil {
-		return MirrorResult{Written: false, Reason: "no class-registry.json — `--class` will accept ANY string this run (#299)"}
+		return MirrorResult{Written: false, Reason: "no class-registry.json in " + repoMemoryDir + " — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through (#299)"}
 	}
 	var reg struct {
 		Classes []struct {
@@ -774,13 +780,15 @@ func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
 		} `json:"classes"`
 	}
 	if json.Unmarshal(b, &reg) != nil || len(reg.Classes) == 0 {
-		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — `--class` will accept ANY string this run (#299)"}
+		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through (#299)"}
 	}
 	// RESOLVED, NOT JOINED — and this is the same bug as the one documented above, one
 	// separation later. `loadRegistry` reads the record directory the RESOLVER returns; a
 	// hard-wired <runDir>/records here would stage the registry where a separated run never
-	// looks, `validateClass` would take its advisory branch again, and `--class` would go back
-	// to accepting any string on exactly the runs the seat probe is built to measure.
+	// looks, and `loadRegistry` would find nothing on exactly the runs the seat probe is built
+	// to measure. That used to mean `--class` silently accepted any string; it now means the
+	// seat cannot mint at all. Loud either way is the improvement, but the resolver still has
+	// to agree with the reader or the run is broken.
 	recDir, err := record.RecordsDir(runDir)
 	if err != nil {
 		return MirrorResult{Written: false, Reason: "cannot resolve the record directory: " + err.Error()}

@@ -23,7 +23,7 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 		{"revision", "--reason"},
 	} {
 		t.Run(tc.typ, func(t *testing.T) {
-			err := validate(t.TempDir(), "blue-respond-r1", tc.typ, NewPayload())
+			err := validate(newRun(t), "blue-respond-r1", tc.typ, NewPayload())
 			if err == nil {
 				t.Fatalf("%s with no reason was accepted — it records an empty event and counts as discharged", tc.typ)
 			}
@@ -37,7 +37,7 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 func TestARealDischargeIsAccepted(t *testing.T) {
 	for _, typ := range []string{"friction", "friction-none", "position", "revision"} {
 		p := NewPayload().Set("reason", "what I reached for and what happened")
-		if err := validate(t.TempDir(), "blue-respond-r1", typ, p); err != nil {
+		if err := validate(newRun(t), "blue-respond-r1", typ, p); err != nil {
 			t.Errorf("%s with a reason was refused: %v", typ, err)
 		}
 	}
@@ -46,7 +46,7 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 // THE EXPLICIT NEGATIVE NEEDS CONTENT TOO. `--none` is worth more than silence only when it says
 // what was looked at; without that it is silence with an event attached.
 func TestTheExplicitNegativeCannotBeEmpty(t *testing.T) {
-	err := validate(t.TempDir(), "blue-respond-r1", "friction-none", NewPayload())
+	err := validate(newRun(t), "blue-respond-r1", "friction-none", NewPayload())
 	if err == nil || !strings.Contains(err.Error(), "FOUND") {
 		t.Errorf("friction --none with no reason should say what the negative is FOR: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestTheExplicitNegativeCannotBeEmpty(t *testing.T) {
 // reference is not a DANGLING one, which is right for the check it makes — so absence needed its
 // own check, and without it a bare manifest-row printed "manifest row recorded for ".
 func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
-	if err := validate(t.TempDir(), "blue-respond-r1", "manifest-row", NewPayload()); err == nil {
+	if err := validate(newRun(t), "blue-respond-r1", "manifest-row", NewPayload()); err == nil {
 		t.Error("a manifest row naming no gap was accepted")
 	} else if !strings.Contains(err.Error(), "--id") {
 		t.Errorf("the refusal does not name --id: %v", err)
@@ -64,7 +64,7 @@ func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
 	// And with a gap but no row: the receipt is what makes "unaudited repair" countable, so a
 	// blank one flatters the count it feeds.
 	p := NewPayload().Set("gap_id", "R1-1")
-	if err := validate(t.TempDir(), "blue-respond-r1", "manifest-row", p); err == nil {
+	if err := validate(newRun(t), "blue-respond-r1", "manifest-row", p); err == nil {
 		t.Error("a manifest row with no --row was accepted")
 	}
 }
@@ -73,7 +73,7 @@ func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
 // own test, and its --none --reason exists for the same distinction. Pinned so a later sweep of
 // this class does not "fix" it by mistake.
 func TestSpotCheckBareStaysAccepted(t *testing.T) {
-	if err := validate(t.TempDir(), "red-merge-r1", "spot-check", NewPayload()); err != nil {
+	if err := validate(newRun(t), "red-merge-r1", "spot-check", NewPayload()); err != nil {
 		t.Errorf("a bare spot-check was refused, but an honestly-empty round is a discharge: %v", err)
 	}
 }

@@ -31,7 +31,7 @@ func script(t *testing.T, runDir, name, body string) string {
 
 // A computation settles the claim, anchors at the sentence it backs, and leaves an artifact.
 func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nNine is composite, so the protocol rejects a false claim.\n")
 	s := script(t, runDir, "nine.js", "let d=[];for(let i=2;i<9;i++)if(9%i===0)d.push(i);console.log('divisors:',d.join(','));")
 
@@ -61,7 +61,7 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 // edit may carry it across but never drop it. Evidence a seat produced by RUNNING something
 // must not be removable by rewriting a sentence.
 func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	// Text FOLLOWS the anchored sentence so the anchor sits MID-span: it splices after the
 	// quoted sentence, so a span ending at that sentence never crosses it.
 	seat := proveSeat(t, runDir, "# H\n\nNine is composite by trial division. The protocol therefore rejects it.\n")
@@ -83,7 +83,7 @@ func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
 
 // RED RE-RUNS RATHER THAN RE-READS. This is the audit no citation can offer.
 func TestRedReproducesAProof(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", "console.log('no divisors in 2..6');")
 	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
@@ -111,7 +111,7 @@ func TestRedReproducesAProof(t *testing.T) {
 // A MOVING RESULT IS RECORDED AS A MEASUREMENT, not refused and not laundered as a proof.
 // The network choice makes this the routine case.
 func TestAMovingProofIsGradedObserved(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nThe sampled value varies between runs.\n")
 	s := script(t, runDir, "moves.js", "console.log(Math.random());")
 
@@ -128,7 +128,7 @@ func TestAMovingProofIsGradedObserved(t *testing.T) {
 // A proof that cannot run is not evidence, and the failure is a capability signal — the same
 // treatment `blue cite` gives an unreachable source.
 func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "mystery.rb", "puts 1")
 
@@ -146,7 +146,7 @@ func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
 
 // A proof must anchor to text that is actually there — the same rule a citation follows.
 func TestProveRefusesAMisquotedLocation(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "ok.js", "console.log('x');")
 	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,

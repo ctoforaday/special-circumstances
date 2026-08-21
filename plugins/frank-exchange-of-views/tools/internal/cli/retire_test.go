@@ -12,7 +12,7 @@ import (
 // — the rule the verb's own doc calls "strictly stronger than the prose rule it replaces" —
 // rested entirely on the seat's word.
 func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
 
 	_, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
@@ -30,7 +30,7 @@ func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
 // A CLAIM THE RECORD CAN SHOW LEAVING is `verified`: absent now, and present in the old span
 // of a recorded edit.
 func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
@@ -55,7 +55,7 @@ func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
 // that was never there subtracts from the accounted side and cancels REAL loss — blinding the
 // one detector built to catch silent deletion.
 func TestAPhantomRetireIsMarkedAsserted(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSomething entirely else.\n")
 
 	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond-r1",

@@ -16,7 +16,7 @@ import (
 // TestBlueEditRejectsSpanContainingCitation pins the spanMarker site: an --quote span that
 // straddles a "<!--cite:-->" anchor is refused, and the message names it as a citation.
 func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	// A citation anchor sits between "value" and "is".
 	writeReport(t, runDir, "# H\n\nThe value<!--cite:c-abc123--> is stable over time.\n")
 	registerBlue(t, runDir)
@@ -38,7 +38,7 @@ func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
 // TestCiteAnchorBijection drives real cites + an edit and asserts the cite-event label set
 // equals the citation-anchor set in the document — the record shows exactly what is cited.
 func TestCiteAnchorBijection(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nAlpha holds under load. Beta holds under load too.\n")
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{
@@ -104,7 +104,7 @@ func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
 		{"citation anchor", "<!--cite:c-abc123-->", "citation anchor"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := newRun(t)
 			writeReport(t, runDir, "# H\n\nThe value is stable over time. A second sentence"+c.anchor+" is anchored.\n")
 			registerBlue(t, runDir)
 

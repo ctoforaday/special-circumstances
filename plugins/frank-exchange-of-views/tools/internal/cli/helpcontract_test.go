@@ -137,7 +137,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 // did not do. A diagnosis that comes after the remedy is not a diagnosis.
 func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	runDir := t.TempDir()
+	runDir := newRun(t)
 
 	for _, tc := range []struct {
 		name string
@@ -275,7 +275,7 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 
 func seatRunForContracts(t *testing.T) string {
 	t.Helper()
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)

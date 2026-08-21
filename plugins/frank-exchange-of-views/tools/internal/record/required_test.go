@@ -29,7 +29,7 @@ func seatFor(typ string) string {
 
 func runWithGap(t *testing.T) string {
 	t.Helper()
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 // clothes, counted as closed by every projection and by anchored_closures_pct. The help
 // offers it exactly where a seat that cannot produce an anchor will read it.
 func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 
 // And a GENUINE carry still works: close once with an anchor, then restate it.
 func TestAGenuineCarryIsStillAccepted(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}); err != nil {
 		t.Fatal(err)
 	}
@@ -211,12 +211,12 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 				p.Set(k, v)
 			}
 		}
-		if err := validate(t.TempDir(), "red-merge-r1", "mint", p); err == nil {
+		if err := validate(newRun(t), "red-merge-r1", "mint", p); err == nil {
 			t.Errorf("mint without --%s was accepted; its mass computes to ZERO and the gap sinks to the bottom of every ranking as though it were harmless", missing)
 		}
 	}
 	// Severity and cx remain optional: absent, they are SHOWN absent.
-	if err := validate(t.TempDir(), "red-merge-r1", "mint", base()); err != nil {
+	if err := validate(newRun(t), "red-merge-r1", "mint", base()); err != nil {
 		t.Errorf("severity and cx must stay optional — their absence is visible, not silently zero: %v", err)
 	}
 	if GapMass("", "medium") != 0 {
