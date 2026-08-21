@@ -21,7 +21,7 @@ func TestRoleOf(t *testing.T) {
 // The label sequence is TOOL-assigned, run-unique PER ROLE, and spans rounds — so
 // a found_by credit naming a label is unambiguous run-wide.
 func TestNextFindingLabel(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 
 	// First finding for L2 → L2-F1.
 	if got, err := NextFindingLabel(runDir, "red-lens-r1-L2"); err != nil || got != "L2-F1" {
@@ -52,7 +52,7 @@ func TestNextFindingLabel(t *testing.T) {
 // A crash-retried finding (same --key) returns its existing label and appends no
 // second event — the mint-parity idempotency.
 func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := "red-lens-r1-L1"
 
 	// No prior finding under this key.

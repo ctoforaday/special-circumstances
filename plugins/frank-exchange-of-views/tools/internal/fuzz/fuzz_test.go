@@ -407,7 +407,10 @@ func (r *runner) mint(seatID string) string {
 	if !r.classMade {
 		r.classMade = true
 		_, _ = r.exec("class", "new", "--seat-id", seatID,
-			"--class", "fuzzcls", "--definition", "d", "--neighbor", "verification-gap", "--distinguisher", "q")
+			// --neighbor names an EXISTING class, and is checked. `verification-gap` was not one;
+			// nothing objected while the registry was absent, so the coining path ran green for
+			// its whole life against a neighbour that did not exist.
+			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q")
 	}
 	args = append(args, "--class", "fuzzcls")
 	if r.coin(40) {
@@ -1316,6 +1319,14 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// phrasings, so every round has a valid unique span to replace whichever way the last
 	// edit left it, while the anchor quote above stays untouched for findings and cites.
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
+	// THE RUN DECLARES ITS CLASS VOCABULARY, because a real run does. The fuzz used to be exempt
+	// by accident: no registry staged meant `validateClass` accepted every slug, so the fuzz drove
+	// `mint` for its whole life without ever exercising the check the flag's help describes. When
+	// the exemption went, the coverage gate here reported it in one line — ZERO mint events across
+	// 60 runs — which is what that gate is for.
+	if err := record.StageForRun(runDir, fuzzClasses...); err != nil {
+		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
+	}
 	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
 	res := outcome{seed: seed, runDir: runDir}
@@ -2721,3 +2732,9 @@ func seatOfRole(role string) string {
 		"merge": "red-merge-r1", "bench": "judge-r1",
 	}[role]
 }
+
+// fuzzClasses is the vocabulary every fuzz run declares. Deliberately SMALL: the fuzz mints
+// under one coined slug, and the registry is here so the coining path has a real neighbour to
+// name and the mint has a real registry to be checked against — not to give the generator a
+// menu to pick from, which would test the picking rather than the check.
+var fuzzClasses = []string{"self-attestation", "policy-without-mechanism", "metric-conflation"}

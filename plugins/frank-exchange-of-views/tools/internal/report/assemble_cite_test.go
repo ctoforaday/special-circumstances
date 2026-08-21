@@ -62,7 +62,7 @@ func TestWeaveCitationsSurfacesDanglingAnchor(t *testing.T) {
 
 // Findings are STRIPPED and citations are RESOLVED — orthogonal passes over one report.
 func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	blue := strings.Join([]string{
 		"# Coherence — research report",
 		"",

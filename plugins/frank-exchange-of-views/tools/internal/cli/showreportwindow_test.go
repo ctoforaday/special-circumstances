@@ -40,7 +40,7 @@ method text, far below and out of every window.
 `
 
 func TestShowReportAtAnAnchorReadsTheLiveTextAndSaysWhereItIs(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
 	out, err := run(t, "show", "report", "--seat-id", "blue-respond-r1", "--run", runDir, "--anchor", "f-a1b2c3")
@@ -67,7 +67,7 @@ func TestShowReportAtAnAnchorReadsTheLiveTextAndSaysWhereItIs(t *testing.T) {
 // --window SIZES THE READ, and the size has to actually take effect. A flag that parses and
 // changes nothing is the plausible-zero shape wearing a different hat.
 func TestTheWindowSizeChangesWhatComesBack(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
 	narrow, err := run(t, "show", "report", "--seat-id", "blue-respond-r1", "--run", runDir, "--anchor", "f-a1b2c3", "--window", "0")
@@ -89,7 +89,7 @@ func TestTheWindowSizeChangesWhatComesBack(t *testing.T) {
 // A STALE ANCHOR REFUSES. An empty read would say "the report has nothing here", which is a
 // different fact and a false one.
 func TestShowReportRefusesAnAnchorThatIsNotThere(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
 	out, err := run(t, "show", "report", "--seat-id", "blue-respond-r1", "--run", runDir, "--anchor", "f-deadbeef")
@@ -105,7 +105,7 @@ func TestShowReportRefusesAnAnchorThatIsNotThere(t *testing.T) {
 // seat cannot distinguish from a report that is simply that long — the same defect as an unknown
 // --format rendering the default and exiting 0.
 func TestWindowWithoutAnAnchorIsRefusedRatherThanIgnored(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
 	out, err := run(t, "show", "report", "--seat-id", "blue-respond-r1", "--run", runDir, "--window", "1")
@@ -121,7 +121,7 @@ func TestWindowWithoutAnAnchorIsRefusedRatherThanIgnored(t *testing.T) {
 // internal/cli/seat, so a flag registered on one role and missing on another would mean the
 // projection had grown a per-role surface — which is exactly what defining it once is for.
 func TestEveryRoleCanReadAtAnAnchor(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
 	for _, role := range []string{"blue", "lens", "merge", "bench"} {

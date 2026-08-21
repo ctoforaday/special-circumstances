@@ -34,7 +34,7 @@ func firstCiteEvent(t *testing.T, runDir string) *record.Event {
 }
 
 func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\nThe sky is blue and the grass is green.\n")
 	registerBlue(t, runDir)
 	body := []byte("<html>a source that says the sky is blue</html>")
@@ -81,7 +81,7 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 }
 
 func TestBlueCiteMisQuoteRejectedNoEffect(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe scheduler is preemptive.\n")
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://x": []byte("src")}})
@@ -100,7 +100,7 @@ func TestBlueCiteMisQuoteRejectedNoEffect(t *testing.T) {
 }
 
 func TestBlueCiteInFenceRejected(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\n```\ncode line here\n```\n")
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://x": []byte("src")}})
@@ -113,7 +113,7 @@ func TestBlueCiteInFenceRejected(t *testing.T) {
 }
 
 func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe claim holds under load.\n")
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{err: errFake})
@@ -137,7 +137,7 @@ func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
 }
 
 func TestBlueCiteReusesCacheAcrossTwoCites(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFirst claim stands. Second claim stands too.\n")
 	registerBlue(t, runDir)
 	f := &fakeFetcher{resp: map[string][]byte{"https://same": []byte("one source")}}
@@ -163,7 +163,7 @@ func TestBlueCiteReusesCacheAcrossTwoCites(t *testing.T) {
 }
 
 func TestBlueCiteKeyIsIdempotent(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe measured latency is bounded.\n")
 	registerBlue(t, runDir)
 	f := &fakeFetcher{resp: map[string][]byte{"https://x": []byte("src")}}

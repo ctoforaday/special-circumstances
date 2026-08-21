@@ -319,16 +319,27 @@ func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
 }
 
 // An ABSENT registry is reported LOUDLY rather than degrading in silence. The advisory branch
-// is the pattern this suite keeps finding: a gate that reports nothing and passes everything
+// was the pattern this suite keeps finding: a gate that reports nothing and passes everything
 // when its input is missing.
+//
+// WHAT THE LINE HAS TO SAY CHANGED WITH THE BEHAVIOUR. It used to warn that `--class` would
+// accept ANY string — the honest description of a run that had lost its registry and would mint
+// happily against a vocabulary nothing recognised. There is no advisory branch now: an absent
+// registry REFUSES every mint, so the operator reading this line is looking at a run that cannot
+// do its work, not one that will quietly do it wrong. The assertion moved with it, because a test
+// pinning the old sentence would have made removing the tolerance look like a regression.
 func TestAbsentRegistryIsAnnounced(t *testing.T) {
 	cfg, _ := runCfg(t, "0.35.0", reports("0.35.0"))
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
-	if !strings.Contains(out.String(), "NOT STAGED") || !strings.Contains(out.String(), "ANY string") {
-		t.Errorf("an absent registry must say that --class stops being validated:\n%s", out.String())
+	if !strings.Contains(out.String(), "NOT STAGED") || !strings.Contains(out.String(), "REFUSED") {
+		t.Errorf("an absent registry must say that every mint will be refused:\n%s", out.String())
+	}
+	if strings.Contains(out.String(), "ANY string") {
+		t.Errorf("the summary still describes the advisory branch, which no longer exists — an operator "+
+			"reading it would expect a run that mints loosely rather than one that cannot mint:\n%s", out.String())
 	}
 }
 

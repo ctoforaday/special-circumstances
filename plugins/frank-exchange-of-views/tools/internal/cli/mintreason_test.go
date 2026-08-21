@@ -20,7 +20,7 @@ import (
 // but red's intent for the fix isn't visible to me." It was being asked to adjudicate red's intent
 // with red's intent unrecorded.
 func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	board := seatprobe.Boards()["audit"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }

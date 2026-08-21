@@ -142,7 +142,7 @@ func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 // regenerating a dead run, forever.
 func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	// A live run: marker present, no outcome on the record. Neither watcher may exit.
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	marker := filepath.Join(t.TempDir(), "run-live.json")
 	if err := os.WriteFile(marker, []byte(`{"runDir":"x"}`), 0o644); err != nil {
 		t.Fatal(err)

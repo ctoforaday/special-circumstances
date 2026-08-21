@@ -22,7 +22,7 @@ import (
 // Every seat may FILE any motion; that asymmetry is the mechanism and this does not touch it. Being
 // a seat at all is not the optional half.
 func TestAMotionRequiresASeatTheEngineCreated(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	board := seatprobe.Boards()["docket"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }

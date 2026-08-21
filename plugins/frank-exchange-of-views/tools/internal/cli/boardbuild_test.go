@@ -35,7 +35,7 @@ func TestEveryProbeBoardStillBuilds(t *testing.T) {
 	for name, b := range boards {
 		b := b
 		t.Run(name, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := newRun(t)
 			t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 			// seatprobe.Build, not a second copy of it. The harness dispatches through that
 			// function; a gate that rebuilt the steps here would be asserting its own reading of

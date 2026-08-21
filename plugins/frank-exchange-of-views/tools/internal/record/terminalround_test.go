@@ -12,7 +12,7 @@ import "testing"
 // The round for a terminal seat is a FACT ON THE RECORD rather than something it has to be told:
 // it acts after the last round, and every round's seats have already stamped theirs.
 func TestATerminalSeatIsRecordedAfterTheRoundsRatherThanBeforeThem(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	for _, s := range []string{"red-merge-r1", "red-merge-r2", "red-merge-r3"} {
 		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}); err != nil {
 			t.Fatal(err)
@@ -31,7 +31,7 @@ func TestATerminalSeatIsRecordedAfterTheRoundsRatherThanBeforeThem(t *testing.T)
 // AND SYNTHESIS IS STILL ROUND 0, by rule rather than by accident. These seats are dispatched
 // before the round loop, so 0 is exact — and the fix must not turn a correct 0 into an unknown.
 func TestSynthesisSeatsAreRoundZeroByRule(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r4", Round: 4}); err != nil {
 		t.Fatal(err)
 	}

@@ -27,7 +27,7 @@ func TestStripFindingMarkers(t *testing.T) {
 // (here a mint's problem text, rendered into the findings/risk section) must still be
 // stripped — the earlier blue-only strip missed exactly this path.
 func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}

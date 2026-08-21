@@ -24,7 +24,7 @@ func TestAnMtimeTieResolvesDeterministically(t *testing.T) {
 
 	build := func(t *testing.T, order ...string) (string, string) {
 		t.Helper()
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 		dir := filepath.Join(runDir, "records")
 		if err := os.MkdirAll(dir, 0o755); err != nil {

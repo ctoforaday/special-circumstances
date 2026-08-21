@@ -59,7 +59,7 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestStampsStrictlyIncreaseUnderAFrozenClock(t *testing.T) {
 	frozen := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
 	Now = func() time.Time { return frozen }
 
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}); err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
 		return base.Add(-time.Duration(call) * time.Second) // each call earlier than the last
 	}
 
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}); err != nil {
 		t.Fatal(err)
 	}

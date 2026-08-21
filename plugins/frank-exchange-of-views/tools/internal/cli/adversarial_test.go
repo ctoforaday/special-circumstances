@@ -277,7 +277,7 @@ func TestEveryAdversarialScenarioStatesWhatItGuards(t *testing.T) {
 // refused before any scenario's own check is reached.
 func adversarialRun(t *testing.T) string {
 	t.Helper()
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)

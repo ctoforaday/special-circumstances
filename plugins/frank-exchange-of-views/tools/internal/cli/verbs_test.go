@@ -182,7 +182,7 @@ func TestVerbPayloads(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := newRun(t)
 			seedReferents(t, runDir)
 			// THE VERB COMES FROM `typ`, NOT FROM THE TEST'S PROSE NAME.
 			//
@@ -233,7 +233,7 @@ func TestVerbPayloads(t *testing.T) {
 // same "lineage none, not lineage unknown" rule the mint lists follow.
 func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	t.Run("with ids", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		seedReferents(t, runDir)
 		out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--ids", "R1-3", "--reason", "it still holds")
@@ -254,7 +254,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	})
 
 	t.Run("with no ids at all the key is still an empty array", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
@@ -275,7 +275,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 
 // spot-check is a singleton per seat: the round's duty is discharged once.
 func TestSpotCheckIsASingleton(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seedReferents(t, runDir)
 	for _, ids := range []string{"R1-3", "R1-3"} {
 		if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", ids,
@@ -296,7 +296,7 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 
 // regrade moves only the grades it carries, and refuses without its basis.
 func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
@@ -352,7 +352,7 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
 	for _, tc := range cases {
 		t.Run(tc.seatID+"/"+tc.verb, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := newRun(t)
 			seedReferents(t, runDir)
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason-file", writeTemp(t, body)}, tc.extra...)

@@ -38,7 +38,7 @@ func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 // A near-duplicate of an existing gap must outrank an unrelated gap, and both open and
 // closed gaps are scored (a reopen usually matches a closed one).
 func TestNearMatchRanksDuplicateAboveUnrelated(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	mintBoard(t, runDir,
 		gapSpec{"R1-1", "the cache eviction races the concurrent reader and returns stale entries", "cache.go:88", true},
 		gapSpec{"R1-2", "the documentation heading uses the wrong capitalization", "README.md:1", true})
@@ -67,7 +67,7 @@ func TestNearMatchRanksDuplicateAboveUnrelated(t *testing.T) {
 
 // The location bonus lifts a candidate that shares its section with a gap.
 func TestNearMatchLocationBonus(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	mintBoard(t, runDir,
 		gapSpec{"R1-1", "an off-by-one in the loop bound", "parser.go:42", true})
 
@@ -88,7 +88,7 @@ func TestNearMatchLocationBonus(t *testing.T) {
 
 // Closed gaps are scored (a reopen matches a closed gap) and carry status "closed".
 func TestNearMatchScoresClosedGaps(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	mintBoard(t, runDir,
 		gapSpec{"R1-1", "the retry backoff overflows on the tenth attempt", "retry.go:12", false})
 
@@ -107,7 +107,7 @@ func TestNearMatchScoresClosedGaps(t *testing.T) {
 
 // topN caps the result set; a candidate with no overlap returns nothing (0 is not a match).
 func TestNearMatchTopNAndNoOverlap(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	var specs []gapSpec
 	for _, id := range []string{"R1-1", "R1-2", "R1-3", "R1-4", "R1-5", "R1-6"} {
 		specs = append(specs, gapSpec{id, "shared token alpha beta gamma delta " + id, "file.go", true})
