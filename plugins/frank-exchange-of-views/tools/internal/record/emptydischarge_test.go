@@ -1,6 +1,7 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
 )
@@ -46,7 +47,7 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 // THE EXPLICIT NEGATIVE NEEDS CONTENT TOO. `--none` is worth more than silence only when it says
 // what was looked at; without that it is silence with an event attached.
 func TestTheExplicitNegativeCannotBeEmpty(t *testing.T) {
-	err := validate(t.TempDir(), "blue-respond-r1", "friction-none", NewPayload())
+	err := validate(t.TempDir(), "blue-respond-r1", recordpb.EventType_EVENT_TYPE_FRICTION_NONE, &recordpb.FrictionNone{})
 	if err == nil || !strings.Contains(err.Error(), "FOUND") {
 		t.Errorf("friction --none with no reason should say what the negative is FOR: %v", err)
 	}
@@ -56,7 +57,7 @@ func TestTheExplicitNegativeCannotBeEmpty(t *testing.T) {
 // reference is not a DANGLING one, which is right for the check it makes — so absence needed its
 // own check, and without it a bare manifest-row printed "manifest row recorded for ".
 func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
-	if err := validate(t.TempDir(), "blue-respond-r1", "manifest-row", NewPayload()); err == nil {
+	if err := validate(t.TempDir(), "blue-respond-r1", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, &recordpb.ManifestRow{}); err == nil {
 		t.Error("a manifest row naming no gap was accepted")
 	} else if !strings.Contains(err.Error(), "--id") {
 		t.Errorf("the refusal does not name --id: %v", err)
@@ -73,7 +74,7 @@ func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
 // own test, and its --none --reason exists for the same distinction. Pinned so a later sweep of
 // this class does not "fix" it by mistake.
 func TestSpotCheckBareStaysAccepted(t *testing.T) {
-	if err := validate(t.TempDir(), "red-merge-r1", "spot-check", NewPayload()); err != nil {
+	if err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_SPOT_CHECK, &recordpb.SpotCheck{}); err != nil {
 		t.Errorf("a bare spot-check was refused, but an honestly-empty round is a discharge: %v", err)
 	}
 }

@@ -66,7 +66,7 @@ func TestReadShardDropsUnparseableLinesWithoutLosingTheRest(t *testing.T) {
 	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	evs, err := ReadShard(p)
+	evs, _, err := ReadShard(p)
 	if err != nil {
 		t.Fatalf("a shard with torn lines must not be an ERROR: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestReadShardDropsUnparseableLinesWithoutLosingTheRest(t *testing.T) {
 }
 
 func TestReadShardOnMissingFileIsEmptyNotAnError(t *testing.T) {
-	evs, err := ReadShard(filepath.Join(t.TempDir(), "nope.jsonl"))
+	evs, _, err := ReadShard(filepath.Join(t.TempDir(), "nope.jsonl"))
 	if err != nil {
 		t.Fatalf("missing shard = %v, want no error", err)
 	}
@@ -102,7 +102,7 @@ func TestReadShardHandlesAMissingFinalNewline(t *testing.T) {
 	if err := os.WriteFile(p, []byte(line), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	evs, err := ReadShard(p)
+	evs, _, err := ReadShard(p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -576,7 +576,7 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 		})
 	}
 	// An ABSENT graded field is fine; only a present-and-wrong one is refused.
-	if err := validate(t.TempDir(), "red-merge-r1", "regrade", NewPayload().Set("reason", "b")); err != nil {
+	if err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}); err != nil {
 		t.Errorf("absent grades were refused: %v", err)
 	}
 }

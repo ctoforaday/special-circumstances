@@ -167,7 +167,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 		t.Errorf("the event must carry the round it was GIVEN, not the one its id looks like: got %d, want 7", ev.Round)
 	}
 	// And the register the append triggered carries it too — both write sites take the seam.
-	evs, err := ReadShard(filepath.Join(dir, "records", "events-judge-terminal-"+ev.Nonce+".jsonl"))
+	evs, _, err := ReadShard(filepath.Join(dir, "records", "events-judge-terminal-"+ev.Nonce+".jsonl"))
 	if err != nil {
 		t.Fatal(err)
 	}

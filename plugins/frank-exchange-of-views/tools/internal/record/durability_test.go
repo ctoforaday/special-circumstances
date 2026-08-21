@@ -32,7 +32,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
 		t.Fatal(err)
 	}
-	before, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
+	before, _, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 	}
 
 	// Nothing reached the shard while the append was correctly blocked.
-	mid, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
+	mid, _, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatalf("the released append failed: %v", err)
 	}
-	after, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
+	after, _, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestAppendHealsATornFinalLine(t *testing.T) {
 		t.Errorf("the fragment was altered rather than sealed: %q", lines[1])
 	}
 	// The fragment stays visibly unparseable; the new event stays whole.
-	evs, err := ReadShard(shard)
+	evs, _, err := ReadShard(shard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 		t.Errorf("pointer = %q, want the rotated nonce %q", got, n2)
 	}
 	// The stale shard is untouched and still holds its event.
-	old, err := ReadShard(s1)
+	old, _, err := ReadShard(s1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +364,7 @@ func TestAppendImplicitlyRegistersWhenThePointerIsAbsent(t *testing.T) {
 	if _, err := os.Stat(pointerPath(recordsDirT(runDir), seatID)); err != nil {
 		t.Errorf("no pointer was written by the implicit register: %v", err)
 	}
-	evs, err := ReadShard(shardPath(recordsDirT(runDir), seatID, ev.Nonce))
+	evs, _, err := ReadShard(shardPath(recordsDirT(runDir), seatID, ev.Nonce))
 	if err != nil {
 		t.Fatal(err)
 	}

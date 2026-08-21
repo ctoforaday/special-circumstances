@@ -194,7 +194,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{GapId: proto.String(id), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x")}); err != nil {
 		t.Fatal(err)
 	}
-	if err := validate(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{GapId: proto.String(id), CarriedFrom: proto.String("1")}); err != nil {
 		t.Errorf("a carry restating a real earlier closure must be accepted: %v", err)
 	}
 }
