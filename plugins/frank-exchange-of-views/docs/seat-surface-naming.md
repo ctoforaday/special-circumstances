@@ -1,6 +1,8 @@
 # What naming the surface in the constitution actually buys
 
-**Run 5 and interview 2 are the current record — the first measurements of the seat production actually dispatches.**
+**Runs 6 and 7 are the current record.** Run 5 and interview 2 below them are the first measurements
+of the seat production actually dispatches, and remain the baseline every later number is read
+against.
 Everything below it — three earlier runs and an interview — measured a prompt no seat is ever given,
 an agent without its skills, and a tool set without `WebSearch`. Read the fidelity section next: it
 says what those numbers can and cannot be used for. They are kept because the reasoning is still
@@ -10,6 +12,93 @@ same mistake gets made twice.
 Raw reports are not committed; regenerate with `seatprobe -board all -bin <feov-record> -dir <out>
 -constitutions <plugin>/agents`. The `-naming`, `-help-directive` and `-patterns` flags the earlier
 runs used NO LONGER EXIST — those runs can be read but not reproduced against today's probe.
+
+---
+
+# Runs 6 and 7, 2026-08-21 — the traversal moved three roles and cannot reach blue
+
+## What the additive change bought
+
+The three-step help contract was a LOOKUP: both later steps fired on an act already chosen
+(*"before using any command in a group you have not yet opened"*, *"before running the command"*),
+under a preface reading *"before the act that needs them"*. A seat obeying it perfectly reads the
+root once and then opens the page for the verb it already picked. **The ceiling of the instruction
+was confirmation.** Steps 1 and 2 now happen once, together, before the seat has decided anything.
+
+| all nine boards | run 5 | run 6 |
+|---|---:|---:|
+| Groups opened | 6/51 = 11% | 23/51 = **45%** |
+| Blind-first | 95/106 = 89% | 51/98 = **52%** |
+| Pages opened for a verb never run | 5 | **30** |
+| Refusals blind / after reading | 12 / 1 | 8 / 3 |
+
+The prediction stated before that run — traversal compliance would move, judgement would not — was
+**wrong**. The survey signal went 5 to 30.
+
+## Blue does not move, and two theories died proving it
+
+By role in run 6:
+
+| role | prompt chars | groups opened | blind-first |
+|---|---:|---:|---:|
+| merge | 24,193 | 83% | 17% |
+| bench | 11,861 | 80% | 25% |
+| lens | 13,931 | 40% | 60% |
+| **blue** | **24,356** | **12%** | **83%** |
+
+**Theory 1: prompt length.** Refuted on sight — merge and blue differ by 163 characters.
+
+**Theory 2: a competing opening instruction.** Blue's prompt began `FIRST ACTION (read batching,
+W1.12)` twenty thousand characters before the traversal clause, and every blue board went root →
+register → scratchpad pipeline at call 3. Both `FIRST ACTION` clauses were reordered to follow the
+walk, and the four blue boards re-run:
+
+| blue only | run 5 (no clause) | run 6 (clause, outranked) | run 7 (ordered) |
+|---|---:|---:|---:|
+| Groups opened | 2/24 = 8% | 3/24 = 12% | **2/24 = 8%** |
+| Blind-first | 33/41 = 80% | 36/43 = 83% | 33/34 = 97% |
+
+**Refuted.** The fix bought nothing. (The blind-first rise is not reliable: blue ran fewer distinct
+commands, 43 to 34, so the denominator moved more than the numerator. Read it as flat.) The change
+is kept — the ordering statement is true and consistent with the rule — but it is **not** validated
+by a result and must not be cited as one.
+
+**Theory 3: the prompt teaches the surface, so the menu is redundant.** Also refuted by the pair
+that matters:
+
+| role | share of its own surface its prompt names | groups opened |
+|---|---:|---:|
+| blue | 79% | 12% |
+| merge | 77% | 83% |
+| lens | 68% | 40% |
+| bench | 52% | 80% |
+
+Bench and lens fit the line. Blue and merge sit two points apart on the predictor and at opposite
+ends of the outcome. Four points, and the decisive pair contradicts it.
+
+## What is established, and what is only suspected
+
+ESTABLISHED. Blue is stably 8–12% groups opened and 80–97% blind-first across three runs and three
+prompt shapes — a role effect, not variance. Position of the clause within the prompt is controlled
+(same clause, same place, same length as merge). The additive lever has given what it can: it moved
+merge, bench and lens hard and cannot reach blue.
+
+SUSPECTED, UNTESTED. Blue is the only role handed a SPECIFIED DELIVERABLE — its open gaps arrive as
+JSON in the prompt with the repair spelled out — where merge and bench get a mandate ("sweep the
+artifact", "dispose of the docket") and must orient first. A seat with an itinerary does not read a
+menu. This cannot be separated from bare role identity at four roles by one sitting each, and is
+recorded as a hypothesis rather than a finding.
+
+If it is right, the remedy is not another clause. It is the subtraction: move what the prompt
+teaches into the tool's help, so the itinerary stops arriving pre-written.
+
+## A hazard that surfaced twice in two commits
+
+Two gates pinned prompt text verbatim and broke on the correct fix — first `BEFORE using any command
+in a group you have not yet opened`, then `FIRST ACTION`. **A test that quotes a clause pins whatever
+that clause says, defect included**, so any real repair has to fail it first. 91 assertions in
+`debate.test.mjs` quote prompt text. Both were rewritten to assert the ordering FACT plus a negative
+that fails if the old shape returns; the remaining 89 are unswept.
 
 ---
 
