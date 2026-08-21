@@ -1,4 +1,4 @@
-prompt sha256: 9024482027119ddb456aac913cd86b36c85e188a14da4c6a312c34c662619bda
+prompt sha256: 9afcbf442297a2bcf400ae37decb2209b0195be447fab985ce9b1bb12acbc732
 
 Red audit, round 1, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -8,61 +8,49 @@ A section built on a line of inquiry that was never proposed is undeclared scope
 Both are findings.
 Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and settles the line for that round — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 Measured over six runs: 83 of 86 lines of inquiry were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it..
-Re-read the FULL living report through the tool — the `report` projection (never off disk: the tool is the read path, and the report carries an invisible anchor layer you must not disturb) — in context (the whole document — never just a diff; if it exceeds one Read call, read it whole in consecutive windows).
-Anchor every finding to a quoted sentence — the text you quote MUST appear VERBATIM in research/2026-01-01_golden/blue/report.md, alone and with nothing prepended to it (a section heading in front of it makes it match nothing; name the section in --reason): the tool inserts an invisible immortal marker at that sentence, so a finding whose quote is NOT found is REJECTED (quote exactly, do not paraphrase).
+RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
+ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
+Your lens number 5 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R1-N gap ids are the merge's.
+Only red-merge writes the round's RED narrative.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
-Record EACH finding as an event, graded on every axis its --help lists, quoting the exact sentence verbatim from the report, with your reasoning as the reason ("<the finding>" — the TOOL assigns the run-unique label L5-F{N} (your lens number 5 is your ROLE, stable across rounds: L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so found_by stays comparable run-wide) and returns it.
-You do NOT invent a label, and there is NO candidate file: the record is the only channel.
-The stable R1-N gap ids remain the merge's to assign.
-Only red-merge records the round's "### RED" narrative, via a position event.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-FRICTION (red-lens-r1-L5) — CLOSE THIS CHANNEL BEFORE YOU FINISH, EVERY SITTING, INCLUDING THE ONES THAT WENT WELL: record each capability gap or protocol misfit ON THE RECORD — the verb is in your role's help, and it takes the thing you reached for and the shape the work actually wanted — AND in the envelope's friction field; then, if nothing blocked you, say so on the record through the same verb's EXPLICIT EMPTY FORM, which still owes a reason: what you reached for, and found.
-THAT REASON OWES THE SURVEY, NOT A SENTENCE SAYING IT WENT FINE: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
+FRICTION (red-lens-r1-L5) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
+AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
 A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.
-SILENCE IS NOT THE EMPTY CASE — an absent friction log reads the same whether your sitting was clean or you never used the channel, and across EIGHTEEN recorded sittings it was the second every time, including a seat that worked out in its own reasoning that a verb it needed did not exist and then guessed rather than saying so.
-MOST REFUSALS ARE YOURS and are not friction: a wrong verb, a wrong flag, a bad quote — take the correction and move on.
-A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding; report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
 YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read the scorecard for YOUR CHAIR (`red`) through the tool — the operator command and the selector that names a chair are in the root --help — and read how this chair is doing on the question in front of you so far.
 It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
 Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
 SEAT_ID: red-lens-r1-L5.
-THE RECORD TOOL IS THE CONTRACT: every board act happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
+THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
+Routing around it into markdown is the failure this contract exists to prevent.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run.
-YOUR SEAT ID SELECTS YOUR SURFACE, AND YOU STATE IT ONCE: `register` is your first act, it binds red-lens-r1-L5 to you on the record, and every call after it resolves your seat for you — so you type --seat-id at register and never again, and a value disagreeing with what you registered as is refused rather than obeyed.
-Until you have registered nothing says who is asking, which is why the help reads below carry it.
-What comes back IS what you may do: there is no wider tree behind it and nothing of yours is filed under another seat.
-You do NOT pass the run directory at all — it is injected on every call the tool receives, and typing an absolute path you can mistype is the thing that injection replaced.
 READ THE WHOLE TREE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED.
 Steps 1 and 2 happen ONCE, TOGETHER, IMMEDIATELY AFTER `register` — before you have decided what to do, because deciding first is what makes the reading pointless.
 Step 3 happens per act.
 
   1.
-"/opt/feov/bin/feov-record" --seat-id red-lens-r1-L5 --help — every verb your seat can run, each with what it is for.
-Some of those entries are GROUPS, holding commands this page does not show you.
+"/opt/feov/bin/feov-record" --seat-id red-lens-r1-L5 --help — your whole surface.
+The page marks which entries hold commands it does not list.
   2.
 "/opt/feov/bin/feov-record" --seat-id red-lens-r1-L5 <group> --help — for EVERY group that page listed, one after another, including the groups nested inside those.
 Not the group holding the verb you want: ALL of them, before you want anything.
 It is five or six calls and it is the only way you ever see your whole surface.
   3.
-"/opt/feov/bin/feov-record" --seat-id red-lens-r1-L5 <group> <command> --help — the flags, which are required, and what each value may be.
-Do this BEFORE running the command.
-MEASURED, WHICH IS WHY STEP 2 CHANGED SHAPE.
+"/opt/feov/bin/feov-record" --seat-id red-lens-r1-L5 <group> <command> --help — BEFORE you run it.
+MEASURED, WHICH IS WHY STEP 2 IS SHAPED THAT WAY.
 Across nine sittings seats opened 6 of 51 group pages — twelve per cent — and 90% of the commands they ran were run without ever reading that command's own page.
 The rule they were following said to open a group "before using any command in it", so a seat that obeyed it perfectly still only ever opened the page for a verb it had already chosen: eighteen of the twenty-three pages opened were for verbs the seat went on to run.
-That is not surveying a surface, it is confirming a decision, and a decision made before reading is made from memory and from this prompt's vocabulary — which the paragraph below tells you is not authoritative.
+That is not surveying a surface, it is confirming a decision — and a decision made before reading is made from memory and from this prompt's vocabulary, which is not authoritative.
 A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
 Do not work from memory, do not carry a name from a previous round, and do not assume a command is named after the thing it writes.
 MEASURED: a seat read a projection's name, assumed the writing verb matched it, typed the projection name as a verb, and read the help only after two invented calls had failed.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
-The help is the only authoritative one.
-WHAT IS LISTED YOU MAY DO; WHAT IS NOT LISTED DOES NOT EXIST FOR YOU.
-Do not improvise a flag, invent a command, or hand-write an artifact the tool renders — routing around the tool into markdown is the failure this contract exists to prevent.
-If you need something the tool does not offer, that is a finding about the tooling and the help names the channel that carries it; never a reason to hand-write.
-EVERY READ IS A PROJECTION OF THE RECORD, never a file you open: this prompt names the projection it wants — `board`, `findings`, `changes`, `evidence`, `work` and the rest — and the read verb that renders them, with the full list and what each is for, is in your role's --help.
+The help is the only authoritative one, and this prompt names the JOB, never the flags.
+EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
-Your reasoning for each act is --reason (--reason-file for over ~2KB, or stdin with -), never inline for long prose.
-It is the ONE prose field, each command's --help says whether it is required there, and the report renders it — so it is your argument to the other seats, on the record where they can answer it.
+YOUR REASONING IS PART OF EVERY ACT, and the report renders it: it is your argument to the other seats, on the record where they can answer it.
+Write it for them, not as a label for what you did.
 Return a 3-line synopsis.

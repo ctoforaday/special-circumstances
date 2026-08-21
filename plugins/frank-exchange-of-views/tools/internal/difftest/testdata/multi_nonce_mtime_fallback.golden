@@ -37,11 +37,13 @@ Available Commands:
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help         Help about any command
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
-  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
+
+Command groups — each holds commands THIS page does not list:
+  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record

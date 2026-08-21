@@ -19,6 +19,8 @@ Same-id grade movement, recorded with the reason it moved: the gap keeps its ide
 
 Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
 
+The regrade and its reason render in the report beside the gap, so a grade argued down over three rounds shows the argument rather than only the final number.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing

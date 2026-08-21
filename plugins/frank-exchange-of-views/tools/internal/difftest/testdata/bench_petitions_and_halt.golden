@@ -16,7 +16,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -26,14 +25,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -75,11 +77,13 @@ Available Commands:
   friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   opinion      dispose of one contested gap with a written ruling — the bench's answer to a docketed item
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Command groups — each holds commands THIS page does not list:
+  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record

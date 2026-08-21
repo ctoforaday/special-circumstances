@@ -22,11 +22,13 @@ Available Commands:
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help         Help about any command
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
-  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
+
+Command groups — each holds commands THIS page does not list:
+  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -63,15 +65,17 @@ Available Commands:
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
   revision        the round record — what changed this round, once, after your edits have landed
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Command groups — each holds commands THIS page does not list:
+  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -108,15 +112,17 @@ Available Commands:
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
   revision        the round record — what changed this round, once, after your edits have landed
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Command groups — each holds commands THIS page does not list:
+  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -153,11 +159,13 @@ Available Commands:
   friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   opinion      dispose of one contested gap with a written ruling — the bench's answer to a docketed item
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Command groups — each holds commands THIS page does not list:
+  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record

@@ -8,6 +8,10 @@ The id is TOOL-assigned. A stable key makes a retry idempotent rather than minti
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
@@ -55,6 +59,10 @@ turn lens findings into a graded gap on the board, when a defect is real and bel
 The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -104,6 +112,10 @@ The id is TOOL-assigned. A stable key makes a retry idempotent rather than minti
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
@@ -151,6 +163,10 @@ turn lens findings into a graded gap on the board, when a defect is real and bel
 The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -200,6 +216,10 @@ The id is TOOL-assigned. A stable key makes a retry idempotent rather than minti
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
@@ -248,6 +268,10 @@ The id is TOOL-assigned. A stable key makes a retry idempotent rather than minti
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
@@ -295,6 +319,10 @@ turn lens findings into a graded gap on the board, when a defect is real and bel
 The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -516,6 +544,8 @@ Same-id grade movement, recorded with the reason it moved: the gap keeps its ide
 
 Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
 
+The regrade and its reason render in the report beside the gap, so a grade argued down over three rounds shows the argument rather than only the final number.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
@@ -556,7 +586,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -566,14 +595,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -594,6 +626,8 @@ feov-record: invalid argument "pass" for "--as" flag: --as must be one of PASS|F
 the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
+
+A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this round. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -627,6 +661,8 @@ feov-record: invalid argument "banana" for "--as" flag: --as must be one of PASS
 the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
+
+A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this round. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -667,7 +703,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -677,14 +712,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -775,7 +813,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -785,14 +822,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -820,7 +860,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -830,14 +869,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -865,7 +907,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -875,14 +916,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -910,7 +954,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -920,14 +963,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -963,15 +1009,17 @@ Available Commands:
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
   revision        the round record — what changed this round, once, after your edits have landed
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Command groups — each holds commands THIS page does not list:
+  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -1007,15 +1055,17 @@ Available Commands:
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   retire          take a claim out of the report, when it cannot stand and no edit will save it
   revision        the round record — what changed this round, once, after your edits have landed
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+
+Command groups — each holds commands THIS page does not list:
+  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -1056,6 +1106,10 @@ turn lens findings into a graded gap on the board, when a defect is real and bel
 The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1148,6 +1202,10 @@ The id is TOOL-assigned. A stable key makes a retry idempotent rather than minti
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
+
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
@@ -1203,7 +1261,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -1213,14 +1270,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -1248,7 +1308,6 @@ Usage:
 
 Available Commands:
   carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  class           the gap-class registry: what KINDS of defect this run recognises
   close           close a gap with the verification you did THIS round, naming what you checked it against
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
@@ -1258,14 +1317,17 @@ Available Commands:
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
   register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   regrade         move a grade on a gap that already exists, with the reason it moved
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
   spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
   verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
