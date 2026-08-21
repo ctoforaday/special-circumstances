@@ -20,7 +20,7 @@ func pay(kv ...string) *record.Payload {
 // nothing (blue's own work — 6 of the smoke's 26 edits were exactly that shape).
 func seedChanges(t *testing.T, runDir string) {
 	t.Helper()
-	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []record.Event{
+	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []*record.Event{
 		ev("red-merge-r1", "aaaaaaaa", 0, 1, "mint", "red-merge-r1:mint:R1-1", pay(
 			"gap_id", "R1-1",
 			"problem", "independence is overclaimed",
@@ -28,7 +28,7 @@ func seedChanges(t *testing.T, runDir string) {
 			"acceptance_check", "the section no longer claims independence",
 			"class", "overclaim", "likelihood", "medium", "impact", "medium")),
 	})
-	writeShard(t, runDir, "blue-respond-r1", "bbbbbbbb", []record.Event{
+	writeShard(t, runDir, "blue-respond-r1", "bbbbbbbb", []*record.Event{
 		ev("blue-respond-r1", "bbbbbbbb", 0, 1, "blue_edit", "blue-respond-r1:blue_edit:e1", pay(
 			"answers", "R1-1", "old", "five independent approaches",
 			"new", "five approaches", "reason", "drop the independence claim")),
@@ -89,7 +89,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 // — including that an edit which omitted --answers would be invisible here.
 func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 	runDir := t.TempDir()
-	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []record.Event{
+	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []*record.Event{
 		ev("red-merge-r1", "aaaaaaaa", 0, 1, "mint", "red-merge-r1:mint:R1-1", pay(
 			"gap_id", "R1-1", "problem", "p", "required_fix", "f", "acceptance_check", "c",
 			"class", "x", "likelihood", "medium", "impact", "medium")),

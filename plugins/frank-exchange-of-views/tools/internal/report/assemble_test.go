@@ -100,7 +100,7 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 }
 
 func TestInquiriesSplitByFate(t *testing.T) {
-	board := &record.Board{Events: []record.Event{
+	board := &record.Board{Events: []*record.Event{
 		{Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "profile the hot path").Set("method", "bench")},
 		{Type: "line-of-inquiry", SeatID: "blue-r1", Payload: record.NewPayload().Set("inquiry_id", "Q2").Set("status", "abandoned").Set("line", "rewrite in Rust").Set("reason", "cost exceeds benefit")},
 		{Type: "line-of-inquiry", SeatID: "red-lens-r1", Payload: record.NewPayload().Set("inquiry_id", "Q3").Set("status", "declined").Set("line", "third-party audit").Set("reason", "out of scope")},
@@ -169,7 +169,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 				"by accident", status)
 			continue
 		}
-		board := &record.Board{Events: []record.Event{{Type: "line-of-inquiry", SeatID: "blue-r1",
+		board := &record.Board{Events: []*record.Event{{Type: "line-of-inquiry", SeatID: "blue-r1",
 			Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", status).Set("line", "the only line")}}}
 		in := map[string]bool{
 			"research":     strings.Contains(inquiries(board, "Research areas", accepted), "the only line"),
@@ -197,7 +197,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 // A MOVED LINE OF INQUIRY IS ONE LINE. Reading raw events rendered a line pursued at r0 and abandoned
 // at r2 under BOTH headings — as an expansion and as an alternative to itself.
 func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
-	board := &record.Board{Events: []record.Event{
+	board := &record.Board{Events: []*record.Event{
 		{Round: 0, Type: "line-of-inquiry", SeatID: "blue-r0", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "rewrite the parser")},
 		{Round: 2, Type: "line-of-inquiry", SeatID: "blue-r2", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "abandoned").Set("reason", "the grammar moved under it")},
 	}}
@@ -219,7 +219,7 @@ func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 // RED'S RULING AND BLUE'S DEFIANCE OF IT ARE THE SUBSTANCE. Blue pursuing a line red ruled
 // out-of-scope looked identical to blue pursuing one red endorsed.
 func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
-	board := &record.Board{Events: []record.Event{
+	board := &record.Board{Events: []*record.Event{
 		{Round: 0, Type: "line-of-inquiry", SeatID: "blue-r0", Payload: record.NewPayload().Set("inquiry_id", "Q1").Set("status", "proposed").Set("line", "survey the adjacent literature")},
 		// The LIVE vocabulary: red rules a direction through `motion inquiry rule`, whose motion_id
 		// IS the line's own id — the proposal is the filing, so there is no second identity. The
@@ -237,7 +237,7 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 }
 
 func TestDebateTranscriptFromEvents(t *testing.T) {
-	evs := []record.Event{
+	evs := []*record.Event{
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Position{Text: proto.String("gap A stands")}),
 		recordtest.Event(t, "blue-r1", 1, &recordpb.Position{Text: proto.String("gap A repaired")}),
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
@@ -326,11 +326,11 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 // A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
 // only the basis distinguishes one from an honest round-0 rewrite.
 func TestRemovalBasisReachesTheReader(t *testing.T) {
-	v := withdrawnClaims([]record.Event{recordtest.Event(t, "blue-r2", 0, &recordpb.Retire{Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalVerified)})})
+	v := withdrawnClaims([]*record.Event{recordtest.Event(t, "blue-r2", 0, &recordpb.Retire{Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalVerified)})})
 	if !strings.Contains(v, "**verified**") || !strings.Contains(v, "the record shows it leaving") {
 		t.Errorf("a verified removal must say the record can show it:\n%s", v)
 	}
-	a := withdrawnClaims([]record.Event{recordtest.Event(t, "blue-r0", 0, &recordpb.Retire{Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
+	a := withdrawnClaims([]*record.Event{recordtest.Event(t, "blue-r0", 0, &recordpb.Retire{Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
 	if !strings.Contains(a, "**asserted**") || !strings.Contains(a, "nothing on the record shows it was ever present") {
 		t.Errorf("an asserted removal must say the record cannot show it:\n%s", a)
 	}
@@ -344,7 +344,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// A PETITION IS A MOTION. This fixture used the retired `petition` type, so after the collapse
 	// the detector counted zero filings and could not fire — the warning it exists to raise was
 	// unreachable while this test went on passing.
-	filed := []record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
+	filed := []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
 	d := debate(&record.Board{Events: filed}, filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
@@ -362,7 +362,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 // `retire`, which names the claim as it stood and why it went — and the reader saw none of it,
 // making a report where a claim was argued and withdrawn identical to one where it was never made.
 func TestWithdrawnClaimsReachTheReader(t *testing.T) {
-	evs := []record.Event{recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Retire{})}
+	evs := []*record.Event{recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Retire{})}
 	w := withdrawnClaims(evs)
 	for _, want := range []string{"the parser is O(n) in the input size", "refuted at the leaf", "superseded by: the parser is O(n) except on backtracking inputs"} {
 		if !strings.Contains(w, want) {
@@ -418,7 +418,7 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 				Mint: record.NewPayload().Set("problem", "already closed.")},
 		},
 	}
-	evs := []record.Event{
+	evs := []*record.Event{
 		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model before shipping")}),
 	}
 	o := orientation(board, evs)
@@ -448,7 +448,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 		Gaps: map[string]*record.Gap{
 			"R1-1": {ID: "R1-1", Mint: record.NewPayload().Set("found_by", []string{"L5-F1", "L6-F2"})},
 		},
-		Events: []record.Event{
+		Events: []*record.Event{
 			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{Label: proto.String("L5-F1"), Text: proto.String("minted — omit")}),
 			recordtest.Event(t, "red-lens-r1-L6", 0, &recordpb.Finding{Label: proto.String("L6-F2"), Text: proto.String("also minted — omit")}),
 			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
@@ -467,7 +467,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 }
 
 func TestFrictionRendered(t *testing.T) {
-	evs := []record.Event{
+	evs := []*record.Event{
 		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Friction{Text: proto.String("the --cx flag is missing from help")}),
 		recordtest.Event(t, "blue-respond-r2", 0, &recordpb.Friction{Text: proto.String("manifest cap fights methodology gaps")}),
 		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Mint{Problem: proto.String("not friction")}),
@@ -493,7 +493,7 @@ func TestCellEscapesTableBreakers(t *testing.T) {
 }
 
 func TestRevisionHistoryFromEvents(t *testing.T) {
-	evs := []record.Event{
+	evs := []*record.Event{
 		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Revision{Text: proto.String("expanded the caching section; retired the stale figure")}),
 		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Revision{Text: proto.String("addressed R2-1 in the analysis")}),
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Position{Text: proto.String("not a revision")}),

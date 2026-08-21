@@ -64,7 +64,7 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 
 	t.Run("manifest row missing after an edit", func(t *testing.T) {
-		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
+		b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
 			recordtest.Event(t, "blue-respond-r1", 0, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
 		}}
 		got := AvailableOf(b, "blue", "blue-respond-r1")
@@ -79,7 +79,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 	})
 
 	t.Run("grade accepted and never moved", func(t *testing.T) {
-		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
+		b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
 			{SeatID: "red-merge-r1", Type: "motion-rule", Payload: NewPayload().
 				Set("subject", "grade").Set("as", "accepted").Set("gap_id", "R1-1")},
 		}}
@@ -96,7 +96,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 	// A REJECTED motion owes no regrade, and saying it does would be the unmeetable expectation
 	// this package's own coverage gate exists to refuse.
 	t.Run("a rejected motion affords no regrade", func(t *testing.T) {
-		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
+		b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
 			{SeatID: "red-merge-r1", Type: "motion-rule", Payload: NewPayload().
 				Set("subject", "grade").Set("as", "rejected").Set("gap_id", "R1-1")},
 		}}
@@ -147,7 +147,7 @@ func inquiryAt(id, status string, round int) Event {
 // line untouched since round 0. The only statuses that DID clear it were `declined`, `abandoned`
 // and `deferred`, all of which mean stop: the channel could express giving up and not carrying on.
 func TestAPursuedInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
-	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
+	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
 		inquiryAt("Q1", "proposed", 0),
 		inquiryAt("Q1", "pursued", 0),
 		inquiryAt("Q2", "pursued", 0),

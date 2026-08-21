@@ -21,24 +21,24 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	merge2 := "red-merge-r2"
 	blue2 := "blue-lane-2"
 
-	writeShard(t, runDir, merge, "aaaaaaaa", []Event{
+	writeShard(t, runDir, merge, "aaaaaaaa", []*Event{
 		recordtest.At(t, merge, "aaaaaaaa", 0, 1, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
 		recordtest.At(t, merge, "aaaaaaaa", 1, 1, merge+":closing:R1-1", &recordpb.Closing{GapId: proto.String("R1-1"), Text: proto.String("red closes r1")}),
 	})
-	writeShard(t, runDir, blue, "bbbbbbbb", []Event{
+	writeShard(t, runDir, blue, "bbbbbbbb", []*Event{
 		recordtest.At(t, blue, "bbbbbbbb", 0, 1, blue+":position", &recordpb.Position{Text: proto.String("blue r1")}),
 		ev(blue, "bbbbbbbb", 1, 1, "confidence", blue+":confidence:C1", NewPayload().Set("label", "claim one").Set("grade", "medium")),
 	})
-	writeShard(t, runDir, judge, "cccccccc", []Event{
+	writeShard(t, runDir, judge, "cccccccc", []*Event{
 		recordtest.At(t, judge, "cccccccc", 0, 1, judge+":opinion:R1-1", &recordpb.Opinion{Disposition: proto.String("upheld"), Principle: proto.String("correctness first")}),
 	})
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).
-	writeShard(t, runDir, merge2, "dddddddd", []Event{
+	writeShard(t, runDir, merge2, "dddddddd", []*Event{
 		recordtest.At(t, merge2, "dddddddd", 0, 2, merge2+":position", &recordpb.Position{Text: proto.String("red r2")}),
 	})
 	// A blue seat that recorded nothing in round 2 (present in the run, silent this round).
-	writeShard(t, runDir, blue2, "eeeeeeee", []Event{})
+	writeShard(t, runDir, blue2, "eeeeeeee", []*Event{})
 
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 // This is enforced in the show read-path; the check here guards the DebateJSONBytes entry.
 func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	runDir := t.TempDir()
-	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []Event{
+	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []*Event{
 		recordtest.At(t, "red-merge-r1", "aaaaaaaa", 0, 1, "red-merge-r1:position", &recordpb.Position{Text: proto.String("red")}),
 	})
 	out, err := DebateJSONBytes(runDir)
@@ -114,7 +114,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	runDir := t.TempDir()
 	m := "red-merge-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
-	writeShard(t, runDir, m, "aaaaaaaa", []Event{
+	writeShard(t, runDir, m, "aaaaaaaa", []*Event{
 		recordtest.At(t, m, "aaaaaaaa", 0, 1, m+":mint:R1-1", &recordpb.Mint{Problem: proto.String(longProblem), Location: proto.String("§open"), RequiredFix: proto.String("SECRET_FIX_PROSE"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		recordtest.At(t, m, "aaaaaaaa", 1, 1, m+":mint:R1-2", &recordpb.Mint{Problem: proto.String("a closed problem"), Location: proto.String("§closed"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk")}),
 		recordtest.At(t, m, "aaaaaaaa", 2, 1, m+":close:R1-2", &recordpb.Close{
@@ -175,7 +175,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := t.TempDir()
 	m := "red-merge-r1"
-	writeShard(t, runDir, m, "aaaaaaaa", []Event{
+	writeShard(t, runDir, m, "aaaaaaaa", []*Event{
 		recordtest.At(t, m, "aaaaaaaa", 0, 1, m+":mint:R1-1", &recordpb.Mint{Problem: proto.String("an open problem"), Location: proto.String("§1"), AcceptanceCheck: proto.String("run the check"), Supersedes: []string{"R0-9"}}),
 	})
 	b, err := BoardJSONBytes(runDir)
@@ -209,11 +209,11 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	runDir := t.TempDir()
 	s := "red-lens-r1-L1"
 	m := "red-merge-r1"
-	writeShard(t, runDir, s, "aaaaaaaa", []Event{
+	writeShard(t, runDir, s, "aaaaaaaa", []*Event{
 		recordtest.At(t, s, "aaaaaaaa", 0, 1, s+":finding:L1-F1", &recordpb.Finding{Label: proto.String("L1-F1"), Text: proto.String("credited")}),
 		recordtest.At(t, s, "aaaaaaaa", 1, 1, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
 	})
-	writeShard(t, runDir, m, "bbbbbbbb", []Event{
+	writeShard(t, runDir, m, "bbbbbbbb", []*Event{
 		recordtest.At(t, m, "bbbbbbbb", 0, 1, m+":mint:k", &recordpb.Mint{GapId: proto.String("R1-1"), FoundBy: []string{"L1-F1"}}),
 	})
 	b, err := BoardState(runDir)

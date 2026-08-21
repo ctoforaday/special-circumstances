@@ -118,7 +118,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 	t.Run("terminal event wins over a newer shard", func(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "red-merge-r1"
-		withTerminal := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+		withTerminal := writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":register:aaaaaaaa", &recordpb.Register{}),
 			recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":verdict", &recordpb.Verdict_{
 				// The seat types PASS and the schema spells `pass`; recordpb.BySpelling is case-sensitive
@@ -126,7 +126,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 				Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS),
 			}),
 		})
-		withoutTerminal := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
+		withoutTerminal := writeShard(t, runDir, seatID, "bbbbbbbb", []*Event{
 			recordtest.At(t, seatID, "bbbbbbbb", 0, 1, seatID+":register:bbbbbbbb", &recordpb.Register{}),
 			recordtest.At(t, seatID, "bbbbbbbb", 1, 1, seatID+":position", &recordpb.Position{Text: proto.String("loser")}),
 		})
@@ -183,8 +183,8 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		early.TS = "2026-01-01T00:00:00.000000000Z"
 		late := recordtest.At(t, seatID, "bbbbbbbb", 0, 1, seatID+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("newer")})
 		late.TS = "2026-01-01T00:00:00.000000001Z" // one nanosecond, which is what nextStamp issues on a tie
-		loser := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{early})
-		winner := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{late})
+		loser := writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{early})
+		winner := writeShard(t, runDir, seatID, "bbbbbbbb", []*Event{late})
 
 		now := time.Now()
 		if err := os.Chtimes(loser, now, now); err != nil { // the LOSER is the newest file
@@ -210,10 +210,10 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 	t.Run("a revision is terminal too", func(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "blue-lane-1"
-		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+		writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 			recordtest.At(t, seatID, "aaaaaaaa", 0, 0, seatID+":revision", &recordpb.Revision{Text: proto.String("won")}),
 		})
-		writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
+		writeShard(t, runDir, seatID, "bbbbbbbb", []*Event{
 			recordtest.At(t, seatID, "bbbbbbbb", 0, 0, seatID+":friction:#1", &recordpb.Friction{Text: proto.String("lost")}),
 		})
 		m, err := MergedEvents(runDir)
@@ -228,7 +228,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 	t.Run("a single shard produces no anomaly", func(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "red-lens-r1-L1"
-		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+		writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":finding:F1", &recordpb.Finding{Label: proto.String("F1")}),
 		})
 		m, err := MergedEvents(runDir)
@@ -244,14 +244,14 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 // Global ordering is round, then seat, then seq — deterministic across shards.
 func TestMergedEventsGlobalOrderIsDeterministic(t *testing.T) {
 	runDir := t.TempDir()
-	writeShard(t, runDir, "red-lens-r2-L1", "aaaaaaaa", []Event{
+	writeShard(t, runDir, "red-lens-r2-L1", "aaaaaaaa", []*Event{
 		recordtest.At(t, "red-lens-r2-L1", "aaaaaaaa", 1, 2, "b:1", &recordpb.Finding{Label: proto.String("r2-second")}),
 		recordtest.At(t, "red-lens-r2-L1", "aaaaaaaa", 0, 2, "b:0", &recordpb.Finding{Label: proto.String("r2-first")}),
 	})
-	writeShard(t, runDir, "red-lens-r1-L1", "bbbbbbbb", []Event{
+	writeShard(t, runDir, "red-lens-r1-L1", "bbbbbbbb", []*Event{
 		recordtest.At(t, "red-lens-r1-L1", "bbbbbbbb", 0, 1, "a:0", &recordpb.Finding{Label: proto.String("r1-first")}),
 	})
-	writeShard(t, runDir, "red-merge-r1", "cccccccc", []Event{
+	writeShard(t, runDir, "red-merge-r1", "cccccccc", []*Event{
 		recordtest.At(t, "red-merge-r1", "cccccccc", 0, 1, "c:0", &recordpb.Position{}),
 	})
 	m, err := MergedEvents(runDir)
@@ -274,7 +274,7 @@ func TestMergedEventsGlobalOrderIsDeterministic(t *testing.T) {
 func TestMergedEventsDedupByKeyExceptRegister(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-lens-r1-L1"
-	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+	writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":register:aaaaaaaa", &recordpb.Register{}),
 		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
 		recordtest.At(t, seatID, "aaaaaaaa", 2, 1, seatID+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("duplicate")}),
@@ -466,7 +466,7 @@ func TestExistingMintByKey(t *testing.T) {
 func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
-	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+	writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		// A regrade moves ONLY the keys it carries.
@@ -520,7 +520,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
-	writeShard(t, runDir, lens, "aaaaaaaa", []Event{
+	writeShard(t, runDir, lens, "aaaaaaaa", []*Event{
 		recordtest.At(t, lens, "aaaaaaaa", 0, 1, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
 		recordtest.At(t, lens, "aaaaaaaa", 1, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
 	})
@@ -735,7 +735,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 func TestValidateRefusesDanglingLineage(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
-	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+	writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1")}),
 	})
 	base := func() *Payload {
@@ -764,7 +764,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	// BOTH gaps are minted: R1-1 is the one being closed, R2-1 the successor a
 	// closed_with_regression names. A successor is a reference like any other and is
 	// now checked, so a fixture that names one has to create it.
-	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+	writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1")}),
 		recordtest.At(t, seatID, "aaaaaaaa", 1, 2, seatID+":mint:R2-1", &recordpb.Mint{GapId: proto.String("R2-1")}),
 	})
@@ -920,7 +920,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
 		seatID := "red-merge-r1"
-		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
+		writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
 		})
 		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "run-local-class"))); err != nil {
@@ -971,12 +971,12 @@ func TestDeriveKey(t *testing.T) {
 		{name: "id, observation, anchor and url are also labels", typ: "cite", p: NewPayload().Set("url", "https://x"), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
 		{
 			name: "with no label at all, a per-shard ordinal", typ: "friction", p: NewPayload(), seatID: "blue-lane-1",
-			prior: []Event{recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Position{})},
+			prior: []*Event{recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Position{})},
 			want:  "blue-lane-1:friction:#3",
 		},
 		{
 			name: "the ordinal counts only the SAME verb", typ: "friction", p: NewPayload(), seatID: "blue-lane-1",
-			prior: []Event{recordtest.Event(t, "", 0, &recordpb.Position{}), recordtest.Event(t, "", 0, &recordpb.Finding{})},
+			prior: []*Event{recordtest.Event(t, "", 0, &recordpb.Position{}), recordtest.Event(t, "", 0, &recordpb.Finding{})},
 			want:  "blue-lane-1:friction:#1",
 		},
 		{name: "an empty label falls through to the ordinal", typ: "finding", p: NewPayload().Set("label", ""), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
@@ -1083,8 +1083,8 @@ func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
 		work := recordtest.Stamped(recordtest.At(t, "red-merge-r1", "", 0, 0, "red-merge-r1:mint:R1-1", &recordpb.Mint{}), "2026-01-01T00:00:01Z")
 		a, b := work, work
 		a.Nonce, b.Nonce = "aaaaaaaa", "bbbbbbbb"
-		shard(t, dir, "red-merge-r1", "aaaaaaaa", []Event{reg("red-merge-r1", "aaaaaaaa"), a})
-		shard(t, dir, "red-merge-r1", "bbbbbbbb", []Event{reg("red-merge-r1", "bbbbbbbb"), b})
+		shard(t, dir, "red-merge-r1", "aaaaaaaa", []*Event{reg("red-merge-r1", "aaaaaaaa"), a})
+		shard(t, dir, "red-merge-r1", "bbbbbbbb", []*Event{reg("red-merge-r1", "bbbbbbbb"), b})
 
 		m, err := MergedEvents(dir)
 		if err != nil {
@@ -1107,8 +1107,8 @@ func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
 		// falls to mtime and the earlier sitting's rulings vanish.
 		first := recordtest.Stamped(recordtest.At(t, "judge-petition", "aaaaaaaa", 0, 0, "judge-petition:motion-rule:M1", &recordpb.MotionRule{}), "2026-01-01T00:00:01Z")
 		second := recordtest.Stamped(recordtest.At(t, "judge-petition", "bbbbbbbb", 0, 0, "judge-petition:motion-rule:M2", &recordpb.MotionRule{}), "2026-01-01T00:00:02Z")
-		shard(t, dir, "judge-petition", "aaaaaaaa", []Event{reg("judge-petition", "aaaaaaaa"), first})
-		shard(t, dir, "judge-petition", "bbbbbbbb", []Event{reg("judge-petition", "bbbbbbbb"), second})
+		shard(t, dir, "judge-petition", "aaaaaaaa", []*Event{reg("judge-petition", "aaaaaaaa"), first})
+		shard(t, dir, "judge-petition", "bbbbbbbb", []*Event{reg("judge-petition", "bbbbbbbb"), second})
 
 		m, err := MergedEvents(dir)
 		if err != nil {

@@ -29,7 +29,7 @@ func TestGapHoleHeuristic(t *testing.T) {
 			"UNANSWERED":   {ID: "UNANSWERED", Open: true, Mint: p("class", "c")},
 			"OPEN":         {ID: "OPEN", Open: true, Mint: p("class", "c")},
 		},
-		Events: []record.Event{
+		Events: []*record.Event{
 			// A GRADE MOTION FILED AND NEVER RULED. This fixture used a `dispute` event until the
 			// motion collapse retired the type; the counters then read zero for every run and the
 			// hole detector could not fire at all, while this test went on passing against a
@@ -71,7 +71,7 @@ func lineClass(mermaid, node string) string {
 
 func TestSeatFlowTalliesEvents(t *testing.T) {
 	b := &record.Board{
-		Events: []record.Event{
+		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Register{}),
 			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{}),
 			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{}),
@@ -89,7 +89,7 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 	b := &record.Board{
 		GapOrder: []string{"ANSWERED"},
 		Gaps:     map[string]*record.Gap{"ANSWERED": {ID: "ANSWERED", Open: true, Mint: p("class", "c")}},
-		Events: []record.Event{
+		Events: []*record.Event{
 			{Type: "motion", Payload: p("motion_id", "M1").Set("subject", "grade").Set("gap_id", "ANSWERED")},
 			{Type: "motion-rule", Payload: p("motion_id", "M1").Set("subject", "grade").Set("ruling", "accepted")},
 		},

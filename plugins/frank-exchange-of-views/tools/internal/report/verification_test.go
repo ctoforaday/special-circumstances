@@ -23,7 +23,7 @@ func pl(kv ...string) *record.Payload {
 // This is what makes that sentence true in the register it meant.
 func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 	b := &record.Board{
-		Events: []record.Event{
+		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
 		},
@@ -60,7 +60,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 // contradictory record and a reader who believes it is this text.
 func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 	b := &record.Board{
-		Events: []record.Event{
+		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
 		},
@@ -87,7 +87,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 // for its whole life, and a report is read by someone who cannot inspect the code.
 func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	b := &record.Board{
-		Events: []record.Event{
+		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "FAIL")},
 		},

@@ -39,7 +39,7 @@ func edit(gapID string, verbatim bool) Event {
 // The core rule: a finding located in text red prescribed and blue applied VERBATIM names
 // the gap that prescribed it.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", true)})
 
 	id, got := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
 	if id != "R1-1" {
@@ -52,7 +52,7 @@ func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", true)})
 	if id, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); id != "R1-1" {
 		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", id)
 	}
@@ -61,7 +61,7 @@ func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 // ESTOPPEL ATTACHES TO RED'S OWN WORDS AND NOTHING ELSE. If blue counter-edited, the text is
 // blue's authorship and red audits it normally — that is the right to disagree staying real.
 func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []Event{edit("R1-1", false)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", false)})
 	if id, _ := EstoppelConflict(b, prescribed); id != "" {
 		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", id)
 	}
@@ -70,7 +70,7 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // Text red never prescribed is auditable, obviously — the guard must not become a general
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", true)})
 	if id, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); id != "" {
 		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", id)
 	}
@@ -79,7 +79,7 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // The overlap floor exists so a short prescription cannot shield half the report. Refusing a
 // real finding is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": "7 is prime."}, []Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": "7 is prime."}, []*Event{edit("R1-1", true)})
 	if id, _ := EstoppelConflict(b, "7 is prime."); id != "" {
 		t.Errorf("a %d-character prescription estopped a finding (gap %q); the floor is %d",
 			len("7 is prime."), id, minEstoppelOverlap)
@@ -93,7 +93,7 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 		"R1-2": prescribed + " Two", // blue counter-edited
 		"R1-3": prescribed + " Three",
 		"R1-4": "", // prose only: not an offer, must not be counted
-	}, []Event{
+	}, []*Event{
 		edit("R1-1", true),
 		edit("R1-2", false),
 		// R1-3 offered and never answered.
@@ -120,7 +120,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 	fr := func(text string) Event {
 		return recordtest.Event(t, "red-merge-r2", 2, &recordpb.Friction{})
 	}
-	b := board(t, nil, []Event{
+	b := board(t, nil, []*Event{
 		fr("merge mint: estoppel — this gap's location is text YOU prescribed"),
 		fr("Refused: you are raising a fresh gap against your own prescription."), // reworded
 	})
@@ -134,7 +134,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 // count — the same confusion between a mention and the thing itself that the hook's
 // position matcher exists to avoid.
 func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
-	b := board(t, nil, []Event{
+	b := board(t, nil, []*Event{
 		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Friction{}),
 	})
 	if got := EstoppelRejections(b); got != 0 {
@@ -145,7 +145,7 @@ func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 // Zero is a real answer and must be reachable, so the printed "0" means "the guard did not
 // fire" rather than "the detector is broken".
 func TestNoRejectionsCountsZero(t *testing.T) {
-	b := board(t, nil, []Event{
+	b := board(t, nil, []*Event{
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Friction{Text: proto.String("the fetch cache refused an unreachable url")}),
 	})
 	if got := EstoppelRejections(b); got != 0 {

@@ -93,7 +93,7 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		{"claim_count": float64(10)},
 		{"claim_count": float64(7)},
 	}
-	board := &record.Board{Events: []record.Event{recordtest.Event(t, "", 0, &recordpb.Retire{})}} // one recorded retirement
+	board := &record.Board{Events: []*record.Event{recordtest.Event(t, "", 0, &recordpb.Retire{})}} // one recorded retirement
 	r := rowByMetric(blueRows("", results, nil, board), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)

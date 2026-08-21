@@ -354,7 +354,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	if len(longRationale) <= 600 {
 		t.Fatal("fixture must exceed the old 600-char cap")
 	}
-	board := &record.Board{Events: []record.Event{
+	board := &record.Board{Events: []*record.Event{
 		recordtest.Event(t, "judge-r2", 2, &recordpb.Opinion{Disposition: proto.String("risk_accepted")}),
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
