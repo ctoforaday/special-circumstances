@@ -26,7 +26,7 @@ func recordWithRounds(t *testing.T, n int) string {
 		seat := "red-merge-r" + itoa(r)
 		// The shard filename's nonce must be exactly 8 hex chars (record's shardRe).
 		nonce := "0000000" + string("0123456789abcdef"[r%16])
-		e := record.recordtest.At(t, seat, nonce, 0, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{GapId: proto.String("R" + itoa(r) + "-1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+		e := recordtest.At(t, seat, nonce, 0, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{GapId: proto.String("R" + itoa(r) + "-1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		line, err := record.MarshalEvent(e)
 		if err != nil {
 			t.Fatal(err)
@@ -273,7 +273,7 @@ func seedRevisions(t *testing.T, runDir string, rounds int) {
 	for r := 1; r <= rounds; r++ {
 		seat := "blue-respond-r" + itoa(r)
 		nonce := "2000000" + string("0123456789abcdef"[r%16])
-		e := record.recordtest.At(t, seat, nonce, 0, r, seat+":revision", &recordpb.Revision{Text: proto.String("round " + itoa(r) + " edits")})
+		e := recordtest.At(t, seat, nonce, 0, r, seat+":revision", &recordpb.Revision{Text: proto.String("round " + itoa(r) + " edits")})
 		line, err := record.MarshalEvent(e)
 		if err != nil {
 			t.Fatal(err)

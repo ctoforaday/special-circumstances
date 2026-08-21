@@ -352,7 +352,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// The ruling joins by MOTION ID, which is the whole point of the collapse: `petition-rule`
 	// carried only the petitioner, so two filings by one seat in one round could not be told
 	// apart. record.Motions pairs the answer to its ask exactly.
-	answered := append(filed, record.recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Opinion: proto.String("the hazard is graded, not buried")}))
+	answered := append(filed, recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Opinion: proto.String("the hazard is graded, not buried")}))
 	if d := debate(&record.Board{Events: answered}, answered); strings.Contains(d, "received no ruling") {
 		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
 	}
