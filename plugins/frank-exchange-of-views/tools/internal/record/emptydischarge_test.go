@@ -2,6 +2,7 @@ package record
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 )
@@ -37,7 +38,7 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 
 func TestARealDischargeIsAccepted(t *testing.T) {
 	for _, typ := range []string{"friction", "friction-none", "position", "revision"} {
-		p := NewPayload().Set("reason", "what I reached for and what happened")
+		p := &recordpb.Revision{Text: proto.String("what I reached for and what happened")}
 		if err := validate(t.TempDir(), "blue-respond-r1", typ, p); err != nil {
 			t.Errorf("%s with a reason was refused: %v", typ, err)
 		}

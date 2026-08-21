@@ -2,6 +2,8 @@ package cli
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -209,7 +211,7 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 		Seq: len(strings.Split(strings.TrimSpace(string(existing)), "\n")),
 		TS:  "2099-01-01T00:00:00.000000000Z", SeatID: "red-merge-r1", Nonce: nonce,
 		Round: 1, Type: "verdict", Key: "red-merge-r1:verdict",
-		Payload: record.NewPayload().Set("verdict", "PASS"),
+		Payload: &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)},
 	}
 	line, err := record.MarshalEvent(ev)
 	if err != nil {

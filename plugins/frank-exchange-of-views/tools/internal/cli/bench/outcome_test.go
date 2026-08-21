@@ -1,6 +1,8 @@
 package bench
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -97,7 +99,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		}
 	}
 	// A PASS on the record makes VERIFIED derivable, with a stated basis.
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "verdict", record.NewPayload().Set("verdict", "PASS")); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "verdict", &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
 		t.Fatal(err)
 	}
 	c := NewCommand()

@@ -588,18 +588,18 @@ func TestValidateVerbContracts(t *testing.T) {
 		p       *Payload
 		wantErr string // empty means it must be ACCEPTED
 	}{
-		{"mint without --check", "mint", NewPayload().Set("class", "x"), "mint requires --check"},
-		{"mint with an empty --check", "mint", NewPayload().Set("class", "x").Set("acceptance_check", ""), "mint requires --check"},
-		{"mint without --class", "mint", NewPayload().Set("acceptance_check", "c").Set("check_kind", "document"), "mint requires --class"},
-		{"mint complete", "mint", NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p"), ""},
+		{"mint without --check", "mint", &recordpb.Mint{Class: proto.String("x")}, "mint requires --check"},
+		{"mint with an empty --check", "mint", &recordpb.Mint{Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
+		{"mint without --class", "mint", &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
+		{"mint complete", "mint", &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
 
-		{"close without --id", "close", NewPayload(), "close requires --id"},
-		{"regrade without --basis", "regrade", NewPayload(), "regrade requires --reason"},
-		{"regrade complete", "regrade", NewPayload().Set("reason", "b"), ""},
+		{"close without --id", "close", &recordpb.Close{}, "close requires --id"},
+		{"regrade without --basis", "regrade", &recordpb.Regrade{}, "regrade requires --reason"},
+		{"regrade complete", "regrade", &recordpb.Regrade{Basis: proto.String("b")}, ""},
 
-		{"retire without --claim", "retire", NewPayload().Set("reason", "r"), "retire requires --claim"},
-		{"retire without --reason", "retire", NewPayload().Set("claim", "c"), "retire requires --reason"},
-		{"retire complete", "retire", NewPayload().Set("claim", "c").Set("reason", "r"), ""},
+		{"retire without --claim", "retire", &recordpb.Retire{Reason: proto.String("r")}, "retire requires --claim"},
+		{"retire without --reason", "retire", &recordpb.Retire{Claim: proto.String("c")}, "retire requires --reason"},
+		{"retire complete", "retire", &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
 
 		{"line-of-inquiry with an unknown status", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "shelved").Set("line", "l"), "line-of-inquiry requires --as"},
 		{"line-of-inquiry with no status at all", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("line", "l"), "line-of-inquiry requires --as"},
@@ -614,7 +614,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
-		{"opinion missing every field", "opinion", NewPayload(), "opinion requires --id"},
+		{"opinion missing every field", "opinion", &recordpb.Opinion{}, "opinion requires --id"},
 		{"an unknown verb is not validated here", "no-such-verb", NewPayload(), ""},
 	}
 	for _, tc := range cases {
@@ -828,7 +828,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
-		if err := validate(t.TempDir(), "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all"))); err != nil {
+		if err := validate(t.TempDir(), "red-merge-r1", "mint", mint(&recordpb.Mint{Class: proto.String("anything-at-all")})); err != nil {
 			t.Errorf("advisory mode refused a class: %v", err)
 		}
 	})
@@ -845,7 +845,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unparseable registry is refused, not waved through", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, "{not json")
-		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "anything-at-all")))
+		err := validate(runDir, "red-merge-r1", "mint", mint(&recordpb.Mint{Class: proto.String("anything-at-all")}))
 		if err == nil {
 			t.Fatal("a corrupt registry accepted an arbitrary class — every --class passes while it stays that way, and the run reads as validated")
 		}
@@ -857,7 +857,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a known slug passes", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "scope-creep"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(&recordpb.Mint{Class: proto.String("scope-creep")})); err != nil {
 			t.Errorf("a registry slug was refused: %v", err)
 		}
 	})
@@ -865,7 +865,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unknown slug is refused with a hint", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented")))
+		err := validate(runDir, "red-merge-r1", "mint", mint(&recordpb.Mint{Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("an unknown class was accepted")
 		}
@@ -923,7 +923,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
 		})
-		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "run-local-class"))); err != nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(&recordpb.Mint{Class: proto.String("run-local-class")})); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
@@ -937,7 +937,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one"}]}`)
-		err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented")))
+		err := validate(runDir, "red-merge-r1", "mint", mint(&recordpb.Mint{Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("expected a refusal")
 		}
@@ -949,7 +949,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an EMPTY registry is still strict and does not panic", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[]}`)
-		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "invented"))); err == nil {
+		if err := validate(runDir, "red-merge-r1", "mint", mint(&recordpb.Mint{Class: proto.String("invented")})); err == nil {
 			t.Error("an empty registry accepted an invented class")
 		}
 	})
@@ -964,23 +964,23 @@ func TestDeriveKey(t *testing.T) {
 		want   string
 		seatID string
 	}{
-		{name: "singleton verbs key on seat+verb", typ: "position", p: NewPayload(), seatID: "red-merge-r1", want: "red-merge-r1:position"},
-		{name: "verdict is a singleton", typ: "verdict", p: NewPayload().Set("gap_id", "R1-1"), seatID: "red-merge-r1", want: "red-merge-r1:verdict"},
-		{name: "gap_id is the first label consulted", typ: "close", p: NewPayload().Set("gap_id", "R1-1").Set("label", "ignored"), seatID: "red-merge-r1", want: "red-merge-r1:close:R1-1"},
-		{name: "label when there is no gap_id", typ: "finding", p: NewPayload().Set("label", "F1"), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:F1"},
-		{name: "id, observation, anchor and url are also labels", typ: "cite", p: NewPayload().Set("url", "https://x"), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
+		{name: "singleton verbs key on seat+verb", typ: "position", p: &recordpb.Position{}, seatID: "red-merge-r1", want: "red-merge-r1:position"},
+		{name: "verdict is a singleton", typ: "verdict", p: &recordpb.Verdict_{}, seatID: "red-merge-r1", want: "red-merge-r1:verdict"},
+		{name: "gap_id is the first label consulted", typ: "close", p: &recordpb.Close{GapId: proto.String("R1-1")}, seatID: "red-merge-r1", want: "red-merge-r1:close:R1-1"},
+		{name: "label when there is no gap_id", typ: "finding", p: &recordpb.Finding{Label: proto.String("F1")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:F1"},
+		{name: "id, observation, anchor and url are also labels", typ: "cite", p: &recordpb.Cite{Url: proto.String("https://x")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
 		{
-			name: "with no label at all, a per-shard ordinal", typ: "friction", p: NewPayload(), seatID: "blue-lane-1",
+			name: "with no label at all, a per-shard ordinal", typ: "friction", p: &recordpb.Friction{}, seatID: "blue-lane-1",
 			prior: []*Event{recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Position{})},
 			want:  "blue-lane-1:friction:#3",
 		},
 		{
-			name: "the ordinal counts only the SAME verb", typ: "friction", p: NewPayload(), seatID: "blue-lane-1",
+			name: "the ordinal counts only the SAME verb", typ: "friction", p: &recordpb.Friction{}, seatID: "blue-lane-1",
 			prior: []*Event{recordtest.Event(t, "", 0, &recordpb.Position{}), recordtest.Event(t, "", 0, &recordpb.Finding{})},
 			want:  "blue-lane-1:friction:#1",
 		},
-		{name: "an empty label falls through to the ordinal", typ: "finding", p: NewPayload().Set("label", ""), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
-		{name: "a non-string label falls through", typ: "finding", p: NewPayload().Set("label", true), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
+		{name: "an empty label falls through to the ordinal", typ: "finding", p: &recordpb.Finding{Label: proto.String("")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
+		{name: "a non-string label falls through", typ: "finding", p: &recordpb.Finding{Label: proto.String(true)}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

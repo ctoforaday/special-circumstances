@@ -1,6 +1,8 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 )
@@ -134,7 +136,7 @@ func TestTheRefusalNamesTheSetAndTheConsequence(t *testing.T) {
 // A case near-miss is called out AS a case near-miss. "PASS | FAIL" alone does not tell a
 // seat that lowercase was the entire problem, and lowercase is what was measured.
 func TestACaseNearMissIsNamedAsOne(t *testing.T) {
-	err := checkEnum("verdict", NewPayload().Set("verdict", "pass"))
+	err := checkEnum("verdict", &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})
 	if err == nil {
 		t.Fatal("`pass` was accepted")
 	}

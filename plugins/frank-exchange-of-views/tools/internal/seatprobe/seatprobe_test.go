@@ -1,6 +1,8 @@
 package seatprobe
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 
@@ -46,7 +48,7 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "the round's narrative")},
+		{seat: "blue-respond-r1", typ: "position", payload: &recordpb.Position{Text: proto.String("the round's narrative")}},
 	})
 
 	c, err := Read(surface(), runDir, "blue-respond-r1")
@@ -82,7 +84,7 @@ func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "blue_edit", payload: record.NewPayload().
+		{seat: "blue-respond-r1", typ: "blue_edit", payload: &recordpb.BlueEdit{}.
 			Set("old", "a").Set("new", "b").Set("reason", "why")},
 	})
 	c, err := Read(surface(), runDir, "blue-respond-r1")
@@ -113,7 +115,7 @@ func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 		evs = append(evs, struct {
 			seat, typ string
 			payload   *record.Payload
-		}{"blue-respond-r1", "blue_edit", record.NewPayload().
+		}{"blue-respond-r1", "blue_edit", &recordpb.BlueEdit{}.
 			Set("old", "a").Set("new", "b").Set("reason", "why")})
 	}
 	runDir := writeRun(t, evs)
@@ -140,7 +142,7 @@ func TestNoFrictionIsNotReportedAsACleanBoard(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "n")},
+		{seat: "blue-respond-r1", typ: "position", payload: &recordpb.Position{Text: proto.String("n")}},
 	})
 	out, err := Report(surface(), runDir, []string{"blue-respond-r1"}, nil, nil)
 	if err != nil {

@@ -113,13 +113,13 @@ func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
 // case while telling us nothing.
 func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 	for typ, p := range map[string]*Payload{
-		"regrade": NewPayload().Set("reason", "b"),
-		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
+		"regrade": &recordpb.Regrade{Basis: proto.String("b")},
+		"retire":  &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")},
 		// inquiry_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate
 		// requires it and no flag sets it, so it is not in RequiredFields but must be present
 		// for a complete payload.
 		"line-of-inquiry": NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "l"),
-		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
+		"opinion": &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: proto.String("carried")}.
 			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("reason", "r"),
 	} {
 		dir := t.TempDir()

@@ -1,6 +1,8 @@
 package seatprobe
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"os"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -92,7 +94,7 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "n")},
+		{seat: "blue-respond-r1", typ: "position", payload: &recordpb.Position{Text: proto.String("n")}},
 	})
 
 	attempts := map[string]map[string]int{"blue-respond-r1": {"show": 9}}

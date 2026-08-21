@@ -2,6 +2,8 @@ package cli
 
 import (
 	"crypto/x509"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"io"
 	"net"
 	"net/http"
@@ -165,7 +167,7 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	}
 	ev := record.Event{
 		TS: "2026-08-16T00:00:00Z", SeatID: "judge-terminal", Nonce: "aaaaaaaa", Type: "outcome",
-		Key: "judge-terminal:outcome:1", Payload: record.NewPayload().Set("verdict", "UNVERIFIED"),
+		Key: "judge-terminal:outcome:1", Payload: &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED)},
 	}
 	b, err := record.MarshalEvent(ev)
 	if err != nil {
