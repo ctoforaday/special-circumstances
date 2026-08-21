@@ -23,173 +23,171 @@ func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 	var supersedes, foundBy flags.CSV
 
-	c := seat.Prose(seat.New("mint",
-		`mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			// Crash-retry idempotency: --key (the stable local label, e.g. the source
-			// lens finding) makes a retried mint return the EXISTING id.
-			prior, err := record.ExistingMintByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key))
+	c := seat.Prose(seat.New("mint", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		// Crash-retry idempotency: --key (the stable local label, e.g. the source
+		// lens finding) makes a retried mint return the EXISTING id.
+		prior, err := record.ExistingMintByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key))
+		if err != nil {
+			return nil, err
+		}
+		if prior != "" {
+			return mintResult{GapID: prior, Idempotent: true}, nil
+		}
+		// The round comes from the seat's CONTEXT, not from re-reading its id here.
+		// A gap id is the run's primary public identifier — printed in the report and
+		// referenced by --supersedes, --id and found_by — so it is minted from the round
+		// the seat resolved ONCE, at the seam, rather than re-derived at this call site.
+		// The two answered the same even when the derivation was broken, which is exactly
+		// why keeping one resolution point matters: a divergence here would be invisible.
+		gapID, err := record.MintGapID(s.RunDir, s.Round)
+		if err != nil {
+			return nil, err
+		}
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		problem := seat.Str(cmd, flags.Problem)
+		if problem == "" {
+			problem = text
+		}
+		// RED'S ARGUMENT IS KEPT WHEN IT IS NOT THE PROBLEM STATEMENT ITSELF.
+		//
+		// It was discarded. `--reason` fell back to `--problem` only when problem was empty,
+		// so the ordinary mint — which supplies both — recorded the problem and threw the
+		// reasoning away, while `--reason`'s own help promises "the substance the report
+		// renders and the other side answers". The write returned "minted R1-4" either way.
+		//
+		// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
+		// a required_fix may demand, it reported first among its missing things: "Red's closing
+		// or reasoning — Why did red mint this gap? Do they believe blue DID run a search and
+		// just didn't describe it? The gap's problem statement is clear, but red's intent for
+		// the fix isn't visible to me." It was adjudicating red's intent with red's intent
+		// unrecorded.
+		//
+		// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
+		// answers and a bench weighs. Stored only when the two differ, so a mint that passed
+		// its problem through --reason does not carry it twice.
+		p := record.NewPayload().Set("gap_id", gapID)
+		if text != "" && text != problem {
+			p.Set("mint_reason", text)
+		}
+		seat.Set(cmd, p, "mint_key", flags.Key)
+		// COINING A CLASS IS `merge class new`, a verb of its own. This one names a slug
+		// the registry already has; class_new records whether THIS run coined it, which
+		// the registry knows and a seat no longer has to assert.
+		seat.Set(cmd, p, "class", flags.Class)
+		p.Set("class_new", record.ClassCoinedInRun(s.RunDir, seat.Str(cmd, flags.Class)))
+
+		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
+		//
+		// `lens finding --quote` is REFUSED on a mis-quote — the anchor cannot be spliced
+		// where the text is not. Mint's took prose, on the reasoning that a gap's location is
+		// "recorded for a reader". Measured (#359): three gaps were minted naming report
+		// sections that do not exist, two of them `--existence verified`. A seat asserted it
+		// had checked a defect at the leaf, at a place the tool never confirmed was there.
+		//
+		// A location a reader cannot find is not a location. It is refused now, by the same
+		// rule the lens has always been held to.
+		//
+		// AN OMISSION STILL HAS A PLACE. A gap about something MISSING has no span of its own
+		// — so quote the sentence where it should be, which is exactly what a lens finding
+		// about an omission already does. The refusal says so, because a seat that reads
+		// "not found in report.md" and has an omission on its hands would otherwise conclude
+		// the verb cannot express what it is holding.
+		if loc := seat.Str(cmd, flags.Quote); strings.TrimSpace(loc) != "" {
+			report, err := record.ReadBlueReport(s.RunDir)
 			if err != nil {
 				return nil, err
 			}
-			if prior != "" {
-				return mintResult{GapID: prior, Idempotent: true}, nil
+			if _, _, lerr := bluedoc.LocateUnique("merge mint --quote", string(report), loc); lerr != nil {
+				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission", lerr)
 			}
-			// The round comes from the seat's CONTEXT, not from re-reading its id here.
-			// A gap id is the run's primary public identifier — printed in the report and
-			// referenced by --supersedes, --id and found_by — so it is minted from the round
-			// the seat resolved ONCE, at the seam, rather than re-derived at this call site.
-			// The two answered the same even when the derivation was broken, which is exactly
-			// why keeping one resolution point matters: a divergence here would be invisible.
-			gapID, err := record.MintGapID(s.RunDir, s.Round)
+		}
+		seat.Set(cmd, p, "location", flags.Quote)
+		p.Set("problem", problem)
+		seat.Set(cmd, p, "required_fix", flags.Fix)
+		// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
+		//
+		// `required_fix` is prose ("acknowledge the shared definition"), which blue cannot
+		// apply verbatim. Red MAY instead state the exact span and the exact replacement —
+		// and stating one legally is impossible from memory of what the report probably
+		// says, which is the forced re-read this whole axis exists for: all three of the
+		// smoke's round-2 gaps were contradictions between blue's new text and text red
+		// never re-read before prescribing.
+		//
+		// So `fix_basis` is COMPUTED from whether a validated pair is present. It is not a
+		// flag. A seat asked to self-report "verified | proposed" reports the flattering
+		// one, and the field becomes decoration — the same reason the finding label and the
+		// gap id are tool-assigned rather than claimed.
+		basis := "proposed"
+		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
+			report, err := record.ReadBlueReport(s.RunDir)
 			if err != nil {
 				return nil, err
 			}
-			text, err := seat.Reason(cmd)
-			if err != nil {
+			if err := bluedoc.ValidateProposal("merge mint", string(report), seat.Str(cmd, flags.Quote), fixNew); err != nil {
 				return nil, err
 			}
-			problem := seat.Str(cmd, flags.Problem)
-			if problem == "" {
-				problem = text
-			}
-			// RED'S ARGUMENT IS KEPT WHEN IT IS NOT THE PROBLEM STATEMENT ITSELF.
-			//
-			// It was discarded. `--reason` fell back to `--problem` only when problem was empty,
-			// so the ordinary mint — which supplies both — recorded the problem and threw the
-			// reasoning away, while `--reason`'s own help promises "the substance the report
-			// renders and the other side answers". The write returned "minted R1-4" either way.
-			//
-			// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
-			// a required_fix may demand, it reported first among its missing things: "Red's closing
-			// or reasoning — Why did red mint this gap? Do they believe blue DID run a search and
-			// just didn't describe it? The gap's problem statement is clear, but red's intent for
-			// the fix isn't visible to me." It was adjudicating red's intent with red's intent
-			// unrecorded.
-			//
-			// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
-			// answers and a bench weighs. Stored only when the two differ, so a mint that passed
-			// its problem through --reason does not carry it twice.
-			p := record.NewPayload().Set("gap_id", gapID)
-			if text != "" && text != problem {
-				p.Set("mint_reason", text)
-			}
-			seat.Set(cmd, p, "mint_key", flags.Key)
-			// COINING A CLASS IS `merge class new`, a verb of its own. This one names a slug
-			// the registry already has; class_new records whether THIS run coined it, which
-			// the registry knows and a seat no longer has to assert.
-			seat.Set(cmd, p, "class", flags.Class)
-			p.Set("class_new", record.ClassCoinedInRun(s.RunDir, seat.Str(cmd, flags.Class)))
+			p.Set("fix_new", fixNew)
+			basis = "verified"
+		}
+		p.Set("fix_basis", basis)
+		seat.Set(cmd, p, "acceptance_check", flags.Check)
+		seat.Set(cmd, p, "check_kind", flags.CheckKind)
+		seat.SetGrade(p, "severity", &severity)
+		seat.SetGrade(p, "likelihood", &likelihood)
+		seat.SetGrade(p, "impact", &impact)
+		seat.SetGrade(p, "complexity_cost", &cx)
+		seat.SetList(p, "supersedes", &supersedes)
+		seat.SetList(p, "found_by", &foundBy)
 
-			// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
-			//
-			// `lens finding --quote` is REFUSED on a mis-quote — the anchor cannot be spliced
-			// where the text is not. Mint's took prose, on the reasoning that a gap's location is
-			// "recorded for a reader". Measured (#359): three gaps were minted naming report
-			// sections that do not exist, two of them `--existence verified`. A seat asserted it
-			// had checked a defect at the leaf, at a place the tool never confirmed was there.
-			//
-			// A location a reader cannot find is not a location. It is refused now, by the same
-			// rule the lens has always been held to.
-			//
-			// AN OMISSION STILL HAS A PLACE. A gap about something MISSING has no span of its own
-			// — so quote the sentence where it should be, which is exactly what a lens finding
-			// about an omission already does. The refusal says so, because a seat that reads
-			// "not found in report.md" and has an omission on its hands would otherwise conclude
-			// the verb cannot express what it is holding.
-			if loc := seat.Str(cmd, flags.Quote); strings.TrimSpace(loc) != "" {
-				report, err := record.ReadBlueReport(s.RunDir)
-				if err != nil {
-					return nil, err
+		// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
+		//
+		// A gap whose location is text red PRESCRIBED and blue applied VERBATIM is an
+		// amendment to the gap that prescribed it, not a fresh gap. Measured: 3 of 3 of the
+		// 2026-08-04 smoke's round-2 gaps were about text blue added in round 1 at red's own
+		// instruction, and blue had no channel to say so.
+		//
+		// Red is not silenced — it argues the point on the ORIGINAL gap, where its own
+		// prescription sits on the record beside the complaint, or mints with --supersedes so
+		// the lineage is explicit. What it may not do is open a clean slate against its own
+		// words.
+		//
+		// THE REJECTION IS LOGGED AS FRICTION, not merely refused. A guard that silently
+		// blocks is invisible: this makes "how often does red relitigate its own
+		// prescriptions" a per-run number on the record, which is the measurement of the
+		// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
+		// rejection — the tool records the block, never the seat's memory of it.
+		if board, berr := record.BoardState(s.RunDir); berr == nil {
+			if prior, prescribed := record.EstoppelConflict(board, seat.Str(cmd, flags.Quote)); prior != "" &&
+				!contains(supersedes.Value(), prior) {
+				msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
+					prior, prior, prior, prescribed)
+				// The KIND is a field, not something a reader infers from the wording. The
+				// prose above is aimed at a seat and must stay editable; the count an
+				// operator reads must not move when it is edited (#283).
+				// THE KEY IS `reason`, which is what the friction projection reads and what
+				// the friction verb writes. This set `text`, so every estoppel block
+				// recorded an entry that rendered with EMPTY TEXT in the operator's
+				// friction read: the block was logged and its explanation was not, which
+				// is the same blank entry an empty discharge produces.
+				fr := record.NewPayload().
+					Set("reason", msg).
+					Set(record.FrictionKindKey, record.FrictionKindEstoppel).
+					Set("estopped_by", prior)
+				if _, ferr := record.Append(s.Identity(), "friction", fr); ferr != nil {
+					return nil, ferr
 				}
-				if _, _, lerr := bluedoc.LocateUnique("merge mint --quote", string(report), loc); lerr != nil {
-					return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission", lerr)
-				}
+				return nil, errors.New(msg)
 			}
-			seat.Set(cmd, p, "location", flags.Quote)
-			p.Set("problem", problem)
-			seat.Set(cmd, p, "required_fix", flags.Fix)
-			// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
-			//
-			// `required_fix` is prose ("acknowledge the shared definition"), which blue cannot
-			// apply verbatim. Red MAY instead state the exact span and the exact replacement —
-			// and stating one legally is impossible from memory of what the report probably
-			// says, which is the forced re-read this whole axis exists for: all three of the
-			// smoke's round-2 gaps were contradictions between blue's new text and text red
-			// never re-read before prescribing.
-			//
-			// So `fix_basis` is COMPUTED from whether a validated pair is present. It is not a
-			// flag. A seat asked to self-report "verified | proposed" reports the flattering
-			// one, and the field becomes decoration — the same reason the finding label and the
-			// gap id are tool-assigned rather than claimed.
-			basis := "proposed"
-			if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-				report, err := record.ReadBlueReport(s.RunDir)
-				if err != nil {
-					return nil, err
-				}
-				if err := bluedoc.ValidateProposal("merge mint", string(report), seat.Str(cmd, flags.Quote), fixNew); err != nil {
-					return nil, err
-				}
-				p.Set("fix_new", fixNew)
-				basis = "verified"
-			}
-			p.Set("fix_basis", basis)
-			seat.Set(cmd, p, "acceptance_check", flags.Check)
-			seat.Set(cmd, p, "check_kind", flags.CheckKind)
-			seat.SetGrade(p, "severity", &severity)
-			seat.SetGrade(p, "likelihood", &likelihood)
-			seat.SetGrade(p, "impact", &impact)
-			seat.SetGrade(p, "complexity_cost", &cx)
-			seat.SetList(p, "supersedes", &supersedes)
-			seat.SetList(p, "found_by", &foundBy)
+		}
 
-			// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
-			//
-			// A gap whose location is text red PRESCRIBED and blue applied VERBATIM is an
-			// amendment to the gap that prescribed it, not a fresh gap. Measured: 3 of 3 of the
-			// 2026-08-04 smoke's round-2 gaps were about text blue added in round 1 at red's own
-			// instruction, and blue had no channel to say so.
-			//
-			// Red is not silenced — it argues the point on the ORIGINAL gap, where its own
-			// prescription sits on the record beside the complaint, or mints with --supersedes so
-			// the lineage is explicit. What it may not do is open a clean slate against its own
-			// words.
-			//
-			// THE REJECTION IS LOGGED AS FRICTION, not merely refused. A guard that silently
-			// blocks is invisible: this makes "how often does red relitigate its own
-			// prescriptions" a per-run number on the record, which is the measurement of the
-			// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
-			// rejection — the tool records the block, never the seat's memory of it.
-			if board, berr := record.BoardState(s.RunDir); berr == nil {
-				if prior, prescribed := record.EstoppelConflict(board, seat.Str(cmd, flags.Quote)); prior != "" &&
-					!contains(supersedes.Value(), prior) {
-					msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
-						prior, prior, prior, prescribed)
-					// The KIND is a field, not something a reader infers from the wording. The
-					// prose above is aimed at a seat and must stay editable; the count an
-					// operator reads must not move when it is edited (#283).
-					// THE KEY IS `reason`, which is what the friction projection reads and what
-					// the friction verb writes. This set `text`, so every estoppel block
-					// recorded an entry that rendered with EMPTY TEXT in the operator's
-					// friction read: the block was logged and its explanation was not, which
-					// is the same blank entry an empty discharge produces.
-					fr := record.NewPayload().
-						Set("reason", msg).
-						Set(record.FrictionKindKey, record.FrictionKindEstoppel).
-						Set("estopped_by", prior)
-					if _, ferr := record.Append(s.Identity(), "friction", fr); ferr != nil {
-						return nil, ferr
-					}
-					return nil, errors.New(msg)
-				}
-			}
-
-			if _, err := record.Append(s.Identity(), "mint", p); err != nil {
-				return nil, err
-			}
-			return mintResult{GapID: gapID}, nil
-		}))
+		if _, err := record.Append(s.Identity(), "mint", p); err != nil {
+			return nil, err
+		}
+		return mintResult{GapID: gapID}, nil
+	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
 	c.Flags().String(flags.Class, "", "the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with `merge class new`")

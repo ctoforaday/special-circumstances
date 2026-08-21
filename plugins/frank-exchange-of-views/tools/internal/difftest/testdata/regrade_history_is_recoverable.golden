@@ -13,6 +13,8 @@ exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
+move a grade on a gap that already exists, with the reason it moved
+
 same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
 
 If you need a verb or a flag that is not listed here, it does not exist for you:

@@ -75,17 +75,10 @@ import (
 // hand-written validation where nothing can refuse it at parse. As two verbs, each marks what it
 // genuinely requires and cobra refuses the nonsense before the handler runs.
 func newVerify() *cobra.Command {
-	c := seat.Prose(seat.New("verify",
-		`adjudicate ONE citation blue authored: --anchor c-<hex> (from `+"`show evidence`"+`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
-			`THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `+"`absent`"+` — `+
-			"`absent` means you read blue's source and the claim is not in it. An unevidenced claim is not this verb's, and it is not "+
-			"automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it "+
-			"answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the "+
-			`TEXT stands up.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := record.NewPayload().Set("anchor", strings.TrimSpace(seat.Str(cmd, flags.Anchor)))
-			return writeVerify(s, cmd, p)
-		}))
+	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		p := record.NewPayload().Set("anchor", strings.TrimSpace(seat.Str(cmd, flags.Anchor)))
+		return writeVerify(s, cmd, p)
+	}))
 
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`")
 	_ = c.MarkFlagRequired(flags.Anchor)
@@ -99,16 +92,11 @@ func newVerify() *cobra.Command {
 // this — so the source is named the way every source in this system is named, by --url and
 // --title, and both are required here because nothing else identifies what red read.
 func newCorroborate() *cobra.Command {
-	c := seat.Prose(seat.Records(seat.New("corroborate",
-		`corroborate a claim from a source YOU found — one blue never cited, so there is no anchor: --url <u> --title <t> --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
-			`THIS IS THE VERB FOR A CLAIM WITH NO CITATION when the source is obtainable — it answers whether the claim is true in the `+
-			`WORLD, where a finding answers whether the TEXT stands up, and it is what makes "nobody cited this" checkable instead of `+
-			"merely raised. To adjudicate a citation blue DID author, use `verify` instead: it names the citation by its anchor.",
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := record.NewPayload().Set("independent", true)
-			seat.SetSame(cmd, p, flags.URL, flags.Title)
-			return writeVerify(s, cmd, p)
-		}), "verify"))
+	c := seat.Prose(seat.Records(seat.New("corroborate", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		p := record.NewPayload().Set("independent", true)
+		seat.SetSame(cmd, p, flags.URL, flags.Title)
+		return writeVerify(s, cmd, p)
+	}), "verify"))
 
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	c.Flags().String(flags.Title, "", flags.DescTitle)

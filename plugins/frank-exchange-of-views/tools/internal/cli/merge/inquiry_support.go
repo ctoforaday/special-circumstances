@@ -48,22 +48,20 @@ import (
 // since been cut. Two questions, two records, and collapsing them would lose the one that says the
 // document drifted from its own account of itself.
 func newInquirySupport() *cobra.Command {
-	c := seat.Prose(seat.New("inquiry-support",
-		`your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			p := record.NewPayload().
-				Set("inquiry_id", seat.Str(cmd, flags.ID)).
-				Set("as", seat.Str(cmd, flags.As)).
-				Set("reason", text)
-			if _, err := record.Append(s.Identity(), "inquiry-support", p); err != nil {
-				return nil, err
-			}
-			return inquirySupportResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
-		}))
+	c := seat.Prose(seat.New("inquiry-support", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		p := record.NewPayload().
+			Set("inquiry_id", seat.Str(cmd, flags.ID)).
+			Set("as", seat.Str(cmd, flags.As)).
+			Set("reason", text)
+		if _, err := record.Append(s.Identity(), "inquiry-support", p); err != nil {
+			return nil, err
+		}
+		return inquirySupportResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
+	}))
 
 	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID,
 		"the line of inquiry you are voting on — `show lines-of-inquiry` lists every one")

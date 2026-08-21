@@ -16,13 +16,13 @@ const role = "bench"
 // Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
-		seat.Register("FIRST ACTION at the sitting: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed"),
+		seat.Register(),
 		newOpinion(),
 		newHalt(),
 		newCertify(),
 		newDeclare(),
 		newOutcome(),
 		newAssemble(),
-		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),
+		seat.Friction(),
 	)
 }

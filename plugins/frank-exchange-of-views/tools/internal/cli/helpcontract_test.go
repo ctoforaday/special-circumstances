@@ -368,7 +368,14 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 	for _, r := range AllRoots() {
 		walk(r, func(c *cobra.Command, path []string) {
 			registered := enumhelp.Registered(c)
-			for _, m := range restated.FindAllStringSubmatch(c.Short, -1) {
+			// BOTH FIELDS. This scanned c.Short alone, because Short and Long were one string —
+			// seat.New set both from one argument. The enum restatements now live in the detail
+			// (Long), and scanning Short alone found nothing, which tripped this test's own
+			// "a walk that finds nothing passes forever" guard rather than passing vacuously.
+			//
+			// Widened rather than moved: a set offered in EITHER position and refused by the tool
+			// is the same defect, and Short is still what a refusal quotes back at the seat.
+			for _, m := range restated.FindAllStringSubmatch(c.Short+"\n"+c.Long, -1) {
 				flag, listed := m[1], strings.Split(m[2], "|")
 				var want []string
 				switch {

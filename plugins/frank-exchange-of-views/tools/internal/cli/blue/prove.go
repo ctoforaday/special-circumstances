@@ -35,71 +35,69 @@ import (
 // `observed`, still evidence but of a system in motion (a live call measures what an API
 // actually does, which beats its documentation), and the report must not read the two alike.
 func newProve() *cobra.Command {
-	c := seat.Prose(seat.New("prove",
-		`settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
-			if strings.TrimSpace(location) == "" {
-				return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in blue/report.md this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
-			}
-			if strings.TrimSpace(script) == "" {
-				return nil, fmt.Errorf("blue prove requires --script: the path (under the run directory) of the program that settles it")
-			}
+	c := seat.Prose(seat.New("prove", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
+		if strings.TrimSpace(location) == "" {
+			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in blue/report.md this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
+		}
+		if strings.TrimSpace(script) == "" {
+			return nil, fmt.Errorf("blue prove requires --script: the path (under the run directory) of the program that settles it")
+		}
 
-			// Crash-retry: a committed proof for this key is already recorded.
-			if prior, err := record.ExistingProofByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
-				return nil, err
-			} else if prior != "" {
-				return proveResult{SHA: prior, Idempotent: true}, nil
-			}
+		// Crash-retry: a committed proof for this key is already recorded.
+		if prior, err := record.ExistingProofByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
+			return nil, err
+		} else if prior != "" {
+			return proveResult{SHA: prior, Idempotent: true}, nil
+		}
 
-			res, err := proof.Run(s.RunDir, script)
-			if err != nil {
-				// A proof that will not run is not evidence, and the failure is a capability
-				// signal — the same treatment `blue cite` gives an unreachable source.
-				msg := err.Error()
-				if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", msg)); ferr != nil {
-					return nil, ferr
-				}
-				return nil, err
+		res, err := proof.Run(s.RunDir, script)
+		if err != nil {
+			// A proof that will not run is not evidence, and the failure is a capability
+			// signal — the same treatment `blue cite` gives an unreachable source.
+			msg := err.Error()
+			if _, ferr := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", msg)); ferr != nil {
+				return nil, ferr
 			}
+			return nil, err
+		}
 
-			label := record.NewProofID()
-			marker := "<!--proof:" + label + "-->"
-			// Spliced under the report lock at the quoted sentence, by the SAME machinery a
-			// citation anchor uses: one immortal-anchor mechanism, three classes.
-			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
-				next, aerr := lens.InsertAnchor(old, location, marker)
-				if aerr != nil {
-					return nil, aerr
-				}
-				return next, nil
-			}); err != nil {
-				return nil, err
+		label := record.NewProofID()
+		marker := "<!--proof:" + label + "-->"
+		// Spliced under the report lock at the quoted sentence, by the SAME machinery a
+		// citation anchor uses: one immortal-anchor mechanism, three classes.
+		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+			next, aerr := lens.InsertAnchor(old, location, marker)
+			if aerr != nil {
+				return nil, aerr
 			}
+			return next, nil
+		}); err != nil {
+			return nil, err
+		}
 
-			p := record.NewPayload().
-				Set("proof_id", label).
-				Set("sha256", res.SHA).
-				Set("proof_basis", res.Basis).
-				Set("script", res.Script).
-				Set("exit", res.Exit).
-				Set("location", location).
-				Set("output", truncateOutput(res.Output))
-			if res.Drift != "" {
-				p.Set("drift", res.Drift)
-			}
-			seat.Set(cmd, p, "proof_key", flags.Key)
-			seat.Set(cmd, p, "answers", flags.Answers)
-			seat.Set(cmd, p, "cites", flags.Cites)
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
-				return nil, err
-			}
-			if _, err := record.Append(s.Identity(), "proof", p); err != nil {
-				return nil, err
-			}
-			return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil
-		}))
+		p := record.NewPayload().
+			Set("proof_id", label).
+			Set("sha256", res.SHA).
+			Set("proof_basis", res.Basis).
+			Set("script", res.Script).
+			Set("exit", res.Exit).
+			Set("location", location).
+			Set("output", truncateOutput(res.Output))
+		if res.Drift != "" {
+			p.Set("drift", res.Drift)
+		}
+		seat.Set(cmd, p, "proof_key", flags.Key)
+		seat.Set(cmd, p, "answers", flags.Answers)
+		seat.Set(cmd, p, "cites", flags.Cites)
+		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), "proof", p); err != nil {
+			return nil, err
+		}
+		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil
+	}))
 
 	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". The proof anchor is spliced there")
 	c.Flags().String(flags.Script, "", "REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")

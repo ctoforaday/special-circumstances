@@ -20,24 +20,22 @@ import (
 func newSpotCheck() *cobra.Command {
 	var ids flags.CSV
 
-	c := seat.New("spot-check",
-		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			none := seat.Given(cmd, flags.None)
-			p := record.NewPayload()
-			seat.SetList(p, "ids", &ids)
-			seat.SetSame(cmd, p, flags.Reason)
-			if none {
-				p.Set("none", true)
-			}
-			if _, err := record.Append(s.Identity(), "spot-check", p); err != nil {
-				return nil, err
-			}
-			if none {
-				return spotCheckResult{}, nil
-			}
-			return spotCheckResult{Sampled: ids.Value()}, nil
-		})
+	c := seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		none := seat.Given(cmd, flags.None)
+		p := record.NewPayload()
+		seat.SetList(p, "ids", &ids)
+		seat.SetSame(cmd, p, flags.Reason)
+		if none {
+			p.Set("none", true)
+		}
+		if _, err := record.Append(s.Identity(), "spot-check", p); err != nil {
+			return nil, err
+		}
+		if none {
+			return spotCheckResult{}, nil
+		}
+		return spotCheckResult{Sampled: ids.Value()}, nil
+	})
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this round")
 	// AN HONESTLY-EMPTY ROUND IS A DISCHARGE, NOT A SKIP.

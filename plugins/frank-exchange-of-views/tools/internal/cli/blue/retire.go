@@ -28,51 +28,49 @@ import (
 // capture detects, because claim_count falling further than the retire events
 // account for is arithmetic, not judgement.
 func newRetire() *cobra.Command {
-	c := seat.Prose(seat.New("retire",
-		`remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			// --reason is the prose channel (Prose provides it); it lands under `reason`,
-			// which validate requires — substance leaves the report only with its reason.
-			p := seat.Set(cmd, record.NewPayload(), "claim", flags.Quote)
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
-				return nil, err
-			}
-			seat.Set(cmd, p, "superseded_by", flags.New)
+	c := seat.Prose(seat.New("retire", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		// --reason is the prose channel (Prose provides it); it lands under `reason`,
+		// which validate requires — substance leaves the report only with its reason.
+		p := seat.Set(cmd, record.NewPayload(), "claim", flags.Quote)
+		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			return nil, err
+		}
+		seat.Set(cmd, p, "superseded_by", flags.New)
 
-			// THE REMOVAL IS CHECKED, NOT TAKEN ON TRUST.
-			//
-			// This verb recorded whatever it was told. Nothing confirmed the claim had ever
-			// been in the report, and nothing confirmed it had left — so "substance leaves only
-			// through the retire verb", the rule this comment above calls "strictly stronger
-			// than the prose rule it replaces", rested on the seat's word.
-			//
-			// A PHANTOM RETIRE IS WORSE THAN USELESS. The scorecard's additive-integrity
-			// detector computes unrecorded_claim_loss as (drop in claim_count) MINUS (retire
-			// events): a retirement of a claim that was never there subtracts from the
-			// accounted side and CANCELS REAL LOSS, blinding the one detector built to catch
-			// silent deletion.
-			claim := seat.Str(cmd, flags.Quote)
-			basis := record.RemovalAsserted
-			if md, rerr := record.ReadBlueReport(s.RunDir); rerr == nil {
-				if strings.Contains(string(md), claim) {
-					return nil, feov.Errorf(feov.Conflict,
-						"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `blue edit` first, then retire the claim to say why it went and what replaced it",
-						claim)
-				}
-				// Absent now. Whether it was ever THERE is a different question, and the record
-				// can answer it: a claim removed by a recorded edit appears in that edit's old
-				// span. Absent from both is a retirement of something nobody can show existed.
-				if record.ClaimAppearsInAnEdit(s.RunDir, claim) {
-					basis = record.RemovalVerified
-				}
+		// THE REMOVAL IS CHECKED, NOT TAKEN ON TRUST.
+		//
+		// This verb recorded whatever it was told. Nothing confirmed the claim had ever
+		// been in the report, and nothing confirmed it had left — so "substance leaves only
+		// through the retire verb", the rule this comment above calls "strictly stronger
+		// than the prose rule it replaces", rested on the seat's word.
+		//
+		// A PHANTOM RETIRE IS WORSE THAN USELESS. The scorecard's additive-integrity
+		// detector computes unrecorded_claim_loss as (drop in claim_count) MINUS (retire
+		// events): a retirement of a claim that was never there subtracts from the
+		// accounted side and CANCELS REAL LOSS, blinding the one detector built to catch
+		// silent deletion.
+		claim := seat.Str(cmd, flags.Quote)
+		basis := record.RemovalAsserted
+		if md, rerr := record.ReadBlueReport(s.RunDir); rerr == nil {
+			if strings.Contains(string(md), claim) {
+				return nil, feov.Errorf(feov.Conflict,
+					"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `blue edit` first, then retire the claim to say why it went and what replaced it",
+					claim)
 			}
-			p.Set("removal_basis", basis)
+			// Absent now. Whether it was ever THERE is a different question, and the record
+			// can answer it: a claim removed by a recorded edit appears in that edit's old
+			// span. Absent from both is a retirement of something nobody can show existed.
+			if record.ClaimAppearsInAnEdit(s.RunDir, claim) {
+				basis = record.RemovalVerified
+			}
+		}
+		p.Set("removal_basis", basis)
 
-			if _, err := record.Append(s.Identity(), "retire", p); err != nil {
-				return nil, err
-			}
-			return retireResult{Claim: seat.Str(cmd, flags.Quote)}, nil
-		}))
+		if _, err := record.Append(s.Identity(), "retire", p); err != nil {
+			return nil, err
+		}
+		return retireResult{Claim: seat.Str(cmd, flags.Quote)}, nil
+	}))
 
 	c.Flags().String(flags.Quote, "", flags.DescQuote+" — the claim being removed, as it stood before you edited it out")
 	c.Flags().String(flags.New, "", "the claim that replaces it, when one does — the same --quote/--new pair `edit` and `mint` take")

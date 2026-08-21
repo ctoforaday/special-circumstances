@@ -17,24 +17,22 @@ import (
 // a judge — and a disposition with no stated principle is indistinguishable from
 // a default. Requiring the reasoning is what makes the difference visible.
 func newOpinion() *cobra.Command {
-	c := seat.Prose(seat.New("opinion",
-		`a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			p := record.NewPayload()
-			flags.Set(p, "gap_id", cmd, flags.ID)
-			flags.Set(p, "disposition", cmd, flags.As)
-			seat.SetSame(cmd, p, flags.Principle, flags.Tension)
-			seat.Set(cmd, p, "review_flag", flags.ReviewFlag)
-			p.Set("reason", text)
-			if _, err := record.Append(s.Identity(), "opinion", p); err != nil {
-				return nil, err
-			}
-			return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
-		}))
+	c := seat.Prose(seat.New("opinion", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		p := record.NewPayload()
+		flags.Set(p, "gap_id", cmd, flags.ID)
+		flags.Set(p, "disposition", cmd, flags.As)
+		seat.SetSame(cmd, p, flags.Principle, flags.Tension)
+		seat.Set(cmd, p, "review_flag", flags.ReviewFlag)
+		p.Set("reason", text)
+		if _, err := record.Append(s.Identity(), "opinion", p); err != nil {
+			return nil, err
+		}
+		return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
+	}))
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap being ruled on")
 	enumhelp.Flag(c, flags.As, record.MustEnum("opinion", "disposition"), ("REQUIRED — your ruling AND the gap's fate. Every value ends the gap except `carried`, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342"))

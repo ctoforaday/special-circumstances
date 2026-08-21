@@ -30,17 +30,14 @@ func newClass() *cobra.Command {
 }
 
 func newClassNew() *cobra.Command {
-	c := seat.Records(seat.New("new",
-		`coin a gap class the registry does not have: --class <slug> --definition "<what it is, in one line>" --neighbor <the closest existing slug> --distinguisher "<the tie-break question that tells the two apart>". `+
-			`Coin it BEFORE the mint that uses it; `+"`merge mint --class <slug>`"+` then names it like any other.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := record.NewPayload().Set("slug", seat.Str(cmd, flags.Class))
-			seat.SetSame(cmd, p, flags.Definition, flags.Neighbor, flags.Distinguisher)
-			if _, err := record.Append(s.Identity(), "class-new", p); err != nil {
-				return nil, err
-			}
-			return classResult{Slug: seat.Str(cmd, flags.Class)}, nil
-		}), "class-new")
+	c := seat.Records(seat.New("new", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		p := record.NewPayload().Set("slug", seat.Str(cmd, flags.Class))
+		seat.SetSame(cmd, p, flags.Definition, flags.Neighbor, flags.Distinguisher)
+		if _, err := record.Append(s.Identity(), "class-new", p); err != nil {
+			return nil, err
+		}
+		return classResult{Slug: seat.Str(cmd, flags.Class)}, nil
+	}), "class-new")
 
 	c.Flags().String(flags.Class, "", "the slug you are coining — lowercase, hyphenated, and NOT one the registry already has")
 	c.Flags().String(flags.Definition, "", "what this class is, in one line")

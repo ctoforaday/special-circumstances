@@ -8,6 +8,8 @@ exit 2
 stderr:
 feov-record: required flag(s) "principle", "review-flag", "tension" not set
 
+dispose of one contested gap with a written ruling — the bench's answer to a docketed item
+
 a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
@@ -47,6 +49,8 @@ $ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed --principle p --t
 exit 2
 stderr:
 feov-record: required flag(s) "review-flag" not set
+
+dispose of one contested gap with a written ruling — the bench's answer to a docketed item
 
 a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
 

@@ -22,12 +22,12 @@ import (
 // copies to drift apart, and the drift would be silent because each copy would
 // still pass its own tests.
 //
-// Each role still supplies its OWN help text, because the contract is shared
-// while the guidance is not: a lens is told what its friction entries are for,
-// the bench is told the same verb from the other side.
+// The help lives in help/<key>.md. `register` and `friction` mean the same thing in every chair and
+// are ONE document each; `position` and `closing` genuinely differ — a RED section is not a BLUE one
+// — and are keyed by role.
 
-func Register(help string) *cobra.Command {
-	return New("register", help, func(s Context, _ *cobra.Command) (Result, error) {
+func Register() *cobra.Command {
+	return New("register", func(s Context, _ *cobra.Command) (Result, error) {
 		nonce, _, err := record.RegisterSeat(s.Identity())
 		if err != nil {
 			return nil, err
@@ -53,8 +53,8 @@ func Register(help string) *cobra.Command {
 //
 // The shape is `spot-check --none --reason`, already in this tree for the same reason: a duty
 // whose empty case must be ASSERTED rather than inferred from silence.
-func Friction(help string) *cobra.Command {
-	c := Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Friction() *cobra.Command {
+	c := Prose(New("friction", func(s Context, cmd *cobra.Command) (Result, error) {
 		none, _ := cmd.Flags().GetBool(flags.None)
 		text, err := Reason(cmd)
 		if err != nil {
@@ -79,8 +79,8 @@ func Friction(help string) *cobra.Command {
 	return c
 }
 
-func Position(help string) *cobra.Command {
-	return Prose(New("position", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Position(key string) *cobra.Command {
+	return Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -92,8 +92,8 @@ func Position(help string) *cobra.Command {
 	}))
 }
 
-func Closing(help string) *cobra.Command {
-	c := Prose(New("closing", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Closing(key string) *cobra.Command {
+	c := Prose(NewKeyed("closing", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err

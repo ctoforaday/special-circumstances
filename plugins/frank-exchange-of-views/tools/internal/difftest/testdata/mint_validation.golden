@@ -8,6 +8,8 @@ exit 2
 stderr:
 feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
 
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
 mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
@@ -52,6 +54,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --check-kind document --check run it -
 exit 2
 stderr:
 feov-record: required flag(s) "class", "impact", "likelihood" not set
+
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
 mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
 
@@ -98,6 +102,8 @@ exit 2
 stderr:
 feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low-medium | medium | medium-high | high | certain | realized | trivial
 
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
 mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
@@ -142,6 +148,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind docum
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
+
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
 mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
 

@@ -562,11 +562,39 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 // wires the ONE hook-free RunE that shape holds: Begin (preconditions) -> the work -> Emit
 // (render). No PreRunE, no PostRunE — nothing chains, and a precondition failure renders
 // through the same Emit as any other error.
-func New(name, help string, run Handler) *cobra.Command {
+// New builds a seat verb.
+//
+// TWO FIELDS, BECAUSE THEY ARE TWO JOBS, and they live in help/<name>.md rather than here. `## menu`
+// is the line a seat reads in a listing, while it is deciding and has not chosen yet: what this
+// verb is FOR, and when to reach for it rather than its neighbour. `## detail` is the page it reads
+// once it has chosen: the flags, the sibling comparison, the measured history.
+//
+// IT WAS ONE STRING, SET INTO BOTH, and that is why the listing became unreadable. Everything a
+// verb had to say went into Short — flag enumerations, sibling discriminators, the arguments from
+// past runs — and cobra prints Short IN FULL in the parent's Available Commands block. `finding`
+// alone ran to 961 characters there. A menu whose entries are each a paragraph is not a menu, and
+// a seat facing one reads the first clause, which was the mechanics, and stops.
+//
+// The reverse cost was the same defect from the other side: Long was `help` again, so the page a
+// seat opens after choosing told it nothing the listing had not already said. Both positions
+// carried one string and neither did its own job.
+func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, run) }
+
+// NewKeyed is New for a verb whose help is not keyed by its own name — the shared verbs, where the
+// same command means something different in each chair. `position` is a RED section for the merge
+// and a BLUE one for blue, so those are two documents; `register` and `friction` mean exactly the
+// same thing everywhere and are one.
+//
+// THEY WERE FOUR COPIES. Each role passed its own literal, under a comment saying the guidance
+// differs by role — and register's and friction's were byte-identical at every call site but one,
+// where the difference was the word "seat" against "sitting". Four hand-kept copies of one
+// paragraph, which is the shape that goes stale in three places and nobody notices.
+func NewKeyed(name, key string, run Handler) *cobra.Command {
+	d := helpFor(key)
 	c := &cobra.Command{
 		Use:          name,
-		Short:        help,
-		Long:         help + "\n" + FrictionFooter,
+		Short:        d.menu,
+		Long:         d.menu + "\n\n" + d.detail + "\n" + FrictionFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		Annotations:  map[string]string{recordsKey: name},
