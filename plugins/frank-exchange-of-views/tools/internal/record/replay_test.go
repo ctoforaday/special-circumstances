@@ -584,22 +584,22 @@ func TestValidateGradeEnumOnEveryGradedField(t *testing.T) {
 func TestValidateVerbContracts(t *testing.T) {
 	cases := []struct {
 		name    string
-		typ     string
-		p       *Payload
+		typ     recordpb.EventType
+		p       proto.Message
 		wantErr string // empty means it must be ACCEPTED
 	}{
-		{"mint without --check", "mint", &recordpb.Mint{Class: proto.String("x")}, "mint requires --check"},
-		{"mint with an empty --check", "mint", &recordpb.Mint{Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
-		{"mint without --class", "mint", &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
-		{"mint complete", "mint", &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
+		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Class: proto.String("x")}, "mint requires --check"},
+		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
+		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
+		{"mint complete", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
 
-		{"close without --id", "close", &recordpb.Close{}, "close requires --id"},
-		{"regrade without --basis", "regrade", &recordpb.Regrade{}, "regrade requires --reason"},
-		{"regrade complete", "regrade", &recordpb.Regrade{Basis: proto.String("b")}, ""},
+		{"close without --id", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{}, "close requires --id"},
+		{"regrade without --basis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{}, "regrade requires --reason"},
+		{"regrade complete", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}, ""},
 
-		{"retire without --claim", "retire", &recordpb.Retire{Reason: proto.String("r")}, "retire requires --claim"},
-		{"retire without --reason", "retire", &recordpb.Retire{Claim: proto.String("c")}, "retire requires --reason"},
-		{"retire complete", "retire", &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
+		{"retire without --claim", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Reason: proto.String("r")}, "retire requires --claim"},
+		{"retire without --reason", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c")}, "retire requires --reason"},
+		{"retire complete", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
 
 		{"line-of-inquiry with an unknown status", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "shelved").Set("line", "l"), "line-of-inquiry requires --as"},
 		{"line-of-inquiry with no status at all", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("line", "l"), "line-of-inquiry requires --as"},
@@ -614,7 +614,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
-		{"opinion missing every field", "opinion", &recordpb.Opinion{}, "opinion requires --id"},
+		{"opinion missing every field", recordpb.EventType_EVENT_TYPE_OPINION, &recordpb.Opinion{}, "opinion requires --id"},
 		{"an unknown verb is not validated here", "no-such-verb", NewPayload(), ""},
 	}
 	for _, tc := range cases {
@@ -775,7 +775,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	}
 	cases := []struct {
 		name    string
-		p       *Payload
+		p       proto.Message
 		wantErr string
 	}{
 		{"unknown gap", NewPayload().Set("gap_id", "R9-9"), "close of unknown gap"},
@@ -823,8 +823,14 @@ func TestValidateClassRegistry(t *testing.T) {
 		}
 	}
 	registry := `{"classes":[{"slug":"scope-creep"},{"slug":"unfalsifiable"},{"slug":"stale-source"}]}`
-	mint := func(p *Payload) *Payload {
-		return p.Set("acceptance_check", "c").Set("check_kind", "document").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
+	// The fields every valid mint carries, so each case states only what it is ABOUT.
+	mint := func(m *recordpb.Mint) *recordpb.Mint {
+		m.AcceptanceCheck = proto.String("c")
+		m.CheckKind = recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)
+		m.Likelihood = recordtest.P(recordpb.Grade_GRADE_MEDIUM)
+		m.Impact = recordtest.P(recordpb.Grade_GRADE_MEDIUM)
+		m.Problem = proto.String("p")
+		return m
 	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
@@ -958,29 +964,29 @@ func TestValidateClassRegistry(t *testing.T) {
 func TestDeriveKey(t *testing.T) {
 	cases := []struct {
 		name   string
-		typ    string
-		p      *Payload
-		prior  []Event
+		typ    recordpb.EventType
+		p      proto.Message
+		prior  []*Event
 		want   string
 		seatID string
 	}{
-		{name: "singleton verbs key on seat+verb", typ: "position", p: &recordpb.Position{}, seatID: "red-merge-r1", want: "red-merge-r1:position"},
-		{name: "verdict is a singleton", typ: "verdict", p: &recordpb.Verdict_{}, seatID: "red-merge-r1", want: "red-merge-r1:verdict"},
-		{name: "gap_id is the first label consulted", typ: "close", p: &recordpb.Close{GapId: proto.String("R1-1")}, seatID: "red-merge-r1", want: "red-merge-r1:close:R1-1"},
-		{name: "label when there is no gap_id", typ: "finding", p: &recordpb.Finding{Label: proto.String("F1")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:F1"},
-		{name: "id, observation, anchor and url are also labels", typ: "cite", p: &recordpb.Cite{Url: proto.String("https://x")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
+		{name: "singleton verbs key on seat+verb", typ: recordpb.EventType_EVENT_TYPE_POSITION, p: &recordpb.Position{}, seatID: "red-merge-r1", want: "red-merge-r1:position"},
+		{name: "verdict is a singleton", typ: recordpb.EventType_EVENT_TYPE_VERDICT, p: &recordpb.Verdict_{}, seatID: "red-merge-r1", want: "red-merge-r1:verdict"},
+		{name: "gap_id is the first label consulted", typ: recordpb.EventType_EVENT_TYPE_CLOSE, p: &recordpb.Close{GapId: proto.String("R1-1")}, seatID: "red-merge-r1", want: "red-merge-r1:close:R1-1"},
+		{name: "label when there is no gap_id", typ: recordpb.EventType_EVENT_TYPE_FINDING, p: &recordpb.Finding{Label: proto.String("F1")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:F1"},
+		{name: "id, observation, anchor and url are also labels", typ: recordpb.EventType_EVENT_TYPE_CITE, p: &recordpb.Cite{Url: proto.String("https://x")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
 		{
-			name: "with no label at all, a per-shard ordinal", typ: "friction", p: &recordpb.Friction{}, seatID: "blue-lane-1",
+			name: "with no label at all, a per-shard ordinal", typ: recordpb.EventType_EVENT_TYPE_FRICTION, p: &recordpb.Friction{}, seatID: "blue-lane-1",
 			prior: []*Event{recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Position{})},
 			want:  "blue-lane-1:friction:#3",
 		},
 		{
-			name: "the ordinal counts only the SAME verb", typ: "friction", p: &recordpb.Friction{}, seatID: "blue-lane-1",
+			name: "the ordinal counts only the SAME verb", typ: recordpb.EventType_EVENT_TYPE_FRICTION, p: &recordpb.Friction{}, seatID: "blue-lane-1",
 			prior: []*Event{recordtest.Event(t, "", 0, &recordpb.Position{}), recordtest.Event(t, "", 0, &recordpb.Finding{})},
 			want:  "blue-lane-1:friction:#1",
 		},
-		{name: "an empty label falls through to the ordinal", typ: "finding", p: &recordpb.Finding{Label: proto.String("")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
-		{name: "a non-string label falls through", typ: "finding", p: &recordpb.Finding{Label: proto.String(true)}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
+		{name: "an empty label falls through to the ordinal", typ: recordpb.EventType_EVENT_TYPE_FINDING, p: &recordpb.Finding{Label: proto.String("")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
+		{name: "a non-string label falls through", typ: recordpb.EventType_EVENT_TYPE_FINDING, p: &recordpb.Finding{Label: proto.String(true)}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -57,7 +57,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		// out of the argv the case had just composed. That works only while every command path
 		// is <role> <verb> AND the verb word equals the event type; `motion grade file` breaks
 		// both halves at once, and the failure was "no grade event in the log".
-		typ  string
+		typ  recordpb.EventType
 		args []string
 	}{
 		{"merge regrade", "reason", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},

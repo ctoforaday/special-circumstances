@@ -76,7 +76,7 @@ func TestVerbPayloads(t *testing.T) {
 		path   []string
 		seatID string
 		args   []string
-		typ    string
+		typ    recordpb.EventType
 		// want is the payload the event must carry, by key.
 		want map[string]string
 		// absent keys must not appear at all.

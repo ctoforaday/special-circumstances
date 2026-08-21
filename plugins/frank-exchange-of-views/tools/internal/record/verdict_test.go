@@ -45,8 +45,13 @@ func runWith(t *testing.T, maxRounds string, evs []Event) string {
 	return dir
 }
 
-func vev(seat, typ string, round, seq int, p *Payload) Event {
-	return Event{Seq: seq, SeatID: seat, Nonce: "a0000000", Round: round, Type: typ, Key: seat + ":" + typ, Payload: p}
+func vev(t *testing.T, seat string, round, seq int, body proto.Message) *Event {
+	t.Helper()
+	ev := recordtest.At(t, seat, "a0000000", seq, round, "", body)
+	// The key was seat+":"+type and the type is now derived from the body, so it is composed here
+	// from what the event actually says rather than from a word passed alongside it.
+	ev.Key = proto.String(seat + ":" + recordpb.Word(ev.GetType()))
+	return ev
 }
 
 // A PASS on the record is VERIFIED, without anyone saying so.

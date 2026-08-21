@@ -17,7 +17,7 @@ import (
 func TestMarshalEventNeverEscapesHTML(t *testing.T) {
 	cases := []struct {
 		name string
-		p    *Payload
+		p    proto.Message
 	}{
 		{"angle brackets in prose", NewPayload().Set("reason", "a <seat scratchpad> tag")},
 		{"ampersand in prose", NewPayload().Set("reason", "this & that")},
