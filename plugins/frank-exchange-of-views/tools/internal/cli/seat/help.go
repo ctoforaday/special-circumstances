@@ -14,6 +14,17 @@ package seat
 //	it reads once it has chosen. One string set into both Short and Long is what made the listing
 //	unreadable and the long page redundant.
 //
+// WHAT THE DETAIL IS NOT FOR: restating what the tool enforces at the write. A typed flag declares
+// what it is checked against — flags.GapID().WithCheck(record.GapExists) — and the refusal names the
+// verb, the flag, the value, how to list the real ones, and how to create one. A sentence in the
+// help saying "this is refused if the id does not exist" arrives at the same moment as that refusal
+// and says less. What EARNS its place is anything that changes what a seat does BEFORE the call
+// ("coin the class first", "an unruled motion blocks a PASS") or tells it how to succeed ("quote
+// enough context that the span matches exactly one place").
+//
+// That distinction is a judgement, not a gate: no test can tell a useful precondition from a
+// redundant warning, and pretending otherwise would be a check that fires on the wrong half.
+//
 // A FILE LOOKED UP BY NAME IS A PATTERN STANDING IN FOR A SCHEMA, so every seam here is loud. A
 // missing file, a missing section, an empty section, or a file no verb claims is a PANIC at
 // construction — these commands are built at process start, so the binary fails immediately and

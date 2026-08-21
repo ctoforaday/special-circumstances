@@ -65,7 +65,7 @@ func newFile(subject string, required []string) *cobra.Command {
 		switch {
 		case f == flags.Proposed:
 			p := new(flags.GradeValue)
-			c.Flags().Var(p, f, flags.GradeUsage("REQUIRED — the grade you say it should be"))
+			c.Flags().Var(p, f, flags.GradeUsage("the grade you say it should be"))
 		default:
 			if e, ok := record.MotionFieldEnum(subject, payloadKey(f), f); ok {
 				enumhelp.Flag(c, f, e, "REQUIRED for a "+subject+" motion")
@@ -152,7 +152,7 @@ func newRule(subject, ruler string) *cobra.Command {
 	}
 	seat.Prose(c)
 	c.Flags().String(flags.ID, "", refHelp(subject))
-	enumhelp.Flag(c, flags.As, e, "REQUIRED — your ruling")
+	enumhelp.Flag(c, flags.As, e, "your ruling")
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
 	}
@@ -213,9 +213,9 @@ func newAppeal(subject string) *cobra.Command {
 // verb — losing the capability for the run rather than reporting a wrong flag.
 func refHelp(subject string) string {
 	if subject == "inquiry" {
-		return "REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
+		return "the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
 	}
-	return "REQUIRED — the motion id (M1, M2 …)"
+	return "the motion id (M1, M2 …)"
 }
 
 type filed struct {

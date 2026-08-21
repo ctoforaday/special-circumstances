@@ -190,7 +190,7 @@ func newMint() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	c.Flags().String(flags.Class, "", "the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with `merge class new`")
+	c.Flags().String(flags.Class, "", "`slug` — the gap's class slug, what KIND of defect this is")
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")

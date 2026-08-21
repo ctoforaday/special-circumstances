@@ -311,7 +311,7 @@ func Supplied(c *cobra.Command, key string) string { return c.Annotations[suppli
 // Supplies marks a record field this verb fills ITSELF, with why.
 //
 // A REQUIRED FIELD IS NOT A REQUIRED FLAG, and conflating them produced help that contradicted
-// itself in one line: `--status` read "REQUIRED — proposed (put forward, undecided — the
+// itself in one line: `--status` read "proposed (put forward, undecided — the
 // default)". Required, and also the default. A seat reading that supplies a value it did not
 // need to choose, and the one state the field exists to express is the one it is least likely
 // to type.
@@ -391,6 +391,10 @@ func markRequired(c *cobra.Command, verb string) {
 			// "default" in the same sentence.
 			continue
 		}
+		// THE ONE WRITER OF THIS WORD. A dozen call sites also hand-wrote "REQUIRED — " at the
+		// front of their own usage, so the rendered line read "REQUIRED — REQUIRED — what the
+		// source ACTUALLY DID" on every flag that had both. Two copies of a fact the mechanism
+		// already supplies, and the seat reading it twice cannot tell which one is authoritative.
 		f.Usage = "REQUIRED — " + f.Usage
 
 		// AND COBRA ENFORCES IT. This only ever rewrote the usage string, so the help said

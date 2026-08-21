@@ -101,7 +101,7 @@ func newFinding() *cobra.Command {
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
-	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". The finding-marker is placed there")
+	c.Flags().String(flags.Quote, "", flags.DescQuote+". The finding-marker is placed there")
 	return c
 }
 

@@ -82,8 +82,8 @@ func newReproduce() *cobra.Command {
 		}
 		return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil
 	}))
-	c.Flags().String(flags.ID, "", "REQUIRED — the sha256 of the recorded proof to re-run")
-	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
+	c.Flags().String(flags.ID, "", "the sha256 of the recorded proof to re-run")
+	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("having READ the script: does it actually establish the claim it is anchored to?"))
 	return c
 }
 

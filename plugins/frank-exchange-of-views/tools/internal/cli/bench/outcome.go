@@ -87,7 +87,7 @@ func newOutcome() *cobra.Command {
 	})
 
 	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
-	c.Flags().String(flags.Reason, "", "REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had")
+	c.Flags().String(flags.Reason, "", "how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had")
 	enumhelp.Flag(c, flags.Ended, record.MustEnum("outcome", "ended"), "what STOPPED the run, when it was not a pass — a judgement or a ceiling")
 	return c
 }

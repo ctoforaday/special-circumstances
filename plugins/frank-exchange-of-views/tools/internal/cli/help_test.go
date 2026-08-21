@@ -5,6 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -130,5 +134,50 @@ func TestDetailsDoNotRestateTheFlagsCobraPrints(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatal("no help document was checked — this gate would pass forever")
+	}
+}
+
+// A FLAG'S PLACEHOLDER IS A SCHEMA, AND PROSE EMPHASIS WAS SILENTLY SETTING IT.
+//
+// Cobra's UnquoteUsage takes the FIRST backquoted word in a flag's usage as that flag's
+// placeholder and strips the backticks from the rendered text. Backticks are also how this
+// codebase emphasises a term mid-sentence, so a sentence like "`refutes` you would defend and
+// `refutes` you are unsure of" made `refutes` — a value of a DIFFERENT flag — the placeholder for
+// --confidence. A seat reading `--confidence refutes` is being taught a value the tool refuses.
+//
+// Four were wrong when this was written: --confidence took a value of --as, --id and --class took
+// COMMAND PATHS ("show lines-of-inquiry", "merge class new"), and --new took a verb name.
+//
+// The gate is on the rendered placeholder rather than on backticks, because backticks are also used
+// DELIBERATELY here and correctly: --anchor renders `<!--cite:c-…-->`, --ended renders
+// `deadlock|ceiling`. Banning them would remove the good ones with the accidents.
+func TestAFlagPlaceholderIsNeverProseThatLeakedIntoIt(t *testing.T) {
+	checked := 0
+	for role, root := range AllRoots() {
+		walk(root, func(c *cobra.Command, path []string) {
+			// Every enum value declared anywhere on THIS command: a placeholder that is one of
+			// them belongs to some flag, and the question is whether it belongs to this one.
+			owner := map[string]string{}
+			for flag, vals := range enumhelp.Registered(c) {
+				for _, v := range record.Names(vals) {
+					owner[v] = flag
+				}
+			}
+			c.Flags().VisitAll(func(f *pflag.Flag) {
+				name, _ := pflag.UnquoteUsage(f)
+				checked++
+				if strings.Contains(name, " ") {
+					t.Errorf("%s `%s --%s` renders the placeholder %q, which has a space in it — that is a phrase from the usage prose, not a value shape. Cobra took the first backquoted word; move the backticks onto the shape you mean.",
+						role, strings.Join(path, " "), f.Name, name)
+				}
+				if o, ok := owner[name]; ok && o != f.Name {
+					t.Errorf("%s `%s --%s` renders the placeholder %q, which is a value of --%s. A seat reading it is being taught a value this flag refuses.",
+						role, strings.Join(path, " "), f.Name, name, o)
+				}
+			})
+		})
+	}
+	if checked == 0 {
+		t.Fatal("visited no flags — the walk is broken and this gate would pass forever")
 	}
 }

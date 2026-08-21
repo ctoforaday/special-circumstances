@@ -4,7 +4,9 @@ feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not 
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -17,7 +19,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -50,7 +52,9 @@ feov-record: required flag(s) "class", "impact", "likelihood" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -63,7 +67,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -96,7 +100,9 @@ feov-record: required flag(s) "impact", "likelihood" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -109,7 +115,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -142,7 +148,9 @@ feov-record: required flag(s) "impact", "likelihood" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -155,7 +163,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -188,7 +196,9 @@ feov-record: required flag(s) "impact", "likelihood" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -201,7 +211,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -234,7 +244,9 @@ feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophi
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -247,7 +259,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -280,7 +292,9 @@ feov-record: required flag(s) "impact", "likelihood" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -293,7 +307,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -326,7 +340,9 @@ feov-record: at least one of the flags in the group [reason reason-file] is requ
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -367,7 +383,9 @@ feov-record: required flag(s) "id" not set
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -408,7 +426,9 @@ feov-record: required flag(s) "verified-by" not set
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -449,7 +469,9 @@ feov-record: at least one of the flags in the group [reason reason-file] is requ
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -490,7 +512,9 @@ feov-record: at least one of the flags in the group [reason reason-file] is requ
 
 move a grade on a gap that already exists, with the reason it moved
 
-same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
+Same-id grade movement, recorded with the reason it moved: the gap keeps its identity and its history rather than being closed and re-minted.
+
+Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -569,7 +593,7 @@ feov-record: invalid argument "pass" for "--as" flag: --as must be one of PASS|F
 
 the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
-the seat's terminal act: --as verdictverdict — checkpoints records/ to the recovery mirror
+The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -602,7 +626,7 @@ feov-record: invalid argument "banana" for "--as" flag: --as must be one of PASS
 
 the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
-the seat's terminal act: --as verdictverdict — checkpoints records/ to the recovery mirror
+The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -688,7 +712,9 @@ feov-record: invalid argument "closed-with-regression" for "--as" flag: --as mus
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1027,7 +1053,9 @@ feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not 
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1040,7 +1068,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -1073,7 +1101,9 @@ feov-record: required flag(s) "verified-by" not set
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1114,7 +1144,9 @@ feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not 
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1127,7 +1159,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)

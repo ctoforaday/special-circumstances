@@ -110,9 +110,9 @@ func newCorroborate() *cobra.Command {
 // is of that, and when it was read. Registered from one place so the two verbs cannot drift into
 // describing the same four fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
-	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+" (the claim you are checking)")
-	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: `refutes` and `absent` are findings, not failures to grade")
-	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: `refutes` you would defend and `refutes` you are unsure of are different facts")
+	c.Flags().String(flags.Quote, "", flags.DescQuote+" (the claim you are checking)")
+	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade")
+	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
 
