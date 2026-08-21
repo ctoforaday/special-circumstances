@@ -13,15 +13,11 @@ import "testing"
 // rather than going quiet.
 
 func citeEvent(anchor, claim string) Event {
-	return Event{SeatID: "blue-synthesize", Type: "cite", Payload: NewPayload().
-		Set("label", anchor).Set("claim", claim).Set("url", "https://x").
-		Set("title", "T").Set("sha256", "abc").Set("location", "§1")}
+	return recordtest.Event(t, "blue-synthesize", 0, &recordpb.Cite{Url: proto.String("https://x"), Sha256: proto.String("abc"), Location: proto.String("§1")})
 }
 
 func verifyEvent(anchor string) Event {
-	return Event{SeatID: "red-lens-r1-L1", Type: "verify", Payload: NewPayload().
-		Set("anchor", anchor).Set("claim", "c").Set("outcome", "supports").
-		Set("confidence", "high").Set("reference", "https://x")}
+	return recordtest.Event(t, "red-lens-r1-L1", 0, &recordpb.Verify{Claim: proto.String("c"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)})
 }
 
 func TestAnUnverifiedCitationIsAfforded(t *testing.T) {
@@ -46,8 +42,7 @@ func TestAVerifiedCitationStopsBeingAfforded(t *testing.T) {
 // it is a check against a source blue never cited, so it carries no anchor and must not silence a
 // citation nobody looked at.
 func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
-	indep := Event{SeatID: "red-lens-r1-L1", Type: "verify", Payload: NewPayload().
-		Set("claim", "c").Set("outcome", "supports").Set("reference", "https://other")}
+	indep := recordtest.Event(t, "red-lens-r1-L1", 0, &recordpb.Verify{Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)})
 	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{citeEvent("c-a08c9764", "x"), indep}}
 	if got := citedClaimsWithoutVerify(b); len(got) != 1 {
 		t.Errorf("an independent verify silenced an uninspected citation: %v", got)

@@ -176,11 +176,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := t.TempDir()
 	m := "red-merge-r1"
 	writeShard(t, runDir, m, "aaaaaaaa", []Event{
-		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("problem", "an open problem").Set("location", "§1").
-			Set("required_fix", "do the thing").Set("acceptance_check", "run the check").
-			Set("severity", "high").Set("existence", "verified").
-			Set("found_by", []string{"L1-F1", "L5-F3"}).Set("supersedes", []string{"R0-9"})),
+		recordtest.At(t, m, "aaaaaaaa", 0, 1, m+":mint:R1-1", &recordpb.Mint{Problem: proto.String("an open problem"), Location: proto.String("§1"), AcceptanceCheck: proto.String("run the check"), Supersedes: []string{"R0-9"}}),
 	})
 	b, err := BoardJSONBytes(runDir)
 	if err != nil {

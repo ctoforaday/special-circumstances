@@ -27,8 +27,7 @@ func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 	}
 	for _, s := range specs {
 		if !s.open {
-			evs = append(evs, ev(seat, nonce, seq, 1, "close", seat+":close:"+s.id, NewPayload().
-				Set("gap_id", s.id).Set("class", "resolved")))
+			evs = append(evs, recordtest.At(t, seat, nonce, seq, 1, seat+":close:"+s.id, &recordpb.Close{}))
 			seq++
 		}
 	}

@@ -252,7 +252,7 @@ func TestMergedEventsGlobalOrderIsDeterministic(t *testing.T) {
 		recordtest.At(t, "red-lens-r1-L1", "bbbbbbbb", 0, 1, "a:0", &recordpb.Finding{Label: proto.String("r1-first")}),
 	})
 	writeShard(t, runDir, "red-merge-r1", "cccccccc", []Event{
-		ev("red-merge-r1", "cccccccc", 0, 1, "position", "c:0", NewPayload().Set("label", "r1-merge")),
+		recordtest.At(t, "red-merge-r1", "cccccccc", 0, 1, "c:0", &recordpb.Position{}),
 	})
 	m, err := MergedEvents(runDir)
 	if err != nil {

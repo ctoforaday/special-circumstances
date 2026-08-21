@@ -1,6 +1,9 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 )
@@ -17,12 +20,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("class", "self-attestation").
-		Set("location", "L").Set("problem", "p").Set("required_fix", "f").
-		Set("acceptance_check", "c").Set("check_kind", "computation").
-		Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
-		Set("complexity_cost", "low").Set("existence", "verified")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
@@ -84,12 +82,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("class", "self-attestation").
-		Set("location", "L").Set("problem", "p").Set("required_fix", "f").
-		Set("acceptance_check", "c").Set("check_kind", "document").
-		Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
-		Set("complexity_cost", "low").Set("existence", "verified")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "motion", NewPayload().
@@ -99,10 +92,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	}
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().
-		Set("gap_id", "R1-1").Set("disposition", "closed").
-		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "blue/report.md").
-		Set("reason", "verified at the leaf")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{AnchorTool: proto.String("Read"), AnchorTarget: proto.String("blue/report.md")}); err != nil {
 		t.Fatal(err)
 	}
 

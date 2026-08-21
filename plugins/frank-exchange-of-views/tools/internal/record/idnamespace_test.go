@@ -186,12 +186,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	t.Helper()
 	switch kind {
 	case "gap":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().
-			Set("gap_id", id).Set("class", "self-attestation").
-			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
-			Set("acceptance_check", "c").Set("check_kind", "document").
-			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
-			Set("complexity_cost", "low").Set("existence", "verified"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	case "line-of-inquiry":
 		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Avenue{Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("a line"), Reason: proto.String("r")})
@@ -201,8 +196,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 			Set("motion_id", id).Set("subject", "petition").Set("reason", "b").Set("class", "safety"))
 		return err
 	case "finding":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "finding", NewPayload().
-			Set("label", id).Set("location", "L").Set("problem", "p").Set("severity", "medium"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Finding{Location: proto.String("L"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	}
 	return fmt.Errorf("no recorder for id kind %q — add one, or the minter never advances and this test compares twelve copies of the same id", kind)

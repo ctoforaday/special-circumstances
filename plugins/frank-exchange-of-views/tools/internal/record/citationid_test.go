@@ -51,7 +51,7 @@ func TestCitationID_DistinctFromFindingID(t *testing.T) {
 // rejoined red's count. #341 makes it structural: two acts, two EVENT TYPES, nothing inferred.
 func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
 	authored := recordtest.Event(t, "", 0, &recordpb.Cite{Label: proto.String("c-abc"), Url: proto.String("https://x"), Title: proto.String("T")})
-	verified := Event{Type: "verify", Payload: NewPayload().Set("claim", "c").Set("reference", "https://y").Set("trust", "high")}
+	verified := recordtest.Event(t, "", 0, &recordpb.Verify{Claim: proto.String("c"), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH)})
 
 	if authored.Type == verified.Type {
 		t.Fatal("blue authoring a citation and red verifying one must not share an event type — that sharing is what made the count inflatable")
