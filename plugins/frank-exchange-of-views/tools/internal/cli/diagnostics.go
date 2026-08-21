@@ -123,6 +123,16 @@ type SeatDiagnostic struct {
 	// different facts that a single zero would merge.
 	HelpBlocks   int `json:"helpBlocks"`
 	HelpRejected int `json:"helpRejected"`
+	// Survey answers the question the three fields above cannot: when the seat reached for a
+	// command, had it read THAT COMMAND's help first — and did it open any page for a verb it did
+	// not go on to use? SEEN saturates on one root --help, so it restates "did this seat open
+	// help at all"; a seat can score full exposure and still guess every flag it typed.
+	Survey diagnostics.Survey `json:"survey"`
+	// The headline ratios, computed here so a reader does not have to and so two readers cannot
+	// disagree about how they were derived.
+	BlindFirst       int `json:"blindFirst"`
+	RefusedBlind     int `json:"refusedBlind"`
+	RefusedAfterRead int `json:"refusedAfterRead"`
 }
 
 // RunDiagnostic is the whole run's answer.
@@ -130,6 +140,16 @@ type RunDiagnostic struct {
 	RunDir     string           `json:"runDir"`
 	Trajectory string           `json:"trajectory"`
 	Seats      []SeatDiagnostic `json:"seats"`
+}
+
+// toolName is how the seat's shell commands name this binary. Taken from the running executable
+// rather than written down: `show diagnostics` IS the tool, so it already knows.
+func toolName() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "feov-record"
+	}
+	return filepath.Base(exe)
 }
 
 func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
@@ -174,10 +194,23 @@ func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
 		if err != nil {
 			return out, err
 		}
+		sv, err := diagnostics.ReadSurvey(traj, toolName())
+		if err != nil {
+			return out, err
+		}
+		if sv.ToolUnrecognised() {
+			return out, feov.Errorf(feov.Validation,
+				"show diagnostics: the trajectory has %d shell calls and none of them invoke %q, so every survey figure "+
+					"would read as a seat that ran nothing. Either this trajectory is not a sitting with this tool, or the "+
+					"tool was built under another name", sv.BashCalls, toolName())
+		}
+		rb, rr := sv.RefusedBlind()
 		out.Seats = append(out.Seats, SeatDiagnostic{
 			SeatID: id, Role: role, Offers: acts,
 			SeenTop: keys(s.Top), SeenLeaf: keys(s.Leaf),
 			HelpBlocks: s.Blocks, HelpRejected: s.Rejected,
+			Survey: sv, BlindFirst: sv.BlindFirst(),
+			RefusedBlind: rb, RefusedAfterRead: rr,
 		})
 	}
 	return out, nil
