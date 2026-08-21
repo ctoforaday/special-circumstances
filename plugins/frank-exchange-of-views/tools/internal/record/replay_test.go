@@ -22,7 +22,7 @@ import (
 
 // writeShard puts a shard on disk directly, so a test can construct the
 // multi-nonce and torn-file situations a crash produces.
-func writeShard(t *testing.T, runDir, seatID, nonce string, evs []Event) string {
+func writeShard(t *testing.T, runDir, seatID, nonce string, evs []*Event) string {
 	t.Helper()
 	if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 		t.Fatal(err)
