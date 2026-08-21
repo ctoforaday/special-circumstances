@@ -1,7 +1,7 @@
-prompt sha256: b677f2a2cde53dffd02a7360e89338e9b9582f180dcecd2f6f9bb5899723bc8c
+prompt sha256: d4b144bd3636c5a186ca6c01c7814cb25ab9d30239b8e7a297e3f76b3208c219
 
 Red merge, round 1.
-FIRST ACTION: read this round's lens findings from the RECORD — the `findings` projection — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
+YOUR FIRST READ — WHICH COMES AFTER THE TREE WALK BELOW, NOT BEFORE IT: read this round's lens findings from the RECORD — the `findings` projection — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
 That view IS the channel: the lenses record findings as events, and there are no candidate files to read.
 THE BOARD IS THE TOOL'S (migrated 2026-07-19).
 You do NOT hand-write a ledger or an archive — you MINT each open gap and CLOSE each resolved one, one gap per call, and the tool renders the ledger (open gaps + closure index) and the archive (closed prose).

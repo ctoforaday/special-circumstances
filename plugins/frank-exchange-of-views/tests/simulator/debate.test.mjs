@@ -444,7 +444,15 @@ test('the merge reads this round\'s findings from the record view, not a candida
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
-  assert.ok(merge.prompt.includes('FIRST ACTION'), 'reading findings is the first action')
+  // NOT `FIRST ACTION` ANY MORE, and this assertion used to pin that phrase. Reading the findings
+  // is the merge's first READ; the tree walk comes before it. Two clauses both claiming the
+  // opening move is `co-resident-rules-disagree`, and it was measured: every blue board obeyed the
+  // batched-read clause at the top of its prompt and never traversed, while merge — whose
+  // competing clause is a single read — traversed anyway. What this test is FOR is that the merge
+  // reads findings from the record view rather than catting a candidate file, so it pins that and
+  // the ordering, not the words that happened to carry them.
+  assert.ok(/FIRST READ[^.]*AFTER THE TREE WALK/.test(merge.prompt), 'the findings read is ordered AFTER the tree walk, not presented as the opening move')
+  assert.ok(!/FIRST ACTION/.test(merge.prompt), 'a second clause claims the first action again — the traversal is the opening move and only one clause may say so')
   assert.ok(merge.prompt.includes('`findings` projection'), 'the merge reads the findings PROJECTION from the record, named as a projection rather than as an invocation')
   assert.ok(!merge.prompt.includes('red/candidates'), 'the candidate-file cat is retired')
 })

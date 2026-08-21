@@ -217,7 +217,11 @@ func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
 		for _, p := range sv.HelpPages {
 			opened[p] = true
 		}
-		var unopened []string
+		// EMPTY, NOT NIL. A nil slice marshals to `null`, and a consumer then cannot tell "this
+		// seat opened every group" from "this field was never computed" — the same bytes for the
+		// best outcome and a broken one. It cost the first run-6 comparison, which crashed on the
+		// good news.
+		unopened := []string{}
 		for _, g := range groups {
 			if !opened[g] {
 				unopened = append(unopened, g)
