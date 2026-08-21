@@ -52,17 +52,6 @@ func NextFindingLabel(runDir, seatID string) (string, error) {
 // ExistingMintByKey: the retry dedup is this short-circuit BEFORE Append, not a
 // change to the event key (which stays the unique label).
 func ExistingFindingByKey(runDir, seatID, key string) (string, error) {
-	if key == "" {
-		return "", nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return "", err
-	}
-	for _, e := range m.Events {
-		if e.Type == "finding" && e.SeatID == seatID && e.Payload.Str("finding_key") == key {
-			return e.Payload.Str("label"), nil
-		}
-	}
-	return "", nil
+	result, _, err := ExistingByKey(runDir, seatID, "finding", key)
+	return result, err
 }

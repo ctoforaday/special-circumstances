@@ -210,7 +210,17 @@ func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
 	dir := filepath.Join(runDir, "proofs", sha)
 	raw, err := os.ReadFile(filepath.Join(dir, "meta.json"))
 	if err != nil {
-		return false, "", "", fmt.Errorf("proof: no recorded proof %s in this run: %w", sha, err)
+		// THE REFUSAL NAMES THE REFERENCE, NOT THE FILESYSTEM. Every other unknown-reference
+		// refusal in this tool says what the id was and what it means that nothing carries it —
+		// "no gap R9-99 on the board", "--id names motion M99, which no filing created". This one
+		// wrapped the raw os error, so a seat that mistyped a sha was handed a path under the
+		// record root and an `open … no such file or directory`: a filesystem problem to chase,
+		// on a run whose record directory is deliberately not where the seat can look.
+		//
+		// A refusal that describes the tool's plumbing instead of the seat's mistake is the same
+		// misdirection as a refusal naming a flag that does not exist. The seat believes it.
+		return false, "", "", fmt.Errorf("proof: no recorded proof %s in this run — --id takes the sha256 "+
+			"of a proof a `prove` call recorded, and the evidence projection lists every one under `proofs`", sha)
 	}
 	var rec Result
 	if err := json.Unmarshal(raw, &rec); err != nil {
