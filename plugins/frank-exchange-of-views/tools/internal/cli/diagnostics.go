@@ -128,6 +128,14 @@ type SeatDiagnostic struct {
 	// not go on to use? SEEN saturates on one root --help, so it restates "did this seat open
 	// help at all"; a seat can score full exposure and still guess every flag it typed.
 	Survey diagnostics.Survey `json:"survey"`
+	// Groups are the pages a full traversal opens; GroupsUnopened the ones the seat never did.
+	//
+	// THE COMPLIANCE MEASURE FOR A TRAVERSAL RULE, and it did not exist while the rule was a
+	// lookup rule: steps 2 and 3 both fired on "you are about to run this", so a seat could obey
+	// perfectly and open nothing it did not already intend to use. Under that shape there was
+	// nothing for this to find.
+	Groups         []string `json:"groups"`
+	GroupsUnopened []string `json:"groupsUnopened"`
 	// The headline ratios, computed here so a reader does not have to and so two readers cannot
 	// disagree about how they were derived.
 	BlindFirst       int `json:"blindFirst"`
@@ -204,12 +212,23 @@ func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
 					"would read as a seat that ran nothing. Either this trajectory is not a sitting with this tool, or the "+
 					"tool was built under another name", sv.BashCalls, toolName())
 		}
+		groups := groupsOf(role)
+		opened := map[string]bool{}
+		for _, p := range sv.HelpPages {
+			opened[p] = true
+		}
+		var unopened []string
+		for _, g := range groups {
+			if !opened[g] {
+				unopened = append(unopened, g)
+			}
+		}
 		rb, rr := sv.RefusedBlind()
 		out.Seats = append(out.Seats, SeatDiagnostic{
 			SeatID: id, Role: role, Offers: acts,
 			SeenTop: keys(s.Top), SeenLeaf: keys(s.Leaf),
 			HelpBlocks: s.Blocks, HelpRejected: s.Rejected,
-			Survey: sv, BlindFirst: sv.BlindFirst(),
+			Survey: sv, Groups: groups, GroupsUnopened: unopened, BlindFirst: sv.BlindFirst(),
 			RefusedBlind: rb, RefusedAfterRead: rr,
 		})
 	}
@@ -227,6 +246,38 @@ func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
 //
 // The tree is the authority for what a seat is offered, exactly as it is for everything else
 // here. A join key composed for a table is not the same fact as a command a seat can reach.
+// groupsOf is the acts that HAVE CHILDREN — the pages a survey has to open to reach leaf depth.
+//
+// THE DENOMINATOR OF THE TRAVERSAL, and it is small: two or three per seat, against roots listing
+// 12 to 19 commands. That size is the argument for asking a seat to open all of them rather than
+// the one holding the verb it already picked — the whole tree to leaf depth costs 3-4 calls in a
+// sitting of 16 to 32.
+//
+// `completion` and `help` are cobra's, generated onto every parent, and belong to no role.
+func groupsOf(role string) []string {
+	root := NewRootFor(record.SampleSeatOf(role))
+	if root == nil {
+		return nil
+	}
+	var out []string
+	var walk func(c *cobra.Command, prefix string)
+	walk = func(c *cobra.Command, prefix string) {
+		for _, sub := range c.Commands() {
+			if sub.Name() == "help" || sub.Name() == "completion" {
+				continue
+			}
+			path := strings.TrimSpace(prefix + " " + sub.Name())
+			if sub.HasSubCommands() {
+				out = append(out, path)
+			}
+			walk(sub, path)
+		}
+	}
+	walk(root, "")
+	sort.Strings(out)
+	return out
+}
+
 func actsOf(role string) []string {
 	root := NewRootFor(record.SampleSeatOf(role))
 	if root == nil {

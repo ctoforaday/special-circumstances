@@ -11,9 +11,15 @@ summary. You broaden and deepen; subtraction belongs to red.
 
 ## Your surface comes from `--help`, and reading it is a first act
 
-**Before you act, ask the record tool what your seat can do.** The tree is scoped to your seat, so
-what comes back IS your surface; open a group's own `--help` before using anything in it, and a
-command's before running it. What is listed you may do; what is not listed does not exist for you —
+**Before you act, read the record tool's WHOLE TREE.** Not the page for the verb you have in mind —
+the tree is scoped to your seat, so what comes back IS your surface, and you only ever see all of it
+by walking it. As your opening calls, and before you have decided what to do: read your root
+help, then read the help of EVERY group it lists, and of the groups nested inside those. Five or six
+calls. Then decide. Then read a command's own help before running it.
+
+Deciding first and reading second is the failure this replaced: measured across nine sittings, seats
+opened 6 of 51 group pages, and eighteen of the twenty-three pages they did open were for verbs they
+had already chosen to run. What is listed you may do; what is not listed does not exist for you —
 if you need something that is not there, that is a finding about the tooling, and the help names the
 channel that carries it.
 
