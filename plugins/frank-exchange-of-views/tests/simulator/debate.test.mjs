@@ -444,7 +444,15 @@ test('the merge reads this round\'s findings from the record view, not a candida
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
-  assert.ok(merge.prompt.includes('FIRST ACTION'), 'reading findings is the first action')
+  // NOT `FIRST ACTION` ANY MORE, and this assertion used to pin that phrase. Reading the findings
+  // is the merge's first READ; the tree walk comes before it. Two clauses both claiming the
+  // opening move is `co-resident-rules-disagree`, and it was measured: every blue board obeyed the
+  // batched-read clause at the top of its prompt and never traversed, while merge — whose
+  // competing clause is a single read — traversed anyway. What this test is FOR is that the merge
+  // reads findings from the record view rather than catting a candidate file, so it pins that and
+  // the ordering, not the words that happened to carry them.
+  assert.ok(/FIRST READ[^.]*AFTER THE TREE WALK/.test(merge.prompt), 'the findings read is ordered AFTER the tree walk, not presented as the opening move')
+  assert.ok(!/FIRST ACTION/.test(merge.prompt), 'a second clause claims the first action again — the traversal is the opening move and only one clause may say so')
   assert.ok(merge.prompt.includes('`findings` projection'), 'the merge reads the findings PROJECTION from the record, named as a projection rather than as an invocation')
   assert.ok(!merge.prompt.includes('red/candidates'), 'the candidate-file cat is retired')
 })
@@ -901,17 +909,28 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
     assert.ok(bindsItsOwnID(s), `${s} declares a SEAT_ID it does not hand the tool — the id IS the surface`)
   }
 
-  // THE HELP IS THE ONLY PAGE THAT INSTRUCTS, and the seat is REQUIRED to walk it in three
-  // steps before the act that needs them: root for the groups, the group for its commands, the
-  // command for its flags. A seat that skips a rung is working from memory, and the measured
-  // failure is exactly that — a seat assumed the writing verb matched a projection's name and
-  // read the help only after two invented calls had failed.
+  // THE HELP IS THE ONLY PAGE THAT INSTRUCTS, and the seat is REQUIRED to WALK THE WHOLE TREE
+  // before it chooses — root, then every group, then every group nested in those — with the
+  // command rung read per act.
+  //
+  // THIS ASSERTION USED TO PIN THE OPPOSITE, and pinned it by quoting the clause verbatim:
+  // `BEFORE using any command in a group you have not yet opened`. That is a LOOKUP trigger —
+  // it fires on an act already chosen — and under it a seat obeying perfectly reads the root
+  // once and then opens only the page for the verb it had already picked. Measured over nine
+  // sittings: 6 of 51 group pages opened, 90% of commands run without their own page read, and
+  // 18 of the 23 pages that were opened were for verbs the seat went on to run. The rule was not
+  // being ignored; its ceiling was confirmation. A test that quotes a clause pins whatever that
+  // clause says, including its defect, so the negative below is what keeps the old shape out.
   const lens = roleOf('red-lens')
   assert.ok(/REQUIRED/.test(lens), 'reading the help is stated as required, not suggested')
   assert.ok(lens.includes('--help — every verb your seat can run'), 'step 1: the root help, which IS the seat surface')
-  assert.ok(lens.includes('<group> --help'), 'step 2: the group help, before using a command in it')
+  assert.ok(lens.includes('<group> --help'), 'step 2: the group help')
   assert.ok(lens.includes('<group> <command> --help'), 'step 3: the command help, before running it')
-  assert.ok(/BEFORE using any command in a group you have not yet opened/.test(lens), 'the group rung is ordered before use')
+  assert.ok(/for EVERY group that page listed/.test(lens), 'step 2 is exhaustive: every group, not the one holding the verb you want')
+  assert.ok(/including the groups nested inside those/.test(lens), 'step 2 reaches leaf depth — `motion` alone holds three subgroups')
+  assert.ok(/before you have decided what to do/.test(lens), 'the traversal precedes the DECISION, not merely the act')
+  assert.ok(!/BEFORE using any command in a group you have not yet opened/.test(lens),
+    'the group rung fires on an act already chosen again — that trigger is what made the ceiling of this rule confirmation rather than survey')
   assert.ok(/BEFORE running the command/.test(lens), 'the command rung is ordered before use')
   assert.ok(/DOES NOT EXIST FOR YOU/.test(lens), 'absence is stated as absence')
   assert.ok(/finding about the tooling/.test(lens), 'the escalation path is stated')
