@@ -120,6 +120,17 @@ func main() {
 		if err != nil {
 			fail("%v", err)
 		}
+		// THE SAME CHECK AS THE DISPATCH PATH. This renders the identical prompt for a harness
+		// that drives its own dispatch, so a -bin the prompt does not name sends THAT harness's
+		// seat to a different file just as silently — and the interview, which is what this flag
+		// exists for, would then interview a seat about a sitting it did with another build.
+		// Measured within an hour of the dispatch-path fix: the interview harness still pointed
+		// at `feov-record8`, the seat ran the stale `feov-record` beside it, and only
+		// `show diagnostics` refusing ("21 shell calls and none of them invoke feov-record8")
+		// stopped six questions being asked about it.
+		if err := promptNamesTheBinary(b.Name, d.Prompt, *bin); err != nil {
+			fail("%v", err)
+		}
 		fmt.Print(d.Prompt)
 		return
 	}
@@ -451,24 +462,9 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string
 			b.Name, b.Seat, d.AgentType, role, "frank-exchange-of-views:"+agentFor(role))
 	}
 
-	// THE PROMPT MUST NAME THE BINARY THIS PROBE WAS GIVEN, and this is checked against the
-	// RENDERED prompt rather than against a second copy of debate.js's spelling kept here.
-	//
-	// debate.js builds the tool path itself, from the DIRECTORY it is handed: `${binDir}/feov-record`.
-	// The probe passes filepath.Dir(bin), so a -bin whose basename is anything else tells the seat
-	// to run a DIFFERENT FILE in that directory — and says nothing, because neither side is wrong
-	// on its own terms.
-	//
-	// MEASURED 2026-08-21, and it is the reason this exists. A run was driven with
-	// `-bin <scratch>/feov-record8`; the seats were told to run `<scratch>/feov-record`, which
-	// existed, because a build from four days earlier was still lying in that directory. Nine
-	// boards dispatched, every seat worked, the record filled up, and the report was a measurement
-	// of a binary the operator had not built — one still carrying the role-prefixed surface the
-	// tool had since retired. The only symptom was a denominator: `help×0 of 0 tool calls`, because
-	// the trajectory reader counts invocations of the binary it was TOLD about.
-	//
-	// A stale artifact is what made it silent. With nothing at that path the seats would have
-	// failed loudly on their first call; with something there, the miss returned a plausible run.
+	if err := promptNamesTheBinary(b.Name, d.Prompt, bin); err != nil {
+		return err
+	}
 	prompt := d.Prompt
 	if !strings.Contains(prompt, bin) {
 		return fmt.Errorf("board %q: the dispatched prompt does not name %s.\n\n"+
@@ -766,4 +762,33 @@ func debateScript(flagValue string) string {
 	}
 	// tools/ -> the plugin root.
 	return filepath.Join(wd, "..", "skills", "research-protocol", "scripts", "debate.js")
+}
+
+// promptNamesTheBinary refuses a prompt that sends the seat somewhere other than the binary this
+// harness was given, and this is checked against the RENDERED prompt rather than against a second
+// copy of debate.js's spelling kept here.
+//
+// debate.js builds the tool path itself, from the DIRECTORY it is handed: `${binDir}/feov-record`.
+// The probe passes filepath.Dir(bin), so a -bin whose basename is anything else tells the seat to
+// run a DIFFERENT FILE in that directory — and says nothing, because neither side is wrong on its
+// own terms.
+//
+// MEASURED 2026-08-21, and it is the reason this exists. A run was driven with
+// `-bin <scratch>/feov-record8`; the seats were told to run `<scratch>/feov-record`, which existed,
+// because a build from four days earlier was still lying in that directory. Nine boards dispatched,
+// every seat worked, the record filled up, and the report was a measurement of a binary the
+// operator had not built — one still carrying the role-prefixed surface the tool had since retired.
+// The only symptom was a denominator: `help×0 of 0 tool calls`.
+//
+// A stale artifact is what made it silent. With nothing at that path the seats would have failed
+// loudly on their first call; with something there, the miss returned a plausible run.
+func promptNamesTheBinary(board, prompt, bin string) error {
+	if strings.Contains(prompt, bin) {
+		return nil
+	}
+	return fmt.Errorf("board %q: the dispatched prompt does not name %s.\n\n"+
+		"debate.js builds the tool path from the DIRECTORY it is given, so the seat will run a\n"+
+		"different file in %s — silently, if one happens to be there. Name the binary the way\n"+
+		"production names it, or the run measures whatever else is in that directory.",
+		board, bin, filepath.Dir(bin))
 }
