@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -48,6 +50,21 @@ var Seats = []struct{ Role, ID string }{
 func Build(runDir string, b Board, exec Exec) error {
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		return err
+	}
+	// THE BOARD DECLARES ITS CLASS VOCABULARY, because a real run does and this fixture stands in
+	// for one. `run-setup` stages the registry on a production run; the probe does not go through
+	// setup, so it stages its own.
+	//
+	// MEASURED THE DAY THE ADVISORY BRANCH WENT: 8 of 9 boards stopped building, every one of them
+	// on the first mint. The probe said so loudly — "this run is not a result" — which is the only
+	// reason it was a five-minute diagnosis rather than a run reported with a thinner board.
+	//
+	// The gate over this function did NOT catch it, and the way it failed is worth keeping: the
+	// test staged a registry of its own before calling Build, so it exercised a run configured the
+	// way the probe never configures one. A fixture that sets up what production does not is not
+	// testing production. The gate builds against a bare directory now, exactly as the probe does.
+	if err := record.StageForRun(runDir, BoardClasses...); err != nil {
+		return fmt.Errorf("stage the class registry: %w", err)
 	}
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		return err
@@ -233,3 +250,16 @@ func mintedInquiryID(out string) string {
 }
 
 var mintedID = regexp.MustCompile(`\b(Q\d+)\b`)
+
+// BoardClasses is the gap-class vocabulary the staged boards mint under.
+//
+// Every entry is a slug from the shipped registry (feov-memory/class-registry.json), not a
+// placeholder: a board is a fixture for a REAL sitting, and a seat that opens `class` should find
+// the taxonomy its gaps are actually filed under rather than a set invented for the harness.
+var BoardClasses = []string{
+	"citation-status-drift", "claim-contradicts-own-record", "cross-section-contradiction",
+	"derivation-status-overclaim", "doctrine-vs-implementation", "false-universal",
+	"figure-recount-fails", "incomplete-repair-propagation", "metric-conflation",
+	"risk-coverage-omission", "self-attestation", "unverified-composition",
+	"verification-scope-blindspot",
+}
