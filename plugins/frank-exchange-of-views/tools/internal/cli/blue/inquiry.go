@@ -71,13 +71,33 @@ func newInquiryPropose() *cobra.Command {
 		seat.Set(cmd, p, "hypothesis", flags.Hypothesis)
 		// The record keeps its own word: the payload key is `line`, the flag is --reason.
 		// Flag words are not payload keys (see internal/flags).
-		p.Set("line", seat.Str(cmd, flags.Reason))
+		//
+		// READ THE PROSE CHANNEL ONCE, AND FILL BOTH KEYS FROM IT. This read `--reason` as a raw
+		// FLAG for `line` and the resolved CHANNEL for `reason`, so the two were not the same
+		// argument: `--reason` filled both, and `--reason-file` filled only `reason`, leaving
+		// `line` empty and the write refused. The flag's own help says --reason-file is "the same
+		// field as --reason, for anything long or that would fight shell quoting", and for this
+		// one verb it was not.
+		//
+		// FOUND BY A SEAT, 2026-08-21, through the friction channel. A blue seat wrote its
+		// proposal as a heredoc into `--reason-file -` — exactly what that flag is for, and the
+		// only sane way to pass a paragraph — was refused, tried twice more, and filed a friction
+		// report. It could not name the cause (the refusal pointed at a flag that does not exist)
+		// but it was right that the tool was wrong.
+		//
+		// ONCE, because `--reason-file -` is STDIN: a second read of the channel returns nothing,
+		// so resolving separately for each key would leave whichever key read second empty.
+		prose, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		p.Set("line", prose)
+		if prose != "" {
+			p.Set("reason", prose)
+		}
 		// A fresh proposal with no stated fate is `proposed` — the state the old shape could
 		// not express, which forced blue to declare a fate before it had one.
 		p.Set("status", "proposed")
-		if err := seat.SetReason(cmd, p, "reason"); err != nil {
-			return nil, err
-		}
 		if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
 			return nil, err
 		}

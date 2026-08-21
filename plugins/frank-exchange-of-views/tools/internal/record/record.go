@@ -747,7 +747,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// nothing for it, which is worth less than no row: the row is what makes "unaudited
 		// repair" countable, so a blank one flatters the count it feeds.
 		if typ == "manifest-row" && p.Str("row") == "" {
-			return fmt.Errorf("record: manifest-row requires --row (what you checked and what it showed — an empty receipt still counts as a repair audited)")
+			return fmt.Errorf("record: manifest-row requires --%s (what you checked and what it showed — an empty receipt still counts as a repair audited)", flags.ForPayloadKey("row"))
 		}
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
 	//
@@ -863,7 +863,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// A removal with no stated reason is the failure this verb exists to make
 		// visible, so it is refused at the tool rather than noticed at capture.
 		if !p.Has("claim") || p.Str("claim") == "" {
-			return fmt.Errorf("record: retire requires --claim (quote the claim as it stood — a removal nobody can identify is not on the record)")
+			return fmt.Errorf("record: retire requires --%s (quote the claim as it stood — a removal nobody can identify is not on the record)", flags.ForPayloadKey("claim"))
 		}
 		if !p.Has("reason") || p.Str("reason") == "" {
 			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
@@ -906,7 +906,19 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// A MOVE (--id) carries only the new status and its reason; the substance lives on
 		// the proposal it moves, so requiring --line here would make a move impossible.
 		if p.Str("supersedes_status") == "" && (!p.Has("line") || p.Str("line") == "") {
-			return fmt.Errorf("record: line-of-inquiry requires --line (what you are going to try — an unnamed line teaches a future run nothing)")
+			// THE FLAG NAME IS DERIVED, NOT SPELLED. The payload key is `line`; the flag that
+			// fills it is --reason, because prose reaches every verb through one channel. This
+			// message said "requires --line" for its whole life — a flag that appears on no
+			// surface and cannot be typed.
+			//
+			// MEASURED 2026-08-21: a blue seat hit it, believed it (the tool said so), invented
+			// `--line`, was refused again as an unknown flag, gave up after four attempts, and
+			// filed friction reporting "the tool requires an undocumented --line flag". The seat
+			// was right that something was wrong and wrong about what — because the refusal
+			// pointed it at a flag that does not exist. A refusal naming something the seat
+			// cannot type is worse than a bare "invalid": it is a false lead with the tool's
+			// authority behind it.
+			return fmt.Errorf("record: line-of-inquiry requires --%s (what you are going to try — an unnamed line teaches a future run nothing)", flags.ForPayloadKey("line"))
 		}
 		// A declined or abandoned line of inquiry with no reason is the decoration this verb
 		// exists to prevent: the road not taken is worthless without why.
@@ -979,7 +991,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// express. What is enforced here is that the row says something: which claim, what the
 		// source did for it, and the reading behind that verdict.
 		if p.Str("claim") == "" {
-			return fmt.Errorf("record: verify requires --claim (the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted)")
+			return fmt.Errorf("record: verify requires --%s (the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted)", flags.ForPayloadKey("claim"))
 		}
 		if p.Str("outcome") == "" {
 			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports-with-bridge | weak | refutes | absent | unreachable — the negative half is the point, and until 0.60.0 there was no field for it)")

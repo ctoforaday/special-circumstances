@@ -133,7 +133,14 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		// answers a question about a document that no longer exists. This is the channel that
 		// makes "we pursued X" checkable at all: the row `assemble` generates carries no anchor,
 		// so without a vote it is the one claim in the report nothing can refuse.
-		for _, a := range UnvotedInquiries(b) {
+		// AS OF THIS SEAT'S ROUND. A round-1 merge is asked whether it voted in round 1 — not
+		// whether it voted in whatever the highest round on the board happens to be, which a
+		// later seat's bare `register` is enough to advance.
+		now := CurrentRound(b)
+		if r, ok := RoundOf(seatID); ok && r > 0 {
+			now = r
+		}
+		for _, a := range UnvotedInquiriesAt(b, now) {
 			add("line of inquiry " + a.ID + " has no support verdict this round — PASS is refused while the report's own account of its research is unchecked")
 		}
 		if !seatDid(b, seatID, "verdict") {

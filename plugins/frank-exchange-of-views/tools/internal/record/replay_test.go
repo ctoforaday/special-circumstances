@@ -623,7 +623,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"regrade without --basis", "regrade", NewPayload(), "regrade requires --reason"},
 		{"regrade complete", "regrade", NewPayload().Set("reason", "b"), ""},
 
-		{"retire without --claim", "retire", NewPayload().Set("reason", "r"), "retire requires --claim"},
+		{"retire without --claim", "retire", NewPayload().Set("reason", "r"), "retire requires --quote"},
 		{"retire without --reason", "retire", NewPayload().Set("claim", "c"), "retire requires --reason"},
 		{"retire complete", "retire", NewPayload().Set("claim", "c").Set("reason", "r"), ""},
 
@@ -631,7 +631,7 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"line-of-inquiry with no status at all", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("line", "l"), "line-of-inquiry requires --as"},
 		{"line-of-inquiry with no id", "line-of-inquiry", NewPayload().Set("status", "pursued").Set("line", "l"), "line-of-inquiry requires an id"},
 		{"a deferred line of inquiry needs a reason", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "deferred").Set("line", "l"), "requires --reason"},
-		{"line-of-inquiry without --line", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued"), "line-of-inquiry requires --line"},
+		{"line-of-inquiry without --line", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued"), "line-of-inquiry requires --reason"},
 		{"a declined line of inquiry needs a reason", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "declined").Set("line", "l"), "requires --reason"},
 		{"an abandoned line of inquiry needs a reason", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "abandoned").Set("line", "l"), "requires --reason"},
 		{"a PURSUED line of inquiry does not need a reason", "line-of-inquiry", NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "l"), ""},
@@ -640,6 +640,14 @@ func TestValidateVerbContracts(t *testing.T) {
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
+		//
+		// AND THE SAME DEFECT WAS STILL LIVE IN FOUR OTHER MESSAGES until 2026-08-21, with the
+		// two cases above pinning the wrong spelling: `--line`, `--row` and `--claim` are payload
+		// keys and appear on NO surface, because prose reaches every verb as --reason and every
+		// span as --quote. A seat hit the first of them, believed the refusal, invented `--line`,
+		// and filed friction against a flag that does not exist. All four derive their spelling
+		// from flags.ForPayloadKey now — the same mapping the CLI registers them by — so the
+		// message cannot drift from the surface again.
 		{"opinion missing every field", "opinion", NewPayload(), "opinion requires --id"},
 		{"an unknown verb is not validated here", "no-such-verb", NewPayload(), ""},
 	}
