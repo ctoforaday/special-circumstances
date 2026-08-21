@@ -117,8 +117,13 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	writeShard(t, runDir, m, "aaaaaaaa", []Event{
 		recordtest.At(t, m, "aaaaaaaa", 0, 1, m+":mint:R1-1", &recordpb.Mint{Problem: proto.String(longProblem), Location: proto.String("§open"), RequiredFix: proto.String("SECRET_FIX_PROSE"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		recordtest.At(t, m, "aaaaaaaa", 1, 1, m+":mint:R1-2", &recordpb.Mint{Problem: proto.String("a closed problem"), Location: proto.String("§closed"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk")}),
-		ev(m, "aaaaaaaa", 2, 1, "close", m+":close:R1-2", NewPayload().
-			Set("gap_id", "R1-2").Set("class", "resolved")),
+		recordtest.At(t, m, "aaaaaaaa", 2, 1, m+":close:R1-2", &recordpb.Close{
+			GapId: proto.String("R1-2"),
+			// `class: "resolved"` before the schema — a key `merge close` never wrote (it writes
+			// closure_class) carrying a word the enum never had. Untyped, it replayed as a closure
+			// with NO class: a torn closure, which is the state this test is not about.
+			ClosureClass: recordtest.P(recordpb.ClosureClass_CLOSURE_CLASS_CLOSED),
+		}),
 	})
 
 	b, err := BoardState(runDir)

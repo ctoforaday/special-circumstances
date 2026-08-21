@@ -120,7 +120,11 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		seatID := "red-merge-r1"
 		withTerminal := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":register:aaaaaaaa", &recordpb.Register{}),
-			ev(seatID, "aaaaaaaa", 1, 1, "verdict", seatID+":verdict", NewPayload().Set("verdict", "PASS")),
+			recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":verdict", &recordpb.Verdict_{
+				// The seat types PASS and the schema spells `pass`; recordpb.BySpelling is case-sensitive
+				// by design, so the fold is the join's job and the fixture states the VALUE.
+				Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS),
+			}),
 		})
 		withoutTerminal := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
 			recordtest.At(t, seatID, "bbbbbbbb", 0, 1, seatID+":register:bbbbbbbb", &recordpb.Register{}),
