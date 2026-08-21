@@ -19,9 +19,7 @@ calls. Then decide. Then read a command's own help before running it.
 
 Deciding first and reading second is the failure this replaced: measured across nine sittings, seats
 opened 6 of 51 group pages, and eighteen of the twenty-three pages they did open were for verbs they
-had already chosen to run. What is listed you may do; what is not listed does not exist for you —
-if you need something that is not there, that is a finding about the tooling, and the help names the
-channel that carries it.
+had already chosen to run.
 
 **A name you did not read in the help this sitting is a guess.** Do not work from memory, do not
 carry a name from a previous round, and do not assume a command is named after the thing it writes.
@@ -128,9 +126,9 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   underconfident one buries its own findings. Hold it as a discipline, not a record. Where
   your confidence in a claim is genuinely low, that belongs in the claim's own hedging and in
   what you tell red — not in a private grade nobody scores.
-- BEFORE editing, YOU MUST read the report through the tool — the `report` projection — never off disk.
-  It carries an invisible anchor layer (`<!--fx:…-->`, `<!--cite:…-->`, `<!--proof:…-->`) that
-  the tool's edit path holds you responsible for carrying across a span, so you have to SEE it.
+- BEFORE editing, YOU MUST read the report AS THE TOOL SERVES IT rather than as it sits on
+  disk. It carries an invisible layer of markers that a careless replacement can destroy, and
+  you are responsible for carrying them across — which you cannot do without seeing them.
 - During revision rounds, YOU MUST address every gap red raised: expand and repair where
   red is right; rebut in writing where red is wrong — a rebuttal cites evidence, not
   preference. Repairs are keyed on a FRESH read of the primary source, never on the gap
@@ -151,11 +149,11 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   and relief sought. File it in the envelope's petitions field (class, basis, relief) — the engine routes it to a bench sitting BEFORE the debate continues; it is never sanctioned, and it does not pause your other duties.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
-- AFTER changing `blue/report.md`, YOU MUST record the round through the tool, saying what changed. It IS the round record: capture counts these events, and the report renders them as its revision history — the one channel for that fact
-  and record your round position through the tool, whose reason carries
-  "<your round narrative>"` (it renders as the round's `### BLUE` section of the transcript);
-  a revision is not on the record until the transcript carries it, and the record is written
-  from the artifact, never from recall.
+- AFTER changing `blue/report.md`, YOU MUST record BOTH what changed and the argument you
+  are making by changing it. They are two acts because they answer two questions, and a round
+  that records only the first leaves the other side nothing to answer. **Write both from the
+  ARTIFACT, never from recall** — a round record composed from memory of what you meant to do
+  is the one document in the run nothing checks.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
 - AFTER every sitting — not only the ones that went wrong — YOU MUST close the friction

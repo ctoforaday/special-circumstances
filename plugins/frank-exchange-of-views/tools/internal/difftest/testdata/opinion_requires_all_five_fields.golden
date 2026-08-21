@@ -8,7 +8,13 @@ exit 2
 stderr:
 feov-record: required flag(s) "principle", "review-flag", "tension" not set
 
-a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+dispose of one contested gap with a written ruling — the bench's answer to a docketed item
+
+A ruling is an OPINION, not a disposition — the principle applied and the values in tension are required because a bare fate teaches the next round nothing.
+
+Every value ends the gap except `carried`, which defers it with a stated direction.
+
+For a holding that binds how the record is READ and moves no gap, use `declare`: this verb needs an id and a fate, and cannot carry one.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -19,7 +25,7 @@ Usage:
   feov-record opinion [flags]
 
 Flags:
-      --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --as carried           REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
       --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
@@ -48,7 +54,13 @@ exit 2
 stderr:
 feov-record: required flag(s) "review-flag" not set
 
-a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+dispose of one contested gap with a written ruling — the bench's answer to a docketed item
+
+A ruling is an OPINION, not a disposition — the principle applied and the values in tension are required because a bare fate teaches the next round nothing.
+
+Every value ends the gap except `carried`, which defers it with a stated direction.
+
+For a holding that binds how the record is READ and moves no gap, use `declare`: this verb needs an id and a fate, and cannot carry one.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -59,7 +71,7 @@ Usage:
   feov-record opinion [flags]
 
 Flags:
-      --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --as carried           REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
       --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition

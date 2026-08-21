@@ -31,17 +31,19 @@ Usage:
 
 Available Commands:
   completion   Generate the autocompletion script for the specified shell
-  corroborate  corroborate a claim from a source YOU found — one blue never cited, so there is no anchor: --url <u> --title <t> --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS IS THE VERB FOR A CLAIM WITH NO CITATION when the source is obtainable — it answers whether the claim is true in the WORLD, where a finding answers whether the TEXT stands up, and it is what makes "nobody cited this" checkable instead of merely raised. To adjudicate a citation blue DID author, use `verify` instead: it names the citation by its anchor.
+  corroborate  go and find a source blue never cited, when the claim has no anchor but the source is obtainable
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  finding      a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --quote "<the exact sentence, quoted from the report and nothing else>". A FINDING IS A DEFECT IN THE TEXT — whether what the report SAYS stands up as written. It is not a verdict on the world. For a claim resting on NO citation, that distinction decides the verb: where the source is one you could go and read, `corroborate` puts it on the record and the finding then says what it showed; where there is nothing to fetch — the source cannot be obtained, no source exists to look for, or the defect IS the writing (a figure with no derivation, an internal contradiction, an unfalsifiable universal) — raise it here. `verify` and `reproduce` judge evidence blue already produced. NOTE THE ASYMMETRY RATHER THAN LETTING IT CHOOSE: this verb cannot fail, needing no fetch and risking no `absent`, and the evidence verbs can.
-  friction     a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
+  friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help         Help about any command
+  register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
+  verify       judge a citation blue authored, when the anchor exists and you have read what it points at
+
+Command groups — each holds commands THIS page does not list:
   motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  register     FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  reproduce    re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
-  show         read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  verify       adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read blue's source and the claim is not in it. An unevidenced claim is not this verb's, and it is not automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record

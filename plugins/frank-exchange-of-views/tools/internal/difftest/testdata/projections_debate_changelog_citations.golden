@@ -55,24 +55,26 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
+  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."
+  edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -100,24 +102,26 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
+  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."
+  edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -133,7 +137,11 @@ exit 2
 stderr:
 feov-record: unknown flag: --title
 
-adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read blue's source and the claim is not in it. An unevidenced claim is not this verb's, and it is not automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
+judge a citation blue authored, when the anchor exists and you have read what it points at
+
+THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read blue's source and the claim is not in it.
+
+An unevidenced claim is not this verb's, and it is not automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -144,14 +152,14 @@ Usage:
   feov-record verify [flags]
 
 Flags:
-      --access-date YYYY-MM-DD     YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->   the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `lens show evidence`
-      --as refutes                 REQUIRED — REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and `absent` are findings, not failures to grade
-      --confidence refutes         REQUIRED — REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: refutes you would defend and `refutes` you are unsure of are different facts
-  -h, --help                       help for verify
-      --quote string               REQUIRED — REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string              REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -              read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
+      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `lens show evidence`
+      --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade
+      --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
+  -h, --help                         help for verify
+      --quote string                 REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
+      --reason string                REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -                read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
 
 Enumerated values:
   --as

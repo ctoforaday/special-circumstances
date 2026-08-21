@@ -311,7 +311,7 @@ func Supplied(c *cobra.Command, key string) string { return c.Annotations[suppli
 // Supplies marks a record field this verb fills ITSELF, with why.
 //
 // A REQUIRED FIELD IS NOT A REQUIRED FLAG, and conflating them produced help that contradicted
-// itself in one line: `--status` read "REQUIRED — proposed (put forward, undecided — the
+// itself in one line: `--status` read "proposed (put forward, undecided — the
 // default)". Required, and also the default. A seat reading that supplies a value it did not
 // need to choose, and the one state the field exists to express is the one it is least likely
 // to type.
@@ -391,6 +391,10 @@ func markRequired(c *cobra.Command, verb string) {
 			// "default" in the same sentence.
 			continue
 		}
+		// THE ONE WRITER OF THIS WORD. A dozen call sites also hand-wrote "REQUIRED — " at the
+		// front of their own usage, so the rendered line read "REQUIRED — REQUIRED — what the
+		// source ACTUALLY DID" on every flag that had both. Two copies of a fact the mechanism
+		// already supplies, and the seat reading it twice cannot tell which one is authoritative.
 		f.Usage = "REQUIRED — " + f.Usage
 
 		// AND COBRA ENFORCES IT. This only ever rewrote the usage string, so the help said
@@ -562,11 +566,39 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 // wires the ONE hook-free RunE that shape holds: Begin (preconditions) -> the work -> Emit
 // (render). No PreRunE, no PostRunE — nothing chains, and a precondition failure renders
 // through the same Emit as any other error.
-func New(name, help string, run Handler) *cobra.Command {
+// New builds a seat verb.
+//
+// TWO FIELDS, BECAUSE THEY ARE TWO JOBS, and they live in help/<name>.md rather than here. `## menu`
+// is the line a seat reads in a listing, while it is deciding and has not chosen yet: what this
+// verb is FOR, and when to reach for it rather than its neighbour. `## detail` is the page it reads
+// once it has chosen: the flags, the sibling comparison, the measured history.
+//
+// IT WAS ONE STRING, SET INTO BOTH, and that is why the listing became unreadable. Everything a
+// verb had to say went into Short — flag enumerations, sibling discriminators, the arguments from
+// past runs — and cobra prints Short IN FULL in the parent's Available Commands block. `finding`
+// alone ran to 961 characters there. A menu whose entries are each a paragraph is not a menu, and
+// a seat facing one reads the first clause, which was the mechanics, and stops.
+//
+// The reverse cost was the same defect from the other side: Long was `help` again, so the page a
+// seat opens after choosing told it nothing the listing had not already said. Both positions
+// carried one string and neither did its own job.
+func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, run) }
+
+// NewKeyed is New for a verb whose help is not keyed by its own name — the shared verbs, where the
+// same command means something different in each chair. `position` is a RED section for the merge
+// and a BLUE one for blue, so those are two documents; `register` and `friction` mean exactly the
+// same thing everywhere and are one.
+//
+// THEY WERE FOUR COPIES. Each role passed its own literal, under a comment saying the guidance
+// differs by role — and register's and friction's were byte-identical at every call site but one,
+// where the difference was the word "seat" against "sitting". Four hand-kept copies of one
+// paragraph, which is the shape that goes stale in three places and nobody notices.
+func NewKeyed(name, key string, run Handler) *cobra.Command {
+	d := helpFor(key)
 	c := &cobra.Command{
 		Use:          name,
-		Short:        help,
-		Long:         help + "\n" + FrictionFooter,
+		Short:        d.menu,
+		Long:         d.menu + "\n\n" + d.detail + "\n" + FrictionFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		Annotations:  map[string]string{recordsKey: name},
@@ -678,4 +710,43 @@ func SetSame(cmd *cobra.Command, p *record.Payload, names ...string) *record.Pay
 		Set(cmd, p, n, n)
 	}
 	return p
+}
+
+// GroupTitles are the two headings a seat's root help renders its surface under.
+//
+// WHY THE SPLIT EXISTS. Cobra lists every child under one "Available Commands:" heading, and a
+// command holding subcommands looks exactly like one that does not — same line, same shape. So the
+// root page of a seat surface silently understated itself: `motion` reads as a verb, and the three
+// commands inside it are not on any page the seat has opened.
+//
+// The prompt used to carry the missing half, in a sentence appended to step 1 of the tree walk:
+// "Some of those entries are GROUPS, holding commands this page does not show you." That is the
+// tool describing its own output format to the reader, in the prompt, because the output would not
+// describe itself — and it is exactly the shape this pass is removing. A page that cannot say what
+// it is hiding needs fixing, not narrating.
+const (
+	GroupVerbs  = "verbs"
+	GroupGroups = "groups"
+)
+
+// SplitGroups sorts a root's children into the two headings. Called AFTER every AddCommand, since
+// it reads HasSubCommands to decide — a group assigned before its children are attached would
+// classify itself as a leaf.
+func SplitGroups(root *cobra.Command) {
+	root.AddGroup(
+		&cobra.Group{ID: GroupVerbs, Title: "Available Commands:"},
+		&cobra.Group{ID: GroupGroups, Title: "Command groups — each holds commands THIS page does not list:"},
+	)
+	for _, sub := range root.Commands() {
+		if sub.HasSubCommands() {
+			sub.GroupID = GroupGroups
+			continue
+		}
+		sub.GroupID = GroupVerbs
+	}
+	// `help` and `completion` are cobra's, added lazily at execute time; without these they land
+	// under an "Additional Commands:" heading of their own, which reads as a third category of
+	// seat surface rather than as the shell plumbing they are.
+	root.SetHelpCommandGroupID(GroupVerbs)
+	root.SetCompletionCommandGroupID(GroupVerbs)
 }

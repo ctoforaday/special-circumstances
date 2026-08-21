@@ -26,23 +26,21 @@ import (
 // events survive the working tree. Projections are regenerated on read from the
 // mirror, so the frozen snapshot is the source, not a materialized cache.
 func newVerdict() *cobra.Command {
-	c := seat.New("verdict",
-		"the seat's terminal act: --as "+record.MustEnum("verdict", "verdict").Spelling()+" — checkpoints records/ to the recovery mirror",
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
-			if _, err := record.Append(s.Identity(), "verdict", p); err != nil {
-				return nil, err
-			}
-			open, closed, _, err := view.Counts(s.RunDir)
-			if err != nil {
-				return nil, err
-			}
-			mirror, err := checkpoint(s.RunDir)
-			if err != nil {
-				return nil, err
-			}
-			return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
-		})
+	c := seat.New("verdict", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
+		if _, err := record.Append(s.Identity(), "verdict", p); err != nil {
+			return nil, err
+		}
+		open, closed, _, err := view.Counts(s.RunDir)
+		if err != nil {
+			return nil, err
+		}
+		mirror, err := checkpoint(s.RunDir)
+		if err != nil {
+			return nil, err
+		}
+		return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
+	})
 
 	enumhelp.Flag(c, flags.As, record.MustEnum("verdict", "verdict"), ("the seat's terminal act"))
 	return c

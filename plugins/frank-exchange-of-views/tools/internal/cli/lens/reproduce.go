@@ -47,45 +47,43 @@ import (
 // So --as is REQUIRED. A reproduce that records only the mechanical half would put the
 // tool's authority behind a claim nobody checked.
 func newReproduce() *cobra.Command {
-	c := seat.Prose(seat.New("reproduce",
-		`re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			sha := seat.Str(cmd, flags.ID)
-			if sha == "" {
-				// THE WAY THROUGH, NAMED. This message used to say the sha was "listed in the report
-				// beside the sentence it backs". It is not: the report carries an opaque
-				// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
-				// document had the token this verb does not take and no path to the one it does.
-				return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `<!--proof:p-…-->` anchor, resolve it with `lens show evidence --run <runDir>` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet")
-			}
-			ok, got, want, err := proof.Reproduce(s.RunDir, sha)
-			if err != nil {
-				return nil, err
-			}
-			soundness := seat.Str(cmd, flags.As)
-			if soundness == "" {
-				return nil, fmt.Errorf("lens reproduce requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. Read the script and say whether it computes what it is anchored to")
-			}
-			p := record.NewPayload().Set("proof_sha", sha).Set("reproduced", ok).Set("soundness", soundness)
-			if !ok {
-				// Only on a MISMATCH, and truncated: the recorded output already lives in the
-				// proof artifact, and copying it wholesale into the event would put a second
-				// copy of the same bytes on the record. What the reader needs is what CHANGED.
-				p.Set("recorded_output", truncateOutput(want)).Set("observed_output", truncateOutput(got))
-			}
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
-				return nil, err
-			}
-			if p.Str("reason") == "" {
-				return nil, fmt.Errorf("lens reproduce requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace")
-			}
-			if _, err := record.Append(s.Identity(), "reproduce", p); err != nil {
-				return nil, err
-			}
-			return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil
-		}))
-	c.Flags().String(flags.ID, "", "REQUIRED — the sha256 of the recorded proof to re-run")
-	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
+	c := seat.Prose(seat.New("reproduce", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		sha := seat.Str(cmd, flags.ID)
+		if sha == "" {
+			// THE WAY THROUGH, NAMED. This message used to say the sha was "listed in the report
+			// beside the sentence it backs". It is not: the report carries an opaque
+			// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
+			// document had the token this verb does not take and no path to the one it does.
+			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `<!--proof:p-…-->` anchor, resolve it with `lens show evidence --run <runDir>` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet")
+		}
+		ok, got, want, err := proof.Reproduce(s.RunDir, sha)
+		if err != nil {
+			return nil, err
+		}
+		soundness := seat.Str(cmd, flags.As)
+		if soundness == "" {
+			return nil, fmt.Errorf("lens reproduce requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. Read the script and say whether it computes what it is anchored to")
+		}
+		p := record.NewPayload().Set("proof_sha", sha).Set("reproduced", ok).Set("soundness", soundness)
+		if !ok {
+			// Only on a MISMATCH, and truncated: the recorded output already lives in the
+			// proof artifact, and copying it wholesale into the event would put a second
+			// copy of the same bytes on the record. What the reader needs is what CHANGED.
+			p.Set("recorded_output", truncateOutput(want)).Set("observed_output", truncateOutput(got))
+		}
+		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			return nil, err
+		}
+		if p.Str("reason") == "" {
+			return nil, fmt.Errorf("lens reproduce requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace")
+		}
+		if _, err := record.Append(s.Identity(), "reproduce", p); err != nil {
+			return nil, err
+		}
+		return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil
+	}))
+	c.Flags().String(flags.ID, "", "the sha256 of the recorded proof to re-run")
+	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("having READ the script: does it actually establish the claim it is anchored to?"))
 	return c
 }
 

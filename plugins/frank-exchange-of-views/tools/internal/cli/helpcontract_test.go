@@ -364,12 +364,26 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 	// enumhelp.Registered answers for THIS command, which is exact by construction.
 	restated := regexp.MustCompile(`--([a-z-]+)\s+([a-z][a-zA-Z_-]*(?:\|[a-zA-Z_][a-zA-Z_-]*)+)`)
 
-	var checked int
+	// INVERTED, BECAUSE THE CONVENTION IT POLICED IS GONE.
+	//
+	// This checked that a set restated in a help summary matched the real one — the summary being
+	// "the line a seat reads first". Help text no longer restates sets at all: cobra prints an
+	// `Enumerated values:` block glossing every value of every enum flag, generated from the flags
+	// themselves, and a prose copy beside it is a second version nothing keeps in step. Removing
+	// those copies emptied this gate, which tripped its own "a walk that finds nothing" guard
+	// rather than passing vacuously — the guard working exactly as written.
+	//
+	// So it asserts the ABSENCE now, and keeps a live tripwire: the walk must still find commands
+	// declaring enums, or the traversal is broken and this proves nothing in either direction.
+	enumCommands := 0
 	for _, r := range AllRoots() {
 		walk(r, func(c *cobra.Command, path []string) {
 			registered := enumhelp.Registered(c)
-			for _, m := range restated.FindAllStringSubmatch(c.Short, -1) {
-				flag, listed := m[1], strings.Split(m[2], "|")
+			if len(registered) > 0 {
+				enumCommands++
+			}
+			for _, m := range restated.FindAllStringSubmatch(c.Short+"\n"+c.Long, -1) {
+				flag := m[1]
 				var want []string
 				switch {
 				case registered[flag] != nil:
@@ -379,24 +393,12 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 				default:
 					continue // not an enum this command declares: a shape hint, not a set
 				}
-				checked++
-				real := map[string]bool{}
-				for _, v := range want {
-					real[v] = true
-				}
-				for _, v := range listed {
-					if v == "" || v == "..." {
-						continue
-					}
-					if !real[v] {
-						t.Errorf("`%s` summarises --%s as %q, and %q is NOT in the real set (%s).\n\nThe summary is the line a seat reads first — in Available Commands and now in every refusal — so a value offered here and refused by the tool is a set that does not exist, taught at the moment a seat is deciding what to type.",
-							strings.Join(path, " "), flag, m[2], v, strings.Join(want, "|"))
-					}
-				}
+				t.Errorf("`%s` restates --%s as %q in its help.\n\nCobra prints an Enumerated values block for this flag, glossing each value, derived from the flag itself. A prose copy is a second set nothing compiles against the first — say what the field MEANS and let the block carry the vocabulary. The real set is (%s).",
+					strings.Join(path, " "), flag, m[2], strings.Join(want, "|"))
 			}
 		})
 	}
-	if checked == 0 {
-		t.Fatal("no summary restated any known set — either the convention is gone or the walk is broken, and a walk that finds nothing passes this forever")
+	if enumCommands == 0 {
+		t.Fatal("walked every root and found no command declaring an enum flag — the walk is broken, and this gate would report a clean board on a tree it never read")
 	}
 }

@@ -185,6 +185,12 @@ func Section(c *cobra.Command) string {
 
 // usageTemplate is cobra's default with one section added.
 //
+// IT IS COBRA'S CURRENT DEFAULT, NOT THE ONE IT FORKED FROM. The copy here was taken before cobra
+// grew command groups, so it rendered every child under a single "Available Commands:" heading and
+// dropped .Groups on the floor — silently, because a template that ignores a field looks exactly
+// like a tree that has no groups. Assigning a GroupID had no visible effect at all until this
+// branch came back, which is the shape of every fork of someone else's default.
+//
 // Kept as a whole template rather than assembled, because cobra's is a single string and a
 // partial override would silently drop whatever it does not reproduce — the failure mode being
 // that `--help` quietly stops printing the global flags and nobody notices for a year.
@@ -196,10 +202,16 @@ Aliases:
   {{.NameAndAliases}}{{end}}{{if .HasExample}}
 
 Examples:
-{{.Example}}{{end}}{{if .HasAvailableSubCommands}}
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
 
-Available Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+Available Commands:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
+
+{{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
+
+Additional Commands:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
 Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if enumSection .}}

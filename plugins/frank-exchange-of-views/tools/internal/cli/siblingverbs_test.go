@@ -34,8 +34,8 @@ import (
 func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 	// Every leaf, with the event type it writes: its Records annotation, or its own name.
 	type leaf struct {
-		path, name, short, writes string
-		annotated                 bool
+		path, name, help, writes string
+		annotated                bool
 	}
 	var leaves []leaf
 	var walk func(c *cobra.Command, prefix []string)
@@ -46,7 +46,20 @@ func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 			if writes == "" {
 				writes, annotated = c.Name(), false
 			}
-			leaves = append(leaves, leaf{strings.Join(prefix, " "), c.Name(), c.Short, writes, annotated})
+			// LONG, NOT SHORT, and the difference is the point of this gate rather than a detail.
+			//
+			// It read c.Short because Short and Long were ONE STRING: seat.New set both from the
+			// same argument, so "the help" was unambiguous. They are now two fields with two jobs —
+			// Short is the line in a listing, read while DECIDING; Long is the page opened after
+			// choosing — and this gate's own sentence says which one it means: "whichever it OPENS
+			// must say where the boundary is". That is the page.
+			//
+			// A menu line is capped at seat.MenuLimit precisely so a listing stays scannable, and
+			// demanding every split verb spend part of that budget naming its sibling would trade
+			// the scannability for a cross-reference that belongs on the page anyway. The menu
+			// lines still discriminate — `close` says THIS round, `carry` says not re-attesting —
+			// they simply do it without the sibling's name.
+			leaves = append(leaves, leaf{strings.Join(prefix, " "), c.Name(), c.Long, writes, annotated})
 			return
 		}
 		for _, k := range kids {
@@ -105,12 +118,12 @@ func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 				if a.path == b.path {
 					continue
 				}
-				if !strings.Contains(a.short, b.name) {
+				if !strings.Contains(a.help, b.name) {
 					t.Errorf("`%s` and `%s` both write the %q event — they are two contracts on one act — "+
 						"but %s's help never names %q.\n\nA seat chooses between them by reading one of them. "+
 						"Whichever it opens must say where the boundary is; the tree knowing about the split is "+
-						"not the same as the seat knowing.\n\n%s's Short:\n  %s",
-						a.path, b.path, strings.Split(k, "\x00")[1], a.path, b.name, a.path, a.short)
+						"not the same as the seat knowing.\n\n%s's help page:\n  %s",
+						a.path, b.path, strings.Split(k, "\x00")[1], a.path, b.name, a.path, a.help)
 				}
 			}
 		}

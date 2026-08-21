@@ -224,6 +224,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		root.AddCommand(motion.NewCommandFor(role))
 		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
 		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
+		// AFTER every AddCommand: the split reads HasSubCommands, so a group registered before
+		// its children were attached would file itself under the leaves.
+		seat.SplitGroups(root)
 	default:
 		root.AddCommand(
 			newVerify(),          // operator cross-check, not a seat role — read-only over the record

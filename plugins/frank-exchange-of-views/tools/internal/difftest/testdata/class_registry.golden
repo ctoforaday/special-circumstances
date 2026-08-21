@@ -8,7 +8,15 @@ exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -21,7 +29,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -53,7 +61,15 @@ exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -66,7 +82,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -98,7 +114,15 @@ exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -111,7 +135,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)

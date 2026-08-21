@@ -61,31 +61,28 @@ func newInquiry() *cobra.Command {
 }
 
 func newInquiryPropose() *cobra.Command {
-	c := seat.Prose(seat.Records(seat.New("propose",
-		`put a line of inquiry on the record (the tool assigns its id): --reason "<the approach you are going to try>" --hypothesis "<what would be true if it pays off>" [--method]. `+
-			`It starts as `+"`proposed`"+` — the state that OWES a move; say what became of it with `+"`line-of-inquiry move`"+`.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			id, err := record.MintInquiryID(s.RunDir)
-			if err != nil {
-				return nil, err
-			}
-			p := record.NewPayload().Set("inquiry_id", id)
-			seat.SetSame(cmd, p, flags.Method)
-			seat.Set(cmd, p, "hypothesis", flags.Hypothesis)
-			// The record keeps its own word: the payload key is `line`, the flag is --reason.
-			// Flag words are not payload keys (see internal/flags).
-			p.Set("line", seat.Str(cmd, flags.Reason))
-			// A fresh proposal with no stated fate is `proposed` — the state the old shape could
-			// not express, which forced blue to declare a fate before it had one.
-			p.Set("status", "proposed")
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
-				return nil, err
-			}
-			if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
-				return nil, err
-			}
-			return inquiryResult{ID: id, Status: "proposed", Line: p.Str("line")}, nil
-		}), "line-of-inquiry"))
+	c := seat.Prose(seat.Records(seat.New("propose", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		id, err := record.MintInquiryID(s.RunDir)
+		if err != nil {
+			return nil, err
+		}
+		p := record.NewPayload().Set("inquiry_id", id)
+		seat.SetSame(cmd, p, flags.Method)
+		seat.Set(cmd, p, "hypothesis", flags.Hypothesis)
+		// The record keeps its own word: the payload key is `line`, the flag is --reason.
+		// Flag words are not payload keys (see internal/flags).
+		p.Set("line", seat.Str(cmd, flags.Reason))
+		// A fresh proposal with no stated fate is `proposed` — the state the old shape could
+		// not express, which forced blue to declare a fate before it had one.
+		p.Set("status", "proposed")
+		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
+			return nil, err
+		}
+		return inquiryResult{ID: id, Status: "proposed", Line: p.Str("line")}, nil
+	}), "line-of-inquiry"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
@@ -94,34 +91,31 @@ func newInquiryPropose() *cobra.Command {
 }
 
 func newInquiryMove() *cobra.Command {
-	c := seat.Prose(seat.Records(seat.New("move",
-		`say what became of a line you already proposed: --id A1 --as `+record.MustEnum("line-of-inquiry", "status").Spelling()+` --reason "<what you learned that changed its fate>". `+
-			`Re-recording `+"`pursued`"+` with what you learned is a reaffirmation, and settles the line for this round.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireInquiryRef(s.RunDir, id); err != nil {
-				return nil, err
-			}
-			p := record.NewPayload().
-				Set("inquiry_id", id).
-				Set("supersedes_status", "1").
-				Set("status", seat.Str(cmd, flags.As))
-			// THE CONTEST IS `motion inquiry appeal` (#344), NOT A FIELD HERE. `contests_ruling`
-			// was set as a side effect of moving a line to `pursued` against an adverse ruling,
-			// and that coupling can only record disagreement that WINS: in one real record the
-			// merge ruled a line too thin, blue argued the reasoning at the leaf and then
-			// declined the line anyway — the ordinary outcome of an argument — and the field
-			// recorded nothing. It appears zero times in the whole record.
-			if err := seat.SetReason(cmd, p, "reason"); err != nil {
-				return nil, err
-			}
-			if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
-				return nil, err
-			}
-			return inquiryResult{ID: id, Status: p.Str("status"), Moved: true}, nil
-		}), "line-of-inquiry"))
+	c := seat.Prose(seat.Records(seat.New("move", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		id := seat.Str(cmd, flags.ID)
+		if err := record.RequireInquiryRef(s.RunDir, id); err != nil {
+			return nil, err
+		}
+		p := record.NewPayload().
+			Set("inquiry_id", id).
+			Set("supersedes_status", "1").
+			Set("status", seat.Str(cmd, flags.As))
+		// THE CONTEST IS `motion inquiry appeal` (#344), NOT A FIELD HERE. `contests_ruling`
+		// was set as a side effect of moving a line to `pursued` against an adverse ruling,
+		// and that coupling can only record disagreement that WINS: in one real record the
+		// merge ruled a line too thin, blue argued the reasoning at the leaf and then
+		// declined the line anyway — the ordinary outcome of an argument — and the field
+		// recorded nothing. It appears zero times in the whole record.
+		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
+			return nil, err
+		}
+		return inquiryResult{ID: id, Status: p.Str("status"), Moved: true}, nil
+	}), "line-of-inquiry"))
 
-	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "the line of inquiry whose fate you are moving (A1, A2 …) — `show lines-of-inquiry` lists every one")
+	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "`inquiry-id` — the line of inquiry whose fate you are moving (A1, A2 …); the lines-of-inquiry projection lists every one")
 	_ = c.MarkFlagRequired(flags.ID)
 	// THE VALUES ARE NOT RE-LISTED HERE. The hand-written line this replaced carried FOUR of the
 	// five statuses — `deferred` had been added to InquiryStatuses and never to the string — and

@@ -2,7 +2,15 @@
 exit 2
 feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -15,7 +23,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -46,7 +54,15 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "class", "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -59,7 +75,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -90,7 +106,15 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -103,7 +127,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -134,7 +158,15 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -147,7 +179,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -178,7 +210,15 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -191,7 +231,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -222,7 +262,15 @@ Global Flags:
 exit 2
 feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low-medium | medium | medium-high | high | certain | realized | trivial
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -235,7 +283,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -266,7 +314,15 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -279,7 +335,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -310,7 +366,11 @@ Global Flags:
 exit 2
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+close a gap with the verification you did THIS round, naming what you checked it against
+
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -349,7 +409,11 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "id" not set
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+close a gap with the verification you did THIS round, naming what you checked it against
+
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -388,7 +452,11 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "verified-by" not set
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+close a gap with the verification you did THIS round, naming what you checked it against
+
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -427,7 +495,11 @@ Global Flags:
 exit 2
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+close a gap with the verification you did THIS round, naming what you checked it against
+
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -466,7 +538,13 @@ Global Flags:
 exit 2
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
+move a grade on a gap that already exists, with the reason it moved
+
+Same-id grade movement, recorded with the reason it moved: the gap keeps its identity and its history rather than being closed and re-minted.
+
+Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
+
+The regrade and its reason render in the report beside the gap, so a grade argued down over three rounds shows the argument rather than only the final number.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -507,25 +585,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -543,7 +623,11 @@ feov-record: invalid argument "pass" for "--as" flag: --as must be one of PASS|F
     PASS  every gap on the board is resolved — this is CHECKED against the open board, not taken on your word
     FAIL  at least one gap is still open, or you are not satisfied it was answered
 
-the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
+
+A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this round. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -574,7 +658,11 @@ feov-record: invalid argument "banana" for "--as" flag: --as must be one of PASS
     PASS  every gap on the board is resolved — this is CHECKED against the open board, not taken on your word
     FAIL  at least one gap is still open, or you are not satisfied it was answered
 
-the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+The seat's terminal act, and the checkpoint that follows it: the record is mirrored to the recovery copy.
+
+A PASS is REFUSED while anything still blocks it — an open gap, an unruled motion, a line of inquiry unvoted this round. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -614,25 +702,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -658,7 +748,11 @@ feov-record: invalid argument "closed-with-regression" for "--as" flag: --as mus
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+close a gap with the verification you did THIS round, naming what you checked it against
+
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -718,25 +812,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -763,25 +859,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -808,25 +906,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -853,25 +953,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -898,24 +1000,26 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
+  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."
+  edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -942,24 +1046,26 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
+  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."
+  edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -995,7 +1101,15 @@ Flags:
 exit 2
 feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1008,7 +1122,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -1039,7 +1153,11 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "verified-by" not set
 
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
+close a gap with the verification you did THIS round, naming what you checked it against
+
+THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS ROUND, by you — who verified it, with what, and against which exact file or ref.
+
+For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1078,7 +1196,15 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "check", "check-kind", "impact", "likelihood" not set
 
-mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+turn lens findings into a graded gap on the board, when a defect is real and belongs there
+
+The id is TOOL-assigned. A stable key makes a retry idempotent rather than minting the same gap twice.
+
+Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
+
+FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a role alone (`L1`) or an invented label fails here rather than resolving to nothing.
+
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the refusal is logged as friction. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -1091,7 +1217,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class merge class new    REQUIRED — the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with merge class new
+      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -1134,25 +1260,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record
@@ -1179,25 +1307,27 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>". THE VERIFICATION TRIPLE IS THE POINT: this verb asserts that the repair was checked THIS ROUND, by you. For a closure the record already holds — work an earlier round did, which you are restating rather than re-attesting — use `carry`, which needs no triple because it makes no fresh claim. Re-closing carried work here double-counts the closure history
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
+  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
+  close           close a gap with the verification you did THIS round, naming what you checked it against
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
+  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  position        your round narrative — the argument the other side answers, rendered as this round's RED section
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  regrade         move a grade on a gap that already exists, with the reason it moved
+  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
+  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  class           the gap-class registry: what KINDS of defect this run recognises
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, and the ONE call that needs your --seat-id: it binds your seat to you on the record, so every later call resolves it and you never type it again. Nothing else runs until this does. Your run is injected; a --run disagreeing with the one you were dispatched into is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help               help for feov-record

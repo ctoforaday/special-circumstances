@@ -22,9 +22,16 @@ func debateScriptForTest() string {
 // first call, obeying "do not pass --seat-id"), once on the tool path reading as a directory (3 of
 // 9 seats cd'd into it, 2 abandoned the sitting).
 //
-// There is no paraphrase now. This gate checks that what debate.js renders for each probed seat
-// still teaches the contract — which is a check on the SHIPPED prompt, so a clause deleted from
-// debate.js fails here and in production together, as it should.
+// WHAT IT ASSERTS CHANGED WHEN THE PROSE MOVED INTO THE TOOL. The prompt used to spell the flag
+// contract out — "you type --seat-id at register and never again", "you do NOT pass the run
+// directory at all" — beside a tool whose own --help says both, in the flag's own usage line, on
+// every page the seat opens. Two statements of one rule is the duplication this work removed, and
+// a gate quoting the prompt's copy is what would have made removing it look like a regression.
+//
+// So the gate holds the part that is genuinely the PROMPT's: the seat cannot read the help until
+// it has already named itself, so the bootstrap — the literal call, with this seat's own id in it
+// — has to arrive in the dispatch. The RULE about that flag is the tool's to state, and the
+// negative below is what keeps it from growing back here.
 func TestTheDispatchedPromptTeachesTheBindingContract(t *testing.T) {
 	for name, b := range Boards() {
 		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
@@ -34,20 +41,33 @@ func TestTheDispatchedPromptTeachesTheBindingContract(t *testing.T) {
 		}
 		p := d.Prompt
 
-		// The run IS injected, and saying so is what stops a seat typing an absolute path it can
-		// mistype — the measured defect FEOV_RUN exists for.
-		if !strings.Contains(p, "do NOT pass the run directory") {
-			t.Errorf("%s: the dispatched prompt no longer tells the seat its run is injected", name)
+		// THE BOOTSTRAP: a worked call, carrying this seat's own id, that the seat can run before
+		// it has read anything. Without it there is no first call — the surface is scoped to
+		// whoever is asking, and nothing has said who that is.
+		if !strings.Contains(p, "--seat-id "+b.Seat+" --help") {
+			t.Errorf("%s: the dispatched prompt shows the seat no worked call naming itself — it cannot open its own help without one", name)
 		}
-		// The identity is NOT injected: it is bound at register, stated once.
-		for _, want := range []string{"register", "--seat-id", "never again"} {
-			if !strings.Contains(p, want) {
-				t.Errorf("%s: the dispatched prompt does not carry %q — the seat has to be told it states its id once, at register", name, want)
-			}
+		if !strings.Contains(p, "register") {
+			t.Errorf("%s: the dispatched prompt does not name register — the seat does not know which call binds its id", name)
 		}
 		// And the seat id it is told to register is the one this board stages.
 		if !strings.Contains(p, "SEAT_ID: "+b.Seat) {
 			t.Errorf("%s: the dispatched prompt does not name seat %s", name, b.Seat)
+		}
+		// THE WORKED CALLS DO NOT TYPE THE RUN. It is injected; a prompt that models typing it
+		// teaches the seat to type an absolute path it can mistype, which is the measured defect
+		// injection exists for — and it teaches it by EXAMPLE, which outweighs any prose either
+		// side of it saying not to.
+		if strings.Contains(p, "--help --run") || strings.Contains(p, "--run /runs/x") {
+			t.Errorf("%s: a worked call in the dispatched prompt types the run directory", name)
+		}
+		// THE RULES ABOUT THOSE FLAGS ARE THE TOOL'S. Every --help page prints both usage lines,
+		// under Global Flags, on every page the seat opens. Restating them here is the duplication
+		// this gate now exists to prevent rather than to require.
+		for _, dup := range []string{"never again", "do NOT pass the run directory", "is refused rather than obeyed"} {
+			if strings.Contains(p, dup) {
+				t.Errorf("%s: the dispatched prompt restates %q — the flag's own usage line says it on every page the seat opens", name, dup)
+			}
 		}
 	}
 }

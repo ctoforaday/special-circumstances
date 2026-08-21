@@ -62,8 +62,8 @@ func newSetup() *cobra.Command {
 	}
 	f := c.Flags()
 	f.StringVar(&topic, flags.Topic, "", "the run's research topic (goes in every stub header)")
-	f.StringVar(&model, flags.Model, "", "REQUIRED — the bulk tier (frontier, blue lanes, red lenses, blue responses)")
-	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "REQUIRED — the judgment tier (blue-synthesize, red-merge, judge, assemble)")
+	f.StringVar(&model, flags.Model, "", "the bulk tier (frontier, blue lanes, red lenses, blue responses)")
+	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "the judgment tier (blue-synthesize, red-merge, judge, assemble)")
 	f.StringArrayVar(&cites, flags.Cite, nil, "a cited path, optionally pinned: <path>[@<commit>] (repeatable)")
 	f.StringVar(&maxRounds, flags.MaxRounds, "", "the round ceiling (recorded in run-config.json for post-hoc readers)")
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")

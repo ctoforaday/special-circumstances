@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 )
 
 // THE SURFACE-DISCOVERY DUTY IS CONSTITUTIONAL, and every seat carries it identically.
@@ -25,8 +27,19 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 	want := []string{
 		"Your surface comes from `--help`",
 		"what comes back IS your surface",
-		"what is not listed does not exist for you",
 		"A name you did not read in the help this sitting is a guess",
+	}
+	// AND THE CONSEQUENCE OF ABSENCE IS THE TOOL'S TO STATE, on the page where absence is
+	// discovered. All four constitutions used to carry "what is not listed does not exist for
+	// you" — a fifth copy of a sentence the friction footer closes EVERY help page with,
+	// including the page a seat is looking at in the moment it fails to find a verb. That is
+	// where the sentence does its work; four hand-kept copies in system prompts is the fork this
+	// gate exists to prevent, and the way to not fork a sentence is to have one of it.
+	for _, w := range []string{"it does not exist for you", "a finding about the tooling"} {
+		if !strings.Contains(seat.FrictionFooter, w) {
+			t.Fatalf("the friction footer no longer says %q — the constitutions were stripped of it on the "+
+				"understanding that every help page carries it, so this end of that trade has to hold", w)
+		}
 	}
 	paths, err := filepath.Glob(filepath.Join("..", "..", "..", "agents", "*.md"))
 	if err != nil || len(paths) == 0 {
