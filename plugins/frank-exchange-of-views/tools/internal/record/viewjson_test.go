@@ -2,6 +2,9 @@ package record
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 )
@@ -19,21 +22,20 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	blue2 := "blue-lane-2"
 
 	writeShard(t, runDir, merge, "aaaaaaaa", []Event{
-		ev(merge, "aaaaaaaa", 0, 1, "position", merge+":position", NewPayload().Set("reason", "red r1")),
-		ev(merge, "aaaaaaaa", 1, 1, "closing", merge+":closing:R1-1", NewPayload().Set("gap_id", "R1-1").Set("reason", "red closes r1")),
+		recordtest.At(t, merge, "aaaaaaaa", 0, 1, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
+		recordtest.At(t, merge, "aaaaaaaa", 1, 1, merge+":closing:R1-1", &recordpb.Closing{GapId: proto.String("R1-1"), Text: proto.String("red closes r1")}),
 	})
 	writeShard(t, runDir, blue, "bbbbbbbb", []Event{
-		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", NewPayload().Set("reason", "blue r1")),
+		recordtest.At(t, blue, "bbbbbbbb", 0, 1, blue+":position", &recordpb.Position{Text: proto.String("blue r1")}),
 		ev(blue, "bbbbbbbb", 1, 1, "confidence", blue+":confidence:C1", NewPayload().Set("label", "claim one").Set("grade", "medium")),
 	})
 	writeShard(t, runDir, judge, "cccccccc", []Event{
-		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("disposition", "upheld").Set("principle", "correctness first")),
+		recordtest.At(t, judge, "cccccccc", 0, 1, judge+":opinion:R1-1", &recordpb.Opinion{Disposition: proto.String("upheld"), Principle: proto.String("correctness first")}),
 	})
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).
 	writeShard(t, runDir, merge2, "dddddddd", []Event{
-		ev(merge2, "dddddddd", 0, 2, "position", merge2+":position", NewPayload().Set("reason", "red r2")),
+		recordtest.At(t, merge2, "dddddddd", 0, 2, merge2+":position", &recordpb.Position{Text: proto.String("red r2")}),
 	})
 	// A blue seat that recorded nothing in round 2 (present in the run, silent this round).
 	writeShard(t, runDir, blue2, "eeeeeeee", []Event{})
@@ -93,7 +95,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	runDir := t.TempDir()
 	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []Event{
-		ev("red-merge-r1", "aaaaaaaa", 0, 1, "position", "red-merge-r1:position", NewPayload().Set("reason", "red")),
+		recordtest.At(t, "red-merge-r1", "aaaaaaaa", 0, 1, "red-merge-r1:position", &recordpb.Position{Text: proto.String("red")}),
 	})
 	out, err := DebateJSONBytes(runDir)
 	if err != nil {
@@ -113,14 +115,8 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	m := "red-merge-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
 	writeShard(t, runDir, m, "aaaaaaaa", []Event{
-		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("problem", longProblem).Set("location", "§open").
-			Set("class", "correctness").Set("required_fix", "SECRET_FIX_PROSE").
-			Set("acceptance_check", "SECRET_CHECK_PROSE").Set("severity", "high").
-			Set("found_by", []string{"L1-F1"})),
-		ev(m, "aaaaaaaa", 1, 1, "mint", m+":mint:R1-2", NewPayload().
-			Set("gap_id", "R1-2").Set("problem", "a closed problem").Set("location", "§closed").
-			Set("class", "citation").Set("required_fix", "fix").Set("acceptance_check", "chk")),
+		recordtest.At(t, m, "aaaaaaaa", 0, 1, m+":mint:R1-1", &recordpb.Mint{Problem: proto.String(longProblem), Location: proto.String("§open"), RequiredFix: proto.String("SECRET_FIX_PROSE"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, m, "aaaaaaaa", 1, 1, m+":mint:R1-2", &recordpb.Mint{Problem: proto.String("a closed problem"), Location: proto.String("§closed"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk")}),
 		ev(m, "aaaaaaaa", 2, 1, "close", m+":close:R1-2", NewPayload().
 			Set("gap_id", "R1-2").Set("class", "resolved")),
 	})
@@ -213,8 +209,8 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	s := "red-lens-r1-L1"
 	m := "red-merge-r1"
 	writeShard(t, runDir, s, "aaaaaaaa", []Event{
-		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("reason", "credited")),
-		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("reason", "never credited")),
+		recordtest.At(t, s, "aaaaaaaa", 0, 1, s+":finding:L1-F1", &recordpb.Finding{Label: proto.String("L1-F1"), Text: proto.String("credited")}),
+		recordtest.At(t, s, "aaaaaaaa", 1, 1, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
 	})
 	writeShard(t, runDir, m, "bbbbbbbb", []Event{
 		ev(m, "bbbbbbbb", 0, 1, "mint", m+":mint:k", NewPayload().Set("gap_id", "R1-1").Set("found_by", []string{"L1-F1"})),

@@ -3,6 +3,11 @@ package record
 import (
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // AN AFFORDANCE IS ON THE LIST AND DOES NOT BLOCK.
@@ -16,11 +21,11 @@ import (
 // So the same guarantee, on one list: affordances appear, affordances carry Blocks:false, and
 // `complete` reads the blocking items alone.
 func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
-	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-		{SeatID: "blue-respond-r1", Type: "blue_edit", Payload: NewPayload().Set("answers", "R1-2")},
+	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
 		// Both duties a blue seat owes on an empty board, discharged, so nothing blocks.
-		{SeatID: "blue-respond-r1", Type: "friction"},
-		{SeatID: "blue-respond-r1", Type: "revision"},
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Friction{}),
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Revision{}),
 	}}
 	s := SittingOf(b, "blue", "blue-respond-r1")
 
@@ -60,14 +65,14 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 
 	t.Run("manifest row missing after an edit", func(t *testing.T) {
 		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-			{SeatID: "blue-respond-r1", Type: "blue_edit", Payload: NewPayload().Set("answers", "R1-2")},
+			recordtest.Event(t, "blue-respond-r1", 0, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
 		}}
 		got := AvailableOf(b, "blue", "blue-respond-r1")
 		if !mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Fatalf("an edit answering R1-2 with no manifest row afforded nothing: %v", hows(got))
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
-		b.Events = append(b.Events, Event{SeatID: "blue-respond-r1", Type: "manifest-row", Payload: NewPayload().Set("gap_id", "R1-2")})
+		b.Events = append(b.Events, Eventrecordtest.Event(t, "blue-respond-r1", 0, &recordpb.ManifestRow{GapId: proto.String("R1-2")}))
 		if got := AvailableOf(b, "blue", "blue-respond-r1"); mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
 		}
@@ -82,7 +87,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 		if !mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Fatalf("an accepted grade motion with no regrade afforded nothing: %v", hows(got))
 		}
-		b.Events = append(b.Events, Event{SeatID: "red-merge-r1", Type: "regrade", Payload: NewPayload().Set("gap_id", "R1-1")})
+		b.Events = append(b.Events, Eventrecordtest.Event(t, "red-merge-r1", 0, &recordpb.Regrade{GapId: proto.String("R1-1")}))
 		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
 		}

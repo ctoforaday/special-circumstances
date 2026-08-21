@@ -3,6 +3,9 @@ package record
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"sort"
@@ -116,12 +119,12 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "red-merge-r1"
 		withTerminal := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-			ev(seatID, "aaaaaaaa", 0, 1, "register", seatID+":register:aaaaaaaa", nil),
+			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":register:aaaaaaaa", &recordpb.Register{}),
 			ev(seatID, "aaaaaaaa", 1, 1, "verdict", seatID+":verdict", NewPayload().Set("verdict", "PASS")),
 		})
 		withoutTerminal := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
-			ev(seatID, "bbbbbbbb", 0, 1, "register", seatID+":register:bbbbbbbb", nil),
-			ev(seatID, "bbbbbbbb", 1, 1, "position", seatID+":position", NewPayload().Set("reason", "loser")),
+			recordtest.At(t, seatID, "bbbbbbbb", 0, 1, seatID+":register:bbbbbbbb", &recordpb.Register{}),
+			recordtest.At(t, seatID, "bbbbbbbb", 1, 1, seatID+":position", &recordpb.Position{Text: proto.String("loser")}),
 		})
 		// Make the NON-terminal shard newer, so mtime alone would pick the wrong one.
 		old := time.Now().Add(-time.Hour)
@@ -172,9 +175,9 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 	t.Run("with no terminal event, the latest recorded stamp wins over the newer file", func(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "red-lens-r1-L1"
-		early := ev(seatID, "aaaaaaaa", 0, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "older"))
+		early := recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("older")})
 		early.TS = "2026-01-01T00:00:00.000000000Z"
-		late := ev(seatID, "bbbbbbbb", 0, 1, "finding", seatID+":finding:F2", NewPayload().Set("label", "F2").Set("reason", "newer"))
+		late := recordtest.At(t, seatID, "bbbbbbbb", 0, 1, seatID+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("newer")})
 		late.TS = "2026-01-01T00:00:00.000000001Z" // one nanosecond, which is what nextStamp issues on a tie
 		loser := writeShard(t, runDir, seatID, "aaaaaaaa", []Event{early})
 		winner := writeShard(t, runDir, seatID, "bbbbbbbb", []Event{late})
@@ -204,10 +207,10 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "blue-lane-1"
 		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-			ev(seatID, "aaaaaaaa", 0, 0, "revision", seatID+":revision", NewPayload().Set("reason", "won")),
+			recordtest.At(t, seatID, "aaaaaaaa", 0, 0, seatID+":revision", &recordpb.Revision{Text: proto.String("won")}),
 		})
 		writeShard(t, runDir, seatID, "bbbbbbbb", []Event{
-			ev(seatID, "bbbbbbbb", 0, 0, "friction", seatID+":friction:#1", NewPayload().Set("reason", "lost")),
+			recordtest.At(t, seatID, "bbbbbbbb", 0, 0, seatID+":friction:#1", &recordpb.Friction{Text: proto.String("lost")}),
 		})
 		m, err := MergedEvents(runDir)
 		if err != nil {
@@ -222,7 +225,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		runDir := t.TempDir()
 		seatID := "red-lens-r1-L1"
 		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-			ev(seatID, "aaaaaaaa", 0, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1")),
+			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":finding:F1", &recordpb.Finding{Label: proto.String("F1")}),
 		})
 		m, err := MergedEvents(runDir)
 		if err != nil {
@@ -238,11 +241,11 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 func TestMergedEventsGlobalOrderIsDeterministic(t *testing.T) {
 	runDir := t.TempDir()
 	writeShard(t, runDir, "red-lens-r2-L1", "aaaaaaaa", []Event{
-		ev("red-lens-r2-L1", "aaaaaaaa", 1, 2, "finding", "b:1", NewPayload().Set("label", "r2-second")),
-		ev("red-lens-r2-L1", "aaaaaaaa", 0, 2, "finding", "b:0", NewPayload().Set("label", "r2-first")),
+		recordtest.At(t, "red-lens-r2-L1", "aaaaaaaa", 1, 2, "b:1", &recordpb.Finding{Label: proto.String("r2-second")}),
+		recordtest.At(t, "red-lens-r2-L1", "aaaaaaaa", 0, 2, "b:0", &recordpb.Finding{Label: proto.String("r2-first")}),
 	})
 	writeShard(t, runDir, "red-lens-r1-L1", "bbbbbbbb", []Event{
-		ev("red-lens-r1-L1", "bbbbbbbb", 0, 1, "finding", "a:0", NewPayload().Set("label", "r1-first")),
+		recordtest.At(t, "red-lens-r1-L1", "bbbbbbbb", 0, 1, "a:0", &recordpb.Finding{Label: proto.String("r1-first")}),
 	})
 	writeShard(t, runDir, "red-merge-r1", "cccccccc", []Event{
 		ev("red-merge-r1", "cccccccc", 0, 1, "position", "c:0", NewPayload().Set("label", "r1-merge")),
@@ -268,9 +271,9 @@ func TestMergedEventsDedupByKeyExceptRegister(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-lens-r1-L1"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-		ev(seatID, "aaaaaaaa", 0, 1, "register", seatID+":register:aaaaaaaa", nil),
-		ev(seatID, "aaaaaaaa", 1, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "first")),
-		ev(seatID, "aaaaaaaa", 2, 1, "finding", seatID+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "duplicate")),
+		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":register:aaaaaaaa", &recordpb.Register{}),
+		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
+		recordtest.At(t, seatID, "aaaaaaaa", 2, 1, seatID+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("duplicate")}),
 	})
 	m, err := MergedEvents(runDir)
 	if err != nil {
@@ -462,19 +465,14 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("problem", "p1").Set("severity", "low").
-			Set("likelihood", "low").Set("impact", "low")),
-		ev(seatID, "aaaaaaaa", 1, 1, "mint", seatID+":mint:R1-2", NewPayload().
-			Set("gap_id", "R1-2").Set("problem", "p2").Set("severity", "high")),
+		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		// A regrade moves ONLY the keys it carries.
-		ev(seatID, "aaaaaaaa", 2, 1, "regrade", seatID+":regrade:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("severity", "certain").Set("reason", "new evidence")),
-		ev(seatID, "aaaaaaaa", 3, 1, "close", seatID+":close:R1-2", NewPayload().
-			Set("gap_id", "R1-2").Set("closure_class", "closed")),
+		recordtest.At(t, seatID, "aaaaaaaa", 2, 1, seatID+":regrade:R1-1", &recordpb.Regrade{Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
+		recordtest.At(t, seatID, "aaaaaaaa", 3, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.ClosureClass_CLOSURE_CLASS_CLOSED)}),
 		// A regrade and a close of an UNKNOWN gap are ignored, not fatal.
-		ev(seatID, "aaaaaaaa", 4, 1, "regrade", seatID+":regrade:R9-9", NewPayload().Set("gap_id", "R9-9").Set("severity", "low")),
-		ev(seatID, "aaaaaaaa", 5, 1, "close", seatID+":close:R9-9", NewPayload().Set("gap_id", "R9-9")),
+		recordtest.At(t, seatID, "aaaaaaaa", 4, 1, seatID+":regrade:R9-9", &recordpb.Regrade{GapId: proto.String("R9-9"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, "aaaaaaaa", 5, 1, seatID+":close:R9-9", &recordpb.Close{GapId: proto.String("R9-9")}),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -521,8 +519,8 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []Event{
-		ev(lens, "aaaaaaaa", 0, 1, "finding", lens+":finding:F1", NewPayload().Set("label", "F1").Set("reason", "first")),
-		ev(lens, "aaaaaaaa", 1, 1, "finding", lens+":finding:F2", NewPayload().Set("label", "F2").Set("reason", "second")),
+		recordtest.At(t, lens, "aaaaaaaa", 0, 1, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
+		recordtest.At(t, lens, "aaaaaaaa", 1, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -738,7 +736,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
+		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1")}),
 	})
 	base := func() *Payload {
 		return NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
@@ -767,8 +765,8 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	// closed_with_regression names. A successor is a reference like any other and is
 	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
-		ev(seatID, "aaaaaaaa", 1, 2, "mint", seatID+":mint:R2-1", NewPayload().Set("gap_id", "R2-1")),
+		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1")}),
+		recordtest.At(t, seatID, "aaaaaaaa", 1, 2, seatID+":mint:R2-1", &recordpb.Mint{GapId: proto.String("R2-1")}),
 	})
 	anchored := func() *Payload {
 		return NewPayload().Set("gap_id", "R1-1").
@@ -923,7 +921,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeRegistry(t, runDir, registry)
 		seatID := "red-merge-r1"
 		writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
-			ev(seatID, "aaaaaaaa", 0, 1, "class-new", seatID+":class-new:x", NewPayload().Set("slug", "run-local-class")),
+			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
 		})
 		if err := validate(runDir, "red-merge-r1", "mint", mint(NewPayload().Set("class", "run-local-class"))); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
