@@ -51,21 +51,6 @@ func Build(runDir string, b Board, exec Exec) error {
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		return err
 	}
-	// THE BOARD DECLARES ITS CLASS VOCABULARY, because a real run does and this fixture stands in
-	// for one. `run-setup` stages the registry on a production run; the probe does not go through
-	// setup, so it stages its own.
-	//
-	// MEASURED THE DAY THE ADVISORY BRANCH WENT: 8 of 9 boards stopped building, every one of them
-	// on the first mint. The probe said so loudly — "this run is not a result" — which is the only
-	// reason it was a five-minute diagnosis rather than a run reported with a thinner board.
-	//
-	// The gate over this function did NOT catch it, and the way it failed is worth keeping: the
-	// test staged a registry of its own before calling Build, so it exercised a run configured the
-	// way the probe never configures one. A fixture that sets up what production does not is not
-	// testing production. The gate builds against a bare directory now, exactly as the probe does.
-	if err := record.StageForRun(runDir, BoardClasses...); err != nil {
-		return fmt.Errorf("stage the class registry: %w", err)
-	}
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		return err
 	}
@@ -91,6 +76,27 @@ func Build(runDir string, b Board, exec Exec) error {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
 	}
+
+	// THE BOARD DECLARES ITS CLASS VOCABULARY, because a real run does and this fixture stands in
+	// for one. `run-setup` stages the registry on a production run; the probe does not go through
+	// setup, so it stages its own.
+	//
+	// AFTER THE REGISTERS, AND THAT ORDER IS LOAD-BEARING. The probe separates a run's records to a
+	// temp root so the seat cannot read the board off disk, and it does that by handing the record
+	// ROOT to the tool subprocess in its environment — which this function does not carry. Staged
+	// before the first register, `RecordsDir` resolves in THIS process, finds no separation marker,
+	// and creates <runDir>/records; the first register subprocess then refuses to separate a run
+	// that already keeps events locally. Staged here, the marker exists and the registry lands
+	// where the tool will read it.
+	//
+	// MEASURED TWICE, both loudly. The advisory branch going strict stopped 8 of 9 boards on their
+	// first mint; fixing that in the wrong place stopped 9 of 9 on their first register. The probe
+	// refused to score either one ("this run is not a result"), which is the only reason both were
+	// five-minute diagnoses rather than runs reported with a thinner board.
+	if err := record.StageForRun(runDir, BoardClasses...); err != nil {
+		return fmt.Errorf("stage the class registry: %w", err)
+	}
+
 	for i, g := range b.Gaps {
 		if _, err := exec("mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
