@@ -711,3 +711,42 @@ func SetSame(cmd *cobra.Command, p *record.Payload, names ...string) *record.Pay
 	}
 	return p
 }
+
+// GroupTitles are the two headings a seat's root help renders its surface under.
+//
+// WHY THE SPLIT EXISTS. Cobra lists every child under one "Available Commands:" heading, and a
+// command holding subcommands looks exactly like one that does not — same line, same shape. So the
+// root page of a seat surface silently understated itself: `motion` reads as a verb, and the three
+// commands inside it are not on any page the seat has opened.
+//
+// The prompt used to carry the missing half, in a sentence appended to step 1 of the tree walk:
+// "Some of those entries are GROUPS, holding commands this page does not show you." That is the
+// tool describing its own output format to the reader, in the prompt, because the output would not
+// describe itself — and it is exactly the shape this pass is removing. A page that cannot say what
+// it is hiding needs fixing, not narrating.
+const (
+	GroupVerbs  = "verbs"
+	GroupGroups = "groups"
+)
+
+// SplitGroups sorts a root's children into the two headings. Called AFTER every AddCommand, since
+// it reads HasSubCommands to decide — a group assigned before its children are attached would
+// classify itself as a leaf.
+func SplitGroups(root *cobra.Command) {
+	root.AddGroup(
+		&cobra.Group{ID: GroupVerbs, Title: "Available Commands:"},
+		&cobra.Group{ID: GroupGroups, Title: "Command groups — each holds commands THIS page does not list:"},
+	)
+	for _, sub := range root.Commands() {
+		if sub.HasSubCommands() {
+			sub.GroupID = GroupGroups
+			continue
+		}
+		sub.GroupID = GroupVerbs
+	}
+	// `help` and `completion` are cobra's, added lazily at execute time; without these they land
+	// under an "Additional Commands:" heading of their own, which reads as a third category of
+	// seat surface rather than as the shell plumbing they are.
+	root.SetHelpCommandGroupID(GroupVerbs)
+	root.SetCompletionCommandGroupID(GroupVerbs)
+}

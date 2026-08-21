@@ -203,8 +203,14 @@ func ViewNames() []string {
 // rather than a flag-parse error naming the value.
 func Show() *cobra.Command {
 	c := &cobra.Command{
-		Use:          "show",
-		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: " + strings.Join(ViewNames(), " | "),
+		Use: "show",
+		// THE NAME LIST CAME OFF THIS LINE when the root page started marking which entries hold
+		// commands. Ten projection names in a parent's listing is a slice of the surface handed
+		// out where the seat cannot yet see what any of them is FOR — and a seat that reads a
+		// name here and never opens the page has learned a word, which is how one of them typed a
+		// projection name as a verb. The group heading now says this page hides commands; each
+		// projection says what it is for on its own page, which is where the choosing happens.
+		Short:        "read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		// Its bare form is the seat's pending work — a capability, not a refusal.
