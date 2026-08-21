@@ -1,6 +1,8 @@
 package verify
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -124,9 +126,9 @@ func TestPassClosesAllGaps(t *testing.T) {
 func TestRegisterBeforeAppend(t *testing.T) {
 	b := &record.Board{
 		Events: []record.Event{
-			{Type: "register", SeatID: "blue-r1"},
-			{Type: "position", SeatID: "blue-r1"},
-			{Type: "finding", SeatID: "red-lens-r1-L5"}, // never registered
+			recordtest.Event(t, "blue-r1", 0, &recordpb.Register{}),
+			recordtest.Event(t, "blue-r1", 0, &recordpb.Position{}),
+			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{}), // never registered
 		},
 	}
 	c := find(t, Run(b), "register-before-append")
@@ -185,7 +187,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 // and it is what a test of it has to construct.
 func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 	b := &record.Board{
-		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		Events:   []record.Event{recordtest.Event(t, "", 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
@@ -200,7 +202,7 @@ func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 
 func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
 	b := &record.Board{
-		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		Events:   []record.Event{recordtest.Event(t, "", 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: false}},
 	}
@@ -213,8 +215,8 @@ func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
 // latter is what made the check dead. Both must leave it inapplicable rather than firing.
 func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 	for _, ev := range []record.Event{
-		{Type: "verdict", Payload: record.NewPayload().Set("verdict", "FAIL")},
-		{Type: "outcome", Payload: record.NewPayload().Set("verdict", "VERIFIED")},
+		recordtest.Event(t, "", 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+		recordtest.Event(t, "", 0, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED)}),
 	} {
 		b := &record.Board{
 			Events:   []record.Event{ev},
@@ -271,8 +273,8 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	// pass or fail for a reason that has nothing to do with the third state.
 	b := &record.Board{
 		Events: []record.Event{
-			{Type: "register", SeatID: "red-merge-r1"},
-			{Type: "verdict", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("verdict", "FAIL")},
+			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
+			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
@@ -304,7 +306,7 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 // decoration.
 func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 	b := &record.Board{
-		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		Events:   []record.Event{recordtest.Event(t, "", 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
 			"R1-1": {ID: "R1-1", Open: false, Closure: p("closure_class", "closed")},
@@ -322,7 +324,7 @@ func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 // A violated check reports FAIL, and is neither n/a nor ok.
 func TestAViolatedCheckReportsFail(t *testing.T) {
 	b := &record.Board{
-		Events:   []record.Event{{Type: "verdict", Payload: record.NewPayload().Set("verdict", "PASS")}},
+		Events:   []record.Event{recordtest.Event(t, "", 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}

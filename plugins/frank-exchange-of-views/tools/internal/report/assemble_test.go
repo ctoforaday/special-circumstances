@@ -1,6 +1,9 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"sort"
 	"strings"
 	"testing"
@@ -235,15 +238,15 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 
 func TestDebateTranscriptFromEvents(t *testing.T) {
 	evs := []record.Event{
-		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("reason", "gap A stands")},
-		{Round: 1, Type: "position", SeatID: "blue-r1", Payload: record.NewPayload().Set("reason", "gap A repaired")},
+		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Position{Text: proto.String("gap A stands")}),
+		recordtest.Event(t, "blue-r1", 1, &recordpb.Position{Text: proto.String("gap A repaired")}),
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("reason", "needs a probe")},
+		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: proto.String("carried"), Principle: proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Rationale: proto.String("needs a probe")}),
 		{Round: 1, Type: "petition", SeatID: "blue", Payload: record.NewPayload().Set("class", "integrity").Set("reason", "the instruction would require asserting what I believe false").Set("relief", "strike the demand from the docket")},
-		{Round: 0, Type: "halt", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "safety gate tripped")},
-		{Round: 0, Type: "certify", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "re-examine the cost model")},
+		recordtest.Event(t, "judge-terminal", 0, &recordpb.Halt{Opinion: proto.String("safety gate tripped")}),
+		recordtest.Event(t, "judge-terminal", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	}
 	d := debate(&record.Board{Events: evs}, evs)
 	for _, want := range []string{
@@ -323,13 +326,11 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 // A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
 // only the basis distinguishes one from an honest round-0 rewrite.
 func TestRemovalBasisReachesTheReader(t *testing.T) {
-	v := withdrawnClaims([]record.Event{{Type: "retire", SeatID: "blue-r2", Payload: record.NewPayload().
-		Set("claim", "c").Set("reason", "r").Set("removal_basis", record.RemovalVerified)}})
+	v := withdrawnClaims([]record.Event{recordtest.Event(t, "blue-r2", 0, &recordpb.Retire{Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalVerified)})})
 	if !strings.Contains(v, "**verified**") || !strings.Contains(v, "the record shows it leaving") {
 		t.Errorf("a verified removal must say the record can show it:\n%s", v)
 	}
-	a := withdrawnClaims([]record.Event{{Type: "retire", SeatID: "blue-r0", Payload: record.NewPayload().
-		Set("claim", "c").Set("reason", "r").Set("removal_basis", record.RemovalAsserted)}})
+	a := withdrawnClaims([]record.Event{recordtest.Event(t, "blue-r0", 0, &recordpb.Retire{Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
 	if !strings.Contains(a, "**asserted**") || !strings.Contains(a, "nothing on the record shows it was ever present") {
 		t.Errorf("an asserted removal must say the record cannot show it:\n%s", a)
 	}
@@ -343,9 +344,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// A PETITION IS A MOTION. This fixture used the retired `petition` type, so after the collapse
 	// the detector counted zero filings and could not fire — the warning it exists to raise was
 	// unreachable while this test went on passing.
-	filed := []record.Event{{Round: 1, Type: "motion", SeatID: "red-merge-r1",
-		Payload: record.NewPayload().Set("motion_id", "M1").Set("subject", "petition").
-			Set("class", "safety").Set("basis", "the demand would bury a hazard")}}
+	filed := []record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
 	d := debate(&record.Board{Events: filed}, filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
@@ -353,9 +352,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// The ruling joins by MOTION ID, which is the whole point of the collapse: `petition-rule`
 	// carried only the petitioner, so two filings by one seat in one round could not be told
 	// apart. record.Motions pairs the answer to its ask exactly.
-	answered := append(filed, record.Event{Round: 1, Type: "motion-rule", SeatID: "judge-r1",
-		Payload: record.NewPayload().Set("motion_id", "M1").Set("subject", "petition").
-			Set("ruling", "denied").Set("opinion", "the hazard is graded, not buried")})
+	answered := append(filed, record.recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Opinion: proto.String("the hazard is graded, not buried")}))
 	if d := debate(&record.Board{Events: answered}, answered); strings.Contains(d, "received no ruling") {
 		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
 	}
@@ -365,10 +362,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 // `retire`, which names the claim as it stood and why it went — and the reader saw none of it,
 // making a report where a claim was argued and withdrawn identical to one where it was never made.
 func TestWithdrawnClaimsReachTheReader(t *testing.T) {
-	evs := []record.Event{{Round: 2, Type: "retire", SeatID: "blue-respond-r2", Payload: record.NewPayload().
-		Set("claim", "the parser is O(n) in the input size").
-		Set("reason", "refuted at the leaf — the inner scan is quadratic on backtracking").
-		Set("superseded_by", "the parser is O(n) except on backtracking inputs")}}
+	evs := []record.Event{recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Retire{})}
 	w := withdrawnClaims(evs)
 	for _, want := range []string{"the parser is O(n) in the input size", "refuted at the leaf", "superseded by: the parser is O(n) except on backtracking inputs"} {
 		if !strings.Contains(w, want) {
@@ -425,7 +419,7 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 		},
 	}
 	evs := []record.Event{
-		{Type: "certify", Payload: record.NewPayload().Set("reason", "re-examine the cost model before shipping")},
+		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model before shipping")}),
 	}
 	o := orientation(board, evs)
 	// The bench's certify is promoted to the top.
@@ -455,9 +449,9 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 			"R1-1": {ID: "R1-1", Mint: record.NewPayload().Set("found_by", []string{"L5-F1", "L6-F2"})},
 		},
 		Events: []record.Event{
-			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F1").Set("reason", "minted — omit")},
-			{Type: "finding", SeatID: "red-lens-r1-L6", Payload: record.NewPayload().Set("label", "L6-F2").Set("reason", "also minted — omit")},
-			{Type: "finding", SeatID: "red-lens-r1-L5", Payload: record.NewPayload().Set("label", "L5-F3").Set("location", "§H1").Set("reason", "un-minted red reasoning kept for the record")},
+			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{Label: proto.String("L5-F1"), Text: proto.String("minted — omit")}),
+			recordtest.Event(t, "red-lens-r1-L6", 0, &recordpb.Finding{Label: proto.String("L6-F2"), Text: proto.String("also minted — omit")}),
+			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
 	got := redFindings(board)
@@ -474,9 +468,9 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 
 func TestFrictionRendered(t *testing.T) {
 	evs := []record.Event{
-		{Type: "friction", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("reason", "the --cx flag is missing from help")},
-		{Type: "friction", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("reason", "manifest cap fights methodology gaps")},
-		{Type: "mint", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("problem", "not friction")},
+		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Friction{Text: proto.String("the --cx flag is missing from help")}),
+		recordtest.Event(t, "blue-respond-r2", 0, &recordpb.Friction{Text: proto.String("manifest cap fights methodology gaps")}),
+		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Mint{Problem: proto.String("not friction")}),
 	}
 	f := frictionLog(evs)
 	for _, want := range []string{"Friction (tooling gaps", "**red-merge-r1**: the --cx flag is missing", "**blue-respond-r2**: manifest cap fights"} {
@@ -500,9 +494,9 @@ func TestCellEscapesTableBreakers(t *testing.T) {
 
 func TestRevisionHistoryFromEvents(t *testing.T) {
 	evs := []record.Event{
-		{Round: 1, Type: "revision", SeatID: "blue-respond-r1", Payload: record.NewPayload().Set("reason", "expanded the caching section; retired the stale figure")},
-		{Round: 2, Type: "revision", SeatID: "blue-respond-r2", Payload: record.NewPayload().Set("reason", "addressed R2-1 in the analysis")},
-		{Round: 1, Type: "position", SeatID: "red-merge-r1", Payload: record.NewPayload().Set("reason", "not a revision")},
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Revision{Text: proto.String("expanded the caching section; retired the stale figure")}),
+		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Revision{Text: proto.String("addressed R2-1 in the analysis")}),
+		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Position{Text: proto.String("not a revision")}),
 	}
 	got := revisionHistory(evs)
 	if !strings.Contains(got, "## Report revision history") {

@@ -1,6 +1,8 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -22,7 +24,7 @@ func pl(kv ...string) *record.Payload {
 func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 	b := &record.Board{
 		Events: []record.Event{
-			{Type: "register", SeatID: "red-merge-r1"},
+			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
 		},
 		GapOrder: []string{"R1-1"},
@@ -59,7 +61,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 	b := &record.Board{
 		Events: []record.Event{
-			{Type: "register", SeatID: "red-merge-r1"},
+			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
 		},
 		GapOrder: []string{"R1-1"},
@@ -86,7 +88,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	b := &record.Board{
 		Events: []record.Event{
-			{Type: "register", SeatID: "red-merge-r1"},
+			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "FAIL")},
 		},
 		GapOrder: []string{"R1-1"},

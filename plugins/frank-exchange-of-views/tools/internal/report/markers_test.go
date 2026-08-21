@@ -1,6 +1,9 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,7 +52,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "mint", p); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, "outcome", record.NewPayload().Set("verdict", "CEILING").Set("reason", "the round ceiling arrived before red could pass the final revision")); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
 		t.Fatal(err)
 	}
 
