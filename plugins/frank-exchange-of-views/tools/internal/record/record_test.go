@@ -1,6 +1,8 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,7 +65,7 @@ func TestAppendedEventCarriesAStamp(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, "observe", NewPayload().Set("label", "L1-O1"))
+	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +96,7 @@ func TestStampsStrictlyIncreaseUnderAFrozenClock(t *testing.T) {
 
 	var stamps []string
 	for i := 0; i < 10; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, "observe", NewPayload().Set("label", string(rune('a'+i))))
+		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String(string(rune('a' + i)))})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -126,7 +128,7 @@ func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
 
 	var stamps []string
 	for i := 0; i < 6; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, "observe", NewPayload().Set("label", string(rune('a'+i))))
+		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String(string(rune('a' + i)))})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -157,7 +159,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 		t.Fatal("fixture assumption: the seat id derivation answers 0 for judge-terminal")
 	}
 
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, "friction", NewPayload().Set("reason", "a capability gap"))
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, &recordpb.Friction{Text: proto.String("a capability gap")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +197,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, "friction", NewPayload().Set("reason", "a capability gap"))
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, &recordpb.Friction{Text: proto.String("a capability gap")})
 	if err != nil {
 		t.Fatal(err)
 	}

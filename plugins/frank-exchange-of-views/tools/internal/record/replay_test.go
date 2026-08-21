@@ -412,8 +412,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 		if want := fmt.Sprintf("R1-%d", i); got != want {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
-		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "mint", NewPayload().
-			Set("gap_id", got).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -439,8 +438,7 @@ func TestExistingMintByKey(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "mint", NewPayload().
-		Set("gap_id", "R1-1").Set("mint_key", "L1-F3").Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -657,9 +655,7 @@ func opinionRunDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
@@ -975,12 +971,12 @@ func TestDeriveKey(t *testing.T) {
 		{name: "id, observation, anchor and url are also labels", typ: "cite", p: NewPayload().Set("url", "https://x"), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},
 		{
 			name: "with no label at all, a per-shard ordinal", typ: "friction", p: NewPayload(), seatID: "blue-lane-1",
-			prior: []Event{{Type: "friction"}, {Type: "friction"}, {Type: "position"}},
+			prior: []Event{recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Friction{}), recordtest.Event(t, "", 0, &recordpb.Position{})},
 			want:  "blue-lane-1:friction:#3",
 		},
 		{
 			name: "the ordinal counts only the SAME verb", typ: "friction", p: NewPayload(), seatID: "blue-lane-1",
-			prior: []Event{{Type: "position"}, {Type: "finding"}},
+			prior: []Event{recordtest.Event(t, "", 0, &recordpb.Position{}), recordtest.Event(t, "", 0, &recordpb.Finding{})},
 			want:  "blue-lane-1:friction:#1",
 		},
 		{name: "an empty label falls through to the ordinal", typ: "finding", p: NewPayload().Set("label", ""), seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:#1"},
@@ -1076,7 +1072,7 @@ func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
 		}
 	}
 	reg := func(seat, nonce string) Event {
-		return Event{TS: "2026-01-01T00:00:00Z", SeatID: seat, Nonce: nonce, Type: "register", Key: seat + ":register:" + nonce, Payload: NewPayload()}
+		return recordtest.Stamped(recordtest.At(t, seat, nonce, 0, 0, seat+":register:"+nonce, &recordpb.Register{}), "2026-01-01T00:00:00Z")
 	}
 
 	t.Run("a crash re-dispatch loses nothing", func(t *testing.T) {
@@ -1084,7 +1080,7 @@ func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
 		// Both shards carry the SAME work keys; only the register nonce differs. That is what a
 		// retry looks like, and it must stay silent — otherwise the signal fires on the one case
 		// it exists to permit.
-		work := Event{TS: "2026-01-01T00:00:01Z", SeatID: "red-merge-r1", Type: "mint", Key: "red-merge-r1:mint:R1-1", Payload: NewPayload()}
+		work := recordtest.Stamped(recordtest.At(t, "red-merge-r1", "", 0, 0, "red-merge-r1:mint:R1-1", &recordpb.Mint{}), "2026-01-01T00:00:01Z")
 		a, b := work, work
 		a.Nonce, b.Nonce = "aaaaaaaa", "bbbbbbbb"
 		shard(t, dir, "red-merge-r1", "aaaaaaaa", []Event{reg("red-merge-r1", "aaaaaaaa"), a})
@@ -1109,10 +1105,8 @@ func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
 		dir := t.TempDir()
 		// The #394 shape: distinct work under one seat id, and no terminal event, so selection
 		// falls to mtime and the earlier sitting's rulings vanish.
-		first := Event{TS: "2026-01-01T00:00:01Z", SeatID: "judge-petition", Nonce: "aaaaaaaa", Type: "motion-rule",
-			Key: "judge-petition:motion-rule:M1", Payload: NewPayload()}
-		second := Event{TS: "2026-01-01T00:00:02Z", SeatID: "judge-petition", Nonce: "bbbbbbbb", Type: "motion-rule",
-			Key: "judge-petition:motion-rule:M2", Payload: NewPayload()}
+		first := recordtest.Stamped(recordtest.At(t, "judge-petition", "aaaaaaaa", 0, 0, "judge-petition:motion-rule:M1", &recordpb.MotionRule{}), "2026-01-01T00:00:01Z")
+		second := recordtest.Stamped(recordtest.At(t, "judge-petition", "bbbbbbbb", 0, 0, "judge-petition:motion-rule:M2", &recordpb.MotionRule{}), "2026-01-01T00:00:02Z")
 		shard(t, dir, "judge-petition", "aaaaaaaa", []Event{reg("judge-petition", "aaaaaaaa"), first})
 		shard(t, dir, "judge-petition", "bbbbbbbb", []Event{reg("judge-petition", "bbbbbbbb"), second})
 

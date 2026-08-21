@@ -1,5 +1,11 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
+)
+
 import "testing"
 
 // board assembles a Board directly from events, so these tests exercise the estoppel logic
@@ -91,7 +97,7 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 		edit("R1-1", true),
 		edit("R1-2", false),
 		// R1-3 offered and never answered.
-		{Type: "blue_edit", SeatID: "blue-respond-r1", Round: 1, Payload: NewPayload().Set("answers", "R1-4")},
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-4")}),
 	})
 
 	offered, applied, declined := DeclineStats(b)
@@ -112,10 +118,7 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 
 func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 	fr := func(text string) Event {
-		return Event{Type: "friction", SeatID: "red-merge-r2", Round: 2, Payload: NewPayload().
-			Set("reason", text).
-			Set(FrictionKindKey, FrictionKindEstoppel).
-			Set("estopped_by", "R1-3")}
+		return recordtest.Event(t, "red-merge-r2", 2, &recordpb.Friction{})
 	}
 	b := board(t, nil, []Event{
 		fr("merge mint: estoppel — this gap's location is text YOU prescribed"),
@@ -132,8 +135,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 // position matcher exists to avoid.
 func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 	b := board(t, nil, []Event{
-		{Type: "friction", SeatID: "blue-respond-r2", Round: 2, Payload: NewPayload().
-			Set("reason", "merge mint: estoppel — I hit this and could not proceed")},
+		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Friction{}),
 	})
 	if got := EstoppelRejections(b); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0 — a seat QUOTING the refusal did not cause one", got)
@@ -144,7 +146,7 @@ func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 // fire" rather than "the detector is broken".
 func TestNoRejectionsCountsZero(t *testing.T) {
 	b := board(t, nil, []Event{
-		{Type: "friction", SeatID: "red-merge-r1", Round: 1, Payload: NewPayload().Set("reason", "the fetch cache refused an unreachable url")},
+		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Friction{Text: proto.String("the fetch cache refused an unreachable url")}),
 	})
 	if got := EstoppelRejections(b); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0", got)

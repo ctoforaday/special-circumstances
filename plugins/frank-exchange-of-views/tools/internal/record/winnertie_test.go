@@ -1,6 +1,8 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,8 +35,8 @@ func TestAnMtimeTieResolvesDeterministically(t *testing.T) {
 		for _, nonce := range order {
 			var lines []string
 			for _, e := range []Event{
-				{TS: "2026-01-01T00:00:00Z", SeatID: "judge-petition", Nonce: nonce, Type: "register", Key: "judge-petition:register:" + nonce, Payload: NewPayload()},
-				{TS: "2026-01-01T00:00:00Z", SeatID: "judge-petition", Nonce: nonce, Type: "motion-rule", Key: "judge-petition:motion-rule:" + nonce, Payload: NewPayload()},
+				recordtest.Stamped(recordtest.At(t, "judge-petition", nonce, 0, 0, "judge-petition:register:"+nonce, &recordpb.Register{}), "2026-01-01T00:00:00Z"),
+				recordtest.Stamped(recordtest.At(t, "judge-petition", nonce, 0, 0, "judge-petition:motion-rule:"+nonce, &recordpb.MotionRule{}), "2026-01-01T00:00:00Z"),
 			} {
 				b, err := MarshalEvent(e)
 				if err != nil {

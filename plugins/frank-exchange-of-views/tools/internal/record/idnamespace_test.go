@@ -2,6 +2,9 @@ package record
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"regexp"
 	"strings"
 	"testing"
@@ -191,8 +194,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 			Set("complexity_cost", "low").Set("existence", "verified"))
 		return err
 	case "line-of-inquiry":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "line-of-inquiry", NewPayload().
-			Set("inquiry_id", id).Set("status", "proposed").Set("line", "a line").Set("reason", "r"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Avenue{Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("a line"), Reason: proto.String("r")})
 		return err
 	case "motion":
 		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "motion", NewPayload().

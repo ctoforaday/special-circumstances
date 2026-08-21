@@ -61,3 +61,11 @@ func At(t *testing.T, seatID, nonce string, seq, round int, key string, body pro
 // Grade_GRADE_HIGH, and a fixture that wants to say "ungraded" passes nil. Writing that as a
 // three-line closure at each site is how the distinction gets quietly collapsed.
 func P[T any](v T) *T { return &v }
+
+// Stamped sets an event's timestamp, for the fixtures that are ABOUT time — seat spans, ordering
+// across shards, the parse-failure count. Most fixtures do not set one and must not: an invented
+// stamp that happens to sort correctly hides an ordering bug rather than exposing it.
+func Stamped(ev *recordpb.Event, ts string) *recordpb.Event {
+	ev.Ts = proto.String(ts)
+	return ev
+}

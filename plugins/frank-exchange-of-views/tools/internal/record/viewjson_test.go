@@ -218,7 +218,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		recordtest.At(t, s, "aaaaaaaa", 1, 1, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
 	})
 	writeShard(t, runDir, m, "bbbbbbbb", []Event{
-		ev(m, "bbbbbbbb", 0, 1, "mint", m+":mint:k", NewPayload().Set("gap_id", "R1-1").Set("found_by", []string{"L1-F1"})),
+		recordtest.At(t, m, "bbbbbbbb", 0, 1, m+":mint:k", &recordpb.Mint{GapId: proto.String("R1-1"), FoundBy: []string{"L1-F1"}}),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {

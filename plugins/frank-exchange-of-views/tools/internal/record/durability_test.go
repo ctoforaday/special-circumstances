@@ -2,6 +2,8 @@ package record
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +55,7 @@ func TestAppendEntersACriticalSection(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F1").Set("reason", "must not start"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("must not start")})
 		done <- err
 	}()
 
@@ -224,7 +226,7 @@ func TestAppendHealsATornFinalLine(t *testing.T) {
 	}
 	f.Close()
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F1").Set("reason", "intact")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("intact")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -253,7 +255,7 @@ func TestAppendHealsATornFinalLine(t *testing.T) {
 		t.Errorf("the event appended after a tear did not survive whole: %+v", last)
 	}
 	// A further append must not add a second heal: the file now ends in a newline.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", "F2").Set("reason", "second")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = os.ReadFile(shard)
@@ -271,7 +273,7 @@ func TestAppendAssignsGapFreePerShardSequence(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 5; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", NewPayload().Set("label", fmt.Sprintf("F%d", i)))
+		ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Finding{Label: proto.String(fmt.Sprintf("F%d", i))})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -297,7 +299,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "position", NewPayload().Set("reason", "first instance")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Position{Text: proto.String("first instance")}); err != nil {
 		t.Fatal(err)
 	}
 	n2, s2, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)})
@@ -327,7 +329,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 		t.Errorf("stale shard has %d events, want 2 — a re-register must not rewrite it", len(old))
 	}
 	// The new instance writes to the new shard, starting its own sequence.
-	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "position", NewPayload().Set("reason", "second instance"))
+	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Position{Text: proto.String("second instance")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +354,7 @@ func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 func TestAppendImplicitlyRegistersWhenThePointerIsAbsent(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "blue-lane-1"
-	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "friction", NewPayload().Set("reason", "no register first"))
+	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Friction{Text: proto.String("no register first")})
 	if err != nil {
 		t.Fatal(err)
 	}

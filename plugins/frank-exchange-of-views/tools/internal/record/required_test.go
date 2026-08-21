@@ -1,5 +1,11 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
+)
+
 import "testing"
 
 // THE TABLE MUST BE TRUE.
@@ -37,9 +43,7 @@ func runWithGap(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
@@ -184,14 +188,10 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "close", NewPayload().Set("gap_id", id).
-		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
-		Set("reason", "verified and holds")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{GapId: proto.String(id), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := validate(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {

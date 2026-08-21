@@ -2,6 +2,8 @@ package record
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,7 +117,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "finding", NewPayload().Set("label", "F1").Set("reason", "over an abandoned lock")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("over an abandoned lock")}); err != nil {
 		t.Fatalf("append over an abandoned lock file: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > lockWait {

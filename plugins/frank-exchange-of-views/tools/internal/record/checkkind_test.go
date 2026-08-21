@@ -1,5 +1,10 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
+)
+
 import "testing"
 
 // check_kind IS THE FIELD WITH TEETH, AND IT REACHED NO VIEW.
@@ -66,8 +71,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, "friction-none",
-		NewPayload().Set("reason", "read the board and my verb list; every refusal was my own error")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, &recordpb.FrictionNone{Text: proto.String("read the board and my verb list; every refusal was my own error")}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(runDir)

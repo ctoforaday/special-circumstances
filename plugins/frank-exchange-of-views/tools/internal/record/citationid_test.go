@@ -1,6 +1,9 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"regexp"
 	"testing"
 )
@@ -47,7 +50,7 @@ func TestCitationID_DistinctFromFindingID(t *testing.T) {
 // distinction depend on the absence of a field, so a blue cite written without a label silently
 // rejoined red's count. #341 makes it structural: two acts, two EVENT TYPES, nothing inferred.
 func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
-	authored := Event{Type: "cite", Payload: NewPayload().Set("label", "c-abc").Set("url", "https://x").Set("title", "T")}
+	authored := recordtest.Event(t, "", 0, &recordpb.Cite{Label: proto.String("c-abc"), Url: proto.String("https://x"), Title: proto.String("T")})
 	verified := Event{Type: "verify", Payload: NewPayload().Set("claim", "c").Set("reference", "https://y").Set("trust", "high")}
 
 	if authored.Type == verified.Type {
@@ -55,7 +58,7 @@ func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
 	}
 	// The discriminator must not be recoverable from a payload field: a blue cite MISSING its
 	// label must still be a blue cite, which is exactly the case the old heuristic got wrong.
-	unlabelled := Event{Type: "cite", Payload: NewPayload().Set("url", "https://x")}
+	unlabelled := recordtest.Event(t, "", 0, &recordpb.Cite{Url: proto.String("https://x")})
 	if unlabelled.Type != "cite" {
 		t.Error("a cite without a label is still a cite — provenance is the type, not a field's emptiness")
 	}
