@@ -313,7 +313,13 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 			}
 			out, err := cmd.CombinedOutput()
 			if err != nil {
-				return string(out), fmt.Errorf("%s: %s", strings.Join(args[:min(3, len(args))], " "), strings.TrimSpace(string(out)))
+				// THE err GOES IN THE MESSAGE, and it is not decoration. Reporting only the tool's
+				// output describes a tool that RAN and refused. A process that never started —
+				// wrong path, missing execute bit, an extensionless binary on Windows — produces
+				// no output at all, so the board fails with a blank reason and the operator has
+				// nothing to chase. Measured on the first Windows run of the sibling gate: nine
+				// boards, nine empty failures.
+				return string(out), fmt.Errorf("%s: %v: %s", strings.Join(args[:min(3, len(args))], " "), err, strings.TrimSpace(string(out)))
 			}
 			return string(out), nil
 		}

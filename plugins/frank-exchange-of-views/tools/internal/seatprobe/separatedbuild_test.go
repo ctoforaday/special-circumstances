@@ -41,7 +41,11 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 	if testing.Short() {
 		t.Skip("builds a binary")
 	}
-	bin := filepath.Join(t.TempDir(), "feov-record")
+	// `.exe`, ALWAYS. Go does not append it for an explicit -o filename, and Windows will not
+	// start an extensionless file — so the first register returned no output and an error this
+	// helper then threw away, which is how nine boards failed with a blank reason. The fuzz's
+	// builder has spelled it this way all along; the extension is inert on Linux.
+	bin := filepath.Join(t.TempDir(), "feov-record.exe")
 	if out, err := exec.Command("go", "build", "-o", bin, "../../cmd/feov-record").CombinedOutput(); err != nil {
 		t.Fatalf("build feov-record: %v\n%s", err, out)
 	}
@@ -65,7 +69,10 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 					"CLAUDE_PROJECT_DIR="+runDir)
 				out, err := c.CombinedOutput()
 				if err != nil {
-					return string(out), fmt.Errorf("%s: %s", strings.Join(args[:min(3, len(args))], " "), strings.TrimSpace(string(out)))
+					// THE err GOES IN THE MESSAGE. Reporting only the tool's output describes a
+					// tool that RAN and refused; a process that never started produces no output
+					// at all, and the failure then reads as an empty reason with nothing to chase.
+					return string(out), fmt.Errorf("%s: %v: %s", strings.Join(args[:min(3, len(args))], " "), err, strings.TrimSpace(string(out)))
 				}
 				return string(out), nil
 			}
