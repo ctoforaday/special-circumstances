@@ -87,3 +87,65 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 		}
 	}
 }
+
+// normalizeWS collapses runs of whitespace, so a clause is compared by what it SAYS rather than by
+// where its author happened to wrap it.
+//
+// This function exists because of a measured miss, and the miss is the whole argument for the gate
+// below. Three constitutions carry the friction clause on ONE line; blue-researcher.md hard-wraps
+// it at 95 columns. A sweep that rewrote the clause matched the three and skipped the fourth — and
+// skipped it SILENTLY, reporting a per-file byte delta that had moved for other reasons. The
+// result shipped: one constitution kept two paragraphs the `friction` verb's own help already
+// carried, and nothing anywhere could tell the difference between "checked and consistent" and
+// "never compared".
+func normalizeWS(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// THE FRICTION CLAUSE IS FOUR HAND-KEPT COPIES, so something has to hold them together.
+//
+// Same shape as the surface-discovery gate above and the same justification: the constitutions are
+// authored markdown the harness reads directly, so the text cannot be generated, and a guard is
+// what the rules allow when generation is impossible. What it holds is the DUTY and the account
+// owed when nothing blocked you; what it refuses is any copy of what `friction --help` says on the
+// page a seat opens.
+func TestEveryConstitutionStatesTheFrictionDutyAndNoneRestatesTheVerb(t *testing.T) {
+	want := []string{
+		// The duty, including the sittings that went fine — the half that gets dropped.
+		"not only the ones that went wrong",
+		// What counts as friction beyond a missing verb. This is a JUDGEMENT about the work,
+		// which is why it is constitutional rather than in the verb's help.
+		"TEMPLATE/PROTOCOL MISFIT",
+		// And the empty case owes an account, not silence.
+		"when nothing blocked you, say what you reached for and found",
+	}
+	// What `friction --help` states, on every page, at the moment a seat reaches the channel. A
+	// constitution restating it is the fifth copy of a sentence that needs one.
+	banned := []string{
+		"Silence is not the empty case",
+		"not your mistake, it is the finding",
+		"An absent friction log reads identically",
+	}
+	paths, err := filepath.Glob(filepath.Join("..", "..", "..", "agents", "*.md"))
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("found no constitutions (%v) — a scan that reads nothing reports every file clean", err)
+	}
+	for _, p := range paths {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := normalizeWS(string(b))
+		for _, w := range want {
+			if !strings.Contains(text, normalizeWS(w)) {
+				t.Errorf("%s does not state the friction duty (%q). Four copies of one clause drift the "+
+					"moment one of them is edited alone.", filepath.Base(p), w)
+			}
+		}
+		for _, w := range banned {
+			if strings.Contains(text, normalizeWS(w)) {
+				t.Errorf("%s restates %q, which `friction --help` says on the page a seat opens when it "+
+					"reaches for the channel. The constitution carries the duty; the verb carries the verb.",
+					filepath.Base(p), w)
+			}
+		}
+	}
+}
