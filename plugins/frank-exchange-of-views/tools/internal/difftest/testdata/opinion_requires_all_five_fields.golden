@@ -3,7 +3,7 @@ exit 0
 stdout:
 registered judge-r2 (shard nonce NONCE001)
 
-$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed
+$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as repaired
 exit 2
 stderr:
 feov-record: required flag(s) "principle", "review-flag", "tension" not set
@@ -36,12 +36,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
     carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
 
 Global Flags:
@@ -49,7 +49,7 @@ Global Flags:
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed --principle p --tension t
+$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as repaired --principle p --tension t
 exit 2
 stderr:
 feov-record: required flag(s) "review-flag" not set
@@ -82,12 +82,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
     carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
 
 Global Flags:

@@ -40,12 +40,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -84,19 +84,19 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
@@ -128,25 +128,25 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as closed --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
+$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
 exit 0
 stdout:
-closed R1-1 (closed)
+closed R1-1 (repaired)
 
 ═══ EVENTS ═══
 -- events-red-merge-r1-NONCE001.jsonl
 {"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"refetch","check_kind":"document","class":"citation-drift","class_new":false,"complexity_cost":"medium","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"high","likelihood":"high","problem":"source moved","severity":"high","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
-{"key":"red-merge-r1:close:R1-1","nonce":"NONCE001","payload":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"closed","gap_id":"R1-1","reason":"refetched; the source now resolves and supports the claim"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"close"}
+{"key":"red-merge-r1:close:R1-1","nonce":"NONCE001","payload":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"repaired","gap_id":"R1-1","reason":"refetched; the source now resolves and supports the claim"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"close"}
