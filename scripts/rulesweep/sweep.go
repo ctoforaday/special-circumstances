@@ -58,9 +58,44 @@ var protocolSurfaces = []*regexp.Regexp{
 	regexp.MustCompile(`/hooks/hooks\.json$`),
 }
 
+// protocolExemptions are paths that LOOK like a protocol surface and are not authored like one.
+//
+// law/proposed/ is the harvest end of the law pipe. `capture` writes it at the close of every run:
+// PERSUASIVE holdings, authored by nobody, carrying `<reviewer: fill from the cited record>`
+// placeholders the harvest deliberately does not invent, explicitly awaiting the review that might
+// promote them into law/precedents.md. Committing one is how it REACHES that review.
+//
+// The sweep asks a committer to name the class of the defect they fixed and say what they found at
+// each adjacent carrier. For a machine harvest the honest answer is always "no duty changed,
+// nothing to sweep" — and a gate whose only truthful answer is fixed boilerplate teaches people to
+// write boilerplate, which is this repo's own argument about a permanently expected validator
+// warning being how a validator stops being read.
+//
+// THE SHARPEST EVIDENCE IT IS THE ALTITUDE AND NOT THE RULE: `capture` writes the scorecards and
+// the harvest in the SAME ACT, and the scorecards sail through ungated because they are not a
+// protocol surface. One generator, two outputs, opposite treatment.
+//
+// This is ONE structural exemption — a directory defined by who writes it — not a growing list of
+// accidents. law/precedents.md, which humans author and promote, keeps the gate.
+var protocolExemptions = []*regexp.Regexp{
+	regexp.MustCompile(`^law/proposed/`),
+}
+
+func exempt(f string) bool {
+	for _, re := range protocolExemptions {
+		if re.MatchString(f) {
+			return true
+		}
+	}
+	return false
+}
+
 func touchesProtocol(files []string) []string {
 	var out []string
 	for _, f := range files {
+		if exempt(f) {
+			continue
+		}
 		for _, re := range protocolSurfaces {
 			if re.MatchString(f) {
 				out = append(out, f)

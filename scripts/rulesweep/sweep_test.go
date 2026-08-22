@@ -138,7 +138,10 @@ func TestTouchesProtocol(t *testing.T) {
 		"plugins/x/skills/y/references/CHEATSHEET.md",
 		"plugins/x/commands/doctor.md",
 		"plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js",
-		"law/proposed/rule.md",
+		"plugins/x/hooks/hooks.json",
+		// The REVIEWED statute, which humans author and promote. This is where the rule-patch
+		// discipline belongs and where the gate must keep firing.
+		"law/precedents.md",
 	}
 	for _, f := range protocol {
 		if got := touchesProtocol([]string{f}); len(got) != 1 {
@@ -154,6 +157,17 @@ func TestTouchesProtocol(t *testing.T) {
 		"README.md",
 		"plugins/x/skills/y/SKILL.md.bak",
 		"outlaw/thing.md", // must not match the ^law/ anchor
+		// THE HARVEST END OF THE LAW PIPE. This assertion is INVERTED from what it used to be,
+		// deliberately: law/proposed/*.md was gated as a protocol surface, and committing a run's
+		// own harvest then demanded a Rule-Class and a Sibling-Sweep for a change that altered no
+		// duty. The only honest trailer was "nothing to sweep", and a gate whose sole truthful
+		// answer is boilerplate is a gate people learn to satisfy rather than read.
+		//
+		// Measured 2026-08-22: committing law/proposed/2026-08-22_is-7-prime.md — two PERSUASIVE
+		// holdings written by `capture`, still carrying their `<reviewer: fill…>` placeholders —
+		// failed the sweep. The scorecards that capture wrote in the SAME ACT passed ungated.
+		"law/proposed/2026-08-22_is-7-prime.md",
+		"law/proposed/rule.md",
 	}
 	for _, f := range code {
 		if got := touchesProtocol([]string{f}); len(got) != 0 {
