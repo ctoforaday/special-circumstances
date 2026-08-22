@@ -307,10 +307,27 @@ func requirePassClosesAllGaps(runDir string) error {
 	// The gate counts what is on the RECORD, both vocabularies, because a pre-collapse record
 	// replayed under this binary must be judged by the same standard it was written to.
 	var unruled []string
+	// AND WHICH SEAT HOLDS THE GAVEL FOR EACH. Naming the id alone told a blocked merge seat to
+	// rule motions it structurally cannot: a PETITION is the bench's, requireRuler refuses the
+	// merge outright, and with a clean gap board there was then no verdict the seat could legally
+	// give. The role comes off the MotionSubject enum, which is where the CLI's gavel check reads
+	// it too — the alternative was a second hand-written copy in a package that cannot see the
+	// first. A subject with no ruler annotated is an ERROR, not an unlabelled id: it would mean a
+	// motion that blocks a PASS and nobody has to answer.
 	for _, m := range Motions(b) {
-		if !m.Ruled() {
-			unruled = append(unruled, m.ID)
+		if m.Ruled() {
+			continue
 		}
+		subj, known := MotionSubjectEnum(m.Subject)
+		if !known {
+			unruled = append(unruled, m.ID+" ("+m.Subject+", a subject this binary does not know — it cannot say who rules it)")
+			continue
+		}
+		ruler, err := recordpb.SubjectRuler(subj)
+		if err != nil {
+			return err
+		}
+		unruled = append(unruled, m.ID+" ("+m.Subject+", ruled by the "+ruler+" seat)")
 	}
 	if len(unruled) != 0 {
 		sort.Strings(unruled)
@@ -320,8 +337,9 @@ func requirePassClosesAllGaps(runDir string) error {
 		// A blocking message that does not say how to unblock is an invitation to guess.
 		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. "+
 			"Read what each one asks with `show motions` (its `basis` is the filer's argument, which your ruling answers), "+
-			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`. "+
-			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
+			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — IF THE GAVEL NAMED ABOVE IS YOURS. "+
+			"Where it is not, the ruling is not yours to make and not yours to wait for silently: issue `--as FAIL` so the round ends on the record and the seat that holds it can answer. "+
+			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",
 			len(unruled), strings.Join(unruled, ", "))
 	}
 	// AND THE REPORT'S ACCOUNT OF ITS OWN RESEARCH READ, THIS ROUND.

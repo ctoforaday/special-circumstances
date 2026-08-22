@@ -143,3 +143,28 @@ func enumPrefix(e protoreflect.EnumDescriptor) string {
 // choice. Grade's zero is the exception that proves the rule — it is the `undefined` sentinel and
 // is still never something a seat TYPES.
 func isZeroValue(v protoreflect.EnumValueDescriptor) bool { return v.Number() == 0 }
+
+// RulerOf returns the seat role that holds the gavel for a motion subject.
+//
+// ONE DECLARATION, TWO READERS, and the second one did not exist. `internal/cli/motion` carried
+// the gavel as a literal argument — `subject("petition", …, "bench")` — and enforced it in
+// requireRuler. The PASS gate, in `internal/record`, cannot import the CLI, so its refusal told
+// every blocked seat to "rule it with `motion <subject> rule`" without knowing whose ruling it
+// would be. For a petition that instruction is refused by requireRuler: the merge does not hold
+// that gavel and cannot obtain it, so the seat had no legal verdict and the round wedged.
+//
+// The miss is LOUD for the same reason EnumValueDoc's is: a silent "" would put a role-shaped
+// hole in a refusal message, which reads as a motion nobody has to rule.
+func RulerOf(v protoreflect.EnumValueDescriptor) (string, error) {
+	if r, _ := proto.GetExtension(v.Options(), E_RuledBy).(string); r != "" {
+		return r, nil
+	}
+	return "", fmt.Errorf("recordpb: no ruler on motion subject %s — put one on the value itself, "+
+		"`%s = N [(ruled_by) = \"…\"]`; a subject nobody holds the gavel for is a motion that "+
+		"blocks a PASS and can never be answered", v.FullName(), v.Name())
+}
+
+// SubjectRuler is RulerOf keyed by the enum value a record carries.
+func SubjectRuler(s MotionSubject) (string, error) {
+	return RulerOf(s.Descriptor().Values().ByNumber(s.Number()))
+}

@@ -49,7 +49,9 @@ import (
 // document drifted from its own account of itself.
 func newInquirySupport() *cobra.Command {
 	c := seat.Prose(seat.New("inquiry-support",
-		`your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read`,
+		`your per-round read of the REPORT against the lines of inquiry on the record: --reason "<what the report says at those lines>". `+
+			`Read the report ONCE, cover every line in the one act — and where a line's treatment is thin, missing or unsupported by the text, MINT A GAP for it. `+
+			`This event records only that the read happened; the shortfalls it finds are ordinary defects. A PASS is refused until it exists.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			text, err := seat.Reason(cmd)
 			if err != nil {
@@ -63,17 +65,22 @@ func newInquirySupport() *cobra.Command {
 			// schema exists to remove".
 			//
 			// So --id and --as no longer reach the record. That is the schema's decision, not a
-			// conversion slip, and it is written here rather than left as a silent drop: the
-			// follow-through this branch still owes is removing the two flags from the surface,
-			// because a flag a seat can pass and the record ignores is worse than one that does
-			// not exist.
-			if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
+			// conversion slip: the flags are gone from the surface and from the help,
+					if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
 				return nil, err
 			}
 			return inquiryReviewResult{}, nil
 		}))
 
 	// NO --id AND NO --as, AND THE ABSENCE IS THE RULING.
+	//
+	// THE HELP ABOVE ADVERTISED BOTH UNTIL NOW — `--id Q1 --as supported|weakened|unsupported|absent`
+	// on a command that registers neither, so a seat following its own help got a cobra refusal for
+	// a flag the schema deliberately retired. The comment below already called removing them "the
+	// follow-through this branch still owes"; the flags went and the sentence describing them
+	// stayed, which is the half-state that reads as done. Third instance of that family this
+	// branch: `--as supports-with-bridge` advertised and refused, and the fuzz's hyphenated
+	// ruling words.
 	//
 	// The four-value `--as` answered "does the report still carry this line". Presence stopped
 	// being a question when the lines became GENERATED onto the page from the record — blue cannot

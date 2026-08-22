@@ -712,10 +712,17 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// is why deleting the retired per-line VOTE took this verb's only drive with it. It names
 		// no line and casts no verdict: a shortfall in the body is an ordinary gap, so `--reason`
 		// is its whole payload.
-		r.maybe(40, func() {
-			r.do("merge", "inquiry-support", seatID).
-				set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
-		})
+		// UNCONDITIONAL, BECAUSE IT IS A PER-ROUND DUTY AND A HARD PRECONDITION FOR PASS.
+		//
+		// This sat behind a 40% coin, so three rounds in five could not pass: the tool refuses a
+		// PASS with no review for the round, and debate.js refuses a FAIL that names no gaps, so
+		// the seat had NO legal verdict and the run wedged. Before the drive honoured the refusal
+		// that was invisible — the error was discarded and the harness was told PASS anyway.
+		//
+		// A coin is the wrong shape for a duty. What varies between runs is what the review FINDS,
+		// not whether the read happened.
+		r.do("merge", "inquiry-support", seatID).
+			set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
 		// The additive stage added a blue-files/merge-rules pair here beside the `blue dispute`

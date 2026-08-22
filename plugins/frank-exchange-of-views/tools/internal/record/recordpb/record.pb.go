@@ -5280,6 +5280,14 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 		Filename:      "record.proto",
 	},
 	{
+		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
+		ExtensionType: (*string)(nil),
+		Field:         50004,
+		Name:          "feov.record.v1.ruled_by",
+		Tag:           "bytes,50004,opt,name=ruled_by",
+		Filename:      "record.proto",
+	},
+	{
 		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
 		ExtensionType: ([]*SqlCheck)(nil),
 		Field:         50002,
@@ -5313,12 +5321,24 @@ var (
 	//
 	// optional bool closes = 50003;
 	E_Closes = &file_record_proto_extTypes[2]
+	// ruled_by IS WHICH SEAT HOLDS THE GAVEL, and it is on the value for the same reason `closes`
+	// is: a new motion subject cannot be added without answering it.
+	//
+	// It was a hand-written string in internal/cli/motion (`subject("petition", …, "bench")`) while
+	// the PASS gate's refusal — in internal/record, which cannot import the CLI — told every
+	// blocked seat to "rule it with `motion <subject> rule`". For a PETITION that instruction is
+	// refused by requireRuler, because the bench holds that gavel and the merge does not. Two
+	// hand-written copies of one fact, one of which did not exist, so the message walked a merge
+	// seat into a role refusal and there was no verdict it could legally give.
+	//
+	// optional string ruled_by = 50004;
+	E_RuledBy = &file_record_proto_extTypes[3]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[3]
+	E_Check = &file_record_proto_extTypes[4]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -5967,12 +5987,12 @@ const file_record_proto_rawDesc = "" +
 	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a@\x8a\xb5\x18<you took the line — what it produced belongs in the report\x12\x86\x02\n" +
 	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\x85\x01\n" +
 	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1ai\x8a\xb5\x18eyou considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why\x12\x86\x01\n" +
-	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\x8c\x03\n" +
+	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\xa7\x03\n" +
 	"\rMotionSubject\x12\x1e\n" +
-	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12H\n" +
-	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a.\x8a\xb5\x18*you contest a gap's grade on one dimension\x12\x80\x01\n" +
-	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1ac\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\x12\x8d\x01\n" +
-	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ao\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing*\xa3\x01\n" +
+	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
+	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05merge\x12\x89\x01\n" +
+	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x96\x01\n" +
+	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ax\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05merge*\xa3\x01\n" +
 	"\vGradeRuling\x12\x1c\n" +
 	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x128\n" +
 	"\x15GRADE_RULING_ACCEPTED\x10\x01\x1a\x1d\x8a\xb5\x18\x19the proposed grade stands\x12<\n" +
@@ -6009,7 +6029,8 @@ const file_record_proto_rawDesc = "" +
 	"\x11RULING_BINDS_NONE\x10\x03\x1a?\x8a\xb5\x18;advisory — the ruling is on the record and obliges nobody:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:<\n" +
 	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:>\n" +
-	"\x06closes\x12!.google.protobuf.EnumValueOptions\x18ӆ\x03 \x01(\bR\x06closes\x88\x01\x01:Q\n" +
+	"\x06closes\x12!.google.protobuf.EnumValueOptions\x18ӆ\x03 \x01(\bR\x06closes\x88\x01\x01:A\n" +
+	"\bruled_by\x12!.google.protobuf.EnumValueOptions\x18Ԇ\x03 \x01(\tR\aruledBy\x88\x01\x01:Q\n" +
 	"\x05check\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x03(\v2\x18.feov.record.v1.SqlCheckR\x05checkBlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
 var (
@@ -6173,13 +6194,14 @@ var file_record_proto_depIdxs = []int32{
 	63, // 75: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
 	64, // 76: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
 	64, // 77: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	65, // 78: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	20, // 79: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	19, // 80: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	81, // [81:81] is the sub-list for method output_type
-	81, // [81:81] is the sub-list for method input_type
-	79, // [79:81] is the sub-list for extension type_name
-	75, // [75:79] is the sub-list for extension extendee
+	64, // 78: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	65, // 79: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	20, // 80: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	19, // 81: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	82, // [82:82] is the sub-list for method output_type
+	82, // [82:82] is the sub-list for method input_type
+	80, // [80:82] is the sub-list for extension type_name
+	75, // [75:80] is the sub-list for extension extendee
 	0,  // [0:75] is the sub-list for field type_name
 }
 
@@ -6279,7 +6301,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      19,
 			NumMessages:   44,
-			NumExtensions: 4,
+			NumExtensions: 5,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

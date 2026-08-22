@@ -61,6 +61,17 @@ extend google.protobuf.EnumValueOptions {
   // As an annotation the miss is LOUD at two layers: the schema refuses to build a vocabulary
   // table that is partly annotated, and the column is NOT NULL.
   optional bool closes = 50003;
+
+  // ruled_by IS WHICH SEAT HOLDS THE GAVEL, and it is on the value for the same reason `closes`
+  // is: a new motion subject cannot be added without answering it.
+  //
+  // It was a hand-written string in internal/cli/motion (`subject("petition", …, "bench")`) while
+  // the PASS gate's refusal — in internal/record, which cannot import the CLI — told every
+  // blocked seat to "rule it with `motion <subject> rule`". For a PETITION that instruction is
+  // refused by requireRuler, because the bench holds that gavel and the merge does not. Two
+  // hand-written copies of one fact, one of which did not exist, so the message walked a merge
+  // seat into a role refusal and there was no verdict it could legally give.
+  optional string ruled_by = 50004;
 }
 
 // A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
@@ -328,9 +339,9 @@ enum AvenueStatus {
 // the rulings are separate enums below rather than one flat set.
 enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
-  MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension"];
-  MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat"];
-  MOTION_SUBJECT_DIRECTION = 3 [(means) = "a ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing"];
+  MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "merge"];
+  MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
+  MOTION_SUBJECT_DIRECTION = 3 [(means) = "a ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "merge"];
 }
 
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule

@@ -38,6 +38,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 func NewCommand() *cobra.Command {
@@ -46,21 +47,44 @@ func NewCommand() *cobra.Command {
 		Short:        "file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.",
 		SilenceUsage: true,
 	}
+	// THE GAVEL IS NOT TYPED HERE. It was — `subject("petition", …, "bench")` — and the PASS gate
+	// in internal/record, which cannot import this package, told blocked seats to rule motions
+	// without knowing whose ruling it would be. Both readers take it off the MotionSubject enum
+	// now, so a subject cannot be added with a gavel in one place and not the other.
 	c.AddCommand(subject("grade",
 		"contest a gap's grade: the merge rules, and a rejected dispute may be appealed to the bench",
-		[]string{flags.ID, flags.Dimension, flags.Proposed}, "merge"))
+		[]string{flags.ID, flags.Dimension, flags.Proposed}))
 	c.AddCommand(subject("petition",
 		"an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues",
-		[]string{flags.Class, flags.Relief}, "bench"))
+		[]string{flags.Class, flags.Relief}))
 	c.AddCommand(subject("inquiry",
 		"rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`blue line of inquiry`)",
-		nil, "merge"))
+		nil))
 	return c
+}
+
+// rulerFor resolves the seat holding a subgroup's gavel from the schema.
+//
+// It PANICS on an unknown subject or an unannotated one, and that is deliberate: this runs at
+// command construction, so the failure is at startup for every seat rather than at the moment one
+// tries to rule. A subgroup whose gavel nobody declared would otherwise accept rulings from
+// everybody, which is the arm requireRuler exists to close.
+func rulerFor(name string) string {
+	subj, ok := record.MotionSubjectEnum(name)
+	if !ok {
+		panic("motion: subgroup " + name + " names no MotionSubject — the subgroup and the schema have diverged")
+	}
+	r, err := recordpb.SubjectRuler(subj)
+	if err != nil {
+		panic("motion: " + err.Error())
+	}
+	return r
 }
 
 // subject builds one subgroup. `direction` gets no `file`: red rules on a line blue already
 // proposed, so a filing verb here would be a second way to say what `blue line of inquiry` already says.
-func subject(name, short string, fileFlags []string, ruler string) *cobra.Command {
+func subject(name, short string, fileFlags []string) *cobra.Command {
+	ruler := rulerFor(name)
 	c := &cobra.Command{
 		Use: name, Short: short, SilenceUsage: true,
 		// Tolerate unknown flags AT THE GROUP LEVEL so the Args check below is what answers.
