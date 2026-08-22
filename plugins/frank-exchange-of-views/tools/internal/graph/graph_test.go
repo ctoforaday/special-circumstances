@@ -3,19 +3,12 @@ package graph
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
-
-func p(kv ...string) *record.Payload {
-	pl := record.NewPayload()
-	for i := 0; i+1 < len(kv); i += 2 {
-		pl.Set(kv[i], kv[i+1])
-	}
-	return pl
-}
 
 // A hole is a genuine defect: an unanswered dispute, or a torn closure (closed with no reason).
 // A merge close that carries its closure_class is NOT a hole even with no opinion — the false
@@ -24,17 +17,28 @@ func TestGapHoleHeuristic(t *testing.T) {
 	b := &record.Board{
 		GapOrder: []string{"MERGE_CLOSED", "TORN", "UNANSWERED", "OPEN"},
 		Gaps: map[string]*record.Gap{
-			"MERGE_CLOSED": {ID: "MERGE_CLOSED", Open: false, Mint: p("class", "c"), Closure: p("closure_class", "evidence-rebutted")},
-			"TORN":         {ID: "TORN", Open: false, Mint: p("class", "c"), Closure: p("something", "else")},
-			"UNANSWERED":   {ID: "UNANSWERED", Open: true, Mint: p("class", "c")},
-			"OPEN":         {ID: "OPEN", Open: true, Mint: p("class", "c")},
+			// A closure that STATES its class is not a hole. The fixture said
+			// `evidence-rebutted`, which is not a ClosureClass and never was — untyped it read as
+			// a closure with a class, and typed it cannot be written at all.
+			"MERGE_CLOSED": {ID: "MERGE_CLOSED", Open: false, Mint: mint(), Closure: &recordpb.Close{
+				ClosureClass: recordtest.P(recordpb.ClosureClass_CLOSURE_CLASS_REBUTTAL_SUSTAINED),
+			}},
+			// TORN is a closure carrying NO class — which is the whole condition, and which the
+			// schema expresses by absence rather than by an unrecognised word.
+			"TORN":       {ID: "TORN", Open: false, Mint: mint(), Closure: &recordpb.Close{}},
+			"UNANSWERED": {ID: "UNANSWERED", Open: true, Mint: mint()},
+			"OPEN":       {ID: "OPEN", Open: true, Mint: mint()},
 		},
 		Events: []*record.Event{
 			// A GRADE MOTION FILED AND NEVER RULED. This fixture used a `dispute` event until the
 			// motion collapse retired the type; the counters then read zero for every run and the
 			// hole detector could not fire at all, while this test went on passing against a
 			// vocabulary nothing wrote.
-			{Type: "motion", Payload: p("motion_id", "M1").Set("subject", "grade").Set("gap_id", "UNANSWERED")},
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("UNANSWERED")}},
+			}),
 		},
 	}
 	m := gapFlowMermaid(b)
@@ -88,13 +92,30 @@ func TestSeatFlowTalliesEvents(t *testing.T) {
 func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 	b := &record.Board{
 		GapOrder: []string{"ANSWERED"},
-		Gaps:     map[string]*record.Gap{"ANSWERED": {ID: "ANSWERED", Open: true, Mint: p("class", "c")}},
+		Gaps:     map[string]*record.Gap{"ANSWERED": {ID: "ANSWERED", Open: true, Mint: mint()}},
 		Events: []*record.Event{
-			{Type: "motion", Payload: p("motion_id", "M1").Set("subject", "grade").Set("gap_id", "ANSWERED")},
-			{Type: "motion-rule", Payload: p("motion_id", "M1").Set("subject", "grade").Set("ruling", "accepted")},
+			recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("ANSWERED")}},
+			}),
+			// THE RULING IS THE ONEOF ARM. `accepted` can only reach the grade arm, so a fixture
+			// cannot pair a grade motion with a petition's verdict the way two loose strings could.
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
+			}),
 		},
 	}
 	if got := lineClass(gapFlowMermaid(b), "g_ANSWERED"); got != "open" {
 		t.Errorf("a ruled grade motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(b))
 	}
+}
+
+// mint is the minimum a gap needs to exist on the board for these tests: the class, and nothing
+// else. Every case here is about CLOSURE state, so the mint carries no grades — an absent grade is
+// a real state and inventing one would make each fixture say more than the test means.
+func mint() *recordpb.Mint {
+	return &recordpb.Mint{Class: proto.String("c")}
 }
