@@ -56,7 +56,7 @@ func vev(t *testing.T, seat string, round, seq int, body proto.Message) *Event {
 
 // A PASS on the record is VERIFIED, without anyone saying so.
 func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
-	dir := runWith(t, "3", []*Event{vev("red-merge-r1", "verdict", 1, 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
+	dir := runWith(t, "3", []*Event{vev("red-merge-r1", "verdict", 1, 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
 	got, why, ok := DeriveVerdict(dir)
 	if !ok || got != "VERIFIED" {
 		t.Errorf("got %q (ok=%v) — want VERIFIED: %s", got, ok, why)
@@ -80,7 +80,7 @@ func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
 // passing, however clean the board looked when it stopped.
 func TestHaltOutranksAPass(t *testing.T) {
 	dir := runWith(t, "3", []*Event{
-		vev("red-merge-r1", "verdict", 1, 0, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+		vev("red-merge-r1", "verdict", 1, 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		vev("judge-r1", "halt", 1, 0, &recordpb.Halt{Opinion: proto.String("consent gate")}),
 	})
 	got, _, ok := DeriveVerdict(dir)

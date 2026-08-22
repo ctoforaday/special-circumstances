@@ -35,7 +35,7 @@ func newVerdict() *cobra.Command {
 			if !ok {
 				return nil, feov.Errorf(feov.Validation, "merge verdict: %q is not a verdict", seat.Str(cmd, flags.As))
 			}
-			if _, err := record.Append(s.Identity(), &recordpb.Verdict_{Verdict: &v}); err != nil {
+			if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
 				return nil, err
 			}
 			open, closed, _, err := view.Counts(s.RunDir)

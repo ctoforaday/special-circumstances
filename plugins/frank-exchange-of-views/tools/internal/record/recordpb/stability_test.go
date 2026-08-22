@@ -20,7 +20,7 @@ func sample() *pb.Event {
 		Seq: i(0), Ts: s("2026-08-17T10:00:00.000000000Z"), SeatId: s("red-merge-r1"),
 		Nonce: s("deadbeef"), Round: i(1), Role: s("red"), Type: &et,
 		Key: s("red-merge-r1:verdict"), SchemaVersion: &sv,
-		Body: &pb.Event_Verdict{Verdict: &pb.Verdict_{Verdict: &vd}},
+		Body: &pb.Event_Verdict{Verdict: &pb.RoundVerdict{Verdict: &vd}},
 	}
 }
 

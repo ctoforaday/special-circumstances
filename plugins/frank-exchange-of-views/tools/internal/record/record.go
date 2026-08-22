@@ -955,7 +955,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		if b.GetReason() == "" {
 			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
 		}
-	case *recordpb.Verdict_:
+	case *recordpb.RoundVerdict:
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
 		if err := requireSupersededAreClosed(runDir); err != nil {

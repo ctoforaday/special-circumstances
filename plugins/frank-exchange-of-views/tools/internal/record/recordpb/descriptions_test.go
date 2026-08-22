@@ -39,9 +39,6 @@ func TestEveryEnumValueHasADescription(t *testing.T) {
 	enums := allEnums(t)
 	checked := 0
 	for _, e := range enums {
-		if undocumentedEnums[e.FullName()] {
-			continue
-		}
 		for i := 0; i < e.Values().Len(); i++ {
 			v := e.Values().Get(i)
 			if isZeroValue(v) {

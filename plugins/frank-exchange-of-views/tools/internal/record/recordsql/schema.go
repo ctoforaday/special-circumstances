@@ -45,7 +45,7 @@ CREATE TABLE "events" (
   "seq"     INTEGER NOT NULL,
   "nonce"   TEXT    NOT NULL,
   "ts"      TEXT    NOT NULL,
-  "type"    TEXT    NOT NULL,
+  "type"    TEXT    NOT NULL REFERENCES "enum_event_type"("value"),
   "key"     TEXT,
   UNIQUE ("seat_id", "nonce", "seq")
 ) STRICT;
@@ -258,7 +258,14 @@ func column(fd protoreflect.FieldDescriptor) (col, check string, err error) {
 	if o.GetUnique() {
 		col += " UNIQUE"
 	}
-	// NO `IN (…)` CHECK. An enum column points at its VOCABULARY TABLE instead — same enforcement,
+	// A BOOLEAN IS A TWO-VALUE SET, and STRICT does not make it one: the column type is INTEGER,
+	// so 7 and -1 store happily and every reader downstream treats non-zero as true. The
+	// vocabulary tables got this CHECK on their `closes` column and the body tables did not,
+	// which is the inconsistency the golden made visible.
+	if fd.Kind() == protoreflect.BoolKind {
+		check = fmt.Sprintf("%q IS NULL OR %q IN (0, 1)", name, name)
+	}
+	// NO `IN (…)` CHECK FOR AN ENUM. It points at its VOCABULARY TABLE instead — same enforcement,
 	// and the meanings come with it. See enumTable.
 	return col, check, nil
 }
@@ -308,19 +315,20 @@ func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
 // As a table the vocabulary is IN the database: a human reading the record can join a closure class
 // to what it means without leaving SQL, and the foreign key gives the same refusal the CHECK did.
 //
-// # The two enums nobody documents
+// # There are no longer any enums nobody documents
 //
-// EventType and SchemaVersion are stamped by the tool and no seat ever chooses one, so
-// descriptions.go declines to document them and says so. That is a decision, not an omission — but
-// a SINGLE undocumented value in an otherwise documented set IS an omission, and the difference
-// matters, so the two are told apart rather than both waved through.
+// EventType and SchemaVersion used to be exempt, on the reason that no seat types them so no
+// --help renders them. True, and scoped to the only consumer `means` had at the time. This table
+// is a second consumer with a different audience — a human reading the record in SQL — and
+// `events.type` is the column every join keys on. So they are documented, the exemption is gone,
+// and an undocumented value is now a hard error rather than a placeholder sentence.
 func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 	type row struct {
 		word, means string
 		facets      map[string]bool
 	}
 	var rows []row
-	documented, undocumented := 0, 0
+
 	// declared is the facets ANY value of this enum carries. A facet is a column only if the
 	// vocabulary declares it, so `enum_grade` does not grow a `closes` column it has no opinion on.
 	declared := map[string]int{}
@@ -330,12 +338,13 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		if w == "" {
 			continue // the UNSPECIFIED zero is absence, and absence is NULL here
 		}
+		// EVERY VALUE CARRIES ITS MEANING NOW, so a miss is an error rather than a placeholder.
+		// The fallback string stood in for the EventType/SchemaVersion exemption, which is gone —
+		// and a default sentence is the shape this package refuses everywhere else: it puts a
+		// plausible value in the record where an unanswered question was.
 		means, err := recordpb.EnumValueDoc(v)
 		if err != nil {
-			undocumented++
-			means = "stamped by the tool; no seat chooses it"
-		} else {
-			documented++
+			return "", fmt.Errorf("recordsql: %s: %w", ed.FullName(), err)
 		}
 		fs := map[string]bool{}
 		for _, name := range recordpb.FacetNames() {
@@ -350,11 +359,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		}
 		rows = append(rows, row{w, means, fs})
 	}
-	if documented > 0 && undocumented > 0 {
-		return "", fmt.Errorf("recordsql: %s documents %d of its values and not %d — a set that is "+
-			"partly described is worse than one that is not, because the gap reads as a value with no meaning",
-			ed.FullName(), documented, documented+undocumented)
-	}
+
 	// A PARTLY-ANNOTATED FACET IS REFUSED, for the reason the facet exists. `closes` was added
 	// because "everything except carried" answered the question for values nobody had asked about;
 	// letting one value skip the annotation and defaulting its column would rebuild that exact
@@ -596,6 +601,21 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 			if seen[ed.FullName()] {
 				continue
 			}
+			seen[ed.FullName()] = true
+			order = append(order, ed)
+		}
+	}
+	// THE ENVELOPE'S OWN VOCABULARY, which no body column reaches.
+	//
+	// `events.type` is written by the tool, not by a seat, so the walk above never sees it — and it
+	// was therefore the only enum-valued column in the record with no wall behind it, in the column
+	// every join keys on. It is seeded explicitly rather than inferred, because "the walk did not
+	// find it" and "no such vocabulary is wanted" are the same silence.
+	for _, ed := range []protoreflect.EnumDescriptor{
+		recordpb.EventType(0).Descriptor(),
+		recordpb.SchemaVersion(0).Descriptor(),
+	} {
+		if !seen[ed.FullName()] {
 			seen[ed.FullName()] = true
 			order = append(order, ed)
 		}

@@ -308,7 +308,7 @@ func passClosesAllGaps(b *record.Board) Check {
 		// the answer to "". BodyAs returns the typed nil for both "no body" and "wrong body",
 		// and GetVerdict on it is the UNSPECIFIED zero — the same reset, without inventing a
 		// PASS out of an event that never said so.
-		v, _ := recordpb.BodyAs[*recordpb.Verdict_](e)
+		v, _ := recordpb.BodyAs[*recordpb.RoundVerdict](e)
 		verdict = v.GetVerdict()
 	}
 	if verdict != passVerdictWord {

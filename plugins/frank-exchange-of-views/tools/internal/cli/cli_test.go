@@ -1207,7 +1207,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		t.Errorf("the mirror holds no shards: %v", entries)
 	}
 	// The verdict itself is on the record.
-	if got := lastBody(t, runDir, &recordpb.Verdict_{}).GetVerdict(); got != "PASS" {
+	if got := lastBody(t, runDir, &recordpb.RoundVerdict{}).GetVerdict(); got != "PASS" {
 		t.Errorf("verdict payload = %q", got)
 	}
 }

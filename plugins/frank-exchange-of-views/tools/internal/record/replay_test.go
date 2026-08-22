@@ -120,7 +120,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		seatID := "red-merge-r1"
 		withTerminal := writeShard(t, runDir, seatID, "aaaaaaaa", []*Event{
 			recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":register:aaaaaaaa", &recordpb.Register{}),
-			recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":verdict", &recordpb.Verdict_{
+			recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":verdict", &recordpb.RoundVerdict{
 				// The seat types PASS and the schema spells `pass`; recordpb.BySpelling is case-sensitive
 				// by design, so the fold is the join's job and the fixture states the VALUE.
 				Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS),
@@ -971,7 +971,7 @@ func TestDeriveKey(t *testing.T) {
 		seatID string
 	}{
 		{name: "singleton verbs key on seat+verb", typ: recordpb.EventType_EVENT_TYPE_POSITION, p: &recordpb.Position{}, seatID: "red-merge-r1", want: "red-merge-r1:position"},
-		{name: "verdict is a singleton", typ: recordpb.EventType_EVENT_TYPE_VERDICT, p: &recordpb.Verdict_{}, seatID: "red-merge-r1", want: "red-merge-r1:verdict"},
+		{name: "verdict is a singleton", typ: recordpb.EventType_EVENT_TYPE_VERDICT, p: &recordpb.RoundVerdict{}, seatID: "red-merge-r1", want: "red-merge-r1:verdict"},
 		{name: "gap_id is the first label consulted", typ: recordpb.EventType_EVENT_TYPE_CLOSE, p: &recordpb.Close{GapId: proto.String("R1-1")}, seatID: "red-merge-r1", want: "red-merge-r1:close:R1-1"},
 		{name: "label when there is no gap_id", typ: recordpb.EventType_EVENT_TYPE_FINDING, p: &recordpb.Finding{Label: proto.String("F1")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:finding:F1"},
 		{name: "id, observation, anchor and url are also labels", typ: recordpb.EventType_EVENT_TYPE_CITE, p: &recordpb.Cite{Url: proto.String("https://x")}, seatID: "red-lens-r1-L1", want: "red-lens-r1-L1:cite:https://x"},

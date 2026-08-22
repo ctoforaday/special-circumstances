@@ -6,7 +6,7 @@ CREATE TABLE "events" (
   "seq"     INTEGER NOT NULL,
   "nonce"   TEXT    NOT NULL,
   "ts"      TEXT    NOT NULL,
-  "type"    TEXT    NOT NULL,
+  "type"    TEXT    NOT NULL REFERENCES "enum_event_type"("value"),
   "key"     TEXT,
   UNIQUE ("seat_id", "nonce", "seq")
 ) STRICT;
@@ -21,6 +21,49 @@ END;
 CREATE TRIGGER "events_are_append_only_delete" BEFORE DELETE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be removed after it is written');
 END;
+
+CREATE TABLE "enum_event_type" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('class_new', 'a defect class coined in this run, with its definition and the neighbour it is distinguished from');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'a merge closing a gap on a verified repair — red''s half of the closing vocabulary');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('friction', 'a capability the tool did not have, recorded so the tooling gets fixed rather than worked around');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('friction_none', 'a seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a direction proposed');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_appeal', 'an appeal of a ruling already made on a motion');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('observe', 'an observation recorded without a claim attached to it');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('opinion', 'the bench ruling on a gap, with the principle applied and the tension acknowledged');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into a round');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('revision', 'a revision to a seat''s own earlier text');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is');
+
+CREATE TABLE "enum_schema_version" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_schema_version" ("value", "means") VALUES ('1', 'the protobuf record: one event stream, one row per act, schema derived from these descriptors');
 
 CREATE TABLE "enum_verdict" (
   "value" TEXT PRIMARY KEY,
@@ -176,7 +219,7 @@ CREATE TABLE "register" (
   "tool_version" TEXT
 ) STRICT;
 
-CREATE TABLE "verdict_" (
+CREATE TABLE "round_verdict" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "verdict" TEXT,
   FOREIGN KEY ("verdict") REFERENCES "enum_verdict"("value")
@@ -291,6 +334,7 @@ CREATE TABLE "mint" (
   "impact" TEXT NOT NULL,
   "complexity_cost" TEXT,
   "mint_reason" TEXT,
+  CHECK ("class_new" IS NULL OR "class_new" IN (0, 1)),
   FOREIGN KEY ("check_kind") REFERENCES "enum_check_kind"("value"),
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
@@ -362,7 +406,8 @@ CREATE TABLE "regrade" (
 CREATE TABLE "spot_check" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "none" INTEGER,
-  "reason" TEXT
+  "reason" TEXT,
+  CHECK ("none" IS NULL OR "none" IN (0, 1))
 ) STRICT;
 
 CREATE TABLE "spot_check_ids" (
@@ -439,6 +484,7 @@ CREATE TABLE "verify" (
   "outcome" TEXT NOT NULL,
   "confidence" TEXT NOT NULL,
   "text" TEXT NOT NULL,
+  CHECK ("independent" IS NULL OR "independent" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value")
 ) STRICT;
@@ -465,6 +511,7 @@ CREATE TABLE "reproduce" (
   "recorded_output" TEXT,
   "observed_output" TEXT,
   "note" TEXT,
+  CHECK ("reproduced" IS NULL OR "reproduced" IN (0, 1)),
   FOREIGN KEY ("soundness") REFERENCES "enum_soundness"("value")
 ) STRICT;
 
@@ -487,7 +534,8 @@ CREATE TABLE "blue_edit" (
   "old" TEXT,
   "new" TEXT,
   "text" TEXT,
-  "applied_verbatim" INTEGER
+  "applied_verbatim" INTEGER,
+  CHECK ("applied_verbatim" IS NULL OR "applied_verbatim" IN (0, 1))
 ) STRICT;
 
 CREATE TABLE "revision" (

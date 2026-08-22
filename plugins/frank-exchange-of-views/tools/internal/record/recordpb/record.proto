@@ -144,7 +144,7 @@ message Sql {
 // tolerance setting. The version gate refuses the line first; scripts/protogen gates the bump.
 enum SchemaVersion {
   SCHEMA_VERSION_UNSPECIFIED = 0;  // absent: written before the schema existed. Always an error.
-  SCHEMA_VERSION_1 = 1;
+  SCHEMA_VERSION_1 = 1 [(means) = "the protobuf record: one event stream, one row per act, schema derived from these descriptors"];
 }
 
 // EventType names the verb that wrote the event. It is redundant with the `body` oneof case and
@@ -157,38 +157,38 @@ enum SchemaVersion {
 // have NO value here. That absence is the deletion of the legacy vocabulary.
 enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
-  EVENT_TYPE_REGISTER = 1;
-  EVENT_TYPE_ANCHOR = 2;
-  EVENT_TYPE_AVENUE = 3;
-  EVENT_TYPE_BLUE_EDIT = 4;
-  EVENT_TYPE_CERTIFY = 5;
-  EVENT_TYPE_CITE = 6;
-  EVENT_TYPE_CLASS_NEW = 7;
-  EVENT_TYPE_CLOSE = 8;
-  EVENT_TYPE_CLOSING = 9;
-  EVENT_TYPE_DECLARE = 10;
-  EVENT_TYPE_FINDING = 11;
-  EVENT_TYPE_FRICTION = 12;
-  EVENT_TYPE_FRICTION_NONE = 13;
-  EVENT_TYPE_HALT = 14;
-  EVENT_TYPE_MANIFEST_ROW = 15;
-  EVENT_TYPE_MINT = 16;
-  EVENT_TYPE_MOTION = 17;
-  EVENT_TYPE_MOTION_APPEAL = 18;
-  EVENT_TYPE_MOTION_RULE = 19;
-  EVENT_TYPE_OBSERVE = 20;
-  EVENT_TYPE_OPINION = 21;
-  EVENT_TYPE_OUTCOME = 22;
-  EVENT_TYPE_POSITION = 23;
-  EVENT_TYPE_PROOF = 24;
-  EVENT_TYPE_REGRADE = 25;
-  EVENT_TYPE_REPRODUCE = 26;
-  EVENT_TYPE_RETIRE = 27;
-  EVENT_TYPE_REVISION = 28;
-  EVENT_TYPE_SPOT_CHECK = 29;
-  EVENT_TYPE_VERDICT = 30;
-  EVENT_TYPE_VERIFY = 31;
-  EVENT_TYPE_INQUIRY_REVIEW = 32;
+  EVENT_TYPE_REGISTER = 1 [(means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
+  EVENT_TYPE_ANCHOR = 2 [(means) = "evidence tied to a finding: where in the artifact the claim actually lives"];
+  EVENT_TYPE_AVENUE = 3 [(means) = "a line of inquiry, from proposed through pursued, declined, deferred or abandoned"];
+  EVENT_TYPE_BLUE_EDIT = 4 [(means) = "a change to the living report, recorded as old and new so the edit itself is auditable"];
+  EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
+  EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
+  EVENT_TYPE_CLASS_NEW = 7 [(means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
+  EVENT_TYPE_CLOSE = 8 [(means) = "a merge closing a gap on a verified repair — red's half of the closing vocabulary"];
+  EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
+  EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
+  EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
+  EVENT_TYPE_FRICTION = 12 [(means) = "a capability the tool did not have, recorded so the tooling gets fixed rather than worked around"];
+  EVENT_TYPE_FRICTION_NONE = 13 [(means) = "a seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts"];
+  EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
+  EVENT_TYPE_MANIFEST_ROW = 15 [(means) = "one row of the run's manifest, tying a gap to what shipped for it"];
+  EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
+  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or a direction proposed"];
+  EVENT_TYPE_MOTION_APPEAL = 18 [(means) = "an appeal of a ruling already made on a motion"];
+  EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
+  EVENT_TYPE_OBSERVE = 20 [(means) = "an observation recorded without a claim attached to it"];
+  EVENT_TYPE_OPINION = 21 [(means) = "the bench ruling on a gap, with the principle applied and the tension acknowledged"];
+  EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
+  EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into a round"];
+  EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
+  EVENT_TYPE_REGRADE = 25 [(means) = "a gap's grade changed, with the basis for the change"];
+  EVENT_TYPE_REPRODUCE = 26 [(means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
+  EVENT_TYPE_RETIRE = 27 [(means) = "a claim withdrawn from the report, with the reason and what supersedes it"];
+  EVENT_TYPE_REVISION = 28 [(means) = "a revision to a seat's own earlier text"];
+  EVENT_TYPE_SPOT_CHECK = 29 [(means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
+  EVENT_TYPE_VERDICT = 30 [(means) = "red's round gate: PASS or FAIL against the open board"];
+  EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
+  EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the lines of inquiry themselves, rather than of a finding"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -379,7 +379,7 @@ message Event {
 
   oneof body {
     Register register = 20;
-    Verdict_ verdict = 21;
+    RoundVerdict verdict = 21;
     Outcome outcome = 22;
     Position position = 23;
     Halt halt = 24;
@@ -1118,9 +1118,18 @@ message Register {
   optional string tool_version = 1;
 }
 
-// Verdict_ carries red's terminal gate. Named with a trailing underscore because `Verdict` is
-// the enum; the field is `verdict` either way and the wire is unaffected.
-message Verdict_ {
+// RoundVerdict carries red's terminal gate on a round.
+//
+// IT WAS `Verdict_`, with a trailing underscore, because `Verdict` is the enum and protoc-gen-go
+// would collide the two Go identifiers. That is a real constraint and it was solved in the wrong
+// place: the workaround named the MESSAGE after a property of the code generator, and the name
+// then travelled all the way into the record as a table called `verdict_` — a Go artifact sitting
+// in the schema a human reads to understand the debate.
+//
+// `RoundVerdict` says what it is. The collision is gone because the name is different, not because
+// it was decorated, and the wire is unaffected either way: field numbers carry the format, names do
+// not.
+message RoundVerdict {
   optional Verdict verdict = 1;
 }
 

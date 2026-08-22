@@ -81,7 +81,7 @@ func DeriveVerdict(runDir string) (verdict, why string, ok bool) {
 			if !hasBody {
 				continue
 			}
-			if v, isVerdict := body.(*recordpb.Verdict_); isVerdict && v.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+			if v, isVerdict := body.(*recordpb.RoundVerdict); isVerdict && v.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
 				passed = true
 			}
 		}

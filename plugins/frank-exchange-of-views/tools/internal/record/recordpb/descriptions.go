@@ -27,13 +27,19 @@ import (
 // the price of descriptor plumbing and a protoc-gen-go extension to read it back — a build
 // dependency for a string table.
 
-// undocumentedEnums are the enums whose values no seat ever types, so no --help renders them.
-// Listed explicitly: an exemption somebody decided beats an exemption that emerges from a
-// missing map entry.
-var undocumentedEnums = map[protoreflect.FullName]bool{
-	"feov.record.v1.EventType":     true, // stamped by the tool, never chosen
-	"feov.record.v1.SchemaVersion": true, // the format discriminator
-}
+// THE EXEMPTION IS GONE, AND ITS PREMISE IS WHY.
+//
+// `undocumentedEnums` held EventType and SchemaVersion, on the reason "whose values no seat ever
+// types, so no --help renders them". That was true, and it was scoped to the only consumer `means`
+// had when it was written. There are three now: --help, the refusal a seat reads, and the record's
+// own vocabulary TABLES — and the third has an audience the first two do not, a human reading the
+// database directly. `events.type` is the column every join keys on. Leaving it undocumented meant
+// the one word that says WHAT AN ACT WAS could not be joined to what it means, in the artifact that
+// exists to be read after the run.
+//
+// The exemption also cost the schema a wall: with no vocabulary table there was nothing for
+// `events.type` to reference, so it was bare TEXT — the only such column left once the arms were
+// repaired.
 
 // EnumValueDoc returns the prose for one enum value.
 //

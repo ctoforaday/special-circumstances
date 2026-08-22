@@ -1573,7 +1573,7 @@ func (x *Event) GetRegister() *Register {
 	return nil
 }
 
-func (x *Event) GetVerdict() *Verdict_ {
+func (x *Event) GetVerdict() *RoundVerdict {
 	if x != nil {
 		if x, ok := x.Body.(*Event_Verdict); ok {
 			return x.Verdict
@@ -1861,7 +1861,7 @@ type Event_Register struct {
 }
 
 type Event_Verdict struct {
-	Verdict *Verdict_ `protobuf:"bytes,21,opt,name=verdict,proto3,oneof"`
+	Verdict *RoundVerdict `protobuf:"bytes,21,opt,name=verdict,proto3,oneof"`
 }
 
 type Event_Outcome struct {
@@ -4901,29 +4901,38 @@ func (x *Register) GetToolVersion() string {
 	return ""
 }
 
-// Verdict_ carries red's terminal gate. Named with a trailing underscore because `Verdict` is
-// the enum; the field is `verdict` either way and the wire is unaffected.
-type Verdict_ struct {
+// RoundVerdict carries red's terminal gate on a round.
+//
+// IT WAS `Verdict_`, with a trailing underscore, because `Verdict` is the enum and protoc-gen-go
+// would collide the two Go identifiers. That is a real constraint and it was solved in the wrong
+// place: the workaround named the MESSAGE after a property of the code generator, and the name
+// then travelled all the way into the record as a table called `verdict_` — a Go artifact sitting
+// in the schema a human reads to understand the debate.
+//
+// `RoundVerdict` says what it is. The collision is gone because the name is different, not because
+// it was decorated, and the wire is unaffected either way: field numbers carry the format, names do
+// not.
+type RoundVerdict struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Verdict       *Verdict               `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.Verdict,oneof" json:"verdict,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Verdict_) Reset() {
-	*x = Verdict_{}
+func (x *RoundVerdict) Reset() {
+	*x = RoundVerdict{}
 	mi := &file_record_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Verdict_) String() string {
+func (x *RoundVerdict) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Verdict_) ProtoMessage() {}
+func (*RoundVerdict) ProtoMessage() {}
 
-func (x *Verdict_) ProtoReflect() protoreflect.Message {
+func (x *RoundVerdict) ProtoReflect() protoreflect.Message {
 	mi := &file_record_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4935,12 +4944,12 @@ func (x *Verdict_) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Verdict_.ProtoReflect.Descriptor instead.
-func (*Verdict_) Descriptor() ([]byte, []int) {
+// Deprecated: Use RoundVerdict.ProtoReflect.Descriptor instead.
+func (*RoundVerdict) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{37}
 }
 
-func (x *Verdict_) GetVerdict() Verdict {
+func (x *RoundVerdict) GetVerdict() Verdict {
 	if x != nil && x.Verdict != nil {
 		return *x.Verdict
 	}
@@ -5306,7 +5315,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xf6\x10\n" +
+	"\a_unique\"\xfa\x10\n" +
 	"\x05Event\x12\x15\n" +
 	"\x03seq\x18\x01 \x01(\x05H\x01R\x03seq\x88\x01\x01\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x02R\x02ts\x88\x01\x01\x12\x1c\n" +
@@ -5317,8 +5326,8 @@ const file_record_proto_rawDesc = "" +
 	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\aR\x04type\x88\x01\x01\x12\x15\n" +
 	"\x03key\x18\b \x01(\tH\bR\x03key\x88\x01\x01\x12I\n" +
 	"\x0eschema_version\x18\t \x01(\x0e2\x1d.feov.record.v1.SchemaVersionH\tR\rschemaVersion\x88\x01\x01\x126\n" +
-	"\bregister\x18\x14 \x01(\v2\x18.feov.record.v1.RegisterH\x00R\bregister\x124\n" +
-	"\averdict\x18\x15 \x01(\v2\x18.feov.record.v1.Verdict_H\x00R\averdict\x123\n" +
+	"\bregister\x18\x14 \x01(\v2\x18.feov.record.v1.RegisterH\x00R\bregister\x128\n" +
+	"\averdict\x18\x15 \x01(\v2\x1c.feov.record.v1.RoundVerdictH\x00R\averdict\x123\n" +
 	"\aoutcome\x18\x16 \x01(\v2\x17.feov.record.v1.OutcomeH\x00R\aoutcome\x126\n" +
 	"\bposition\x18\x17 \x01(\v2\x18.feov.record.v1.PositionH\x00R\bposition\x12*\n" +
 	"\x04halt\x18\x18 \x01(\v2\x14.feov.record.v1.HaltH\x00R\x04halt\x123\n" +
@@ -5797,8 +5806,8 @@ const file_record_proto_rawDesc = "" +
 	"\a_reason\"C\n" +
 	"\bRegister\x12&\n" +
 	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01B\x0f\n" +
-	"\r_tool_version\"N\n" +
-	"\bVerdict_\x126\n" +
+	"\r_tool_version\"R\n" +
+	"\fRoundVerdict\x126\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
 	"\n" +
 	"\b_verdict\"\xc6\x05\n" +
@@ -5830,45 +5839,45 @@ const file_record_proto_rawDesc = "" +
 	"\aDeclare\x12\x1d\n" +
 	"\aholding\x18\x01 \x01(\tH\x00R\aholding\x88\x01\x01B\n" +
 	"\n" +
-	"\b_holding*E\n" +
+	"\b_holding*\xa8\x01\n" +
 	"\rSchemaVersion\x12\x1e\n" +
-	"\x1aSCHEMA_VERSION_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10SCHEMA_VERSION_1\x10\x01*\xbe\x06\n" +
+	"\x1aSCHEMA_VERSION_UNSPECIFIED\x10\x00\x12w\n" +
+	"\x10SCHEMA_VERSION_1\x10\x01\x1aa\x8a\xb5\x18]the protobuf record: one event stream, one row per act, schema derived from these descriptors*\xbe\x1a\n" +
 	"\tEventType\x12\x1a\n" +
-	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
-	"\x13EVENT_TYPE_REGISTER\x10\x01\x12\x15\n" +
-	"\x11EVENT_TYPE_ANCHOR\x10\x02\x12\x15\n" +
-	"\x11EVENT_TYPE_AVENUE\x10\x03\x12\x18\n" +
-	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x12\x16\n" +
-	"\x12EVENT_TYPE_CERTIFY\x10\x05\x12\x13\n" +
-	"\x0fEVENT_TYPE_CITE\x10\x06\x12\x18\n" +
-	"\x14EVENT_TYPE_CLASS_NEW\x10\a\x12\x14\n" +
-	"\x10EVENT_TYPE_CLOSE\x10\b\x12\x16\n" +
-	"\x12EVENT_TYPE_CLOSING\x10\t\x12\x16\n" +
+	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
+	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x12e\n" +
+	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1aN\x8a\xb5\x18Jevidence tied to a finding: where in the artifact the claim actually lives\x12l\n" +
+	"\x11EVENT_TYPE_AVENUE\x10\x03\x1aU\x8a\xb5\x18Qa line of inquiry, from proposed through pursued, declined, deferred or abandoned\x12t\n" +
+	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aZ\x8a\xb5\x18Va change to the living report, recorded as old and new so the edit itself is auditable\x12j\n" +
+	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aR\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\x12r\n" +
+	"\x0fEVENT_TYPE_CITE\x10\x06\x1a]\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\x12\x7f\n" +
+	"\x14EVENT_TYPE_CLASS_NEW\x10\a\x1ae\x8a\xb5\x18aa defect class coined in this run, with its definition and the neighbour it is distinguished from\x12m\n" +
+	"\x10EVENT_TYPE_CLOSE\x10\b\x1aW\x8a\xb5\x18Sa merge closing a gap on a verified repair — red's half of the closing vocabulary\x12b\n" +
+	"\x12EVENT_TYPE_CLOSING\x10\t\x1aJ\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\x12a\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
-	"\x12\x16\n" +
-	"\x12EVENT_TYPE_FINDING\x10\v\x12\x17\n" +
-	"\x13EVENT_TYPE_FRICTION\x10\f\x12\x1c\n" +
-	"\x18EVENT_TYPE_FRICTION_NONE\x10\r\x12\x13\n" +
-	"\x0fEVENT_TYPE_HALT\x10\x0e\x12\x1b\n" +
-	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x12\x13\n" +
-	"\x0fEVENT_TYPE_MINT\x10\x10\x12\x15\n" +
-	"\x11EVENT_TYPE_MOTION\x10\x11\x12\x1c\n" +
-	"\x18EVENT_TYPE_MOTION_APPEAL\x10\x12\x12\x1a\n" +
-	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x12\x16\n" +
-	"\x12EVENT_TYPE_OBSERVE\x10\x14\x12\x16\n" +
-	"\x12EVENT_TYPE_OPINION\x10\x15\x12\x16\n" +
-	"\x12EVENT_TYPE_OUTCOME\x10\x16\x12\x17\n" +
-	"\x13EVENT_TYPE_POSITION\x10\x17\x12\x14\n" +
-	"\x10EVENT_TYPE_PROOF\x10\x18\x12\x16\n" +
-	"\x12EVENT_TYPE_REGRADE\x10\x19\x12\x18\n" +
-	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x12\x15\n" +
-	"\x11EVENT_TYPE_RETIRE\x10\x1b\x12\x17\n" +
-	"\x13EVENT_TYPE_REVISION\x10\x1c\x12\x19\n" +
-	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x12\x16\n" +
-	"\x12EVENT_TYPE_VERDICT\x10\x1e\x12\x15\n" +
-	"\x11EVENT_TYPE_VERIFY\x10\x1f\x12\x1d\n" +
-	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 *\x8b\x05\n" +
+	"\x1aI\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\x12S\n" +
+	"\x12EVENT_TYPE_FINDING\x10\v\x1a;\x8a\xb5\x187something red found, graded but not yet minted as a gap\x12}\n" +
+	"\x13EVENT_TYPE_FRICTION\x10\f\x1ad\x8a\xb5\x18`a capability the tool did not have, recorded so the tooling gets fixed rather than worked around\x12\x8f\x01\n" +
+	"\x18EVENT_TYPE_FRICTION_NONE\x10\r\x1aq\x8a\xb5\x18ma seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts\x12d\n" +
+	"\x0fEVENT_TYPE_HALT\x10\x0e\x1aO\x8a\xb5\x18Kthe bench ending the run on a safety, ethics, consent or integrity boundary\x12b\n" +
+	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x1aE\x8a\xb5\x18Aone row of the run's manifest, tying a gap to what shipped for it\x12m\n" +
+	"\x0fEVENT_TYPE_MINT\x10\x10\x1aX\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\x12n\n" +
+	"\x11EVENT_TYPE_MOTION\x10\x11\x1aW\x8a\xb5\x18Sa motion filed: a grade contested, a petition to the bench, or a direction proposed\x12P\n" +
+	"\x18EVENT_TYPE_MOTION_APPEAL\x10\x12\x1a2\x8a\xb5\x18.an appeal of a ruling already made on a motion\x12W\n" +
+	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x1a;\x8a\xb5\x187the bench's ruling on a filed motion, and whom it binds\x12R\n" +
+	"\x12EVENT_TYPE_OBSERVE\x10\x14\x1a:\x8a\xb5\x186an observation recorded without a claim attached to it\x12n\n" +
+	"\x12EVENT_TYPE_OPINION\x10\x15\x1aV\x8a\xb5\x18Rthe bench ruling on a gap, with the principle applied and the tension acknowledged\x12f\n" +
+	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aN\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\x12H\n" +
+	"\x13EVENT_TYPE_POSITION\x10\x17\x1a/\x8a\xb5\x18+a seat's stated position going into a round\x12y\n" +
+	"\x10EVENT_TYPE_PROOF\x10\x18\x1ac\x8a\xb5\x18_a script that was RUN, with its hash and exit status — the answer a computation check demands\x12P\n" +
+	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a8\x8a\xb5\x184a gap's grade changed, with the basis for the change\x12j\n" +
+	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aP\x8a\xb5\x18Lan attempt to re-run a recorded proof, and whether what it computes is sound\x12d\n" +
+	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aM\x8a\xb5\x18Ia claim withdrawn from the report, with the reason and what supersedes it\x12D\n" +
+	"\x13EVENT_TYPE_REVISION\x10\x1c\x1a+\x8a\xb5\x18'a revision to a seat's own earlier text\x12n\n" +
+	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aS\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\x12Q\n" +
+	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1a9\x8a\xb5\x185red's round gate: PASS or FAIL against the open board\x12x\n" +
+	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1aa\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\x12h\n" +
+	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aI\x8a\xb5\x18Ea review of the lines of inquiry themselves, rather than of a finding*\x8b\x05\n" +
 	"\x05Grade\x12\x15\n" +
 	"\x11GRADE_UNSPECIFIED\x10\x00\x12J\n" +
 	"\rGRADE_TRIVIAL\x10\x01\x1a7\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\x12\x18\n" +
@@ -6045,7 +6054,7 @@ var file_record_proto_goTypes = []any{
 	(*MotionRule)(nil),                    // 53: feov.record.v1.MotionRule
 	(*MotionAppeal)(nil),                  // 54: feov.record.v1.MotionAppeal
 	(*Register)(nil),                      // 55: feov.record.v1.Register
-	(*Verdict_)(nil),                      // 56: feov.record.v1.Verdict_
+	(*RoundVerdict)(nil),                  // 56: feov.record.v1.RoundVerdict
 	(*Outcome)(nil),                       // 57: feov.record.v1.Outcome
 	(*Position)(nil),                      // 58: feov.record.v1.Position
 	(*Halt)(nil),                          // 59: feov.record.v1.Halt
@@ -6060,7 +6069,7 @@ var file_record_proto_depIdxs = []int32{
 	1,  // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
 	0,  // 1: feov.record.v1.Event.schema_version:type_name -> feov.record.v1.SchemaVersion
 	55, // 2: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
-	56, // 3: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Verdict_
+	56, // 3: feov.record.v1.Event.verdict:type_name -> feov.record.v1.RoundVerdict
 	57, // 4: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
 	58, // 5: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
 	59, // 6: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
@@ -6130,7 +6139,7 @@ var file_record_proto_depIdxs = []int32{
 	14, // 70: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
 	18, // 71: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
 	11, // 72: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
-	3,  // 73: feov.record.v1.Verdict_.verdict:type_name -> feov.record.v1.Verdict
+	3,  // 73: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
 	4,  // 74: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
 	63, // 75: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
 	64, // 76: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions

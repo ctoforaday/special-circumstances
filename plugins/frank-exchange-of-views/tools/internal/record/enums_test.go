@@ -136,7 +136,7 @@ func TestTheRefusalNamesTheSetAndTheConsequence(t *testing.T) {
 // A case near-miss is called out AS a case near-miss. "PASS | FAIL" alone does not tell a
 // seat that lowercase was the entire problem, and lowercase is what was measured.
 func TestACaseNearMissIsNamedAsOne(t *testing.T) {
-	err := checkEnum("verdict", &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})
+	err := checkEnum("verdict", &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})
 	if err == nil {
 		t.Fatal("`pass` was accepted")
 	}
