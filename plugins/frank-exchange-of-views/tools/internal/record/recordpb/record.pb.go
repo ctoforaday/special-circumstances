@@ -487,64 +487,72 @@ func (CheckKind) EnumDescriptor() ([]byte, []int) {
 // ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
 // unified, four surfaces spelled the same three outcomes six ways and no mechanism could see
 // them disagree, because every set was open.
-type ClosureClass int32
+type Disposition int32
 
 const (
-	ClosureClass_CLOSURE_CLASS_UNSPECIFIED              ClosureClass = 0
-	ClosureClass_CLOSURE_CLASS_CLOSED                   ClosureClass = 1
-	ClosureClass_CLOSURE_CLASS_CLOSED_WITH_REGRESSION   ClosureClass = 2 // REQUIRES successor
-	ClosureClass_CLOSURE_CLASS_AMENDS_PRIOR             ClosureClass = 3 // REQUIRES supersedes
-	ClosureClass_CLOSURE_CLASS_REBUTTAL_SUSTAINED       ClosureClass = 4
-	ClosureClass_CLOSURE_CLASS_RISK_ACCEPTED            ClosureClass = 5
-	ClosureClass_CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE ClosureClass = 6
+	Disposition_DISPOSITION_UNSPECIFIED              Disposition = 0
+	Disposition_DISPOSITION_CLOSED                   Disposition = 1
+	Disposition_DISPOSITION_CLOSED_WITH_REGRESSION   Disposition = 2
+	Disposition_DISPOSITION_AMENDS_PRIOR             Disposition = 3
+	Disposition_DISPOSITION_REBUTTAL_SUSTAINED       Disposition = 4
+	Disposition_DISPOSITION_RISK_ACCEPTED            Disposition = 5
+	Disposition_DISPOSITION_ROUTED_TO_INFRASTRUCTURE Disposition = 6
+	// THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
+	//
+	// `carried` is reachable by the BENCH only: a merge closing a gap is asserting a repair, and
+	// "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
+	// see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
+	Disposition_DISPOSITION_CARRIED Disposition = 7
 )
 
-// Enum value maps for ClosureClass.
+// Enum value maps for Disposition.
 var (
-	ClosureClass_name = map[int32]string{
-		0: "CLOSURE_CLASS_UNSPECIFIED",
-		1: "CLOSURE_CLASS_CLOSED",
-		2: "CLOSURE_CLASS_CLOSED_WITH_REGRESSION",
-		3: "CLOSURE_CLASS_AMENDS_PRIOR",
-		4: "CLOSURE_CLASS_REBUTTAL_SUSTAINED",
-		5: "CLOSURE_CLASS_RISK_ACCEPTED",
-		6: "CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE",
+	Disposition_name = map[int32]string{
+		0: "DISPOSITION_UNSPECIFIED",
+		1: "DISPOSITION_CLOSED",
+		2: "DISPOSITION_CLOSED_WITH_REGRESSION",
+		3: "DISPOSITION_AMENDS_PRIOR",
+		4: "DISPOSITION_REBUTTAL_SUSTAINED",
+		5: "DISPOSITION_RISK_ACCEPTED",
+		6: "DISPOSITION_ROUTED_TO_INFRASTRUCTURE",
+		7: "DISPOSITION_CARRIED",
 	}
-	ClosureClass_value = map[string]int32{
-		"CLOSURE_CLASS_UNSPECIFIED":              0,
-		"CLOSURE_CLASS_CLOSED":                   1,
-		"CLOSURE_CLASS_CLOSED_WITH_REGRESSION":   2,
-		"CLOSURE_CLASS_AMENDS_PRIOR":             3,
-		"CLOSURE_CLASS_REBUTTAL_SUSTAINED":       4,
-		"CLOSURE_CLASS_RISK_ACCEPTED":            5,
-		"CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE": 6,
+	Disposition_value = map[string]int32{
+		"DISPOSITION_UNSPECIFIED":              0,
+		"DISPOSITION_CLOSED":                   1,
+		"DISPOSITION_CLOSED_WITH_REGRESSION":   2,
+		"DISPOSITION_AMENDS_PRIOR":             3,
+		"DISPOSITION_REBUTTAL_SUSTAINED":       4,
+		"DISPOSITION_RISK_ACCEPTED":            5,
+		"DISPOSITION_ROUTED_TO_INFRASTRUCTURE": 6,
+		"DISPOSITION_CARRIED":                  7,
 	}
 )
 
-func (x ClosureClass) Enum() *ClosureClass {
-	p := new(ClosureClass)
+func (x Disposition) Enum() *Disposition {
+	p := new(Disposition)
 	*p = x
 	return p
 }
 
-func (x ClosureClass) String() string {
+func (x Disposition) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (ClosureClass) Descriptor() protoreflect.EnumDescriptor {
+func (Disposition) Descriptor() protoreflect.EnumDescriptor {
 	return file_record_proto_enumTypes[6].Descriptor()
 }
 
-func (ClosureClass) Type() protoreflect.EnumType {
+func (Disposition) Type() protoreflect.EnumType {
 	return &file_record_proto_enumTypes[6]
 }
 
-func (x ClosureClass) Number() protoreflect.EnumNumber {
+func (x Disposition) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use ClosureClass.Descriptor instead.
-func (ClosureClass) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use Disposition.Descriptor instead.
+func (Disposition) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{6}
 }
 
@@ -1290,6 +1298,14 @@ type Sql struct {
 	// seat types for all of them is `--reason`. Collapsing the schema's names would lose what each
 	// prose field IS; collapsing the seat's would make every verb's prose a different word to learn.
 	Flag *string `protobuf:"bytes,2,opt,name=flag,proto3,oneof" json:"flag,omitempty"`
+	// subset names a VALUE FACET this column's values must carry — `subset: "closes"` admits only
+	// the values annotated `(closes) = true`. The generator expands it into a CHECK over the real
+	// words from the descriptor, so the subset is DERIVED and there is no second list to keep.
+	//
+	// Without it the alternative was `CHECK ("closure_class" <> 'carried')` hand-typed into the
+	// schema: a word composed into an expression and recovered by nothing, which is the shape this
+	// whole annotation layer exists to remove.
+	Subset *string `protobuf:"bytes,6,opt,name=subset,proto3,oneof" json:"subset,omitempty"`
 	// why is what omitting it costs, in the words the refusal shows the seat. A required field whose
 	// refusal says only "required" teaches nothing about the state it was protecting.
 	Why *string `protobuf:"bytes,3,opt,name=why,proto3,oneof" json:"why,omitempty"`
@@ -1346,6 +1362,13 @@ func (x *Sql) GetRequired() bool {
 func (x *Sql) GetFlag() string {
 	if x != nil && x.Flag != nil {
 		return *x.Flag
+	}
+	return ""
+}
+
+func (x *Sql) GetSubset() string {
+	if x != nil && x.Subset != nil {
+		return *x.Subset
 	}
 	return ""
 }
@@ -2686,9 +2709,11 @@ func (x *ClassNew) GetDistinguisher() string {
 
 // Close ends a gap on verified repair.
 type Close struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	GapId        *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
-	ClosureClass *ClosureClass          `protobuf:"varint,2,opt,name=closure_class,json=closureClass,proto3,enum=feov.record.v1.ClosureClass,oneof" json:"closure_class,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	GapId *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
+	// A MERGE MAY CLOSE, AND MAY NOT CARRY. `subset` generates the CHECK from the vocabulary's own
+	// `closes` annotation, so the admitted words are never typed here.
+	ClosureClass *Disposition `protobuf:"varint,2,opt,name=closure_class,json=closureClass,proto3,enum=feov.record.v1.Disposition,oneof" json:"closure_class,omitempty"`
 	// The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
 	// closure is unauditable — or the closure is a carry, restating an earlier one.
 	AnchorSeat   *string `protobuf:"bytes,3,opt,name=anchor_seat,json=anchorSeat,proto3,oneof" json:"anchor_seat,omitempty"`
@@ -2742,11 +2767,11 @@ func (x *Close) GetGapId() string {
 	return ""
 }
 
-func (x *Close) GetClosureClass() ClosureClass {
+func (x *Close) GetClosureClass() Disposition {
 	if x != nil && x.ClosureClass != nil {
 		return *x.ClosureClass
 	}
-	return ClosureClass_CLOSURE_CLASS_UNSPECIFIED
+	return Disposition_DISPOSITION_UNSPECIFIED
 }
 
 func (x *Close) GetAnchorSeat() string {
@@ -2998,15 +3023,25 @@ func (x *SpotCheck) GetReason() string {
 type Opinion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	GapId *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
-	// disposition stays a STRING, deliberately. Its set is open: closing it would mean a
-	// legitimate bench ruling failing hard mid-round. Two guards remain in validate — `halt` is
-	// refused because it is the bench's own verb and must not be reachable by a typo, and a
-	// near-miss spelling of a closure class is refused as the typo it is.
-	Disposition   *string `protobuf:"bytes,2,opt,name=disposition,proto3,oneof" json:"disposition,omitempty"`
-	Principle     *string `protobuf:"bytes,3,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
-	Tension       *string `protobuf:"bytes,4,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
-	ReviewFlag    *string `protobuf:"bytes,5,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
-	Rationale     *string `protobuf:"bytes,6,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
+	// THE BENCH'S WORD, AND WHY IT IS NO LONGER A STRING.
+	//
+	// This field was `string` on a recorded decision: "its set is open — closing it would mean a
+	// legitimate bench ruling failing HARD mid-round." The premise was already false when it was
+	// written. `checkOpenSets` refuses any word outside `benchDispositions` at record.go:1131, so a
+	// bench ruling outside the set ALREADY failed hard mid-round; the string bought nothing except
+	// that the closed set lived in Go, one file from the field, where the schema could not see it.
+	//
+	// That is not hypothetical. The engine and the bench's own constitution instructed three
+	// dispositions the record refused, and the terminal dispute docket had no legal value at all —
+	// the drift was possible precisely because the vocabulary was not in the schema to be read off.
+	//
+	// Typed, the set is one declaration with four readers: the flag parser, the DDL's foreign key,
+	// the `closes` column the gap view folds on, and `--help`.
+	Disposition   *Disposition `protobuf:"varint,2,opt,name=disposition,proto3,enum=feov.record.v1.Disposition,oneof" json:"disposition,omitempty"`
+	Principle     *string      `protobuf:"bytes,3,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
+	Tension       *string      `protobuf:"bytes,4,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
+	ReviewFlag    *string      `protobuf:"bytes,5,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
+	Rationale     *string      `protobuf:"bytes,6,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3048,11 +3083,11 @@ func (x *Opinion) GetGapId() string {
 	return ""
 }
 
-func (x *Opinion) GetDisposition() string {
+func (x *Opinion) GetDisposition() Disposition {
 	if x != nil && x.Disposition != nil {
 		return *x.Disposition
 	}
-	return ""
+	return Disposition_DISPOSITION_UNSPECIFIED
 }
 
 func (x *Opinion) GetPrinciple() string {
@@ -5183,6 +5218,14 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 		Filename:      "record.proto",
 	},
 	{
+		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
+		ExtensionType: (*bool)(nil),
+		Field:         50003,
+		Name:          "feov.record.v1.closes",
+		Tag:           "varint,50003,opt,name=closes",
+		Filename:      "record.proto",
+	},
+	{
 		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
 		ExtensionType: ([]*SqlCheck)(nil),
 		Field:         50002,
@@ -5202,12 +5245,26 @@ var (
 var (
 	// optional string means = 50001;
 	E_Means = &file_record_proto_extTypes[1]
+	// closes is WHETHER THIS WORD ENDS THE GAP, and it is on the value because that is the only
+	// place a new value cannot be added without answering the question.
+	//
+	// It replaces `benchClosesGap`, which was the negative rule "everything except carried closes".
+	// A negative rule has no gap to notice: every disposition added after it was classified as
+	// closing BY DEFAULT, silently, and no test of the predicate's stated behaviour would fail.
+	// Measured — `grade_adjusted` was added to the bench's vocabulary and read as closing a gap the
+	// bench had explicitly deferred, because nobody was asked.
+	//
+	// As an annotation the miss is LOUD at two layers: the schema refuses to build a vocabulary
+	// table that is partly annotated, and the column is NOT NULL.
+	//
+	// optional bool closes = 50003;
+	E_Closes = &file_record_proto_extTypes[2]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[2]
+	E_Check = &file_record_proto_extTypes[3]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -5219,17 +5276,19 @@ const file_record_proto_rawDesc = "" +
 	"\x04expr\x18\x01 \x01(\tH\x00R\x04expr\x88\x01\x01\x12\x15\n" +
 	"\x03why\x18\x02 \x01(\tH\x01R\x03why\x88\x01\x01B\a\n" +
 	"\x05_exprB\x06\n" +
-	"\x04_why\"\xd0\x01\n" +
+	"\x04_why\"\xf8\x01\n" +
 	"\x03Sql\x12\x1f\n" +
 	"\brequired\x18\x01 \x01(\bH\x00R\brequired\x88\x01\x01\x12\x17\n" +
-	"\x04flag\x18\x02 \x01(\tH\x01R\x04flag\x88\x01\x01\x12\x15\n" +
-	"\x03why\x18\x03 \x01(\tH\x02R\x03why\x88\x01\x01\x12#\n" +
+	"\x04flag\x18\x02 \x01(\tH\x01R\x04flag\x88\x01\x01\x12\x1b\n" +
+	"\x06subset\x18\x06 \x01(\tH\x02R\x06subset\x88\x01\x01\x12\x15\n" +
+	"\x03why\x18\x03 \x01(\tH\x03R\x03why\x88\x01\x01\x12#\n" +
 	"\n" +
-	"references\x18\x04 \x01(\tH\x03R\n" +
+	"references\x18\x04 \x01(\tH\x04R\n" +
 	"references\x88\x01\x01\x12\x1b\n" +
-	"\x06unique\x18\x05 \x01(\bH\x04R\x06unique\x88\x01\x01B\v\n" +
+	"\x06unique\x18\x05 \x01(\bH\x05R\x06unique\x88\x01\x01B\v\n" +
 	"\t_requiredB\a\n" +
-	"\x05_flagB\x06\n" +
+	"\x05_flagB\t\n" +
+	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
 	"\a_unique\"\xf6\x10\n" +
@@ -5407,10 +5466,10 @@ const file_record_proto_rawDesc = "" +
 	"\x05_slugB\r\n" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
-	"\x0e_distinguisher\"\x96\x06\n" +
+	"\x0e_distinguisher\"\x87\a\n" +
 	"\x05Close\x12=\n" +
-	"\x06gap_id\x18\x01 \x01(\tB!\x82\xb5\x18\x1d\b\x01\x12\x02id\x1a\x15which gap this closesH\x00R\x05gapId\x88\x01\x01\x12F\n" +
-	"\rclosure_class\x18\x02 \x01(\x0e2\x1c.feov.record.v1.ClosureClassH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
+	"\x06gap_id\x18\x01 \x01(\tB!\x82\xb5\x18\x1d\b\x01\x12\x02id\x1a\x15which gap this closesH\x00R\x05gapId\x88\x01\x01\x12\xb6\x01\n" +
+	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBo\x82\xb5\x18k\x1aaa merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
 	"\vanchor_seat\x18\x03 \x01(\tH\x02R\n" +
 	"anchorSeat\x88\x01\x01\x12$\n" +
 	"\vanchor_tool\x18\x04 \x01(\tH\x03R\n" +
@@ -5454,10 +5513,10 @@ const file_record_proto_rawDesc = "" +
 	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01B\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\x9b\x06\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xb9\x06\n" +
 	"\aOpinion\x12C\n" +
-	"\x06gap_id\x18\x01 \x01(\tB'\x82\xb5\x18#\b\x01\x12\x02id\x1a\x1bwhich gap is being ruled onH\x00R\x05gapId\x88\x01\x01\x12~\n" +
-	"\vdisposition\x18\x02 \x01(\tBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12p\n" +
+	"\x06gap_id\x18\x01 \x01(\tB'\x82\xb5\x18#\b\x01\x12\x02id\x1a\x1bwhich gap is being ruled onH\x00R\x05gapId\x88\x01\x01\x12\x9b\x01\n" +
+	"\vdisposition\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12p\n" +
 	"\tprinciple\x18\x03 \x01(\tBM\x82\xb5\x18I\b\x01\x1aEthe rule you are applying, stated so a later sitting can apply it tooH\x02R\tprinciple\x88\x01\x01\x12\x7f\n" +
 	"\atension\x18\x04 \x01(\tB`\x82\xb5\x18\\\b\x01\x1aXwhat pulls the other way — a ruling with no acknowledged counterweight is an assertionH\x03R\atension\x88\x01\x01\x12j\n" +
 	"\vreview_flag\x18\x05 \x01(\tBD\x82\xb5\x18@\b\x01\x12\vreview-flag\x1a/why a human should, or should not, look at thisH\x04R\n" +
@@ -5821,15 +5880,16 @@ const file_record_proto_rawDesc = "" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
 	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\x9a\x03\n" +
 	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xfd\x02\x8a\xb5\x18\xf8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind\x12\x89\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\x9e\a\n" +
-	"\fClosureClass\x12\x1d\n" +
-	"\x19CLOSURE_CLASS_UNSPECIFIED\x10\x00\x12W\n" +
-	"\x14CLOSURE_CLASS_CLOSED\x10\x01\x1a=\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x12\x9c\x01\n" +
-	"$CLOSURE_CLASS_CLOSED_WITH_REGRESSION\x10\x02\x1ar\x8a\xb5\x18nrepaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward\x12\x98\x01\n" +
-	"\x1aCLOSURE_CLASS_AMENDS_PRIOR\x10\x03\x1ax\x8a\xb5\x18ta defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit\x12\x94\x01\n" +
-	" CLOSURE_CLASS_REBUTTAL_SUSTAINED\x10\x04\x1an\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x12\xb1\x01\n" +
-	"\x1bCLOSURE_CLASS_RISK_ACCEPTED\x10\x05\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x12\x90\x01\n" +
-	"&CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE\x10\x06\x1ad\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped*\xec\a\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xb2\b\n" +
+	"\vDisposition\x12\x1b\n" +
+	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12Y\n" +
+	"\x12DISPOSITION_CLOSED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\x9e\x01\n" +
+	"\"DISPOSITION_CLOSED_WITH_REGRESSION\x10\x02\x1av\x8a\xb5\x18nrepaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward\x98\xb5\x18\x01\x12\x9a\x01\n" +
+	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a|\x8a\xb5\x18ta defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit\x98\xb5\x18\x01\x12\x96\x01\n" +
+	"\x1eDISPOSITION_REBUTTAL_SUSTAINED\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb3\x01\n" +
+	"\x19DISPOSITION_RISK_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x92\x01\n" +
+	"$DISPOSITION_ROUTED_TO_INFRASTRUCTURE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x88\x01\n" +
+	"\x13DISPOSITION_CARRIED\x10\a\x1ao\x8a\xb5\x18gNOT a closure: the gap survives to the next round with a stated research direction the coming seat owes\x98\xb5\x18\x00*\xec\a\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12`\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1aC\x8a\xb5\x18?you read the source at the leaf and it says what the claim says\x12\x9a\x01\n" +
@@ -5895,7 +5955,8 @@ const file_record_proto_rawDesc = "" +
 	"\x12RULING_BINDS_FILER\x10\x02\x1a!\x8a\xb5\x18\x1donly the filing seat is bound\x12V\n" +
 	"\x11RULING_BINDS_NONE\x10\x03\x1a?\x8a\xb5\x18;advisory — the ruling is on the record and obliges nobody:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:<\n" +
-	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:Q\n" +
+	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:>\n" +
+	"\x06closes\x12!.google.protobuf.EnumValueOptions\x18ӆ\x03 \x01(\bR\x06closes\x88\x01\x01:Q\n" +
 	"\x05check\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x03(\v2\x18.feov.record.v1.SqlCheckR\x05checkBlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
 var (
@@ -5919,7 +5980,7 @@ var file_record_proto_goTypes = []any{
 	(Verdict)(0),                          // 3: feov.record.v1.Verdict
 	(RunOutcome)(0),                       // 4: feov.record.v1.RunOutcome
 	(CheckKind)(0),                        // 5: feov.record.v1.CheckKind
-	(ClosureClass)(0),                     // 6: feov.record.v1.ClosureClass
+	(Disposition)(0),                      // 6: feov.record.v1.Disposition
 	(SourceOutcome)(0),                    // 7: feov.record.v1.SourceOutcome
 	(Confidence)(0),                       // 8: feov.record.v1.Confidence
 	(Soundness)(0),                        // 9: feov.record.v1.Soundness
@@ -6027,44 +6088,46 @@ var file_record_proto_depIdxs = []int32{
 	2,  // 43: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
 	2,  // 44: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
 	2,  // 45: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
-	6,  // 46: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.ClosureClass
+	6,  // 46: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
 	2,  // 47: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
 	2,  // 48: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
 	2,  // 49: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
 	2,  // 50: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	2,  // 51: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
-	2,  // 52: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
-	2,  // 53: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
-	7,  // 54: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	8,  // 55: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	9,  // 56: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	10, // 57: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
-	15, // 58: feov.record.v1.Friction.kind:type_name -> feov.record.v1.FrictionKind
-	11, // 59: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
-	50, // 60: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	51, // 61: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	52, // 62: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
-	16, // 63: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	2,  // 64: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	17, // 65: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	11, // 66: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
-	12, // 67: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	13, // 68: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	14, // 69: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
-	18, // 70: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	11, // 71: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
-	3,  // 72: feov.record.v1.Verdict_.verdict:type_name -> feov.record.v1.Verdict
-	4,  // 73: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	63, // 74: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	64, // 75: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	65, // 76: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	20, // 77: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	19, // 78: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	79, // [79:79] is the sub-list for method output_type
-	79, // [79:79] is the sub-list for method input_type
-	77, // [77:79] is the sub-list for extension type_name
-	74, // [74:77] is the sub-list for extension extendee
-	0,  // [0:74] is the sub-list for field type_name
+	6,  // 51: feov.record.v1.Opinion.disposition:type_name -> feov.record.v1.Disposition
+	2,  // 52: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
+	2,  // 53: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
+	2,  // 54: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
+	7,  // 55: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	8,  // 56: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	9,  // 57: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	10, // 58: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
+	15, // 59: feov.record.v1.Friction.kind:type_name -> feov.record.v1.FrictionKind
+	11, // 60: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
+	50, // 61: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	51, // 62: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	52, // 63: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
+	16, // 64: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	2,  // 65: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	17, // 66: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	11, // 67: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
+	12, // 68: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	13, // 69: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	14, // 70: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
+	18, // 71: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	11, // 72: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
+	3,  // 73: feov.record.v1.Verdict_.verdict:type_name -> feov.record.v1.Verdict
+	4,  // 74: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	63, // 75: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	64, // 76: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	64, // 77: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	65, // 78: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	20, // 79: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	19, // 80: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	81, // [81:81] is the sub-list for method output_type
+	81, // [81:81] is the sub-list for method input_type
+	79, // [79:81] is the sub-list for extension type_name
+	75, // [75:79] is the sub-list for extension extendee
+	0,  // [0:75] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
@@ -6163,7 +6226,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      19,
 			NumMessages:   44,
-			NumExtensions: 3,
+			NumExtensions: 4,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

@@ -40,7 +40,7 @@ func TestARequiredFieldIsRefusedWhenAbsent(t *testing.T) {
 func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
 	body := &Opinion{
 		GapId:       proto.String("R1-1"),
-		Disposition: proto.String("carried"),
+		Disposition: Disposition_DISPOSITION_CARRIED.Enum(),
 		Principle:   proto.String("p"),
 		Tension:     proto.String("t"),
 		ReviewFlag:  proto.String(""), // said, and said to be nothing

@@ -80,10 +80,15 @@ func VerdictOf(word string) (recordpb.Verdict, bool) {
 	return enumOf[recordpb.Verdict](recordpb.Verdict(0).Descriptor(), strings.ToLower(strings.TrimSpace(word)))
 }
 
-// ClosureClassOf resolves HOW a gap ended. An unrecognized class lands in no bucket and the gap
-// reads as closed for no stated reason, which is why the set is closed and this refuses.
-func ClosureClassOf(word string) (recordpb.ClosureClass, bool) {
-	return enumOf[recordpb.ClosureClass](recordpb.ClosureClass(0).Descriptor(), word)
+// DispositionOf resolves HOW A GAP ENDED — one vocabulary for both closing verbs (#342), which
+// since the retyping includes the bench's `carried`. Callers that may only CLOSE (merge close)
+// check recordpb.Closes on the result; the database enforces the same subset from the same
+// annotation, so neither side carries a list of admitted words.
+//
+// An unrecognized word lands in no bucket and the gap reads as closed for no stated reason, which
+// is why the set is closed and this refuses.
+func DispositionOf(word string) (recordpb.Disposition, bool) {
+	return enumOf[recordpb.Disposition](recordpb.Disposition(0).Descriptor(), word)
 }
 
 // CheckKindOf resolves WHAT WOULD SETTLE an acceptance check — read a document, run a computation,

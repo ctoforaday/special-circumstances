@@ -149,6 +149,16 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 		}
 		if fd.Kind() == protoreflect.EnumKind {
 			fks = append(fks, fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(\"value\")", fd.Name(), EnumTableName(fd.Enum())))
+			// A column may reach only PART of its vocabulary — `merge close` may close and may not
+			// carry. The admitted words are expanded from the values` own facet annotation, so the
+			// constraint and the Go refusal beside it read the same declaration.
+			if facet := Opts(fd).GetSubset(); facet != "" {
+				sc, err := subsetCheck(fd, facet)
+				if err != nil {
+					return "", err
+				}
+				checks = append(checks, sc)
+			}
 		}
 	}
 
@@ -278,9 +288,15 @@ func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
 // a SINGLE undocumented value in an otherwise documented set IS an omission, and the difference
 // matters, so the two are told apart rather than both waved through.
 func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
-	type row struct{ word, means string }
+	type row struct {
+		word, means string
+		facets      map[string]bool
+	}
 	var rows []row
 	documented, undocumented := 0, 0
+	// declared is the facets ANY value of this enum carries. A facet is a column only if the
+	// vocabulary declares it, so `enum_grade` does not grow a `closes` column it has no opinion on.
+	declared := map[string]int{}
 	for i := 0; i < ed.Values().Len(); i++ {
 		v := ed.Values().Get(i)
 		w := recordpb.Word(dummyEnum{ed, v.Number()})
@@ -294,22 +310,108 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		} else {
 			documented++
 		}
-		rows = append(rows, row{w, means})
+		fs := map[string]bool{}
+		for _, name := range recordpb.FacetNames() {
+			val, ok, err := recordpb.Facet(v, name)
+			if err != nil {
+				return "", err
+			}
+			if ok {
+				fs[name] = val
+				declared[name]++
+			}
+		}
+		rows = append(rows, row{w, means, fs})
 	}
 	if documented > 0 && undocumented > 0 {
 		return "", fmt.Errorf("recordsql: %s documents %d of its values and not %d — a set that is "+
 			"partly described is worse than one that is not, because the gap reads as a value with no meaning",
 			ed.FullName(), documented, documented+undocumented)
 	}
+	// A PARTLY-ANNOTATED FACET IS REFUSED, for the reason the facet exists. `closes` was added
+	// because "everything except carried" answered the question for values nobody had asked about;
+	// letting one value skip the annotation and defaulting its column would rebuild that exact
+	// behaviour inside the schema, where it would be even harder to see.
+	var cols []string
+	for _, name := range recordpb.FacetNames() {
+		n := declared[name]
+		if n == 0 {
+			continue
+		}
+		if n != len(rows) {
+			return "", fmt.Errorf("recordsql: %s declares `%s` on %d of its %d values — a facet the "+
+				"machinery switches on cannot have a default, because the default is an answer given "+
+				"on behalf of whoever added the value without one",
+				ed.FullName(), name, n, len(rows))
+		}
+		cols = append(cols, recordpb.FacetColumn(name))
+	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].word < rows[j].word })
 
 	name := EnumTableName(ed)
 	var b strings.Builder
-	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n  \"value\" TEXT PRIMARY KEY,\n  \"means\" TEXT NOT NULL\n) STRICT;\n", name)
+	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n  \"value\" TEXT PRIMARY KEY,\n  \"means\" TEXT NOT NULL", name)
+	for _, c := range cols {
+		fmt.Fprintf(&b, ",\n  %q INTEGER NOT NULL CHECK (%q IN (0, 1))", c, c)
+	}
+	b.WriteString("\n) STRICT;\n")
 	for _, r := range rows {
-		fmt.Fprintf(&b, "INSERT INTO %q (\"value\", \"means\") VALUES ('%s', '%s');\n", name, r.word, escape(r.means))
+		lhs, vals := `"value", "means"`, fmt.Sprintf("'%s', '%s'", r.word, escape(r.means))
+		for _, c := range cols {
+			lhs += fmt.Sprintf(", %q", c)
+			vals += fmt.Sprintf(", %d", b2i(r.facets[c]))
+		}
+		fmt.Fprintf(&b, "INSERT INTO %q (%s) VALUES (%s);\n", name, lhs, vals)
 	}
 	return b.String(), nil
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// subsetCheck turns `subset: "closes"` into a CHECK over the words that actually carry the facet.
+//
+// The list is EXPANDED FROM THE DESCRIPTOR at build time, never typed. The alternative that was
+// nearly written — `CHECK ("closure_class" <> 'carried')` — encodes the answer to "which words may
+// a merge write" as a single literal in an expression, and nothing anywhere could notice when a
+// second non-closing word joined the vocabulary. That is the same defect as the negative predicate
+// this whole change removed, moved into SQL.
+func subsetCheck(fd protoreflect.FieldDescriptor, facet string) (string, error) {
+	ed := fd.Enum()
+	if ed == nil {
+		return "", fmt.Errorf("recordsql: %s declares subset %q but is not an enum — a subset of what?", fd.FullName(), facet)
+	}
+	var words []string
+	for i := 0; i < ed.Values().Len(); i++ {
+		v := ed.Values().Get(i)
+		w := recordpb.Word(dummyEnum{ed, v.Number()})
+		if w == "" {
+			continue
+		}
+		val, ok, err := recordpb.Facet(v, facet)
+		if err != nil {
+			return "", fmt.Errorf("recordsql: %s: %w", fd.FullName(), err)
+		}
+		if !ok {
+			return "", fmt.Errorf("recordsql: %s restricts to `%s` but %s does not declare it — the "+
+				"subset would silently exclude a value nobody ruled on", fd.FullName(), facet, v.Name())
+		}
+		if val {
+			words = append(words, "'"+w+"'")
+		}
+	}
+	if len(words) == 0 {
+		return "", fmt.Errorf("recordsql: %s restricts to `%s` and no value in %s carries it — the "+
+			"column would admit nothing, which is a constraint that reads as strict and is simply broken",
+			fd.FullName(), facet, ed.FullName())
+	}
+	sort.Strings(words)
+	// The bare expression: the caller wraps it, and wrapping it here produced `CHECK (CHECK (...))`.
+	return fmt.Sprintf("%q IS NULL OR %q IN (%s)", fd.Name(), fd.Name(), strings.Join(words, ", ")), nil
 }
 
 // EnumTableName is the vocabulary table for an enum: `enum_` plus its own name in snake_case.

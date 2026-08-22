@@ -782,7 +782,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 				return err
 			}
 		}
-		if b.GetClosureClass() == recordpb.ClosureClass_CLOSURE_CLASS_CLOSED_WITH_REGRESSION && b.Successor == nil {
+		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION && b.Successor == nil {
 			return fmt.Errorf("record: closed_with_regression requires --superseded-by (lineage never drops)")
 		}
 		// THE NEAR-MISS CHECK IS GONE BECAUSE THE OPEN SET IS GONE, not because it stopped
@@ -1103,18 +1103,19 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		if b.GetRationale() == "" {
 			return fmt.Errorf("record: opinion requires --reason (the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default)")
 		}
-		// A verb that owns an act must OWN it. petition_rule.go states the safety
-		// property plainly — "a halt is deliberately NOT a value of --as ... giving it
-		// its own verb means it can never be reached by a typo in an enum" — and that
-		// was untrue: --as took any string, so `opinion --as halt` recorded an opinion
-		// whose disposition reads like the run's terminal act and stops nothing.
+		// A VERB THAT OWNS AN ACT MUST OWN IT — and this guard is now the type system's job.
 		//
-		// The enum stays OPEN otherwise (its help ends in "...", and closing it would
-		// mean a legitimate ruling failing hard mid-round). Only the words that are
-		// somebody else's verb are refused, which is the whole of the claimed property.
-		if b.GetDisposition() == "halt" {
-			return fmt.Errorf("record: `halt` is not a disposition — it is the bench's own verb, so that the run's terminal act cannot be reached by a typo in a ruling. Use `bench halt` if you mean to stop the run")
-		}
+		// petition_rule.go states the safety property plainly: "a halt is deliberately NOT a value
+		// of --as ... giving it its own verb means it can never be reached by a typo in an enum".
+		// That was untrue while --as took any string, so `opinion --as halt` recorded an opinion
+		// whose disposition reads like the run's terminal act and stops nothing. This block was the
+		// repair: refuse the one word that is somebody else's verb.
+		//
+		// `disposition` is a closed enum now, so `halt` is not a value that can be constructed —
+		// the property petition_rule.go claimed is finally structural rather than a listed
+		// exception. The guard is deleted rather than kept as belt-and-braces: a runtime check for
+		// a state the type system forbids is dead code that reads like a live defense, and the next
+		// reader would take it as evidence the set is still open.
 	}
 	// The closed sets, checked from one declaration (enums.go) rather than five
 	// hand-written copies. LAST, so the more specific refusal leads when a body has

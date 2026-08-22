@@ -51,32 +51,81 @@ import (
 // concept, four spellings, and no mechanism could see them disagree because every set was
 // open.
 // DispositionCarried is the ONE bench disposition that does not end a gap: it defers the
-// question to a later round with a stated research direction. Every other disposition is a
-// ClosureClass.
+// question to a later round with a stated research direction.
+//
+// It stays a named constant because it is the word the CLI defaults to and the seat-facing help
+// reaches for, but it is no longer the DEFINITION of anything. "Does this end the gap" is
+// recordpb.Closes, read off the value's own annotation. The two were the same statement while
+// `carried` was the only deferring word, and that coincidence is exactly what made the negative
+// rule "everything except carried" look correct right up until a second deferring word existed.
 const DispositionCarried = "carried"
 
-// ClosureClasses is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
+// Dispositions is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
 //
 // `merge close` (red closes on verified repair) and `bench opinion` (the bench closes on
 // judgement) are different acts with different evidence bars, and they stay different verbs.
 // What they must not have is different WORDS for the same outcome: before this, a reader had
 // to know which verb produced a closure before it could interpret the word, and four surfaces
 // spelled the same three outcomes six ways.
-var ClosureClasses = []EnumValue{
-	Ev("closed", "the repair was verified at the leaf and nothing regressed"),
-	Ev("closed_with_regression", "repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward"),
-	Ev("amends_prior", "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit"),
-	Ev("rebuttal_sustained", "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"),
-	Ev("risk_accepted", "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"),
-	Ev("routed_to_infrastructure", "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped"),
-}
+//
+// READ OFF THE SCHEMA, not re-typed beside it. This table used to carry all six meanings as Go
+// string literals while record.proto carried the same six as `(means)` annotations — one
+// statement, two files, and nothing in the build that could see them disagree. That is the exact
+// defect the annotations were added to remove, reproduced one layer up from it.
+var Dispositions = dispositionsWhere(func(bool) bool { return true })
+
+// ClosureClasses is the subset a MERGE may write: the values that actually close a gap.
+//
+// Derived from the same annotation the schema builds its CHECK from, so the refusal a seat reads
+// and the constraint the database enforces cannot admit different words.
+var ClosureClasses = dispositionsWhere(func(closes bool) bool { return closes })
+
+// DeferringDispositions is the complement of ClosureClasses: the words that do NOT end the gap.
+//
+// It exists so that no surface has to SAY which those are. The help text used to read "every value
+// ends the gap except `carried`" — a sentence that was true when it was written, is a copy of an
+// annotation that now answers the question, and would have gone quietly wrong the moment a second
+// deferring word was added. That is not a hypothetical: it is what happened to the predicate this
+// vocabulary replaced.
+var DeferringDispositions = dispositionsWhere(func(closes bool) bool { return !closes })
 
 // ClosureClassNames is the bare vocabulary, for the readers that only need the words.
 func ClosureClassNames() []string { return Names(ClosureClasses) }
 
-// benchDispositions is ClosureClasses plus the one word that does not close.
-var benchDispositions = append(append([]EnumValue{}, ClosureClasses...),
-	Ev(DispositionCarried, "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes"))
+// dispositionsWhere reads the vocabulary out of the descriptor.
+//
+// A value that never declared `closes` PANICS at init rather than defaulting to false. That is
+// deliberate and it is the whole point of the annotation: adding a word must force the question,
+// and answering it here on the author's behalf is precisely how a gap the bench deferred came to
+// be retired with nobody having decided to retire it. An init panic is loud, immediate, and
+// impossible to ship past; a default is none of those.
+func dispositionsWhere(keep func(closes bool) bool) []EnumValue {
+	ed := recordpb.Disposition(0).Descriptor()
+	var out []EnumValue
+	for i := 0; i < ed.Values().Len(); i++ {
+		vd := ed.Values().Get(i)
+		word := recordpb.Word(recordpb.Disposition(vd.Number()))
+		if word == "" {
+			continue // the UNSPECIFIED zero is absence, not a choice a seat makes
+		}
+		closes, declared, err := recordpb.Facet(vd, "closes")
+		if err != nil || !declared {
+			panic(fmt.Sprintf("record: disposition %s does not declare whether it closes the gap — "+
+				"a value added without answering that reads as closing BY DEFAULT, which is how "+
+				"`grade_adjusted` retired a gap the bench had explicitly deferred", vd.Name()))
+		}
+		if !keep(closes) {
+			continue
+		}
+		means, err := recordpb.EnumValueDoc(vd)
+		if err != nil {
+			panic(fmt.Sprintf("record: disposition %s carries no meaning, so the set would reach a "+
+				"seat as a bare noun: %v", vd.Name(), err))
+		}
+		out = append(out, Ev(word, means))
+	}
+	return out
+}
 
 type EnumField struct {
 	Key  string // the payload key the value lands in
@@ -151,7 +200,7 @@ var EnumFields = map[string][]EnumField{
 		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on closed_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
 	}},
 	"opinion": {{
-		Key: "disposition", Flag: flags.As, Values: benchDispositions,
+		Key: "disposition", Flag: flags.As, Values: Dispositions,
 		Optional: true,
 		Why:      "the bench's disposition both RULES and ends the gap; `carried` is the one value that defers instead of closing, and the replay keys the gap's whole fate on that distinction. A near-miss spelling silently carried a gap the bench meant to close, or closed one it meant to carry",
 	}},
@@ -244,19 +293,31 @@ func sameWord(a, b string) bool {
 	return strip(a) == strip(b)
 }
 
-// checkOpenSets refuses a value outside the TWO sets the schema cannot close.
+// checkOpenSets refuses a value outside the ONE set the schema cannot close.
 //
 // MOST OF WHAT checkEnum POLICED IS NOW UNREPRESENTABLE. verdict, outcome's verdict, avenue
 // status, closure_class, check_kind, soundness, verify's outcome and confidence are closed proto
 // enums: a value outside the set cannot be built, let alone written, so a runtime check for it
 // would be dead code asserting the type system works.
 //
-// Two are deliberately still open strings, and they are the whole of what remains:
+// `Opinion.disposition` WAS THE SECOND, AND THE REASON GIVEN FOR IT DID NOT SURVIVE READING.
+//
+// It was listed here as "kept open on the operator's decision (plan §II.3): closing it means a
+// legitimate bench ruling fails HARD mid-round, and a bench that cannot rule is worse than a
+// vocabulary that drifts." Two things were wrong with that. The cited section is in no plan in
+// `plans/`. And the behaviour it described as the cost of closing the set was what this function
+// ALREADY DID: the arm below refused any word outside `benchDispositions`, from record.go:1131, on
+// the write path a bench actually uses. The set was closed. Only its DECLARATION was loose, one
+// file from the field, where the schema could not read it — so the DDL could not build a foreign
+// key, the vocabulary table had no row for `carried`, and "does this word close the gap" had to be
+// answered by a hand-written predicate that guessed.
+//
+// The drift it was meant to tolerate happened anyway, and could not be seen: the engine and the
+// bench's own constitution instructed three dispositions this arm refused.
+//
+// So one set remains, and it is genuinely open:
 //
 //   - `Outcome.ended` — how the sitting ended.
-//   - `Opinion.disposition` — the bench's ruling word. Kept open on the operator's decision
-//     (plan §II.3): closing it means a legitimate bench ruling fails HARD mid-round, and a bench
-//     that cannot rule is worse than a vocabulary that drifts.
 //
 // The near-miss is called out BY NAME when the value differs only in case, because that is the
 // failure that was actually measured (`--as pass`, `--as Pass`) and "PASS | FAIL" alone does not
@@ -268,8 +329,6 @@ func checkOpenSets(body proto.Message) error {
 			return nil // absent is legal; `ended` is optional
 		}
 		return checkWord("ended", flags.Ended, b.GetEnded(), endedValues())
-	case *recordpb.Opinion:
-		return checkWord("disposition", flags.As, b.GetDisposition(), benchDispositions)
 	}
 	return nil
 }

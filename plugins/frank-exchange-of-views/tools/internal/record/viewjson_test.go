@@ -122,7 +122,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 			// `class: "resolved"` before the schema — a key `merge close` never wrote (it writes
 			// closure_class) carrying a word the enum never had. Untyped, it replayed as a closure
 			// with NO class: a torn closure, which is the state this test is not about.
-			ClosureClass: recordtest.P(recordpb.ClosureClass_CLOSURE_CLASS_CLOSED),
+			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED),
 		}),
 	})
 

@@ -48,6 +48,19 @@ extend google.protobuf.FieldOptions {
 // own vocabulary tables are three readers of one declaration.
 extend google.protobuf.EnumValueOptions {
   optional string means = 50001;
+
+  // closes is WHETHER THIS WORD ENDS THE GAP, and it is on the value because that is the only
+  // place a new value cannot be added without answering the question.
+  //
+  // It replaces `benchClosesGap`, which was the negative rule "everything except carried closes".
+  // A negative rule has no gap to notice: every disposition added after it was classified as
+  // closing BY DEFAULT, silently, and no test of the predicate's stated behaviour would fail.
+  // Measured — `grade_adjusted` was added to the bench's vocabulary and read as closing a gap the
+  // bench had explicitly deferred, because nobody was asked.
+  //
+  // As an annotation the miss is LOUD at two layers: the schema refuses to build a vocabulary
+  // table that is partly annotated, and the column is NOT NULL.
+  optional bool closes = 50003;
 }
 
 // A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
@@ -90,6 +103,15 @@ message Sql {
   // seat types for all of them is `--reason`. Collapsing the schema's names would lose what each
   // prose field IS; collapsing the seat's would make every verb's prose a different word to learn.
   optional string flag = 2;
+
+  // subset names a VALUE FACET this column's values must carry — `subset: "closes"` admits only
+  // the values annotated `(closes) = true`. The generator expands it into a CHECK over the real
+  // words from the descriptor, so the subset is DERIVED and there is no second list to keep.
+  //
+  // Without it the alternative was `CHECK ("closure_class" <> 'carried')` hand-typed into the
+  // schema: a word composed into an expression and recovered by nothing, which is the shape this
+  // whole annotation layer exists to remove.
+  optional string subset = 6;
 
   // why is what omitting it costs, in the words the refusal shows the seat. A required field whose
   // refusal says only "required" teaches nothing about the state it was protecting.
@@ -223,14 +245,21 @@ enum CheckKind {
 // ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
 // unified, four surfaces spelled the same three outcomes six ways and no mechanism could see
 // them disagree, because every set was open.
-enum ClosureClass {
-  CLOSURE_CLASS_UNSPECIFIED = 0;
-  CLOSURE_CLASS_CLOSED = 1 [(means) = "the repair was verified at the leaf and nothing regressed"];
-  CLOSURE_CLASS_CLOSED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward"];  // REQUIRES successor
-  CLOSURE_CLASS_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit"];            // REQUIRES supersedes
-  CLOSURE_CLASS_REBUTTAL_SUSTAINED = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"];
-  CLOSURE_CLASS_RISK_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"];
-  CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped"];
+enum Disposition {
+  DISPOSITION_UNSPECIFIED = 0;
+  DISPOSITION_CLOSED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
+  DISPOSITION_CLOSED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
+  DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit", (closes) = true];
+  DISPOSITION_REBUTTAL_SUSTAINED = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
+  DISPOSITION_RISK_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
+  DISPOSITION_ROUTED_TO_INFRASTRUCTURE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
+
+  // THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
+  //
+  // `carried` is reachable by the BENCH only: a merge closing a gap is asserting a repair, and
+  // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
+  // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
+  DISPOSITION_CARRIED = 7 [(means) = "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes", (closes) = false];
 }
 
 // SourceOutcome is WHAT THE SOURCE DID for a claim — a different question from how sure the
@@ -568,7 +597,12 @@ message Close {
     flag: "id"
     why: "which gap this closes"
   }];
-  optional ClosureClass closure_class = 2;
+  // A MERGE MAY CLOSE, AND MAY NOT CARRY. `subset` generates the CHECK from the vocabulary's own
+  // `closes` annotation, so the admitted words are never typed here.
+  optional Disposition closure_class = 2 [(sql) = {
+    subset: "closes"
+    why: "a merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone"
+  }];
 
   // The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
   // closure is unauditable — or the closure is a carry, restating an earlier one.
@@ -637,11 +671,21 @@ message Opinion {
     why: "which gap is being ruled on"
   }];
 
-  // disposition stays a STRING, deliberately. Its set is open: closing it would mean a
-  // legitimate bench ruling failing hard mid-round. Two guards remain in validate — `halt` is
-  // refused because it is the bench's own verb and must not be reachable by a typo, and a
-  // near-miss spelling of a closure class is refused as the typo it is.
-  optional string disposition = 2 [(sql) = {
+  // THE BENCH'S WORD, AND WHY IT IS NO LONGER A STRING.
+  //
+  // This field was `string` on a recorded decision: "its set is open — closing it would mean a
+  // legitimate bench ruling failing HARD mid-round." The premise was already false when it was
+  // written. `checkOpenSets` refuses any word outside `benchDispositions` at record.go:1131, so a
+  // bench ruling outside the set ALREADY failed hard mid-round; the string bought nothing except
+  // that the closed set lived in Go, one file from the field, where the schema could not see it.
+  //
+  // That is not hypothetical. The engine and the bench's own constitution instructed three
+  // dispositions the record refused, and the terminal dispute docket had no legal value at all —
+  // the drift was possible precisely because the vocabulary was not in the schema to be read off.
+  //
+  // Typed, the set is one declaration with four readers: the flag parser, the DDL's foreign key,
+  // the `closes` column the gap view folds on, and `--help`.
+  optional Disposition disposition = 2 [(sql) = {
     required: true
     flag: "as"
     why: "how the gap ends, or `carried` to defer it with a stated research direction"

@@ -471,7 +471,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		// A regrade moves ONLY the keys it carries.
 		recordtest.At(t, seatID, "aaaaaaaa", 2, 1, seatID+":regrade:R1-1", &recordpb.Regrade{Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
-		recordtest.At(t, seatID, "aaaaaaaa", 3, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.ClosureClass_CLOSURE_CLASS_CLOSED)}),
+		recordtest.At(t, seatID, "aaaaaaaa", 3, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED)}),
 		// A regrade and a close of an UNKNOWN gap are ignored, not fatal.
 		recordtest.At(t, seatID, "aaaaaaaa", 4, 1, seatID+":regrade:R9-9", &recordpb.Regrade{GapId: proto.String("R9-9"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 		recordtest.At(t, seatID, "aaaaaaaa", 5, 1, seatID+":close:R9-9", &recordpb.Close{GapId: proto.String("R9-9")}),

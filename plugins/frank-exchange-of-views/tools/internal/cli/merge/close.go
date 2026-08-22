@@ -120,10 +120,18 @@ func closurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 	if word == "" {
 		word = "closed"
 	}
-	class, ok := record.ClosureClassOf(word)
+	class, ok := record.DispositionOf(word)
 	if !ok {
 		return nil, feov.Errorf(feov.Validation,
-			"merge close: %q is not a closure class — an unrecognized class lands in no bucket and the gap reads as closed for no stated reason", word)
+			"merge close: %q is not a disposition — an unrecognized word lands in no bucket and the gap reads as closed for no stated reason", word)
+	}
+	// A MERGE MAY CLOSE AND MAY NOT CARRY, and the subset comes off the vocabulary rather than from
+	// a word typed here. The database refuses the same value through the CHECK the schema generates
+	// from `subset: "closes"`, so this refusal is the teaching copy of a constraint that holds even
+	// against SQL written straight at the file.
+	if !recordpb.Closes(class) {
+		return nil, feov.Errorf(feov.Validation,
+			"merge close: %q defers the gap instead of closing it, and deferring is the BENCH decision — a close asserts a verified repair. Rule it from the bench with `feov-record bench opinion --as %s`, or close it with a class that states what the repair was", word, word)
 	}
 	// The SHARED prose channel, not a private one. close hand-rolled its own --file read and so
 	// was the only prose-bearing verb with no --text at all — a verb that opts out of the shared

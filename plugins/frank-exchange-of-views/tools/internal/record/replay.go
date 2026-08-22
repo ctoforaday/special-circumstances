@@ -449,28 +449,26 @@ func (g *Gap) ClosureReason() string {
 			return w
 		}
 	}
-	return g.BenchClosure.GetDisposition()
+	return recordpb.Word(g.BenchClosure.GetDisposition())
 }
 
 // benchClosesGap says which dispositions end a gap's life on the board.
 //
-// `carried` is the one that does NOT: it defers the question to a later round, and
-// treating it as a closure would silently retire gaps the bench deliberately kept alive
-// — the opposite of the defect this function exists to fix, and worse.
+// # What this used to be, and why the shape was the bug
 //
-// The rest all end the dispute, by different routes: the defect is gone, the risk is
-// accepted as it stands, blue's rebuttal was sustained, or the work moved to the lead's
-// infrastructure debt. Each leaves the board with nothing further to adjudicate.
+// It was `disposition != "" && disposition != DispositionCarried` — a NEGATIVE rule, with the
+// closing set defined as everything left over. That reads as economical and it is a trap: a
+// disposition added to the vocabulary later is classified as CLOSING by default, silently, with no
+// author ever asked. Measured — `grade_adjusted` was added for a bench that had adjusted a grade
+// and explicitly kept the gap alive, and this predicate retired it. No test of the function's
+// stated behaviour could fail, because its stated behaviour was exactly what it did.
 //
-// The disposition stays a STRING in the schema (`Opinion.disposition`), so this reads exactly as
-// it did — and an absent disposition and an empty one are the same fact here for the same reason
-// they were before: `disposition != ""` is the test, and neither closes a gap.
-func benchClosesGap(disposition string) bool {
-	// ONE VOCABULARY (#342). Every ClosureClass ends a gap; `carried` is the sole
-	// disposition that does not, because it defers the question to a later round.
-	// Enumerating the closing words here was a THIRD list of the same concept, beside
-	// `close`'s classes and the envelope's — and the three disagreed.
-	return disposition != "" && disposition != DispositionCarried
+// The set is now on the values themselves (`(closes)` in record.proto), so adding a word without
+// answering the question is an init panic (see dispositionsWhere) rather than a default. What is
+// left here is the one thing that is genuinely about REPLAY and not about the vocabulary: an
+// unspecified disposition closes nothing, because it means the bench never said.
+func benchClosesGap(d recordpb.Disposition) bool {
+	return recordpb.Closes(d)
 }
 
 // missingGap describes a mutation that referenced a gap the replay has never seen.

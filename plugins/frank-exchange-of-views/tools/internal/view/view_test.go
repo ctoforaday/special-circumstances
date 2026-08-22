@@ -245,7 +245,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	writeShard(t, runDir, seatID, "aaaaaaaa", []*record.Event{
 		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
-		recordtest.At(t, seatID, "aaaaaaaa", 2, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.ClosureClass_CLOSURE_CLASS_CLOSED_WITH_REGRESSION), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
+		recordtest.At(t, seatID, "aaaaaaaa", 2, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 		recordtest.At(t, seatID, "aaaaaaaa", 3, 1, seatID+":mint:R1-3", &recordpb.Mint{Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
 	})
 	open, closed, _, err := Counts(runDir)

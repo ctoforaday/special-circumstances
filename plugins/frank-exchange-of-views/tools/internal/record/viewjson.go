@@ -878,7 +878,7 @@ func DebateJSONOf(b *Board) DebateJSON {
 			// of one fact and the schema settles it.
 			if o, ok := recordpb.BodyAs[*recordpb.Opinion](e); ok {
 				rj.Lead = append(rj.Lead, DebateOpinionJSON{
-					GapID: o.GetGapId(), Disposition: o.GetDisposition(),
+					GapID: o.GetGapId(), Disposition: recordpb.Word(o.GetDisposition()),
 					Principle: o.GetPrinciple(), Tension: o.GetTension(),
 					ReviewFlag: o.GetReviewFlag(), Rationale: o.GetRationale(),
 				})

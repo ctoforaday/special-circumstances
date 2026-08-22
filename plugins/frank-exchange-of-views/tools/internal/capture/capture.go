@@ -993,7 +993,7 @@ func rulingsFromRecord(board *record.Board) []ruling {
 			out = append(out, ruling{
 				kind:        "docket",
 				gapID:       o.GetGapId(),
-				disposition: o.GetDisposition(),
+				disposition: recordpb.Word(o.GetDisposition()),
 				rationale:   o.GetRationale(),
 			})
 		case recordpb.EventType_EVENT_TYPE_DECLARE:

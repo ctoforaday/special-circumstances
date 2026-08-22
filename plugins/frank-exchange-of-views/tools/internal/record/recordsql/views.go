@@ -12,17 +12,27 @@ package recordsql
 // counts. That is where `filed > ruled` came to compute `0 > 0` forever and where a dispute counter
 // sat at zero through every run, because a fold nobody can see is a fold nobody checks.
 //
-// # What is NOT here yet, and why
+// # THE BENCH ARM, AND WHAT IT COST TO EXPRESS
 //
-// A gap also closes when the BENCH disposes of it, and that arm cannot join cleanly: `disposition`
-// is a plain string column, so the bench's closing vocabulary is not in the database and "does this
-// disposition close the gap" is still a Go predicate — `benchClosesGap`, currently the negative
-// rule "everything except carried", which is the shape that silently classified a new deferring
-// value as closing. Making disposition an enum would put the set in a vocabulary table, and the
-// question becomes a `closes` COLUMN on it: adding a disposition without deciding whether it ends
-// the gap would then be a NOT NULL violation rather than a default nobody chose. That is the next
-// step and it is stated rather than done, because it changes the schema and the write path
-// together.
+// The first cut of this file could not fold a bench closure and said so: `disposition` was a plain
+// string, the bench's vocabulary was not in the database, and "does this word close the gap" was a
+// Go predicate — `benchClosesGap`, whose rule was "everything except `carried`". A negative rule
+// has no gap to notice, and that is not hypothetical: a deferring disposition added later was
+// classified as closing by default and retired a gap the bench had deliberately kept alive.
+//
+// Making it an enum was the price of this join, and the join is the smaller half of what it bought.
+// `closes` is now an annotation ON each value, so the vocabulary table carries it as a NOT NULL
+// column and a value added without answering the question fails at build. The predicate is a
+// SELECT, the schema refuses a partly-annotated set, and `merge close` may not write `carried`
+// because the CHECK is expanded from the same annotation.
+//
+// # What a gap being closed by BOTH arms means here
+//
+// It is legal: red closes on a verified repair, the bench rules on the same gap in a later sitting.
+// The view reports the EARLIEST closure as `closed_round`, and keeps both `closure_class` and
+// `bench_disposition` visible rather than collapsing them into one word, because which act ended
+// the gap is exactly the distinction #342 was about — a reader should not have to know which verb
+// produced a closure, but it must still be able to ask.
 const ViewsDDL = `
 CREATE VIEW "gap" AS
 SELECT
@@ -40,12 +50,28 @@ SELECT
   e."seat_id"                                  AS "minted_by",
   c."closure_class"                            AS "closure_class",
   c."successor"                                AS "successor",
-  ce."round"                                   AS "closed_round",
-  (c."event_id" IS NULL)                       AS "open"
+  ce."round"                                   AS "merge_closed_round",
+  bo."disposition"                             AS "bench_disposition",
+  be."seat_id"                                 AS "bench_closed_by",
+  be."round"                                   AS "bench_closed_round",
+  COALESCE(MIN(ce."round", be."round"), ce."round", be."round") AS "closed_round",
+  (c."event_id" IS NULL AND bc."event_id" IS NULL)              AS "open"
 FROM "mint" m
 JOIN "events" e ON e."id" = m."event_id"
 LEFT JOIN "close" c ON c."gap_id" = m."gap_id"
-LEFT JOIN "events" ce ON ce."id" = c."event_id";
+LEFT JOIN "events" ce ON ce."id" = c."event_id"
+-- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
+-- round and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
+-- and whether it closes is read off the vocabulary rather than decided here.
+LEFT JOIN (
+  SELECT o."gap_id" AS "gap_id", MIN(o."event_id") AS "event_id"
+  FROM "opinion" o
+  JOIN "enum_disposition" d ON d."value" = o."disposition"
+  WHERE d."closes"
+  GROUP BY o."gap_id"
+) bc ON bc."gap_id" = m."gap_id"
+LEFT JOIN "opinion" bo ON bo."event_id" = bc."event_id"
+LEFT JOIN "events" be ON be."id" = bc."event_id";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.

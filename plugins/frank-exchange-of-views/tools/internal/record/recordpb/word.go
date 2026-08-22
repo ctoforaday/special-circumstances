@@ -2,7 +2,7 @@ package recordpb
 
 import "google.golang.org/protobuf/reflect/protoreflect"
 
-// Word is Spelling for a TYPED enum value — `Word(ClosureClass_CLOSURE_CLASS_RISK_ACCEPTED)` is
+// Word is Spelling for a TYPED enum value — `Word(Disposition_DISPOSITION_RISK_ACCEPTED)` is
 // `risk_accepted`, without the caller having to walk to a descriptor first.
 //
 // It exists because the descriptor walk is four lines of ceremony

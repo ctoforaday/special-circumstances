@@ -181,7 +181,7 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 	mk := func(seq int32) *recordpb.Event {
 		return event(t, seq, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
 			GapId:        proto.String("R1-1"),
-			ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_CLOSED_WITH_REGRESSION.Enum(),
+			ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION.Enum(),
 			Prose:        proto.String("repaired, and the retry path broke"),
 		})
 	}
@@ -193,7 +193,7 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 
 	ok := event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
 		GapId:        proto.String("R1-2"),
-		ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_CLOSED_WITH_REGRESSION.Enum(),
+		ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION.Enum(),
 		Successor:    proto.String("R2-1"),
 		Prose:        proto.String("repaired, and R2-1 carries the regression"),
 	})
@@ -204,7 +204,7 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 	// And an ordinary closure still needs no successor, or the rule is a wall rather than a gate.
 	plain := event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
 		GapId:        proto.String("R1-3"),
-		ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_CLOSED.Enum(),
+		ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum(),
 		Prose:        proto.String("verified at the leaf"),
 	})
 	if _, err := Insert(db, plain); err != nil {
@@ -321,7 +321,7 @@ func TestTheBoardIsAQuery(t *testing.T) {
 	mint(1, "R1-2")
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
 		GapId:        proto.String("R1-2"),
-		ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_RISK_ACCEPTED.Enum(),
+		ClosureClass: recordpb.Disposition_DISPOSITION_RISK_ACCEPTED.Enum(),
 		Prose:        proto.String("the fix costs more than the defect"),
 	})); err != nil {
 		t.Fatal(err)
@@ -340,7 +340,7 @@ func TestTheBoardIsAQuery(t *testing.T) {
 	var class, why string
 	if err := db.QueryRow(`
 		SELECT g."closure_class", v."means"
-		FROM "gap" g JOIN "enum_closure_class" v ON v."value" = g."closure_class"
+		FROM "gap" g JOIN "enum_disposition" v ON v."value" = g."closure_class"
 		WHERE g."gap_id" = 'R1-2'`).Scan(&class, &why); err != nil {
 		t.Fatalf("a closed gap does not join to why it closed: %v", err)
 	}
@@ -391,5 +391,127 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	}
 	if id != "M2" || gap != "R1-2" {
 		t.Errorf("unruled = (%q, %q), want (M2, R1-2)", id, gap)
+	}
+}
+
+// A DEFERRED GAP IS STILL OPEN, AND THE VIEW ASKS THE VOCABULARY RATHER THAN GUESSING.
+//
+// This is the defect that motivated typing `disposition`, driven through the write path and the
+// projection a reader actually queries. The old predicate was "everything except `carried`
+// closes", so this test would have passed for `carried` and silently failed for every deferring
+// word added afterwards — which is what happened.
+func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
+	for _, c := range []struct {
+		as       recordpb.Disposition
+		wantOpen bool
+		why      string
+	}{
+		{recordpb.Disposition_DISPOSITION_CARRIED, true, "carried defers the question to a later round with a stated direction; the gap survives"},
+		{recordpb.Disposition_DISPOSITION_RISK_ACCEPTED, false, "the risk is taken knowingly, with the argument on the record — there is nothing further to adjudicate"},
+		{recordpb.Disposition_DISPOSITION_REBUTTAL_SUSTAINED, false, "blue's rebuttal held; nothing was repaired because nothing needed to be"},
+	} {
+		t.Run(recordpb.Word(c.as), func(t *testing.T) {
+			db := store(t)
+			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+				GapId:           proto.String("R1-1"),
+				Class:           proto.String("c"),
+				Problem:         proto.String("p"),
+				AcceptanceCheck: proto.String("a"),
+				CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+				Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
+				Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
+			})); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_OPINION, &recordpb.Opinion{
+				GapId:       proto.String("R1-1"),
+				Disposition: c.as.Enum(),
+				Principle:   proto.String("correctness over economy"),
+				Tension:     proto.String("the repair costs a round"),
+				ReviewFlag:  proto.String("no"),
+				Rationale:   proto.String("stated"),
+			})); err != nil {
+				t.Fatalf("the record refused a disposition the bench is instructed to use: %v", err)
+			}
+
+			var open bool
+			if err := db.QueryRow(`SELECT "open" FROM "gap" WHERE "gap_id" = 'R1-1'`).Scan(&open); err != nil {
+				t.Fatal(err)
+			}
+			if open != c.wantOpen {
+				t.Errorf("a %s ruling left the gap open=%v, want %v — %s.\n\nA gap the bench DEFERRED reading as closed retires work nobody decided to drop; a gap the bench ENDED reading as open keeps a settled question on the board forever.",
+					recordpb.Word(c.as), open, c.wantOpen, c.why)
+			}
+		})
+	}
+}
+
+// A MERGE MAY CLOSE AND MAY NOT CARRY, AND THE DATABASE IS WHAT SAYS SO.
+//
+// `merge close` refuses `carried` in Go too, with a message that teaches. This asks the weaker but
+// more important question: does the constraint hold against something writing the row DIRECTLY?
+// The record is EVIDENCE, and an invariant that lives only in the CLI is one that anything else
+// bypasses — which for a file-backed record was every invariant there was.
+//
+// The admitted words are expanded from the vocabulary's own `closes` annotation, so this cannot
+// drift: adding a second deferring disposition tightens the CHECK with nobody editing it.
+func TestAMergeCannotCloseAGapByCarryingIt(t *testing.T) {
+	db := store(t)
+	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		ClosureClass: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
+		Prose:        proto.String("deferring, from the wrong seat"),
+	})); err == nil {
+		t.Fatal("the database accepted `merge close --as carried` — a close asserts a verified repair, and \"I repaired it by carrying it\" is not one. Deferring is the bench's decision, and a merge that can record it produces a gap that reads as closed with no repair behind it")
+	}
+
+	// The same column still takes a word that DOES close, so the CHECK is not simply refusing
+	// everything — a constraint that admits nothing reads as strict and is broken.
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		ClosureClass: recordpb.Disposition_DISPOSITION_RISK_ACCEPTED.Enum(),
+		Prose:        proto.String("the fix costs more than the defect"),
+	})); err != nil {
+		t.Fatalf("the CHECK refuses a legitimate closure: %v", err)
+	}
+}
+
+// EVERY WORD IN THE VOCABULARY ANSWERS WHETHER IT ENDS THE GAP.
+//
+// The column is NOT NULL and the schema refuses a partly-annotated set, so this cannot fail while
+// the schema builds — which is the point, and is why it asserts the ANSWERS rather than only the
+// presence. A test that checked `closes IS NOT NULL` would be asserting that NOT NULL works.
+func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
+	db := store(t)
+	rows, err := db.Query(`SELECT "value", "closes" FROM "enum_disposition" ORDER BY "value"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	got := map[string]bool{}
+	for rows.Next() {
+		var word string
+		var closes bool
+		if err := rows.Scan(&word, &closes); err != nil {
+			t.Fatal(err)
+		}
+		got[word] = closes
+	}
+	want := map[string]bool{
+		"amends_prior":             true,
+		"carried":                  false,
+		"closed":                   true,
+		"closed_with_regression":   true,
+		"rebuttal_sustained":       true,
+		"risk_accepted":            true,
+		"routed_to_infrastructure": true,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("the vocabulary has %d words and this test knows %d — a new disposition must be added HERE with its answer, which is the whole reason the annotation is not defaulted", len(got), len(want))
+	}
+	for word, w := range want {
+		if got[word] != w {
+			t.Errorf("%q closes=%v, want %v", word, got[word], w)
+		}
 	}
 }

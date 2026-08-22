@@ -161,7 +161,7 @@ func TestEnumVocabulariesAreQueryableWithTheirMeanings(t *testing.T) {
 	db := open(t)
 
 	var means string
-	err := db.QueryRow(`SELECT means FROM enum_closure_class WHERE value = 'risk_accepted'`).Scan(&means)
+	err := db.QueryRow(`SELECT means FROM enum_disposition WHERE value = 'risk_accepted'`).Scan(&means)
 	if err != nil {
 		t.Fatalf("the closure classes are not in the database: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestEnumVocabulariesAreQueryableWithTheirMeanings(t *testing.T) {
 	// Every vocabulary row must say something. A blank means is a value with no meaning, which is
 	// the state the docs table refuses at the Go layer and which must not reappear here.
 	var blank int
-	if err := db.QueryRow(`SELECT count(*) FROM enum_closure_class WHERE trim(means) = ''`).Scan(&blank); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM enum_disposition WHERE trim(means) = ''`).Scan(&blank); err != nil {
 		t.Fatal(err)
 	}
 	if blank != 0 {
