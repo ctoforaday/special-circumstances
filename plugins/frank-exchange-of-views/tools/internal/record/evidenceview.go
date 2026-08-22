@@ -134,6 +134,10 @@ type EvidenceVerificationJSON struct {
 	Claim string `json:"claim"`
 	// Anchor is the citation adjudicated, empty on an independent check.
 	Anchor string `json:"anchor"`
+	// Label is the footnote this reading MINTED, on a corroboration that supported the claim.
+	// Empty on an anchored verify (it adjudicates a footnote blue already made) and on a reading
+	// that did not back the claim — those splice nothing, by design.
+	Label string `json:"label,omitempty"`
 	// Outcome is what the source DID for the claim, and it has a negative half: `refutes` and
 	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
 	// axis left as prose and the assembly screen looked for a verdict no field could carry.
@@ -172,7 +176,16 @@ type EvidenceJSON struct {
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
 	// different questions and only one of them is about the report's own backing.
 	Independent []EvidenceVerificationJSON `json:"independent"`
-	Counts      struct {
+	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
+	// not support the report, and no finding was ever raised about it.
+	//
+	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the merge's PASS gate,
+	// which is the right place to REFUSE — but a duty that only surfaces when someone else is
+	// blocked at the end of the round is one the seat that owes it never sees. An empty array is
+	// the honest "nothing outstanding"; without the field, nothing outstanding and nothing
+	// checked are the same absence.
+	UnansweredContradictions []string `json:"unanswered_contradictions"`
+	Counts                   struct {
 		Sources int `json:"sources"`
 		Proofs  int `json:"proofs"`
 		// ProofsUnverified is the count nobody re-ran. It is stated because the honest zero and
@@ -193,6 +206,9 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 		Sources:     []EvidenceSourceJSON{},
 		Proofs:      []EvidenceProofJSON{},
 		Independent: []EvidenceVerificationJSON{},
+	}
+	if out.UnansweredContradictions = UnansweredContradictions(b); out.UnansweredContradictions == nil {
+		out.UnansweredContradictions = []string{}
 	}
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
@@ -219,6 +235,7 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 		v := EvidenceVerificationJSON{
 			Claim:      vf.GetClaim(),
 			Anchor:     vf.GetAnchor(),
+			Label:      vf.GetLabel(),
 			Outcome:    recordpb.Word(vf.GetOutcome()),
 			Confidence: recordpb.Word(vf.GetConfidence()),
 			Text:       vf.GetText(),

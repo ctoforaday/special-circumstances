@@ -225,3 +225,64 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 			"One guards the PostToolUse lockdown and the other the unbacked_citations detector. Disagreeing, they protect different anchors and neither reports the gap.", byRunDir, byBoard)
 	}
 }
+
+// THE DUTY IS VISIBLE WHERE RED LOOKS, not only where the merge is blocked.
+//
+// A contradiction with no finding refuses a PASS — but that is the MERGE's refusal, at the end
+// of the round, and a duty the owing seat never sees is one it cannot discharge. The evidence
+// projection is where a lens reads its own axis, so the outstanding readings are named there
+// too. The empty array is the point as much as the full one: without the field, "nothing
+// outstanding" and "nobody checked" are the same absence.
+func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
+	runDir := t.TempDir()
+	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	if _, _, err := RegisterSeat(id); err != nil {
+		t.Fatal(err)
+	}
+	const claim = "the cache never evicts under load"
+	if _, err := Append(id, corroboration("", "https://example.org/says-no", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
+		t.Fatal(err)
+	}
+	label := NewCitationID()
+	if _, err := Append(id, corroboration(label, "https://example.org/agrees", "a supported claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := EvidenceJSONOf(b)
+	if len(ev.UnansweredContradictions) != 1 || ev.UnansweredContradictions[0] != claim {
+		t.Errorf("unanswered_contradictions = %v, want just %q — red cannot discharge a duty it cannot see", ev.UnansweredContradictions, claim)
+	}
+	// The supporting one carries the footnote it minted; the refuting one carries none, because
+	// it spliced none.
+	var supported, refuted EvidenceVerificationJSON
+	for _, v := range ev.Independent {
+		if v.Refuted() {
+			refuted = v
+		} else {
+			supported = v
+		}
+	}
+	if supported.Label != label {
+		t.Errorf("the supporting corroboration does not carry the footnote it minted: %+v", supported)
+	}
+	if refuted.Label != "" {
+		t.Errorf("a refuting reading carries a footnote label, so it spliced one after all: %+v", refuted)
+	}
+
+	// Raise it, and the array empties — an empty array, not a null.
+	if _, err := Append(id, &recordpb.Finding{
+		Label: proto.String("L1-F1"), Location: proto.String(claim), Text: proto.String("the source says otherwise"),
+		Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = BoardState(runDir)
+	if got := EvidenceJSONOf(b).UnansweredContradictions; len(got) != 0 {
+		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
+	}
+}
