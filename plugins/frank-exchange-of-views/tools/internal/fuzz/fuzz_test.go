@@ -1112,12 +1112,20 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// `bench outcome` refused on every seed, which this sweep reports as a false green.
 		oargs := []string{"outcome", "--seat-id", seatID, "--as", verd,
 			"--reason", "fuzz: the run reached " + verd + " and the bench recorded how it ended"}
-		// the terminal-outcome modifiers — a non-VERIFIED end may be by safety ceiling or deadlock
-		// (not on a halt, whose outcome stands alone).
-		if !r.forceHalt && verd != "VERIFIED" && r.coin(40) {
+		// THE TERMINAL MODIFIER IS NOT A COIN, for the same reason the bench's dispositions are
+		// not: it is a fact about what happened, and debate.js states it in this very prompt
+		// ("by judged deadlock" / "by safety ceiling"). It WAS two 40% coins, and the deadlock
+		// arm went undriven across 60 runs because UNVERIFIED now occurs about once in sixty —
+		// a cleared docket grants red a further sitting instead of terminating — so a 40% coin
+		// on a 1-in-60 verdict is a value the sweep reports as reachable and never reaches.
+		//
+		// The verdict itself is already read from the prompt, three lines up. Same channel, same
+		// determinism. debate.js makes the two mutually exclusive (ceilingUnaudited requires
+		// !deadlocked), so at most one lands.
+		if !r.forceHalt && strings.Contains(prompt, "by safety ceiling") {
 			oargs = append(oargs, "--ended", "ceiling")
 		}
-		if !r.forceHalt && verd == "UNVERIFIED" && r.coin(40) {
+		if !r.forceHalt && strings.Contains(prompt, "by judged deadlock") {
 			oargs = append(oargs, "--ended", "deadlock")
 		}
 		_, _ = r.exec(oargs...)
