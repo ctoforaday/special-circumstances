@@ -645,3 +645,78 @@ func TestASuccessorMustBeAGapThatExists(t *testing.T) {
 		t.Fatalf("a closure naming a REAL successor was refused: %v", err)
 	}
 }
+
+// AN ABSENT FLAG MUST NOT BE STORED AS THE EMPTY STRING.
+//
+// `merge close` set `successor` unconditionally — `proto.String(seat.Str(cmd, flags.SupersededBy))`
+// — so an ordinary closure recorded `successor = ''`. Once successor referenced `mint.gap_id` that
+// became a hard refusal (no gap is named ''), which is how it was found; BEFORE the reference
+// existed the same rows were written and read as a closure whose successor was the empty gap.
+//
+// This is the storage half of that guarantee: an unset field lands as NULL and comes back unset,
+// so "the seat never said" and "the seat said nothing" stay different facts all the way down. The
+// CLI half is TestAnAbsentFlagIsNotWrittenAsEmpty in internal/cli.
+func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
+	db := store(t)
+	mintGap(t, db, 0, "R1-1")
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum(),
+		Prose:        proto.String("the repair was verified at the leaf"),
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	// NULL, not ''. A '' here would satisfy the foreign key only because SQLite skips the check on
+	// NULL — so the column reading '' is precisely the state that made every close fail.
+	var successor *string
+	if err := db.QueryRow(`SELECT "successor" FROM "close" WHERE "gap_id" = 'R1-1'`).Scan(&successor); err != nil {
+		t.Fatal(err)
+	}
+	if successor != nil {
+		t.Errorf("an unpassed --superseded-by stored %q — an absent flag written as a value is a fact "+
+			"the seat never stated, and here it is a reference to a gap that cannot exist", *successor)
+	}
+
+	// And it survives the round trip as ABSENT rather than as an empty string.
+	evs, err := Events(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var closes int
+	for _, e := range evs {
+		c, ok := recordpb.BodyAs[*recordpb.Close](e)
+		if !ok {
+			continue
+		}
+		closes++
+		if c.Successor != nil {
+			t.Errorf("the closure read back with successor set to %q, want unset", c.GetSuccessor())
+		}
+	}
+	if closes != 1 {
+		t.Fatalf("%d closures read back, want 1 — an empty traversal would pass the assertion above", closes)
+	}
+}
+
+// THE DRIVER MUST BE REGISTERED BY THE PACKAGE THAT OPENS THE DATABASE, not by its tests.
+//
+// `_ "modernc.org/sqlite"` lived in schema_test.go, so `database/sql` had a registered driver
+// throughout the suite and NONE in the shipped binary: every test passed and the first real
+// `merge register` failed with `unknown driver "sqlite"`. A blank import is invisible to the
+// compiler's unused check, which is why the wrong file was good enough.
+//
+// A test cannot catch that by opening a database — the test binary has the import either way. What
+// it can do is ask the REGISTRY, which is process-global and populated by whoever imported the
+// driver. It is a weak check on its own and it is paired with the strong one: cmd/feov-record is
+// driven end to end in the cli suite, which is what actually failed.
+func TestTheSqliteDriverIsRegistered(t *testing.T) {
+	for _, d := range sql.Drivers() {
+		if d == "sqlite" {
+			return
+		}
+	}
+	t.Fatalf("no \"sqlite\" driver is registered (have %v) — if this fails the import moved out of "+
+		"the package that opens the database, and the binary will fail at the first write while the "+
+		"suite stays green", sql.Drivers())
+}

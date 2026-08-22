@@ -278,3 +278,42 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 		t.Error("`opinion --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
 	}
 }
+
+// AN ABSENT FLAG IS NOT AN EMPTY ANSWER, driven through the command a seat actually types.
+//
+// `merge close` set `successor` whatever happened, so an ordinary closure recorded `successor =
+// ''`. Once successor referenced `mint.gap_id` every close in the tool failed outright — the
+// constraint is what surfaced it — but the defect predates the constraint: before it, the same
+// rows were written and read as a closure whose successor was the empty gap.
+//
+// The class is wider than the instance and this pins the instance. 40 sites build a field with
+// `proto.String(seat.Str(...))`; the others do not fail loudly because their fields carry no
+// foreign key, so an absent flag lands as '' and reads as an answer.
+func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
+	runDir := seatRun(t)
+	// The gap has to exist: `close --id` is a reference the record checks, and R1-1 is what the
+	// first mint of the round is assigned.
+	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--class", "x", "--check-kind", "document", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatalf("merge mint: %v", err)
+	}
+	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "R1-1", "--as", "closed",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
+		"--reason", "the repair was verified at the leaf"); err != nil {
+		t.Fatalf("merge close: %v", err)
+	}
+
+	c := lastBody(t, runDir, &recordpb.Close{})
+	// UNSET, not empty. `--superseded-by` was never passed, and the record must say the seat did
+	// not answer rather than that it answered with nothing.
+	if c.Successor != nil {
+		t.Errorf("an unpassed --superseded-by was recorded as %q — a flag the seat never typed became "+
+			"a claim about lineage, and lineage is what the successor field exists to carry", c.GetSuccessor())
+	}
+	// And the flags that WERE passed are there, so this is not passing because nothing was written.
+	if c.GetAnchorSeat() != "L1" || c.GetProse() == "" {
+		t.Errorf("the closure lost what the seat did pass: %+v", c)
+	}
+}

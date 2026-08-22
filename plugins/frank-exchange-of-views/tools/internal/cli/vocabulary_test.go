@@ -11,6 +11,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE CHOKEPOINT, ENFORCED.
@@ -134,19 +136,31 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	}
 	walk(newRoot())
 
-	// AN EVENT TYPE IS NOT ALWAYS A VERB. `friction-none` is what `friction --none` records, so it
+	// AN EVENT TYPE IS NOT ALWAYS A VERB. `friction_none` is what `friction --none` records, so it
 	// has required fields and no command of its own — its flags live on `friction`.
 	noVerbOfItsOwn := map[string]string{
-		"friction-none": "recorded by `friction --none`; its flags are on that verb",
+		"friction_none": "recorded by `friction --none`; its flags are on that verb",
 	}
 
-	for typ, required := range record.RequiredFields {
-		if noVerbOfItsOwn[typ] != "" {
+	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go
+	// table this used to range over is derived now, so there is no table to outlive its verb.
+	ed := recordpb.EventType(0).Descriptor()
+	for i := 0; i < ed.Values().Len(); i++ {
+		typ := recordpb.Word(recordpb.EventType(ed.Values().Get(i).Number()))
+		if typ == "" {
+			continue
+		}
+		required := record.RequiredFields(typ)
+		if len(required) == 0 || noVerbOfItsOwn[typ] != "" {
 			continue
 		}
 		verbs := byType[typ]
 		if len(verbs) == 0 {
-			t.Errorf("record declares requirements for %q but no command in the tree writes it — the table outlived its verb", typ)
+			// `register` is written by every seat's first act and has no verb that declares its
+			// requirements as flags; anything else here is a schema type no command can write.
+			if typ != "register" {
+				t.Errorf("the schema declares requirements for %q but no command in the tree writes it", typ)
+			}
 			continue
 		}
 		for _, c := range verbs {

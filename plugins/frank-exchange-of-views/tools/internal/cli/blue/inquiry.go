@@ -104,7 +104,7 @@ func newInquiryPropose() *cobra.Command {
 
 func newInquiryMove() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("move",
-		`say what became of a line you already proposed: --id A1 --as `+record.MustEnum("line-of-inquiry", "status").Spelling()+` --reason "<what you learned that changed its fate>". `+
+		`say what became of a line you already proposed: --id A1 --as `+record.MustEnum("avenue", "status").Spelling()+` --reason "<what you learned that changed its fate>". `+
 			`Re-recording `+"`pursued`"+` with what you learned is a reaffirmation, and settles the line for this round.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			id := seat.Str(cmd, flags.ID)
@@ -143,7 +143,7 @@ func newInquiryMove() *cobra.Command {
 	// five statuses — `deferred` had been added to InquiryStatuses and never to the string — and
 	// glossed the four it did carry differently from the enum. enumhelp renders every value with
 	// its own meaning from the record, so the usage line's job is to say what the FIELD is for.
-	enumhelp.Flag(c, flags.As, record.MustEnum("line-of-inquiry", "status"), "the fate of this line of inquiry")
+	enumhelp.Flag(c, flags.As, record.MustEnum("avenue", "status"), "the fate of this line of inquiry")
 	return c
 }
 

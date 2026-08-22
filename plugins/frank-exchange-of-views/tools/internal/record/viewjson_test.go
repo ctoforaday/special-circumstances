@@ -39,7 +39,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		// section is carried by its position, which is what this test reads.
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED), Principle: proto.String("correctness first")}),
+		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("no"), Rationale: proto.String("because"), GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED), Principle: proto.String("correctness first")}),
 	})
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).
@@ -124,9 +124,25 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	m := "red-merge-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String(longProblem), Location: proto.String("§open"), RequiredFix: proto.String("SECRET_FIX_PROSE"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, m, 1, m+":mint:R1-2", &recordpb.Mint{GapId: proto.String("R1-2"), Class: proto.String("overclaim"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§closed"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk")}),
-		recordtest.At(t, m, 1, m+":close:R1-2", &recordpb.Close{
+		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("correctness"),
+			Problem: proto.String(longProblem), Location: proto.String("§open"),
+			RequiredFix: proto.String("SECRET_FIX_PROSE"), AcceptanceCheck: proto.String("SECRET_CHECK_PROSE"),
+			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			FoundBy:    []string{"L1-F1"},
+		}),
+		recordtest.At(t, m, 1, m+":mint:R1-2", &recordpb.Mint{
+			GapId: proto.String("R1-2"), Class: proto.String("citation"),
+			Problem: proto.String("a closed problem"), Location: proto.String("§closed"),
+			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
+			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
+		recordtest.At(t, m, 1, m+":close:R1-2", &recordpb.Close{Prose: proto.String("verified at the leaf"),
 			GapId: proto.String("R1-2"),
 			// `class: "resolved"` before the schema — a key `merge close` never wrote (it writes
 			// closure_class) carrying a word the enum never had. Untyped, it replayed as a closure
@@ -185,7 +201,15 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := t.TempDir()
 	m := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{Problem: proto.String("an open problem"), Location: proto.String("§1"), AcceptanceCheck: proto.String("run the check"), Supersedes: []string{"R0-9"}}),
+		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),
+			Problem: proto.String("an open problem"), Location: proto.String("§1"),
+			AcceptanceCheck: proto.String("run the check"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Supersedes:      []string{"R0-9"},
+		}),
 	})
 	b, err := BoardJSONBytes(runDir)
 	if err != nil {
@@ -223,7 +247,14 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		recordtest.At(t, s, 1, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, 1, m+":mint:k", &recordpb.Mint{GapId: proto.String("k"), FoundBy: []string{"L1-F1"}}),
+		recordtest.At(t, m, 1, m+":mint:k", &recordpb.Mint{
+			GapId: proto.String("k"), Class: proto.String("overclaim"), Problem: proto.String("p"),
+			AcceptanceCheck: proto.String("the check runs"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			FoundBy:         []string{"L1-F1"},
+		}),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -220,5 +221,88 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 	}
 	if ev.GetRound() != -1 {
 		t.Errorf("unknown must stay unknown on the record: got %d, want -1", ev.GetRound())
+	}
+}
+
+// A RE-DISPATCHED SEAT CAN STILL RECORD, and this is the regression test for the bug that killed
+// it outright.
+//
+// The idempotency ordinal was counted PER SITTING — `seat_id AND nonce AND type` — while
+// `events.key` carries a GLOBAL unique index. So a seat registering a second time restarted at
+// `#1` and collided with its own earlier act: measured through the binary as `UNIQUE constraint
+// failed: events.key` on the first thing it tried to write.
+//
+// It could not happen while the record was shards, because the retry wrote the same keys into a
+// NEW FILE and replay picked a winner between them. One table has no second file, so the storage
+// change turned a tolerated duplicate into a refusal — and the fix is that the ordinal is scoped to
+// the SEAT, which makes its keys monotonic across dispatches.
+func TestARedispatchedSeatCanStillRecord(t *testing.T) {
+	runDir := t.TempDir()
+	seat := "red-merge-r1"
+	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}
+
+	for dispatch := 1; dispatch <= 2; dispatch++ {
+		n, _, err := RegisterSeat(id)
+		if err != nil {
+			t.Fatalf("dispatch %d could not register: %v", dispatch, err)
+		}
+		if n != dispatch {
+			t.Errorf("register reported dispatch %d, want %d — a seat told which attempt this is can "+
+				"say so; an opaque sitting id told it nothing it could use", n, dispatch)
+		}
+		if _, err := Append(id, &recordpb.FrictionNone{Text: proto.String("nothing blocked this sitting")}); err != nil {
+			t.Fatalf("dispatch %d could not record: %v\n\nA re-dispatched seat that cannot write is a "+
+				"crash retry that loses the whole sitting", dispatch, err)
+		}
+	}
+
+	// BOTH SITTINGS ARE ON THE RECORD. Nothing selects a winner, so the second does not displace
+	// the first — which is the other half of what the shard layout got wrong.
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registers, acts := 0, 0
+	for _, e := range m.Events {
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_REGISTER:
+			registers++
+		case recordpb.EventType_EVENT_TYPE_FRICTION_NONE:
+			acts++
+		}
+	}
+	if registers != 2 || acts != 2 {
+		t.Errorf("the record holds %d registers and %d acts, want 2 and 2 — a dispatch that vanished "+
+			"is work that happened and exists nowhere", registers, acts)
+	}
+}
+
+// A ONCE-PER-SITTING ACT REPEATED IS REFUSED, and the refusal teaches.
+//
+// The shard record DEDUPED it on read: two events with one key, one silently discarded, so a seat
+// that stated its position twice never learned that only one survived. `events.key` is UNIQUE now,
+// so the second write is refused — and a raw `UNIQUE constraint failed: events.key` teaches
+// nothing, which is why isDuplicateKey exists.
+func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
+	runDir := t.TempDir()
+	seat := "red-merge-r1"
+	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}
+	if _, _, err := RegisterSeat(id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(id, &recordpb.Position{Text: proto.String("the board is clean going in")}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Append(id, &recordpb.Position{Text: proto.String("changed my mind")})
+	if err == nil {
+		t.Fatal("a second position was recorded — the record kept two answers to a once-per-sitting question")
+	}
+	for _, want := range []string{"once-per-sitting", "position"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q, so a seat reading it learns only that SQLite is unhappy:\n%v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "UNIQUE constraint") {
+		t.Errorf("the raw constraint text reached the seat:\n%v", err)
 	}
 }
