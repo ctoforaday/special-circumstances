@@ -93,3 +93,42 @@ Known-red and NOT a regression: `internal/difftest`, `internal/flags`
 (`TestGradeValueSetRejections`), `internal/proof` — all three fail identically at HEAD,
 verified by stashing. The remaining build failures are the in-flight test-fixture
 conversion (capture, verify, view, fuzz, report, cli, record).
+
+## What the cutover actually found (2026-08-22)
+
+Nine production defects, none of which the pre-migration suite could have found. Recorded
+here because the pattern matters more than the list: **every one was invisible because the
+thing that would have caught it was itself broken, absent, or reading a fact out of the
+wrong shape.**
+
+| Defect | Why nothing caught it |
+|---|---|
+| `merge close` wrote `successor = ''` for an absent flag — every close in the tool failed once successor became a reference | Before the reference, the row was written and read as a closure whose successor was the empty gap. "Never said" and "said nothing" were the same bytes. |
+| A re-dispatched seat could not record at all: the ordinal was per-sitting, `events.key` is global | Impossible under shards — the retry wrote the same keys into a NEW FILE and replay picked a winner. The storage change turned a tolerated duplicate into a refusal. |
+| The sqlite driver's blank import was in `schema_test.go` | Every test had a driver; the binary had none. A blank import is invisible to the unused check. |
+| 8 concurrent seat processes lost ~half their writes to `SQLITE_BUSY` | A hazard the storage change INTRODUCED. The first regression test used goroutines and passed with the fix reverted. |
+| The debate view and the report printed `DISPOSITION_CLOSED` | Typing the enum made `%s` silently wrong — no type error, no test failure. |
+| The fuzz prose gate was inert for nine event types (`reason` vs `text`/`rationale`/`basis`) | A payload map returned `""` for a wrong key and the rule was skipped. The gate reported coverage over rules that could not fire. |
+| The coverage census grepped `Append(..., "type")`, a call shape that no longer exists | An empty set of ungated types reads exactly like full coverage. |
+| `--as supports-with-bridge` was advertised in `--help` and refused by the write path | Nothing compared the advertised set against the schema. A comment called it a caveat "not mine to fix". |
+| A required prose field was satisfied by `""` | The annotation collapsed two flavours of requiredness (present, present-and-non-empty) into one. |
+
+Plus one gate reporting a **false** failure: the mass-parity regex matched `'low_medium'`
+as `medium`, carried a wrong value, and reported two keys absent from a file that declares
+both.
+
+### The method that found them
+
+Not the migration itself — the migration only made them *reachable*. What surfaced them:
+
+1. **Driving the real binary**, not the library. Four of the nine only appear in
+   `cmd/feov-record`.
+2. **Making a miss LOUD.** `fieldStr` fails on a field name the schema does not carry;
+   the enum census fails on a declared word the record cannot hold. Both found their
+   defect within one run of being written.
+3. **Reading generated output with eyes** — the golden schema, which found the arm tables
+   with no foreign keys, and the rendered `--help`, which found the doubled `REQUIRED —`
+   and cobra eating a backquoted value as the flag's placeholder.
+4. **Asking whether a test can fail.** Two of my own passes produced assertions that
+   could not: a Grade comparison against an `any`-typed string field (always true), and a
+   blanket fixture rewrite that filled in the very fields four cases existed to omit.
