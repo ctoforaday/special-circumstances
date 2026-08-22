@@ -5251,11 +5251,11 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\xe9\x0f\n" +
+	"\b_up_mass\"\x93\x10\n" +
 	"\x04Mint\x12\x1a\n" +
 	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
-	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xcd\x01\n" +
-	"\x05class\x18\x03 \x01(\tB\xb1\x01\x82\xb5\x18\xac\x01\b\x01\x1a\xa7\x01the defect's KIND, from the registry — a gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistakeH\x02R\x05class\x88\x01\x01\x12 \n" +
+	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xf7\x01\n" +
+	"\x05class\x18\x03 \x01(\tB\xdb\x01\x82\xb5\x18\xd6\x01\b\x01\x1a\xd1\x01the slug — one the registry has, or one you coined first with `merge class new`. A gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistakeH\x02R\x05class\x88\x01\x01\x12 \n" +
 	"\tclass_new\x18\x04 \x01(\bH\x03R\bclassNew\x88\x01\x01\x12#\n" +
 	"\n" +
 	"definition\x18\x05 \x01(\tH\x04R\n" +

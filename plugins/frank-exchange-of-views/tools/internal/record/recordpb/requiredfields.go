@@ -44,6 +44,9 @@ func CheckRequired(verb string, body proto.Message) error {
 // which only the prose fields do, because a close stores `prose` and an opinion `rationale` while
 // the word for both is `--reason`.
 func flagFor(fd protoreflect.FieldDescriptor, o *Sql) string {
+	if o == nil {
+		o, _ = proto.GetExtension(fd.Options(), E_Sql).(*Sql)
+	}
 	if f := o.GetFlag(); f != "" {
 		return f
 	}

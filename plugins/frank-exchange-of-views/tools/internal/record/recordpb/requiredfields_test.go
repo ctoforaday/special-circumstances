@@ -1,6 +1,8 @@
 package recordpb
 
 import (
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 	"strings"
 	"testing"
 
@@ -71,4 +73,66 @@ func TestEveryRequiredFieldCarriesItsReason(t *testing.T) {
 	if n == 0 {
 		t.Fatal("no field is required anywhere — a no-match here would pass this test on an empty schema")
 	}
+}
+
+// EVERY REQUIRED FIELD IS REFUSED WHEN ABSENT, on every body.
+//
+// This is what makes the per-verb `if` blocks in validate safe to delete. Each was an unconditional
+// presence check on a field the schema now marks required, and CheckRequired runs BEFORE the switch
+// — so the block became unreachable. Unreachable is only a safe thing to delete if the thing that
+// shadows it fires for the same inputs, and this drives exactly that: a body carrying every
+// required field but one, for each one.
+func TestEveryRequiredFieldIsRefusedOnEveryBody(t *testing.T) {
+	ev := (&Event{}).ProtoReflect().Descriptor()
+	od := ev.Oneofs().ByName("body")
+	checked := 0
+	for i := 0; i < od.Fields().Len(); i++ {
+		md := od.Fields().Get(i).Message()
+		req := RequiredOf(md)
+		if len(req) == 0 {
+			continue
+		}
+		for _, omit := range req {
+			m := dynamicpb.NewMessage(md)
+			for _, fd := range req {
+				if fd.FullName() == omit.FullName() {
+					continue
+				}
+				m.Set(fd, sample(fd))
+			}
+			err := CheckRequired(string(md.Name()), m)
+			if err == nil {
+				t.Errorf("%s: a body missing only %s was accepted", md.Name(), omit.Name())
+				continue
+			}
+			checked++
+			// The refusal must name the omitted field, or it sends the seat to the wrong flag.
+			if !strings.Contains(err.Error(), flagFor(omit, nil)) && !strings.Contains(err.Error(), string(omit.Name())) {
+				t.Errorf("%s: omitting %s was refused with a message that does not name it: %v", md.Name(), omit.Name(), err)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("nothing was driven — a no-match here would pass on a schema with no requirements at all")
+	}
+	t.Logf("drove %d required-field omissions", checked)
+}
+
+func sample(fd protoreflect.FieldDescriptor) protoreflect.Value {
+	switch fd.Kind() {
+	case protoreflect.StringKind:
+		return protoreflect.ValueOfString("x")
+	case protoreflect.BoolKind:
+		return protoreflect.ValueOfBool(true)
+	case protoreflect.Int32Kind:
+		return protoreflect.ValueOfInt32(1)
+	case protoreflect.Int64Kind:
+		return protoreflect.ValueOfInt64(1)
+	case protoreflect.EnumKind:
+		// The first NON-ZERO value: the zero is UNSPECIFIED, which the record reserves for absence,
+		// so seeding it would make a present field read as missing and the test pass for the wrong
+		// reason.
+		return protoreflect.ValueOfEnum(fd.Enum().Values().Get(1).Number())
+	}
+	return protoreflect.ValueOfString("x")
 }

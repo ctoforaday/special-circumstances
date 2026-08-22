@@ -431,7 +431,7 @@ message Mint {
   // what it is, what it is nearest to, and how it differs.
   optional string class = 3 [(sql) = {
     required: true
-    why: "the defect's KIND, from the registry — a gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistake"
+    why: "the slug — one the registry has, or one you coined first with `merge class new`. A gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistake"
   }];
   optional bool class_new = 4;
   optional string definition = 5;

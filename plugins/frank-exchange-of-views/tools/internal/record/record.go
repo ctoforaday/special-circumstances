@@ -592,6 +592,16 @@ func appendLine(shard string, ev *Event) error {
 // schema replaced a VALUE check with a STRUCTURAL one, the structural check is made here rather
 // than assumed: see the filing/ruling arms below.
 func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message) error {
+	// THE UNCONDITIONAL REQUIREMENTS COME FROM THE FIELDS THEMSELVES, once, before any verb's own
+	// rules run. What stays below is everything an annotation CANNOT say: requirements that depend
+	// on another field's value, references that must resolve against the record, and the closed
+	// sets keyed on (subject, key) that no single field owns.
+	//
+	// The split is the one required.go always stated and could not enforce — "ONLY UNCONDITIONAL
+	// REQUIREMENTS BELONG HERE" — and the reason it could not is that it was a list somewhere else.
+	if err := recordpb.CheckRequired(verbOf(typ), body); err != nil {
+		return err
+	}
 	switch b := body.(type) {
 	case *recordpb.Anchor:
 		// The finding-marker's record: it says "finding <id> has a marker at <location>
@@ -607,12 +617,6 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 	case *recordpb.ClassNew:
 		return validateClassNew(runDir, b)
 	case *recordpb.Mint:
-		if b.GetAcceptanceCheck() == "" {
-			return fmt.Errorf("record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)")
-		}
-		if b.GetClass() == "" {
-			return fmt.Errorf("record: mint requires --class (the slug — one the registry has, or one you coined first with `merge class new`)")
-		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
@@ -1192,4 +1196,11 @@ func jsonish(v any) string {
 	default:
 		return fmt.Sprintf("%v", t)
 	}
+}
+
+// verbOf names the act in the words a seat types it, for a refusal it can act on. The schema spells
+// the type; the seat typed a verb, and "record: motion_rule requires --x" sends it looking for a
+// command it never ran.
+func verbOf(typ recordpb.EventType) string {
+	return strings.ReplaceAll(recordpb.Word(typ), "_", " ")
 }
