@@ -21,6 +21,12 @@ Thumbs.db
 # session's own tool calls verbatim, so it is never repo content. It went unlisted because the
 # hook binaries were absent for weeks — the file only exists when the counter actually runs.
 .claude/strikes.json
+# The live-run marker, written by `feov-record setup` and lifted by `capture`. Machine-local
+# session state naming a directory on THIS disk — the hook guards consult it to decide whether a
+# run is in progress, and it means nothing in another checkout. It went unlisted for the same
+# reason strikes.json did: the file only exists while a run is actually live, and none had been
+# launched in this repository, so `git status` never once mentioned it.
+.claude/run-live.json
 .claude/spike/
 .claude/*.log
 
