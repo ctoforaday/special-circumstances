@@ -113,6 +113,9 @@ type runner struct {
 	// reproduced records the PROVE gaps whose proof a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced map[string]bool
+	// applyMisses counts, by CAUSE, every time the verbatim-apply branch declined to apply.
+	// Reported beside the verbatim tally so a zero there names its reason instead of implying one.
+	applyMisses map[string]int
 	// disputeRefusals is why a grade filing was REFUSED, per gap. The scenario oracle reports a
 	// missing dispute event; without this it cannot distinguish a drive that never ran from one
 	// that ran and was told no, and those want opposite fixes.
@@ -173,6 +176,24 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 	return c
 }
 func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
+
+// noteApplyMiss records WHY the verbatim-apply branch declined, so the estoppel precondition's
+// count of zero arrives with a cause rather than inviting the reader to guess one.
+func (r *runner) noteApplyMiss(why string) {
+	if r.applyMisses == nil {
+		r.applyMisses = map[string]int{}
+	}
+	r.applyMisses[why]++
+}
+
+// firstLine keeps a refusal's diagnosis and drops the help cobra staples to it — the tally is a
+// histogram, and a full help page per key makes it unreadable.
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
 
 // dialectic emits the round's transcript onto the record the way Stage 1 seats do — a position
 // narrative and a closing per open gap — plus, at random, a regrade, a lineage-carrying
@@ -1273,6 +1294,9 @@ type outcome struct {
 	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
 	// could counter-edit every time and the estoppel path would never be reached at all.
 	verbatimApplied int
+	// applyMisses is why it did not, by cause — carried out of the run so a ZERO above arrives
+	// with its explanation instead of inviting one.
+	applyMisses map[string]int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -1374,7 +1398,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	return result, settledErr
 }
 
-func runOne(t *testing.T, wrapped, bin string, seed int64) outcome {
+func runOne(t *testing.T, wrapped, bin string, seed int64) (res outcome) {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
 	// A lens finding anchors into blue/report.md and is rejected unless its --location
 	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
@@ -1386,7 +1410,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64) outcome {
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
 	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
-	res := outcome{seed: seed, runDir: runDir}
+	res = outcome{seed: seed, runDir: runDir}
+	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
+	// fires early would otherwise drop the run's apply-miss causes on the floor, which is the
+	// same silent loss the causes exist to explain.
+	defer func() { res.applyMisses = r.applyMisses }()
 	result, settledErr := driveDebate(r, wrapped)
 	if settledErr != "" {
 		res.err = settledErr
@@ -2252,6 +2280,7 @@ func TestFuzzDebate(t *testing.T) {
 	editAnswers := 0                // #267: blue_edit events that carried the provenance key
 	verifiedBasis := 0              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
 	verbatimApplied := 0            // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	applyMisses := map[string]int{} // and why it did not, by cause — a bare 0 above named none of them
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -2273,6 +2302,9 @@ func TestFuzzDebate(t *testing.T) {
 			editAnswers += o.editAnswers
 			verifiedBasis += o.verifiedBasis
 			verbatimApplied += o.verbatimApplied
+			for why, n := range o.applyMisses {
+				applyMisses[why] += n
+			}
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -2283,8 +2315,21 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim",
-		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied)
+	// AND WHY IT DID NOT, WHENEVER IT DID NOT. `%d edits applied a proposal verbatim` read 0
+	// across 60 runs and named no cause: the branch could have gone untaken, found no proposal
+	// on the gap, found the span already edited away, or run and been refused. Four causes, one
+	// zero, in the instrument whose job is to detect exactly that shape.
+	misses := ""
+	if len(applyMisses) > 0 {
+		causes := make([]string, 0, len(applyMisses))
+		for why, n := range applyMisses {
+			causes = append(causes, fmt.Sprintf("%d× %s", n, why))
+		}
+		sort.Strings(causes)
+		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
+	}
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim%s",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, misses)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -2636,14 +2681,33 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 		switch r.scenarioOf(id) {
 		case dirApply:
 			// The only branch that sets applied_verbatim, and so the only one that estops red.
-			if gid, fo, fn := r.proposalFor(id); gid != "" {
-				if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil && strings.Contains(string(cur), fo) {
-					r.do("blue", "edit", seatID).set("--quote", fo).set("--new", fn).
-						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run()
+			//
+			// EVERY WAY IT CAN FAIL IS COUNTED, because the fallthrough below is silent and the
+			// gate downstream reported "0 verbatim applications" across 60 runs without being
+			// able to say whether the branch was never taken, took and found no proposal, took
+			// and found the span already edited away, or ran and was REFUSED. Four causes, one
+			// zero — the plausible-zero shape, in the instrument meant to detect it.
+			gid, fo, fn := r.proposalFor(id)
+			switch {
+			case gid == "":
+				r.noteApplyMiss("no proposal on the gap (red minted prose-only)")
+			default:
+				cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+				switch {
+				case err != nil:
+					r.noteApplyMiss("report unreadable: " + err.Error())
+				case !strings.Contains(string(cur), fo):
+					r.noteApplyMiss("the proposed span is no longer in the report (an earlier edit moved it)")
+				default:
+					if _, err := r.do("blue", "edit", seatID).set("--quote", fo).set("--new", fn).
+						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run(); err != nil {
+						r.noteApplyMiss("blue edit REFUSED: " + firstLine(err.Error()))
+						break
+					}
 					continue
 				}
 			}
-			// No concrete pair to apply — degrade to a counter-edit rather than fake one.
+			// No applicable pair — degrade to a counter-edit rather than fake one.
 			fallthrough
 		case dirCounter:
 			r.counterEdit(seatID, id)

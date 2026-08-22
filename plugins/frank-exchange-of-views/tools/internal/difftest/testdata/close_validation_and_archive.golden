@@ -27,7 +27,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
@@ -67,7 +67,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
@@ -107,7 +107,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
