@@ -136,3 +136,63 @@ func sample(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	}
 	return protoreflect.ValueOfString("x")
 }
+
+// A CONDITIONAL REQUIREMENT MARKED UNCONDITIONAL DOES NOT BECOME STRICTER — IT BECOMES WRONG.
+//
+// `Avenue.line` carried `required: true` while the message's own doc comment said, in as many
+// words, "a MOVE names the avenue and carries only the new status and its reason, which is why
+// `line` cannot be required unconditionally". The annotation contradicted the paragraph above it,
+// and it did two things at once: CheckRequired refused every move before the conditional check in
+// record.go could run, and the derived DDL put NOT NULL on the column so the row could not be
+// stored either. `blue line-of-inquiry move` was unusable.
+//
+// # Why this test is shaped as a census rather than a case
+//
+// One case would pin `Avenue.line` and nothing else. What recurs is the CLASS: a requirement that
+// depends on another field, written as if it depended on nothing. The `check` extension exists for
+// exactly those, and the split is what required.go always stated and could not enforce — "ONLY
+// UNCONDITIONAL REQUIREMENTS BELONG HERE" — because it was a list somewhere else.
+//
+// So this asserts the property that makes the split checkable: every field marked `required` must
+// be one that EVERY writer of that message supplies. It cannot verify that mechanically, so it
+// does the next best thing and states the exceptions, which forces a decision at the moment a
+// field is marked rather than at the moment a seat is refused.
+func TestNoConditionallyRequiredFieldIsMarkedUnconditional(t *testing.T) {
+	// The fields a verb may legitimately omit, each with the verb that omits it. A field marked
+	// required that appears here is the contradiction this test exists to catch.
+	conditional := map[string]string{
+		"feov.record.v1.Avenue.line":        "a MOVE names an existing line and carries only its new status and reason",
+		"feov.record.v1.Close.successor":    "only CLOSED_WITH_REGRESSION names one; the message-level check says so",
+		"feov.record.v1.Close.carried_from": "a carry restates an earlier closure; an ordinary close has none",
+		"feov.record.v1.SpotCheck.ids":      "the --none form samples nothing and says why",
+	}
+	od := (&Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
+	if od == nil {
+		t.Fatal("Event has no `body` oneof — a broken walk would pass this test on every field")
+	}
+	checked := 0
+	for i := 0; i < od.Fields().Len(); i++ {
+		md := od.Fields().Get(i).Message()
+		if md == nil {
+			continue
+		}
+		for j := 0; j < md.Fields().Len(); j++ {
+			fd := md.Fields().Get(j)
+			o, _ := proto.GetExtension(fd.Options(), E_Sql).(*Sql)
+			if !o.GetRequired() {
+				continue
+			}
+			checked++
+			if why, isConditional := conditional[string(fd.FullName())]; isConditional {
+				t.Errorf("%s is marked `required` and is CONDITIONAL: %s.\n\nA requirement that "+
+					"depends on another field belongs in validate (or in the message's `check`), not "+
+					"on the field — marked unconditional it refuses correct work at the write path AND "+
+					"puts NOT NULL on the column, so the row cannot be stored either.",
+					fd.FullName(), why)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no required fields found — an empty traversal passes this test on every schema")
+	}
+}

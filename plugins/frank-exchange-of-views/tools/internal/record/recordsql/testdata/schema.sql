@@ -296,7 +296,6 @@ CREATE TABLE "motion_rule" (
   "petition" TEXT,
   "direction" TEXT,
   CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("direction" IS NOT NULL) <= 1),
-  FOREIGN KEY ("motion_id") REFERENCES "motion"("motion_id"),
   FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value"),
   FOREIGN KEY ("binds") REFERENCES "enum_ruling_binds"("value"),
   FOREIGN KEY ("grade") REFERENCES "enum_grade_ruling"("value"),
@@ -309,7 +308,6 @@ CREATE TABLE "motion_appeal" (
   "motion_id" TEXT,
   "subject" TEXT,
   "reason" TEXT,
-  FOREIGN KEY ("motion_id") REFERENCES "motion"("motion_id"),
   FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value")
 ) STRICT;
 
@@ -518,7 +516,7 @@ CREATE TABLE "reproduce" (
 CREATE TABLE "avenue" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "avenue_id" TEXT,
-  "line" TEXT NOT NULL,
+  "line" TEXT,
   "hypothesis" TEXT,
   "method" TEXT,
   "status" TEXT NOT NULL,

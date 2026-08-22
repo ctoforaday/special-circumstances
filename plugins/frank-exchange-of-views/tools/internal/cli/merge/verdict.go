@@ -33,7 +33,13 @@ func newVerdict() *cobra.Command {
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			v, ok := record.VerdictOf(seat.Str(cmd, flags.As))
 			if !ok {
-				return nil, feov.Errorf(feov.Validation, "merge verdict: %q is not a verdict", seat.Str(cmd, flags.As))
+				// THE REFUSAL NAMES WHAT WOULD HAVE WORKED. `%q is not a verdict` tells a seat it
+				// was wrong and not what to type — and this is the terminal act of the round, so
+				// a seat that cannot get past it has nowhere to go. The set is rendered from the
+				// same declaration the help renders, so the two cannot say different things.
+				return nil, feov.Errorf(feov.Validation,
+					"merge verdict: --%s must be one of %s (got %q) — the verdict is the round's terminal act and every later reader switches on it",
+					flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
 			}
 			if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
 				return nil, err

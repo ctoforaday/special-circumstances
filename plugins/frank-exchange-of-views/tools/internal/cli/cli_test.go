@@ -1026,8 +1026,11 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 			if got := ev.GetText(); got != "the capability I needed" {
 				t.Errorf("text = %q", got)
 			}
-			if keys := setFields(ev); len(keys) != 1 || !keys["reason"] {
-				t.Errorf("the friction payload is not just the reason: %v", keys)
+			// `text`, not `reason`. `--reason` is the word a SEAT types; the field it lands in is
+			// spelled per verb, and a friction stores `text`. setFields reads the schema, so it
+			// reports what the record holds rather than what the seat typed.
+			if keys := setFields(ev); len(keys) != 1 || !keys["text"] {
+				t.Errorf("the friction body carries more than the seat's prose: %v", keys)
 			}
 		})
 	}
@@ -1222,14 +1225,17 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	if rerr != nil {
 		t.Fatalf("the checkpoint mirror is not readable: %v", rerr)
 	}
-	var shards int
+	// THE MIRROR HOLDS THE RECORD, which is one database rather than a set of `events-*.jsonl`
+	// files. The checkpoint's purpose is unchanged — a copy of the record survives the run
+	// directory — so the assertion is that the record is THERE, by the name it now has.
+	var found bool
 	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "events-") {
-			shards++
+		if e.Name() == "record.db" {
+			found = true
 		}
 	}
-	if shards == 0 {
-		t.Errorf("the mirror holds no shards: %v", entries)
+	if !found {
+		t.Errorf("the mirror does not hold the record: %v", entries)
 	}
 	// The verdict itself is on the record.
 	if got := lastBody(t, runDir, &recordpb.RoundVerdict{}).GetVerdict(); got != recordpb.Verdict_VERDICT_PASS {
@@ -1405,8 +1411,16 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 		"--reason", "nothing was sampled this round"); err != nil {
 		t.Fatalf("the no-sample form must keep working: %v", err)
 	}
-	if keys := setFields(lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK)); !keys["ids"] {
-		t.Error("ids must still be present as an empty array")
+	// AN EMPTY REPEATED FIELD HAS NO PRESENCE, so this cannot be asked of the body: a proto
+	// message cannot tell "sampled nothing" from "field unset". The distinction is real and it
+	// lives in the PROJECTION, which renders `ids` as `[]` — a reader distinguishes "checked
+	// nothing" from "did not check" by seeing the empty array.
+	sc := lastBody(t, runDir, &recordpb.SpotCheck{})
+	if sc.GetIds() == nil {
+		t.Error("the bare form decoded ids as nil rather than an empty list")
+	}
+	if sc.GetReason() == "" {
+		t.Error("the bare form lost its reason — an unexplained empty round is indistinguishable from a skipped one")
 	}
 }
 

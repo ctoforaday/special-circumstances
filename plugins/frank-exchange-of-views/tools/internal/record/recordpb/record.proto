@@ -939,8 +939,16 @@ message InquiryReview {
 // why `line` cannot be required unconditionally.
 message Avenue {
   optional string avenue_id = 1;
+  // NOT `required`, which is what the message comment directly above has said all along — the
+  // annotation contradicted it. Only UNCONDITIONAL requirements belong on a field: `line` is
+  // required on a PROPOSAL and must not be on a MOVE, and record.go's Avenue arm spells that out
+  // ("requiring --line here would make a move impossible").
+  //
+  // Marked unconditional it did two things at once: CheckRequired refused every move before the
+  // conditional check could run, and the derived DDL put NOT NULL on the column so the row could
+  // not be stored either. A conditional requirement expressed as an unconditional one does not
+  // become stricter — it becomes wrong.
   optional string line = 2 [(sql) = {
-    required: true
     why: "what you are going to try — an unnamed avenue teaches a future run nothing"
   }];
   optional string hypothesis = 3;
@@ -1120,7 +1128,21 @@ message MotionRule {
   // is simply unwritable.
   optional string motion_id = 1 [(sql) = {
     required: true
-    references: "motion.motion_id"
+    // NO `references`, AND THE REASON IS THE DOMAIN RATHER THAN THE MECHANISM.
+    //
+    // It carried `references: "motion.motion_id"`, which reads right and is false for one subject
+    // in three: a DIRECTION motion has no motion row. "The proposal IS the filing" — `motion
+    // direction rule` names the line of inquiry's own id, so the referent is an `avenue`, not a
+    // `motion`. The foreign key refused every direction ruling in the tool.
+    //
+    // A conditional foreign key is not expressible (a CHECK cannot hold a subquery), and a trigger
+    // could enforce it while saying nothing useful — RAISE takes a static string, so a seat would
+    // learn only that something was refused. The rule is SUBJECT-AWARE, so it lives where the
+    // subject is known: RequireMotionSubjectRef checks a grade or petition ruling against the
+    // motions and a direction ruling against the lines, and says which it could not find.
+    //
+    // A constraint that is wrong for a third of the cases is worse than none: it refuses correct
+    // work, and it reads as a guarantee.
     why: "the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312"
   }];
   optional MotionSubject subject = 2;
@@ -1148,10 +1170,13 @@ enum RulingBinds {
 // MotionAppeal records that a party pressed a ruling — whether or not it also complied. Arguing
 // and then yielding belongs on the record instead of vanishing.
 message MotionAppeal {
-  // An appeal names the motion it appeals. MotionRule already referenced `motion.motion_id`; this
-  // did not, so an appeal of a motion nobody filed was writable — the same ordering hazard the
-  // ruling constraint closed, left open on the other verb that acts on a filing.
-  optional string motion_id = 1 [(sql) = { references: "motion.motion_id" }];
+  // An appeal names the motion it appeals — and NOT as a foreign key, for the reason MotionRule
+  // records at length: a direction appeal names the line of inquiry's own id, because the proposal
+  // is the filing and there is no motion row. I added the reference here for symmetry with the
+  // ruling's, and it was wrong in both places for the same third of cases.
+  //
+  // RequireMotionSubjectRef is the check, and it knows the subject.
+  optional string motion_id = 1;
   optional MotionSubject subject = 2;
   optional string reason = 3;
 }

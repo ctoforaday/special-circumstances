@@ -164,3 +164,58 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 		t.Error("the premise of this rule has changed: an absent grade no longer contributes zero")
 	}
 }
+
+// A RULING'S REFERENT DEPENDS ON ITS SUBJECT, and this is the test for the constraint that got
+// that wrong.
+//
+// `motion_rule.motion_id` briefly carried a foreign key onto `motion.motion_id`. It reads right
+// and it is false for one subject in three: a DIRECTION motion has no motion row, because the
+// proposal IS the filing — `motion direction rule` names the line of inquiry's own id. The key
+// refused every direction ruling in the tool while looking like a guarantee.
+//
+// The rule is subject-aware, so it is enforced where the subject is known. This pins both arms: a
+// grade ruling resolves against the MOTIONS, a direction ruling against the LINES, and each says
+// which it could not find.
+func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
+	runDir := t.TempDir()
+	id := Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}
+	if _, _, err := RegisterSeat(id); err != nil {
+		t.Fatal(err)
+	}
+
+	// A DIRECTION ruling names a line of inquiry. With no such line it is refused; with one it
+	// goes through — and it never needed a motion row, which is the whole point.
+	direction := func() *recordpb.MotionRule {
+		return &recordpb.MotionRule{
+			MotionId: proto.String("Q1"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
+			Opinion:  proto.String("a real question, but not this one"),
+			Ruling:   &recordpb.MotionRule_Direction{Direction: recordpb.DirectionRuling_DIRECTION_RULING_OUT_OF_SCOPE},
+		}
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
+		t.Error("a direction ruling named Q1, which no line of inquiry created, and was accepted")
+	}
+	if _, err := Append(id, &recordpb.Avenue{
+		AvenueId: proto.String("Q1"),
+		Status:   recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED),
+		Line:     proto.String("read the adjacent literature"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err != nil {
+		t.Errorf("a direction ruling on a REAL line was refused: %v\n\nThis is the case a foreign key "+
+			"onto `motion.motion_id` got wrong: a direction motion has no motion row", err)
+	}
+
+	// A GRADE ruling names a motion, and resolves against a different table entirely.
+	grade := &recordpb.MotionRule{
+		MotionId: proto.String("M9"),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+		Opinion:  proto.String("the grade stands"),
+		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, grade); err == nil {
+		t.Error("a grade ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
+	}
+}

@@ -3904,12 +3904,21 @@ func (x *InquiryReview) GetReason() string {
 // substance; a MOVE names the avenue and carries only the new status and its reason, which is
 // why `line` cannot be required unconditionally.
 type Avenue struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	AvenueId   *string                `protobuf:"bytes,1,opt,name=avenue_id,json=avenueId,proto3,oneof" json:"avenue_id,omitempty"`
-	Line       *string                `protobuf:"bytes,2,opt,name=line,proto3,oneof" json:"line,omitempty"`
-	Hypothesis *string                `protobuf:"bytes,3,opt,name=hypothesis,proto3,oneof" json:"hypothesis,omitempty"`
-	Method     *string                `protobuf:"bytes,4,opt,name=method,proto3,oneof" json:"method,omitempty"`
-	Status     *AvenueStatus          `protobuf:"varint,5,opt,name=status,proto3,enum=feov.record.v1.AvenueStatus,oneof" json:"status,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	AvenueId *string                `protobuf:"bytes,1,opt,name=avenue_id,json=avenueId,proto3,oneof" json:"avenue_id,omitempty"`
+	// NOT `required`, which is what the message comment directly above has said all along — the
+	// annotation contradicted it. Only UNCONDITIONAL requirements belong on a field: `line` is
+	// required on a PROPOSAL and must not be on a MOVE, and record.go's Avenue arm spells that out
+	// ("requiring --line here would make a move impossible").
+	//
+	// Marked unconditional it did two things at once: CheckRequired refused every move before the
+	// conditional check could run, and the derived DDL put NOT NULL on the column so the row could
+	// not be stored either. A conditional requirement expressed as an unconditional one does not
+	// become stricter — it becomes wrong.
+	Line       *string       `protobuf:"bytes,2,opt,name=line,proto3,oneof" json:"line,omitempty"`
+	Hypothesis *string       `protobuf:"bytes,3,opt,name=hypothesis,proto3,oneof" json:"hypothesis,omitempty"`
+	Method     *string       `protobuf:"bytes,4,opt,name=method,proto3,oneof" json:"method,omitempty"`
+	Status     *AvenueStatus `protobuf:"varint,5,opt,name=status,proto3,enum=feov.record.v1.AvenueStatus,oneof" json:"status,omitempty"`
 	// supersedes_status marks this event as a MOVE rather than a proposal.
 	SupersedesStatus *string `protobuf:"bytes,6,opt,name=supersedes_status,json=supersedesStatus,proto3,oneof" json:"supersedes_status,omitempty"`
 	// A declined, deferred or abandoned avenue requires a reason: the road not taken is worthless
@@ -4809,9 +4818,12 @@ func (*MotionRule_Direction) isMotionRule_Ruling() {}
 // and then yielding belongs on the record instead of vanishing.
 type MotionAppeal struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// An appeal names the motion it appeals. MotionRule already referenced `motion.motion_id`; this
-	// did not, so an appeal of a motion nobody filed was writable — the same ordering hazard the
-	// ruling constraint closed, left open on the other verb that acts on a filing.
+	// An appeal names the motion it appeals — and NOT as a foreign key, for the reason MotionRule
+	// records at length: a direction appeal names the line of inquiry's own id, because the proposal
+	// is the filing and there is no motion row. I added the reference here for symmetry with the
+	// ruling's, and it was wrong in both places for the same third of cases.
+	//
+	// RequireMotionSubjectRef is the check, and it knows the subject.
 	MotionId      *string        `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
 	Subject       *MotionSubject `protobuf:"varint,2,opt,name=subject,proto3,enum=feov.record.v1.MotionSubject,oneof" json:"subject,omitempty"`
 	Reason        *string        `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
@@ -5702,10 +5714,10 @@ const file_record_proto_rawDesc = "" +
 	"\x05_note\"7\n" +
 	"\rInquiryReview\x12\x1b\n" +
 	"\x06reason\x18\x01 \x01(\tH\x00R\x06reason\x88\x01\x01B\t\n" +
-	"\a_reason\"\x8e\x04\n" +
+	"\a_reason\"\x8c\x04\n" +
 	"\x06Avenue\x12 \n" +
-	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01\x12m\n" +
-	"\x04line\x18\x02 \x01(\tBT\x82\xb5\x18P\b\x01\x1aLwhat you are going to try — an unnamed avenue teaches a future run nothingH\x01R\x04line\x88\x01\x01\x12#\n" +
+	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01\x12k\n" +
+	"\x04line\x18\x02 \x01(\tBR\x82\xb5\x18N\x1aLwhat you are going to try — an unnamed avenue teaches a future run nothingH\x01R\x04line\x88\x01\x01\x12#\n" +
 	"\n" +
 	"hypothesis\x18\x03 \x01(\tH\x02R\n" +
 	"hypothesis\x88\x01\x01\x12\x1b\n" +
@@ -5793,10 +5805,10 @@ const file_record_proto_rawDesc = "" +
 	"\x0fDirectionMotion\x12 \n" +
 	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01B\f\n" +
 	"\n" +
-	"_avenue_id\"\xd3\x04\n" +
+	"_avenue_id\"\xc1\x04\n" +
 	"\n" +
-	"MotionRule\x12\xc1\x01\n" +
-	"\tmotion_id\x18\x01 \x01(\tB\x9e\x01\x82\xb5\x18\x99\x01\b\x01\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312\"\x10motion.motion_idH\x01R\bmotionId\x88\x01\x01\x12<\n" +
+	"MotionRule\x12\xaf\x01\n" +
+	"\tmotion_id\x18\x01 \x01(\tB\x8c\x01\x82\xb5\x18\x87\x01\b\x01\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x1d\n" +
 	"\aopinion\x18\x03 \x01(\tH\x03R\aopinion\x88\x01\x01\x123\n" +
 	"\x05grade\x18\n" +
@@ -5811,9 +5823,9 @@ const file_record_proto_rawDesc = "" +
 	"\b_subjectB\n" +
 	"\n" +
 	"\b_opinionB\b\n" +
-	"\x06_binds\"\xc8\x01\n" +
-	"\fMotionAppeal\x128\n" +
-	"\tmotion_id\x18\x01 \x01(\tB\x16\x82\xb5\x18\x12\"\x10motion.motion_idH\x00R\bmotionId\x88\x01\x01\x12<\n" +
+	"\x06_binds\"\xb0\x01\n" +
+	"\fMotionAppeal\x12 \n" +
+	"\tmotion_id\x18\x01 \x01(\tH\x00R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x01R\asubject\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x03 \x01(\tH\x02R\x06reason\x88\x01\x01B\f\n" +
 	"\n" +

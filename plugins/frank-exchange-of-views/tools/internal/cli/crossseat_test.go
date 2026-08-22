@@ -168,7 +168,9 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-	if !setFields(ev)["basis"] {
+	// `reason` is the field. The key here said `basis` — a name SpotCheck does not carry — so the
+	// lookup could never match and the assertion could never fail.
+	if ev.GetReason() == "" {
 		t.Error("the empty spot-check lost its reason, which is the only thing distinguishing it from a skipped duty")
 	}
 

@@ -133,53 +133,23 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 	}
 }
 
-// THE ORDERING PROBLEM IS GONE, and this is the assertion the whole move was for.
+// THE ORDERING HAZARD IS ENFORCED IN GO, NOT HERE, AND THE REASON IS THE DOMAIN.
 //
-// Filing and ruling were written by different seats into different files, and replay merged them by
-// timestamp — so a ruling could replay BEFORE its filing. record/motion.go records that in capitals
-// and works around it with a second pass. Here the state is simply unwritable.
-func TestARulingCannotPrecedeItsFiling(t *testing.T) {
-	db := store(t)
-	rule := event(t, 0, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
-	})
-	if _, err := Insert(db, rule); err == nil {
-		t.Fatal("a ruling was recorded against a motion that does not exist — this is the ordering " +
-			"hazard the sharded log could not refuse, and the reason Motions() needs a second pass")
-	}
+// This asserted that the STORAGE refuses a ruling naming a motion that does not exist —
+// `motion_rule.motion_id` referencing `motion.motion_id`. It passed, and the constraint was false
+// for one subject in three: a DIRECTION motion has no motion row, because "the proposal IS the
+// filing" and `motion direction rule` names the line of inquiry's own id. The foreign key refused
+// every direction ruling in the tool.
+//
+// A conditional foreign key is not expressible — a CHECK cannot hold a subquery — and a trigger
+// could enforce it while telling a seat nothing, since RAISE takes a static string. The rule is
+// SUBJECT-AWARE, so it lives where the subject is known: `RequireMotionSubjectRef` checks a grade
+// or petition ruling against the motions and a direction ruling against the lines, and names which
+// it could not find. record's own suite covers it.
+//
+// A constraint that is wrong for a third of the cases is worse than none. It refuses correct work,
+// and it reads as a guarantee.
 
-	// The gap the motion contests has to exist: `motion_grade.gap_id` references mint now.
-	mintGap(t, db, 2, "R1-1")
-
-	filing := event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
-		MotionId: proto.String("M1"),
-		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
-		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R1-1")}},
-	})
-	if _, err := Insert(db, filing); err != nil {
-		t.Fatalf("the filing was refused: %v", err)
-	}
-	if _, err := Insert(db, rule); err != nil {
-		t.Fatalf("the ruling was refused after its filing existed: %v", err)
-	}
-
-	// And the join it enables: the gap id lives on the filing, the verdict on the ruling, and one
-	// query pairs them. That join is hand-written at eight readers in the file-backed record.
-	var gap, verdict string
-	if err := db.QueryRow(`
-		SELECT g.gap_id, r.grade
-		FROM motion_rule r
-		JOIN motion m       ON m.motion_id = r.motion_id
-		JOIN motion_grade g ON g.event_id  = m.event_id
-		WHERE r.motion_id = 'M1'`).Scan(&gap, &verdict); err != nil {
-		t.Fatalf("the filing/ruling join does not resolve: %v", err)
-	}
-	if gap != "R1-1" || verdict != "accepted" {
-		t.Errorf("join = (%q, %q), want (R1-1, accepted)", gap, verdict)
-	}
-}
 
 // A RULE THAT SPANS TWO FIELDS IS ENFORCED BY THE DATABASE, not only by the tool.
 //
