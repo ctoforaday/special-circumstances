@@ -211,6 +211,34 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		// about the third word of a command that could not have run. `--version` and `--help` are
 		// left to cobra: they are answerable without knowing who is asking, and the setup
 		// preflight runs `--version` against a binary it has not identified itself to.
+		// ...EXCEPT THE HOOK BACKEND, WHICH IS THE ONE CALLER THAT HAS NO IDENTITY TO GIVE.
+		//
+		// Claude Code invokes it — `feov-record hook pretooluse`, from hooks.json — and says nothing
+		// about who is asking because nothing is: this is the binary being called as a library. So
+		// this branch is not only the refusal for an unidentified caller, it is that caller's whole
+		// surface, and the hook is the single thing on it.
+		//
+		// IT USED TO SIT ON THE OPERATOR SURFACE, which worked only while "no identity" fell through
+		// to that surface. Scoping the tree by seat id made the SHIPPED hook's own invocation
+		// unresolvable: the root refuses it, RefuseAndTeach exits 2, and exit 2 from a PreToolUse
+		// hook DENIES the tool call. The matcher is Write|Edit|MultiEdit|NotebookEdit|Bash, so that
+		// is every mutating tool call in the session — for anyone whose plugin bin/ holds the binary,
+		// which is the state `doctor --fix` produces. Measured 2026-08-22: exit 2 on both of this
+		// plugin's hooks, and 11 of the suite's other 11 clean.
+		//
+		// Naming `operator` in hooks.json would fix the symptom by having the hook assert an identity
+		// it does not have — the exact untruth the scoping above removed.
+		//
+		// AND IT IS REGISTERED HERE RATHER THAN FOR EVERY ROLE, which was the first attempt and was
+		// wrong in a way three gates named within one run: CommandPaths walks Commands() including
+		// HIDDEN ones, so a machine verb on every seat's tree became a seat CAPABILITY — the surface
+		// census demanded a trigger row for `blue hook pretooluse`, the coverage gate demanded a board
+		// that drives it, and the fuzz reported eight never-invoked paths as a false green. Hidden
+		// keeps it off the help page; only the branch keeps it off the surface.
+		hookBackend := newHook()
+		hookBackend.Hidden = true
+		root.AddCommand(hookBackend)
+
 	case role != "" && role != record.OperatorRole:
 		verbs, short := seatVerbs(role)
 		seat.SetRole(root, role, seatID)
@@ -239,7 +267,6 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 			newScorecard(),       // operator: a chair's in-run self-read scorecard
 			newDashboard(),       // operator: the live run dashboard.html
 			newCapture(),         // operator: the post-hoc capture auditor
-			newHook(),            // hook backend: the blue-report lockdown gates (invoked by hooks.json)
 		)
 	}
 
@@ -374,7 +401,12 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 	}
 	// NOBODY SAID WHO IS ASKING, so there is no surface to look this up in. Answered here rather
 	// than after parsing, because the flags belong to a command that could not have been found.
-	if RoleOfSeat(seatID) == "" {
+	// ...EXCEPT THE HOOK BACKEND, whose caller has no identity to give and never will. For every
+	// other command "nobody said who is asking" is a question the caller failed to answer; for this
+	// one it is the true and permanent answer. Exempting it here as WELL as registering it is not
+	// belt-and-braces: this check runs BEFORE the command lookup, so registration alone leaves the
+	// shipped hook refused exactly as it was.
+	if RoleOfSeat(seatID) == "" && name != hookVerb {
 		return seat.RefuseAndTeach(root, "a command was named and the surface is scoped to whoever is asking."+noSeatNote(seatID))
 	}
 	for _, c := range root.Commands() {

@@ -30,9 +30,15 @@ func readReportFile(path string) (string, error) {
 // finding-marker via any mechanism. Both ALWAYS exit 0 — the decision travels in the stdout
 // JSON, never the exit status (mirrors prosthetic-conscience's sc-pretooluse). The verb set
 // under `hook` is machine-facing; a seat never types it.
+// hookVerb is the ONE command name that carries no seat identity by design. It is a const so the
+// registration and the identity pre-check in root.go cannot drift into disagreeing about which
+// name is exempt — the failure mode of two hand-kept copies is that the exemption stops covering
+// the command it exists for, and the symptom is a hook that blocks every tool call.
+const hookVerb = "hook"
+
 func newHook() *cobra.Command {
 	c := &cobra.Command{
-		Use:           "hook",
+		Use:           hookVerb,
 		Short:         "PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
