@@ -702,25 +702,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 	}
 	switch role {
 	case "lens":
-		// AN OBSERVATION WITH NO CLAIM ATTACHED. `lens observe` exists and nothing drove it across
-		// 60 runs — the coverage gate named it and was right. A lens that notices something it is
-		// not yet willing to grade has a channel for it, and a channel nothing exercises is one
-		// nobody finds out is broken.
-		r.maybe(30, func() {
-			r.do("lens", "observe", seatID).
-				set("--reason", "fuzz: the section reads oddly but I cannot yet say what is wrong").run()
-		})
 		// NO line of inquiry DRIVE HERE: the lens role has no line of inquiry verb (register/finding/
 		// cite/friction/show). This called it 183 times per sweep, every one refused, while
 		// the verb gate stayed green on blue's line of inquiry events — a dead drive that read as
 		// coverage. Found by the execution tally (lens line-of-inquiry: 183 of 183 refused).
 	case "merge":
-		// THE PER-ROUND REVIEW OF THE REPORT'S ACCOUNT OF ITS OWN RESEARCH. `merge inquiry-review`
-		// exists and nothing drove it — the second verb the coverage gate named. It names no line
-		// and casts no verdict: a shortfall in the body is an ordinary gap, so `--reason` is its
-		// whole payload.
+		// THE PER-ROUND REVIEW OF THE REPORT'S ACCOUNT OF ITS OWN RESEARCH. The verb is
+		// `inquiry-support` and the event it writes is `inquiry_review` — the names differ, which
+		// is why deleting the retired per-line VOTE took this verb's only drive with it. It names
+		// no line and casts no verdict: a shortfall in the body is an ordinary gap, so `--reason`
+		// is its whole payload.
 		r.maybe(40, func() {
-			r.do("merge", "inquiry-review", seatID).
+			r.do("merge", "inquiry-support", seatID).
 				set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
 		})
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
@@ -1860,11 +1853,21 @@ var verbsWithEvents = []string{
 	// write, `outcome` is the bench's.
 	"blue_edit", "anchor", "class_new", "outcome", "proof",
 	// The remaining schema types, named so the census below has a complete list to check against.
-	"observe", "closing", "inquiry_review", "register",
+	"closing", "inquiry_review", "register",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
-var coverExempt = map[string]bool{"halt": true} // terminal — covered by TestFuzzHaltPath
+var coverExempt = map[string]bool{
+	"halt": true, // terminal — covered by TestFuzzHaltPath
+	// NO VERB WRITES `observe`. The event type is in the schema and nothing in the command tree
+	// produces it: `lens observe` does not exist, and the only Appends of a recordpb.Observe are
+	// in record's own tests. It is exempted rather than driven, because a drive would have to
+	// invent a verb — and named here rather than dropped from the list, so the type's homelessness
+	// is a line somebody has to read instead of a silence.
+	//
+	// The `Observation` a board carries is built from FINDING events, not from this type.
+	"observe": true,
+}
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
 // halt ends the run and reshapes every downstream oracle. blue-synthesize files a petition

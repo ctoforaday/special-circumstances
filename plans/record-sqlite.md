@@ -295,13 +295,24 @@ this change's to make silently.
 
 ### Still owed
 
-- **The fuzz suite's coverage gate is honest and unfinished.** Five of its drives named
-  commands that do not exist and are fixed; two verbs had no drive and now do. What remains
-  unexplained: `mint` fired 6 times across 60 runs, which makes every gap-dependent verb
-  rare downstream. The seeded report does carry the sentence the mint quotes, so the cause
-  is elsewhere and has not been found. **Do not read a low tally as a quiet run** — that is
-  the exact mistake the gate's own comment records from the last time.
-- **`certify` tallied 0** while `declare`, driven at a LOWER rate in the same block, tallied
-  3. Structurally identical, and `bench certify` succeeds when driven by hand from both
-  `judge-r1` and `assemble`. Unexplained.
+- **The fuzz coverage gate was right about every zero it reported, and the causes were
+  all different.** Resolved: five drives named commands that do not exist (`spot_check` and
+  `manifest_row` name the EVENT TYPE, whose word is underscored, where the command is
+  hyphenated; three named `avenue` where the command is `line-of-inquiry move`).
+  `certify` was refused at the flag layer, because `satisfiedByAnyOf` was keyed on the
+  payload field (`statement`) rather than the flag, so `--reason` did not satisfy it.
+  `close` was the absent-flag/`successor` bug. Tally after: spot_check 0 -> 54,
+  manifest_row 0 -> 24, certify 0 -> 5, close 0 -> 3, avenue 8 -> 23, mint 6 -> 12.
+- **`observe` has no verb at all.** The event type is in the schema and nothing in the
+  command tree writes it — the only Appends of a `recordpb.Observe` are in record's own
+  tests. Exempted with that stated, rather than driven (a drive would have to invent a verb)
+  and rather than dropped from the list (the type's homelessness should be a line somebody
+  reads). The `Observation` a board carries is built from FINDING events.
+- **`motion_appeal` is unreachable, not broken.** Driven by hand the full cycle works —
+  file, rule, appeal. Blue can only appeal a ruling from a PRIOR round, and 46 of 60 runs
+  are single-round, so the path is starved by the scenario distribution rather than by a bad
+  drive. Changing that distribution is a fuzz-design decision, not a bug fix.
+
+  **Do not read a low tally as a quiet run** — that is the exact mistake the gate's own
+  comment records from the last time, and every zero above had a real cause.
 - **The re-verification decision** (above) is the operator's.
