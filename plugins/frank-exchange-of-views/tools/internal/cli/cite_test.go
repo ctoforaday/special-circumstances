@@ -19,15 +19,17 @@ const citeSeat = blueSeat
 
 var citeAnchorRe = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
 
-func firstCiteEvent(t *testing.T, runDir string) *record.Event {
+// firstCiteEvent returns the cite BODY, typed. The label is tool-assigned, so the event is the
+// source of truth for it and the test has to read the record rather than the command's output.
+func firstCiteEvent(t *testing.T, runDir string) *recordpb.Cite {
 	t.Helper()
 	m, err := record.MergedEvents(runDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := range m.Events {
-		if m.Events[i].Type == "cite" {
-			return &m.Events[i]
+	for _, e := range m.Events {
+		if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
+			return c
 		}
 	}
 	return nil
@@ -52,7 +54,7 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 	if ev == nil {
 		t.Fatal("no cite event recorded")
 	}
-	label := ev.Payload.Str("label")
+	label := ev.GetLabel()
 
 	report := readReport(t, runDir)
 	// The anchor is spliced just past the last CONTENT byte of the quote (before the
@@ -70,12 +72,12 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 		t.Errorf("source not cached: %v", statErr)
 	}
 	// The one cite event carries the full citation record.
-	if ev.Payload.Str("url") != "https://sky/1" ||
-		ev.Payload.Str("sha256") != sha || ev.Payload.Str("title") != "Sky Facts" {
+	if ev.GetUrl() != "https://sky/1" ||
+		ev.GetSha256() != sha || ev.GetTitle() != "Sky Facts" {
 		t.Errorf("cite event payload wrong: label=%q url=%q sha=%q title=%q",
-			ev.Payload.Str("label"), ev.Payload.Str("url"), ev.Payload.Str("sha256"), ev.Payload.Str("title"))
+			ev.GetLabel(), ev.GetUrl(), ev.GetSha256(), ev.GetTitle())
 	}
-	if ev.Payload.Str("access_date") == "" {
+	if ev.GetAccessDate() == "" {
 		t.Error("cite event missing engine-supplied access_date")
 	}
 }

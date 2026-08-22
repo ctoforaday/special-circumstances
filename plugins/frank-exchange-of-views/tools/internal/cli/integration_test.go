@@ -174,7 +174,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	}
 
 	ev := lastBody(t, runDir, &recordpb.Close{})
-	keys := payloadKeys(ev)
+	keys := setFields(ev)
 	for _, want := range []string{"anchor_seat", "anchor_tool", "anchor_target"} {
 		if !keys[want] {
 			t.Errorf("closure lost %s; an unanchored closure is mechanically unauditable (payload had %v)", want, keys)

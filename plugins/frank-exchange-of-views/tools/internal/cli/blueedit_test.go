@@ -413,7 +413,7 @@ func seedProposalApplied(t *testing.T, runDir string) string {
 func TestApplyingRedsProposalVerbatimIsRecorded(t *testing.T) {
 	runDir := t.TempDir()
 	seedProposalApplied(t, runDir)
-	if !lastOfType(t, runDir, "blue_edit").Payload.Bool("applied_verbatim") {
+	if !lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
 		t.Error("an edit identical to red's proposal was not recorded as verbatim, so nothing estops red")
 	}
 }
@@ -432,7 +432,7 @@ func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
 		"--reason", "red's wording overstates it; mine is tighter"); err != nil {
 		t.Fatalf("counter-edit: %v", err)
 	}
-	if lastOfType(t, runDir, "blue_edit").Payload.Bool("applied_verbatim") {
+	if lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
 		t.Error("a counter-edit was recorded as verbatim application — blue's own text would then estop red")
 	}
 }

@@ -111,7 +111,7 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	if got := ev.GetSeverity(); got != "low" {
 		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", got)
 	}
-	if !payloadKeys(ev)["reason"] {
+	if !setFields(ev)["reason"] {
 		t.Error("the regrade lost its basis; grade movement without a stated reason is the silent regrading this channel exists to prevent")
 	}
 }
@@ -135,7 +135,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	}
 
 	pet := lastBody(t, runDir, &recordpb.Motion{})
-	if pet.Payload.Str("class") != "safety" || !payloadKeys(pet)["relief"] {
+	if pet.Payload.Str("class") != "safety" || !setFields(pet)["relief"] {
 		t.Errorf("the petition lost its class or relief (payload %v) — relief that is not recorded cannot bind anybody", pet.Payload.Keys())
 	}
 	rule := lastBody(t, runDir, &recordpb.MotionRule{})
@@ -164,7 +164,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-	if !payloadKeys(ev)["reason"] {
+	if !setFields(ev)["reason"] {
 		t.Error("the empty spot-check lost its reason, which is the only thing distinguishing it from a skipped duty")
 	}
 
@@ -188,7 +188,7 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 	}
 	ev := lastBody(t, runDir, &recordpb.Retire{})
 	for _, want := range []string{"claim", "reason", "superseded_by"} {
-		if !payloadKeys(ev)[want] {
+		if !setFields(ev)[want] {
 			t.Errorf("the retirement lost %s (payload %v) — an unaccounted claim drop is the detector hit this verb exists to make impossible", want, ev.Payload.Keys())
 		}
 	}

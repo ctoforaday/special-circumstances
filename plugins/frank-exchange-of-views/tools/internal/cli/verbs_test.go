@@ -215,7 +215,7 @@ func TestVerbPayloads(t *testing.T) {
 					t.Errorf("payload[%q] = %q, want %q", k, got, want)
 				}
 			}
-			keys := payloadKeys(ev)
+			keys := setFields(ev)
 			for _, k := range tc.absent {
 				if keys[k] {
 					t.Errorf("payload carries %q though the seat never passed it", k)
@@ -259,7 +259,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 			t.Fatal(err)
 		}
 		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-		if !payloadKeys(ev)["ids"] {
+		if !setFields(ev)["ids"] {
 			t.Fatal("the ids key is absent; an absent list reads as \"not checked\" rather than \"checked nothing\"")
 		}
 		b, err := json.Marshal(ev.Payload)
@@ -314,7 +314,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 		t.Errorf("basis = %q", got)
 	}
 	// The grades NOT passed must be absent, so the replay leaves them alone.
-	keys := payloadKeys(ev)
+	keys := setFields(ev)
 	for _, k := range []string{"likelihood", "impact", "complexity_cost"} {
 		if keys[k] {
 			t.Errorf("regrade carries %q though it was not passed — the replay would overwrite it", k)

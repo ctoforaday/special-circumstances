@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -143,13 +144,20 @@ func lastBody[T proto.Message](t *testing.T, runDir string, zero T) T {
 	return body
 }
 
-// payloadKeys is how the absent/present distinction is asserted: a flag the seat
-// never passed must not appear in the event AT ALL.
-func payloadKeys(ev record.Event) map[string]bool {
+// setFields is how the absent/present distinction is asserted: a flag the seat never passed must
+// not appear in the event AT ALL.
+//
+// It was payloadKeys over an untyped map. Under the schema the question is the same and the answer
+// is stronger: every field is optional, so PRESENCE is a property the record itself carries, and
+// protoreflect.Range visits only the populated ones. A field left unset is absent in the same sense
+// the old key was missing — which is the distinction the tests are about, and which a struct with
+// zero values could not have expressed at all.
+func setFields(body proto.Message) map[string]bool {
 	out := map[string]bool{}
-	for _, k := range ev.Payload.Keys() {
-		out[k] = true
-	}
+	body.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, _ protoreflect.Value) bool {
+		out[string(fd.Name())] = true
+		return true
+	})
 	return out
 }
 
@@ -403,7 +411,7 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 		"--key", "F1", "--severity", "high", "--quote", "§1", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
-	keys := payloadKeys(lastOfType(t, runDir, "finding"))
+	keys := setFields(lastOfType(t, runDir, "finding"))
 	if !keys["label"] || !keys["severity"] || !keys["reason"] {
 		t.Errorf("a passed flag is missing from the payload: %v", keys)
 	}
@@ -424,7 +432,7 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	ev := lastBody(t, runDir, &recordpb.Mint{})
-	keys := payloadKeys(ev)
+	keys := setFields(ev)
 	for _, k := range []string{"supersedes", "found_by"} {
 		if !keys[k] {
 			t.Errorf("%q is absent; an absent lineage key reads as \"lineage unknown\"", k)
@@ -1004,7 +1012,7 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 			if got := ev.GetText(); got != "the capability I needed" {
 				t.Errorf("text = %q", got)
 			}
-			if keys := payloadKeys(ev); len(keys) != 1 || !keys["reason"] {
+			if keys := setFields(ev); len(keys) != 1 || !keys["reason"] {
 				t.Errorf("the friction payload is not just the reason: %v", keys)
 			}
 		})
@@ -1325,7 +1333,7 @@ func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
 		t.Errorf("output %q should say the discharge was empty", out)
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-	keys := payloadKeys(ev)
+	keys := setFields(ev)
 	if !keys["none"] || !keys["reason"] {
 		t.Errorf("the event must carry both the empty marker and its reason; got %v", keys)
 	}
@@ -1372,7 +1380,7 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 		"--reason", "nothing was sampled this round"); err != nil {
 		t.Fatalf("the no-sample form must keep working: %v", err)
 	}
-	if keys := payloadKeys(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
+	if keys := setFields(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
 		t.Error("ids must still be present as an empty array")
 	}
 }
@@ -1411,7 +1419,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 		"--reason-file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
 	}
-	if !payloadKeys(lastOfType(t, runDir, "close"))["reason"] {
+	if !setFields(lastOfType(t, runDir, "close"))["reason"] {
 		t.Error("the prose from --file must reach the event")
 	}
 }
