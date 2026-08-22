@@ -96,7 +96,7 @@ CLAUDE_CODE_PLUGIN_CACHE_DIR="$tmp" bash ./scripts/bootstrap-plugins.sh
 
 | Path | Result |
 |---|---|
-| Cold, empty cache | exit 0, ~30s, every plugin's hook binaries built — one per directory under `plugins/*/tools/cmd/`, 13 at the time of writing — and `sc-doctor` verdict DEGRADED |
+| Cold, empty cache | exit 0, ~30s, every plugin's hook binaries built — one per directory under `plugins/*/tools/cmd/`, 15 at the time of writing — and `sc-doctor` verdict DEGRADED |
 | Unreachable marketplace | **exit 0**, warns, session startup unaffected |
 | Warm, already installed | exit 0, skips marketplace and plugin installs, rebuilds binaries |
 

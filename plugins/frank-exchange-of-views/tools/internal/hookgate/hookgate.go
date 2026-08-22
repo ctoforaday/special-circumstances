@@ -66,10 +66,47 @@ var bashWriteRes = []*regexp.Regexp{
 	regexp.MustCompile(`\b(?:truncate|ed|ex)\b[^|&;]*\s` + blueReportPath.String()), // truncate/ed/ex file
 }
 
-// isBlueReport reports whether a resolved file path targets a run's blue/report.md.
+// isBlueReport reports whether a resolved file path targets a blue/report.md BY SHAPE.
+//
+// Shape alone is not the question the lockdown asks — see insideRun, which is the half that was
+// documented from the first commit and implemented in none of them.
 func isBlueReport(p string) bool {
 	p = filepath.ToSlash(p)
 	return strings.HasSuffix(p, "/blue/report.md") || p == "blue/report.md"
+}
+
+// insideRun reports whether a path lies within the live run directory.
+//
+// THIS IS THE CHECK THAT WAS ALWAYS DESCRIBED AND NEVER WRITTEN. Every doc comment on this gate
+// said "a run's blue/report.md"; the code matched a path SUFFIX and consulted no run at all.
+// PreOutcome has held a resolved runDir since the first commit in this file's history and passed
+// it only to the injection arm — the lockdown decision sat one line above it and never took it.
+//
+// What that cost: any file named blue/report.md anywhere on disk was locked, in any session, run
+// or no run — a finished run under research/, a scratch copy, a fixture. The gate was meant to be
+// a no-op outside a live run and never was.
+//
+// An empty runDir means no live run was resolvable, and the answer there is no opinion rather
+// than a guess: matching InferRunDir's "say nothing rather than guess".
+func insideRun(path, runDir string) bool {
+	if runDir == "" || path == "" {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	root, err := filepath.Abs(runDir)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	// ".." leading means the path climbed OUT of the run, which is not inside it.
+	return rel != ".." && !strings.HasPrefix(rel, "../")
 }
 
 // writesBlueReport resolves whether a tool call WRITES a run's blue/report.md. For the
@@ -84,7 +121,7 @@ func InputUnreadable(in Input) bool {
 	return json.Unmarshal(in.ToolInput, &ti) != nil
 }
 
-func writesBlueReport(in Input) bool {
+func writesBlueReport(in Input, runDir string) bool {
 	var ti toolInput
 	// A GATE THAT CANNOT READ ITS INPUT MUST LEAVE A TRACE. Swallowing the parse failure leaves
 	// ti.FilePath empty, makes this return false for the structured-tool arm, and makes Decide
@@ -97,11 +134,16 @@ func writesBlueReport(in Input) bool {
 	_ = json.Unmarshal(in.ToolInput, &ti) // reported via InputUnreadable; see above
 	switch in.ToolName {
 	case "Write", "Edit", "MultiEdit", "NotebookEdit":
-		return isBlueReport(ti.FilePath)
+		return isBlueReport(ti.FilePath) && insideRun(ti.FilePath, runDir)
 	case "Bash":
+		// The Bash arm recovers the path from the command, so the run test is applied to what it
+		// recovered rather than to the command string. A write position that names no path inside
+		// the run is not this gate's business, for the same reason a Write to one is not.
 		for _, re := range bashWriteRes {
-			if re.MatchString(ti.Command) {
-				return true
+			if m := re.FindString(ti.Command); m != "" {
+				if p := blueReportPath.FindString(m); p != "" && insideRun(p, runDir) {
+					return true
+				}
 			}
 		}
 	}
@@ -111,7 +153,16 @@ func writesBlueReport(in Input) bool {
 // PreDecision decides a PreToolUse call: (deny, reason). It denies a write to a run's
 // blue/report.md by any agent_type other than the author; a non-report target or an author
 // write returns (false, ""). Default-DENY by allowlist: only the author is permitted.
-func PreDecision(in Input) (bool, string) {
+func PreDecision(in Input, runDir string) (bool, string) {
+	// OUTSIDE A LIVE RUN THIS GATE HAS NO OPINION, WHICH IS WHAT IT ALWAYS SAID IT DID. The
+	// lockdown protects a run's working report; with no run resolvable there is no report to
+	// protect, and every path is somebody else's file. This guard comes FIRST — ahead of the
+	// fail-closed readability check below — because an unreadable payload outside a run cannot be
+	// a write to a run's report either, and denying it was how this gate came to refuse writes to
+	// arbitrary files in sessions that had nothing to do with a debate.
+	if runDir == "" {
+		return false, ""
+	}
 	// FAIL CLOSED ON INPUT THIS GATE CANNOT READ. A gate bypassed by input it cannot parse is not
 	// a gate: an unreadable tool_input leaves FilePath empty, which reads as "not the report" and
 	// lets the write through — the one outcome an allowlist must never produce by accident.
@@ -125,8 +176,8 @@ func PreDecision(in Input) (bool, string) {
 	if InputUnreadable(in) {
 		return true, unreadableReason
 	}
-	if !writesBlueReport(in) {
-		return false, "" // not a report.md write → no opinion
+	if !writesBlueReport(in, runDir) {
+		return false, "" // not a write to THIS run's report.md → no opinion
 	}
 	if in.AgentType == AuthorAgentType {
 		return false, "" // the allowlisted author may write directly
@@ -183,7 +234,7 @@ var feovToken = regexp.MustCompile(`(?:^|&&|\|\||;|\||\n)\s*['"]?[^\s'";|&]*\bfe
 //
 // PreDecision stays exported for its existing callers and cannot emit a rewrite.
 func PreOutcome(in Input, runDir string) (Outcome, string) {
-	if deny, reason := PreDecision(in); deny {
+	if deny, reason := PreDecision(in, runDir); deny {
 		return OutcomeDeny, reason
 	}
 	if runDir == "" || in.ToolName != "Bash" {

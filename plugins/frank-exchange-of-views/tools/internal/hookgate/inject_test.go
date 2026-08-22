@@ -74,7 +74,10 @@ func TestInvocationPositionsAreRewritten(t *testing.T) {
 // DENIED — a rewrite emitted in its place is a deny that never happened, and the hook protocol
 // allows only one document.
 func TestDenyBeatsRewrite(t *testing.T) {
-	reportPath := "/runs/x/blue/" + "report.md"
+	// INSIDE THE LIVE RUN, which is now what makes it the lockdown's business. The path used to
+	// be an unrelated /runs/x/... and denied anyway, because the gate matched the path SHAPE and
+	// never asked whether it was in a run.
+	reportPath := liveRun + "/blue/" + "report.md"
 	out, payload := PreOutcome(bash(t, `cp draft.md `+reportPath+` && "/c/bin/feov-record" blue edit --key F1`), liveRun)
 	if out != OutcomeDeny {
 		t.Fatalf("outcome %v, want deny — the blue-report lockdown must not open", out)

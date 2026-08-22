@@ -239,7 +239,6 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 			newScorecard(),       // operator: a chair's in-run self-read scorecard
 			newDashboard(),       // operator: the live run dashboard.html
 			newCapture(),         // operator: the post-hoc capture auditor
-			newHook(),            // hook backend: the blue-report lockdown gates (invoked by hooks.json)
 		)
 	}
 
