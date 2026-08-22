@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 )
 
@@ -173,45 +172,64 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 // # A CAPABILITY QUESTION THIS TEST NOW PINS, and it is a real one
 //
 // A verify keys on its reference (`url` is in keyFields), so two verifications of one source in
-// one sitting share a key. Under shards both were written and the READER kept one — the header
-// here called that "idempotent (updates in place)", which was a read-time illusion over an
-// append-only log. `events.key` is UNIQUE now, so the second is REFUSED.
+// ONE SOURCE MAY CORROBORATE MANY CLAIMS, and this test used to assert the opposite.
 //
-// That is a loss and it is stated rather than absorbed: a lens that re-reads a source mid-sitting
-// and finds something different cannot record the second reading. The refusal follows from two
-// deliberate choices (append-only, one act per key) and the alternative — dropping `url` from
-// keyFields so verifies key on an ordinal — changes what a crash-retry does. Which way that should
-// go is the operator's call; it is tracked in plans/record-sqlite.md rather than decided here.
+// It pinned a REFUSAL: a corroboration keyed on its `url`, so a second one naming the same source
+// in the same sitting collided and was refused. That was recorded as a real loss with three ways
+// out, and the operator chose one (2026-08-22): red's supporting corroborations mint a label and
+// become ordinary footnotes, exactly as blue's cites do. `keyFields` is walked first-match and
+// `label` sits before `url`, so the key moved off the source and the collision is gone.
+//
+// The loss it described was never exotic: a strong source usually bears on several claims, so
+// "one act per source per sitting" capped red's own evidence-gathering at the first one. The
+// remaining half of the old contract still holds and is asserted below — the same source for the
+// same CLAIM is still one act.
 func TestBoardCountsCiteEvents(t *testing.T) {
 	runDir := seatRun(t)
+	// THE QUOTES ARE REAL SPANS from the seeded report. A supporting corroboration splices an
+	// anchor at the claim, so the claim must be in the live document — the same rule blue's cite
+	// is held to, and the reason a corroboration of text blue has since edited away is refused
+	// rather than spliced blind.
+	const (
+		claimA = "§1 first — a finding sits in sec 1 here."
+		claimB = "§2 the finding prose lands in a quoted sentence."
+		claimC = "the parser accepts an empty body in this line."
+	)
 	cites := []struct{ claim, ref string }{
-		{"the API returns 200", "https://example.com/a"},
-		{"the flag defaults off", "https://example.com/b"},
+		{claimA, "https://example.com/a"},
+		{claimB, "https://example.com/b"},
+	}
+	corroborate := func(claim, url, title string) error {
+		// --independent by construction: these are sources red went and found, not citations blue
+		// authored, so there is no anchor to name.
+		_, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+			"--quote", claim, "--url", url, "--title", title,
+			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
+			"--access-date", "2026-07-24")
+		return err
 	}
 	for _, c := range cites {
-		// --independent: these are sources red went and found, not citations blue authored, so
-		// there is no anchor to name. The explicit form, because an omitted --anchor cannot say
-		// whether this was corroboration or a lookup the seat skipped.
-		if _, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-			"--quote", c.claim, "--url", c.ref, "--title", c.ref,
-			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
-			"--access-date", "2026-07-24"); err != nil {
+		if err := corroborate(c.claim, c.ref, c.ref); err != nil {
 			t.Fatalf("cite %q: %v", c.claim, err)
 		}
 	}
-	// The same reference again in the SAME sitting is refused, with a message that says so.
-	_, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--quote", "the API still returns 200", "--url", "https://example.com/a", "--title", "a",
-		"--as", "supports", "--confidence", "high", "--reason", "read again",
-		"--access-date", "2026-07-24")
-	if err == nil {
-		t.Error("a second verification of one source in one sitting was accepted — two acts under one key")
-	} else if !strings.Contains(err.Error(), "once-per-sitting") {
-		t.Errorf("the refusal does not teach what was wrong:\n%v", err)
+	// THE SAME SOURCE, A DIFFERENT CLAIM: this is what the label bought. It was refused.
+	if err := corroborate(claimC, "https://example.com/a", "a"); err != nil {
+		t.Fatalf("one source corroborating a SECOND claim was refused: %v\n"+
+			"A strong source usually bears on several claims; keyed on the url, only the first could ever record.", err)
+	}
+	// AND THE SAME SOURCE FOR THE SAME CLAIM IS STILL ONE ACT. Not by refusal any more — the
+	// minted label is fresh every call, so nothing collides — but by returning the anchor already
+	// minted. That is the idempotency the url key used to provide, and losing it silently was the
+	// cost that made "drop url from keyFields" the wrong answer to this in the first place.
+	if err := corroborate(claimC, "https://example.com/a", "a"); err != nil {
+		t.Fatalf("a retried corroboration was refused rather than returning its existing anchor: %v", err)
 	}
 
-	if b := board(t, runDir, "merge", "red-merge-r1"); b.Counts.Citations != 2 {
-		t.Errorf("counts.citations = %d, want 2 (two distinct references) — the board is the source for citations_checked", b.Counts.Citations)
+	// THREE, NOT FOUR: three distinct (source, claim) corroborations, and the retry above added
+	// nothing. This counted 2 when a source could bear on only one claim.
+	if b := board(t, runDir, "merge", "red-merge-r1"); b.Counts.Citations != 3 {
+		t.Errorf("counts.citations = %d, want 3 (three distinct source/claim readings, the retry adding none) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }
 
@@ -233,4 +251,3 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 // What survives is the write-path refusal, which has its own test: the CLI answers a `--id` naming
 // no mint with a message that says so. This one is deleted rather than pinned to a permanent zero,
 // because a green anomaly check for an anomaly that cannot occur reads as evidence and is not.
-

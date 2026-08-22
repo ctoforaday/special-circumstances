@@ -483,6 +483,7 @@ CREATE TABLE "verify" (
   "outcome" TEXT NOT NULL,
   "confidence" TEXT NOT NULL,
   "text" TEXT NOT NULL,
+  "label" TEXT,
   CHECK ("independent" IS NULL OR "independent" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value")

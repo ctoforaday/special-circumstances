@@ -458,13 +458,18 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
 
-	// AN EMPTY VALUE STILL COUNTS AS PRESENT for the fields checked by presence: `--review-flag
+	// AN EMPTY VALUE STILL COUNTS AS PRESENT for the two fields checked by presence: `--review-flag
 	// false` is a legitimate ruling, so the check is Has and not non-empty. `rationale` is the
-	// exception — it is the prose the ruling turns on, so it is required non-empty — and
-	// `disposition` is the exception to the exception: an empty disposition rules nothing, and it
-	// is now an enum, so the empty case cannot even be written.
+	// exception — it is the prose the ruling turns on — and `disposition` is the exception to the
+	// exception: an empty disposition rules nothing, and it is now an enum, so the empty case
+	// cannot even be written.
+	//
+	// `principle` LEFT THIS SET on 2026-08-22 (operator's call). The comment above used to say
+	// "the fields checked by presence" and mean three; it means two. See
+	// TestTheOpinionDemandsARuleButNotAnInventedTension for the asymmetry and its argument —
+	// stated there rather than restated here, so the two cannot drift into disagreeing about one
+	// contract.
 	empty := complete()
-	empty.Principle = proto.String("")
 	empty.Tension = proto.String("")
 	empty.ReviewFlag = proto.String("")
 	if err := validate(opinionRunDir(t), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, empty); err != nil {

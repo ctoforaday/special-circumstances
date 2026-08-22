@@ -894,6 +894,24 @@ message Verify {
     why: "what the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replace"
   }];
 
+  // label IS THE FOOTNOTE, and it is what moves this event's key off the source.
+  //
+  // Set ONLY by `corroborate`, and only when the outcome supports: a source red found itself,
+  // for a claim blue made, becomes an ordinary footnote in the assembled bibliography. A human
+  // reader cares that the text has appropriate references, not which team inserted them —
+  // `citationid.go` used to say the opposite in as many words ("Red's `lens cite` carries no
+  // label and is EXCLUDED"), and the consequence was that red's independent corroboration
+  // reached no reader of the document at all.
+  //
+  // IT ALSO FIXES THE KEY, WITHOUT TOUCHING keyFields. That list is walked first-match, and
+  // `label` sits before `url` — so a corroboration with a label keys on the minted id and one
+  // source may corroborate many claims, exactly as `blue cite` may cite one url many times.
+  // Keyed on `url`, only the FIRST claim recorded and the rest were refused. Crash-retry
+  // idempotency stays where blue's is: on `--key`.
+  //
+  // `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
+  optional string label = 11;
+
   reserved 2;
   reserved "reference";
 }

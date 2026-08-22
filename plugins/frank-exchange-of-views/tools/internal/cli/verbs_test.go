@@ -20,6 +20,12 @@ import (
 // refuse — the fixtures were demonstrating the bug.
 func seedReferents(t *testing.T, runDir string) {
 	t.Helper()
+	// THE REPORT IS PART OF THE WORLD THESE VERBS OPERATE IN. A supporting `lens corroborate`
+	// splices a citation anchor at the claim, so the claim must be a real span of the live
+	// document — the same rule blue's cite has always been held to. Without this the corroborate
+	// case was refused for quoting a sentence that existed nowhere, which reads as the verb being
+	// broken rather than as the fixture being a placeholder.
+	seedBlueReport(t, runDir)
 	for i := 0; i < 2; i++ {
 		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
@@ -87,13 +93,17 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "lens corroborate records the access date under its payload name",
 			path: []string{"lens", "corroborate"}, seatID: "red-lens-r1-L1",
-			args: []string{"--quote", "the claim", "--url", "https://example.test/a", "--title", "Example A",
+			// THE QUOTE IS A REAL SPAN of the seeded report. A supporting corroboration splices a
+			// citation anchor at the claim, so the claim must be in the live document — the same
+			// rule blue's cite is held to. `"the claim"` was a placeholder and is now refused.
+			args: []string{"--quote", "the parser accepts an empty body in this line.",
+				"--url", "https://example.test/a", "--title", "Example A",
 				"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 				"--access-date", "2026-07-18"},
 			typ: recordpb.EventType_EVENT_TYPE_VERIFY,
 			// The flag is --access-date; the payload key is access_date, and the
 			// citation render reads the payload key. --as lands under `outcome`.
-			want: map[string]string{"claim": "the claim", "url": "https://example.test/a", "title": "Example A",
+			want: map[string]string{"claim": "the parser accepts an empty body in this line.", "url": "https://example.test/a", "title": "Example A",
 				// `text`, not `reason`: --reason is the flag, and a verify stores its reading as
 				// `text`. The old key named a field Verify does not carry, so the row asserted
 				// nothing until fieldText started failing on an unknown name.

@@ -3557,12 +3557,29 @@ type Verify struct {
 	Title *string `protobuf:"bytes,10,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	// anchor names the citation checked; independent marks a source red found itself. One or the
 	// other — a verification of nothing was recordable before this verb required them.
-	Anchor        *string        `protobuf:"bytes,3,opt,name=anchor,proto3,oneof" json:"anchor,omitempty"`
-	Independent   *bool          `protobuf:"varint,4,opt,name=independent,proto3,oneof" json:"independent,omitempty"`
-	AccessDate    *string        `protobuf:"bytes,5,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
-	Outcome       *SourceOutcome `protobuf:"varint,6,opt,name=outcome,proto3,enum=feov.record.v1.SourceOutcome,oneof" json:"outcome,omitempty"`
-	Confidence    *Confidence    `protobuf:"varint,7,opt,name=confidence,proto3,enum=feov.record.v1.Confidence,oneof" json:"confidence,omitempty"`
-	Text          *string        `protobuf:"bytes,8,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	Anchor      *string        `protobuf:"bytes,3,opt,name=anchor,proto3,oneof" json:"anchor,omitempty"`
+	Independent *bool          `protobuf:"varint,4,opt,name=independent,proto3,oneof" json:"independent,omitempty"`
+	AccessDate  *string        `protobuf:"bytes,5,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
+	Outcome     *SourceOutcome `protobuf:"varint,6,opt,name=outcome,proto3,enum=feov.record.v1.SourceOutcome,oneof" json:"outcome,omitempty"`
+	Confidence  *Confidence    `protobuf:"varint,7,opt,name=confidence,proto3,enum=feov.record.v1.Confidence,oneof" json:"confidence,omitempty"`
+	Text        *string        `protobuf:"bytes,8,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	// label IS THE FOOTNOTE, and it is what moves this event's key off the source.
+	//
+	// Set ONLY by `corroborate`, and only when the outcome supports: a source red found itself,
+	// for a claim blue made, becomes an ordinary footnote in the assembled bibliography. A human
+	// reader cares that the text has appropriate references, not which team inserted them —
+	// `citationid.go` used to say the opposite in as many words ("Red's `lens cite` carries no
+	// label and is EXCLUDED"), and the consequence was that red's independent corroboration
+	// reached no reader of the document at all.
+	//
+	// IT ALSO FIXES THE KEY, WITHOUT TOUCHING keyFields. That list is walked first-match, and
+	// `label` sits before `url` — so a corroboration with a label keys on the minted id and one
+	// source may corroborate many claims, exactly as `blue cite` may cite one url many times.
+	// Keyed on `url`, only the FIRST claim recorded and the rest were refused. Crash-retry
+	// idempotency stays where blue's is: on `--key`.
+	//
+	// `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
+	Label         *string `protobuf:"bytes,11,opt,name=label,proto3,oneof" json:"label,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3656,6 +3673,13 @@ func (x *Verify) GetConfidence() Confidence {
 func (x *Verify) GetText() string {
 	if x != nil && x.Text != nil {
 		return *x.Text
+	}
+	return ""
+}
+
+func (x *Verify) GetLabel() string {
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
@@ -5713,7 +5737,7 @@ const file_record_proto_rawDesc = "" +
 	"\t_locationB\x0e\n" +
 	"\f_access_dateB\v\n" +
 	"\t_cite_keyB\a\n" +
-	"\x05_textJ\x04\b\b\x10\tR\x05claim\"\xd2\b\n" +
+	"\x05_textJ\x04\b\b\x10\tR\x05claim\"\xf7\b\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
@@ -5727,7 +5751,8 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceB\xbf\x01\x82\xb5\x18\xba\x01\b\x01\x1a\xb5\x01how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different factsH\aR\n" +
 	"confidence\x88\x01\x01\x12\xa3\x01\n" +
-	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\bR\x04text\x88\x01\x01B\b\n" +
+	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\bR\x04text\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\v \x01(\tH\tR\x05label\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
@@ -5737,7 +5762,8 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"\b_outcomeB\r\n" +
 	"\v_confidenceB\a\n" +
-	"\x05_textJ\x04\b\x02\x10\x03R\treference\"\xab\x03\n" +
+	"\x05_textB\b\n" +
+	"\x06_labelJ\x04\b\x02\x10\x03R\treference\"\xab\x03\n" +
 	"\x05Proof\x12\x1e\n" +
 	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12 \n" +
 	"\tproof_key\x18\x02 \x01(\tH\x01R\bproofKey\x88\x01\x01\x12 \n" +

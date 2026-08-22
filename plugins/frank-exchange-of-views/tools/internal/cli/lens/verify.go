@@ -1,6 +1,7 @@
 package lens
 
 import (
+	"errors"
 	"regexp"
 	"strings"
 
@@ -86,7 +87,7 @@ func newVerify() *cobra.Command {
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			return writeVerify(s, cmd, &recordpb.Verify{
 				Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor))),
-			})
+			}, adjudates)
 		}))
 
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`")
@@ -109,7 +110,7 @@ func newCorroborate() *cobra.Command {
 				Independent: proto.Bool(true),
 				Url:         proto.String(seat.Str(cmd, flags.URL)),
 				Title:       proto.String(seat.Str(cmd, flags.Title)),
-			})
+			}, cites)
 		}), "verify"))
 
 	c.Flags().String(flags.URL, "", flags.DescURL)
@@ -132,7 +133,34 @@ func verifyAxes(c *cobra.Command) {
 
 // writeVerify records what both verbs agree on. The caller has already put the fact that
 // distinguishes them — an anchor, or the source it read — into the payload.
-func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) (seat.Result, error) {
+// citing says whether this verb may turn a supporting read into a FOOTNOTE.
+//
+// `corroborate` may: red found the source, blue never cited it, and a human reader cares that
+// the text has appropriate references rather than which team inserted them. `verify` may not —
+// it adjudicates a citation blue ALREADY made, which already has an anchor and a footnote; a
+// second one would double the same source in the bibliography.
+type citing bool
+
+const (
+	cites     citing = true
+	adjudates citing = false
+)
+
+// backsTheClaim reports whether an outcome is a source that BACKS the sentence, and so belongs in
+// the bibliography.
+//
+// `weak` is the judgement call and it is deliberately OUT: "it gestures at the claim, or is
+// itself uncorroborated". Red recording `weak` is saying the support is thin, and a footnote
+// states the opposite to a reader who sees only the reference list. `refutes` and `absent` are
+// not references at all — a source that contradicts the sentence, rendered in the bibliography,
+// reads as support, and the report's own assembly check already treats a live refuted citation
+// as a failure. `unreachable` is red saying it could not read the thing.
+func backsTheClaim(o recordpb.SourceOutcome) bool {
+	return o == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS ||
+		o == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE
+}
+
+func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayCite citing) (seat.Result, error) {
 	body.Claim = proto.String(seat.Str(cmd, flags.Quote))
 	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
 	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
@@ -161,11 +189,48 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) (sea
 		return nil, err
 	}
 	body.Text = proto.String(text)
+
+	// THE FOOTNOTE, FOR A SOURCE THAT BACKS THE CLAIM. Minted and spliced BEFORE the append, in
+	// the order `blue cite` uses and for the same reason: the label forms the marker, so it must
+	// exist before the report write, and a rejected splice must leave no event behind.
+	//
+	// This is also what moves the event's key off the URL. `keyFields` is walked first-match and
+	// `label` sits before `url`, so a labelled corroboration keys on the minted id — which is why
+	// one source may now corroborate several claims. Keyed on the source, only the first recorded.
+	if mayCite == cites && backsTheClaim(body.GetOutcome()) {
+		// A RETRY RETURNS ITS OWN ANCHOR. The minted label is fresh every call, so without this
+		// a crash-retried corroboration splices a SECOND anchor at the same sentence and records
+		// a second event — the duplication the url key used to prevent. Checked before the mint,
+		// as blue's cite checks its --key before the fetch.
+		if prior, err := record.ExistingCorroborationLabel(s.RunDir, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
+			return nil, err
+		} else if prior != "" {
+			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true}, nil
+		}
+		label := record.NewCitationID()
+		marker := "<!--cite:" + label + "-->"
+		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+			next, aerr := InsertAnchor(old, body.GetClaim(), marker)
+			switch {
+			case errors.Is(aerr, ErrMisQuote):
+				return nil, feov.Errorf(feov.Validation,
+					"lens corroborate: the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
+			case errors.Is(aerr, ErrInFence):
+				return nil, feov.Errorf(feov.Validation, "lens corroborate: the quote resolves inside a code fence — corroborate a prose sentence, not code")
+			}
+			return next, aerr
+		}); err != nil {
+			return nil, err
+		}
+		body.Label = proto.String(label)
+	}
+
 	if _, err := record.Append(s.Identity(), body); err != nil {
 		return nil, err
 	}
 	return verifyResult{
 		Anchor:  body.GetAnchor(),
+		Label:   body.GetLabel(),
 		Source:  body.GetTitle(),
 		Outcome: recordpb.Word(body.GetOutcome()),
 	}, nil
@@ -177,9 +242,11 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) (sea
 var citeAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
 
 type verifyResult struct {
-	Anchor  string `json:"anchor,omitempty"`
-	Source  string `json:"source,omitempty"`
-	Outcome string `json:"outcome"`
+	Anchor     string `json:"anchor,omitempty"`
+	Label      string `json:"label,omitempty"`
+	Idempotent bool   `json:"idempotent,omitempty"`
+	Source     string `json:"source,omitempty"`
+	Outcome    string `json:"outcome"`
 }
 
 func (r verifyResult) Human() string {

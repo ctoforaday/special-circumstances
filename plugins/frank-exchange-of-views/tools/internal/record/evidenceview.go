@@ -268,9 +268,12 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 		}
 		switch bd := body.(type) {
 		case *recordpb.Cite:
-			// A blue cite carries a `label`; red's `lens cite` does not. That discriminator is
-			// the same one CitedSources and CitationLabels use — see the #341 note in
-			// citationid.go for what conflating the two costs.
+			// A cite with no label names no anchor, so it is not a citation a reader can reach.
+			//
+			// THIS IS NO LONGER "the label is what tells blue from red". It was, and citationid.go
+			// used the same discriminator; since red's supporting corroborations mint a label too,
+			// the two are told apart by EVENT TYPE (a Cite here, a Verify below) rather than by
+			// whether a label is present. The filter stays for its own reason, stated above.
 			label := bd.GetLabel()
 			if label == "" {
 				continue
