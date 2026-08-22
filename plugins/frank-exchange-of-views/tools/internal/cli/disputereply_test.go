@@ -51,8 +51,8 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 	if got := ev.GetMotionId(); got != "M1" {
 		t.Errorf("motion_id = %q, want M1 — the record must carry the join, not leave it to be inferred", got)
 	}
-	if got := ev.Payload.Str("ruling"); got != "rejected" {
-		t.Errorf("ruling = %q, want rejected", got)
+	if got := ev.GetGrade(); got != recordpb.GradeRuling_GRADE_RULING_REJECTED {
+		t.Errorf("ruling = %q, want rejected", recordpb.Word(got))
 	}
 }
 

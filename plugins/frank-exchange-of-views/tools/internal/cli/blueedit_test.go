@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -35,7 +37,7 @@ func readReport(t *testing.T, runDir string) string {
 	return string(b)
 }
 
-func countType(t *testing.T, runDir, typ string) int {
+func countType(t *testing.T, runDir string, typ recordpb.EventType) int {
 	t.Helper()
 	m, err := record.MergedEvents(runDir)
 	if err != nil {
@@ -43,7 +45,7 @@ func countType(t *testing.T, runDir, typ string) int {
 	}
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == typ {
+		if e.GetType() == typ {
 			n++
 		}
 	}
@@ -106,7 +108,7 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	if strings.Contains(readReport(t, runDir), "vital") {
 		t.Error("report was mutated on a rejected marker-spanning edit")
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a rejected edit recorded %d stack ops, want 0", n)
 	}
 }
@@ -121,7 +123,7 @@ func TestBlueEditRejectsAbsentOld(t *testing.T) {
 	if err == nil {
 		t.Fatal("a mis-quote must be rejected")
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a mis-quote recorded %d stack ops, want 0 (no phantom event)", n)
 	}
 }
@@ -143,7 +145,7 @@ func TestBlueEditIdempotentRetry(t *testing.T) {
 	if !strings.Contains(out, "idempotent") {
 		t.Errorf("retry should report idempotent: %q", out)
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 1 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 1 {
 		t.Errorf("retry recorded %d ops, want exactly 1", n)
 	}
 	if strings.Count(readReport(t, runDir), "climbing fast") != 1 {
@@ -159,12 +161,13 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe cost is rising fast.\n")
 	registerBlue(t, runDir)
 	// Simulate the crash window: the intent event exists, the write never happened.
-	p := record.NewPayload()
-	p.Set("edit_key", "E1")
-	p.Set("old", "rising fast")
-	p.Set("new", "climbing fast")
-	p.Set("reason", "r")
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundOf(blueSeat)}, "blue_edit", p); err != nil {
+	intent := &recordpb.BlueEdit{
+		EditKey: proto.String("E1"),
+		Old:     proto.String("rising fast"),
+		New:     proto.String("climbing fast"),
+		Text:    proto.String("r"),
+	}
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundOf(blueSeat)}, intent); err != nil {
 		t.Fatal(err)
 	}
 	// Retry with the same key → reconcile forward.
@@ -175,7 +178,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	if !strings.Contains(readReport(t, runDir), "climbing fast") {
 		t.Error("reconcile did not apply the pending write")
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 1 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 1 {
 		t.Errorf("reconcile appended a second op (%d), want 1", n)
 	}
 }
@@ -216,7 +219,7 @@ func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
 	if !strings.Contains(err.Error(), "R9-99") {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a refused edit still recorded %d op(s) — validation must precede the append", n)
 	}
 	if strings.Contains(readReport(t, runDir), "prose to revise") {
@@ -241,7 +244,7 @@ func TestBlueEditRefusesAGapIDHidingInTheReason(t *testing.T) {
 	if !strings.Contains(err.Error(), "--answers") || !strings.Contains(err.Error(), gap) {
 		t.Errorf("the refusal must name both the gap and the flag that fixes it: %v", err)
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a refused edit recorded %d op(s)", n)
 	}
 }
@@ -259,7 +262,7 @@ func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
 		"--reason", "tightened per R9-99 and section 3-2 of the style note"); err != nil {
 		t.Fatalf("prose naming no real gap was refused: %v", err)
 	}
-	if countType(t, runDir, "blue_edit") != 1 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT) != 1 {
 		t.Error("the edit did not land")
 	}
 }
@@ -367,7 +370,7 @@ func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("a proposal against absent text was accepted, so nothing forced red to read the report")
 	}
-	if n := countType(t, runDir, "mint"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
 		t.Errorf("a refused mint still recorded %d event(s)", n)
 	}
 }
@@ -444,7 +447,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	runDir := t.TempDir()
 	prior := seedProposalApplied(t, runDir)
 
-	before := countType(t, runDir, "mint")
+	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
 	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
@@ -457,11 +460,11 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 			t.Errorf("the refusal must name %q so red knows where to argue it: %v", want, err)
 		}
 	}
-	if n := countType(t, runDir, "mint"); n != before {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != before {
 		t.Errorf("a refused mint still landed on the board (%d -> %d)", before, n)
 	}
 	// A guard that silently blocks is invisible.
-	if countType(t, runDir, "friction") == 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION) == 0 {
 		t.Error("the estoppel rejection logged no friction — the block is unmeasurable, which is how a dead guard survives")
 	}
 }

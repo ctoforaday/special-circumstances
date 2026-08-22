@@ -53,8 +53,8 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 	if ev.GetProofBasis() != "reproducible" {
 		t.Errorf("basis = %q", ev.GetProofBasis())
 	}
-	if !strings.Contains(ev.Payload.Str("output"), "divisors: 3") {
-		t.Errorf("the computation's answer is not on the record: %q", ev.Payload.Str("output"))
+	if !strings.Contains(ev.GetText(), "divisors: 3") {
+		t.Errorf("the computation's answer is not on the record: %q", ev.GetText())
 	}
 }
 
@@ -91,7 +91,7 @@ func TestRedReproducesAProof(t *testing.T) {
 		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
-	sha := lastBody(t, runDir, &recordpb.Proof{}).Payload.Str("sha256")
+	sha := lastBody(t, runDir, &recordpb.Proof{}).GetProofSha()
 
 	// --as and --reason are REQUIRED (#343): re-running measures DETERMINISM, and a script that
 	// prints "7 is prime" reproduces forever. The soundness verdict is red's, from reading it.
@@ -101,7 +101,7 @@ func TestRedReproducesAProof(t *testing.T) {
 		t.Fatalf("reproduce: %v", err)
 	}
 	// The verdict is on the RECORD now, not only in red's head.
-	if ev := lastBody(t, runDir, &recordpb.Reproduce{}); ev.GetSoundness() != "sound" {
+	if ev := lastBody(t, runDir, &recordpb.Reproduce{}); ev.GetSoundness() != recordpb.Soundness_SOUNDNESS_SOUND {
 		t.Errorf("the soundness judgement must be recorded, got %q", ev.GetSoundness())
 	}
 	if !strings.Contains(out, "REPRODUCES") {
@@ -137,10 +137,10 @@ func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
 		"--quote", "A sentence to anchor to.", "--script", s, "--reason", "r"); err == nil {
 		t.Fatal("a script with no known interpreter was accepted as evidence")
 	}
-	if countType(t, runDir, "friction") == 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION) == 0 {
 		t.Error("the refusal logged no friction, so the capability gap is invisible to the retool loop")
 	}
-	if countType(t, runDir, "proof") != 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF) != 0 {
 		t.Error("a refused proof still landed on the record")
 	}
 }

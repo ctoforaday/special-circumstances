@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // THE ESCAPING TAX.
@@ -53,7 +55,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	}
 
 	for _, c := range []struct {
-		name, key string
+		name, field string
 		// typ is the event type to look for. It used to be args[1] — the verb word, read back
 		// out of the argv the case had just composed. That works only while every command path
 		// is <role> <verb> AND the verb word equals the event type; `motion grade file` breaks
@@ -61,10 +63,10 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		typ  recordpb.EventType
 		args []string
 	}{
-		{"merge regrade", "reason", "regrade", []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
-		{"motion grade rule", "reason", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
-		{"motion grade file", "reason", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"motion petition file", "reason", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},
+		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
+		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
+		{"motion grade file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// The path is however many leading non-flag words the case supplies.
@@ -78,9 +80,21 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 			if out, err := runStdin(t, hostile, args...); err != nil {
 				t.Fatalf("%s via stdin: %v (%s)", c.name, err, out)
 			}
+			// THE FIELD, NOT THE FLAG. `--reason` is what a seat types; the field it lands in is
+			// spelled per verb (a regrade stores `basis`, a ruling `opinion`), which is exactly
+			// the fold flags.ForPayloadKey exists for.
 			ev := lastOfType(t, runDir, c.typ)
-			if got := ev.Payload.Str(c.key); got != hostile {
-				t.Errorf("%s did not fill %s from the payload channel.\n got: %q\nwant: %q", c.name, c.key, got, hostile)
+			body, ok := recordpb.Body(ev)
+			if !ok {
+				t.Fatalf("%s wrote an event with no body", c.name)
+			}
+			m := body.ProtoReflect()
+			fd := m.Descriptor().Fields().ByName(protoreflect.Name(c.field))
+			if fd == nil {
+				t.Fatalf("%s: %s has no field %q", c.name, m.Descriptor().FullName(), c.field)
+			}
+			if got := m.Get(fd).String(); got != hostile {
+				t.Errorf("%s did not fill %s from the prose channel.\n got: %q\nwant: %q", c.name, c.field, got, hostile)
 			}
 		})
 	}

@@ -108,10 +108,10 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	}
 
 	ev := lastBody(t, runDir, &recordpb.Regrade{})
-	if got := ev.GetSeverity(); got != "low" {
-		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", got)
+	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_LOW {
+		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", recordpb.Word(got))
 	}
-	if !setFields(ev)["reason"] {
+	if !setFields(ev)["basis"] {
 		t.Error("the regrade lost its basis; grade movement without a stated reason is the silent regrading this channel exists to prevent")
 	}
 }
@@ -135,12 +135,15 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	}
 
 	pet := lastBody(t, runDir, &recordpb.Motion{})
-	if pet.Payload.Str("class") != "safety" || !setFields(pet)["relief"] {
-		t.Errorf("the petition lost its class or relief (payload %v) — relief that is not recorded cannot bind anybody", pet.Payload.Keys())
+	// The class lives on the PETITION ARM — the filing is a oneof, so a petition's class is not a
+	// field the Motion itself carries. That separation is what stops a grade motion silently
+	// holding a petition's class.
+	if pet.GetPetition().GetClass() != recordpb.PetitionClass_PETITION_CLASS_SAFETY || !setFields(pet)["relief"] {
+		t.Errorf("the petition lost its class or relief (%v) — relief that is not recorded cannot bind anybody", pet)
 	}
 	rule := lastBody(t, runDir, &recordpb.MotionRule{})
-	if got := rule.Payload.Str("ruling"); got != "granted" {
-		t.Errorf("the ruling recorded %q, want granted", got)
+	if got := rule.GetPetition(); got != recordpb.PetitionRuling_PETITION_RULING_GRANTED {
+		t.Errorf("the ruling recorded %q, want granted", recordpb.Word(got))
 	}
 	// THE ATTRIBUTION IS THE ID NOW, and that is the substance of #312. The old check read
 	// `petitioner` off the ruling — a field the ruler restated, which is why two petitions from
@@ -149,7 +152,8 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	if got := rule.GetMotionId(); got != "M1" {
 		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
 	}
-	if got := pet.SeatID; got != "red-merge-r1" {
+	// The FILER is on the envelope, not the body — the body is what the seat said.
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-merge-r1" {
 		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
 	}
 }
@@ -164,7 +168,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-	if !setFields(ev)["reason"] {
+	if !setFields(ev)["basis"] {
 		t.Error("the empty spot-check lost its reason, which is the only thing distinguishing it from a skipped duty")
 	}
 
@@ -189,7 +193,7 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 	ev := lastBody(t, runDir, &recordpb.Retire{})
 	for _, want := range []string{"claim", "reason", "superseded_by"} {
 		if !setFields(ev)[want] {
-			t.Errorf("the retirement lost %s (payload %v) — an unaccounted claim drop is the detector hit this verb exists to make impossible", want, ev.Payload.Keys())
+			t.Errorf("the retirement lost %s (%v) — an unaccounted claim drop is the detector hit this verb exists to make impossible", want, ev)
 		}
 	}
 }
@@ -216,11 +220,12 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 	seen := map[string]bool{}
 	for _, e := range events(t, runDir) {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
-			seen[e.Payload.Str("label")] = true
+			f, _ := recordpb.BodyAs[*recordpb.Finding](e)
+			seen[f.GetLabel()] = true
 		}
 	}
 	if !seen["L1-F1"] || !seen["L2-F1"] {
-		t.Errorf("the merge sees %v, want both lens shards — a lossy shard merge under-counts findings precisely in the rounds with the most lenses", seen)
+		t.Errorf("the merge sees %v, want both lenses — findings from every seat are rows in one record", seen)
 	}
 }
 
@@ -260,7 +265,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 		"--reason", "continuing would compromise the consent gate"); err != nil {
 		t.Fatalf("bench halt: %v", err)
 	}
-	if got := lastBody(t, runDir, &recordpb.Halt{}).SeatID; got != "judge-r1" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_HALT).GetSeatId(); got != "judge-r1" {
 		t.Errorf("the halt is attributed to %q, want judge-r1 — an unattributed halt cannot be reviewed", got)
 	}
 

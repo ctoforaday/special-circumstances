@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
@@ -88,7 +87,7 @@ func help(t *testing.T, args ...string) string {
 }
 
 // events reads the merged event log the way every projection does.
-func events(t *testing.T, runDir string) []record.Event {
+func events(t *testing.T, runDir string) []*record.Event {
 	t.Helper()
 	m, err := record.MergedEvents(runDir)
 	if err != nil {
@@ -97,26 +96,16 @@ func events(t *testing.T, runDir string) []record.Event {
 	return m.Events
 }
 
-// lastOfType is LAST IN TIME, not last in the slice.
+// lastOfType is LAST IN TIME, and the slice IS in time order now.
 //
-// MergedEvents returns events in shard order, so "the tail of the slice" is whichever seat
-// file sorts last — fine while a test run dir held one seat's events, wrong the moment
-// fixtures seed events from several seats. It silently returned the SEEDED dispute instead
-// of the one the test had just filed, which reads as the verb writing the wrong payload.
-// The canonical order is (TS, SeatID, Seq), the same key replay uses.
+// It used to re-sort by (TS, SeatID, Seq) because MergedEvents returned events in SHARD order —
+// "the tail of the slice" was whichever seat file sorted last, which silently returned a seeded
+// event instead of the one the test had just written, reading as the verb writing the wrong body.
+// The record is one table read `ORDER BY id`, so the tail of the slice is the last thing that
+// happened, and re-sorting it by a wall clock could only move an event away from where it was.
 func lastOfType(t *testing.T, runDir string, typ recordpb.EventType) *record.Event {
 	t.Helper()
 	evs := events(t, runDir)
-	sort.SliceStable(evs, func(i, j int) bool {
-		a, b := evs[i], evs[j]
-		if a.GetTs() != b.GetTs() {
-			return a.GetTs() < b.GetTs()
-		}
-		if a.GetSeatId() != b.GetSeatId() {
-			return a.GetSeatId() < b.GetSeatId()
-		}
-		return a.GetSeq() < b.GetSeq()
-	})
 	for i := len(evs) - 1; i >= 0; i-- {
 		if evs[i].GetType() == typ {
 			return evs[i]
@@ -385,17 +374,20 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if got := ev.GetLabel(); got != "L1-F1" {
 		t.Errorf("label = %q", got)
 	}
-	if got := ev.GetSeverity(); got != "high" {
-		t.Errorf("severity = %q", got)
+	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_HIGH {
+		t.Errorf("severity = %q", recordpb.Word(got))
 	}
 	if got := ev.GetText(); got != "the finding prose" {
 		t.Errorf("text = %q", got)
 	}
-	if ev.Round != 1 {
-		t.Errorf("round = %d, want 1 from the seat id", ev.Round)
+	// Round and key live on the ENVELOPE, not on the body — the body is what the seat said, the
+	// envelope is what the record stamped.
+	env := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
+	if env.GetRound() != 1 {
+		t.Errorf("round = %d, want 1 from the seat id", env.GetRound())
 	}
-	if ev.Key != seatID+":finding:L1-F1" {
-		t.Errorf("key = %q", ev.Key)
+	if env.GetKey() != seatID+":finding:L1-F1" {
+		t.Errorf("key = %q", env.GetKey())
 	}
 }
 
@@ -411,9 +403,11 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 		"--key", "F1", "--severity", "high", "--quote", "§1", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
-	keys := setFields(lastOfType(t, runDir, "finding"))
-	if !keys["label"] || !keys["severity"] || !keys["reason"] {
-		t.Errorf("a passed flag is missing from the payload: %v", keys)
+	// `reason` is the FLAG; the field it lands in is `text`. setFields reads the schema, so it
+	// reports what the record holds rather than what the seat typed.
+	keys := setFields(lastBody(t, runDir, &recordpb.Finding{}))
+	if !keys["label"] || !keys["severity"] || !keys["text"] {
+		t.Errorf("a passed flag is missing from the body: %v", keys)
 	}
 	for _, absent := range []string{"likelihood", "impact"} {
 		if keys[absent] {
@@ -438,13 +432,10 @@ func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
 			t.Errorf("%q is absent; an absent lineage key reads as \"lineage unknown\"", k)
 		}
 	}
-	// And they serialize as arrays, not null.
-	b, err := json.Marshal(ev.Payload)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(b), `"supersedes":[]`) {
-		t.Errorf("empty lineage did not serialize as []: %s", b)
+	// AN EMPTY REPEATED FIELD IS AN EMPTY LIST, not a null. The projection renders it and a
+	// reader distinguishes "no lineage" from "lineage unknown" by seeing the empty array.
+	if got := ev.GetSupersedes(); got == nil {
+		t.Error("empty lineage decoded as nil rather than an empty list")
 	}
 }
 
@@ -601,15 +592,19 @@ func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	if got := m.GetClass(); got != "brand-new" {
 		t.Errorf("class = %q, want the slug from --class", got)
 	}
-	if v, _ := m.Payload.Get("class_new"); v != true {
-		t.Errorf("class_new = %v, want true", v)
+	if !m.GetClassNew() {
+		t.Error("class_new = false, want true — the mint must record that the seat coined the class")
 	}
 	cn := lastBody(t, runDir, &recordpb.ClassNew{})
 	if got := cn.GetSlug(); got != "brand-new" {
 		t.Errorf("class-new slug = %q", got)
 	}
-	for _, k := range []string{"definition", "neighbor", "distinguisher"} {
-		if cn.Payload.Str(k) == "" {
+	for k, v := range map[string]string{
+		"definition":    cn.GetDefinition(),
+		"neighbor":      cn.GetNeighbor(),
+		"distinguisher": cn.GetDistinguisher(),
+	} {
+		if v == "" {
 			t.Errorf("the class-new event dropped %q", k)
 		}
 	}
@@ -766,7 +761,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 		t.Errorf("close said %q", out)
 	}
 	ev := lastBody(t, runDir, &recordpb.Close{})
-	if got := ev.GetClosureClass(); got != "closed" {
+	if got := ev.GetClosureClass(); got != recordpb.Disposition_DISPOSITION_CLOSED {
 		t.Errorf("closure_class = %q, want the default \"closed\"", got)
 	}
 
@@ -1075,7 +1070,8 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 	for _, e := range events(t, runDir) {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION {
 			positions++
-			if got := e.Payload.Str("reason"); got != "first" {
+			p, _ := recordpb.BodyAs[*recordpb.Position](e)
+			if got := p.GetText(); got != "first" {
 				t.Errorf("the surviving position is %q, want the first", got)
 			}
 		}
@@ -1159,7 +1155,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 			// the record for every projection to read.
 			for _, e := range events(t, runDir) {
 				if e.GetType() == recordpb.EventType_EVENT_TYPE_VERDICT {
-					t.Errorf("a refused verdict reached the log anyway: %+v", e.Payload)
+					t.Errorf("a refused verdict reached the log anyway: %+v", e)
 				}
 			}
 		})
@@ -1207,7 +1203,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		t.Errorf("the mirror holds no shards: %v", entries)
 	}
 	// The verdict itself is on the record.
-	if got := lastBody(t, runDir, &recordpb.RoundVerdict{}).GetVerdict(); got != "PASS" {
+	if got := lastBody(t, runDir, &recordpb.RoundVerdict{}).GetVerdict(); got != recordpb.Verdict_VERDICT_PASS {
 		t.Errorf("verdict payload = %q", got)
 	}
 }
@@ -1380,7 +1376,7 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 		"--reason", "nothing was sampled this round"); err != nil {
 		t.Fatalf("the no-sample form must keep working: %v", err)
 	}
-	if keys := setFields(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
+	if keys := setFields(lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK)); !keys["ids"] {
 		t.Error("ids must still be present as an empty array")
 	}
 }
@@ -1419,7 +1415,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 		"--reason-file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
 	}
-	if !setFields(lastOfType(t, runDir, "close"))["reason"] {
+	if !setFields(lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSE))["reason"] {
 		t.Error("the prose from --file must reach the event")
 	}
 }
@@ -1431,4 +1427,34 @@ func inquiryIDOf(out string) string {
 		return ""
 	}
 	return m[1]
+}
+
+// fieldText renders one field of an event's body as the WORD the record holds.
+//
+// Test tables state expectations as (field, value) pairs, which is the right shape — one line per
+// fact a verb must record. Reading them off typed bodies with a switch per verb would be forty
+// near-identical arms; reading them out of a payload map is what this migration removed.
+//
+// THE MISS IS LOUD. A name the body does not carry FAILS rather than returning "", because a stale
+// field name silently never matches and the assertion then passes for every value — a table row
+// that cannot fail reads exactly like one that holds.
+//
+// Enums render through recordpb.Word, not the generated String(): the table states the vocabulary's
+// word, which is what a seat types and what every projection prints.
+func fieldText(t *testing.T, body proto.Message, name string) string {
+	t.Helper()
+	m := body.ProtoReflect()
+	fd := m.Descriptor().Fields().ByName(protoreflect.Name(name))
+	if fd == nil {
+		t.Fatalf("%s has no field %q — the expectation names a field the schema does not carry, so it "+
+			"could never have matched", m.Descriptor().FullName(), name)
+	}
+	if !m.Has(fd) {
+		return ""
+	}
+	v := m.Get(fd)
+	if fd.Kind() == protoreflect.EnumKind {
+		return recordpb.Spelling(fd.Enum().Values().ByNumber(v.Enum()))
+	}
+	return v.String()
 }

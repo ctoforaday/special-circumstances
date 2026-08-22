@@ -18,16 +18,22 @@ import (
 // it ("A VERIFICATION OF NOTHING WAS RECORDABLE") — and the siblings were never swept.
 
 func TestAnEmptyDischargeIsRefused(t *testing.T) {
-	for _, tc := range []struct{ typ, want string }{
-		{"friction", "--reason"},
-		{"friction-none", "--reason"},
-		{"position", "--reason"},
-		{"revision", "--reason"},
+	// The EMPTY BODY of each type, which is what "discharged by nothing" means once the payload
+	// map is gone: every prose field unset, and the verb still claiming the duty is met.
+	for _, tc := range []struct {
+		typ  recordpb.EventType
+		body proto.Message
+		want string
+	}{
+		{recordpb.EventType_EVENT_TYPE_FRICTION, &recordpb.Friction{}, "--reason"},
+		{recordpb.EventType_EVENT_TYPE_FRICTION_NONE, &recordpb.FrictionNone{}, "--reason"},
+		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{}, "--reason"},
+		{recordpb.EventType_EVENT_TYPE_REVISION, &recordpb.Revision{}, "--reason"},
 	} {
-		t.Run(tc.typ, func(t *testing.T) {
-			err := validate(t.TempDir(), "blue-respond-r1", tc.typ, NewPayload())
+		t.Run(recordpb.Word(tc.typ), func(t *testing.T) {
+			err := validate(t.TempDir(), "blue-respond-r1", tc.typ, tc.body)
 			if err == nil {
-				t.Fatalf("%s with no reason was accepted — it records an empty event and counts as discharged", tc.typ)
+				t.Fatalf("%s with no reason was accepted — it records an empty event and counts as discharged", recordpb.Word(tc.typ))
 			}
 			if !strings.Contains(err.Error(), tc.want) {
 				t.Errorf("the refusal does not name %s:\n%v", tc.want, err)
@@ -37,10 +43,20 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 }
 
 func TestARealDischargeIsAccepted(t *testing.T) {
-	for _, typ := range []string{"friction", "friction-none", "position", "revision"} {
-		p := &recordpb.Revision{Text: proto.String("what I reached for and what happened")}
-		if err := validate(t.TempDir(), "blue-respond-r1", typ, p); err != nil {
-			t.Errorf("%s with a reason was refused: %v", typ, err)
+	// EACH TYPE'S OWN BODY. The earlier conversion passed a Revision for all four, so three of the
+	// cases validated a message the verb does not write — the assertion held for the wrong reason.
+	prose := proto.String("what I reached for and what happened")
+	for _, c := range []struct {
+		typ  recordpb.EventType
+		body proto.Message
+	}{
+		{recordpb.EventType_EVENT_TYPE_FRICTION, &recordpb.Friction{Text: prose}},
+		{recordpb.EventType_EVENT_TYPE_FRICTION_NONE, &recordpb.FrictionNone{Text: prose}},
+		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{Text: prose}},
+		{recordpb.EventType_EVENT_TYPE_REVISION, &recordpb.Revision{Text: prose}},
+	} {
+		if err := validate(t.TempDir(), "blue-respond-r1", c.typ, c.body); err != nil {
+			t.Errorf("%s with a reason was refused: %v", recordpb.Word(c.typ), err)
 		}
 	}
 }

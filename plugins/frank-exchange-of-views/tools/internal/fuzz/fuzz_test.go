@@ -1830,7 +1830,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
 	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
-	"manifest_row", "verdict", "spot_check", "inquiry-support", "certify", "declare", "halt",
+	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
@@ -1843,6 +1843,8 @@ var verbsWithEvents = []string{
 	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
 	// write, `outcome` is the bench's.
 	"blue_edit", "anchor", "class_new", "outcome", "proof",
+	// The remaining schema types, named so the census below has a complete list to check against.
+	"observe", "closing", "inquiry_review", "register",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.

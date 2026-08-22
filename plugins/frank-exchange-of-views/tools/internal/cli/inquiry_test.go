@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE UNIT IS THE CHOICE, NOT THE ENTRY (#246).
@@ -35,11 +37,12 @@ func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	if !strings.Contains(out, "Q1") {
 		t.Errorf("the tool must assign the id, not the seat: %q", out)
 	}
-	ev := lastOfType(t, runDir, "line-of-inquiry")
-	if got := ev.Payload.Str("status"); got != "proposed" {
-		t.Errorf("status = %q, want proposed — a fresh proposal has no fate yet", got)
+	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_AVENUE)
+	a, _ := recordpb.BodyAs[*recordpb.Avenue](ev)
+	if got := a.GetStatus(); got != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED {
+		t.Errorf("status = %q, want proposed — a fresh proposal has no fate yet", recordpb.Word(got))
 	}
-	if ev.Payload.Str("hypothesis") == "" {
+	if a.GetHypothesis() == "" {
 		t.Error("the hypothesis was not recorded, so a later abandonment has nothing to be judged against")
 	}
 }

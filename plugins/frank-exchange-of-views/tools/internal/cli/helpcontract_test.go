@@ -12,6 +12,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A PROMISE IN HELP TEXT IS A CONTRACT, AND EVERY CONTRACT HAS A TEST.
@@ -286,8 +287,8 @@ func seatRunForContracts(t *testing.T) string {
 		t.Fatal(err)
 	}
 	for _, e := range b.Events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_PROOF && e.Payload.Str("sha256") != "" {
-			proofSHA = e.Payload.Str("sha256")
+		if pf, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && pf.GetProofSha() != "" {
+			proofSHA = pf.GetProofSha()
 		}
 	}
 	if proofSHA == "" {

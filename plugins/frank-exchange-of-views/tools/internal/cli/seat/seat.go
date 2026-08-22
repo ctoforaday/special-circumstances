@@ -579,6 +579,29 @@ func Str(cmd *cobra.Command, name string) string {
 	return flags.Value(cmd, name)
 }
 
+// OptStr is Str for a field whose ABSENCE is a different fact from its emptiness.
+//
+// `proto.String(Str(cmd, f))` sets the field whatever happens, so a flag the seat never passed
+// lands in the record as the empty string — "the seat said nothing" written as "the seat said
+// nothing at all". Every field on this schema is `optional` precisely to keep those apart, and the
+// write path was throwing the distinction away on the way in.
+//
+// MEASURED, and the foreign keys are what found it: `merge close` set `successor` unconditionally,
+// so an ordinary closure stored `successor = ''` — and once successor referenced `mint.gap_id`,
+// every close in the tool failed with `FOREIGN KEY constraint failed`, because no gap is named ''.
+// Before the constraint existed the same rows were written and simply read as a closure whose
+// successor was the empty gap.
+//
+// It keys on Given (pflag's Changed), not on emptiness: a seat that passes `--reason ""` has said
+// something — that there is nothing to say — and that is a fact the record keeps.
+func OptStr(cmd *cobra.Command, name string) *string {
+	if !Given(cmd, name) {
+		return nil
+	}
+	v := Str(cmd, name)
+	return &v
+}
+
 // Given answers whether the SEAT passed the flag. The absent/present distinction
 // is load-bearing for the record format — a flag never passed must not appear in
 // the event at all — and pflag's Changed is exactly that question.

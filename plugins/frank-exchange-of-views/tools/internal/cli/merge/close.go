@@ -143,7 +143,7 @@ func closurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 	return &recordpb.Close{
 		GapId:        proto.String(seat.Str(cmd, flags.ID)),
 		ClosureClass: &class,
-		Successor:    proto.String(seat.Str(cmd, flags.SupersededBy)),
+		Successor:    seat.OptStr(cmd, flags.SupersededBy),
 		Prose:        proto.String(prose),
 	}, nil
 }

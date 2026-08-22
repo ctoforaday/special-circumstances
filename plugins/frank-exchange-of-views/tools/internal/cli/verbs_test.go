@@ -91,7 +91,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--quote", "the claim", "--url", "https://example.test/a", "--title", "Example A",
 				"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 				"--access-date", "2026-07-18"},
-			typ: "verify",
+			typ: recordpb.EventType_EVENT_TYPE_VERIFY,
 			// The flag is --access-date; the payload key is access_date, and the
 			// citation render reads the payload key. --as lands under `outcome`.
 			want: map[string]string{"claim": "the claim", "url": "https://example.test/a", "title": "Example A",
@@ -103,7 +103,7 @@ func TestVerbPayloads(t *testing.T) {
 			path: []string{"lens", "corroborate"}, seatID: "red-lens-r1-L1",
 			args: []string{"--quote", "c", "--url", "https://example.test/b", "--title", "Example B",
 				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
-			typ:    "verify",
+			typ:    recordpb.EventType_EVENT_TYPE_VERIFY,
 			want:   map[string]string{"url": "https://example.test/b", "title": "Example B", "outcome": "weak", "confidence": "low"},
 			absent: []string{"access_date"},
 			says:   "corroborating source Example B verified: weak",
@@ -112,7 +112,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "motion grade rule records the merge's answer",
 			path: []string{"motion", "grade", "rule"}, seatID: "red-merge-r1",
 			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
-			typ:  "motion-rule",
+			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M1", "subject": "grade", "ruling": "rejected",
 				"reason": "the evidence does not reach it"},
 			says: "motion M1 ruled rejected",
@@ -121,7 +121,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "motion grade file contests a grade through the accounted channel",
 			path: []string{"motion", "grade", "file"}, seatID: "blue-lane-1",
 			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
-			typ:  "motion",
+			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
 				"proposed": "low", "reason": "§4 says otherwise", "subject": "grade"},
 			says: "filed (grade)",
@@ -130,7 +130,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "blue manifest-row records the receipt",
 			role: "blue", seatID: "blue-lane-1",
 			args: []string{"--id", "R1-2", "--reason", "figures recomputed; acceptance check run: pass"},
-			typ:  "manifest-row",
+			typ:  recordpb.EventType_EVENT_TYPE_MANIFEST_ROW,
 			want: map[string]string{"gap_id": "R1-2", "row": "figures recomputed; acceptance check run: pass"},
 			says: "manifest row recorded for R1-2",
 		},
@@ -138,7 +138,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "blue retire records what left and why",
 			role: "blue", seatID: "blue-lane-1",
 			args: []string{"--quote", "the claim as it stood", "--reason", "refuted", "--new", "the replacement claim"},
-			typ:  "retire",
+			typ:  recordpb.EventType_EVENT_TYPE_RETIRE,
 			want: map[string]string{"claim": "the claim as it stood", "reason": "refuted",
 				"superseded_by": "the replacement claim"},
 			says: "retired: the claim as it stood",
@@ -148,7 +148,7 @@ func TestVerbPayloads(t *testing.T) {
 			path: []string{"blue", "line-of-inquiry", "propose"}, seatID: "blue-lane-1",
 			args: []string{"--reason", "search the offline archive", "--method", "full-text search",
 				"--hypothesis", "the 1997 proceedings are scanned"},
-			typ: "line-of-inquiry",
+			typ: recordpb.EventType_EVENT_TYPE_AVENUE,
 			want: map[string]string{"line": "search the offline archive", "status": "proposed",
 				"reason": "search the offline archive", "method": "full-text search",
 				"hypothesis": "the 1997 proceedings are scanned"},
@@ -158,7 +158,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "motion petition rule records the ruling and its opinion",
 			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
-			typ:  "motion-rule",
+			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M2", "subject": "petition",
 				"ruling": "granted", "reason": "the written opinion"},
 			says: "motion M2 ruled granted",
@@ -167,7 +167,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "bench halt is the safety boundary",
 			role: "bench", seatID: "judge-terminal",
 			args: []string{"--reason", "the run must stop, and here is why"},
-			typ:  "halt",
+			typ:  recordpb.EventType_EVENT_TYPE_HALT,
 			want: map[string]string{"reason": "the run must stop, and here is why"},
 			says: "JUDICIAL HALT recorded — capture relays this verbatim",
 		},
@@ -175,7 +175,7 @@ func TestVerbPayloads(t *testing.T) {
 			name: "bench certify is the run-end statement",
 			role: "bench", seatID: "assemble",
 			args: []string{"--reason", "what I would want a human to re-examine"},
-			typ:  "certify",
+			typ:  recordpb.EventType_EVENT_TYPE_CERTIFY,
 			want: map[string]string{"reason": "what I would want a human to re-examine"},
 			says: "certification recorded",
 		},
@@ -198,7 +198,9 @@ func TestVerbPayloads(t *testing.T) {
 			// `path`, as three already do.
 			path := tc.path
 			if path == nil {
-				path = []string{tc.role, tc.typ}
+				// The verb word IS the event type's word for these cases; a case whose path
+				// differs states it in `path`, as three already do.
+				path = []string{tc.role, recordpb.Word(tc.typ)}
 			}
 			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
 			args = append(args, tc.args...)
@@ -210,19 +212,23 @@ func TestVerbPayloads(t *testing.T) {
 				t.Errorf("stdout = %q, want it to contain %q", out, tc.says)
 			}
 			ev := lastOfType(t, runDir, tc.typ)
+			body, ok := recordpb.Body(ev)
+			if !ok {
+				t.Fatalf("%s wrote an event with no body", tc.name)
+			}
 			for k, want := range tc.want {
-				if got := ev.Payload.Str(k); got != want {
-					t.Errorf("payload[%q] = %q, want %q", k, got, want)
+				if got := fieldText(t, body, k); got != want {
+					t.Errorf("%s = %q, want %q", k, got, want)
 				}
 			}
-			keys := setFields(ev)
+			keys := setFields(body)
 			for _, k := range tc.absent {
 				if keys[k] {
-					t.Errorf("payload carries %q though the seat never passed it", k)
+					t.Errorf("the body carries %q though the seat never passed it", k)
 				}
 			}
-			if ev.SeatID != tc.seatID {
-				t.Errorf("seatId = %q, want %q", ev.SeatID, tc.seatID)
+			if ev.GetSeatId() != tc.seatID {
+				t.Errorf("seatId = %q, want %q", ev.GetSeatId(), tc.seatID)
 			}
 		})
 	}
@@ -243,7 +249,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 			t.Errorf("stdout = %q", out)
 		}
 		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-		got := ev.Payload.StrList("ids")
+		got := ev.GetIds()
 		if len(got) != 1 || got[0] != "R1-3" {
 			t.Errorf("ids = %q, want [R1-3] — the only CLOSED gap, which is what a spot-check samples", got)
 		}
@@ -262,7 +268,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		if !setFields(ev)["ids"] {
 			t.Fatal("the ids key is absent; an absent list reads as \"not checked\" rather than \"checked nothing\"")
 		}
-		b, err := json.Marshal(ev.Payload)
+		b, err := json.Marshal(ev.GetIds())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -307,7 +313,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	ev := lastBody(t, runDir, &recordpb.Regrade{})
-	if got := ev.GetSeverity(); got != "certain" {
+	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_CERTAIN {
 		t.Errorf("severity = %q", got)
 	}
 	if got := ev.GetBasis(); got != "new evidence in §4" {
@@ -326,10 +332,10 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	g := board.Gaps["R1-1"]
-	if g.Severity != "certain" {
+	if g.Severity != recordpb.Grade_GRADE_CERTAIN {
 		t.Errorf("board severity = %v, want certain", g.Severity)
 	}
-	if g.Likelihood != "low" || g.Impact != "low" {
+	if g.Likelihood != recordpb.Grade_GRADE_LOW || g.Impact != recordpb.Grade_GRADE_LOW {
 		t.Errorf("a grade the regrade did not carry moved: likelihood=%v impact=%v", g.Likelihood, g.Impact)
 	}
 }
@@ -337,15 +343,21 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 // The prose channel is available on the verbs that declare it, and --file is the
 // documented path for anything above trivial size.
 func TestProseVerbsAcceptAFile(t *testing.T) {
+	// THE FIELD, NOT THE FLAG. Every row said `reason` — the word a seat types — while the schema
+	// spells the prose field per verb: a halt stores `opinion`, a certification `statement`, a
+	// revision and a closing `text`. Read against a payload map the wrong name returned "" and the
+	// assertion compared "" to the file's content, so it failed honestly; read against the
+	// descriptor it names the field the record actually holds.
 	cases := []struct {
-		role, verb, seatID, key string
-		extra                   []string
+		role, verb, seatID, field string
+		typ                       recordpb.EventType
+		extra                     []string
 	}{
-		{"bench", "halt", "judge-terminal", "reason", nil},
-		{"bench", "certify", "assemble", "reason", nil},
-		{"blue", "revision", "blue-lane-1", "reason", nil},
-		{"merge", "closing", "red-merge-r1", "reason", []string{"--id", "R1-1"}},
-		{"blue", "manifest-row", "blue-lane-1", "row", []string{"--id", "R1-1"}},
+		{"bench", "halt", "judge-terminal", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
+		{"bench", "certify", "assemble", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
+		{"blue", "revision", "blue-lane-1", "text", recordpb.EventType_EVENT_TYPE_REVISION, nil},
+		{"merge", "closing", "red-merge-r1", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "R1-1"}},
+		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "R1-1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
 	for _, tc := range cases {
@@ -357,15 +369,17 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 			if _, err := run(t, args...); err != nil {
 				t.Fatal(err)
 			}
-			// BY TYPE, not "the last event in the log". That only worked while the run
-			// dir was otherwise empty: MergedEvents is not time-ordered, so once the
-			// fixture seeds referents the tail of the slice is whichever shard sorts
-			// last, not whichever event happened last.
-			last := lastOfType(t, runDir, tc.verb)
-			// Less the file's terminating newline: that is a line terminator every
-			// editor appends, not content the seat chose to record.
-			if got := last.Payload.Str(tc.key); got != strings.TrimRight(body, "\n") {
-				t.Errorf("payload[%q] = %q, want the file's content without its terminator", tc.key, got)
+			// BY TYPE, not "the last event in the log" — the fixture seeds referents, so the
+			// tail of the slice belongs to whichever act happened last, not to this verb.
+			last := lastOfType(t, runDir, tc.typ)
+			lb, ok := recordpb.Body(last)
+			if !ok {
+				t.Fatalf("%s/%s wrote an event with no body", tc.role, tc.verb)
+			}
+			// Less the file's terminating newline: that is a line terminator every editor
+			// appends, not content the seat chose to record.
+			if got := fieldText(t, lb, tc.field); got != strings.TrimRight(body, "\n") {
+				t.Errorf("%s = %q, want the file's content without its terminator", tc.field, got)
 			}
 		})
 	}

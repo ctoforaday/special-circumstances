@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // TestConcurrentSeatsRace is what the port buys that the oracle could not have:
@@ -37,11 +39,14 @@ func TestConcurrentSeatsRace(t *testing.T) {
 				return
 			}
 			for i := 0; i < perSeat; i++ {
-				p := NewPayload().
-					Set("label", fmt.Sprintf("L%d-F%d", s, i)).
-					Set("severity", "medium").Set("likelihood", "medium").Set("impact", "high").
-					Set("reason", strings.Repeat("finding prose ", 20))
-				if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, "finding", p); err != nil {
+				f := &recordpb.Finding{
+					Label:      proto.String(fmt.Sprintf("L%d-F%d", s, i)),
+					Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+					Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+					Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
+					Text:       proto.String(strings.Repeat("finding prose ", 20)),
+				}
+				if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, f); err != nil {
 					errs <- err
 					continue
 				}
@@ -59,7 +64,10 @@ func TestConcurrentSeatsRace(t *testing.T) {
 		t.Errorf("concurrent seat: %v", err)
 	}
 
-	// Every event landed: no shard lost a write to a racing render.
+	// EVERY EVENT LANDED. This asked whether a shard lost a write to a racing render; it now asks
+	// whether a TRANSACTION did, which is the same question against the mechanism that replaced
+	// the one the test was written for — and a stronger one, because the writers share a file
+	// rather than each owning their own.
 	m, err := MergedEvents(runDir)
 	if err != nil {
 		t.Fatal(err)
@@ -72,9 +80,6 @@ func TestConcurrentSeatsRace(t *testing.T) {
 	}
 	if want := seats * perSeat; findings != want {
 		t.Errorf("findings landed = %d, want %d", findings, want)
-	}
-	if len(m.Anomalies) != 0 {
-		t.Errorf("unexpected anomalies under clean concurrency: %v", m.Anomalies)
 	}
 
 	// No lock or temp artifact leaked: a stuck .lock- directory would deadlock the

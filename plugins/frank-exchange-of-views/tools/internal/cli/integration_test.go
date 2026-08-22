@@ -143,10 +143,10 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	evs := events(t, runDir)
 	var sawFiling, sawRuling bool
 	for _, e := range evs {
-		switch e.Type {
-		case "motion":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_MOTION:
 			sawFiling = true
-		case "motion-rule":
+		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			sawRuling = true
 		}
 	}
@@ -203,7 +203,7 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 
 	seats := map[string]bool{}
 	for _, e := range events(t, runDir) {
-		seats[e.SeatID] = true
+		seats[e.GetSeatId()] = true
 	}
 	for _, want := range []string{"red-lens-r1-L1", "red-merge-r1"} {
 		if !seats[want] {

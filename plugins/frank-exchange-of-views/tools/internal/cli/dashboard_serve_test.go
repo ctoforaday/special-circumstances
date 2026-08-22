@@ -14,7 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"google.golang.org/protobuf/proto"
+
 )
 
 // The capability gate is the whole security model: the exact secret path renders, everything else
@@ -162,20 +163,11 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 
 	// THE CASE THIS EXISTS FOR: the bench recorded the run's outcome and the marker is STILL
 	// there, because nothing ran capture. The record is the truthful signal.
-	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	ev := record.Event{
-		TS: "2026-08-16T00:00:00Z", SeatID: "judge-terminal", Nonce: "aaaaaaaa", Type: "outcome",
-		Key: "judge-terminal:outcome:1", Payload: &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED)},
-	}
-	b, err := record.MarshalEvent(ev)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "records", "events-judge-terminal-aaaaaaaa.jsonl"), append(b, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, runDir, recordtest.At(t, "judge-terminal", 1, "judge-terminal:outcome:1",
+		&recordpb.Outcome{
+			Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
+			Prose:   proto.String("the run ended without the question being answered"),
+		}))
 	ended, why = runHasEnded(marker, runDir)
 	if !ended {
 		t.Fatal("a run whose outcome is on the record has ended, whatever the filesystem says")
