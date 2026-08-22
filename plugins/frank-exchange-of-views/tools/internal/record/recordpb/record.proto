@@ -19,6 +19,54 @@ package feov.record.v1;
 
 option go_package = "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb";
 
+import "google/protobuf/descriptor.proto";
+
+// THE RELATIONAL FACTS LIVE ON THE FIELD THEY CONSTRAIN.
+//
+// The record's storage is SQLite and its schema is DERIVED from these descriptors, so anything the
+// database must enforce has to be expressible here. Without that, the constraints that are the
+// whole reason for a database — the foreign key that makes a ruling-before-its-filing unwritable —
+// would be hand-written in the deriver, and a hand-written half is the second copy this schema
+// exists to remove.
+//
+// `required` also lands here, and it REPLACES a Go map keyed by field name. That map was the
+// canonical instance of the defect: the requirement lived one file away from the field, and it had
+// already omitted Outcome.verdict, which is how a run could record that it ENDED and not how.
+extend google.protobuf.FieldOptions {
+  optional Sql sql = 50000;
+}
+
+// Sql is what the database must know about a field that the field's type cannot say.
+message Sql {
+  // required makes the column NOT NULL and is what the write path refuses on. One statement, two
+  // enforcers, no way for them to disagree.
+  optional bool required = 1;
+
+  // flag is the word a SEAT types, when it deliberately differs from the field name. It is not an
+  // alias table: it sits on the field, so there is one place to read and nothing to keep in step.
+  //
+  // It exists for ONE reason, and the reason is deliberate: the prose field is spelled differently
+  // per verb — a close stores `prose`, an opinion `rationale`, a regrade `basis` — while the word a
+  // seat types for all of them is `--reason`. Collapsing the schema's names would lose what each
+  // prose field IS; collapsing the seat's would make every verb's prose a different word to learn.
+  optional string flag = 2;
+
+  // why is what omitting it costs, in the words the refusal shows the seat. A required field whose
+  // refusal says only "required" teaches nothing about the state it was protecting.
+  optional string why = 3;
+
+  // references names the row this value must already point at, as "table.column". This is the
+  // constraint the sharded log could not have: filing and ruling lived in different files and
+  // replay merged them by timestamp, so a ruling could replay before its filing — recorded in
+  // capitals at record/motion.go and papered over by a second pass. A foreign key makes the state
+  // unwritable rather than recoverable.
+  optional string references = 4;
+
+  // unique is a per-run uniqueness the type cannot state — a gap id minted twice is two gaps
+  // wearing one name, and every join afterwards is ambiguous.
+  optional bool unique = 5;
+}
+
 // SchemaVersion is the format discriminator, and it is a POSITIVE FIELD rather than a parse
 // failure on purpose.
 //
@@ -381,7 +429,10 @@ message Mint {
   // class names the defect's kind. class_new records that the seat coined it in this act, which
   // is why the definition/neighbor/distinguisher trio travels alongside: a new class has to say
   // what it is, what it is nearest to, and how it differs.
-  optional string class = 3;
+  optional string class = 3 [(sql) = {
+    required: true
+    why: "the defect's KIND, from the registry — a gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistake"
+  }];
   optional bool class_new = 4;
   optional string definition = 5;
   optional string neighbor = 6;
@@ -389,7 +440,10 @@ message Mint {
 
   // location is the defect's span, quoted verbatim from the report and matched against it.
   optional string location = 8;
-  optional string problem = 9;
+  optional string problem = 9 [(sql) = {
+    required: true
+    why: "what is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-audited"
+  }];
   optional string required_fix = 10;
 
   // fix_new is the text that span should become — validated against the LIVE report, so a seat
@@ -403,8 +457,16 @@ message Mint {
   reserved 11;
   reserved "fix_old";
 
-  optional string acceptance_check = 14;
-  optional CheckKind check_kind = 15;
+  optional string acceptance_check = 14 [(sql) = {
+    required: true
+    flag: "check"
+    why: "the acceptance check red will run at re-audit — the pre-agreed contract"
+  }];
+  optional CheckKind check_kind = 15 [(sql) = {
+    required: true
+    flag: "check-kind"
+    why: "document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote one"
+  }];
 
   // LIKELIHOOD AND IMPACT ARE REQUIRED; severity and complexity_cost are not. The rule is not
   // "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM A LEGITIMATE
@@ -413,8 +475,14 @@ message Mint {
   // bottom of every ranking. Severity and cost are reported rather than multiplied, so their
   // absence is visible to a reader.
   optional Grade severity = 16;
-  optional Grade likelihood = 17;
-  optional Grade impact = 18;
+  optional Grade likelihood = 17 [(sql) = {
+    required: true
+    why: "it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded"
+  }];
+  optional Grade impact = 18 [(sql) = {
+    required: true
+    why: "it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded"
+  }];
   optional Grade complexity_cost = 19;
 
   // ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
@@ -446,7 +514,11 @@ message ClassNew {
 
 // Close ends a gap on verified repair.
 message Close {
-  optional string gap_id = 1;
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    why: "which gap this closes"
+  }];
   optional ClosureClass closure_class = 2;
 
   // The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
@@ -462,13 +534,21 @@ message Close {
 
   // prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
   // and the re-audit reads it.
-  optional string prose = 8;
+  optional string prose = 8 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it"
+  }];
 }
 
 // Closing is the closing argument on a docket-bound gap, read by the bench.
 message Closing {
   optional string gap_id = 1;
-  optional string text = 2;
+  optional string text = 2 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the closing argument for this gap — the report renders it under the gap's docket"
+  }];
 }
 
 // Regrade moves a grade, with its reason. A grade decides what happens NEXT to a gap, so moving
@@ -479,7 +559,11 @@ message Regrade {
   optional Grade likelihood = 3;
   optional Grade impact = 4;
   optional Grade complexity_cost = 5;
-  optional string basis = 6;
+  optional string basis = 6 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "grade movement is recorded with its reason"
+  }];
 }
 
 // SpotCheck re-reads archived closures. THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM
@@ -498,18 +582,40 @@ message SpotCheck {
 
 // Opinion is the bench ruling on a gap.
 message Opinion {
-  optional string gap_id = 1;
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    why: "which gap is being ruled on"
+  }];
 
   // disposition stays a STRING, deliberately. Its set is open: closing it would mean a
   // legitimate bench ruling failing hard mid-round. Two guards remain in validate — `halt` is
   // refused because it is the bench's own verb and must not be reachable by a typo, and a
   // near-miss spelling of a closure class is refused as the typo it is.
-  optional string disposition = 2;
+  optional string disposition = 2 [(sql) = {
+    required: true
+    flag: "as"
+    why: "how the gap ends, or `carried` to defer it with a stated research direction"
+  }];
 
-  optional string principle = 3;
-  optional string tension = 4;
-  optional string review_flag = 5;
-  optional string rationale = 6;
+  optional string principle = 3 [(sql) = {
+    required: true
+    why: "the rule you are applying, stated so a later sitting can apply it too"
+  }];
+  optional string tension = 4 [(sql) = {
+    required: true
+    why: "what pulls the other way — a ruling with no acknowledged counterweight is an assertion"
+  }];
+  optional string review_flag = 5 [(sql) = {
+    required: true
+    flag: "review-flag"
+    why: "why a human should, or should not, look at this"
+  }];
+  optional string rationale = 6 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default"
+  }];
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
@@ -564,7 +670,10 @@ message Cite {
 
 // Verify is red reading a source at the leaf.
 message Verify {
-  optional string claim = 1;
+  optional string claim = 1 [(sql) = {
+    required: true
+    why: "the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted"
+  }];
 
   // A SOURCE IS NAMED BY url + title, here as in Cite. `reference` was a free-text third
   // spelling on the one verb that reads a source red found itself, so the corroboration a run
@@ -578,9 +687,20 @@ message Verify {
   optional bool independent = 4;
 
   optional string access_date = 5;
-  optional SourceOutcome outcome = 6;
-  optional Confidence confidence = 7;
-  optional string text = 8;
+  optional SourceOutcome outcome = 6 [(sql) = {
+    required: true
+    flag: "as"
+    why: "what the source ACTUALLY DID for the claim — the negative half is the point, and until 0.60.0 there was no field for it"
+  }];
+  optional Confidence confidence = 7 [(sql) = {
+    required: true
+    why: "how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts"
+  }];
+  optional string text = 8 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "what the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replace"
+  }];
 
   reserved 2;
   reserved "reference";
@@ -664,10 +784,16 @@ message InquiryReview {
 // why `line` cannot be required unconditionally.
 message Avenue {
   optional string avenue_id = 1;
-  optional string line = 2;
+  optional string line = 2 [(sql) = {
+    required: true
+    why: "what you are going to try — an unnamed avenue teaches a future run nothing"
+  }];
   optional string hypothesis = 3;
   optional string method = 4;
-  optional AvenueStatus status = 5;
+  optional AvenueStatus status = 5 [(sql) = {
+    required: true
+    why: "the line's fate; the lines-of-inquiry projection groups by it"
+  }];
 
   // supersedes_status marks this event as a MOVE rather than a proposal.
   optional string supersedes_status = 6;
@@ -698,8 +824,14 @@ message Revision {
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
 message Retire {
-  optional string claim = 1;
-  optional string reason = 2;
+  optional string claim = 1 [(sql) = {
+    required: true
+    why: "quote the claim as it stood — a removal nobody can identify is not on the record"
+  }];
+  optional string reason = 2 [(sql) = {
+    required: true
+    why: "refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded"
+  }];
   optional string superseded_by = 3;
   optional string removal_basis = 4;
 }
@@ -763,7 +895,11 @@ message FrictionNone {
 // The `subject` enum is kept alongside for the same reason `Event.type` is kept alongside its
 // body oneof: readers switch on it, and it is checked against the oneof case at the write.
 message Motion {
-  optional string motion_id = 1;
+  optional string motion_id = 1 [(sql) = {
+    required: true
+    unique: true
+    why: "the id everything else joins on — the tool assigns it, and a motion without one cannot be ruled, appealed or rendered"
+  }];
   optional MotionSubject subject = 2;
 
   // basis is the ASK in the filer's words. A motion with no argument is a demand, and the ruler
@@ -820,7 +956,15 @@ message DirectionMotion {
 // motion-rule event carries granted|denied for a petition and accepted|rejected for a grade.
 // An unrecognized ruling reads as no ruling at all, so a refusal silently becomes permission.
 message MotionRule {
-  optional string motion_id = 1;
+  // THE CONSTRAINT THE SHARDED LOG COULD NOT HAVE. Filing and ruling are written by different seats
+  // into different files, and replay merged them by timestamp — so a ruling could replay BEFORE its
+  // filing, which record/motion.go records in capitals and works around with a second pass. Here it
+  // is simply unwritable.
+  optional string motion_id = 1 [(sql) = {
+    required: true
+    references: "motion.motion_id"
+    why: "the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312"
+  }];
   optional MotionSubject subject = 2;
   optional string opinion = 3;
 
@@ -870,8 +1014,16 @@ message Verdict_ {
 // ENDED is not, and on a judged deadlock this prose is the only evidence that determination
 // will ever have.
 message Outcome {
-  optional RunOutcome verdict = 1;
-  optional string prose = 2;
+  optional RunOutcome verdict = 1 [(sql) = {
+    required: true
+    flag: "as"
+    why: "the run's terminal verdict — an outcome event without one records that the run ENDED and not how, and every reader downstream sees a run that never reached a verdict"
+  }];
+  optional string prose = 2 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have"
+  }];
   optional string verdict_why = 3;
 
   // A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
@@ -897,13 +1049,21 @@ message Position {
 // Halt is the safety boundary, and it reaches the human as the words the bench chose, relayed
 // verbatim — so a halt with no written opinion cannot do its one job.
 message Halt {
-  optional string opinion = 1;
+  optional string opinion = 1 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause"
+  }];
 }
 
 // Certify is the bench's continuity: what it would want a human to re-examine. The bench keeps
 // no memory between runs, so this statement is the whole of it.
 message Certify {
-  optional string statement = 1;
+  optional string statement = 1 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity"
+  }];
 }
 
 message Declare {

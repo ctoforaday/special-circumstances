@@ -54,6 +54,7 @@ import (
 	"github.com/bufbuild/protocompile"
 	"github.com/bufbuild/protocompile/protoutil"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 
@@ -191,9 +192,26 @@ func generate(root, schema string) ([]genFile, error) {
 		return nil, fmt.Errorf("compiling %s: %w", schemaRel, err)
 	}
 
+	// DEPENDENCIES TRAVEL WITH THE FILE. protoc-gen-go resolves imports against the request alone,
+	// so a schema that imports descriptor.proto — which ours does, to declare its own field options
+	// — fails with "could not resolve import" unless the imported descriptors are in ProtoFile too.
+	// The compiler resolved them; the request has to carry them.
+	seen := map[string]bool{}
 	var protos []*descriptorpb.FileDescriptorProto
+	var add func(fd protoreflect.FileDescriptor)
+	add = func(fd protoreflect.FileDescriptor) {
+		if seen[fd.Path()] {
+			return
+		}
+		seen[fd.Path()] = true
+		imports := fd.Imports()
+		for i := 0; i < imports.Len(); i++ {
+			add(imports.Get(i).FileDescriptor) // depth first: a dependency must precede its dependent
+		}
+		protos = append(protos, protoutil.ProtoFromFileDescriptor(fd))
+	}
 	for _, f := range linked {
-		protos = append(protos, protoutil.ProtoFromFileDescriptor(f))
+		add(f)
 	}
 
 	req := &pluginpb.CodeGeneratorRequest{

@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -109,6 +110,7 @@ func TableName(md protoreflect.MessageDescriptor) string { return snake(string(m
 func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 	var cols []string
 	var checks []string
+	var fks []string
 	var children []string
 
 	cols = append(cols, `  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id")`)
@@ -129,6 +131,13 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 		cols = append(cols, "  "+col)
 		if check != "" {
 			checks = append(checks, check)
+		}
+		fk, err := references(fd)
+		if err != nil {
+			return "", err
+		}
+		if fk != "" {
+			fks = append(fks, fk)
 		}
 	}
 
@@ -153,6 +162,9 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 	for _, c := range checks {
 		fmt.Fprintf(&b, ",\n  CHECK (%s)", c)
 	}
+	for _, f := range fks {
+		fmt.Fprintf(&b, ",\n  %s", f)
+	}
 	b.WriteString("\n) STRICT;\n")
 	for _, c := range children {
 		b.WriteString(c)
@@ -160,8 +172,15 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 	return b.String(), nil
 }
 
-// column maps one scalar field. NOT NULL comes from recordpb.Required — the tool's OWN statement of
-// what a verb may not omit — so the constraint and the CLI's refusal cannot disagree.
+// Opts reads the field's own SQL annotation. Nil when it has none, which is the ordinary case: a
+// plain optional column with no constraint beyond its type.
+func Opts(fd protoreflect.FieldDescriptor) *recordpb.Sql {
+	o, _ := proto.GetExtension(fd.Options(), recordpb.E_Sql).(*recordpb.Sql)
+	return o
+}
+
+// column maps one scalar field. NOT NULL comes from the field's OWN annotation, so the constraint
+// and the refusal a seat reads are one statement rather than two artifacts a file apart.
 func column(fd protoreflect.FieldDescriptor) (col, check string, err error) {
 	name := string(fd.Name())
 	typ, err := sqlType(fd)
@@ -169,13 +188,32 @@ func column(fd protoreflect.FieldDescriptor) (col, check string, err error) {
 		return "", "", err
 	}
 	col = fmt.Sprintf("%q %s", name, typ)
-	if _, required := recordpb.Required(fd); required {
+	o := Opts(fd)
+	if o.GetRequired() {
 		col += " NOT NULL"
+	}
+	if o.GetUnique() {
+		col += " UNIQUE"
 	}
 	if fd.Kind() == protoreflect.EnumKind {
 		check = fmt.Sprintf("%q IS NULL OR %q IN (%s)", name, name, enumLiterals(fd.Enum()))
 	}
 	return col, check, nil
+}
+
+// references renders the field's foreign key, if it declared one. "table.column" is split rather
+// than passed through so a malformed annotation fails HERE, at derivation, instead of producing a
+// schema SQLite refuses at open with a syntax error nobody can trace back to a field.
+func references(fd protoreflect.FieldDescriptor) (string, error) {
+	ref := Opts(fd).GetReferences()
+	if ref == "" {
+		return "", nil
+	}
+	table, col, ok := strings.Cut(ref, ".")
+	if !ok || table == "" || col == "" {
+		return "", fmt.Errorf("recordsql: %s declares references %q — it must be \"table.column\"", fd.FullName(), ref)
+	}
+	return fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(%q)", fd.Name(), table, col), nil
 }
 
 func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
