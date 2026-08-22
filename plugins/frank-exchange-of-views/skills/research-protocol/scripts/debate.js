@@ -196,15 +196,12 @@ const scorecardClause = () => (
   // record. Never a prior run's numbers: those are Goodhart bait, topic-confounded, cross-model
   // and salience-priming. The `scorecards` arg feeds operator analytics only.
   //
-  // THIS CLAUSE NAMES THE JOB AND THE VERB, AND NOTHING ELSE. It used to say "through the tool —
-  // the operator command and the selector that names a chair are in the root --help", which was
-  // false three ways: a seat's root --help is scoped to that seat and never listed the operator
-  // command; reaching it meant overriding --seat-id to `operator`, which contradicts the help's
-  // own rule that --seat-id SELECTS your surface; and it made the PROMPT the teacher of a
-  // capability the surface did not have. Four seats across three runs filed friction about it.
-  // The capability is now on every seat's surface, scoped to its own chair, with no selector —
-  // so this clause names the ACT and the help names the verb, which is the standing rule the old
-  // wording broke (promptverbs' catalogue gate pins debate.js at zero named commands).
+  // THIS CLAUSE NAMES THE ACT, AND THE HELP NAMES THE VERB. promptverbs' catalogue gate pins
+  // debate.js at zero named commands, on the standing rule that the help page is the only page
+  // that instructs — so a prompt that spells an invocation is a prompt teaching a surface it does
+  // not own. It also names no chair: the tool resolves that from the seat's own registration,
+  // which is why the read needs no selector and why there is no way to ask for another party's
+  // numbers. See #513 for the friction that established both.
   ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far. It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.`
 )
 
