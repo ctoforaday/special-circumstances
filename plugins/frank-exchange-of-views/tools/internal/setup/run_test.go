@@ -379,7 +379,7 @@ func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
 // for the run it belongs to.
 func TestSetupWillNotOpenASecondRunOverAnUnclosedOne(t *testing.T) {
 	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
-	WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC))
+	WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
 
 	var out, errb bytes.Buffer
 	code := Run(cfg, &out, &errb)
@@ -413,7 +413,7 @@ func TestSetupWillNotOpenASecondRunOverAnUnclosedOne(t *testing.T) {
 // gate must not be the thing that breaks it.
 func TestSetupStaysIdempotentForTheRunItsMarkerNames(t *testing.T) {
 	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
-	WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now)
+	WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", "")
 
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {

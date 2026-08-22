@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -94,7 +95,11 @@ type Model struct {
 	Config          Config
 	TerminalVerdict string
 	Terminal        bool
-	Generated       string
+	// Live is the run's PULL-BASED liveness — see record.Liveness. The board used to answer
+	// "is this running" from the presence of a marker that a killed workflow can never lift,
+	// so a dead run rendered as live forever, ETA and all.
+	Live      record.Liveness
+	Generated string
 }
 
 func jsonl(path string) []map[string]any {
@@ -336,7 +341,7 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 	}
 	eta := projectCompletion(seats, nowMs)
 
-	terminalVerdict := readTerminalVerdict(runDir)
+	terminalVerdict := record.TerminalVerdict(runDir)
 	return Model{
 		RunDir: runDir, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
@@ -356,61 +361,11 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 		// holds, recovered from the prose or the filename it was rendered into. It was written one
 		// line above the field that did it.
 		TerminalVerdict: terminalVerdict, Terminal: terminalVerdict != "",
+		// ASSESSED AT THE INJECTED CLOCK, not time.Now(), so a test can put the record in the
+		// past and watch this flip.
+		Live:      record.Assess(runDir, time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
 		Generated: nowISO(nowMs),
 	}
-}
-
-// readTerminalVerdict answers from the RECORD, and from nothing else.
-//
-// IT WAS A REGEX OVER report.md, and then briefly a regex kept "as a last resort", which is not a
-// justification. The verdict is a FIELD on the `outcome` event — the bench's terminal act writes
-// it — so parsing it back out of the prose it was rendered into is the shape [[facts-are-fields]]
-// names, and keeping the parse as a fallback keeps the shape.
-//
-// WHAT THE FALLBACK ACTUALLY SERVED, measured across the 9 assembled runs in research/ rather than
-// assumed:
-//
-//	2  carry an `outcome` event — the record answers
-//	1  carries a round `verdict` event and no terminal act
-//	5  carry NO terminal act at all, and their reports say "UNVERIFIED"
-//	1  has no verdict in the report either
-//
-// Those five are pre-#289 artifacts, assembled before the terminal act was an event. Their
-// "UNVERIFIED" is backed by no record anywhere — so the fallback's job was to read a word out of
-// prose and hand it to an operator as the run's verdict, which is exactly the unbacked assertion
-// `basisNote` exists to keep out of the report. A fact that no record holds is not recovered by
-// finding it written down.
-//
-// The honest answer when the record cannot say is that the record cannot say, and the renderer
-// already says it well: an empty terminal verdict falls through to the round verdict off the
-// record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
-// different claim rather than the same claim from a worse source.
-// TerminalVerdict is readTerminalVerdict for callers outside this package: has the bench recorded
-// this run's outcome? Exported for the dashboard SERVER, whose lifetime was keyed only to the
-// run-live marker — a file whose only remover is `capture`, so a killed run left the server
-// watching forever (#270). The record knows what the marker cannot.
-func TerminalVerdict(runDir string) string { return readTerminalVerdict(runDir) }
-
-func readTerminalVerdict(runDir string) string {
-	b, err := record.BoardState(runDir)
-	if err != nil {
-		return ""
-	}
-	// The bench's own terminal act, latest wins.
-	for i := len(b.Events) - 1; i >= 0; i-- {
-		if b.Events[i].Type != "outcome" {
-			continue
-		}
-		if v := b.Events[i].Payload.Str("verdict"); v != "" {
-			return v
-		}
-	}
-	// Or what the record decides for itself. ok is false only where the record genuinely
-	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
-	if v, _, ok := record.DeriveVerdict(runDir); ok {
-		return v
-	}
-	return ""
 }
 
 // buildJudiciary ports the journal-envelope analytics: rulings by type, dispute traffic, and

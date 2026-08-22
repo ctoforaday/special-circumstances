@@ -1,11 +1,12 @@
-package dashboard
+// MOVED FROM internal/dashboard with the function it tests. It reads only the record, and two
+// other packages needed the answer; leaving the test behind would have left the implementation
+// covered from a package that no longer owns it.
+package record
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // THE VERDICT COMES OFF THE RECORD, NOT OUT OF THE PROSE IT WAS RENDERED INTO.
@@ -20,11 +21,11 @@ import (
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := t.TempDir()
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundIn(runDir)("judge-terminal")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundIn(runDir)("judge-terminal")}, "outcome",
-		record.NewPayload().Set("verdict", "HALTED").Set("reason", "ended on safety grounds")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, "outcome",
+		NewPayload().Set("verdict", "HALTED").Set("reason", "ended on safety grounds")); err != nil {
 		t.Fatal(err)
 	}
 	// The rendered artifact says something else. It is the derived carrier; the event is the fact.
@@ -32,7 +33,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 		[]byte("# report\n\n**Verdict:** VERIFIED — **derived from the record**, not claimed.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := readTerminalVerdict(runDir); got != "HALTED" {
+	if got := TerminalVerdict(runDir); got != "HALTED" {
 		t.Errorf("readTerminalVerdict = %q, want \"HALTED\" — the record holds the verdict as a field and the report is a rendering of it", got)
 	}
 }
@@ -53,7 +54,7 @@ func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 		[]byte("# report\n\n**Verdict:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := readTerminalVerdict(runDir); got != "" {
+	if got := TerminalVerdict(runDir); got != "" {
 		t.Errorf("readTerminalVerdict = %q from a run whose record carries no terminal act — the word was read out of prose no record backs", got)
 	}
 }

@@ -25,6 +25,11 @@ type Config struct {
 	Lanes         string
 	BinDir        string
 	MemoryDir     string
+	// RunID and ScriptPath travel into the run-live marker so a STALE marker names how to
+	// resume rather than only where something once ran. Optional: a launcher that does not
+	// know them leaves them empty, and the marker omits the fields rather than carrying "".
+	RunID      string
+	ScriptPath string
 
 	Cwd           string
 	Home          string
@@ -279,7 +284,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		p, _ := splitPin(c)
 		pinnedPaths = append(pinnedPaths, p)
 	}
-	marker := WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now)
+	marker := WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))

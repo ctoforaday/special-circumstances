@@ -491,7 +491,17 @@ func RenderHTML(m Model) string {
 			w(`<p class="muted">the bench recorded this run's outcome.</p>`)
 		}
 	} else {
-		w("\n<h2>Seats live now</h2>\n")
+		// THE HEADING IS A CLAIM, and it used to be made unconditionally. A workflow killed by an
+		// idle SIGTERM cannot lift its own marker, so this branch went on saying "live" over a
+		// record that had stopped moving 41 minutes earlier — with the ETA beside it still
+		// projecting three. Both facts were on this page and nothing compared them.
+		if m.Live.State == record.StateStale {
+			w("\n<h2>Seats — STOPPED</h2>\n")
+			w(fmt.Sprintf(`<p class="stale">%s</p>`, esc(m.Live.Says())))
+		} else {
+			w("\n<h2>Seats live now</h2>\n")
+			w(fmt.Sprintf(`<p class="muted">%s</p>`, esc(m.Live.Says())))
+		}
 		if len(liveOrder) > 0 {
 			w("<table>")
 			for _, lbl := range liveOrder {
@@ -597,10 +607,10 @@ func lastN(s []Seat, n int) []Seat {
 }
 
 const styleBlock = `<style>
-.viz-root { color-scheme: light; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --series-1:#2a78d6;
+.viz-root { color-scheme: light; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --series-1:#2a78d6; --warn:#a8442a;
   font: 14px/1.45 system-ui, sans-serif; background: var(--surface-1); color: var(--text-primary); padding: 20px; max-width: 900px; margin: auto; }
-@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; } }
-:root[data-theme="dark"] .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; --warn:#e08a6a; } }
+:root[data-theme="dark"] .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; --warn:#e08a6a; }
 h1 { font-size: 18px; margin-bottom: 2px; } h2 { font-size: 14px; margin: 18px 0 6px; color: var(--text-secondary); }
 .topic { font-size: 15px; font-weight: 600; margin: 0 0 6px; line-height: 1.35; }
 .topic::before { content: "researching: "; font-weight: 400; color: var(--text-secondary); }
@@ -610,6 +620,8 @@ table { border-collapse: collapse; width: 100%; } td, th { text-align: left; pad
 .muted, .axis, .label { fill: var(--text-secondary); color: var(--text-secondary); font-size: 11px; }
 .label { fill: var(--text-primary); font-weight: 600; }
 .liveseat { font-weight: 600; }
+/* STALE IS ITS OWN COLOUR because it is its own state — semantic, not the accent. */
+.stale { font-weight: 600; color: var(--warn); border-left: 3px solid var(--warn); padding-left: 10px; }
 .bar { display: flex; gap: 3px; margin: 6px 0 2px; } .seg { flex: 1; height: 14px; border-radius: 4px; background: color-mix(in oklab, var(--text-secondary) 18%, transparent); position: relative; }
 .seg.done { background: var(--series-1); } .seg.live { background: color-mix(in oklab, var(--series-1) 45%, transparent); outline: 2px solid var(--series-1); }
 .barlabels { display: flex; gap: 3px; } .barlabels span { flex: 1; font-size: 10px; color: var(--text-secondary); text-align: center; overflow: hidden; white-space: nowrap; }

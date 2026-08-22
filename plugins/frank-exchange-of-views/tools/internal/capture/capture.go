@@ -144,6 +144,48 @@ func jsString(v any) string {
 
 // ---- AUDIT 1: telemetry presence ----
 
+// LivenessAudit records whether the run reached capture UNDER ITS OWN POWER or was terminated.
+//
+// THE TWO ARE OPPOSITE FACTS AND WERE THE SAME OUTPUT. "UNVERIFIED by judged deadlock" means the
+// debate ran its course; "UNVERIFIED because the process was killed at round 1" means it never
+// got to. Both rendered as an ordinary capture, so the run record could not tell a reader which
+// one it was holding — and neither could a later run reading the corpus.
+//
+// Capture is allowed to proceed on a terminated run: the events are real and the report assembled
+// from them is worth having. What is not allowed is for the artifact to be silent about it. A
+// STALE record at capture time means the last seat stopped writing long before anyone ran this,
+// which is the signature of a workflow that died rather than finished.
+func LivenessAudit(runDir string, now time.Time) Audit {
+	// QUIET IS NOT THE SIGNAL — a finished run is quiet BECAUSE it finished, and the first draft
+	// of this audit failed both of the day's real runs for exactly that. Silence separates
+	// nothing; what separates them is whether the bench ever recorded an outcome.
+	//
+	//	quiet + an outcome on the record  -> it ran its course and was captured later
+	//	still moving, no outcome yet      -> captured mid-run, unusual but the operator's call
+	//	quiet + NO outcome                -> it stopped without finishing: TERMINATED
+	verdict := record.TerminalVerdict(runDir)
+	l := record.Assess(runDir, now, verdict != "")
+	if verdict != "" {
+		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
+			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
+	}
+	switch l.State {
+	case record.StateStale:
+		return Audit{Check: "liveness", Verdict: "FAIL", Detail: fmt.Sprintf(
+			"NO terminal outcome on the record, and it went quiet %s before this capture (last: %s, %s) — "+
+				"past the %s this run's own cadence implies. This run was TERMINATED, not finished, and its "+
+				"verdict must be read that way: an idle SIGTERM kills the workflow, which then cannot lift its "+
+				"own marker, so every other instrument goes on reporting a run in flight. %s",
+			l.Age.Round(time.Second), l.Last.Seat, l.Last.Type, l.Threshold.Round(time.Second), l.Basis)}
+	case record.StateUnmeasured:
+		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — " + l.Basis}
+	default:
+		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
+			"no terminal outcome yet and the record was still moving %s before capture (last: %s) — captured mid-run",
+			l.Age.Round(time.Second), l.Last.Seat)}
+	}
+}
+
 // TelemetryAudit checks one telemetry round per red round. redRounds comes from the debate view
 // (rounds with a red sitting), read in-process. Telemetry is now DERIVED from the record via the
 // shared view library (never a materialized file), so it cannot be "absent": the check is whether
@@ -1315,7 +1357,9 @@ func perSeatRoundTable(costMd string) string {
 // audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
 // (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
 // process.cwd().
-func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail bool, err error) {
+// `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
+// is controllable in a test, the same way WriteRunLiveMarker takes its clock.
+func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
 	// Mechanics: journal copy, transcript tarball, cost.md.
@@ -1377,6 +1421,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 	}
 
 	audits = []Audit{
+		LivenessAudit(runDir, now),
 		TelemetryAudit(runDir, redRounds),
 		FrictionAudit(runDir, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),

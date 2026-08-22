@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -779,4 +780,76 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 			t.Errorf("the line must name the path it looked at, or the operator cannot check it: %q", got)
 		}
 	})
+}
+
+// ---- liveness ----
+
+// writeRun lays down one shard of `n` events `gap` apart, ending at `last`. `outcome` adds a
+// bench `outcome` event as the final one, which is what separates a finished run from a killed
+// one — see LivenessAudit.
+func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time, outcome bool) string {
+	t.Helper()
+	dir := t.TempDir()
+	recs := filepath.Join(dir, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for i := 0; i < n; i++ {
+		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format("2006-01-02T15:04:05.000000000Z07:00")
+		typ, payload := "finding", `{"label":"L1-F1"}`
+		if outcome && i == n-1 {
+			typ, payload = "outcome", `{"verdict":"CEILING"}`
+		}
+		fmt.Fprintf(&b, `{"seq":%d,"ts":%q,"seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"role":"lens","type":%q,"key":"k%d","payload":%s}`+"\n",
+			i, ts, typ, i, payload)
+	}
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-aaaaaaaa.jsonl"), []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// THE PAIR IS THE POINT. Both runs are equally silent; only one of them finished. This audit's
+// own first draft looked at silence alone and failed BOTH of the day's real runs — a gate firing
+// on the healthy case, which is the defect class it was written to catch.
+func TestLivenessSeparatesFinishedFromTerminatedAtEqualSilence(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	captureAt := now.Add(41 * time.Minute)
+
+	killed := LivenessAudit(writeRunForLiveness(t, 10, 20*time.Second, now, false), captureAt)
+	if killed.Verdict != "FAIL" {
+		t.Errorf("a run with no terminal outcome, silent 41m, audited %s — want FAIL:\n%s", killed.Verdict, killed.Detail)
+	}
+	if !strings.Contains(killed.Detail, "TERMINATED") {
+		t.Errorf("the FAIL does not say the run was terminated:\n%s", killed.Detail)
+	}
+
+	finished := LivenessAudit(writeRunForLiveness(t, 10, 20*time.Second, now, true), captureAt)
+	if finished.Verdict != "PASS" {
+		t.Errorf("a run that recorded its outcome and was captured 41m later audited %s — a finished "+
+			"run is quiet BECAUSE it finished, and silence must not convict it:\n%s", finished.Verdict, finished.Detail)
+	}
+}
+
+// Captured while seats are still writing: unusual, the operator's call, and not a finding.
+func TestLivenessDoesNotConvictACaptureMidRun(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	a := LivenessAudit(writeRunForLiveness(t, 10, 20*time.Second, now, false), now.Add(15*time.Second))
+	if a.Verdict != "PASS" {
+		t.Errorf("captured 15s after the last event audited %s — want PASS:\n%s", a.Verdict, a.Detail)
+	}
+	if !strings.Contains(a.Detail, "mid-run") {
+		t.Errorf("the PASS does not say it was captured mid-run:\n%s", a.Detail)
+	}
+}
+
+// Too thin to judge reports itself. A capture over a record it cannot age must not tell a reader
+// the run finished cleanly.
+func TestLivenessReportsNotMeasuredRatherThanPassing(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	a := LivenessAudit(writeRunForLiveness(t, 3, time.Minute, now, false), now.Add(3*time.Hour))
+	if a.Verdict != "SKIP" {
+		t.Errorf("a 3-event record audited %s — want SKIP:\n%s", a.Verdict, a.Detail)
+	}
 }
