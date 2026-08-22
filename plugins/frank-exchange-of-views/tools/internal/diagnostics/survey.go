@@ -180,7 +180,11 @@ type call struct {
 //
 // binName is the basename the tool was built under; a Bash call that does not invoke it is not a
 // command and cannot be a help read either.
-func ReadSurvey(trajectoryPath, binName string) (Survey, error) {
+// known is the set of TOP-LEVEL command words this seat's role actually offers. A traversal top
+// that is not in it is counted Unclassified rather than as a group the seat visited — see
+// traversalOf. Pass an empty set only where the caller genuinely has no tree to check against;
+// every top then falls to Unclassified, which is the honest reading of "I could not tell".
+func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, error) {
 	var out Survey
 	f, err := os.Open(trajectoryPath)
 	if err != nil {
@@ -282,7 +286,7 @@ func ReadSurvey(trajectoryPath, binName string) (Survey, error) {
 			out.PagesNeverUsed++
 		}
 	}
-	out.Traversal = traversalOf(calls)
+	out.Traversal = traversalOf(calls, known)
 	return out, nil
 }
 
@@ -345,12 +349,15 @@ func textOf(v any) string {
 // `mint` and `show` — because the question is which part of the surface the seat was working in,
 // and a verb that sits at the root is a part of the surface. Filing them differently would make
 // a seat that never opens a group look like it never moved.
-func traversalOf(calls []call) Traversal {
+func traversalOf(calls []call, known map[string]bool) Traversal {
 	// EMPTY IS `[]`, NOT `null`. A nil slice marshals as null, and a consumer that iterates the
 	// pairs of every seat then crashes on the first seat that never left one group — which is an
 	// ordinary sitting, not an error. Caught driving this over a real run: blue-synthesize
 	// returned null and the reader died on it.
 	t := Traversal{Sequence: []string{}, Pairs: []TraversalPair{}}
+	if known == nil {
+		known = map[string]bool{}
+	}
 	pairs := map[TraversalPair]int{}
 	prev := ""
 	for _, c := range calls {
@@ -362,6 +369,20 @@ func traversalOf(calls []call) Traversal {
 			continue
 		}
 		top := c.path[0]
+		// A TOP THE ROLE DOES NOT OFFER IS NOT A GROUP THE SEAT VISITED.
+		//
+		// CommandWords accepts any lowercase word, so prose escaping a `--reason` body arrives
+		// here looking like a verb: the first run over a real corpus produced crossings named
+		// `and -> names`, `edit -> returns` and `count-claims -> repository`, and those were 43%
+		// of everything not involving `show`. Checking the word against the seat's own verb set
+		// is the difference between "a lowercase word" and "a command this seat has".
+		//
+		// It lands in Unclassified rather than being dropped, because a token the tree does not
+		// recognise is exactly a call the traversal could not read.
+		if !known[top] {
+			t.Unclassified++
+			continue
+		}
 		if prev == "" {
 			t.Sequence = append(t.Sequence, top)
 			prev = top

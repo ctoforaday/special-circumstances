@@ -61,11 +61,12 @@ func TestCommandWordsReadsTheShapesSeatsActuallyWrite(t *testing.T) {
 
 // ZERO CROSSINGS IS THE ANSWER TO TWO QUESTIONS, and Unclassified is what keeps them apart.
 func TestATraversalThatCouldNotReadTheCallsSaysSo(t *testing.T) {
-	unreadable := traversalOf([]call{{path: nil}, {path: nil}, {path: nil}})
+	known := map[string]bool{"show": true, "motion": true, "mint": true}
+	unreadable := traversalOf([]call{{path: nil}, {path: nil}, {path: nil}}, known)
 	if unreadable.Crossings != 0 || unreadable.Unclassified != 3 {
 		t.Errorf("crossings=%d unclassified=%d, want 0 and 3", unreadable.Crossings, unreadable.Unclassified)
 	}
-	oneGroup := traversalOf([]call{{path: []string{"show", "board"}}, {path: []string{"show", "work"}}})
+	oneGroup := traversalOf([]call{{path: []string{"show", "board"}}, {path: []string{"show", "work"}}}, known)
 	if oneGroup.Crossings != 0 || oneGroup.Stays != 1 || oneGroup.Unclassified != 0 {
 		t.Errorf("a seat that stayed in one group: crossings=%d stays=%d unclassified=%d",
 			oneGroup.Crossings, oneGroup.Stays, oneGroup.Unclassified)
@@ -83,7 +84,7 @@ func TestHelpReadsAreNotTraversal(t *testing.T) {
 		{path: []string{"show"}, isHelp: true},
 		{path: []string{"motion"}, isHelp: true},
 		{path: []string{"show", "board"}},
-	})
+	}, map[string]bool{"show": true, "motion": true})
 	if got.Crossings != 0 || got.Stays != 0 || got.Unclassified != 0 {
 		t.Errorf("help reads leaked into the traversal: %+v", got)
 	}
@@ -92,8 +93,36 @@ func TestHelpReadsAreNotTraversal(t *testing.T) {
 // EMPTY IS `[]`, NOT `null` — a consumer iterating every seat's pairs must not die on the first
 // seat that never left a group.
 func TestEmptyTraversalMarshalsAsEmptySlices(t *testing.T) {
-	got := traversalOf(nil)
+	got := traversalOf(nil, nil)
 	if got.Pairs == nil || got.Sequence == nil {
 		t.Errorf("nil slices marshal as null: pairs=%v sequence=%v", got.Pairs, got.Sequence)
+	}
+}
+
+// PROSE THAT ESCAPED A --reason BODY IS NOT A GROUP THE SEAT VISITED.
+//
+// CommandWords accepts any lowercase word, so a real corpus produced crossings named
+// `and -> names` and `edit -> returns`. Checking each top against the seat's own verb set is what
+// separates a command from a word, and an unrecognised token lands in Unclassified rather than
+// being dropped — a token the tree does not know is exactly a call the traversal could not read.
+func TestProseIsNotAGroup(t *testing.T) {
+	known := map[string]bool{"show": true, "finding": true}
+	got := traversalOf([]call{
+		{path: []string{"show", "board"}},
+		{path: []string{"and", "names"}}, // prose
+		{path: []string{"returns"}},      // prose
+		{path: []string{"finding", "--key"}},
+	}, known)
+	if got.Unclassified != 2 {
+		t.Errorf("unclassified=%d, want 2 (the two prose tokens)", got.Unclassified)
+	}
+	// One real crossing survives: show -> finding. The prose must not have manufactured three.
+	if got.Crossings != 1 {
+		t.Errorf("crossings=%d, want 1", got.Crossings)
+	}
+	for _, p := range got.Pairs {
+		if p.From == "and" || p.To == "names" || p.From == "returns" {
+			t.Errorf("a prose token reached the pairs: %+v", p)
+		}
 	}
 }

@@ -63,7 +63,7 @@ func TestTheRootListingIsNotHavingReadTheHelp(t *testing.T) {
 		use("a", `"/tmp/x/feov-record" --seat-id red-lens-r1-L1 --help`), res("a", rootHelp, false),
 		use("b", `"/tmp/x/feov-record" fetch --url http://x --sha256 deadbeef`), res("b", "unknown flag: --sha256", true),
 	)
-	s, err := ReadSurvey(p, "feov-record")
+	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestHelpReadAfterTheRefusalDoesNotCount(t *testing.T) {
 		use("b", `/tmp/x/feov-record fetch --help`), res("b", "fetch a source", false),
 		use("c", `/tmp/x/feov-record fetch --url http://x`), res("c", "ok", false),
 	)
-	s, err := ReadSurvey(p, "feov-record")
+	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestGroupHelpIsNotCommandHelp(t *testing.T) {
 		use("a", `/tmp/x/feov-record motion --help`), res("a", "Available Commands:\n  petition  file one\n", false),
 		use("b", `/tmp/x/feov-record motion petition file --class integrity`), res("b", "ok", false),
 	)
-	s, err := ReadSurvey(p, "feov-record")
+	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestGroupHelpIsNotCommandHelp(t *testing.T) {
 		use("a", `/tmp/x/feov-record motion petition file --help`), res("a", "file a petition", false),
 		use("b", `/tmp/x/feov-record motion petition file --class integrity`), res("b", "ok", false),
 	)
-	s2, _ := ReadSurvey(p2, "feov-record")
+	s2, _ := ReadSurvey(p2, "feov-record", nil)
 	if got := s2.FirstUses[0].Depth; got != DepthCommand {
 		t.Errorf("depth = %q, want %q", got, DepthCommand)
 	}
@@ -133,7 +133,7 @@ func TestGroupHelpIsNotCommandHelp(t *testing.T) {
 // would report 0 blind uses, which is what a perfect sitting also reports.
 func TestASittingThatInvokedNothingSaysSoRatherThanScoringZero(t *testing.T) {
 	p := traj(t, use("a", `/tmp/x/feov-record --seat-id x --help`), res("a", rootHelp, false))
-	s, err := ReadSurvey(p, "feov-record")
+	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestPagesOpenedForCommandsNeverRunAreTheSurveySignal(t *testing.T) {
 		use("c", `/tmp/x/feov-record verify --help`), res("c", "adjudicate one citation", false),
 		use("d", `/tmp/x/feov-record finding --quote "x" --reason "y"`), res("d", "ok", false),
 	)
-	s, err := ReadSurvey(p, "feov-record")
+	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
