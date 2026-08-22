@@ -4,9 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -72,21 +70,24 @@ func newInquirySupport() *cobra.Command {
 			if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
 				return nil, err
 			}
-			return inquirySupportResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
+			return inquiryReviewResult{}, nil
 		}))
 
-	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID,
-		"the line of inquiry you are voting on — `show lines-of-inquiry` lists every one")
-	enumhelp.Flag(c, flags.As, record.MustEnum("inquiry-support", "as"),
-		"REQUIRED — what the report does for this line RIGHT NOW, from this round's read of the document rather than from the record you already have. `unsupported` and `absent` put it on blue's work list; `weakened` is a flag blue may answer or accept")
+	// NO --id AND NO --as, AND THE ABSENCE IS THE RULING.
+	//
+	// The four-value `--as` answered "does the report still carry this line". Presence stopped
+	// being a question when the lines became GENERATED onto the page from the record — blue cannot
+	// cut one — and the surviving question, whether the body delivered the research, is an ORDINARY
+	// GAP with the grade vocabulary it already has. record/enums.go states the same ruling from the
+	// other side by declining to declare a set: "a second vocabulary for the same fact is exactly
+	// the aliasing this schema exists to remove".
+	//
+	// A flag a seat can pass and the record ignores is worse than one that does not exist, so both
+	// go rather than lingering as accepted-and-discarded. One read of the document per round,
+	// recorded as prose.
 	return c
 }
 
-type inquirySupportResult struct {
-	ID string `json:"id"`
-	As string `json:"as"`
-}
+type inquiryReviewResult struct{}
 
-func (r inquirySupportResult) Human() string {
-	return "line of inquiry " + r.ID + " voted " + r.As
-}
+func (r inquiryReviewResult) Human() string { return "inquiry review recorded" }
