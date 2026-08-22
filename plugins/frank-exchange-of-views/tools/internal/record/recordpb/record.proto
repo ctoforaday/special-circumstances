@@ -492,7 +492,18 @@ message EdgeDeltas {
 
 // Mint records a gap. `gap_id` is ASSIGNED by the tool, never chosen by the seat.
 message Mint {
-  optional string gap_id = 1;
+  // THE RECORD'S PRIMARY ENTITY, and until this annotation nothing enforced that it existed.
+  //
+  // Every other gap_id in the schema now references this column, which is only possible because it
+  // is unique and present. Before, a close, an opinion, a regrade or a grade motion could name a
+  // gap that had never been minted, and the file-backed record met that case with a `missingGap`
+  // ANOMALY — a defect discovered on read, per reader, after the fact. As a foreign key it is not
+  // discoverable at all: the row cannot be written.
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    unique: true
+    why: "the gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on"
+  }];
   optional string mint_key = 2;
 
   // class names the defect's kind. class_new records that the seat coined it in this act, which
@@ -595,6 +606,7 @@ message Close {
   optional string gap_id = 1 [(sql) = {
     required: true
     flag: "id"
+    references: "mint.gap_id"
     why: "which gap this closes"
   }];
   // A MERGE MAY CLOSE, AND MAY NOT CARRY. `subset` generates the CHECK from the vocabulary's own
@@ -612,8 +624,11 @@ message Close {
   optional string carried_from = 6;
 
   // successor carries the unresolved remainder forward. Required by CLOSED_WITH_REGRESSION,
-  // because lineage never drops.
-  optional string successor = 7;
+  // because lineage never drops — and now it must name a gap that EXISTS. "Lineage never drops"
+  // was enforced as "the field is not empty", which a typo satisfies: the closure recorded a
+  // successor, the successor pointed at nothing, and the remainder was carried forward to a gap
+  // id no board has ever had.
+  optional string successor = 7 [(sql) = { references: "mint.gap_id" }];
 
   // prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
   // and the re-audit reads it.
@@ -626,7 +641,7 @@ message Close {
 
 // Closing is the closing argument on a docket-bound gap, read by the bench.
 message Closing {
-  optional string gap_id = 1;
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
   optional string text = 2 [(sql) = {
     required: true
     flag: "reason"
@@ -637,7 +652,7 @@ message Closing {
 // Regrade moves a grade, with its reason. A grade decides what happens NEXT to a gap, so moving
 // one on a finished gap changes a number nobody reads.
 message Regrade {
-  optional string gap_id = 1;
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
   optional Grade severity = 2;
   optional Grade likelihood = 3;
   optional Grade impact = 4;
@@ -668,6 +683,7 @@ message Opinion {
   optional string gap_id = 1 [(sql) = {
     required: true
     flag: "id"
+    references: "mint.gap_id"
     why: "which gap is being ruled on"
   }];
 
@@ -930,7 +946,7 @@ message Retire {
 }
 
 message ManifestRow {
-  optional string gap_id = 1;
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
   optional string row = 2;
 }
 
@@ -1012,7 +1028,9 @@ message Motion {
 // not exist is dropped at replay, and one against a gap already disposed of asks for a
 // disposition that has already been made.
 message GradeMotion {
-  optional string gap_id = 1;
+  // A grade motion contests a REAL gap's grade. This is the arm whose foreign keys the generator
+  // dropped entirely until the golden was read; the referent is now enforced with the vocabulary.
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
   optional GradeDimension dimension = 2;
   optional Grade proposed = 3;
 }
@@ -1083,7 +1101,10 @@ enum RulingBinds {
 // MotionAppeal records that a party pressed a ruling — whether or not it also complied. Arguing
 // and then yielding belongs on the record instead of vanishing.
 message MotionAppeal {
-  optional string motion_id = 1;
+  // An appeal names the motion it appeals. MotionRule already referenced `motion.motion_id`; this
+  // did not, so an appeal of a motion nobody filed was writable — the same ordering hazard the
+  // ruling constraint closed, left open on the other verb that acts on a filing.
+  optional string motion_id = 1 [(sql) = { references: "motion.motion_id" }];
   optional MotionSubject subject = 2;
   optional string reason = 3;
 }

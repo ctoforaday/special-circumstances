@@ -227,6 +227,7 @@ CREATE TABLE "motion_grade" (
   "gap_id" TEXT,
   "dimension" TEXT,
   "proposed" TEXT,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("dimension") REFERENCES "enum_grade_dimension"("value"),
   FOREIGN KEY ("proposed") REFERENCES "enum_grade"("value")
 ) STRICT;
@@ -265,12 +266,13 @@ CREATE TABLE "motion_appeal" (
   "motion_id" TEXT,
   "subject" TEXT,
   "reason" TEXT,
+  FOREIGN KEY ("motion_id") REFERENCES "motion"("motion_id"),
   FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value")
 ) STRICT;
 
 CREATE TABLE "mint" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "gap_id" TEXT,
+  "gap_id" TEXT NOT NULL UNIQUE,
   "mint_key" TEXT,
   "class" TEXT NOT NULL,
   "class_new" INTEGER,
@@ -330,13 +332,16 @@ CREATE TABLE "close" (
   "prose" TEXT NOT NULL,
   CHECK ("closure_class" IS NULL OR "closure_class" IN ('amends_prior', 'closed', 'closed_with_regression', 'rebuttal_sustained', 'risk_accepted', 'routed_to_infrastructure')),
   CHECK ("closure_class" <> 'closed_with_regression' OR "successor" IS NOT NULL),
-  FOREIGN KEY ("closure_class") REFERENCES "enum_disposition"("value")
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
+  FOREIGN KEY ("closure_class") REFERENCES "enum_disposition"("value"),
+  FOREIGN KEY ("successor") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "closing" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "gap_id" TEXT,
-  "text" TEXT NOT NULL
+  "text" TEXT NOT NULL,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "regrade" (
@@ -347,6 +352,7 @@ CREATE TABLE "regrade" (
   "impact" TEXT,
   "complexity_cost" TEXT,
   "basis" TEXT NOT NULL,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("impact") REFERENCES "enum_grade"("value"),
@@ -374,6 +380,7 @@ CREATE TABLE "opinion" (
   "tension" TEXT NOT NULL,
   "review_flag" TEXT NOT NULL,
   "rationale" TEXT NOT NULL,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
 ) STRICT;
 
@@ -499,7 +506,8 @@ CREATE TABLE "retire" (
 CREATE TABLE "manifest_row" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "gap_id" TEXT,
-  "row" TEXT
+  "row" TEXT,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "friction" (

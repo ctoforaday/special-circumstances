@@ -2407,9 +2407,16 @@ func (x *EdgeDeltas) GetUpMass() float64 {
 
 // Mint records a gap. `gap_id` is ASSIGNED by the tool, never chosen by the seat.
 type Mint struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	GapId   *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
-	MintKey *string                `protobuf:"bytes,2,opt,name=mint_key,json=mintKey,proto3,oneof" json:"mint_key,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// THE RECORD'S PRIMARY ENTITY, and until this annotation nothing enforced that it existed.
+	//
+	// Every other gap_id in the schema now references this column, which is only possible because it
+	// is unique and present. Before, a close, an opinion, a regrade or a grade motion could name a
+	// gap that had never been minted, and the file-backed record met that case with a `missingGap`
+	// ANOMALY — a defect discovered on read, per reader, after the fact. As a foreign key it is not
+	// discoverable at all: the row cannot be written.
+	GapId   *string `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
+	MintKey *string `protobuf:"bytes,2,opt,name=mint_key,json=mintKey,proto3,oneof" json:"mint_key,omitempty"`
 	// class names the defect's kind. class_new records that the seat coined it in this act, which
 	// is why the definition/neighbor/distinguisher trio travels alongside: a new class has to say
 	// what it is, what it is nearest to, and how it differs.
@@ -2721,7 +2728,10 @@ type Close struct {
 	AnchorTarget *string `protobuf:"bytes,5,opt,name=anchor_target,json=anchorTarget,proto3,oneof" json:"anchor_target,omitempty"`
 	CarriedFrom  *string `protobuf:"bytes,6,opt,name=carried_from,json=carriedFrom,proto3,oneof" json:"carried_from,omitempty"`
 	// successor carries the unresolved remainder forward. Required by CLOSED_WITH_REGRESSION,
-	// because lineage never drops.
+	// because lineage never drops — and now it must name a gap that EXISTS. "Lineage never drops"
+	// was enforced as "the field is not empty", which a typo satisfies: the closure recorded a
+	// successor, the successor pointed at nothing, and the remainder was carried forward to a gap
+	// id no board has ever had.
 	Successor *string `protobuf:"bytes,7,opt,name=successor,proto3,oneof" json:"successor,omitempty"`
 	// prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
 	// and the re-audit reads it.
@@ -4485,10 +4495,12 @@ func (*Motion_Direction) isMotion_Filing() {}
 // not exist is dropped at replay, and one against a gap already disposed of asks for a
 // disposition that has already been made.
 type GradeMotion struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	GapId         *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
-	Dimension     *GradeDimension        `protobuf:"varint,2,opt,name=dimension,proto3,enum=feov.record.v1.GradeDimension,oneof" json:"dimension,omitempty"`
-	Proposed      *Grade                 `protobuf:"varint,3,opt,name=proposed,proto3,enum=feov.record.v1.Grade,oneof" json:"proposed,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A grade motion contests a REAL gap's grade. This is the arm whose foreign keys the generator
+	// dropped entirely until the golden was read; the referent is now enforced with the vocabulary.
+	GapId         *string         `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
+	Dimension     *GradeDimension `protobuf:"varint,2,opt,name=dimension,proto3,enum=feov.record.v1.GradeDimension,oneof" json:"dimension,omitempty"`
+	Proposed      *Grade          `protobuf:"varint,3,opt,name=proposed,proto3,enum=feov.record.v1.Grade,oneof" json:"proposed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4778,10 +4790,13 @@ func (*MotionRule_Direction) isMotionRule_Ruling() {}
 // MotionAppeal records that a party pressed a ruling — whether or not it also complied. Arguing
 // and then yielding belongs on the record instead of vanishing.
 type MotionAppeal struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MotionId      *string                `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
-	Subject       *MotionSubject         `protobuf:"varint,2,opt,name=subject,proto3,enum=feov.record.v1.MotionSubject,oneof" json:"subject,omitempty"`
-	Reason        *string                `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An appeal names the motion it appeals. MotionRule already referenced `motion.motion_id`; this
+	// did not, so an appeal of a motion nobody filed was writable — the same ordering hazard the
+	// ruling constraint closed, left open on the other verb that acts on a filing.
+	MotionId      *string        `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
+	Subject       *MotionSubject `protobuf:"varint,2,opt,name=subject,proto3,enum=feov.record.v1.MotionSubject,oneof" json:"subject,omitempty"`
+	Reason        *string        `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5399,9 +5414,9 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\x93\x10\n" +
-	"\x04Mint\x12\x1a\n" +
-	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
+	"\b_up_mass\"\x90\x11\n" +
+	"\x04Mint\x12\x96\x01\n" +
+	"\x06gap_id\x18\x01 \x01(\tBz\x82\xb5\x18v\b\x01\x1apthe gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on(\x01H\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xf7\x01\n" +
 	"\x05class\x18\x03 \x01(\tB\xdb\x01\x82\xb5\x18\xd6\x01\b\x01\x1a\xd1\x01the slug — one the registry has, or one you coined first with `merge class new`. A gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistakeH\x02R\x05class\x88\x01\x01\x12 \n" +
 	"\tclass_new\x18\x04 \x01(\bH\x03R\bclassNew\x88\x01\x01\x12#\n" +
@@ -5466,17 +5481,17 @@ const file_record_proto_rawDesc = "" +
 	"\x05_slugB\r\n" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
-	"\x0e_distinguisher\"\x87\a\n" +
-	"\x05Close\x12=\n" +
-	"\x06gap_id\x18\x01 \x01(\tB!\x82\xb5\x18\x1d\b\x01\x12\x02id\x1a\x15which gap this closesH\x00R\x05gapId\x88\x01\x01\x12\xb6\x01\n" +
+	"\x0e_distinguisher\"\xa7\a\n" +
+	"\x05Close\x12J\n" +
+	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xb6\x01\n" +
 	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBo\x82\xb5\x18k\x1aaa merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
 	"\vanchor_seat\x18\x03 \x01(\tH\x02R\n" +
 	"anchorSeat\x88\x01\x01\x12$\n" +
 	"\vanchor_tool\x18\x04 \x01(\tH\x03R\n" +
 	"anchorTool\x88\x01\x01\x12(\n" +
 	"\ranchor_target\x18\x05 \x01(\tH\x04R\fanchorTarget\x88\x01\x01\x12&\n" +
-	"\fcarried_from\x18\x06 \x01(\tH\x05R\vcarriedFrom\x88\x01\x01\x12!\n" +
-	"\tsuccessor\x18\a \x01(\tH\x06R\tsuccessor\x88\x01\x01\x12\x99\x01\n" +
+	"\fcarried_from\x18\x06 \x01(\tH\x05R\vcarriedFrom\x88\x01\x01\x124\n" +
+	"\tsuccessor\x18\a \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x06R\tsuccessor\x88\x01\x01\x12\x99\x01\n" +
 	"\x05prose\x18\b \x01(\tB~\x82\xb5\x18z\b\x01\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads itH\aR\x05prose\x88\x01\x01:\xb0\x01\x92\xb5\x18\xab\x01\n" +
 	"F\"closure_class\" <> 'closed_with_regression' OR \"successor\" IS NOT NULL\x12aa closure that reports a regression must name the gap carrying it forward — lineage never dropsB\t\n" +
 	"\a_gap_idB\x10\n" +
@@ -5487,14 +5502,14 @@ const file_record_proto_rawDesc = "" +
 	"\r_carried_fromB\f\n" +
 	"\n" +
 	"_successorB\b\n" +
-	"\x06_prose\"\xb6\x01\n" +
-	"\aClosing\x12\x1a\n" +
-	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12{\n" +
+	"\x06_prose\"\xc9\x01\n" +
+	"\aClosing\x12-\n" +
+	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12{\n" +
 	"\x04text\x18\x02 \x01(\tBb\x82\xb5\x18^\b\x01\x12\x06reason\x1aRthe closing argument for this gap — the report renders it under the gap's docketH\x01R\x04text\x88\x01\x01B\t\n" +
 	"\a_gap_idB\a\n" +
-	"\x05_text\"\xb9\x03\n" +
-	"\aRegrade\x12\x1a\n" +
-	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x126\n" +
+	"\x05_text\"\xcc\x03\n" +
+	"\aRegrade\x12-\n" +
+	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x126\n" +
 	"\bseverity\x18\x02 \x01(\x0e2\x15.feov.record.v1.GradeH\x01R\bseverity\x88\x01\x01\x12:\n" +
 	"\n" +
 	"likelihood\x18\x03 \x01(\x0e2\x15.feov.record.v1.GradeH\x02R\n" +
@@ -5513,9 +5528,9 @@ const file_record_proto_rawDesc = "" +
 	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01B\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xb9\x06\n" +
-	"\aOpinion\x12C\n" +
-	"\x06gap_id\x18\x01 \x01(\tB'\x82\xb5\x18#\b\x01\x12\x02id\x1a\x1bwhich gap is being ruled onH\x00R\x05gapId\x88\x01\x01\x12\x9b\x01\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xc6\x06\n" +
+	"\aOpinion\x12P\n" +
+	"\x06gap_id\x18\x01 \x01(\tB4\x82\xb5\x180\b\x01\x12\x02id\x1a\x1bwhich gap is being ruled on\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x9b\x01\n" +
 	"\vdisposition\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12p\n" +
 	"\tprinciple\x18\x03 \x01(\tBM\x82\xb5\x18I\b\x01\x1aEthe rule you are applying, stated so a later sitting can apply it tooH\x02R\tprinciple\x88\x01\x01\x12\x7f\n" +
 	"\atension\x18\x04 \x01(\tB`\x82\xb5\x18\\\b\x01\x1aXwhat pulls the other way — a ruling with no acknowledged counterweight is an assertionH\x03R\atension\x88\x01\x01\x12j\n" +
@@ -5705,9 +5720,9 @@ const file_record_proto_rawDesc = "" +
 	"\x06_claimB\t\n" +
 	"\a_reasonB\x10\n" +
 	"\x0e_superseded_byB\x10\n" +
-	"\x0e_removal_basis\"S\n" +
-	"\vManifestRow\x12\x1a\n" +
-	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12\x15\n" +
+	"\x0e_removal_basis\"f\n" +
+	"\vManifestRow\x12-\n" +
+	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x15\n" +
 	"\x03row\x18\x02 \x01(\tH\x01R\x03row\x88\x01\x01B\t\n" +
 	"\a_gap_idB\x06\n" +
 	"\x04_row\"\xa2\x01\n" +
@@ -5737,9 +5752,9 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"\b_subjectB\b\n" +
 	"\x06_basisB\t\n" +
-	"\a_relief\"\xca\x01\n" +
-	"\vGradeMotion\x12\x1a\n" +
-	"\x06gap_id\x18\x01 \x01(\tH\x00R\x05gapId\x88\x01\x01\x12A\n" +
+	"\a_relief\"\xdd\x01\n" +
+	"\vGradeMotion\x12-\n" +
+	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12A\n" +
 	"\tdimension\x18\x02 \x01(\x0e2\x1e.feov.record.v1.GradeDimensionH\x01R\tdimension\x88\x01\x01\x126\n" +
 	"\bproposed\x18\x03 \x01(\x0e2\x15.feov.record.v1.GradeH\x02R\bproposed\x88\x01\x01B\t\n" +
 	"\a_gap_idB\f\n" +
@@ -5770,9 +5785,9 @@ const file_record_proto_rawDesc = "" +
 	"\b_subjectB\n" +
 	"\n" +
 	"\b_opinionB\b\n" +
-	"\x06_binds\"\xb0\x01\n" +
-	"\fMotionAppeal\x12 \n" +
-	"\tmotion_id\x18\x01 \x01(\tH\x00R\bmotionId\x88\x01\x01\x12<\n" +
+	"\x06_binds\"\xc8\x01\n" +
+	"\fMotionAppeal\x128\n" +
+	"\tmotion_id\x18\x01 \x01(\tB\x16\x82\xb5\x18\x12\"\x10motion.motion_idH\x00R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x01R\asubject\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x03 \x01(\tH\x02R\x06reason\x88\x01\x01B\f\n" +
 	"\n" +

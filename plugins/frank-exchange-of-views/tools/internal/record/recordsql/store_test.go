@@ -106,6 +106,7 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 func TestAnAbsentFieldIsNull(t *testing.T) {
 	db := store(t)
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+		GapId:           proto.String("R1-1"),
 		Class:           proto.String("c"),
 		Problem:         proto.String("p"),
 		AcceptanceCheck: proto.String("a"),
@@ -141,6 +142,9 @@ func TestARulingCannotPrecedeItsFiling(t *testing.T) {
 		t.Fatal("a ruling was recorded against a motion that does not exist — this is the ordering " +
 			"hazard the sharded log could not refuse, and the reason Motions() needs a second pass")
 	}
+
+	// The gap the motion contests has to exist: `motion_grade.gap_id` references mint now.
+	mintGap(t, db, 2, "R1-1")
 
 	filing := event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 		MotionId: proto.String("M1"),
@@ -178,6 +182,12 @@ func TestARulingCannotPrecedeItsFiling(t *testing.T) {
 // real: anything writing SQL directly could create it, and the row would look legitimate.
 func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 	db := store(t)
+	// Every gap named below, INCLUDING the successor: `close.successor` references mint.gap_id now,
+	// so "lineage never drops" no longer means "the field is non-empty". A successor naming a gap
+	// that does not exist carried the remainder forward to an id no board ever had.
+	for i, id := range []string{"R1-1", "R1-2", "R1-3", "R2-1"} {
+		mintGap(t, db, int32(10+i), id)
+	}
 	mk := func(seq int32) *recordpb.Event {
 		return event(t, seq, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
 			GapId:        proto.String("R1-1"),
@@ -365,6 +375,8 @@ func TestTheBoardIsAQuery(t *testing.T) {
 // folding the stream. Here it is a column, and the filing/ruling join comes with it.
 func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	db := store(t)
+	mintGap(t, db, 10, "R1-1")
+	mintGap(t, db, 11, "R1-2")
 	file := func(seq int32, id, gap string) {
 		t.Helper()
 		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
@@ -457,6 +469,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 // drift: adding a second deferring disposition tightens the CHECK with nobody editing it.
 func TestAMergeCannotCloseAGapByCarryingIt(t *testing.T) {
 	db := store(t)
+	mintGap(t, db, 10, "R1-1")
 	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
 		GapId:        proto.String("R1-1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
@@ -513,5 +526,115 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 		if got[word] != w {
 			t.Errorf("%q closes=%v, want %v", word, got[word], w)
 		}
+	}
+}
+
+// mintGap puts a real gap on the board, because every gap_id in the schema is a foreign key onto
+// `mint.gap_id` now.
+//
+// That constraint broke five fixtures in this file when it landed, and each break was the same
+// admission: they closed, ruled on and filed motions against gaps that had never been minted. The
+// file-backed record met that case with a `missingGap` ANOMALY — a defect found on read, per
+// reader, after the fact, which is how a whole run's bench closures once vanished into a list
+// nobody displayed. The fixtures could be written that way because nothing refused them.
+func mintGap(t *testing.T, db *sql.DB, seq int32, gapID string) {
+	t.Helper()
+	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+		GapId:           proto.String(gapID),
+		Class:           proto.String("c"),
+		Problem:         proto.String("p"),
+		AcceptanceCheck: proto.String("a"),
+		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
+		Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
+	})); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A GAP THAT WAS NEVER MINTED CANNOT BE CLOSED, RULED ON, OR CONTESTED.
+//
+// The file-backed record met this case with a `missingGap` ANOMALY: the write succeeded, and the
+// dangling reference was discovered later, by whichever reader happened to look, if any did. That
+// is how a whole sitting's bench closures once vanished — the events were recorded correctly, the
+// replay dropped them, and every projection downstream reported a board that had never existed.
+//
+// As a foreign key there is no anomaly to discover, because there is no row. That is the shape of
+// the whole migration in one assertion: the invariant moves from something a reader might notice
+// to something a writer cannot do.
+func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
+	for _, c := range []struct {
+		what string
+		body proto.Message
+		typ  recordpb.EventType
+	}{
+		{"closed", &recordpb.Close{
+			GapId:        proto.String("R9-9"),
+			ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum(),
+			Prose:        proto.String("closing a gap nobody minted"),
+		}, recordpb.EventType_EVENT_TYPE_CLOSE},
+		{"ruled on", &recordpb.Opinion{
+			GapId:       proto.String("R9-9"),
+			Disposition: recordpb.Disposition_DISPOSITION_RISK_ACCEPTED.Enum(),
+			Principle:   proto.String("p"),
+			Tension:     proto.String("t"),
+			ReviewFlag:  proto.String("no"),
+			Rationale:   proto.String("r"),
+		}, recordpb.EventType_EVENT_TYPE_OPINION},
+		{"contested by a grade motion", &recordpb.Motion{
+			MotionId: proto.String("M1"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R9-9")}},
+		}, recordpb.EventType_EVENT_TYPE_MOTION},
+	} {
+		t.Run(c.what, func(t *testing.T) {
+			db := store(t)
+			if _, err := Insert(db, event(t, 0, c.typ, c.body)); err == nil {
+				t.Errorf("a gap that was never minted was %s — the reference dangles, and every count "+
+					"derived from the board now includes an act against something that does not exist", c.what)
+			}
+		})
+	}
+
+	// And the same acts succeed once the gap is real, or the constraint is a wall rather than a gate.
+	db := store(t)
+	mintGap(t, db, 0, "R9-9")
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R9-9"),
+		ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum(),
+		Prose:        proto.String("the repair was verified at the leaf"),
+	})); err != nil {
+		t.Fatalf("a real gap could not be closed: %v", err)
+	}
+}
+
+// A SUCCESSOR MUST BE A GAP, NOT A STRING THAT LOOKS LIKE ONE.
+//
+// "Lineage never drops" was enforced as "the field is not empty" — a rule a typo satisfies. The
+// closure recorded a successor, the successor pointed at nothing, and the unresolved remainder was
+// carried forward to a gap id no board has ever had. The CHECK and the foreign key are both needed
+// and they say different things: one that a regression closure NAMES a successor, the other that
+// what it names EXISTS.
+func TestASuccessorMustBeAGapThatExists(t *testing.T) {
+	db := store(t)
+	mintGap(t, db, 0, "R1-1")
+
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION.Enum(),
+		Successor:    proto.String("R2-7"),
+		Prose:        proto.String("repaired, and R2-7 carries the regression"),
+	})); err == nil {
+		t.Fatal("a closure named R2-7 as carrying its regression forward and no such gap exists — the CHECK is satisfied, the lineage is broken, and the repair_regression denominator counts a closure that resolved nothing")
+	}
+
+	mintGap(t, db, 2, "R2-7")
+	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION.Enum(),
+		Successor:    proto.String("R2-7"),
+		Prose:        proto.String("repaired, and R2-7 carries the regression"),
+	})); err != nil {
+		t.Fatalf("a closure naming a REAL successor was refused: %v", err)
 	}
 }

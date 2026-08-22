@@ -104,8 +104,8 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 
 	t.Run("an unknown enum value is refused", func(t *testing.T) {
 		id := seed(t)
-		_, err := db.Exec(`INSERT INTO mint (event_id, class, problem, acceptance_check, check_kind, likelihood, impact)
-			VALUES (?, 'c', 'p', 'a', 'guesswork', 'medium', 'medium')`, id)
+		_, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, problem, acceptance_check, check_kind, likelihood, impact)
+			VALUES (?, 'R9-1', 'c', 'p', 'a', 'guesswork', 'medium', 'medium')`, id)
 		if err == nil {
 			t.Fatal("`guesswork` was accepted as a check kind — an unrecognised value lands in no bucket and the gap reads as checked by nothing")
 		}
@@ -113,8 +113,10 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 
 	t.Run("a required field omitted is refused", func(t *testing.T) {
 		id := seed(t)
-		_, err := db.Exec(`INSERT INTO mint (event_id, class, acceptance_check, check_kind, likelihood, impact)
-			VALUES (?, 'c', 'a', 'document', 'medium', 'medium')`, id)
+		// gap_id is supplied: it is required too now, and a fixture omitting BOTH tests whichever
+		// constraint SQLite reports first, which is not the one this case is about.
+		_, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, acceptance_check, check_kind, likelihood, impact)
+			VALUES (?, 'R9-2', 'c', 'a', 'document', 'medium', 'medium')`, id)
 		if err == nil || !strings.Contains(err.Error(), "problem") {
 			t.Fatalf("a mint with no problem was accepted (%v) — required.go says the verb may not omit it, and the two must not disagree", err)
 		}
@@ -196,6 +198,20 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 		id, _ := res.LastInsertId()
 		return id
 	}
+
+	// The gaps must EXIST before anything can close them: gap_id is a foreign key onto mint now, so
+	// a fixture that closes a gap nobody minted is refused for a reason that has nothing to do with
+	// the vocabulary this test is about.
+	mintGap := func(t *testing.T, gapID string) {
+		t.Helper()
+		mid := mk(t, "mint")
+		if _, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, problem, acceptance_check, check_kind, likelihood, impact)
+			VALUES (?, ?, 'c', 'p', 'a', 'document', 'medium', 'medium')`, mid, gapID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mintGap(t, "R1-1")
+	mintGap(t, "R1-2")
 
 	id := mk(t, "close")
 	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-1', 'evidence-rebutted', 'x')`, id); err == nil {
