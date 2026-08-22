@@ -51,3 +51,13 @@ HEADLINE: anchored_closures_pct 60 [BENCHMARK] · citation_yield_by_round {"1":{
 - `finding_precision` [benchmark] — Certification: earned PASS/FAIL: _not computed_ — needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful
 
 HEADLINE: anchored_closures_pct 60 [BENCHMARK] · citation_yield_by_round {"1":{"citation":3,"logic":12,"darkside":6,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":3,"logic":12,"darkside":6}},"2":{"citation":0,"logic":5,"darkside":0,"seats":{"citation":0,"logic":1,"darkside":0},"per_seat":{"citation":null,"logic":5,"darkside":null}}} [DIAGNOSTIC]
+
+## 2026-08-22_is-7-prime-run2
+
+- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **0** (target 100; baseline 89 (E0.5a))
+- `convergence_vs_verdict_flags` [detector] — Never-hard-fail: **0**
+- `citation_yield_by_round` [diagnostic] — Lens economics (W2i assumption): **{"1":{"citation":6,"logic":5,"darkside":4,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":6,"logic":5,"darkside":4}},"2":{"citation":0,"logic":3,"darkside":6,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":3,"darkside":6}}}**
+  - RETUNE TRIGGER: compare PER_SEAT yield across rounds, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens
+- `finding_precision` [benchmark] — Certification: earned PASS/FAIL: _not computed_ — needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful
+
+HEADLINE: anchored_closures_pct 0 [BENCHMARK] · citation_yield_by_round {"1":{"citation":6,"logic":5,"darkside":4,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":6,"logic":5,"darkside":4}},"2":{"citation":0,"logic":3,"darkside":6,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":3,"darkside":6}}} [DIAGNOSTIC]
