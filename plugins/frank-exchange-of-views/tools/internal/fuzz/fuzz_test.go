@@ -985,9 +985,25 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		open := r.openGaps()
 		if len(open) == 0 {
 			r.dialectic("merge", seatID, nil)
-			// The merge's TERMINAL act on a PASS: checkpoints the event log to the recovery mirror.
-			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS")
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			// THE TOOL DECIDES WHETHER THIS IS A PASS, NOT THE SEAT'S OWN GAP COUNT.
+			//
+			// An empty board is NOT the whole PASS gate: requirePassClosesAllGaps also refuses over
+			// an unruled MOTION, which is the case a seat cannot see by counting gaps. This drive
+			// discarded the refusal and told the harness `PASS` anyway — so debate.js walked on to
+			// `bench outcome --as verified` while the record held NO verdict event at all, and the
+			// outcome landed with basis `asserted` because DeriveVerdict had nothing to derive from.
+			// Six of sixty seeds, and the fuzz reported them as a derivation failure.
+			//
+			// The refusal is the production behaviour under test. Honouring it means a clean board
+			// with an outstanding motion FAILs the round — which is exactly right, and is the only
+			// way the motion arm of that gate is ever exercised end to end.
+			if _, err := r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
+				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			}
+			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
+			// the record and the harness agree about how this round ended.
+			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "FAIL")
+			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 
 		// Something is unrepaired, so the round FAILs.
@@ -995,9 +1011,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		var gaps []any
 		for _, id := range open {
 			gaps = append(gaps, map[string]any{"id": id, "supersedes": arr()})
-		}
-		if len(gaps) == 0 {
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 		// The merge's terminal act on a FAIL too: the checkpoint is what protects the event log
 		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
@@ -2296,6 +2309,10 @@ func TestFuzzDebate(t *testing.T) {
 		t.Log(execReport())
 	}
 	if len(failures) > 0 {
+		// EIGHT, AND IT SAYS SO WHEN IT TRUNCATES. Sixty seeds failing the same way is a wall of
+		// identical text, so the cap is right — but "17/60 failed, see seeds above" over eight
+		// printed seeds invites a reader to take the eight as the whole distribution and count
+		// classes from them. A silent cap reads as full coverage; this one names what it dropped.
 		show := failures
 		if len(show) > 8 {
 			show = show[:8]
@@ -2303,7 +2320,16 @@ func TestFuzzDebate(t *testing.T) {
 		for _, f := range show {
 			t.Errorf("seed %d FAILED (runDir %s):\n%s", f.seed, f.runDir, f.err)
 		}
-		t.Fatalf("%d/%d fuzz runs failed — see seeds above (reproduce with that seed)", len(failures), n)
+		more := ""
+		if len(failures) > len(show) {
+			var rest []string
+			for _, f := range failures[len(show):] {
+				rest = append(rest, fmt.Sprintf("%d", f.seed))
+			}
+			more = fmt.Sprintf(" — %d of them NOT printed above (seeds %s); re-run one of those directly to see its failure",
+				len(rest), strings.Join(rest, " "))
+		}
+		t.Fatalf("%d/%d fuzz runs failed — see seeds above (reproduce with that seed)%s", len(failures), n, more)
 	}
 }
 
