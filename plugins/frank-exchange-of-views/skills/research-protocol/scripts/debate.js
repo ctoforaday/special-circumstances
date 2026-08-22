@@ -599,10 +599,15 @@ const reliefFor = (party) => {
 }
 let halted = false
 let haltOpinion = null
-// ONE SEAT ID NAMES ONE SITTING. Sharing one id across sittings loses rulings silently: each
-// sitting's register rotates the nonce (deliberately, for crash re-dispatch), so N sittings are
-// N shards for one seat, and replay keeps ONE — a petition sitting writes no `verdict` and no
-// `revision`, so the terminal pool is empty and selection falls to latest mtime.
+// ONE SEAT ID NAMES ONE SITTING. The reason it MATTERED has changed; the rule has not.
+//
+// It used to lose rulings silently: each register rotated a nonce, so N sittings were N shard
+// FILES for one seat and replay kept ONE — a petition sitting writes no `verdict` and no
+// `revision`, so the terminal pool was empty and selection fell to latest mtime. The record is one
+// table now; nothing is discarded and both sittings are rows.
+//
+// What still argues for it is the id itself: a seat id is what every act is attributed to, and two
+// sittings sharing one leaves the record unable to say which occasion an act belongs to.
 //
 // Deriving the id from the PETITIONER makes it unique by construction rather than by a counter
 // someone has to remember to increment — the filer already identifies the occasion, because each

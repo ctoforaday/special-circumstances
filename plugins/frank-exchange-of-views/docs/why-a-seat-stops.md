@@ -175,3 +175,11 @@ Unresolved: the probe reports `finding×8` for a sitting that filed four finding
 dispatched twice (`multi-nonce seat red-lens-r1-L1: 2 dispatches`) and both dispatches recorded them.
 Distinct-verb counts are unaffected; per-verb multiplicities in every report are inflated wherever a
 seat was dispatched more than once.
+
+*Addendum (2026-08-22).* Still unresolved, and the diagnostic quoted above no longer exists. The
+record is one database per run: there are no shards, no nonce, and no winner selection, so the
+`multi-nonce seat …` anomaly is gone — but the observation it accompanied is unchanged. Both
+dispatches' findings are rows, which is the honest outcome, and any count that does not group by
+dispatch still doubles. The dispatch is answerable now (`register` reports which attempt it is, and
+the registers are on the record), so a per-verb count CAN be scoped to one sitting. Nothing does
+that yet.
