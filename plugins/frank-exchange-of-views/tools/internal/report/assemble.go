@@ -1037,7 +1037,9 @@ func debate(board *record.Board, evs []*record.Event) string {
 			// indistinguishable from a default"). `disposition` stays a STRING in the schema,
 			// so it renders as written.
 			lead = append(lead, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
-				o.GetGapId(), o.GetDisposition(), o.GetPrinciple(),
+				// The vocabulary's word, not the generated constant name — see view.go's
+				// opinion renderer, where the same substitution was needed for the same reason.
+				o.GetGapId(), recordpb.Word(o.GetDisposition()), o.GetPrinciple(),
 				o.GetTension(), o.GetReviewFlag(), o.GetRationale()))
 		}
 		if len(lead) > 0 {

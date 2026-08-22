@@ -613,7 +613,11 @@ func debateMD(b *record.Board) []byte {
 				// `reason` WAS THE PAYLOAD KEY for the bench's argument; the field is `rationale`
 				// (required.go: Opinion.rationale is typed as --reason).
 				ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
-					t.GetGapId(), t.GetDisposition(), t.GetPrinciple(),
+					// recordpb.Word, NOT the enum's own String(). A generated enum prints its Go
+					// constant name — a seat reading the debate would be shown
+					// `DISPOSITION_CLOSED` where the vocabulary's word belongs. The typing made
+					// this a rendering bug that no longer announces itself as a type error.
+					t.GetGapId(), recordpb.Word(t.GetDisposition()), t.GetPrinciple(),
 					t.GetTension(), t.GetReviewFlag(), t.GetRationale()))
 			case *recordpb.Declare:
 				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+t.GetHolding())

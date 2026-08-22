@@ -1,11 +1,13 @@
 package verify
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // find returns the named check from a Run result.
@@ -20,13 +22,6 @@ func find(t *testing.T, checks []Check, name string) Check {
 	return Check{}
 }
 
-func p(kv ...string) *record.Payload {
-	pl := record.NewPayload()
-	for i := 0; i+1 < len(kv); i += 2 {
-		pl.Set(kv[i], kv[i+1])
-	}
-	return pl
-}
 
 // A gap closed by a merge carries closure_class; one closed by a bench opinion carries a
 // disposition. BOTH are recorded reasons — the check must accept either. This is the
@@ -36,10 +31,18 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 	b := &record.Board{
 		GapOrder: []string{"C1", "C2", "OPEN", "TORN"},
 		Gaps: map[string]*record.Gap{
-			"C1":   {ID: "C1", Open: false, Closure: p("closure_class", "closed")},           // merge close
-			"C2":   {ID: "C2", Open: false, Closure: p("disposition", "rebuttal_sustained")}, // bench opinion
-			"OPEN": {ID: "OPEN", Open: true},                                                 // ignored
-			"TORN": {ID: "TORN", Open: false, Closure: p("something", "else")},               // no reason
+			// The two closures land in DIFFERENT FIELDS now, which is the distinction this test is
+			// about made structural: a merge writes a Close, the bench writes an Opinion, and the
+			// old map-shaped payload let one field hold either — which is why every reader spelled
+			// the same question twice.
+			"C1": {ID: "C1", Open: false, Closure: &recordpb.Close{
+				ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}},
+			"C2": {ID: "C2", Open: false, BenchClosure: &recordpb.Opinion{
+				Disposition: recordpb.Disposition_DISPOSITION_REBUTTAL_SUSTAINED.Enum()}},
+			"OPEN": {ID: "OPEN", Open: true}, // ignored
+			// Closed with NO stated reason: a Close whose class was never set. The old fixture
+			// wrote an unrelated key to express that; absence is now the honest way to say it.
+			"TORN": {ID: "TORN", Open: false, Closure: &recordpb.Close{}},
 		},
 	}
 	c := find(t, Run(b), "gaps-disposed")
@@ -55,10 +58,12 @@ func TestFoundByResolves(t *testing.T) {
 	b := &record.Board{
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Mint: p().Set("found_by", []string{"L1-F1"})},
-			"G2": {ID: "G2", Mint: p().Set("found_by", []string{"GHOST"})},
+			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"L1-F1"}}},
+			"G2": {ID: "G2", Mint: &recordpb.Mint{FoundBy: []string{"GHOST"}}},
 		},
-		Events: []*record.Event{{Type: "finding", Payload: p("label", "L1-F1")}},
+		Events: []*record.Event{
+			recordtest.Event(t, "red-lens-r1-L1", 1, &recordpb.Finding{Label: proto.String("L1-F1")}),
+		},
 	}
 	c := find(t, Run(b), "found-by-resolves")
 	if c.OK || len(c.Violations) != 1 || c.Violations[0] != "G2→GHOST" {
@@ -70,8 +75,11 @@ func TestDialecticRefsResolve(t *testing.T) {
 	b := &record.Board{
 		Gaps: map[string]*record.Gap{"R1-1": {ID: "R1-1"}},
 		Events: []*record.Event{
-			{Type: "opinion", SeatID: "judge-r1", Payload: p("gap_id", "R1-1", "disposition", "closed")},
-			{Type: "closing", SeatID: "blue-r1", Payload: p("gap_id", "PHANTOM")},
+			recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{
+				GapId:       proto.String("R1-1"),
+				Disposition: recordpb.Disposition_DISPOSITION_CLOSED.Enum(),
+			}),
+			recordtest.Event(t, "blue-r1", 1, &recordpb.Closing{GapId: proto.String("PHANTOM")}),
 		},
 	}
 	c := find(t, Run(b), "dialectic-refs-resolve")
@@ -96,7 +104,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	openUnderPass := &record.Board{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{{Type: "verdict", Payload: p("verdict", "PASS")}},
+		Events:   []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
 	}
 	if c := find(t, Run(openUnderPass), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
@@ -105,7 +113,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	failed := &record.Board{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{{Type: "verdict", Payload: p("verdict", "FAIL")}},
+		Events:   []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
 	}
 	if c := find(t, Run(failed), "pass-closes-all-gaps"); !c.OK {
 		t.Error("a FAIL verdict must not trip the PASS gate")
@@ -116,7 +124,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	ceiling := &record.Board{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{{Type: "outcome", Payload: p("verdict", "CEILING")}},
+		Events:   []*record.Event{recordtest.Event(t, "judge-r1", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")})},
 	}
 	if c := find(t, Run(ceiling), "pass-closes-all-gaps"); !c.OK {
 		t.Error("a CEILING outcome must not trip the PASS gate")
@@ -141,16 +149,16 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 	b := &record.Board{
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Open: true, Mint: p().Set("found_by", []string{"L5-F1"})},
-			"G2": {ID: "G2", Open: false, Closure: p("disposition", "closed")},
+			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{FoundBy: []string{"L5-F1"}}},
+			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.Opinion{Disposition: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}},
 		},
 		Events: []*record.Event{
-			{Type: "finding", Payload: p("label", "L5-F1")}, // minted
-			{Type: "finding", Payload: p("label", "L5-F2")}, // un-minted
-			{Type: "opinion", Payload: p("gap_id", "G2", "disposition", "closed")},
-			{Type: "verify", Payload: p("claim", "c1", "reference", "r1")},
-			{Type: "verify", Payload: p("claim", "c2", "reference", "r2")},
-			{Type: "outcome", Payload: p("verdict", "CEILING")},
+			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
+			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
+			recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("G2"), Disposition: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}),
+			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c1"), Anchor: proto.String("r1")}),
+			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c2"), Anchor: proto.String("r2")}),
+			recordtest.Event(t, "judge-r1", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")}),
 		},
 	}
 	s := Compute(b)
@@ -224,46 +232,27 @@ func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 			Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 		}
 		if got := passClosesAllGaps(b); !got.OK {
-			t.Errorf("%s/%s must leave the gate inapplicable, not fire it: %q",
-				ev.Type, ev.Payload.Str("verdict"), got.Detail)
+			t.Errorf("%s must leave the gate inapplicable, not fire it: %q",
+				recordpb.Word(ev.GetType()), got.Detail)
 		}
 	}
 }
 
-// THE CLASS, not the instance.
+// THE PASS-VERDICT VOCABULARY GUARD IS GONE, because the confusion it caught is now a COMPILE
+// ERROR.
 //
-// `verdict` and `outcome` events both carry their word under the payload key "verdict", and
-// their vocabularies are disjoint — PASS|FAIL against VERIFIED|CEILING|HALTED|UNVERIFIED. So
-// reading the wrong event type is a type error the compiler cannot see, and it does not fail
-// loudly: the comparison simply never matches and the gate reports "not applicable" forever.
-// A check that can only ever be inapplicable is indistinguishable from a check that holds.
+// It existed because `verdict` and `outcome` events both carried their word under the payload key
+// "verdict" while their vocabularies were disjoint — PASS|FAIL against
+// VERIFIED|CEILING|HALTED|UNVERIFIED. Reading the wrong event type did not fail loudly: the
+// comparison simply never matched and the gate reported "not applicable" forever, which is
+// indistinguishable from a gate that holds. This test asserted the pair against the declared
+// vocabulary so the gate could not go quietly dark again.
 //
-// This asserts the PAIR against enums.go, which is where the vocabulary is actually declared.
-// Re-point the gate at `outcome`, or rename PASS, and this fails — instead of the gate going
-// quietly dark the way it already did once.
-func TestPassVerdictIsAWordItsEventTypeCanActuallyCarry(t *testing.T) {
-	declared, found := record.Enum(passVerdictType, "verdict")
-	if !found {
-		t.Fatalf("no declared vocabulary for (%s, verdict) — the gate switches on a word "+
-			"nothing validates at the write", passVerdictType)
-	}
-	if !declared.Allows(passVerdictWord) {
-		var have []string
-		for _, v := range declared.Values {
-			have = append(have, v.Name)
-		}
-		t.Errorf("%s events cannot carry %q (they carry %v), so the gate's comparison can "+
-			"NEVER match and it reports 'not applicable' on every run",
-			passVerdictType, passVerdictWord, have)
-	}
-	// And the event type it was wrongly pointed at must still be the wrong one — if the two
-	// vocabularies ever converge, the confusion this guards against stops being detectable
-	// and this test needs rewriting rather than silently continuing to pass.
-	if other, ok := record.Enum("outcome", "verdict"); ok && other.Allows(passVerdictWord) {
-		t.Errorf("`outcome` now also allows %q; the two vocabularies have converged and this "+
-			"guard no longer distinguishes the event types", passVerdictWord)
-	}
-}
+// `RoundVerdict.Verdict` is a `recordpb.Verdict` and `Outcome.Verdict` is a `recordpb.RunOutcome`.
+// They are different Go types on different messages; the gate switches on the BODY, so pointing it
+// at the wrong event does not compile. A runtime test for a state the type system forbids is dead
+// code that reads like a live guard, and the next reader would take its passing as evidence the
+// hazard is still being watched.
 
 // THE THIRD STATE (#411). `pass-closes-all-gaps` was inapplicable on every run ever recorded
 // and printed as `[ok  ]`, which reads as a check that held. These pin the distinction.
@@ -309,7 +298,7 @@ func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: false, Closure: p("closure_class", "closed")},
+			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}},
 		},
 	}
 	got := find(t, Run(b), "pass-closes-all-gaps")
