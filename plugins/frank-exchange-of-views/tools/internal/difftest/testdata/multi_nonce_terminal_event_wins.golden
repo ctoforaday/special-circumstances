@@ -13,6 +13,14 @@ exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE002)
 
+YOU ARE SITTING 2 OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. 1 event(s) it recorded (1 mint) lost replay's winner selection and survive nowhere — not in the board, not in the report's evidence, not in any projection you are about to read. This is not a warning about the record being wrong; the record is correct and that work is simply absent.
+
+  mint — a gap was raised and is not on the board — nobody is being asked to fix it
+
+Re-do what still applies rather than assuming your predecessor's output survived it.
+
+red-merge-r1:mint:R1-1
+
 $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
 exit 0
 stdout:
