@@ -1,4 +1,4 @@
-prompt sha256: e7eed68a22913310d389aa51b985f2f3a42d1a04b4bd06a9bc48b60635cc0a04
+prompt sha256: 8988a29e9fdccea3e4b58c7065270f98eb5620ac3d006d6853c37eaf2a621457
 
 Red merge, round 1.
 FIRST ACTION: read this round's lens findings from the RECORD — the `findings` projection — structured JSON carrying each finding's label, seat, round, role, grades, location and text.
@@ -62,7 +62,7 @@ A proof that RE-RUNS CLEAN AND ESTABLISHES NOTHING is the dangerous case, becaus
 The tool records whether it reproduced (computed by comparing bytes, never claimed by you); you record whether it proves the claim.
 A disagreement is still YOUR finding, in your words, through the finding verb.
 RULE ON BLUE'S PROPOSED DIRECTIONS, on the line's own id (the id is the LINE's own — a direction has no separate filing, because blue's proposal IS the filing).
-Blue proposes lines of inquiry with a hypothesis; you say which are worth this run's time — endorsed, out-of-scope (a real question, but not THIS question), or too-thin (in scope, but the hypothesis does not carry its budget).
+Blue proposes lines of inquiry with a hypothesis; you say which are worth this run's time — endorsed, out_of_scope (a real question, but not THIS question), or too_thin (in scope, but the hypothesis does not carry its budget).
 Measured: blue rejected 18 of its own 86 lines of inquiry across six runs and red rejected NONE, because red had no verb to.
 A ruling is an ARGUMENT, not a command: it needs a reason, and blue may APPEAL it on the line's own id — which records the disagreement whether or not blue also pursues the line, so arguing and then yielding is on the record instead of vanishing.
 YOU DO NOT PROPOSE DIRECTIONS — when you want research done, that is a gap whose required_fix says so, and it is graded, tracked and closed.

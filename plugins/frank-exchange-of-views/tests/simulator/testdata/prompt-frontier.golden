@@ -1,9 +1,9 @@
-prompt sha256: 17c2b51fc1db97e66535efe5126b07321c462e73a151ef1749d9daaa8fd37d28
+prompt sha256: 88b3f4d4cdc6831be44bdd03956f4e04b142365e1b741ef5de5a29d757261ca5
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
 ONE line of inquiry per hypothesis, and the tool assigns each an id (Q1, Q2 …).
-THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too-thin or out-of-scope, and cannot hold you to when the run drifts.
+THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts.
 On the record it has an id, a fate, and an argument.
 The hypotheses opening a run are the ones that shape everything downstream and were until now the only ones nobody could contest.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
