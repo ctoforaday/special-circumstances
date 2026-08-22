@@ -2,6 +2,7 @@ package recordsql
 
 import (
 	"database/sql"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"strings"
 	"testing"
 
@@ -205,5 +206,77 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 	id = mk(t, "close")
 	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-2', 'risk_accepted', 'x')`, id); err != nil {
 		t.Fatalf("a real closure class was refused: %v — the vocabulary table is a wall rather than a gate", err)
+	}
+}
+
+// EVERY ENUM COLUMN HAS ITS VOCABULARY BEHIND IT, INCLUDING THE ONES IN ONEOF ARMS.
+//
+// This is the check the golden made me write. `armTable` emitted columns and CHECKs and dropped
+// foreign keys entirely, so `motion_grade.dimension`, `motion_grade.proposed` and
+// `motion_petition.class` sat in the record with no vocabulary — three of the columns a seat
+// actually argues about, unconstrained, next to `motion_rule.binds` which was constrained. The
+// whole suite was green. It had to be: every other test asserts a constraint somebody thought of,
+// and this was a constraint that was never emitted at all.
+//
+// It asks SQLITE, not the DDL string. `strings.Contains(ddl, "FOREIGN KEY")` would pass on a
+// foreign key attached to the wrong column, in the wrong table, or naming a vocabulary that does
+// not exist — and the point of this test is that the generator's output is not trusted.
+func TestEveryEnumColumnIsBackedByItsVocabulary(t *testing.T) {
+	db := store(t)
+
+	// What the descriptors say SHOULD be constrained: every non-repeated enum field of every body,
+	// and of every message arm of every oneof, with the table name each one lands in.
+	type col struct{ table, column, vocab string }
+	var want []col
+	var walk func(md protoreflect.MessageDescriptor, table string)
+	walk = func(md protoreflect.MessageDescriptor, table string) {
+		for i := 0; i < md.Fields().Len(); i++ {
+			fd := md.Fields().Get(i)
+			if fd.IsList() {
+				continue // list values live in their own child table, which has no enum arm today
+			}
+			if m := fd.Message(); m != nil {
+				walk(m, table+"_"+string(fd.Name()))
+				continue
+			}
+			if fd.Kind() == protoreflect.EnumKind {
+				want = append(want, col{table, string(fd.Name()), EnumTableName(fd.Enum())})
+			}
+		}
+	}
+	bodies, err := Bodies()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, md := range bodies {
+		walk(md, TableName(md))
+	}
+	if len(want) == 0 {
+		t.Fatal("no enum columns found — a broken walk would pass every assertion below")
+	}
+
+	for _, c := range want {
+		rows, err := db.Query(`SELECT "table", "from" FROM pragma_foreign_key_list(?)`, c.table)
+		if err != nil {
+			t.Errorf("%s: %v", c.table, err)
+			continue
+		}
+		found := false
+		for rows.Next() {
+			var target, from string
+			if err := rows.Scan(&target, &from); err != nil {
+				t.Fatal(err)
+			}
+			if from == c.column && target == c.vocab {
+				found = true
+			}
+		}
+		rows.Close()
+		if !found {
+			t.Errorf("%s.%s holds values from %s and no foreign key enforces it — the column accepts "+
+				"any text, so a word no seat could ever type through the CLI is storable by anything "+
+				"writing SQL, and the record is EVIDENCE",
+				c.table, c.column, c.vocab)
+		}
 	}
 }

@@ -115,6 +115,53 @@ func Bodies() ([]protoreflect.MessageDescriptor, error) {
 // proto already calls the oneof field.
 func TableName(md protoreflect.MessageDescriptor) string { return snake(string(md.Name())) }
 
+// scalarField is EVERY constraint one non-repeated field contributes, in one place.
+//
+// # Why this is extracted rather than written twice
+//
+// It was written twice. `tableFor` emitted the column, its CHECK, its `references` foreign key, its
+// enum foreign key and its subset CHECK; `armTable` — the same job for a oneof's message arm —
+// emitted the column and the CHECK and silently stopped there. The golden schema is what made that
+// visible: `motion_grade.dimension`, `motion_grade.proposed` and `motion_petition.class` are enum
+// columns sitting in the record with no vocabulary behind them, next to `mint.severity` and
+// `motion_rule.binds` which have one. Nothing failed. No test could have failed, because a test
+// asserts a constraint somebody thought of, and nobody thinks of the constraint that was never
+// emitted.
+//
+// That is the argument for the golden and the argument for this function at the same time: two
+// copies of "what a field owes the schema" will diverge, and the divergence is invisible from the
+// behaviour side.
+func scalarField(fd protoreflect.FieldDescriptor) (col string, checks []string, fks []string, err error) {
+	col, check, err := column(fd)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	if check != "" {
+		checks = append(checks, check)
+	}
+	fk, err := references(fd)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	if fk != "" {
+		fks = append(fks, fk)
+	}
+	if fd.Kind() == protoreflect.EnumKind {
+		fks = append(fks, fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(\"value\")", fd.Name(), EnumTableName(fd.Enum())))
+		// A column may reach only PART of its vocabulary — `merge close` may close and may not
+		// carry. The admitted words are expanded from the values' own facet annotation, so the
+		// constraint and the Go refusal beside it read the same declaration.
+		if facet := Opts(fd).GetSubset(); facet != "" {
+			sc, err := subsetCheck(fd, facet)
+			if err != nil {
+				return "", nil, nil, err
+			}
+			checks = append(checks, sc)
+		}
+	}
+	return col, checks, fks, nil
+}
+
 func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 	var cols []string
 	var checks []string
@@ -132,34 +179,13 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 			children = append(children, listTable(md, fd))
 			continue
 		}
-		col, check, err := column(fd)
+		col, fchecks, ffks, err := scalarField(fd)
 		if err != nil {
 			return "", err
 		}
 		cols = append(cols, "  "+col)
-		if check != "" {
-			checks = append(checks, check)
-		}
-		fk, err := references(fd)
-		if err != nil {
-			return "", err
-		}
-		if fk != "" {
-			fks = append(fks, fk)
-		}
-		if fd.Kind() == protoreflect.EnumKind {
-			fks = append(fks, fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(\"value\")", fd.Name(), EnumTableName(fd.Enum())))
-			// A column may reach only PART of its vocabulary — `merge close` may close and may not
-			// carry. The admitted words are expanded from the values` own facet annotation, so the
-			// constraint and the Go refusal beside it read the same declaration.
-			if facet := Opts(fd).GetSubset(); facet != "" {
-				sc, err := subsetCheck(fd, facet)
-				if err != nil {
-					return "", err
-				}
-				checks = append(checks, sc)
-			}
-		}
+		checks = append(checks, fchecks...)
+		fks = append(fks, ffks...)
 	}
 
 	// REAL oneofs, which proto3 `optional` also uses under the hood — IsSynthetic tells them apart,
@@ -169,12 +195,13 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 		if od.IsSynthetic() {
 			continue
 		}
-		oc, ochecks, ochildren, err := oneofColumns(md, od)
+		oc, ochecks, ofks, ochildren, err := oneofColumns(md, od)
 		if err != nil {
 			return "", err
 		}
 		cols = append(cols, oc...)
 		checks = append(checks, ochecks...)
+		fks = append(fks, ofks...)
 		children = append(children, ochildren...)
 	}
 
@@ -444,24 +471,34 @@ CREATE TABLE %q (
 // Message arms cannot be columns, so each becomes its own table and the parent carries a `_case`
 // discriminator. The exactly-one rule then spans tables and is enforced on the write instead; that
 // is stated here rather than left for a reader to discover it missing.
-func oneofColumns(md protoreflect.MessageDescriptor, od protoreflect.OneofDescriptor) (cols, checks, children []string, err error) {
+// A SCALAR ONEOF ARM IS STILL A FIELD, AND OWES THE SCHEMA WHAT EVERY OTHER FIELD OWES.
+//
+// This was the third copy of "what a field contributes", and the one my own reading of the golden
+// missed: `motion_rule`'s grade, petition and direction arms ARE the bench's ruling on a motion,
+// and all three sat unconstrained beside `binds`, which was constrained, in the same table. The
+// structural test found them after the golden showed me the message-arm hole — which is the honest
+// order of events and the reason both exist.
+func oneofColumns(md protoreflect.MessageDescriptor, od protoreflect.OneofDescriptor) (cols, checks, fks, children []string, err error) {
 	var scalars []string
 	messageArms := false
 	for i := 0; i < od.Fields().Len(); i++ {
 		fd := od.Fields().Get(i)
 		if fd.Message() != nil {
 			messageArms = true
-			children = append(children, armTable(md, fd))
+			arm, aerr := armTable(md, fd)
+			if aerr != nil {
+				return nil, nil, nil, nil, aerr
+			}
+			children = append(children, arm)
 			continue
 		}
-		col, check, cerr := column(fd)
+		col, fchecks, ffks, cerr := scalarField(fd)
 		if cerr != nil {
-			return nil, nil, nil, cerr
+			return nil, nil, nil, nil, cerr
 		}
 		cols = append(cols, "  "+col)
-		if check != "" {
-			checks = append(checks, check)
-		}
+		checks = append(checks, fchecks...)
+		fks = append(fks, ffks...)
 		scalars = append(scalars, fmt.Sprintf("(%q IS NOT NULL)", fd.Name()))
 	}
 	if len(scalars) > 1 {
@@ -470,32 +507,47 @@ func oneofColumns(md protoreflect.MessageDescriptor, od protoreflect.OneofDescri
 	if messageArms {
 		cols = append(cols, fmt.Sprintf("  %q TEXT", string(od.Name())+"_case"))
 	}
-	return cols, checks, children, nil
+	return cols, checks, fks, children, nil
 }
 
-func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescriptor) string {
+// armTable is a oneof arm's own table, and it owes the schema everything a body's table does.
+//
+// IT DID NOT. It emitted columns and CHECKs and dropped foreign keys on the floor — the golden
+// schema is where that became visible, as three enum columns (`motion_grade.dimension`,
+// `motion_grade.proposed`, `motion_petition.class`) sitting with no vocabulary behind them beside
+// `motion_rule.binds`, which has one. The arms are where a motion's SUBSTANCE lives, so the record
+// enforced its vocabulary everywhere except on the part a seat actually argues about.
+//
+// It also swallowed a column error with `continue`, which is worse than dropping the constraint: a
+// field the generator could not map simply vanished from the table, and the schema built clean with
+// a column missing. That reads, from every other test in this package, exactly like a schema that
+// has no such field.
+func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescriptor) (string, error) {
 	md := fd.Message()
 	var cols []string
-	cols = append(cols, fmt.Sprintf(`  "event_id" INTEGER PRIMARY KEY REFERENCES %q("event_id")`, TableName(parent)))
 	var checks []string
+	var fks []string
+	cols = append(cols, fmt.Sprintf(`  "event_id" INTEGER PRIMARY KEY REFERENCES %q("event_id")`, TableName(parent)))
 	for i := 0; i < md.Fields().Len(); i++ {
 		f := md.Fields().Get(i)
-		col, check, err := column(f)
+		col, fchecks, ffks, err := scalarField(f)
 		if err != nil {
-			continue
+			return "", fmt.Errorf("recordsql: %s (arm %s of %s): %w", f.FullName(), fd.Name(), TableName(parent), err)
 		}
 		cols = append(cols, "  "+col)
-		if check != "" {
-			checks = append(checks, check)
-		}
+		checks = append(checks, fchecks...)
+		fks = append(fks, ffks...)
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n%s", TableName(parent)+"_"+string(fd.Name()), strings.Join(cols, ",\n"))
 	for _, c := range checks {
 		fmt.Fprintf(&b, ",\n  CHECK (%s)", c)
 	}
+	for _, f := range fks {
+		fmt.Fprintf(&b, ",\n  %s", f)
+	}
 	b.WriteString("\n) STRICT;\n")
-	return b.String()
+	return b.String(), nil
 }
 
 // dummyEnum lets recordpb.Word spell a value we hold only as a descriptor and a number, so the
