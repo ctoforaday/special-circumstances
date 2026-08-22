@@ -680,6 +680,10 @@ await hearPetitions(blueEnv, 'blue-synthesize')
 let round = 0
 let redEnv = null
 let deadlocked = false
+// One-shot relief for the bench-cleared board (see the deadlock arm below). A cleared docket
+// is not a deadlock, but granting red its sitting must not be repeatable, or the bench can
+// extend the run indefinitely one clearance at a time.
+let benchClearedOnce = false
 const allPriorGapIds = new Set() // every gap id from every prior round — the docket window is the whole debate, not one round
 const adjudicated = [] // judge-ruled gaps (closed / rebuttal_sustained / risk_accepted / routed) — out of red's verdict
 const infraDebts = [] // routed_to_infrastructure rulings (W1.9) — the lead's named debts, surfaced at assembly and in the final envelope
@@ -776,7 +780,7 @@ DID BLUE ACTUALLY DO WHAT YOU ASKED? Put your prescription and blue's edits side
 
 LINEAGE IS NEVER DROPPED. A gap keeps its id across rounds; a successor names its ancestors; a closure that regressed says so, and the docket follows those chains. Where a defect turns up BETWEEN two repairs that each closed clean in an earlier round, it AMENDS both rather than arriving as this round's fresh closure — a late-discovered composition defect and a this-round closure are different events and the record must be able to tell them apart.
 
-THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. PASS only when every remaining unadjudicated gap is closed, rebuttal_sustained, or risk_accepted. Your recorded verdict is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.${adjudicated.length ? ` Gaps already adjudicated by the lead-judge and EXCLUDED from your verdict: ${JSON.stringify(adjudicated.map(x => x.gap_id))}.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round — apply each, and list the delta in your round narrative: ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round (ROUTING REFS — blue's evidence is on the record, not here: read each dispute's argument before answering): ${JSON.stringify(pendingDisputes)}. You MUST answer EVERY one; an unaddressed dispute is treated as rejected and auto-docketed to the judge. Answer on the MOTION's own id, because blue may contest more than one grade on the same gap and an answer naming only the gap cannot be matched to the one it refuses. ACCEPTING A DISPUTE DOES NOT MOVE THE GRADE — SAYING SO IS NOT DOING IT: move it, on the axis that moved, with what changed your mind. A grade that moves with no recorded reason reads as though blue's dispute was answered by silence. AND list each in the envelope's dispute_responses as a ROUTING REF ONLY (gap_id, dimension, response — no prose: the rationale is on the record) so the docket routes it, and list each accepted delta (gap id, dimension, old -> new) in your round narrative, where blue, the judge and the operator watch for it.` : ''}
+THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. PASS only when every remaining unadjudicated gap is closed, rebuttal_sustained, or risk_accepted. Your recorded verdict is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.${adjudicated.length ? ` GAPS THE BENCH HAS ALREADY RULED, WITH THEIR FATES — excluded from your verdict, and the exclusion is ESTOPPEL, not amnesia: ${JSON.stringify(adjudicated.map(x => ({ gap_id: x.gap_id, resolution: x.resolution })))}. You were previously handed these as bare ids, so the bar was enforced by making them invisible — you could not tell a ruling you should respect from one you had simply lost track of, and you could not tell relitigating from a legitimate successor. The ruling STANDS and you do not re-raise it. If you hold genuinely new evidence the bench did not have, that is a lineage successor: mint it under a new id naming the ruled gap in supersedes, and say what the ruling did not account for. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, rather than inferring it from the word. A fate you never read is one you cannot honour or contest.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round — apply each, and list the delta in your round narrative: ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round (ROUTING REFS — blue's evidence is on the record, not here: read each dispute's argument before answering): ${JSON.stringify(pendingDisputes)}. You MUST answer EVERY one; an unaddressed dispute is treated as rejected and auto-docketed to the judge. Answer on the MOTION's own id, because blue may contest more than one grade on the same gap and an answer naming only the gap cannot be matched to the one it refuses. ACCEPTING A DISPUTE DOES NOT MOVE THE GRADE — SAYING SO IS NOT DOING IT: move it, on the axis that moved, with what changed your mind. A grade that moves with no recorded reason reads as though blue's dispute was answered by silence. AND list each in the envelope's dispute_responses as a ROUTING REF ONLY (gap_id, dimension, response — no prose: the rationale is on the record) so the docket routes it, and list each accepted delta (gap id, dimension, old -> new) in your round narrative, where blue, the judge and the operator watch for it.` : ''}
 
 YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is docket-bound — one you RE-RAISE from a prior round, a successor you mint, a dispute you REJECT — argue it in ~120 words: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules after blue responds, and overstatement the record does not support counts against you.${petitionClause(`red-merge-r${round}`)}${reliefFor('red')}${frictionClause(`red-merge-r${round}`, 'merge')}${speedClause}${recordClause(`red-merge-r${round}`, 'red-merge')} Return the red envelope.`,
     { ...judgment, label: `red-merge-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor', schema: RED_ENVELOPE })
@@ -1001,7 +1005,7 @@ AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the 
 
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' closings, the full transcript, and the final state of the artifacts — the board and ${runDir}/blue/report.md as they now stand. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${lawClause}${declareClause}
 
-Every docketed gap gets a written ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, and your reasoning. A bare fate teaches the next round nothing. Two fates are worth naming because they route work OUT of the debate rather than ending it: a gap you CARRY stays live and owes blue a stated research direction, and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves red's verdict pool and ships as a NAMED infrastructure debt, recorded and never dropped. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}.${frictionClause(`judge-r${round}`, 'bench')}${speedClause}${recordClause(`judge-r${round}`, 'bench')} Return the judge envelope.`,
+Every docketed gap gets a written ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, and your reasoning. A bare fate teaches the next round nothing. Two fates are worth naming because they route work OUT of the debate rather than ending it: a gap you CARRY stays live and owes blue a stated research direction, and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves red's verdict pool and ships as a NAMED infrastructure debt, recorded and never dropped. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. AND DEADLOCK IS NOT WHAT YOUR OWN RULINGS ACHIEVE. It means THE TWO SIDES CANNOT CONVERGE — not that you resolved the last of it. If disposing this docket leaves the board with NOTHING open, the debate did not deadlock, it converged in your hands, and red has not yet said PASS against an empty docket. Red owns PASS/FAIL; your docket-clearing act is not a substitute for red's affirmative call, and a run that ends there stamps UNVERIFIED with zero gaps outstanding — a terminal state that contradicts itself. The engine will grant red one further sitting in that case whatever you return here, ONCE. So answer the question actually being asked: are the parties stuck, or did you just finish the work? Say deadlock only for the first.${frictionClause(`judge-r${round}`, 'bench')}${speedClause}${recordClause(`judge-r${round}`, 'bench')} Return the judge envelope.`,
       { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`judge round ${round} returned null (agent failed) — aborting cleanly`)
     for (const r of judge.resolutions) {
@@ -1014,7 +1018,40 @@ Every docketed gap gets a written ruling: its fate, the principle you applied, t
       if (r.resolution === 'grade_adjusted') gradeAdjustments.push({ gap_id: r.gap_id, rationale: r.rationale })
     }
     takeFriction(`judge-r${round}`, judge)
-    if (judge.deadlock) { deadlocked = true; break }
+
+    // DEADLOCK AND A CLEARED BOARD ARE DIFFERENT STATES, and they shared a stamp.
+    //
+    // MEASURED 2026-08-22, in the run that found it: red's round-2 merge refused PASS with two
+    // gaps open ("Two gaps remain open; PASS is refused this round"); the bench then ruled BOTH
+    // in the same sitting (one closed, one routed_to_infrastructure), clearing the board to
+    // zero; `break` fired here; the run stamped UNVERIFIED with ZERO gaps outstanding. The bench
+    // wrote the defect into its own `certify` rather than banking the stamp: "'red owns
+    // PASS/FAIL' is a stated tiebreaker this run's sequencing arguably sidesteps by letting the
+    // bench's own docket-clearing act substitute for red's affirmative call."
+    //
+    // Deadlock means THE TWO SIDES CANNOT CONVERGE. What happened is the opposite — everything
+    // converged, in the bench's own hands. UNVERIFIED-with-nothing-open is the same
+    // self-contradictory shape the guard above already refuses when red reports FAIL with an
+    // empty gap list; it just arrived by the other road.
+    //
+    // So: ask the board. Gaps still open => the bench found genuine deadlock, terminate. Board
+    // cleared => red is owed one sitting to verdict against it, because red owns PASS/FAIL.
+    //
+    // BOUNDED TWICE, because "one more round" is exactly the shape that runs forever: maxRounds
+    // still caps the loop, and the relief is ONE-SHOT. If red refuses PASS again against a board
+    // the bench cleared again, that IS irreducible disagreement and deadlock stands. The bench
+    // cannot buy unlimited rounds by clearing the docket each time.
+    if (judge.deadlock) {
+      const ruled = new Set(adjudicated.map(x => x.gap_id))
+      const stillOpen = redEnv.gaps.filter(g => !ruled.has(g.id))
+      if (stillOpen.length === 0 && !benchClearedOnce && round < maxRounds) {
+        benchClearedOnce = true
+        log(`round ${round}: the bench cleared the board to zero — NOT deadlock. Red owns PASS/FAIL and has not verdicted against an empty docket; granting one further round so it can. This relief fires once.`)
+      } else {
+        deadlocked = true
+        break
+      }
+    }
   }
 
   // Dispute intake (run-4 §3.3): re-disputed held items go straight to next round's docket;

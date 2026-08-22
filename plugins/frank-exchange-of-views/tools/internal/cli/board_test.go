@@ -255,3 +255,71 @@ func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
 		t.Errorf("the anomaly must name the gap AND say the mutation was dropped, or a seat cannot tell what its board is missing: %v", b.Anomalies)
 	}
 }
+
+// THE ESTOPPEL REGISTER MUST SAY WHO BARRED WHAT.
+//
+// `show work` is the projection every seat is told to run first and again before it stops, so
+// its closed_index is the one carrier that reaches every board. It carried {id, location, class}
+// — enough to say a gap is GONE, and not enough to say it is BARRED.
+//
+// Measured on the 2026-08-22 sqlite-schema run: a bench routed_to_infrastructure ruling (still
+// broken, not blue's to fix), a clean red closure, and a closed_with_regression whose successor
+// was still live all rendered as three identical three-field objects. A seat could not tell a
+// ruling it must not relitigate from one of its own closures it may reopen on new evidence —
+// and could not tell either from a gap nobody had ever raised, since all three are simply absent
+// from the open set. The absent case and the healthy case, the same bytes, again.
+func TestClosedIndexSaysWhoClosedItAndHow(t *testing.T) {
+	runDir := seatRun(t)
+	byRed := mintGap(t, runDir, "red-closes-this", "cross-seat-visibility")
+	byBench := mintGap(t, runDir, "bench-rules-this", "cross-seat-visibility")
+
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", byRed, "--as", "closed",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
+		"--reason", "the check passes"); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
+		"--id", byBench, "--as", "routed_to_infrastructure", "--principle", "capability",
+		"--tension", "correctness", "--review-flag", "yes",
+		"--reason", "no verb can perform this fix at any cost"); err != nil {
+		t.Fatalf("bench opinion: %v", err)
+	}
+
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r2", "work")
+	if err != nil {
+		t.Fatalf("show work: %v", err)
+	}
+	var w struct {
+		ClosedIndex []struct {
+			ID       string `json:"id"`
+			Class    string `json:"class"`
+			Fate     string `json:"fate"`
+			ClosedBy string `json:"closed_by"`
+		} `json:"closed_index"`
+	}
+	if err := json.Unmarshal([]byte(out), &w); err != nil {
+		t.Fatalf("work must be valid JSON — a seat parses this: %v\n%s", err, out)
+	}
+
+	got := map[string][2]string{}
+	for _, c := range w.ClosedIndex {
+		got[c.ID] = [2]string{c.ClosedBy, c.Fate}
+	}
+	if len(got) != 2 {
+		t.Fatalf("closed_index = %+v, want both closed gaps", w.ClosedIndex)
+	}
+	if g := got[byRed]; g[0] != "red" || g[1] != "closed" {
+		t.Errorf("red's own closure reads as {closed_by:%q fate:%q}, want {red closed} — red may reopen "+
+			"its own closure on new evidence, and cannot know that from an entry that will not say who closed it", g[0], g[1])
+	}
+	if g := got[byBench]; g[0] != "bench" || g[1] != "routed_to_infrastructure" {
+		t.Errorf("the bench ruling reads as {closed_by:%q fate:%q}, want {bench routed_to_infrastructure} — "+
+			"a bench ruling is ESTOPPED and re-raising it is relitigation, which a seat cannot avoid doing "+
+			"if the register will not distinguish it from red's own act", g[0], g[1])
+	}
+	// AND THE TWO MUST NOT COLLIDE. The whole defect was that they rendered identically.
+	if got[byRed] == got[byBench] {
+		t.Errorf("a red closure and a bench ruling render identically as %v — this is the defect, restored", got[byRed])
+	}
+}

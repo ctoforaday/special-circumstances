@@ -1067,7 +1067,29 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "reason": "fuzz"})
 		}
-		return map[string]any{"resolutions": res, "deadlock": false, "friction": arr()}
+		// THE DEADLOCK ARM HAD NEVER BEEN DRIVEN, and the exemptions said so as though it were
+		// a property of the engine rather than of this fake. `deadlock` was the literal `false`
+		// here, so `outcome --as UNVERIFIED` and `--ended deadlock` were both unreachable, both
+		// exempted, and the whole judged-termination path — including the assembler's stamp for
+		// it — went unfuzzed. A real run produced one on 2026-08-22 (verdict_basis `asserted`,
+		// ended `deadlock`), which is what falsified the premise.
+		//
+		// It is not a coin, for the same reason nothing else here is: the bench rules on what
+		// happened. The engine's own precondition is "no gap remains carried" — a carry is the
+		// bench saying the material needs another round, which is the opposite of stuck — so
+		// deadlock falls out of the dispositions this sitting actually made.
+		//
+		// This drives BOTH arms of the cleared-board branch: where every open gap got a closing
+		// disposition the board empties and the engine must grant red its further sitting, and
+		// where gaps remain unruled it must terminate.
+		deadlock := true
+		for _, x := range res {
+			if x.(map[string]any)["resolution"] == "carried" {
+				deadlock = false
+				break
+			}
+		}
+		return map[string]any{"resolutions": res, "deadlock": deadlock, "friction": arr()}
 
 	case strings.HasPrefix(seatID, "assemble"):
 		r.register("bench", seatID)
@@ -1659,17 +1681,22 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 
-	// EVERY VERDICT IS DERIVABLE TODAY, and this is the tripwire on that fact.
+	// AN ASSERTED VERDICT IS EITHER A JUDGED DEADLOCK OR A BROKEN DERIVATION, and this is the
+	// tripwire that keeps the second from hiding behind the first.
 	//
 	// The tool refuses an --as that contradicts the record (#308), so a recorded verdict is
 	// either DERIVED or came from the one case the record cannot decide: a judged deadlock.
-	// debate.js cannot currently produce one — `deadlock` is hardcoded false whenever red
-	// raised anything new (#289) — so an `asserted` basis anywhere in a fuzz run means the
-	// derivation stopped working, not that a deadlock happened.
 	//
-	// When #289 gives the bench a real stopping call, this WILL fail, loudly and correctly, and
-	// the right response is to update it rather than to widen it: an asserted verdict is
-	// exactly the thing that should be rare enough to notice.
+	// THIS USED TO ASSERT THAT NO DEADLOCK COULD EXIST — "debate.js cannot produce one,
+	// `deadlock` is hardcoded false" — and treated every asserted basis as derivation failure.
+	// That premise was false by the time anyone checked it: the 2026-08-22 sqlite-schema run
+	// stamped `verdict_basis: asserted` / `ended: deadlock` off a real bench call. The comment
+	// predicted its own obsolescence and said the right response was to update rather than
+	// widen it, so that is what this is — the assertion now turns on whether the RECORD shows a
+	// deadlock, not on a claim about what the engine can reach.
+	//
+	// An asserted verdict with `ended: deadlock` is the sanctioned case and passes. An asserted
+	// verdict WITHOUT one still means the derivation stopped working, and still fails here.
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
 			if e.Type != "outcome" {
@@ -1681,7 +1708,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 				res.err = "the outcome event carries no verdict_basis — the field that says whether the verdict was computed or claimed has gone missing"
 				return res
 			default:
-				res.err = "the run recorded an ASSERTED verdict (" + e.Payload.Str("verdict") + "), which today can only mean the derivation failed: debate.js cannot produce a judged deadlock while it is hardcoded false (#289)"
+				if e.Payload.Str("ended") == "deadlock" {
+					continue // a judged deadlock is the one thing the record cannot derive
+				}
+				res.err = "the run recorded an ASSERTED verdict (" + e.Payload.Str("verdict") +
+					") that did NOT end in a judged deadlock — the only case the record cannot decide for itself, so this means the derivation stopped working"
 				return res
 			}
 		}

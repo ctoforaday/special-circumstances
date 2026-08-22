@@ -386,10 +386,35 @@ type WorkGapJSON struct {
 // ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
 // class — with NO prose. The full closure record (with anchors and the problem) is behind
 // --view archive for the seat that has to audit a specific closure.
+//
+// IT IS ALSO THE ESTOPPEL REGISTER, and it could not express estoppel.
+//
+// Every seat reads this list — `show work` is the projection each one is told to run first and
+// again before it stops — so it is already the carrier that reaches every board. But it carried
+// id, location and class and nothing else, which says a gap is GONE and cannot say it is BARRED.
+// Measured on the 2026-08-22 sqlite-schema run: R1-1 (routed_to_infrastructure — still broken,
+// merely not blue's to fix), R1-2 (closed clean) and R1-3 (closed_with_regression, whose live
+// successor R2-1 was still on the board) rendered as three identical three-field objects.
+//
+// The absent case and the healthy case were the same bytes AGAIN: a gap the bench had ruled and
+// a gap nobody ever raised both arrive as "not in your open set". Both facts were already on the
+// replayed Gap — Closure carries the fate, and ClosedByBench exists precisely because, in its own
+// words, "the projection has to record WHO closed it, not merely that it is closed." This
+// projection dropped both.
+//
+// WHO closed it is not decoration: red may reopen its own closure on new evidence, while a bench
+// ruling is estopped and re-raising it is relitigation. A seat that cannot tell them apart cannot
+// obey either rule.
 type ClosedIndexJSON struct {
 	ID       string `json:"id"`
 	Location string `json:"location"`
 	Class    string `json:"class"`
+	// Fate is the disposition that ended it — red's `close --as` (closure_class) or the
+	// bench's `opinion --as` (disposition). One vocabulary since #342, so a reader does not
+	// have to know which verb produced the word before it can interpret it.
+	Fate string `json:"fate"`
+	// ClosedBy is "bench" or "red", and it is what makes the difference above legible.
+	ClosedBy string `json:"closed_by"`
 }
 
 // synopsisLimit is the rune budget for an open gap's problem synopsis in the work list — long
@@ -432,10 +457,21 @@ func WorkJSONOf(b *Board) WorkJSON {
 			}
 			out.Open = append(out.Open, wg)
 		} else {
-			ci := ClosedIndexJSON{ID: g.ID}
+			ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red"}
+			if g.ClosedByBench {
+				ci.ClosedBy = "bench"
+			}
 			if g.Mint != nil {
 				ci.Location = g.Mint.Str("location")
 				ci.Class = g.Mint.Str("class")
+			}
+			// Two spellings, one fact: red closes with `closure_class`, the bench disposes with
+			// `disposition`. graph.go already reads them with this same fallback — the fate is
+			// the fact, and which verb wrote it is not the reader's problem.
+			if g.Closure != nil {
+				if ci.Fate = g.Closure.Str("closure_class"); ci.Fate == "" {
+					ci.Fate = g.Closure.Str("disposition")
+				}
 			}
 			out.ClosedIndex = append(out.ClosedIndex, ci)
 		}
