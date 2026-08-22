@@ -83,7 +83,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <h2>Friction — logged pain points</h2>
 <p>2 friction events on the record · latest: <span class="muted">red-merge-r1: needed a PDF extractor</span></p>
 <h2>Seats (run complete)</h2>
-<p class="muted">run complete — the assembler wrote the report. 2 seat(s) never finished:</p><table><tr><td class="liveseat">red-merge-r1</td><td class="muted">superseded — a later attempt completed</td></tr><tr><td class="liveseat">judge-r1</td><td class="muted">did not finish</td></tr></table>
+<p class="muted">the bench recorded this run's outcome. 2 seat(s) never finished:</p><table><tr><td class="liveseat">red-merge-r1</td><td class="muted">superseded — a later attempt completed</td></tr><tr><td class="liveseat">judge-r1</td><td class="muted">did not finish</td></tr></table>
 <h2>Recent completions</h2>
 <table><tr><td class="nowrap">red-merge-r1</td><td class="muted">verdict FAIL · 2 gaps · 1 ruling</td></tr>
 <tr><td class="nowrap">frontier</td><td class="muted">verdict PASS · 15 claims · 0 gaps</td></tr></table>

@@ -336,17 +336,29 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 	}
 	eta := projectCompletion(seats, nowMs)
 
+	terminalVerdict := readTerminalVerdict(runDir)
 	return Model{
 		RunDir: runDir, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
 		Shards: shards, BlueClaims: blueClaims, Steps: steps, Rates: rates,
 		Judiciary: jud, Eta: eta, Config: merged,
-		TerminalVerdict: readTerminalVerdict(runDir), Terminal: fileExists(filepath.Join(runDir, "report.md")),
+		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the
+		// record like its neighbour instead of from a filename.
+		//
+		// It was `fileExists(runDir/report.md)`. setup.go's skeleton CREATES report.md (its own
+		// comment documents that file as `bench assemble`'s output and stubs it anyway), so
+		// Terminal was true from the moment setup ran, before a seat was dispatched, for the
+		// entire life of every run. Measured 2026-08-22: the dashboard rendered "run complete —
+		// the assembler wrote the report" while blue-lane-1 was visibly live in the very next
+		// section, and went on saying it for 55 minutes.
+		//
+		// The essay on readTerminalVerdict below is about precisely this shape — a fact the record
+		// holds, recovered from the prose or the filename it was rendered into. It was written one
+		// line above the field that did it.
+		TerminalVerdict: terminalVerdict, Terminal: terminalVerdict != "",
 		Generated: nowISO(nowMs),
 	}
 }
-
-func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
 // readTerminalVerdict answers from the RECORD, and from nothing else.
 //

@@ -473,7 +473,7 @@ func RenderHTML(m Model) string {
 	if m.Terminal {
 		w("\n<h2>Seats (run complete)</h2>\n")
 		if len(liveOrder) > 0 {
-			w(fmt.Sprintf(`<p class="muted">run complete — the assembler wrote the report. %d seat(s) never finished:</p><table>`, len(liveOrder)))
+			w(fmt.Sprintf(`<p class="muted">the bench recorded this run's outcome. %d seat(s) never finished:</p><table>`, len(liveOrder)))
 			for _, lbl := range liveOrder {
 				g := liveGroups[lbl]
 				fate := "did not finish"
@@ -488,7 +488,7 @@ func RenderHTML(m Model) string {
 			}
 			w("</table>")
 		} else {
-			w(`<p class="muted">run complete — the assembler wrote the report.</p>`)
+			w(`<p class="muted">the bench recorded this run's outcome.</p>`)
 		}
 	} else {
 		w("\n<h2>Seats live now</h2>\n")
