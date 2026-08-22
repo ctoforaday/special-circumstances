@@ -218,17 +218,12 @@ func Inquiries(b *Board) []*Inquiry {
 			// direction ruling and must leave Inquiry.Ruling empty — `GetDirection()` alone
 			// returns UNSPECIFIED for all three cases and cannot tell them apart.
 			//
-			// DIRECTION IS ONE OF THE TWO HYPHENATED VOCABULARIES word.go warns about, and the
-			// `_` -> `-` join is not cosmetic. `Spelling` derives the word from the generated
-			// constant, so DIRECTION_RULING_OUT_OF_SCOPE reads `out_of_scope`; the seat types
-			// `out-of-scope`, InquiryRulings above spells it with a hyphen, `motion inquiry rule
-			// --as` validates against the hyphen, and report/assemble renders it into the
-			// document. The underscore form is a word no surface recognizes.
-			//
-			// SHARED CODE, DECLARED, NOT DEFINED HERE (contract rule 2). viewjson.go marks the
-			// identical join for Grade as `gradeWord`, and word.go names `record.GradeStr` as
-			// where it belongs. Written inline at this file's two sites rather than as a private
-			// third copy; named in this agent's return so the lead places one.
+			// NO `_` -> `-` JOIN, AND THE COMMENT THAT DEMANDED ONE WAS STALE. It said the seat
+			// types `out-of-scope`, that InquiryRulings spells it with a hyphen, and that the
+			// underscore form "is a word no surface recognizes". Checked: DirectionRuling spells
+			// DIRECTION_RULING_OUT_OF_SCOPE, `Word` yields `out_of_scope`, and InquiryRulings
+			// carries `out_of_scope` too. The hyphen is what no surface recognizes now, so the
+			// word goes through unchanged and there is no third spelling to keep in step.
 			a.Ruling = ""
 			if d, isDirection := t.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
 				a.Ruling = recordpb.Word(d.Direction)
@@ -236,6 +231,27 @@ func Inquiries(b *Board) []*Inquiry {
 			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
 			// the field MotionRule carries and the only prose channel it has.
 			a.RulingWhy, a.RuledRound = t.GetOpinion(), int(e.GetRound())
+		case *recordpb.MotionAppeal:
+			// BLUE MOVING AGAINST A RULING, which is the post-#344 carrier of `contests_ruling`.
+			//
+			// The field it replaced was set as a side effect of moving a line to `pursued` against
+			// an adverse ruling, and when it was retired this arm was NOT written — so
+			// `Inquiry.Contests` was always empty and the report's "blue took this line against
+			// red's X ruling" line could never render. The comment above recorded that as owed
+			// rather than done; this is the doing.
+			//
+			// What blue contested is the ruling ON THE RECORD, so it is read off the line rather
+			// than restated by the appeal: an appeal names the motion, and the motion's ruling is
+			// already here. An appeal against a line nobody ruled leaves it empty, because there
+			// is nothing to have moved against.
+			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
+				continue
+			}
+			a, ok := byID[t.GetMotionId()]
+			if !ok {
+				continue
+			}
+			a.Contests = a.Ruling
 			// THERE IS NO InquiryReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
 			// review is ONE event per round about the report as a whole; it names no line, so there
 			// is nothing here for it to join to. Its reader is InquiryReviewDue.

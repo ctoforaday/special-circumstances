@@ -9,14 +9,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-func pl(kv ...string) *record.Payload {
-	p := record.NewPayload()
-	for i := 0; i+1 < len(kv); i += 2 {
-		p.Set(kv[i], kv[i+1])
-	}
-	return p
-}
-
 // THE SECTION EXISTS SO A HUMAN SEES THE ANSWER (#415). `verify` is the operator's verb and the
 // fuzzer's oracle; neither is read by the person the report is for, while the engine declined to
 // fail a lineage gap on the grounds that "the record is authoritative and already checked there".
@@ -25,11 +17,11 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 	b := &record.Board{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
-			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		},
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: false, Closure: pl("closure_class", "closed")},
+			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED)}},
 		},
 	}
 	got := recordVerification(b)
@@ -62,7 +54,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 	b := &record.Board{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
-			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "PASS")},
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
@@ -89,7 +81,7 @@ func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	b := &record.Board{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
-			{Type: "verdict", SeatID: "red-merge-r1", Payload: pl("verdict", "FAIL")},
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},

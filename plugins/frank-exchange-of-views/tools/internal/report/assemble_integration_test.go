@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 )
 
 // TestAssembleEndToEnd drives a minimal but real run through the record API and asserts the
@@ -55,37 +58,55 @@ func TestAssembleEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// THROUGH THE PRODUCTION WRITE PATH, deliberately: this is the integration test, so it
+	// registers and appends exactly as a seat does. The bodies are typed, so `add` takes one
+	// instead of alternating key/value strings — and a body the record would refuse now fails
+	// here rather than being written and read back as a state no run could reach.
 	seen := map[string]bool{}
-	add := func(seatID, typ string, kv ...string) {
+	add := func(seatID string, body proto.Message) {
 		t.Helper()
+		id := record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundOf(seatID)}
 		if !seen[seatID] {
-			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundOf(seatID)}); err != nil {
+			if _, _, err := record.RegisterSeat(id); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
 			}
 			seen[seatID] = true
 		}
-		p := record.NewPayload()
-		for i := 0; i+1 < len(kv); i += 2 {
-			p.Set(kv[i], kv[i+1])
-		}
-		if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundOf(seatID)}, typ, p); err != nil {
-			t.Fatalf("append %s/%s: %v", seatID, typ, err)
+		if _, err := record.Append(id, body); err != nil {
+			t.Fatalf("append %s/%T: %v", seatID, body, err)
 		}
 	}
 
 	// Red mints a gap; the parties take positions; blue records one pursued line of inquiry (an
 	// expansion) and one abandoned line of inquiry (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
-	add("red-merge-r1", "mint", "gap_id", "R1-1", "problem", "eviction races the reader", "location", "cache.go:88",
-		"class", "correctness", "likelihood", "medium", "impact", "high",
-		"acceptance_check", "race the eviction under -race", "check_kind", "document", "required_fix", "take the read lock in evict")
-	add("red-merge-r1", "position", "reason", "gap R1-1 stands until the race is shown impossible")
-	add("blue-r1", "position", "reason", "R1-1 is repaired by ordering the invalidation before the store")
-	add("blue-r1", "line-of-inquiry", "inquiry_id", "Q1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
-	add("blue-r1", "line-of-inquiry", "inquiry_id", "Q2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
-	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
-		"tension", "cost vs certainty", "review_flag", "false", "reason", "a model-check is owed before this closes")
-	add("judge-terminal", "outcome", "verdict", "CEILING", "reason", "the round ceiling arrived before red could pass the final revision")
+	add("red-merge-r1", &recordpb.Mint{
+		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader"),
+		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
+		AcceptanceCheck: proto.String("race the eviction under -race"),
+		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		RequiredFix:     proto.String("take the read lock in evict"),
+	})
+	add("red-merge-r1", &recordpb.Position{Text: proto.String("gap R1-1 stands until the race is shown impossible")})
+	add("blue-r1", &recordpb.Position{Text: proto.String("R1-1 is repaired by ordering the invalidation before the store")})
+	add("blue-r1", &recordpb.Avenue{
+		AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
+		Line: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
+	})
+	add("blue-r1", &recordpb.Avenue{
+		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
+		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
+	})
+	add("judge-r1", &recordpb.Opinion{
+		GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+		Principle: proto.String("correctness"), Tension: proto.String("cost vs certainty"),
+		ReviewFlag: proto.String("false"), Rationale: proto.String("a model-check is owed before this closes"),
+	})
+	add("judge-terminal", &recordpb.Outcome{
+		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
+		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
+	})
 
 	path, err := Assemble(runDir)
 	if err != nil {

@@ -45,11 +45,19 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	}
 	// A gap whose problem text carries a marker token (as a real finding's quoted
 	// location/reason would), plus a terminal outcome so assembly composes fully.
-	p := record.NewPayload().Set("gap_id", "R1-1").
-		Set("problem", "the sentence flagged here <!--fx:f-leak12--> is wrong").
-		Set("location", "§1").Set("required_fix", "fix it").Set("acceptance_check", "recheck").Set("check_kind", "document").
-		Set("class", "correctness").Set("severity", "high").Set("likelihood", "high").Set("impact", "high")
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "mint", p); err != nil {
+	mint := &recordpb.Mint{
+		GapId:           proto.String("R1-1"),
+		Problem:         proto.String("the sentence flagged here <!--fx:f-leak12--> is wrong"),
+		Location:        proto.String("§1"),
+		RequiredFix:     proto.String("fix it"),
+		AcceptanceCheck: proto.String("recheck"),
+		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Class:           proto.String("correctness"),
+		Severity:        recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),
+	}
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, mint); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
