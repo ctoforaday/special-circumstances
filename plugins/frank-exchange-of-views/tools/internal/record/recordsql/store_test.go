@@ -211,3 +211,86 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 		t.Fatalf("an ordinary closure was refused for having no successor: %v", err)
 	}
 }
+
+// THE ROUND TRIP MUST PRESERVE PRESENCE, not merely values.
+//
+// Every field is optional, so "the seat set this" and "the seat did not" are different states and
+// the record's whole typing rests on telling them apart. A round trip that returns zeros for absent
+// fields would collapse the two on the way home — a mint with no severity coming back GRADED, an
+// outcome with no verdict coming back as a verdict — which is the defect the schema exists to
+// remove, reintroduced at the last step.
+func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
+	db := store(t)
+	original := &recordpb.Mint{
+		GapId:           proto.String("R1-1"),
+		Class:           proto.String("scope-creep"),
+		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
+		AcceptanceCheck: proto.String("the claim names the search that produced it"),
+		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
+		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
+		Supersedes:      []string{"R0-4", "R0-9"},
+		// severity and complexity_cost are deliberately NOT set: the axes this gap was never
+		// graded on, which must come back ungraded.
+	}
+	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, original)); err != nil {
+		t.Fatal(err)
+	}
+
+	evs, err := Events(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(evs) != 1 {
+		t.Fatalf("read %d events, want 1", len(evs))
+	}
+	got, ok := recordpb.BodyAs[*recordpb.Mint](evs[0])
+	if !ok {
+		t.Fatal("the event came back with no Mint body")
+	}
+	if !proto.Equal(original, got) {
+		t.Errorf("the mint did not survive the round trip:\n before %v\n after  %v", original, got)
+	}
+	// Stated separately, because proto.Equal treats unset and zero as equal for scalars and would
+	// not catch a severity that came home as GRADE_UNSPECIFIED.
+	if got.Severity != nil {
+		t.Errorf("severity came back set (%v) for an axis the seat never graded", got.GetSeverity())
+	}
+	if evs[0].GetType() != recordpb.EventType_EVENT_TYPE_MINT {
+		t.Errorf("type = %v", evs[0].GetType())
+	}
+}
+
+// EVENTS COME BACK IN THE ORDER THEY WERE RECORDED, from one sequence rather than a merge.
+//
+// The shard format sorted by timestamp because nothing else spanned the files, and that sort IS
+// the ordering hazard. Here `id` is assigned at insert, so read order is record order.
+func TestEventsReadBackInRecordOrder(t *testing.T) {
+	db := store(t)
+	for i, seat := range []string{"blue-respond-r1", "red-merge-r1", "judge-r1"} {
+		ev := event(t, int32(i), recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{
+			Text: proto.String(seat + " speaks"),
+		})
+		ev.SeatId = proto.String(seat)
+		// Every seat stamps the SAME instant. Under the old merge this was the ambiguous case that
+		// needed a tiebreak; here the sequence is the database's and the clock does not decide.
+		ev.Ts = proto.String("2026-01-01T00:00:00Z")
+		if _, err := Insert(db, ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	evs, err := Events(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var order []string
+	for _, e := range evs {
+		order = append(order, e.GetSeatId())
+	}
+	want := []string{"blue-respond-r1", "red-merge-r1", "judge-r1"}
+	for i := range want {
+		if i >= len(order) || order[i] != want[i] {
+			t.Fatalf("read order = %v, want %v — identical timestamps must not decide the sequence", order, want)
+		}
+	}
+}
