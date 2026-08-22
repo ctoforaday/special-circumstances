@@ -371,6 +371,24 @@ func requirePassClosesAllGaps(runDir string) error {
 			"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
 			"of the report; record the review, or issue `--as FAIL`")
 	}
+	// AND A CONTRADICTION RED FOUND AND NEVER RAISED.
+	//
+	// A supporting corroboration becomes a footnote and reaches the reader that way. `refutes`
+	// and `absent` are NOT references backing the sentence, so they are deliberately not spliced
+	// — which leaves them landing only in the `evidence` projection, seen by red and nobody else.
+	// A PASS over one claims the report is sound while the record holds red's own reading that a
+	// sentence in it is contradicted or unsupported.
+	//
+	// The remedy is a FINDING, not a gap: a lens structurally cannot mint, and the tool will not
+	// write the finding itself because that would mean inventing its three grades. Red grades its
+	// own finding and the merge decides whether to raise it.
+	if open := UnansweredContradictions(b); len(open) > 0 {
+		sort.Strings(open)
+		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
+			"Each is red's own reading that the report says something its source does not. Raise it with `lens finding --quote \"<the claim>\" --reason \"<what the source actually says>\"` graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
+			"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raise them, or issue `--as FAIL`",
+			len(open), strings.Join(open, "\n  "))
+	}
 	return nil
 }
 

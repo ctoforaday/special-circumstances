@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"google.golang.org/protobuf/proto"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -408,4 +409,59 @@ func ExistingCorroborationLabel(runDir, seatID, url, claim string) (string, erro
 		}
 	}
 	return "", nil
+}
+
+// UnansweredContradictions returns the claims where red read a source that CONTRADICTS the
+// report and no finding was ever raised about it.
+//
+// THE NEGATIVE HALF OF THE CORROBORATION AXIS HAS TO REACH THE BOARD. A supporting corroboration
+// becomes a footnote and reaches the reader that way; `refutes` and `absent` are not references
+// backing the sentence and are deliberately NOT spliced — which leaves them landing only in the
+// `evidence` projection, seen by red and by nobody else. That is the same defect one axis over:
+// evidence on the record with no reader.
+//
+// THE TOOL DOES NOT DISCHARGE THE DUTY, and that is deliberate. Writing the finding here would
+// mean inventing its severity, likelihood and impact — three grades nobody chose, feeding the
+// mass calculation that decides what a gap is worth. A fabricated grade reads exactly like a
+// judged one. So the duty is REPORTED and red grades its own finding, the way
+// InquiryReviewDue reports a read that has not happened rather than pretending it did.
+//
+// The match is deliberately loose — any finding by any lens quoting the same claim answers it.
+// A stricter join (same seat, same round) would refuse a contradiction one lens found and
+// another raised, which is the collaboration the lens roles exist for.
+func UnansweredContradictions(b *Board) []string {
+	if b == nil {
+		return nil
+	}
+	answered := map[string]bool{}
+	for _, e := range b.Events {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
+			if loc := strings.TrimSpace(f.GetLocation()); loc != "" {
+				answered[loc] = true
+			}
+		}
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, e := range b.Events {
+		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
+		if !ok || !contradicts(v.GetOutcome()) {
+			continue
+		}
+		claim := strings.TrimSpace(v.GetClaim())
+		if claim == "" || answered[claim] || seen[claim] {
+			continue
+		}
+		seen[claim] = true
+		out = append(out, claim)
+	}
+	return out
+}
+
+// contradicts is the half of the outcome set that says the text is not supported. It is the
+// complement of the set that earns a footnote, and the two are written as one pair so a value
+// added to the enum cannot fall between them unnoticed.
+func contradicts(o recordpb.SourceOutcome) bool {
+	return o == recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES ||
+		o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT
 }

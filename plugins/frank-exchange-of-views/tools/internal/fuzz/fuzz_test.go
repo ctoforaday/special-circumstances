@@ -1262,9 +1262,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// and requires the url and title that are the only thing identifying it.
 				// Falling back to corroborate when blue has cited nothing keeps the axis driven
 				// from round 0 rather than only after the first cite lands.
+				// A REAL SPAN OF THE LIVE REPORT. This quoted `"fuzz claim "+seatID`, which is in
+				// no document — and a SUPPORTING corroboration splices a citation anchor at the
+				// claim now, so every one of them would be refused and the drive discards its
+				// error. The seeded anchor sentence is the right span: the edit target below it
+				// is swapped back and forth by blue's edits, this one is left alone precisely so
+				// findings and cites have something stable to attach to.
+				claim := "A § fuzz sentence to anchor findings."
+				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
 				axes := func(c *cmd) *cmd {
-					return c.set("--quote", "fuzz claim "+seatID).
-						set("--as", verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]).
+					return c.set("--quote", claim).
+						set("--as", outcome).
 						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
 						set("--reason", "fuzz: what the source actually says").
 						on(60, "--access-date", "2026-07-24")
@@ -1275,6 +1283,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					axes(r.do("lens", "corroborate", seatID)).
 						set("--url", "https://fuzz.invalid/"+seatID).
 						set("--title", "fuzz source for "+seatID).run()
+				}
+				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
+				// saying the report asserts what its source does not, and a PASS is refused until
+				// a finding quotes that claim — the tool will not write the finding itself,
+				// because that would mean inventing its three grades. Driving the remedy here is
+				// what makes both the gate and the act that clears it real in the sweep; without
+				// it every run with a negative reading would wedge at the verdict.
+				if outcome == "refutes" || outcome == "absent" {
+					_, _ = r.exec("lens", "finding", "--seat-id", seatID,
+						"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+						"--quote", claim, "--reason", "fuzz: the source says otherwise")
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("lens", "finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),

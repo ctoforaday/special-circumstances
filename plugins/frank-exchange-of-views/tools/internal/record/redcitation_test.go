@@ -124,3 +124,64 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 		t.Error("the corroboration's label is missing from CitationLabels — the blue-report lockdown compares that set against the anchors actually present, so red's spliced anchor would report as a dropped citation")
 	}
 }
+
+// A CONTRADICTION RED FOUND AND NEVER RAISED BLOCKS A PASS.
+//
+// A supporting corroboration reaches the reader as a footnote. `refutes` and `absent` are not
+// references backing the sentence and are deliberately not spliced — which would leave them in
+// the `evidence` projection alone, seen by red and by nobody else. That is the same defect one
+// axis over: red's strongest finding on this axis, with no reader.
+//
+// The remedy is a FINDING and the tool does not write it: a lens structurally cannot mint, and
+// writing the finding here would mean inventing its severity, likelihood and impact — three
+// grades nobody chose, feeding the mass calculation that decides what a gap is worth.
+func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
+	runDir := t.TempDir()
+	lens := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	merge := Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}
+	for _, id := range []Identity{lens, merge} {
+		if _, _, err := RegisterSeat(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const claim = "the API returns 200 on every path"
+	if _, err := Append(lens, corroboration("", "https://example.org/says-otherwise", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
+		t.Fatal(err)
+	}
+
+	err := requirePassClosesAllGaps(runDir)
+	if err == nil {
+		t.Fatal("a PASS was allowed over a contradiction red recorded and nobody raised")
+	}
+	if !strings.Contains(err.Error(), claim) {
+		t.Errorf("the refusal does not name the claim, so red cannot tell which reading is unanswered: %v", err)
+	}
+	if !strings.Contains(err.Error(), "lens finding") {
+		t.Errorf("the refusal does not name the act that clears it — a blocking message that does not say how to unblock is an invitation to guess: %v", err)
+	}
+
+	// A FINDING QUOTING THE SAME CLAIM CLEARS IT. Red grades its own finding; the tool only
+	// reports that one is owed.
+	if _, err := Append(lens, &recordpb.Finding{
+		Label:      proto.String("L1-F1"),
+		Location:   proto.String(claim),
+		Text:       proto.String("the source says the opposite at page 9"),
+		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := requirePassClosesAllGaps(runDir); err != nil {
+		t.Errorf("the contradiction was raised as a finding and the PASS is still blocked: %v", err)
+	}
+
+	// AND A SUPPORTING CORROBORATION NEVER BLOCKS. It is a reference backing the claim; there is
+	// nothing to raise.
+	if _, err := Append(lens, corroboration(NewCitationID(), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
+		t.Fatal(err)
+	}
+	if err := requirePassClosesAllGaps(runDir); err != nil {
+		t.Errorf("a SUPPORTING corroboration blocked a PASS — only a contradiction owes a finding: %v", err)
+	}
+}
