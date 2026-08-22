@@ -316,3 +316,89 @@ this change's to make silently.
   **Do not read a low tally as a quiet run** — that is the exact mistake the gate's own
   comment records from the last time, and every zero above had a real cause.
 - **The re-verification decision** (above) is the operator's.
+
+## What the second cutover pass found (2026-08-22)
+
+Fifteen defects, all in production code, none findable before the migration made the
+schema the authority. They fall into two families that keep recurring, so they are grouped
+by CAUSE rather than by the order they surfaced.
+
+### Family one: one fact, two spellings, one side moved
+
+Six instances. Every one reads perfectly well and every one refuses a seat that obeys it.
+
+| Where | The two spellings |
+|---|---|
+| `merge inquiry-support` help | advertised `--id Q1 --as supported\|weakened\|unsupported\|absent`; the schema collapsed the event to prose and the flags were removed, the sentence was not |
+| fuzz `rulingFor` | returned `out-of-scope` / `too-thin`; DirectionRuling spells `out_of_scope` / `too_thin` |
+| `validate`'s Retire arm | said `retire requires --claim`; the annotation declares the flag `--quote` |
+| `internal/cli/motion` | typed the gavel as `subject("petition", …, "bench")`; the PASS gate in `internal/record` needed it and could not see it |
+| `interpreterFor` | mapped `.py` to `python`; Debian, Ubuntu and macOS 12.3+ ship only `python3` |
+| `--as supports-with-bridge` | advertised in help, refused by the write path (found in the first pass) |
+
+The fuzz one is the instructive case: `motion inquiry rule` was refused on 17 of 27
+invocations, the drive discarded the error, and the only thing that noticed was a coverage
+gate reporting a MISSING drive for `motion inquiry appeal` — whose drive was correct and
+whose precondition never happened. **A discarded refusal turns a broken write into a
+coverage report about something else.**
+
+Two gates now hold this class, and they must both exist because they see different messages:
+
+- `TestNoRecordRefusalNamesAFlagASeatCannotType` (internal/record) drives an empty body of
+  every event type plus the contract table. Its first draft ran the table alone and covered
+  fourteen types — measured, `closing requires --id` could be renamed to a flag that does
+  not exist and it stayed green.
+- `TestNoRefusalNamesAFlagThatDoesNotExist` + the check folded into
+  `TestEveryRequiredFlagIsActuallyRefused` (internal/cli) cover what cobra renders. The
+  record layer's own messages are unreachable from the command line, because cobra marks
+  the same fields required and refuses first.
+
+### Family two: a rule stated twice, where the unreachable copy is the one that drifts
+
+`recordpb.CheckRequired` runs BEFORE validate's type switch and refuses unconditionally.
+Eleven hand-written guards restated a `required` annotation below it. Ten were harmless
+dead code. **The eleventh was not a restatement**: `close` exempts a carry from stating the
+closure argument, `prose` was annotated required anyway, and so `merge carry --id R2-3
+--carried-from 2` — the invocation the verb's own help documents — was refused outright.
+
+The general rule, which is the part worth carrying forward: **anything an annotation makes
+unconditional is decided before a single line of the verb's own validation runs, so a
+`required` marking silently deletes every exemption below it.** Conditional requirements
+belong on the field as a comment and in validate as code; two-field rules belong in a
+table-level `(check)`, which is where the carry rule went so the database keeps the wall
+the nullable column gave up.
+
+### The wedge: a round with no legal verdict
+
+Not a spelling problem, and the most serious thing here. `verdict --as PASS` is refused
+over an unruled motion; the refusal said "rule it"; for a PETITION that is refused in turn
+by `requireRuler`, because the bench holds that gavel. With a clean gap board, debate.js
+also rejects a FAIL that names no gaps. **There was no verdict the seat could give.**
+
+Fixed by putting `(ruled_by)` on the MotionSubject enum — one declaration, two readers,
+where before there was one declaration and one reader that needed it and could not import
+it — and by making the rule-it instruction conditional on the gavel being yours, with FAIL
+named as the act that ends the round for a seat that cannot rule.
+
+Surfaced only because the fuzz stopped discarding the PASS refusal, and because the
+per-round inquiry review moved off a 40% coin. It is a per-round DUTY and a hard
+precondition for PASS: three rounds in five could not pass, and the drive told the harness
+`PASS` anyway, so the run recorded `outcome: verified` with no verdict event and basis
+`asserted`. **What varies between runs is what a review finds, never whether it happened.**
+
+### One report defect
+
+A minted finding's evidence had no reader. `surfaced by: L5-F1` and nothing in the document
+defines that label — `unmintedFindings` renders a finding's text only when NO gap claims
+it, so the instant the merge acts on a finding its leaf-level evidence leaves the report.
+Runs exist where every finding was minted and red's words appeared nowhere at all. The gap's
+`problem` is the merge's RESTATEMENT; both must be in front of a reader or a restatement
+drifting from its evidence is invisible, which is the adversarial point of having two seats.
+
+### Method note
+
+Three candidate gates were written and one was DELETED for being unable to fail. A test
+that asserts a hand-written arm cannot shadow an annotation can never fail, because the
+annotation sweep always wins — the residue is dead code, not wrong behaviour. Each gate here
+was mutation-tested against the defect it was written for before being kept; the flag-word
+gate was broadened only after a mutation proved the narrow version green.
