@@ -200,3 +200,43 @@ readers were writing for themselves.
 **Where the fact is a CLAIM rather than a consequence,** the schema already has the right
 shape and it is a field the WRITER sets: `SpotCheck.none` — a bool with real presence,
 meaning "I checked nothing, deliberately". Derived where derivable; declared where claimed.
+
+## Where SQL earns its place, and where Go keeps it
+
+The cutover is a good sample: nine defects, several constraints added, two of them wrong.
+The pattern is sharp enough to state as a rule.
+
+**Ask what the thing DOES, not where it could live.**
+
+**Refusing a state that is unconditionally illegal → SQL.** This is where the whole move
+paid. `gap_id` referencing `mint.gap_id` turned "a dangling reference is an ANOMALY
+discovered on read, per reader, if any reader looks" into "the row cannot be written."
+`events.key` UNIQUE turned a silent read-time dedup into a refusal the seat sees. The
+transaction replaced torn-line healing. None of that is logic moved out of Go — it is the
+DATA MODEL doing what Go was doing badly, and it holds against anything writing to the
+file, which for a record that is EVIDENCE is the point.
+
+**Refusing a state that is conditionally illegal → Go.** Both constraints that had to be
+removed were this shape. `motion_rule.motion_id` referencing `motion.motion_id` is right
+for two subjects and false for the third, because a direction motion has no motion row.
+`Avenue.line` required is right for a proposal and wrong for a move. SQL cannot see the
+condition: a CHECK holds no subquery, and a foreign key has no idea what subject the row
+is. **A constraint that is wrong for a third of its cases is worse than none** — it
+refuses correct work while reading as a guarantee.
+
+**Explaining a refusal → Go, always.** `RAISE(ABORT, …)` takes a STATIC string. Every
+refusal in this tool that earns its keep names the flag, the set, and what the omission
+costs: "merge close: `carried` defers the gap instead of closing it, and deferring is the
+BENCH decision". SQL can refuse; it cannot teach. Where a constraint and a message are both
+wanted, the constraint goes in SQL as the wall and the message stays in Go as the door —
+that is why `merge close`'s subset check exists twice on purpose.
+
+**Computing a derived value → a VIEW, not a trigger.** Same language, opposite direction:
+a view is SQL used as a QUERY, which is what it is good at. A trigger maintaining a
+denormalised column is logic, and it buys nothing a view does not — see the presence
+section above for the measurement.
+
+**The one trigger that earns its place** is the append-only guard on `events`. It refuses
+an unconditionally illegal state (editing a written event), and its static message is
+adequate precisely because there is nothing conditional to explain: you cannot edit the
+record, and that is the whole sentence.
