@@ -181,7 +181,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 		}
 	}
 	// The lean open gap keeps its grades, class, location and found_by.
-	if w.Open[0].Severity != recordpb.Grade_GRADE_HIGH || w.Open[0].Class != "correctness" || w.Open[0].Location != "§open" {
+	if w.Open[0].Severity != "high" || w.Open[0].Class != "correctness" || w.Open[0].Location != "§open" {
 		t.Errorf("open gap lost a lean field: %+v", w.Open[0])
 	}
 	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "L1-F1" {
@@ -209,6 +209,9 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Supersedes:      []string{"R0-9"},
+			// found_by is the OTHER promoted list, and the assertion below reads both. The earlier
+			// conversion dropped it, so the test asserted against a gap that credited nobody.
+			FoundBy: []string{"L1-F1", "L5-F3"},
 		}),
 	})
 	b, err := BoardJSONBytes(runDir)

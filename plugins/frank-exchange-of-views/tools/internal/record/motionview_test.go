@@ -110,7 +110,13 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	}
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{AnchorTool: proto.String("Read"), AnchorTarget: proto.String("blue/report.md")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		AnchorSeat:   proto.String("L1"),
+		AnchorTool:   proto.String("Read"),
+		AnchorTarget: proto.String("blue/report.md"),
+		Prose:        proto.String("verified at the leaf"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 

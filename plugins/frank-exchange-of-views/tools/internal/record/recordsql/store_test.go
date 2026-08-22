@@ -649,8 +649,8 @@ func TestASuccessorMustBeAGapThatExists(t *testing.T) {
 // AN ABSENT FLAG MUST NOT BE STORED AS THE EMPTY STRING.
 //
 // `merge close` set `successor` unconditionally — `proto.String(seat.Str(cmd, flags.SupersededBy))`
-// — so an ordinary closure recorded `successor = ''`. Once successor referenced `mint.gap_id` that
-// became a hard refusal (no gap is named ''), which is how it was found; BEFORE the reference
+// — so an ordinary closure recorded `successor = ”`. Once successor referenced `mint.gap_id` that
+// became a hard refusal (no gap is named ”), which is how it was found; BEFORE the reference
 // existed the same rows were written and read as a closure whose successor was the empty gap.
 //
 // This is the storage half of that guarantee: an unset field lands as NULL and comes back unset,

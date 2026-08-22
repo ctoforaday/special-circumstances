@@ -147,7 +147,13 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 		}
 	}
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, &recordpb.Proof{Script: proto.String("s.py")}); err != nil {
+	// THE PROOF ANSWERS A GAP, and the earlier conversion dropped `answers` — so the proof
+	// discharged nothing and the debt could not move. `answers` is the whole join this test is
+	// about: a proof that names no gap is a script that ran for no stated reason.
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, &recordpb.Proof{
+		Answers: proto.String("R1-1"),
+		Script:  proto.String("s.py"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if owed := GapsAwaitingProof(runDir); len(owed) != 1 || owed[0] != "R1-2" {
@@ -177,7 +183,13 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{AnchorTool: proto.String("Read"), AnchorTarget: proto.String("x")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{
+		GapId:        proto.String("R1-2"),
+		AnchorSeat:   proto.String("L1"),
+		AnchorTool:   proto.String("Read"),
+		AnchorTarget: proto.String("x"),
+		Prose:        proto.String("the computation ran and the check holds"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if owed := GapsAwaitingProof(runDir); len(owed) != 0 {
