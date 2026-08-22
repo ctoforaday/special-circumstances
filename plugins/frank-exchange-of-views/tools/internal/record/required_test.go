@@ -119,8 +119,14 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 		// requires it and no flag sets it, so it is not in RequiredFields but must be present
 		// for a complete payload.
 		"line-of-inquiry": NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "l"),
-		"opinion": &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: proto.String("carried")}.
-			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("reason", "r"),
+		"opinion": &recordpb.Opinion{
+			GapId:       proto.String("R1-1"),
+			Disposition: proto.String("carried"),
+			Principle:   proto.String("p"),
+			Tension:     proto.String("t"),
+			ReviewFlag:  proto.String("no"),
+			Rationale:   proto.String("r"),
+		},
 	} {
 		dir := t.TempDir()
 		if typ == "opinion" {

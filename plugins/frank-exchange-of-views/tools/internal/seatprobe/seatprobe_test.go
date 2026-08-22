@@ -84,8 +84,7 @@ func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 		seat, typ string
 		payload   *record.Payload
 	}{
-		{seat: "blue-respond-r1", typ: "blue_edit", payload: &recordpb.BlueEdit{}.
-			Set("old", "a").Set("new", "b").Set("reason", "why")},
+		{seat: "blue-respond-r1", typ: "blue_edit", payload: &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}},
 	})
 	c, err := Read(surface(), runDir, "blue-respond-r1")
 	if err != nil {
@@ -115,8 +114,7 @@ func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 		evs = append(evs, struct {
 			seat, typ string
 			payload   *record.Payload
-		}{"blue-respond-r1", "blue_edit", &recordpb.BlueEdit{}.
-			Set("old", "a").Set("new", "b").Set("reason", "why")})
+		}{"blue-respond-r1", "blue_edit", &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}})
 	}
 	runDir := writeRun(t, evs)
 

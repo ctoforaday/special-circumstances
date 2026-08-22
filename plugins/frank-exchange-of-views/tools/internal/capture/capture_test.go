@@ -255,8 +255,13 @@ func screenRun(t *testing.T, outcome, url string) string {
 	seed("blue-r1", "40000000", 0, "cite",
 		&recordpb.Cite{Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
 	seed("red-lens-r1-L1", "30000000", 0, "verify",
-		&recordpb.Verify{Anchor: proto.String("c-1"), Claim: proto.String("a claim")}.
-			Set("outcome", outcome).Set("confidence", "high").Set("reason", "read it at the leaf"))
+		&recordpb.Verify{
+			Anchor:     proto.String("c-1"),
+			Claim:      proto.String("a claim"),
+			Outcome:    outcome,
+			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
+			Text:       proto.String("read it at the leaf"),
+		})
 	return dir
 }
 
