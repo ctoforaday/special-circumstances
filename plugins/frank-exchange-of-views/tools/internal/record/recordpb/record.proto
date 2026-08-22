@@ -778,14 +778,17 @@ message Opinion {
     why: "how the gap ends, or `carried` to defer it with a stated research direction"
   }];
 
+  // NON-EMPTY, and this is the one of the three that is. Decided 2026-08-22 by the operator,
+  // as a contract question rather than a storage one.
+  //
+  // A ruling always applies SOME rule, so an empty `principle` is exactly the decoration this
+  // verb was built to refuse — the measured failure is a bench that ruled `carried` on 64 of 65
+  // items, a router rather than a judge. `tension` and `review_flag` stay presence-only on the
+  // opposite argument: not every ruling has two values in conflict and most need no human to
+  // look, so demanding them would produce INVENTED tension and pro-forma flags, which read as
+  // reasoning and are worse than an honest blank.
   optional string principle = 3 [(sql) = {
     required: true
-    // PRESENCE ONLY, matching what the Go table did before the annotation replaced it. The old
-    // rule was Has-not-empty for the opinion's five fields, with `rationale` the exception. Whether
-    // an empty principle should be refused — a ruling with no stated rule is what this verb exists
-    // to prevent — is a live question and a SEPARATE decision, not one to make inside a storage
-    // migration.
-    allow_empty: true
     why: "the rule you are applying, stated so a later sitting can apply it too"
   }];
   optional string tension = 4 [(sql) = {

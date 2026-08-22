@@ -368,6 +368,38 @@ var grades = []string{"low", "low_medium", "medium", "medium_high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 
+// currentGrade reads the gap's grade at one axis, in the words a seat types. Empty when the board
+// cannot be read or the axis is unknown — the caller treats that as "no constraint".
+func (r *runner) currentGrade(gapID, dim string) string {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return ""
+	}
+	g := b.Gaps[gapID]
+	if g == nil {
+		return ""
+	}
+	d, ok := record.GradeDimensionOf(dim)
+	if !ok {
+		return ""
+	}
+	cur, known := g.GradeAt(d)
+	if !known {
+		return ""
+	}
+	return recordpb.Word(cur)
+}
+
+// gradeOtherThan picks a grade that is not the one given, so a dispute always asks for a change.
+func (r *runner) gradeOtherThan(cur string) string {
+	for i := 0; i < len(grades)*4; i++ {
+		if g := r.g(); g != cur {
+			return g
+		}
+	}
+	return grades[0] // unreachable while len(grades) > 1; a stated fallback beats a silent loop
+}
+
 // verifyOutcomes is the value space of `lens verify --as` — what a source DID for the claim.
 //
 // It was `--trust high|medium|low`, all three of which mean the source SUPPORTS the claim. The
@@ -2721,7 +2753,11 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			r.counterEdit(seatID, id)
 		case dirDisputeWon, dirDisputeLost:
 			dim := pick(r.rng, disputeDims)
-			proposed := r.g()
+			// A DIFFERENT GRADE FROM THE ONE ON THE BOARD. A motion proposing the grade already
+			// there is refused now (it asks for no change), and a drive that hits that 1 time in
+			// 5 would report as a missing dispute event three layers away — which is exactly the
+			// shape the hyphenated grade words produced.
+			proposed := r.gradeOtherThan(r.currentGrade(id, dim))
 			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID, "--id", id,
 				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id)
 			// THE REFUSAL IS KEPT, because the oracle downstream reports its ABSENCE and cannot

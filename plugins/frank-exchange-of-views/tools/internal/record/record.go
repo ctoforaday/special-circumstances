@@ -309,6 +309,34 @@ var singleton = map[recordpb.EventType]bool{
 // the reason a name is only ever REMOVED from this list deliberately.
 var keyFields = []protoreflect.Name{"gap_id", "label", "id", "observation", "anchor", "url"}
 
+// requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
+func requireGradeMotionAsksForAChange(runDir string, g *recordpb.GradeMotion) error {
+	proposed := g.GetProposed()
+	if proposed == recordpb.Grade_GRADE_UNSPECIFIED {
+		return nil // an absent proposal is the required-field sweep's refusal, not this one's
+	}
+	b, err := BoardState(runDir)
+	if err != nil {
+		return nil // a board that cannot be read does not block the filing; requireGap already ran
+	}
+	gap := b.Gaps[g.GetGapId()]
+	if gap == nil {
+		return nil // requireGap answered this already
+	}
+	current, known := gap.GradeAt(g.GetDimension())
+	if !known {
+		return fmt.Errorf("record: motion grade file: %q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to Gap.GradeAt",
+			recordpb.Word(g.GetDimension()))
+	}
+	if current != proposed {
+		return nil
+	}
+	return fmt.Errorf("record: motion grade file: %s is already %s at %s, so this motion asks for no change — "+
+		"a motion is a request to MOVE a grade, and a ruling on one that moves nothing reads exactly like a ruling on the merits. "+
+		"Propose the grade you think it should be, or if you mean to argue the current grade is right, that belongs in your closing rather than on the docket",
+		g.GetGapId(), recordpb.Word(proposed), recordpb.Word(g.GetDimension()))
+}
+
 // deriveKey builds the idempotency key, and its ordinal arm COUNTS INSIDE THE WRITING
 // TRANSACTION.
 //
@@ -823,6 +851,18 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			}
 			if err := requireOpenGap(runDir, b.GetGrade().GetGapId(), "motion grade file", "--id",
 				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
+				return err
+			}
+			// AND IT MUST ASK FOR A CHANGE. Proposing the grade already on the board contests
+			// nothing, and the ruling it produces is unreadable: `rejected` on a no-op and
+			// `rejected` on the merits are the same word, in the one exchange built to make that
+			// distinction legible. Measured 2026-08-22 — with severity already `high`,
+			// `--dimension severity --proposed high` filed cleanly.
+			//
+			// Read from the BOARD, not from the filer's claim about it, and a dimension this
+			// binary cannot resolve is an ERROR rather than a skipped check: GradeAt's zero would
+			// differ from every real proposal and quietly accept everything on a new axis.
+			if err := requireGradeMotionAsksForAChange(runDir, b.GetGrade()); err != nil {
 				return err
 			}
 		}

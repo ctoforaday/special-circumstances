@@ -3104,11 +3104,20 @@ type Opinion struct {
 	//
 	// Typed, the set is one declaration with four readers: the flag parser, the DDL's foreign key,
 	// the `closes` column the gap view folds on, and `--help`.
-	Disposition   *Disposition `protobuf:"varint,2,opt,name=disposition,proto3,enum=feov.record.v1.Disposition,oneof" json:"disposition,omitempty"`
-	Principle     *string      `protobuf:"bytes,3,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
-	Tension       *string      `protobuf:"bytes,4,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
-	ReviewFlag    *string      `protobuf:"bytes,5,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
-	Rationale     *string      `protobuf:"bytes,6,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
+	Disposition *Disposition `protobuf:"varint,2,opt,name=disposition,proto3,enum=feov.record.v1.Disposition,oneof" json:"disposition,omitempty"`
+	// NON-EMPTY, and this is the one of the three that is. Decided 2026-08-22 by the operator,
+	// as a contract question rather than a storage one.
+	//
+	// A ruling always applies SOME rule, so an empty `principle` is exactly the decoration this
+	// verb was built to refuse — the measured failure is a bench that ruled `carried` on 64 of 65
+	// items, a router rather than a judge. `tension` and `review_flag` stay presence-only on the
+	// opposite argument: not every ruling has two values in conflict and most need no human to
+	// look, so demanding them would produce INVENTED tension and pro-forma flags, which read as
+	// reasoning and are worse than an honest blank.
+	Principle     *string `protobuf:"bytes,3,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
+	Tension       *string `protobuf:"bytes,4,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
+	ReviewFlag    *string `protobuf:"bytes,5,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
+	Rationale     *string `protobuf:"bytes,6,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5626,11 +5635,11 @@ const file_record_proto_rawDesc = "" +
 	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01B\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xcd\x06\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xcb\x06\n" +
 	"\aOpinion\x12P\n" +
 	"\x06gap_id\x18\x01 \x01(\tB4\x82\xb5\x180\b\x01\x12\x02id\x1a\x1bwhich gap is being ruled on\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x9b\x01\n" +
-	"\vdisposition\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12r\n" +
-	"\tprinciple\x18\x03 \x01(\tBO\x82\xb5\x18K\b\x01\x1aEthe rule you are applying, stated so a later sitting can apply it too8\x01H\x02R\tprinciple\x88\x01\x01\x12\x81\x01\n" +
+	"\vdisposition\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12p\n" +
+	"\tprinciple\x18\x03 \x01(\tBM\x82\xb5\x18I\b\x01\x1aEthe rule you are applying, stated so a later sitting can apply it tooH\x02R\tprinciple\x88\x01\x01\x12\x81\x01\n" +
 	"\atension\x18\x04 \x01(\tBb\x82\xb5\x18^\b\x01\x1aXwhat pulls the other way — a ruling with no acknowledged counterweight is an assertion8\x01H\x03R\atension\x88\x01\x01\x12l\n" +
 	"\vreview_flag\x18\x05 \x01(\tBF\x82\xb5\x18B\b\x01\x12\vreview-flag\x1a/why a human should, or should not, look at this8\x01H\x04R\n" +
 	"reviewFlag\x88\x01\x01\x12\x98\x01\n" +

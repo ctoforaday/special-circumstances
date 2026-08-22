@@ -1018,3 +1018,141 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		t.Errorf("a closure with no argument was accepted; the exemption widened into a hole: %v", err)
 	}
 }
+
+// `principle` IS NON-EMPTY; `tension` AND `review_flag` ARE PRESENCE-ONLY.
+//
+// The asymmetry is the whole content of the decision (operator, 2026-08-22), so it is asserted
+// as an asymmetry rather than three separate facts. A ruling always applies SOME rule, and an
+// empty `principle` is the decoration `bench opinion` exists to refuse — the measured failure is
+// a bench that ruled `carried` on 64 of 65 items, a router rather than a judge. Demanding the
+// other two would produce invented tension and pro-forma review flags, which read as reasoning
+// and are worse than an honest blank.
+func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
+	full := func() *recordpb.Opinion {
+		return &recordpb.Opinion{
+			GapId:       proto.String("R1-1"),
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED),
+			Principle:   proto.String("a claim rests on its weakest citation"),
+			Tension:     proto.String("correctness vs economy"),
+			ReviewFlag:  proto.String("no human review needed"),
+			Rationale:   proto.String("the repair holds at the leaf"),
+		}
+	}
+	// A REAL GAP on the record, so the reference check passes and the FIELD rules are what answer.
+	runDir := t.TempDir()
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-r1", Round: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, &recordpb.Mint{
+		GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"),
+		Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
+		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// EMPTY, not absent: the point is that presence alone no longer satisfies `principle`.
+	empty := full()
+	empty.Principle = proto.String("")
+	err := validate(runDir, "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, empty)
+	if err == nil {
+		t.Error("an opinion with an EMPTY principle was accepted — a ruling with no stated rule is indistinguishable from a default, which is what this verb exists to prevent")
+	} else if !strings.Contains(err.Error(), "principle") {
+		t.Errorf("the refusal does not name --principle, so a bench cannot tell which field it missed: %v", err)
+	}
+
+	// And the other two still take an honest blank.
+	for _, tc := range []struct {
+		name string
+		set  func(*recordpb.Opinion)
+	}{
+		{"tension", func(o *recordpb.Opinion) { o.Tension = proto.String("") }},
+		{"review_flag", func(o *recordpb.Opinion) { o.ReviewFlag = proto.String("") }},
+	} {
+		o := full()
+		tc.set(o)
+		if err := validate(runDir, "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, o); err != nil {
+			t.Errorf("an empty %s was refused: %v\nNot every ruling has two values in conflict, and most need no human to look — demanding these produces invented tension and pro-forma flags, which read as reasoning", tc.name, err)
+		}
+	}
+}
+
+// A GRADE MOTION MUST ASK FOR A CHANGE.
+//
+// Proposing the grade already on the board contests nothing, and the ruling it produces is
+// unreadable: `rejected` on a no-op and `rejected` on the merits are the same word, in the one
+// exchange built to make that distinction legible. Measured 2026-08-22 — with severity already
+// `high`, `--dimension severity --proposed high` filed cleanly.
+func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
+	runDir := t.TempDir()
+	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, &recordpb.Mint{
+		GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"),
+		Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
+		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	file := func(dim recordpb.GradeDimension, proposed recordpb.Grade) error {
+		return validate(runDir, "blue-respond-r1", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+			MotionId: proto.String("M1"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+			Basis:    proto.String("the grade overstates it"),
+			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
+				GapId: proto.String("R1-1"), Dimension: &dim, Proposed: &proposed,
+			}},
+		})
+	}
+
+	// The no-op: severity is already high.
+	err := file(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY, recordpb.Grade_GRADE_HIGH)
+	if err == nil {
+		t.Error("a motion proposing the grade already on the board was accepted — the ruling on it cannot be told from a ruling on the merits")
+	} else if !strings.Contains(err.Error(), "already") {
+		t.Errorf("the refusal does not say the grade is already that value, so a seat cannot see what is wrong: %v", err)
+	}
+
+	// A REAL ask on the same axis still files.
+	if err := file(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY, recordpb.Grade_GRADE_LOW); err != nil {
+		t.Errorf("a motion asking for an actual change was refused: %v", err)
+	}
+	// And the check is PER AXIS: `high` is a real move on an axis that is `medium`.
+	if err := file(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT, recordpb.Grade_GRADE_HIGH); err != nil {
+		t.Errorf("the no-op check is reading the wrong axis — impact is medium, so proposing high is a change: %v", err)
+	}
+}
+
+// EVERY GRADE AXIS IS READABLE, or the no-op check silently stops working on the one that is not.
+//
+// GradeAt's zero differs from any real proposal, so an unhandled dimension would accept every
+// motion on that axis while reporting nothing. The second return exists to make that loud; this
+// asserts the enum and the switch have not drifted apart.
+func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
+	g := &Gap{}
+	vals := recordpb.GradeDimension(0).Descriptor().Values()
+	checked := 0
+	for i := 0; i < vals.Len(); i++ {
+		d := recordpb.GradeDimension(vals.Get(i).Number())
+		if d == 0 {
+			continue
+		}
+		if _, ok := g.GradeAt(d); !ok {
+			t.Errorf("Gap.GradeAt cannot read %q — the no-op-motion check would accept every motion on that axis and say nothing", recordpb.Word(d))
+		}
+		checked++
+	}
+	if checked < 4 {
+		t.Errorf("only %d dimensions swept — the four axes are the set this check exists over", checked)
+	}
+}

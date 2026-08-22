@@ -232,6 +232,27 @@ type Gap struct {
 //
 // A nil gap or a gap with no mint answers false: GetCheckKind on an absent Mint is the
 // UNSPECIFIED zero, which is what the `g.Mint == nil` guards at those sites already meant.
+// GradeAt returns the gap's grade on ONE axis, and whether that axis is one this binary knows.
+//
+// THE SECOND RETURN IS LOAD-BEARING. A dimension added to the enum and not added here would
+// otherwise yield the zero Grade, which differs from any real proposal — so the no-op-motion
+// check below would silently start accepting everything on the new axis. That is the
+// plausible-zero shape: the miss and the healthy answer are the same value. Callers must treat
+// !ok as "cannot answer", never as "no grade".
+func (g *Gap) GradeAt(d recordpb.GradeDimension) (recordpb.Grade, bool) {
+	switch d {
+	case recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY:
+		return g.Severity, true
+	case recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD:
+		return g.Likelihood, true
+	case recordpb.GradeDimension_GRADE_DIMENSION_IMPACT:
+		return g.Impact, true
+	case recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY:
+		return g.ComplexityCost, true
+	}
+	return recordpb.Grade_GRADE_UNSPECIFIED, false
+}
+
 func (g *Gap) NeedsComputation() bool {
 	return g != nil && g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION
 }
