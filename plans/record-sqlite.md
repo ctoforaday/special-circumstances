@@ -240,3 +240,39 @@ section above for the measurement.
 an unconditionally illegal state (editing a written event), and its static message is
 adequate precisely because there is nothing conditional to explain: you cannot edit the
 record, and that is the whole sentence.
+
+### Presence for a list, if a verb ever needs it
+
+The proto answer is a wrapper message (`optional Lineage supersedes` where `Lineage {
+repeated string values = 1; }`) — message fields have always had presence, so set-but-empty
+is distinguishable from absent. Confirmed: the wire bytes differ. `optional repeated` is a
+syntax error in every proto version; the labels are one slot.
+
+**We should not use the wrapper here.** It exists to work around proto's lack of
+repeated-field presence at the LANGUAGE BINDING level — it buys `has_supersedes()` in every
+language. This schema is DERIVED from descriptors with our own annotations, so we do not
+have that constraint, and the wrapper costs us specifically: a message field becomes its own
+table, so one list becomes TWO tables (a wrapper table whose only column is `event_id`, plus
+the list table under it). Avoiding that needs a `presence_only` annotation AND generator
+support to collapse the wrapper and re-key the list to the grandparent — real work to undo a
+workaround we adopted for a limitation we do not have.
+
+**The flat shape gets the same fact for nothing:**
+
+    repeated string supersedes = 20;
+    optional bool supersedes_stated = 21;   // "I considered lineage; there is none"
+
+One column, no nesting, no second table, no generator change — and it is the idiom this
+schema already uses well (`SpotCheck.none`).
+
+**And it is the better model, not just the cheaper one.** A wrapper makes presence a
+STRUCTURAL fact (is the message set); a sibling bool makes it a DECLARED fact (did the seat
+say so). This record wants the second: a claim should be a field a writer can be REFUSED on.
+An empty wrapper the CLI sets because a flag was registered is not a seat asserting
+anything, and `--supersedes ""` should not become "I thought about lineage and there is
+none" by accident.
+
+**Not built.** No verb produces the distinction today, and inventing a record for a fact
+nobody states is the cost facts-are-fields warns about. If a bench ever needs "red
+considered lineage and found none" as distinct from "red did not address lineage", that is
+the moment — and it is one field.
