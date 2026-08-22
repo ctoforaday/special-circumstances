@@ -131,3 +131,61 @@ func TestNonBashToolsAreUntouched(t *testing.T) {
 		t.Error("a non-Bash tool call was rewritten")
 	}
 }
+
+// THE COMMAND THAT COST RUN 2 ITS BIBLIOGRAPHY.
+//
+// blue-respond-r1 ran this at tool call 53 of 61. The hook bailed on the heredoc, no
+// FEOV_AGENT_ID reached the tool, and the tool answered "this agent has not registered" — which
+// was false; it had registered fifty calls earlier. The seat believed the refusal, re-registered,
+// rotated its shard nonce, and replay kept the newer shard: 26 events orphaned, including the ten
+// citations whose anchors are still in the report and now render as
+// "(unresolved citation c-… — no source on the record)".
+//
+// A heredoc is the form the tool's own help teaches for multi-line prose, so this was the
+// recommended path.
+func TestTheHeredocFormTheToolTeachesKeepsItsIdentity(t *testing.T) {
+	for _, cmd := range []string{
+		// the measured one, leading newline and all
+		"\n/scratch/runbin/feov-record position \\\n  --reason-file - <<'EOF'\nRed raised five gaps.\nEOF",
+		// the same shape a merge seat used, four times
+		"cat > /tmp/p.txt << 'EOF'\nprose\nEOF\n/scratch/feov-record merge close --id R1-1 --reason-file /tmp/p.txt",
+		// `<<-` and an unquoted delimiter
+		"feov-record blue edit --reason-file - <<-END\n\ttext\n\tEND",
+	} {
+		out, rewritten := PreOutcome(bash(t, cmd), liveRun)
+		if out != OutcomeRewrite {
+			t.Errorf("a heredoc invocation was NOT rewritten, so the seat loses its identity and "+
+				"will be told it never registered:\n%s", cmd)
+			continue
+		}
+		// AND THE PROSE IS UNTOUCHED — the whole safety argument for stripping rather than bailing
+		// is that injection only ever prepends.
+		if !strings.HasSuffix(rewritten, cmd) {
+			t.Errorf("the command body was modified, not merely prefixed:\ngot:  %q\nwant suffix: %q", rewritten, cmd)
+		}
+	}
+}
+
+// And a body that merely DOCUMENTS a verb still must not be treated as an invocation — the case
+// the old bail was really protecting, now handled by blanking the body rather than by giving up.
+func TestAHeredocBodyIsStillNotAnInvocation(t *testing.T) {
+	cmd := "cat <<'END' > doc.md\nfeov-record blue cite --url ...\nEND"
+	if out, _ := PreOutcome(bash(t, cmd), liveRun); out == OutcomeRewrite {
+		t.Errorf("a heredoc BODY was read as command position:\n%s", cmd)
+	}
+}
+
+// judge-r2's command, verbatim in shape: the invocation sits inside $( ), which the matcher did
+// not count as command position. Same run, same false "you never registered", different opener.
+func TestCommandSubstitutionIsCommandPosition(t *testing.T) {
+	for _, cmd := range []string{
+		"\n# comment\nevidence=$(\"/scratch/runbin/feov-record\" show evidence | grep x)\necho \"$evidence\"",
+		"cites=`feov-record show evidence`",
+		"( feov-record verify ) || true",
+	} {
+		if out, _ := PreOutcome(bash(t, cmd), liveRun); out != OutcomeRewrite {
+			t.Errorf("an invocation in command-substitution position was not rewritten, so the seat "+
+				"loses its identity:\n%s", cmd)
+		}
+	}
+}

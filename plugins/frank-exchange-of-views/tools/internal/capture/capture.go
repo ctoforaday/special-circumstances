@@ -28,6 +28,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -1051,8 +1052,25 @@ func orQ(s string) string {
 //
 // Capture is the step that CLOSES a run. It is the wrong place to be quiet about the one piece of
 // state that says the run is open.
-func closeRunLiveMarker(cwd string) string {
+func closeRunLiveMarker(cwd, runDir string) string {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	// AND IT MUST BE THIS RUN'S MARKER, which nothing checked.
+	//
+	// The marker is a singleton: one file naming the one open run. Capture removed it by PATH,
+	// never asking which run it named — so capturing run A while run B is live lifted B's
+	// marker and reported "removed", which reads exactly like the correct outcome. Every later
+	// un-flagged verb in B then infers no run at all, and B's own capture finds nothing to close
+	// and says so in the words it uses for a run that was already clean.
+	//
+	// NEARLY DONE, 2026-08-22: a discarded run was about to be captured for its evidence while
+	// the next run was eleven minutes into its first round. Caught by reading this function
+	// rather than by anything in it.
+	if m, ok := setup.ReadRunLiveMarker(cwd); ok && !sameRunDir(cwd, m.RunDir, runDir) {
+		return "run-live marker: LEFT IN PLACE — it names " + m.RunDir + ", not the run being " +
+			"captured (" + runDir + "). Removing it would have closed a DIFFERENT run, and that " +
+			"run's own capture would then report nothing to close. Capture the run it names, or " +
+			"clear it deliberately if that run is abandoned"
+	}
 	_, serr := os.Stat(marker)
 	switch {
 	case serr == nil:
@@ -1200,7 +1218,12 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 	_ = os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755)
 	out := filepath.Join(lawDir, "proposed", slug+".md")
 	var body []string
-	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]", "")
+	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]",
+		"",
+		"Each entry below is a RULING the bench recorded, not yet a holding. `facts`, `holding` and",
+		"`scope-limits` are the reviewer's to write from the cited record: the harvest states what it",
+		"observed and never invents the rule. A ruling promoted with its placeholders intact is not",
+		"citable — law/README.md: a holding without its factual predicate is not citable.", "")
 	for i, r := range rulings {
 		q := "disposition of " + r.gapID
 		src := slug + ", " + r.gapID
@@ -1208,16 +1231,42 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 			q = "petition by " + r.petitioner
 			src = slug + ", petition:" + r.petitioner
 		}
-		body = append(body, strings.Join([]string{
+		// A DISPOSITION IS NOT A HOLDING, and writing one into that field made every harvested
+		// ruling unpromotable while looking complete.
+		//
+		// law/README.md asks for `holding: <the rule applied>` and warns that a holding without
+		// its factual predicate is not citable. This wrote `holding: closed` — the docket STATUS
+		// — so nine harvested rulings across two runs all read "disposition of R1-n / closed",
+		// which tells a later bench nothing it could apply to a different gap. The rule the bench
+		// actually reasoned to was sitting in `rationale`, unextracted, one line below.
+		//
+		// The harvest cannot fix that by synthesising a rule: inventing the holding is exactly
+		// what it must not do. So it states the disposition as the disposition, and leaves the
+		// holding as a placeholder beside `facts` and `scope-limits` — the three things only a
+		// human reviewing the record can supply. An unpromotable ruling now LOOKS unpromotable.
+		//
+		// A `declare` is the exception and always was: that verb's whole purpose is to state a
+		// holding, so its text IS the rule and no placeholder is honest there.
+		holding := "<reviewer: state the rule this ruling applied — the harvest never invents; " +
+			"the reasoning is in `rationale` below>"
+		fields := []string{
 			"## " + slug + "-" + strconv.Itoa(i+1) + " [PERSUASIVE]",
 			"facts: <reviewer: fill from the cited record — the harvest never invents>",
 			"question: " + q,
-			"holding: " + r.disposition,
-			"rationale: " + r.rationale,
+		}
+		if r.kind == "declaration" {
+			fields = append(fields, "holding: "+r.rationale)
+		} else {
+			fields = append(fields,
+				"holding: "+holding,
+				"disposition: "+r.disposition,
+				"rationale: "+r.rationale)
+		}
+		fields = append(fields,
 			"scope-limits: <reviewer: state what this assumed>",
-			"source: " + src,
-			"",
-		}, "\n"))
+			"source: "+src,
+			"")
+		body = append(body, strings.Join(fields, "\n"))
 	}
 	if err := os.WriteFile(out, []byte(strings.Join(body, "\n")), 0o644); err != nil {
 		// This branch is a WRITE failure and must say so. Reusing the branch above's reason
@@ -1376,6 +1425,22 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	} else {
 		lines = append(lines, fmt.Sprintf("tarball: %d transcript(s)", len(agentFiles)))
 	}
+	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
+	// archive that silently did not happen is a run whose evidence is gone the next time the
+	// container is reclaimed, and nothing would have said so.
+	if arc, aerr := ArchiveRecord(runDir, repoRootOf(runDir)); aerr != nil {
+		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
+	} else {
+		rel := arc
+		if r, rerr := filepath.Rel(repoRootOf(runDir), arc); rerr == nil {
+			rel = r
+		}
+		if st, serr := os.Stat(arc); serr == nil {
+			lines = append(lines, fmt.Sprintf("record archive: %s (%d KB) — the raw record, which research/ does not keep", rel, st.Size()/1024))
+		} else {
+			lines = append(lines, "record archive: "+rel)
+		}
+	}
 
 	costF, cerr := os.Create(filepath.Join(runDir, "cost.md"))
 	if cerr != nil {
@@ -1460,7 +1525,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		lines = append(lines, "precedent harvest: no rulings this run")
 	}
 
-	lines = append(lines, closeRunLiveMarker(cwd))
+	lines = append(lines, closeRunLiveMarker(cwd, runDir))
 
 	var out []string
 	out = append(out,
@@ -1513,4 +1578,112 @@ func listAgentFiles(dir string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// ---- record archive ----
+
+// ArchiveRecord writes the run's RAW RECORD to run-archive/<slug>.tar.gz at the repository root,
+// which is the only part of a run that outlives the container.
+//
+// THE EVIDENCE WAS THE ONE THING NOT BEING KEPT. `research/*/` is gitignored — deliberately, and
+// with a commit behind it (ffc4bf4 deleted a tracked research corpus because seats were reading
+// test data as prior work). So a run directory survives a SIGTERM and a fast resume, because the
+// disk does, and does NOT survive the container being reclaimed. What survived that was only what
+// capture promoted: cost.md, the scorecards, the law harvest. Every one of those is a DERIVED
+// artifact. The record they were derived from — the thing each audit re-reads, and the only thing
+// that can answer a question nobody has thought of yet — was left behind.
+//
+// WHAT IS IN IT, AND WHAT IS NOT. records/ and proofs/: 49 KB gzipped for a fifteen-seat run, so
+// keeping every run costs about a megabyte per twenty. NOT cache/ — 7.3 MB of fetched source
+// bytes for the same run, re-fetchable, and content-addressed by a sha256 the citation events
+// already carry, so its integrity stays checkable without it. NOT the agent transcripts: they are
+// an order of magnitude larger than the record and answer a different question (what a seat DID
+// rather than what it RECORDED); keeping them is a separate decision and is named here rather
+// than made quietly.
+//
+// It does not reintroduce ffc4bf4's hazard: seats read their own run directory and the inputs
+// mirrored into it, never run-archive/, and a gzipped tar is not prose a glob can wander into.
+func ArchiveRecord(runDir, repoRoot string) (string, error) {
+	recs, err := record.RecordsDir(runDir)
+	if err != nil {
+		return "", err
+	}
+	var files []struct {
+		name string
+		path string
+	}
+	add := func(root, prefix string) error {
+		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil // a missing proofs/ is ordinary; a missing records/ is caught below
+			}
+			rel, rerr := filepath.Rel(root, p)
+			if rerr != nil {
+				return rerr
+			}
+			files = append(files, struct{ name, path string }{prefix + filepath.ToSlash(rel), p})
+			return nil
+		})
+	}
+	if err := add(recs, "records/"); err != nil {
+		return "", err
+	}
+	shards := len(files)
+	_ = add(filepath.Join(runDir, "proofs"), "proofs/")
+	// AN EMPTY ARCHIVE IS A REFUSAL, not a small file. A tarball with no shards in it is exactly
+	// what a run whose record never resolved would produce, and it would sit in run-archive/
+	// looking like a kept run forever.
+	if shards == 0 {
+		return "", fmt.Errorf("no event shards under %s — refusing to write an archive that would "+
+			"preserve nothing while looking like a preserved run", recs)
+	}
+	outDir := filepath.Join(repoRoot, "run-archive")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return "", err
+	}
+	out := filepath.Join(outDir, filepath.Base(filepath.Clean(runDir))+".tar.gz")
+	f, err := os.Create(out)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	gz := gzip.NewWriter(f)
+	tw := tar.NewWriter(gz)
+	sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
+	for _, fl := range files {
+		b, rerr := os.ReadFile(fl.path)
+		if rerr != nil {
+			return "", rerr
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: fl.name, Mode: 0o644, Size: int64(len(b))}); err != nil {
+			return "", err
+		}
+		if _, err := tw.Write(b); err != nil {
+			return "", err
+		}
+	}
+	if err := tw.Close(); err != nil {
+		return "", err
+	}
+	if err := gz.Close(); err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
+// sameRunDir compares two run directories as PATHS, not as strings — the marker stores whatever
+// it was given (`research/x` from one invocation, an absolute path from another), so a string
+// compare would refuse to close the very run in progress. Mirrors setup.sameRun, which is
+// unexported and answers the same question at the other end of the run's life.
+func sameRunDir(projectDir, a, b string) bool {
+	abs := func(p string) string {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(projectDir, p)
+		}
+		if r, err := filepath.Abs(filepath.Clean(p)); err == nil {
+			return r
+		}
+		return filepath.Clean(p)
+	}
+	return strings.EqualFold(abs(a), abs(b))
 }

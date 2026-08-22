@@ -1,6 +1,8 @@
 package capture
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -476,8 +478,22 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "[PERSUASIVE]") || strings.Contains(body, "[AFFIRMED") {
 		t.Errorf("everything starts persuasive")
 	}
-	if !strings.Contains(body, "holding: risk_accepted") || !strings.Contains(body, "holding: granted") {
-		t.Errorf("holdings carry their disposition")
+	// A DISPOSITION IS NOT A HOLDING. This used to assert `holding: risk_accepted` and
+	// `holding: granted` — docket statuses in the field law/README.md reserves for "the rule
+	// applied". Nine rulings harvested across two real runs all read "holding: closed", which no
+	// later bench could apply to anything, and the reasoning sat unextracted in `rationale`.
+	for _, want := range []string{"disposition: risk_accepted", "disposition: granted"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("a docket ruling must state its disposition as one: missing %q", want)
+		}
+	}
+	if !strings.Contains(body, "holding: <reviewer: state the rule this ruling applied") {
+		t.Errorf("a docket ruling's holding must be a placeholder the reviewer fills — the harvest " +
+			"cannot synthesise the rule without inventing it")
+	}
+	// ...except a declaration, whose whole purpose is to state a holding.
+	if !strings.Contains(body, "holding: verified means an act of looking") {
+		t.Errorf("a declaration's text IS the holding and must not be replaced by a placeholder")
 	}
 	if !strings.Contains(body, "facts: <reviewer: fill from the cited record") {
 		t.Errorf("the harvest never invents facts")
@@ -754,7 +770,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 	t.Run("removed", func(t *testing.T) {
 		cwd := t.TempDir()
 		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/x"}`)
-		got := closeRunLiveMarker(cwd)
+		got := closeRunLiveMarker(cwd, "research/x")
 		if got != "run-live marker: removed" {
 			t.Errorf("got %q", got)
 		}
@@ -765,7 +781,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 
 	t.Run("absent is STATED, not silent", func(t *testing.T) {
 		cwd := t.TempDir()
-		got := closeRunLiveMarker(cwd)
+		got := closeRunLiveMarker(cwd, "research/x")
 		if got == "" {
 			t.Fatal("silence is the defect: it reads identically to a successful removal being omitted")
 		}
@@ -851,5 +867,108 @@ func TestLivenessReportsNotMeasuredRatherThanPassing(t *testing.T) {
 	a := LivenessAudit(writeRunForLiveness(t, 3, time.Minute, now, false), now.Add(3*time.Hour))
 	if a.Verdict != "SKIP" {
 		t.Errorf("a 3-event record audited %s — want SKIP:\n%s", a.Verdict, a.Detail)
+	}
+}
+
+// ---- record archive ----
+
+func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
+	repo := t.TempDir()
+	run := filepath.Join(repo, "research", "2026-08-22_x")
+	recs := filepath.Join(run, "records")
+	if err := os.MkdirAll(filepath.Join(run, "proofs", "abc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// AN EMPTY RECORD IS REFUSED, because an archive preserving nothing is indistinguishable
+	// from a preserved run once it is sitting in run-archive/.
+	if _, err := ArchiveRecord(run, repo); err == nil {
+		t.Fatal("ArchiveRecord wrote an archive for a run with no shards")
+	}
+
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-aaaaaaaa.jsonl"),
+		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run, "proofs", "abc", "script.py"), []byte("print(7)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := ArchiveRecord(run, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(out) != "2026-08-22_x.tar.gz" {
+		t.Errorf("archive named %q — it must be findable by the run slug", filepath.Base(out))
+	}
+	if filepath.Dir(out) != filepath.Join(repo, "run-archive") {
+		t.Errorf("archive landed in %q — it must sit OUTSIDE research/, which is gitignored and so "+
+			"does not survive the container", filepath.Dir(out))
+	}
+
+	// And it holds what the audits re-read.
+	f, err := os.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		names[h.Name] = true
+	}
+	for _, want := range []string{"records/events-red-lens-r1-L1-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
+		if !names[want] {
+			t.Errorf("archive is missing %q — it holds %v", want, names)
+		}
+	}
+	// The cache is deliberately absent: 7.3 MB for a real run, re-fetchable, and every source's
+	// sha256 is on the record so its integrity stays checkable without it.
+	for n := range names {
+		if strings.HasPrefix(n, "cache/") {
+			t.Errorf("the fetched-source cache was archived (%s) — it is re-fetchable and dwarfs the record", n)
+		}
+	}
+}
+
+// A MARKER NAMING ANOTHER RUN IS NOT THIS RUN'S TO CLOSE.
+//
+// The marker is a singleton naming the one open run, and capture removed it by PATH without ever
+// asking which run it named. Capturing an abandoned run A while run B was live lifted B's marker
+// and reported "removed" — the words it uses when it did the right thing. B's verbs then infer no
+// run, and B's own capture reports nothing to close.
+//
+// Nearly done for real on 2026-08-22, eleven minutes into the next run's first round.
+func TestCaptureWillNotCloseADifferentRunsMarker(t *testing.T) {
+	cwd := t.TempDir()
+	write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/live-one"}`)
+
+	got := closeRunLiveMarker(cwd, "research/the-one-being-captured")
+	if !strings.Contains(got, "LEFT IN PLACE") {
+		t.Errorf("capture closed a marker naming a different run: %q", got)
+	}
+	if !strings.Contains(got, "research/live-one") {
+		t.Errorf("the refusal must name the run it protected: %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(cwd, ".claude", "run-live.json")); err != nil {
+		t.Error("the other run's marker must still be there")
+	}
+
+	// And a relative/absolute spelling of the SAME run still closes — the marker stores whatever
+	// it was given, so a string compare would refuse to close the run in progress.
+	write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/same"}`)
+	if got := closeRunLiveMarker(cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
+		t.Errorf("the same run spelled absolutely was refused: %q", got)
 	}
 }

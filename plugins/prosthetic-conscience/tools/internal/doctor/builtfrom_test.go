@@ -111,3 +111,40 @@ func TestUnreadableBinariesReturnAnEmptyStampRatherThanFailing(t *testing.T) {
 		t.Error("a non-Go file must not produce a stamp")
 	}
 }
+
+// ---- staleness reaches the verdict ----
+
+// THE DETECTION WAS ALREADY RIGHT AND THE VERDICT IGNORED IT. Compare returned Stale, Describe
+// named the remedy, the table printed the row — and the doctor returned READY in the same breath.
+// Measured 2026-08-22: a hook fix committed at 07:50 sat undeployed behind binaries from 05:31
+// while a debate ran sixteen minutes against the old behaviour.
+func TestStalenessDegradesTheVerdict(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		v    Staleness
+		want bool // should it degrade?
+	}{
+		{"stale binary predates its source", Stale, true},
+		{"current binary", Current, false},
+		// Dirty is the ordinary state of a working tree; degrading on it would make the verdict
+		// permanently wrong during development, which teaches an operator to discount it.
+		{"dirty tree, built from HEAD", Dirty, false},
+	} {
+		if got := (tc.v == Stale); got != tc.want {
+			t.Errorf("%s: degrades=%v want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// NOT MEASURED IS NOT MEASURED. An unstamped binary is what a plain `go build` produces — the
+// exact thing that hid the stale hook — and Compare answers Unstamped, which is neither Current
+// nor Stale. It must not be folded into either.
+func TestUnstampedIsNeitherCurrentNorStale(t *testing.T) {
+	var none BuildStamp
+	if v := Compare(none, "abc123"); v != Unstamped {
+		t.Errorf("an unstamped binary compared as %v — it must report that it cannot be judged", v)
+	}
+	if v := Compare(none, "abc123"); v == Current || v == Stale {
+		t.Error("an unmeasurable binary must never read as a measurement")
+	}
+}
