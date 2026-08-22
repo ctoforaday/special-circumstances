@@ -87,9 +87,9 @@ func jsSlice(s string, n int) string {
 // ---- journal ----
 
 // ReadJournal walks journal.jsonl tolerantly: every result object and the friction arrays inside.
-func ReadJournal(transcriptDir string) (results []map[string]any, friction []string) {
+func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeFriction) {
 	results = []map[string]any{}
-	friction = []string{}
+	friction = []EnvelopeFriction{}
 	b, err := os.ReadFile(filepath.Join(transcriptDir, "journal.jsonl"))
 	if err != nil {
 		return results, friction
@@ -110,8 +110,12 @@ func ReadJournal(transcriptDir string) (results []map[string]any, friction []str
 		}
 		results = append(results, r)
 		if fr, ok := r["friction"].([]any); ok {
+			// THE AGENT HANDLE TRAVELS WITH THE TEXT. It is the only thing on this line that can
+			// be joined to a seat, and dropping it here is what left the parity check comparing
+			// prose to prose. See FrictionAudit.
+			agent := jsString(j["agentId"])
 			for _, f := range fr {
-				friction = append(friction, jsString(f))
+				friction = append(friction, EnvelopeFriction{AgentID: agent, Text: jsString(f)})
 			}
 		}
 	}
@@ -139,6 +143,48 @@ func jsString(v any) string {
 }
 
 // ---- AUDIT 1: telemetry presence ----
+
+// LivenessAudit records whether the run reached capture UNDER ITS OWN POWER or was terminated.
+//
+// THE TWO ARE OPPOSITE FACTS AND WERE THE SAME OUTPUT. "UNVERIFIED by judged deadlock" means the
+// debate ran its course; "UNVERIFIED because the process was killed at round 1" means it never
+// got to. Both rendered as an ordinary capture, so the run record could not tell a reader which
+// one it was holding — and neither could a later run reading the corpus.
+//
+// Capture is allowed to proceed on a terminated run: the events are real and the report assembled
+// from them is worth having. What is not allowed is for the artifact to be silent about it. A
+// STALE record at capture time means the last seat stopped writing long before anyone ran this,
+// which is the signature of a workflow that died rather than finished.
+func LivenessAudit(runDir string, now time.Time) Audit {
+	// QUIET IS NOT THE SIGNAL — a finished run is quiet BECAUSE it finished, and the first draft
+	// of this audit failed both of the day's real runs for exactly that. Silence separates
+	// nothing; what separates them is whether the bench ever recorded an outcome.
+	//
+	//	quiet + an outcome on the record  -> it ran its course and was captured later
+	//	still moving, no outcome yet      -> captured mid-run, unusual but the operator's call
+	//	quiet + NO outcome                -> it stopped without finishing: TERMINATED
+	verdict := record.TerminalVerdict(runDir)
+	l := record.Assess(runDir, now, verdict != "")
+	if verdict != "" {
+		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
+			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
+	}
+	switch l.State {
+	case record.StateStale:
+		return Audit{Check: "liveness", Verdict: "FAIL", Detail: fmt.Sprintf(
+			"NO terminal outcome on the record, and it went quiet %s before this capture (last: %s, %s) — "+
+				"past the %s this run's own cadence implies. This run was TERMINATED, not finished, and its "+
+				"verdict must be read that way: an idle SIGTERM kills the workflow, which then cannot lift its "+
+				"own marker, so every other instrument goes on reporting a run in flight. %s",
+			l.Age.Round(time.Second), l.Last.Seat, l.Last.Type, l.Threshold.Round(time.Second), l.Basis)}
+	case record.StateUnmeasured:
+		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — " + l.Basis}
+	default:
+		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
+			"no terminal outcome yet and the record was still moving %s before capture (last: %s) — captured mid-run",
+			l.Age.Round(time.Second), l.Last.Seat)}
+	}
+}
 
 // TelemetryAudit checks one telemetry round per red round. redRounds comes from the debate view
 // (rounds with a red sitting), read in-process. Telemetry is now DERIVED from the record via the
@@ -193,32 +239,72 @@ func TelemetryAudit(runDir string, redRounds int) Audit {
 
 // FrictionAudit checks every envelope-self-reported friction reached the record. onRecord is the
 // friction view's texts, read in-process. 60-char tolerant match in either direction.
-func FrictionAudit(envelopeFriction, onRecord []string) Audit {
-	present := func(f string) bool {
-		for _, t := range onRecord {
-			if strings.Contains(t, jsSlice(f, 60)) || strings.Contains(f, jsSlice(t, 60)) {
-				return true
-			}
-		}
-		return false
+// EnvelopeFriction is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
+// the harness agent that wrote it — the only handle on that line a record can be joined to.
+type EnvelopeFriction struct {
+	AgentID, Text string
+}
+
+// FrictionAudit checks that every seat which reported friction in its envelope also opened the
+// channel on the record. It joins on the SEAT, through the agent binding `register` writes.
+//
+// IT COMPARED PROSE TO PROSE, and reported 5 failures out of 5 on a run where every one of them
+// was on the record. Measured 2026-08-22, research/2026-08-22_is-7-prime:
+//
+//	envelope   "blue-synthesize: citation-hygiene: candidate draft lane-1 provides authoritative
+//	            source names (…) but lacks full URLs with coordinates required by research protocol"
+//	record     "Citation-URL resolution: candidate draft lane-1 provides source names (…) but not
+//	            full URLs with coordinates required by citation protocol"
+//
+// Same complaint, different wording — a seat that did its duty and then paraphrased itself into
+// its return value. The other four were the empty case ("no capability gaps encountered"), also
+// present, also reworded. A seat behaving correctly tripped this every time.
+//
+// The record carries seat_id as a FIELD. The envelope side glues the seat name onto the front of
+// the prose ("blue-synthesize: …") when it remembers to, so the join had to be recovered by
+// splitting a string — and could not be, so the check fell back to a 60-character substring
+// comparison in either direction. record.SeatOfAgent already existed for exactly this, and its
+// own doc comment is an argument against what this function was doing.
+//
+// WHEN THE JOIN IS ABSENT, SAY SO. A run whose PreToolUse hook never fired carries no agent_id on
+// any register event — deliberately, so "not measured" stays legible rather than reading as an
+// agent whose handle is the empty string. Those entries are counted out loud and are NOT findings:
+// an unjoinable entry is a thing this audit cannot see, not a duty a seat skipped.
+func FrictionAudit(runDir string, envelope []EnvelopeFriction, onRecord []record.FrictionEntryJSON) Audit {
+	wroteToRecord := map[string]bool{}
+	for _, fr := range onRecord {
+		wroteToRecord[fr.SeatID] = true
 	}
-	var missing []string
-	for _, f := range envelopeFriction {
-		if !present(f) {
-			missing = append(missing, f)
+	var silent, unjoinable []string
+	for _, e := range envelope {
+		seat, found, err := record.SeatOfAgent(runDir, e.AgentID)
+		if err != nil || !found || seat == "" {
+			unjoinable = append(unjoinable, jsSlice(e.Text, 90))
+			continue
+		}
+		if !wroteToRecord[seat] {
+			silent = append(silent, seat+": "+jsSlice(e.Text, 90))
 		}
 	}
-	if len(missing) > 0 {
-		lines := make([]string, len(missing))
-		for i, m := range missing {
-			lines[i] = "    - " + jsSlice(m, 120)
-		}
+	note := ""
+	if len(unjoinable) > 0 {
+		note = fmt.Sprintf("\n    %d envelope entr%s COULD NOT BE JOINED to a seat and %s not judged "+
+			"(no agent_id on the record — this run's PreToolUse hook did not fire, so the binding "+
+			"`register` writes was never supplied):\n    - %s",
+			len(unjoinable), plural(len(unjoinable), "y", "ies"), plural(len(unjoinable), "was", "were"),
+			strings.Join(unjoinable, "\n    - "))
+	}
+	if len(silent) > 0 {
 		return Audit{Check: "friction-parity", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d envelope friction entr%s never reached the record (should have been recorded via the friction verb during the run):\n%s",
-				len(missing), plural(len(missing), "y", "ies"), strings.Join(lines, "\n"))}
+			Detail: fmt.Sprintf("%d seat(s) reported friction in the envelope and opened no channel on the record "+
+				"(it should have been recorded via the friction verb during the run):\n    - %s%s",
+				len(silent), strings.Join(silent, "\n    - "), note)}
 	}
+	judged := len(envelope) - len(unjoinable)
 	return Audit{Check: "friction-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d envelope friction entr%s all present on the record", len(envelopeFriction), plural(len(envelopeFriction), "y", "ies"))}
+		Detail: fmt.Sprintf("%d envelope entr%s joined to a seat, and every one of those seats is on the record "+
+			"(%d friction entr%s recorded in total)%s",
+			judged, plural(judged, "y", "ies"), len(onRecord), plural(len(onRecord), "y", "ies"), note)}
 }
 
 func plural(n int, one, many string) string {
@@ -766,37 +852,63 @@ func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleF
 		}
 	}
 	sampled := sampleClaims(claims, sampleFloor)
-	var unreconciled []Claim
+	var unreconciled, unmeasured []Claim
 	for _, c := range sampled {
-		needle := mostDistinctive(c.Target)
-		if needle == "" {
-			c.Why = "anchor target too vague to reconcile"
-			unreconciled = append(unreconciled, c)
+		needles, byID := needlesFor(c)
+		if len(needles) == 0 {
+			// NOT MEASURED IS NOT A FINDING, and folding it into one is how this audit came to
+			// accuse honest seats. See needlesFor.
+			c.Why = "no anchor id in the tool and no distinctive fragment in the target — nothing to reconcile AGAINST"
+			unmeasured = append(unmeasured, c)
 			continue
 		}
-		found := false
-		for _, k := range calls {
-			if strings.Contains(k, needle) {
-				found = true
+		missing := ""
+		for _, n := range needles {
+			found := false
+			for _, k := range calls {
+				if strings.Contains(k, n) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missing = n
 				break
 			}
 		}
-		if !found {
-			c.Why = "no tool call in any transcript touches " + needle
+		if missing != "" {
+			if byID {
+				c.Why = "the closure cites " + missing + " but no tool call in any transcript carries it"
+			} else {
+				c.Why = "no tool call in any transcript touches " + missing
+			}
 			unreconciled = append(unreconciled, c)
 		}
+	}
+	// THE UNMEASURED ARE COUNTED OUT LOUD, in every verdict, because the alternative is the
+	// failure this audit is for one level up: a sample of 3 where 2 could not be measured reads
+	// as "1/1 reconciled" unless the other 2 are on the page.
+	note := ""
+	if len(unmeasured) > 0 {
+		ml := make([]string, len(unmeasured))
+		for i, u := range unmeasured {
+			ml[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
+		}
+		note = fmt.Sprintf("\n    %d of the %d sampled could NOT BE MEASURED either way (not a finding against them):\n%s",
+			len(unmeasured), len(sampled), strings.Join(ml, "\n"))
 	}
 	if len(unreconciled) > 0 {
 		ul := make([]string, len(unreconciled))
 		for i, u := range unreconciled {
 			ul[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
 		}
-		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.",
-			len(unreconciled), len(sampled), strings.Join(ul, "\n"))
+		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.%s",
+			len(unreconciled), len(sampled), strings.Join(ul, "\n"), note)
 		return Audit{Check: "attestation-integrity", Verdict: "FAIL", Detail: detail, Unreconciled: unreconciled}
 	}
 	return Audit{Check: "attestation-integrity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls", len(sampled), len(claims))}
+		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls%s",
+			len(sampled)-len(unmeasured), len(claims), note)}
 }
 
 // sampleClaims mirrors JS: all when ≤ floor, else index i where i % ceil(n/floor) === 0.
@@ -817,6 +929,44 @@ func sampleClaims(claims []Claim, floor int) []Claim {
 func ceilDiv(a, b int) int { return (a + b - 1) / b }
 
 var reNonToken = regexp.MustCompile(`[\s|]+`)
+
+// anchorID matches the record's OWN identifiers — a citation, finding, proof or anchor id, each
+// unique by construction rather than assembled from words.
+//
+// MEASURED 2026-08-22, and it is the whole reason needlesFor exists. Two closures anchored
+// `report text at line 103` and `report text at line 62` — precise, human-meaningful, naming the
+// exact line. mostDistinctive found no fragment longer than six characters in either (`report` is
+// exactly six), returned "", and both were filed as claims with no matching tool call, under an
+// audit whose own message says "This rules on whether the RECORD IS HONEST". The third sampled
+// closure reconciled only because its target happened to contain the ten-letter word
+// `projection`. Honesty was being decided by word length.
+//
+// The record was carrying the answer the whole time: anchor_tool reads
+// `show report --anchor f-0dd40334`, and that id is exact. Prose is what a human reads; the id is
+// what a machine joins on — see [[facts-are-fields]] clause 5, "never re-derive from the assembled
+// form what the record could simply carry".
+var anchorID = regexp.MustCompile(`\b[a-z]{1,2}-[0-9a-f]{8}\b`)
+
+// needlesFor returns the tokens a claim can be reconciled by, and whether they came from the
+// record's identifiers or from prose.
+//
+// EVERY CITED ID MUST APPEAR, not merely one: a seat naming an id it never touched is exactly the
+// dishonesty this audit looks for, and ids are exact enough that requiring all of them cannot
+// produce the false accusations the prose path did.
+//
+// The prose fallback keeps its six-character floor deliberately. Lowering it to admit `report`
+// would make the needle match every `show report` call in the run — turning a false FAIL into a
+// false PASS, which is the worse direction for an honesty check. Prose that yields no needle is
+// reported as NOT MEASURED instead.
+func needlesFor(c Claim) (needles []string, fromID bool) {
+	if ids := anchorID.FindAllString(c.Tool, -1); len(ids) > 0 {
+		return ids, true
+	}
+	if n := mostDistinctive(c.Target); n != "" {
+		return []string{n}, false
+	}
+	return nil, false
+}
 
 // mostDistinctive mirrors JS: split target on /[\s|]+/, keep fragments longer than 6, longest first.
 func mostDistinctive(target string) string {
@@ -1207,7 +1357,9 @@ func perSeatRoundTable(costMd string) string {
 // audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
 // (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
 // process.cwd().
-func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail bool, err error) {
+// `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
+// is controllable in a test, the same way WriteRunLiveMarker takes its clock.
+func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
 	// Mechanics: journal copy, transcript tarball, cost.md.
@@ -1249,7 +1401,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
 	board, _ := record.BoardState(runDir)
 	redRounds, blueBlocks := 0, 0
-	onRecord := []string{}
+	onRecord := []record.FrictionEntryJSON{}
 	if board != nil {
 		dj := record.DebateJSONOf(board)
 		for _, r := range dj.Rounds {
@@ -1260,14 +1412,18 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 				blueBlocks++
 			}
 		}
-		for _, fr := range record.FrictionJSONOf(board).Friction {
-			onRecord = append(onRecord, fr.Text)
-		}
+		// BOTH ARMS OF THE CHANNEL COUNT AS OPENING IT. `friction-none` is the attested empty
+		// case — "nothing blocked me", which is a seat closing the channel honestly — and a seat
+		// that files one has used the channel exactly as the duty asks.
+		fj := record.FrictionJSONOf(board)
+		onRecord = append(onRecord, fj.Friction...)
+		onRecord = append(onRecord, fj.NothingBlocked...)
 	}
 
 	audits = []Audit{
+		LivenessAudit(runDir, now),
 		TelemetryAudit(runDir, redRounds),
-		FrictionAudit(friction, onRecord),
+		FrictionAudit(runDir, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
 		StrayRecordsAudit(repoRootOf(runDir), runDir),

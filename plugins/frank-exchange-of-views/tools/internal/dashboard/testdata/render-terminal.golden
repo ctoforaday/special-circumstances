@@ -3,10 +3,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FEOV run — widget-run</title>
 <style>
-.viz-root { color-scheme: light; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --series-1:#2a78d6;
+.viz-root { color-scheme: light; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --series-1:#2a78d6; --warn:#a8442a;
   font: 14px/1.45 system-ui, sans-serif; background: var(--surface-1); color: var(--text-primary); padding: 20px; max-width: 900px; margin: auto; }
-@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; } }
-:root[data-theme="dark"] .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; --warn:#e08a6a; } }
+:root[data-theme="dark"] .viz-root { color-scheme: dark; --surface-1:#1a1a19; --text-primary:#ffffff; --text-secondary:#c3c2b7; --series-1:#3987e5; --warn:#e08a6a; }
 h1 { font-size: 18px; margin-bottom: 2px; } h2 { font-size: 14px; margin: 18px 0 6px; color: var(--text-secondary); }
 .topic { font-size: 15px; font-weight: 600; margin: 0 0 6px; line-height: 1.35; }
 .topic::before { content: "researching: "; font-weight: 400; color: var(--text-secondary); }
@@ -16,6 +16,8 @@ table { border-collapse: collapse; width: 100%; } td, th { text-align: left; pad
 .muted, .axis, .label { fill: var(--text-secondary); color: var(--text-secondary); font-size: 11px; }
 .label { fill: var(--text-primary); font-weight: 600; }
 .liveseat { font-weight: 600; }
+/* STALE IS ITS OWN COLOUR because it is its own state — semantic, not the accent. */
+.stale { font-weight: 600; color: var(--warn); border-left: 3px solid var(--warn); padding-left: 10px; }
 .bar { display: flex; gap: 3px; margin: 6px 0 2px; } .seg { flex: 1; height: 14px; border-radius: 4px; background: color-mix(in oklab, var(--text-secondary) 18%, transparent); position: relative; }
 .seg.done { background: var(--series-1); } .seg.live { background: color-mix(in oklab, var(--series-1) 45%, transparent); outline: 2px solid var(--series-1); }
 .barlabels { display: flex; gap: 3px; } .barlabels span { flex: 1; font-size: 10px; color: var(--text-secondary); text-align: center; overflow: hidden; white-space: nowrap; }
@@ -83,7 +85,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <h2>Friction — logged pain points</h2>
 <p>2 friction events on the record · latest: <span class="muted">red-merge-r1: needed a PDF extractor</span></p>
 <h2>Seats (run complete)</h2>
-<p class="muted">run complete — the assembler wrote the report. 2 seat(s) never finished:</p><table><tr><td class="liveseat">red-merge-r1</td><td class="muted">superseded — a later attempt completed</td></tr><tr><td class="liveseat">judge-r1</td><td class="muted">did not finish</td></tr></table>
+<p class="muted">the bench recorded this run's outcome. 2 seat(s) never finished:</p><table><tr><td class="liveseat">red-merge-r1</td><td class="muted">superseded — a later attempt completed</td></tr><tr><td class="liveseat">judge-r1</td><td class="muted">did not finish</td></tr></table>
 <h2>Recent completions</h2>
 <table><tr><td class="nowrap">red-merge-r1</td><td class="muted">verdict FAIL · 2 gaps · 1 ruling</td></tr>
 <tr><td class="nowrap">frontier</td><td class="muted">verdict PASS · 15 claims · 0 gaps</td></tr></table>

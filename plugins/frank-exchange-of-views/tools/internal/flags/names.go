@@ -184,6 +184,8 @@ const (
 	Lanes         = "lanes"
 	BinDir        = "bin-dir"
 	MemoryDir     = "memory-dir"
+	RunID         = "run-id"
+	ScriptPath    = "script-path"
 
 	// The operator `scorecard` command: a chair's in-run self-read.
 	Chair = "chair"
@@ -216,7 +218,7 @@ func All() []string {
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir,
+		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath,
 		Chair, Watch, Now, Serve,
 	}
 }

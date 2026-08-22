@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -36,18 +35,7 @@ import (
 // that USED to be projections has no false positives and catches exactly the regression that
 // happens — a rename that leaves a carrier behind.
 func TestNoStringLiteralNamesARetiredSurface(t *testing.T) {
-	// The spellings that stopped existing. Each entry is a rename this tree has already made, and
-	// the list is the cheapest possible memory of it.
-	retired := []*regexp.Regexp{
-		// `show --view <name>` — the flag form, retired when show became a group (0.56.0).
-		regexp.MustCompile(`--view\s`),
-		// `show --run <dir> show <name>` — the doubled verb the group restructure produced.
-		regexp.MustCompile(`\bshow\s+(?:--\S+\s+\S+\s+)+show\b`),
-		// Projections that were renamed or retired out of the seat menu.
-		regexp.MustCompile(`\bshow\s+(citation-ledger|ledger|archive|changelog|proofs|friction)\b`),
-		// The verification grade before it got its own name back (0.60.0).
-		regexp.MustCompile(`--trust\s`),
-	}
+	retired := retiredSurfaces
 
 	// repotree.ToolSources both FINDS the tree without counting `..` from this file's own
 	// location and REFUSES an empty result. Both halves matter to a gate shaped like this one:

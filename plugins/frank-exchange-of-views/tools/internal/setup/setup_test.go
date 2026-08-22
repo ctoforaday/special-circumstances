@@ -123,7 +123,7 @@ func TestMirrorGapPatterns(t *testing.T) {
 // WriteRunLiveMarker: commitment-as-state with the pinned paths for hook guards.
 func TestWriteRunLiveMarker(t *testing.T) {
 	project := t.TempDir()
-	p := WriteRunLiveMarker(project, "research/x", []string{"research/old-run", "ideas/backlog.md"}, time.Now())
+	p := WriteRunLiveMarker(project, "research/x", []string{"research/old-run", "ideas/backlog.md"}, time.Now(), "", "")
 	body := read(t, p)
 	if !has(body, `"runDir": "research/x"`) {
 		t.Errorf("runDir missing: %s", body)
@@ -132,7 +132,7 @@ func TestWriteRunLiveMarker(t *testing.T) {
 		t.Errorf("pinnedPaths missing: %s", body)
 	}
 	// An empty pinnedPaths must render as [] not null.
-	q := WriteRunLiveMarker(t.TempDir(), "r", nil, time.Now())
+	q := WriteRunLiveMarker(t.TempDir(), "r", nil, time.Now(), "", "")
 	if !has(read(t, q), `"pinnedPaths": []`) {
 		t.Error("empty pinnedPaths must be [], not null")
 	}
@@ -333,7 +333,7 @@ func TestMirrorScorecardsFallbackParsesColonClause(t *testing.T) {
 // every verb invoked without --run.
 func TestSetupRefusesWhenAnotherRunIsStillOpen(t *testing.T) {
 	cwd := t.TempDir()
-	WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC))
+	WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
 
 	m, ok := ReadRunLiveMarker(cwd)
 	if !ok || m.RunDir != "research/2026-08-01_abandoned" {

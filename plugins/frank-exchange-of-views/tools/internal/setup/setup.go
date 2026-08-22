@@ -484,6 +484,15 @@ type RunLiveMarker struct {
 	RunDir      string   `json:"runDir"`
 	PinnedPaths []string `json:"pinnedPaths"`
 	Started     string   `json:"started"`
+	// RunID and ScriptPath make a STALE marker actionable rather than litter.
+	//
+	// A workflow killed by an idle SIGTERM never lifts this marker — it cannot, it is gone — so
+	// the marker outlives the run that wrote it and says "live" forever. Naming only a directory
+	// tells a reader that something WAS running here; naming the run id and script tells them
+	// how to continue it. The difference decides whether a discovered stale marker is a shrug or
+	// a resume. Empty when the launcher did not supply them: absent stays absent.
+	RunID      string `json:"runId,omitempty"`
+	ScriptPath string `json:"scriptPath,omitempty"`
 }
 
 // ReadRunLiveMarker reports the open run, if the marker names one usably.
@@ -523,18 +532,24 @@ func sameRun(projectDir, a, b string) bool {
 
 // WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state).
 // `now` is injected so the sole non-deterministic field is controllable in tests.
-func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time) string {
+func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time, runID, scriptPath string) string {
 	dir := filepath.Join(projectDir, ".claude")
 	os.MkdirAll(dir, 0o755)
 	p := filepath.Join(dir, "run-live.json")
 	if pinnedPaths == nil {
 		pinnedPaths = []string{}
 	}
-	marker := struct {
-		RunDir      string   `json:"runDir"`
-		PinnedPaths []string `json:"pinnedPaths"`
-		Started     string   `json:"started"`
-	}{runDir, pinnedPaths, now.UTC().Format("2006-01-02T15:04:05.000Z07:00")}
+	// THE WRITER USES THE READ TYPE, because it used to re-declare the shape three lines from
+	// where RunLiveMarker defines it — two copies of one fact, one file apart, and the comment on
+	// that type already complained that readers re-declare their own subsets (#270). A field
+	// added to one copy reaches nobody through the other.
+	marker := RunLiveMarker{
+		RunDir:      runDir,
+		PinnedPaths: pinnedPaths,
+		Started:     now.UTC().Format("2006-01-02T15:04:05.000Z07:00"),
+		RunID:       runID,
+		ScriptPath:  scriptPath,
+	}
 	b, _ := marshalJSON(marker)
 	os.WriteFile(p, b, 0o644)
 	return p
