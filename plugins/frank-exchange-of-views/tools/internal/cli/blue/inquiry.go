@@ -97,6 +97,14 @@ func newInquiryPropose() *cobra.Command {
 		}), "avenue"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
+	// `line` IS UNCONDITIONAL FOR THIS VERB, and conditional for the message. The field carries no
+	// `required` annotation because a MOVE must not need it — but a PROPOSAL always does, and that
+	// is a per-VERB fact no field annotation can state.
+	//
+	// Marked here so cobra refuses before an event exists and the refusal carries the help, which
+	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
+	// arrives later and teaches less.
+	c.MarkFlagsOneRequired(flags.Reason, flags.ReasonFile)
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c

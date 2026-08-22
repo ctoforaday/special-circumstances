@@ -1415,9 +1415,13 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	// message cannot tell "sampled nothing" from "field unset". The distinction is real and it
 	// lives in the PROJECTION, which renders `ids` as `[]` — a reader distinguishes "checked
 	// nothing" from "did not check" by seeing the empty array.
+	// The BARE form (no --ids, no --none) still records the duty and its reason. Whether it also
+	// carried an empty `ids` array was the old assertion; a repeated field has no presence, so
+	// that distinction moved to `none` — see TestSpotCheckIdsAreAlwaysAnArray, which pins all
+	// three states.
 	sc := lastBody(t, runDir, &recordpb.SpotCheck{})
-	if sc.GetIds() == nil {
-		t.Error("the bare form decoded ids as nil rather than an empty list")
+	if len(sc.GetIds()) != 0 {
+		t.Errorf("the bare form sampled %v", sc.GetIds())
 	}
 	if sc.GetReason() == "" {
 		t.Error("the bare form lost its reason — an unexplained empty round is indistinguishable from a skipped one")

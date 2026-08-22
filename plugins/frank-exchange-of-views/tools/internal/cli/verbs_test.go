@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
@@ -258,35 +257,66 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		}
 	})
 
-	t.Run("with no ids at all the key is still an empty array", func(t *testing.T) {
+	// THE THREE STATES, AND WHERE THE DISTINCTION LIVES NOW.
+	//
+	// This asserted that a spot-check with no ids still carried `ids` as a present-but-empty key,
+	// because "an absent list reads as NOT CHECKED rather than CHECKED NOTHING". A payload map
+	// could hold that; a proto message cannot — a repeated field has no presence, so an empty list
+	// and an unset one are the same bytes, and the storage writes no rows for either.
+	//
+	// The distinction is real and it did not disappear; it is carried by two other facts the
+	// record does hold. NOT CHECKED is the ABSENCE OF THE EVENT — a seat that never ran the verb
+	// has no spot_check at all, and the sitting gate reads exactly that. CHECKED NOTHING is the
+	// event with `none` set, which is a bool with presence and says so explicitly.
+	//
+	// So the states are asserted where they live rather than through a key that cannot carry them.
+	t.Run("the three states are distinguishable", func(t *testing.T) {
+		// 1. Never checked: no event.
 		runDir := t.TempDir()
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK); n != 0 {
+			t.Fatalf("%d spot-checks before any were run", n)
+		}
+		// 2. Checked nothing, explicitly: --none, with the reason that distinguishes it from a
+		// skipped duty.
 		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--reason", "the archive was empty at round start"); err != nil {
+			"--none", "--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
 		}
 		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-		if !setFields(ev)["ids"] {
-			t.Fatal("the ids key is absent; an absent list reads as \"not checked\" rather than \"checked nothing\"")
+		if !ev.GetNone() {
+			t.Error("the explicit empty form did not set `none` — without it, checked-nothing and " +
+				"sampled-nothing-in-particular are the same event")
 		}
-		b, err := json.Marshal(ev.GetIds())
-		if err != nil {
-			t.Fatal(err)
+		if ev.GetReason() == "" {
+			t.Error("the explicit empty form lost its reason, which is the only thing distinguishing " +
+				"it from a duty nobody discharged")
 		}
-		if !strings.Contains(string(b), `"ids":[]`) {
-			t.Errorf("empty ids did not serialize as []: %s", b)
+		if len(ev.GetIds()) != 0 {
+			t.Errorf("the empty form sampled %v", ev.GetIds())
 		}
 	})
 }
 
-// spot-check is a singleton per seat: the round's duty is discharged once.
+// spot-check is a singleton per seat: the round's duty is discharged ONCE, and a second is
+// REFUSED rather than silently replacing the first.
+//
+// The shard record deduped on read — two events, one key, one discarded — so a seat that ran the
+// verb twice learned nothing about which sample stood. `events.key` is UNIQUE now, so the second
+// write fails and the seat is told why.
 func TestSpotCheckIsASingleton(t *testing.T) {
 	runDir := t.TempDir()
 	seedReferents(t, runDir)
-	for _, ids := range []string{"R1-3", "R1-3"} {
-		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", ids,
-			"--reason", "re-read the closure record"); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", "R1-3",
+		"--reason", "re-read the closure record"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", "R1-3",
+		"--reason", "re-read it again")
+	if err == nil {
+		t.Fatal("a second spot-check was accepted — the round's duty would have two discharges")
+	}
+	if !strings.Contains(err.Error(), "once-per-sitting") {
+		t.Errorf("the refusal does not teach what was wrong:\n%v", err)
 	}
 	n := 0
 	for _, e := range events(t, runDir) {

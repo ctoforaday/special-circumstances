@@ -53,8 +53,19 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 	if ev.GetProofBasis() != "reproducible" {
 		t.Errorf("basis = %q", ev.GetProofBasis())
 	}
-	if !strings.Contains(ev.GetText(), "divisors: 3") {
-		t.Errorf("the computation's answer is not on the record: %q", ev.GetText())
+	// THE OUTPUT IS IN THE CACHE, NOT ON THE EVENT, and that is a decision rather than a drop —
+	// prove.go states it: "content is not a fact about the debate", the output is addressed by
+	// `proof_sha`, and report/proofs.go renders script, exit, basis and drift. This asserted
+	// `text` carried the answer, which is the field the SEAT's prose lands in.
+	//
+	// What must hold is the JOIN: the event names a sha, and the sha addresses the output an
+	// auditor re-runs against. A sha on the event with nothing behind it is a citation to
+	// evidence that does not exist.
+	if ev.GetProofSha() == "" {
+		t.Fatal("the proof event names no sha — nothing addresses the output an auditor would re-run against")
+	}
+	if !strings.Contains(ev.GetText(), "trial division settles it") {
+		t.Errorf("the seat's own prose did not reach the event: %q", ev.GetText())
 	}
 }
 
