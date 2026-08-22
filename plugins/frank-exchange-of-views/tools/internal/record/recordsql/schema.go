@@ -168,6 +168,21 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 		children = append(children, ochildren...)
 	}
 
+	// THE RULES THAT SPAN FIELDS, from the message's own annotation. `required` is a property of one
+	// field; "closed_with_regression requires a successor" is a rule about two, and no annotation on
+	// either can say it.
+	for _, c := range MessageChecks(md) {
+		if c.GetExpr() == "" {
+			return "", fmt.Errorf("recordsql: %s declares a check with no expression", md.FullName())
+		}
+		if c.GetWhy() == "" {
+			return "", fmt.Errorf("recordsql: %s declares the check %q and does not say what it protects — "+
+				"a constraint that fires with only its expression tells a reader what was refused and nothing "+
+				"about which invariant they walked into", md.FullName(), c.GetExpr())
+		}
+		checks = append(checks, c.GetExpr())
+	}
+
 	var b strings.Builder
 	fmt.Fprintf(&b, "CREATE TABLE %q (\n%s", TableName(md), strings.Join(cols, ",\n"))
 	for _, c := range checks {
@@ -443,4 +458,10 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 		b.WriteString(t)
 	}
 	return b.String(), nil
+}
+
+// MessageChecks reads the table-level rules a message declares.
+func MessageChecks(md protoreflect.MessageDescriptor) []*recordpb.SqlCheck {
+	out, _ := proto.GetExtension(md.Options(), recordpb.E_Check).([]*recordpb.SqlCheck)
+	return out
 }

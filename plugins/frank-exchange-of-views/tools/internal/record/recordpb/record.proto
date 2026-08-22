@@ -50,6 +50,32 @@ extend google.protobuf.EnumValueOptions {
   optional string means = 50001;
 }
 
+// A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
+//
+// `required` is a property of ONE field and lives on it. "closed_with_regression requires a
+// successor" is not: it is a rule about two fields together, and no annotation on either can say
+// it. Those rules were hand-written `if` blocks in validate — the app refusing what the database
+// would happily store, which for a record that is EVIDENCE is a real gap: anything writing SQL
+// directly could create a state the tool forbids, and the row would look exactly like a legitimate
+// one.
+//
+// This does put SQL in the schema, and that is a genuine cost — a second language in a file that
+// otherwise describes shape. It is paid because the alternative is the constraint living in two
+// places, or in only the weaker one.
+extend google.protobuf.MessageOptions {
+  repeated SqlCheck check = 50002;
+}
+
+// SqlCheck is one table-level rule and what it protects.
+message SqlCheck {
+  // expr is the SQL, with column names quoted as the derived DDL quotes them.
+  optional string expr = 1;
+
+  // why is what the rule is FOR. A CHECK that fires with only its expression tells a reader what
+  // was refused and nothing about which invariant they walked into.
+  optional string why = 2;
+}
+
 // Sql is what the database must know about a field that the field's type cannot say.
 message Sql {
   // required makes the column NOT NULL and is what the write path refuses on. One statement, two
@@ -528,6 +554,15 @@ message ClassNew {
 
 // Close ends a gap on verified repair.
 message Close {
+  // LINEAGE NEVER DROPS. A regression closure that names no successor loses the thread from the
+  // defect to the gap now carrying it, and the repair_regression denominator counts a closure that
+  // resolved nothing. It was an `if` in validate, which left the DATABASE willing to store the very
+  // state the tool refused.
+  option (check) = {
+    expr: "\"closure_class\" <> 'closed_with_regression' OR \"successor\" IS NOT NULL"
+    why: "a closure that reports a regression must name the gap carrying it forward — lineage never drops"
+  };
+
   optional string gap_id = 1 [(sql) = {
     required: true
     flag: "id"

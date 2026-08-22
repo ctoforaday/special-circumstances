@@ -169,3 +169,45 @@ func TestARulingCannotPrecedeItsFiling(t *testing.T) {
 		t.Errorf("join = (%q, %q), want (R1-1, accepted)", gap, verdict)
 	}
 }
+
+// A RULE THAT SPANS TWO FIELDS IS ENFORCED BY THE DATABASE, not only by the tool.
+//
+// "closed_with_regression requires a successor" cannot be NOT NULL — the column must stay nullable
+// for every other closure class — so it lived as an `if` in validate. That left the DATABASE
+// willing to store the exact state the tool refused, and for a record that is EVIDENCE the gap is
+// real: anything writing SQL directly could create it, and the row would look legitimate.
+func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
+	db := store(t)
+	mk := func(seq int32) *recordpb.Event {
+		return event(t, seq, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+			GapId:        proto.String("R1-1"),
+			ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_CLOSED_WITH_REGRESSION.Enum(),
+			Prose:        proto.String("repaired, and the retry path broke"),
+		})
+	}
+	if _, err := Insert(db, mk(0)); err == nil {
+		t.Fatal("a regression closure with no successor was stored — the thread from the defect to " +
+			"the gap now carrying it is lost, and the repair_regression denominator counts a closure " +
+			"that resolved nothing")
+	}
+
+	ok := event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-2"),
+		ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_CLOSED_WITH_REGRESSION.Enum(),
+		Successor:    proto.String("R2-1"),
+		Prose:        proto.String("repaired, and R2-1 carries the regression"),
+	})
+	if _, err := Insert(db, ok); err != nil {
+		t.Fatalf("a regression closure that NAMES its successor was refused: %v", err)
+	}
+
+	// And an ordinary closure still needs no successor, or the rule is a wall rather than a gate.
+	plain := event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-3"),
+		ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_CLOSED.Enum(),
+		Prose:        proto.String("verified at the leaf"),
+	})
+	if _, err := Insert(db, plain); err != nil {
+		t.Fatalf("an ordinary closure was refused for having no successor: %v", err)
+	}
+}
