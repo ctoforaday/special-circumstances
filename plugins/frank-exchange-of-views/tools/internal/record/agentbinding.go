@@ -70,3 +70,38 @@ func AgentOfSeat(runDir, seatID string) (string, bool, error) {
 	}
 	return agent, found, nil
 }
+
+// DiscardedForSeat reports the event keys a PREVIOUS sitting of this seat wrote and replay has
+// since dropped, because the seat was dispatched more than once and only one shard can win.
+//
+// WHY A SEAT IS TOLD THIS AT ALL. A re-dispatch is ordinary — a resume is exactly that shape, and
+// `SeatOfAgent` already treats the latest register as the binding. What is not ordinary is that
+// the arriving seat has no way to know a previous sitting of ITSELF did work that no longer
+// exists. Measured 2026-08-22 in research/2026-08-22_record-store-authority: the workflow was
+// killed between blue-synthesize writing blue/report.md and its call returning, so the resume
+// re-ran it; the second sitting rewrote the report from scratch and thirteen events of the first
+// — four citations, two lines of inquiry, seven report edits — survive nowhere. One of those
+// citations was the only source in the run for the question it backed, and nothing in the run
+// could have told the second sitting to go and re-fetch it.
+//
+// THE KEYS, NOT A COUNT. A count says work was lost; the keys say WHICH, and a `cite` key carries
+// the anchor id, which is the half a seat can act on. Bounded by one sitting's output.
+//
+// AN EMPTY RESULT IS THE ORDINARY CASE and must stay distinguishable from a failure to look: the
+// error is returned rather than folded into a nil slice, because "the record could not be read"
+// and "nothing was discarded" are the same bytes to a caller that only checks length.
+func DiscardedForSeat(runDir, seatID string) (DiscardedShard, bool, error) {
+	if seatID == "" {
+		return DiscardedShard{}, false, nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return DiscardedShard{}, false, err
+	}
+	for _, d := range m.Discarded {
+		if d.SeatID == seatID {
+			return d, true, nil
+		}
+	}
+	return DiscardedShard{}, false, nil
+}
