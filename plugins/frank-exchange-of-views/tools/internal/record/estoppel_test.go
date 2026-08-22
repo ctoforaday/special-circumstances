@@ -10,15 +10,17 @@ import "testing"
 
 // board assembles a Board directly from events, so these tests exercise the estoppel logic
 // rather than the shard reader (which record_test.go already covers).
-func board(t *testing.T, gapFix map[string]string, evs []Event) *Board {
+func board(t *testing.T, gapFix map[string]string, evs []*Event) *Board {
 	t.Helper()
 	b := &Board{Gaps: map[string]*Gap{}}
 	for id, fixNew := range gapFix {
-		m := NewPayload().Set("gap_id", id)
+		m := &recordpb.Mint{GapId: proto.String(id), FixBasis: proto.String("proposed")}
 		if fixNew != "" {
-			m.Set("fix_basis", "verified").Set("fix_old", "OLD:"+id).Set("fix_new", fixNew)
-		} else {
-			m.Set("fix_basis", "proposed")
+			// `fix_old` HAS NO FIELD: the span is the gap's own `location`, and the second copy
+			// was retired with the second matcher that read it.
+			m.FixBasis = proto.String("verified")
+			m.Location = proto.String("OLD:" + id)
+			m.FixNew = proto.String(fixNew)
 		}
 		b.Gaps[id] = &Gap{ID: id, Open: true, Mint: m}
 	}
@@ -28,18 +30,26 @@ func board(t *testing.T, gapFix map[string]string, evs []Event) *Board {
 
 const prescribed = "Five verification approaches agree, all sharing one definition of primality."
 
-func edit(gapID string, verbatim bool) Event {
-	p := NewPayload().Set("answers", gapID).Set("old", "x").Set("new", "y").Set("reason", "r")
-	if verbatim {
-		p.Set("applied_verbatim", true)
+func edit(t *testing.T, gapID string, verbatim bool) *Event {
+	t.Helper()
+	be := &recordpb.BlueEdit{
+		Answers: proto.String(gapID),
+		Old:     proto.String("x"),
+		New:     proto.String("y"),
+		Text:    proto.String("r"),
 	}
-	return Event{Type: "blue_edit", SeatID: "blue-respond-r1", Round: 1, Payload: p}
+	if verbatim {
+		// PRESENT AND TRUE, not merely true: an edit that never claimed verbatim application and
+		// one that claimed it and was false are different facts, and estoppel turns on the claim.
+		be.AppliedVerbatim = proto.Bool(true)
+	}
+	return recordtest.Event(t, "blue-respond-r1", 1, be)
 }
 
 // The core rule: a finding located in text red prescribed and blue applied VERBATIM names
 // the gap that prescribed it.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
 
 	id, got := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
 	if id != "R1-1" {
@@ -52,7 +62,7 @@ func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
 	if id, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); id != "R1-1" {
 		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", id)
 	}
@@ -61,7 +71,7 @@ func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 // ESTOPPEL ATTACHES TO RED'S OWN WORDS AND NOTHING ELSE. If blue counter-edited, the text is
 // blue's authorship and red audits it normally — that is the right to disagree staying real.
 func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", false)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", false)})
 	if id, _ := EstoppelConflict(b, prescribed); id != "" {
 		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", id)
 	}
@@ -70,7 +80,7 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // Text red never prescribed is auditable, obviously — the guard must not become a general
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
 	if id, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); id != "" {
 		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", id)
 	}
@@ -79,7 +89,7 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // The overlap floor exists so a short prescription cannot shield half the report. Refusing a
 // real finding is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": "7 is prime."}, []*Event{edit("R1-1", true)})
+	b := board(t, map[string]string{"R1-1": "7 is prime."}, []*Event{edit(t, "R1-1", true)})
 	if id, _ := EstoppelConflict(b, "7 is prime."); id != "" {
 		t.Errorf("a %d-character prescription estopped a finding (gap %q); the floor is %d",
 			len("7 is prime."), id, minEstoppelOverlap)
@@ -94,8 +104,8 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 		"R1-3": prescribed + " Three",
 		"R1-4": "", // prose only: not an offer, must not be counted
 	}, []*Event{
-		edit("R1-1", true),
-		edit("R1-2", false),
+		edit(t, "R1-1", true),
+		edit(t, "R1-2", false),
 		// R1-3 offered and never answered.
 		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-4")}),
 	})
@@ -117,8 +127,13 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 }
 
 func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
-	fr := func(text string) Event {
-		return recordtest.Event(t, "red-merge-r2", 2, &recordpb.Friction{})
+	// THE TEXT IS THE SUBJECT — this test is about a counter that survives the refusal being
+	// REWORDED — and the earlier conversion dropped it, leaving two identical empty frictions.
+	fr := func(text string) *Event {
+		return recordtest.Event(t, "red-merge-r2", 2, &recordpb.Friction{
+			Text: proto.String(text),
+			Kind: recordtest.P(recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL),
+		})
 	}
 	b := board(t, nil, []*Event{
 		fr("merge mint: estoppel — this gap's location is text YOU prescribed"),

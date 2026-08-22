@@ -13,41 +13,24 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// marshalEvent serializes a shard line: ONE canonical textproto record, no trailing newline.
+// THE LINE ENCODER IS GONE, with the lines it encoded.
 //
-// THE JSON TRAP THIS USED TO CARRY IS RETIRED, and it is worth recording what it was, because the
-// class survives the encoding change. Go's encoding/json escapes <, > and & by default while
-// JSON.stringify does not, and seat prose routinely contains angle brackets — so the default
-// diverged from the oracle on ordinary input and only at the byte level. `SetEscapeHTML(false)`
-// was mandatory here for exactly that reason.
+// `marshalEvent`/`MarshalEvent` produced a shard line — canonical textproto, one event per line,
+// symmetric to ReadShard. There are no lines: an event is a row, and the columns are written by
+// recordsql from the same descriptors the schema is derived from. Nothing in the tool called
+// either function once the shard write path went; only tests did, and the property they pinned
+// (HTML never escaped, because seat prose routinely contains angle brackets) belonged to a JSON
+// encoder that is no longer in the path at all.
 //
-// textproto has the same shape of hazard in a different place: prototext's whitespace comes from
-// an internal package that is stable within a build and NOT across builds, so an uncanonicalized
-// writer re-records every golden on somebody else's machine. That is why the encoder lives in
-// recordpb (canonical.go) rather than here — the canonicalization and the schema belong together,
-// and there is exactly one writer of a shard line.
-//
-// A SINGLE LINE, WITH NO NEWLINE, IS LOAD-BEARING. appendLine's torn-line healing terminates a
-// crashed fragment and writes the next event AFTER it, ReadShard splits on "\n", and
-// recordpb.ClassifyLine judges one line at a time. All three assume one line is one record.
-func marshalEvent(ev *Event) ([]byte, error) { return recordpb.Marshal(ev) }
+// recordpb.Marshal itself stays: recordpb's own stability test pins the canonical byte shape, and
+// that is a property of the ENCODING rather than of any writer.
 
-// MarshalEvent is the exported shard-line encoder, symmetric to ReadShard, for
-// tests in other packages (internal/view) that build a run's shards on disk.
-func MarshalEvent(ev *Event) ([]byte, error) { return marshalEvent(ev) }
-
-// marshalCompact is the JSON rule for the non-event values written to disk.
+// marshalCompact is the JSON rule for the non-event values written to disk — the telemetry JSONL
+// that view.Telemetry writes and the dashboard, cost and scorecard re-decode as raw JSON keys. A
+// PROJECTION, not a record, which is why it survives the record ceasing to be a file.
 //
-// IT IS NOT THE SHARD ENCODER ANY MORE and must not be reached for as one: events are textproto
-// (marshalEvent above). What remains here is the telemetry JSONL that view.Telemetry writes and
-// the dashboard, cost and scorecard re-decode as raw JSON keys — a PROJECTION, not a record.
-//
-// SetEscapeHTML(false) is still mandatory: that projection is compared byte-for-byte against the
+// SetEscapeHTML(false) is mandatory: that projection is compared byte-for-byte against the
 // oracle's JSON.stringify, which does not escape <, > or &.
-//
-// It is slated for deletion with the TelemetryLine message (plan §III.3), and it is still here
-// because its one non-test caller is outside this package — internal/view/view.go:473 — and
-// deleting it would break a file this wave does not own.
 func marshalCompact(v any) ([]byte, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)

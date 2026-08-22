@@ -81,8 +81,8 @@ func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
 	}
 	// And with a gap but no row: the receipt is what makes "unaudited repair" countable, so a
 	// blank one flatters the count it feeds.
-	p := NewPayload().Set("gap_id", "R1-1")
-	if err := validate(t.TempDir(), "blue-respond-r1", "manifest-row", p); err == nil {
+	if err := validate(t.TempDir(), "blue-respond-r1", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW,
+		&recordpb.ManifestRow{GapId: proto.String("R1-1")}); err == nil {
 		t.Error("a manifest row with no --row was accepted")
 	}
 }
