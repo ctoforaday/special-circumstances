@@ -1,0 +1,46 @@
+#!/bin/sh
+# Refuse a commit that stages unformatted Go.
+#
+# WHY THIS EXISTS: unformatted Go has reached CI three times (#351, #352, and the
+# 2026-08-22 vocabulary rename), and it costs a full round-trip to learn something
+# `gofmt -l` answers in under a second. Two separate checks fail on it — `feov-record`
+# and `qlty` — so one miss lights two red boxes and reads like two problems.
+#
+# THE CAUSE IS ALWAYS THE SAME, and it is not CRLF (see #352: .gitattributes already
+# carries `*.go text eol=lf`, autocrlf=input, and the committed blobs were verified LF).
+# It is an edit that changes the WIDTH of a key in an aligned map literal or struct tag
+# block — gofmt re-aligns the whole block, and a scripted rename never re-runs it.
+#
+# IT REFUSES RATHER THAN FIXING. A hook that silently rewrites staged content changes
+# what you are about to commit without showing you, and the diff you reviewed is no
+# longer the diff you ship. The fix is one command and it is printed.
+#
+# STAGED FILES ONLY: a dirty working tree is the ordinary state of development, and
+# refusing a commit for an unformatted file you did not stage would be wrong.
+
+staged=$(git diff --cached --name-only --diff-filter=ACM -- '*.go')
+[ -z "$staged" ] && exit 0
+
+# Check the STAGED CONTENT, not the worktree file — they differ under `git add -p`,
+# and the worktree copy is not what is being committed.
+unformatted=
+for f in $staged; do
+    if ! git show ":$f" 2>/dev/null | gofmt -l /dev/stdin >/dev/null 2>&1; then
+        continue  # gofmt itself failed (syntax error) — let the compiler say so, not us
+    fi
+    if [ -n "$(git show ":$f" | gofmt -l /dev/stdin 2>/dev/null)" ]; then
+        unformatted="$unformatted $f"
+    fi
+done
+
+[ -z "$unformatted" ] && exit 0
+
+echo "gofmt: refusing the commit — staged Go is unformatted:" >&2
+for f in $unformatted; do echo "    $f" >&2; done
+echo >&2
+echo "  gofmt -w$unformatted && git add$unformatted" >&2
+echo >&2
+echo "CI gates this in four places (feov-record and qlty both fail on it), so this" >&2
+echo "refusal costs you one second and saves a full round-trip. To bypass once:" >&2
+echo "  git commit --no-verify" >&2
+exit 1
