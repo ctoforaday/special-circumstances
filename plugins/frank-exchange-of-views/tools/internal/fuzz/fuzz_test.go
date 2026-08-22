@@ -719,10 +719,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// nothing blocked it, and it writes a DIFFERENT event type — so a sweep that only ever
 	// drove the complaint arm would leave the attestation path unexercised, which is the
 	// arm the whole change exists to make observable.
-	r.maybe(50, func() { r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
-	r.maybe(30, func() {
+	//
+	// EXCLUSIVE, AND ONE OF THEM ALWAYS FIRES. These were independent coins at 50% and 30%, so a
+	// sitting could close with NEITHER — which the verb's own help forbids ("CLOSE THIS CHANNEL
+	// EVERY SITTING"), and a drive that contradicts the contract it exercises is testing a system
+	// nobody ships. It also left `bench friction --none` never passed across 60 runs: the bench
+	// sits rarely (5 frictions in the whole sweep), and 30% of rarely is a path the coverage gate
+	// reports as missing while the drive is right there.
+	if r.coin(60) {
+		r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run()
+	} else {
 		r.do(role, "friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
-	})
+	}
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: a line of inquiry now has an id and a LIFECYCLE. Propose, then sometimes move it — the
 	// move is the path the old one-shot append could not record at all (measured: 0 of 86
