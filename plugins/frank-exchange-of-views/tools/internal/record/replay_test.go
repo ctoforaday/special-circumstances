@@ -1188,3 +1188,62 @@ func TestMultiNonceSeparatesACrashRetryFromLostWork(t *testing.T) {
 		}
 	})
 }
+
+// THE BOARD MUST PUBLISH THE ORDER IT REDUCED IN.
+//
+// BoardState sorted a LOCAL COPY by (TS, SeatID, Seq) and published m.Events, which is
+// (Round, SeatID, Seq). So the reduction saw the corrected chronology and every consumer that
+// walks Board.Events — record.Inquiries behind `show lines-of-inquiry`, report assembly, the
+// scorecards, the graph renderer — read events ordered by how SEAT NAMES SORT.
+//
+// FOUND 2026-08-22 BY A BLUE SEAT mid-run, with this reproduction: `zulu` acts first in time,
+// `alpha` acts second, and alphabetical order silently reverses them. The seat then caught the
+// defect biting its own sitting — its line-of-inquiry moves replayed before the frontier
+// proposals they answered, so the projection reported every line unmoved.
+func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
+	runDir := newRun(t)
+	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
+	writeShard(t, runDir, "zulu", "aaaaaaaa", []Event{
+		func() Event {
+			e := ev("zulu", "aaaaaaaa", 0, 1, "line-of-inquiry", "zulu:line-of-inquiry:#1",
+				NewPayload().Set("inquiry_id", "Q1").Set("status", "proposed").Set("reason", "opened"))
+			e.TS = "2026-08-22T10:00:00.000000000Z"
+			return e
+		}(),
+	})
+	writeShard(t, runDir, "alpha", "bbbbbbbb", []Event{
+		func() Event {
+			e := ev("alpha", "bbbbbbbb", 0, 1, "line-of-inquiry", "alpha:line-of-inquiry:#1",
+				NewPayload().Set("inquiry_id", "Q1").Set("status", "abandoned").Set("reason", "died"))
+			e.TS = "2026-08-22T11:00:00.000000000Z"
+			return e
+		}(),
+	})
+
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The published slice must be in TIME order, not seat-name order.
+	if len(b.Events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(b.Events))
+	}
+	if b.Events[0].SeatID != "zulu" || b.Events[1].SeatID != "alpha" {
+		t.Errorf("Board.Events = [%s, %s], want [zulu, alpha] — zulu acted an hour EARLIER, and a "+
+			"board published in seat-name order hands every consumer a chronology assembled from filenames",
+			b.Events[0].SeatID, b.Events[1].SeatID)
+	}
+
+	// AND THE CONSUMER THAT READS IT AGREES. This is the half that shipped broken: the reduction
+	// was already correct, so only a consumer walking Board.Events could see the defect.
+	inq := Inquiries(b)
+	if len(inq) != 1 {
+		t.Fatalf("expected one line of inquiry, got %d", len(inq))
+	}
+	if got := inq[0].Status; got != "abandoned" {
+		t.Errorf("Q1 status = %q, want abandoned — the later event must win. %q means the projection "+
+			"replayed alpha's move BEFORE zulu's proposal because alpha sorts first, which is the "+
+			"defect: a line reported as never moved when it was moved an hour later", got, got)
+	}
+}
