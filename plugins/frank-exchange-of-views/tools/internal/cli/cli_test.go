@@ -1458,7 +1458,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 		"--reason-file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
 	}
-	if !setFields(lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSE))["reason"] {
+	if lastBody(t, runDir, &recordpb.Close{}).GetProse() == "" {
 		t.Error("the prose from --file must reach the event")
 	}
 }

@@ -274,3 +274,49 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		}
 	}
 }
+
+// RED'S ARGUMENT REACHES THE BOARD, and this is the test for a field that was declared, written,
+// and never joined to the projection.
+//
+// `Mint.mint_reason` is what red thinks is WRONG with the text, distinct from `problem`, which
+// says what is wrong — the half a seat answers and a bench weighs. `merge mint` writes it, the
+// schema carries it, and BoardJSON declares the field. Only the assignment between them was
+// missing, and viewjson.go carried a note saying the schema had no such field, which was not true.
+//
+// Nothing reported it because a struct field that is never assigned renders as its zero: the board
+// showed no argument on every gap in every run, and "red gave no argument" is a perfectly ordinary
+// thing for a board to say. That is the plausible zero in its purest form — a missing line of code
+// rendering as a fact about the debate.
+func TestRedsArgumentReachesTheBoard(t *testing.T) {
+	runDir := t.TempDir()
+	seat := "red-merge-r1"
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, seat, 1, seat+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),
+			Problem:         proto.String("the section claims independence"),
+			MintReason:      proto.String("all five approaches share one definition of primality"),
+			AcceptanceCheck: proto.String("the section no longer claims independence"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
+	})
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := BoardJSONOf(b)
+	if len(j.Open) != 1 {
+		t.Fatalf("%d open gaps, want 1 — an empty board would pass the assertion below", len(j.Open))
+	}
+	if got := j.Open[0].MintReason; got != "all five approaches share one definition of primality" {
+		t.Errorf("mint_reason = %q — red's argument for the gap did not reach the board, so a seat "+
+			"answering it sees only what is wrong and not why red thinks so", got)
+	}
+	// And it stays DISTINCT from the problem: the whole reason the field exists is that "what is
+	// wrong" and "why I say so" are two facts, and a projection carrying one as the other loses
+	// the half a seat can actually argue with.
+	if j.Open[0].MintReason == j.Open[0].Problem {
+		t.Error("mint_reason and problem rendered the same text — the field exists to keep them apart")
+	}
+}

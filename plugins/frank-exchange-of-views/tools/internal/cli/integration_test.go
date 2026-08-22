@@ -180,7 +180,9 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 			t.Errorf("closure lost %s; an unanchored closure is mechanically unauditable (payload had %v)", want, keys)
 		}
 	}
-	if !keys["reason"] {
+	// `prose` is the FIELD; `--reason` is the flag. A close stores its argument as `prose`, an
+	// opinion as `rationale` — the fold is the flag's business, and setFields reads the schema.
+	if !keys["prose"] {
 		t.Error("closure lost its prose record")
 	}
 }

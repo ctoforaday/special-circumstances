@@ -180,13 +180,13 @@ func BoardJSONOf(b *Board) BoardJSON {
 			gj.Problem = g.Mint.GetProblem()
 			// MINT_REASON HAS NO FIELD IN record.proto AND IS LEFT UNSET HERE.
 			//
-			// It is not a rename and not a key this projection stopped wanting: `merge mint`
-			// writes it (cli/merge/mint.go:76) and internal/cli's
-			// TestAGapCarriesRedsArgumentAndNotOnlyItsProblem asserts it reaches this view. The
-			// schema carries no `Mint.mint_reason`, and the frozen key census that exists to catch
-			// exactly this (recordpb/testdata/payload-keys.txt, plan §IV.3) does not list the key
-			// either — so both mechanisms missed it. Reported rather than deleted: the line above
-			// it would silently start rendering red's argument as absent on every gap.
+			// RESOLVED. The note here said the schema carried no `Mint.mint_reason`, so the
+			// assignment was dropped and red's ARGUMENT for a gap — the half a seat answers and a
+			// bench weighs — reached no reader. The schema does carry it, and the projection
+			// declares the field; only the line joining them was missing, which is why nothing
+			// reported it: a struct field that is never assigned renders as absent, and absent
+			// reads as "red gave no argument" on every gap in every run.
+			gj.MintReason = g.Mint.GetMintReason()
 			gj.RequiredFix = g.Mint.GetRequiredFix()
 			gj.AcceptanceGate = g.Mint.GetAcceptanceCheck()
 			if g.Mint.CheckKind != nil {
