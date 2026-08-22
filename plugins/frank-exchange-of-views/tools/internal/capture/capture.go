@@ -87,9 +87,9 @@ func jsSlice(s string, n int) string {
 // ---- journal ----
 
 // ReadJournal walks journal.jsonl tolerantly: every result object and the friction arrays inside.
-func ReadJournal(transcriptDir string) (results []map[string]any, friction []string) {
+func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeFriction) {
 	results = []map[string]any{}
-	friction = []string{}
+	friction = []EnvelopeFriction{}
 	b, err := os.ReadFile(filepath.Join(transcriptDir, "journal.jsonl"))
 	if err != nil {
 		return results, friction
@@ -110,8 +110,12 @@ func ReadJournal(transcriptDir string) (results []map[string]any, friction []str
 		}
 		results = append(results, r)
 		if fr, ok := r["friction"].([]any); ok {
+			// THE AGENT HANDLE TRAVELS WITH THE TEXT. It is the only thing on this line that can
+			// be joined to a seat, and dropping it here is what left the parity check comparing
+			// prose to prose. See FrictionAudit.
+			agent := jsString(j["agentId"])
 			for _, f := range fr {
-				friction = append(friction, jsString(f))
+				friction = append(friction, EnvelopeFriction{AgentID: agent, Text: jsString(f)})
 			}
 		}
 	}
@@ -193,32 +197,72 @@ func TelemetryAudit(runDir string, redRounds int) Audit {
 
 // FrictionAudit checks every envelope-self-reported friction reached the record. onRecord is the
 // friction view's texts, read in-process. 60-char tolerant match in either direction.
-func FrictionAudit(envelopeFriction, onRecord []string) Audit {
-	present := func(f string) bool {
-		for _, t := range onRecord {
-			if strings.Contains(t, jsSlice(f, 60)) || strings.Contains(f, jsSlice(t, 60)) {
-				return true
-			}
-		}
-		return false
+// EnvelopeFriction is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
+// the harness agent that wrote it — the only handle on that line a record can be joined to.
+type EnvelopeFriction struct {
+	AgentID, Text string
+}
+
+// FrictionAudit checks that every seat which reported friction in its envelope also opened the
+// channel on the record. It joins on the SEAT, through the agent binding `register` writes.
+//
+// IT COMPARED PROSE TO PROSE, and reported 5 failures out of 5 on a run where every one of them
+// was on the record. Measured 2026-08-22, research/2026-08-22_is-7-prime:
+//
+//	envelope   "blue-synthesize: citation-hygiene: candidate draft lane-1 provides authoritative
+//	            source names (…) but lacks full URLs with coordinates required by research protocol"
+//	record     "Citation-URL resolution: candidate draft lane-1 provides source names (…) but not
+//	            full URLs with coordinates required by citation protocol"
+//
+// Same complaint, different wording — a seat that did its duty and then paraphrased itself into
+// its return value. The other four were the empty case ("no capability gaps encountered"), also
+// present, also reworded. A seat behaving correctly tripped this every time.
+//
+// The record carries seat_id as a FIELD. The envelope side glues the seat name onto the front of
+// the prose ("blue-synthesize: …") when it remembers to, so the join had to be recovered by
+// splitting a string — and could not be, so the check fell back to a 60-character substring
+// comparison in either direction. record.SeatOfAgent already existed for exactly this, and its
+// own doc comment is an argument against what this function was doing.
+//
+// WHEN THE JOIN IS ABSENT, SAY SO. A run whose PreToolUse hook never fired carries no agent_id on
+// any register event — deliberately, so "not measured" stays legible rather than reading as an
+// agent whose handle is the empty string. Those entries are counted out loud and are NOT findings:
+// an unjoinable entry is a thing this audit cannot see, not a duty a seat skipped.
+func FrictionAudit(runDir string, envelope []EnvelopeFriction, onRecord []record.FrictionEntryJSON) Audit {
+	wroteToRecord := map[string]bool{}
+	for _, fr := range onRecord {
+		wroteToRecord[fr.SeatID] = true
 	}
-	var missing []string
-	for _, f := range envelopeFriction {
-		if !present(f) {
-			missing = append(missing, f)
+	var silent, unjoinable []string
+	for _, e := range envelope {
+		seat, found, err := record.SeatOfAgent(runDir, e.AgentID)
+		if err != nil || !found || seat == "" {
+			unjoinable = append(unjoinable, jsSlice(e.Text, 90))
+			continue
+		}
+		if !wroteToRecord[seat] {
+			silent = append(silent, seat+": "+jsSlice(e.Text, 90))
 		}
 	}
-	if len(missing) > 0 {
-		lines := make([]string, len(missing))
-		for i, m := range missing {
-			lines[i] = "    - " + jsSlice(m, 120)
-		}
+	note := ""
+	if len(unjoinable) > 0 {
+		note = fmt.Sprintf("\n    %d envelope entr%s COULD NOT BE JOINED to a seat and %s not judged "+
+			"(no agent_id on the record — this run's PreToolUse hook did not fire, so the binding "+
+			"`register` writes was never supplied):\n    - %s",
+			len(unjoinable), plural(len(unjoinable), "y", "ies"), plural(len(unjoinable), "was", "were"),
+			strings.Join(unjoinable, "\n    - "))
+	}
+	if len(silent) > 0 {
 		return Audit{Check: "friction-parity", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d envelope friction entr%s never reached the record (should have been recorded via the friction verb during the run):\n%s",
-				len(missing), plural(len(missing), "y", "ies"), strings.Join(lines, "\n"))}
+			Detail: fmt.Sprintf("%d seat(s) reported friction in the envelope and opened no channel on the record "+
+				"(it should have been recorded via the friction verb during the run):\n    - %s%s",
+				len(silent), strings.Join(silent, "\n    - "), note)}
 	}
+	judged := len(envelope) - len(unjoinable)
 	return Audit{Check: "friction-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d envelope friction entr%s all present on the record", len(envelopeFriction), plural(len(envelopeFriction), "y", "ies"))}
+		Detail: fmt.Sprintf("%d envelope entr%s joined to a seat, and every one of those seats is on the record "+
+			"(%d friction entr%s recorded in total)%s",
+			judged, plural(judged, "y", "ies"), len(onRecord), plural(len(onRecord), "y", "ies"), note)}
 }
 
 func plural(n int, one, many string) string {
@@ -1313,7 +1357,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
 	board, _ := record.BoardState(runDir)
 	redRounds, blueBlocks := 0, 0
-	onRecord := []string{}
+	onRecord := []record.FrictionEntryJSON{}
 	if board != nil {
 		dj := record.DebateJSONOf(board)
 		for _, r := range dj.Rounds {
@@ -1324,14 +1368,17 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 				blueBlocks++
 			}
 		}
-		for _, fr := range record.FrictionJSONOf(board).Friction {
-			onRecord = append(onRecord, fr.Text)
-		}
+		// BOTH ARMS OF THE CHANNEL COUNT AS OPENING IT. `friction-none` is the attested empty
+		// case — "nothing blocked me", which is a seat closing the channel honestly — and a seat
+		// that files one has used the channel exactly as the duty asks.
+		fj := record.FrictionJSONOf(board)
+		onRecord = append(onRecord, fj.Friction...)
+		onRecord = append(onRecord, fj.NothingBlocked...)
 	}
 
 	audits = []Audit{
 		TelemetryAudit(runDir, redRounds),
-		FrictionAudit(friction, onRecord),
+		FrictionAudit(runDir, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
 		StrayRecordsAudit(repoRootOf(runDir), runDir),

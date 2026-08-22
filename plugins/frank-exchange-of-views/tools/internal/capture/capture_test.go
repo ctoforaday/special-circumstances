@@ -119,20 +119,104 @@ func TestTelemetryAudit(t *testing.T) {
 	}
 }
 
-func TestFrictionAudit(t *testing.T) {
-	env := []string{"red-merge-r1: needed a PDF extractor for X"}
-	if got := FrictionAudit(env, env).Verdict; got != "PASS" {
-		t.Errorf("friction on record: want PASS, got %s", got)
+// frictionRun writes a run whose seats registered (optionally binding an agent handle) and
+// optionally opened the friction channel.
+func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
+	t.Helper()
+	dir := t.TempDir()
+	recs := filepath.Join(dir, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	got := FrictionAudit(env, []string{})
+	var lines [][]byte
+	reg := record.NewPayload().Set("tool_version", "test")
+	if agentID != "" {
+		reg = reg.Set("agent_id", agentID)
+	}
+	add := func(e record.Event) {
+		b, err := record.MarshalEvent(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines = append(lines, append(b, '\n'))
+	}
+	add(record.Event{SeatID: seat, Nonce: "0000000a", Round: 1, Type: "register",
+		Key: seat + ":register:0000000a", Payload: reg})
+	if wrote != "" {
+		add(record.Event{SeatID: seat, Nonce: "0000000a", Round: 1, Type: wrote,
+			Key:     seat + ":" + wrote + ":1",
+			Payload: record.NewPayload().Set("reason", "the seat's own words, recorded")})
+	}
+	var all []byte
+	for _, l := range lines {
+		all = append(all, l...)
+	}
+	if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-0000000a.jsonl"), all, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func recordFriction(t *testing.T, runDir string) []record.FrictionEntryJSON {
+	t.Helper()
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fj := record.FrictionJSONOf(b)
+	return append(append([]record.FrictionEntryJSON{}, fj.Friction...), fj.NothingBlocked...)
+}
+
+// THE CASE THAT FAILED 5 OUT OF 5 IN PRODUCTION: a seat writes its friction to the record and then
+// PARAPHRASES it into its return envelope. Comparing prose to prose called that a missing record.
+func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
+	run := frictionRun(t, "blue-synthesize", "a24445d32ad697bd4", "friction")
+	env := []EnvelopeFriction{{AgentID: "a24445d32ad697bd4",
+		Text: "blue-synthesize: citation-hygiene: entirely different wording from the record"}}
+	got := FrictionAudit(run, env, recordFriction(t, run))
+	if got.Verdict != "PASS" {
+		t.Errorf("the seat opened the channel; the envelope is a re-worded copy, not a second duty.\ngot %s: %s", got.Verdict, got.Detail)
+	}
+}
+
+// AND THE REAL GAP STILL FAILS: a seat that reported friction to the harness and never opened the
+// channel on the record.
+func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
+	run := frictionRun(t, "red-merge-r1", "a78f5dfdc4aa2ea54", "")
+	env := []EnvelopeFriction{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
+	got := FrictionAudit(run, env, recordFriction(t, run))
 	if got.Verdict != "FAIL" {
-		t.Errorf("friction the record never got: want FAIL, got %s", got.Verdict)
+		t.Fatalf("friction the record never got: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "needed a PDF extractor") {
-		t.Errorf("the missing entry must be named: %s", got.Detail)
+	for _, want := range []string{"red-merge-r1", "needed a PDF extractor"} {
+		if !strings.Contains(got.Detail, want) {
+			t.Errorf("the finding must name %q: %s", want, got.Detail)
+		}
 	}
-	if !strings.Contains(got.Detail, "never reached the record") {
-		t.Errorf("the finding must state the pipeline gap: %s", got.Detail)
+}
+
+// `friction-none` is the attested empty case — a seat closing the channel honestly has used it.
+func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
+	run := frictionRun(t, "judge-r2", "a7e42caf6c06aec62", "friction-none")
+	env := []EnvelopeFriction{{AgentID: "a7e42caf6c06aec62", Text: "No capability gaps encountered."}}
+	if got := FrictionAudit(run, env, recordFriction(t, run)); got.Verdict != "PASS" {
+		t.Errorf("a filed friction-none IS the channel being used; got %s: %s", got.Verdict, got.Detail)
+	}
+}
+
+// NOT JOINED IS NOT A FINDING. A run whose PreToolUse hook never fired carries no agent_id on any
+// register event, deliberately — so the entry cannot be attributed, and an audit that cannot see
+// something must say so rather than accuse.
+func TestAnUnjoinableEntryIsReportedRatherThanBlamed(t *testing.T) {
+	run := frictionRun(t, "blue-respond-r2", "", "")
+	env := []EnvelopeFriction{{AgentID: "", Text: "Friction channel closed: no capability gaps."}}
+	got := FrictionAudit(run, env, recordFriction(t, run))
+	if got.Verdict == "FAIL" {
+		t.Errorf("an entry with no agent binding is unmeasurable, not a duty skipped.\ngot %s: %s", got.Verdict, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "COULD NOT BE JOINED") {
+		t.Errorf("the unjoinable entries must be counted out loud, or an audit that saw nothing "+
+			"reads as a clean board:\n%s", got.Detail)
 	}
 }
 

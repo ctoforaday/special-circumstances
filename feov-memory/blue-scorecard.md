@@ -64,3 +64,20 @@ HEADLINE: manifest_coverage 7 [BENCHMARK]
 - `thin_inquiry_reasons` [detector] — Alternatives explored: **0**
 
 HEADLINE: repair_regression_ratio 0 [BENCHMARK] · manifest_coverage 7 [BENCHMARK]
+
+## 2026-08-22_is-7-prime
+
+- `repair_regression_ratio` [benchmark] — Durable repairs: **0**
+  - reads WITH red rigour: a low ratio under a lax adversary means nothing
+- `manifest_coverage` [benchmark] — Correctness manifest: **7** (manifest-row events counted; envelopes do not report a repaired-gap denominator, so this is a COUNT not a ratio)
+- `round_parity_failures` [detector] — Round on the record: **0**
+- `unrecorded_claim_loss` [detector] — LOSS: additive violations: **0** (0 claim(s) lost across rounds, 0 retired on the record)
+  - a fall the retire events do not account for is substance leaving silently — the failure the old prose-level rule was written to stop
+- `dropped_finding_markers` [detector] — TAMPER: dropped finding-markers: **0** (26 finding-marker(s) anchored, 0 missing from the report)
+  - a marker red anchored that is gone from blue's report is blue dropping red's audit point — markers are immortal, so any absence is tampering
+- `unbacked_citations` [detector] — TAMPER: unbacked citations: **0** (4 citation(s) anchored, 0 missing from the report)
+  - a citation the tool anchored that is gone from the report breaks the cite⟺anchor bijection — citations are tool-managed, so any absence is a hand-typed footnote or tampering
+- `lines_of_inquiry` [diagnostic] — Alternatives explored: _not computed_ — no inquiries recorded — think-around-problem is back to self-attested for this run
+- `thin_inquiry_reasons` [detector] — Alternatives explored: **0**
+
+HEADLINE: repair_regression_ratio 0 [BENCHMARK] · manifest_coverage 7 [BENCHMARK]
