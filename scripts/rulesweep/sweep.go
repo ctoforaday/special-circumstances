@@ -48,6 +48,14 @@ var protocolSurfaces = []*regexp.Regexp{
 	regexp.MustCompile(`/commands/[^/]+\.md$`),
 	regexp.MustCompile(`/scripts/debate\.js$`),
 	regexp.MustCompile(`^law/`),
+	// A SHIPPED HOOK IS AS PROTOCOL AS AN AGENT DEFINITION, and it was outside this list while
+	// every prose surface was inside it. hooks.json states what runs on every tool call in a
+	// consuming session; the change that broke it (identity selecting the command surface) never
+	// looked at it, enumerated its sweep as "33 tests, goldens, docs, seatprobe and the prompt
+	// gates" — a census drawn from what was FAILING rather than from who CALLS this — and shipped
+	// a plugin that denied every mutating tool call in any session that installed it. The tests
+	// could be taught the new model; hooks.json could not.
+	regexp.MustCompile(`/hooks/hooks\.json$`),
 }
 
 func touchesProtocol(files []string) []string {

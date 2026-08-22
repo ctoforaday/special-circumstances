@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -29,28 +30,19 @@ import (
 // be taught the new model and hooks.json could not, because a hook has no identity to give.
 //
 // THE INVARIANT IS THE HOOK'S OWN, and it was stated in a doc comment two levels below where it
-// could be broken — cli/hook.go: "Both ALWAYS exit 0 — the decision travels in the stdout JSON,
-// never the exit status." A change to the ROOT's argument parsing broke a contract documented on
+// could be broken — internal/hookcmd: "EVERY ENTRY POINT RETURNS 0 — the decision travels in the stdout JSON,
+// never the exit status is not a channel." A change to the ROOT's argument parsing broke a contract documented on
 // the leaf. This asserts it at the process boundary, which is the altitude it lives at.
 func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("hooks.json's command is /bin/sh; the binary's argv contract is covered by the same gate on Linux")
 	}
-	bin := buildBinary(t)
-
-	// Lay the binary out the way an install does — the command resolves
-	// ${CLAUDE_PLUGIN_ROOT}/bin/feov-record, so the shape of that directory is part of what is
-	// under test.
+	// The binary each command names is DERIVED from the command, never listed here. A hand-kept
+	// roster of hook binaries beside the manifest that already names them is the same defect one
+	// level up: it goes stale silently, and a gate reading a stale roster builds the wrong thing
+	// and reports the right one sound.
 	pluginRoot := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(pluginRoot, "bin"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	installed := filepath.Join(pluginRoot, "bin", "feov-record")
-	b, err := os.ReadFile(bin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(installed, b, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,6 +91,7 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 			}
 			for _, h := range m.Hooks {
 				driven++
+				installHookBinary(t, pluginRoot, h.Command)
 				cmd := exec.Command("sh", "-c", h.Command)
 				cmd.Dir = sandbox
 				cmd.Env = append(os.Environ(),
@@ -114,7 +107,7 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 				t.Errorf("%s hook exits %d on an ordinary %s call, so Claude Code BLOCKS it.\n\n"+
 					"  command: %s\n  output: %s\n\n"+
 					"Every hook in this manifest must exit 0 whatever it decides — the decision travels in "+
-					"the stdout JSON, never the exit status (cli/hook.go says so). A non-zero exit here is "+
+					"the stdout JSON, never the exit status (internal/hookcmd says so, and hookcmd.Run enforces it). A non-zero exit here is "+
 					"not a failed check, it is every matched tool call in the session denied: this matcher "+
 					"is %q.",
 					event, code, tool, h.Command, strings.TrimSpace(string(out)), m.Matcher)
@@ -127,4 +120,41 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 			"nothing reports every hook sound")
 	}
 	t.Logf("%d shipped hook invocation(s) driven against the built binary", driven)
+}
+
+// binFromCommand pulls the ${CLAUDE_PLUGIN_ROOT}/bin/<name> a hook command resolves.
+var binFromCommand = regexp.MustCompile(`\$\{CLAUDE_PLUGIN_ROOT\}/bin/([A-Za-z0-9._-]+)`)
+
+// installHookBinary builds the command's named binary from ./cmd/<name> and lays it out the way
+// an install does, because ${CLAUDE_PLUGIN_ROOT}/bin/<name> is part of what is under test.
+func installHookBinary(t *testing.T, pluginRoot, command string) {
+	t.Helper()
+	m := binFromCommand.FindStringSubmatch(command)
+	if m == nil {
+		t.Fatalf("this hook command names no ${CLAUDE_PLUGIN_ROOT}/bin/<binary>, so the gate cannot "+
+			"build what it invokes:\n  %s", command)
+	}
+	name := m[1]
+	dest := filepath.Join(pluginRoot, "bin", name)
+	if _, err := os.Stat(dest); err == nil {
+		return // already built for an earlier event
+	}
+	src, err := repotree.Plugin("tools", "cmd", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Fatalf("hooks.json invokes %q, and there is no cmd/%s to build it from (%v) — the manifest "+
+			"and the tree disagree about which binaries this plugin ships", name, name, err)
+	}
+	toolsDir, err := repotree.Plugin("tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := exec.Command("go", "build", "-o", dest, "./cmd/"+name)
+	build.Dir = toolsDir // ./cmd is the MODULE's, not this test package's
+	out, err := build.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building cmd/%s, which hooks.json invokes: %v\n%s", name, err, out)
+	}
 }
