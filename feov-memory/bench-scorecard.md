@@ -81,3 +81,12 @@ HEADLINE: rulings_without_opinion 7 [DETECTOR] · carried_share 0.14 [BENCHMARK]
 - `petitions_filed` [measure] — Petition handling: **0**
 
 HEADLINE: rulings_without_opinion 2 [DETECTOR] · carried_share 0 [BENCHMARK] · blue_sections_citing_direction 2/1 [BENCHMARK]
+
+## 2026-08-22_record-store-authority
+
+- `carried_share` [benchmark] — Not a router: _not computed_ — the bench did not sit this run
+- `blue_sections_citing_direction` [benchmark] — Direction-uptake (headline): _not computed_ — no LEAD sections this run
+- `rulings_without_opinion` [detector] — Opinion form: _not computed_ — no rulings this run
+- `undeclared_inspection_risk` [detector] — Evidence confinement: **0** (no opinion referenced trajectory evidence this run)
+  - reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls
+- `petitions_filed` [measure] — Petition handling: **0**
