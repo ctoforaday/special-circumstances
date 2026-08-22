@@ -168,17 +168,27 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	}
 }
 
-// citations_checked is the record's, not red's self-report. The board tallies cite
-// events so red reads the count from its native view instead of hand-counting a number
-// that was fabricated on haiku. Cite events are reference-keyed, so re-verifying a
-// source is idempotent (updates in place): the count is DISTINCT sources verified —
-// three cite calls over two references tally two.
+// citations_checked is the record's, not red's self-report. The board tallies cite events so red
+// reads the count from its native view instead of hand-counting a number that was fabricated on
+// haiku. The count is DISTINCT sources verified.
+//
+// # A CAPABILITY QUESTION THIS TEST NOW PINS, and it is a real one
+//
+// A verify keys on its reference (`url` is in keyFields), so two verifications of one source in
+// one sitting share a key. Under shards both were written and the READER kept one — the header
+// here called that "idempotent (updates in place)", which was a read-time illusion over an
+// append-only log. `events.key` is UNIQUE now, so the second is REFUSED.
+//
+// That is a loss and it is stated rather than absorbed: a lens that re-reads a source mid-sitting
+// and finds something different cannot record the second reading. The refusal follows from two
+// deliberate choices (append-only, one act per key) and the alternative — dropping `url` from
+// keyFields so verifies key on an ordinal — changes what a crash-retry does. Which way that should
+// go is the operator's call; it is tracked in plans/record-sqlite.md rather than decided here.
 func TestBoardCountsCiteEvents(t *testing.T) {
 	runDir := seatRun(t)
 	cites := []struct{ claim, ref string }{
 		{"the API returns 200", "https://example.com/a"},
 		{"the flag defaults off", "https://example.com/b"},
-		{"the API still returns 200 (re-verified next round)", "https://example.com/a"}, // same ref → idempotent
 	}
 	for _, c := range cites {
 		// --independent: these are sources red went and found, not citations blue authored, so
@@ -191,6 +201,17 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 			t.Fatalf("cite %q: %v", c.claim, err)
 		}
 	}
+	// The same reference again in the SAME sitting is refused, with a message that says so.
+	_, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--quote", "the API still returns 200", "--url", "https://example.com/a", "--title", "a",
+		"--as", "supports", "--confidence", "high", "--reason", "read again",
+		"--access-date", "2026-07-24")
+	if err == nil {
+		t.Error("a second verification of one source in one sitting was accepted — two acts under one key")
+	} else if !strings.Contains(err.Error(), "once-per-sitting") {
+		t.Errorf("the refusal does not teach what was wrong:\n%v", err)
+	}
+
 	if b := board(t, runDir, "merge", "red-merge-r1"); b.Counts.Citations != 2 {
 		t.Errorf("counts.citations = %d, want 2 (two distinct references) — the board is the source for citations_checked", b.Counts.Citations)
 	}

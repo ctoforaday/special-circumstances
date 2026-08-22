@@ -132,3 +132,31 @@ Not the migration itself — the migration only made them *reachable*. What surf
 4. **Asking whether a test can fail.** Two of my own passes produced assertions that
    could not: a Grade comparison against an `any`-typed string field (always true), and a
    blanket fixture rewrite that filled in the very fields four cases existed to omit.
+
+## Open decisions the cutover forces (operator's call)
+
+**Re-verifying one source in one sitting is now refused.** A verify keys on its reference
+(`url` is in `keyFields`), so two verifications of one source share a key. Under shards
+both were written and the reader kept one — "idempotent, updates in place" was a read-time
+illusion over an append-only log. `events.key` is UNIQUE now, so the second is refused.
+
+The loss is real: a lens that re-reads a source mid-sitting and finds something different
+cannot record the second reading. Three ways out, none obviously right:
+
+1. **Leave it.** The refusal follows from append-only plus one-act-per-key, both
+   deliberate, and it teaches. A seat that must revise says so in a later sitting.
+2. **Drop `url` from `keyFields`** so verifies take an ordinal. Re-verification works, and
+   a crash-retry of the same command now writes a SECOND event instead of being idempotent
+   — which is what the key was for.
+3. **Scope the key to the reading, not the source** (reference + outcome, say). Both cases
+   work; the key stops being derivable from one field, which is how `keyFields` goes stale
+   silently (record.go's own note on `reference`).
+
+Pinned by `TestBoardCountsCiteEvents`, which asserts the refusal so the behaviour cannot
+change without someone editing the assertion and reading this.
+
+**`--check ""` and friends.** Requiredness is present-and-non-empty again, with
+`allow_empty` on the three fields the old Go table treated as presence-only
+(`review_flag`, `principle`, `tension`). Whether `principle` and `tension` should be
+tightened — a ruling with no stated rule is what `bench opinion` exists to prevent — is a
+live question, deliberately not answered inside a storage migration.

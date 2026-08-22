@@ -416,26 +416,39 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	}
 }
 
-// The CSV fields are the exception: ALWAYS present, even empty, because an
-// absent key would read as "lineage unknown" where the truth is "lineage none".
-func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
+// THE CSV FIELDS ARE ALWAYS RENDERED, even empty, because an absent key reads as "lineage
+// unknown" where the truth is "lineage none".
+//
+// THE QUESTION MOVED FROM THE BODY TO THE PROJECTION, and it had to. This asserted that the mint
+// EVENT carried `supersedes` and `found_by` as present-but-empty keys — a distinction a payload
+// map could hold and a proto message cannot: a repeated field has no presence, so an empty list
+// and an unset one are the same bytes. There is nothing on the body left to assert.
+//
+// What a reader actually sees is the projection, and there the distinction is real and preserved:
+// viewjson seeds both as `[]string{}` so they render as `[]` rather than being omitted. That is
+// the guarantee this test was always about, asked where it can still be answered — and where it
+// would fail if someone dropped the seeding.
+func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	ev := lastBody(t, runDir, &recordpb.Mint{})
-	keys := setFields(ev)
-	for _, k := range []string{"supersedes", "found_by"} {
-		if !keys[k] {
-			t.Errorf("%q is absent; an absent lineage key reads as \"lineage unknown\"", k)
+	b, err := record.BoardJSONBytes(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	for _, want := range []string{`"supersedes": []`, `"found_by": []`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("the board does not render %s — an absent lineage key reads as \"lineage unknown\" "+
+				"where the truth is \"lineage none\":\n%s", want, s)
 		}
 	}
-	// AN EMPTY REPEATED FIELD IS AN EMPTY LIST, not a null. The projection renders it and a
-	// reader distinguishes "no lineage" from "lineage unknown" by seeing the empty array.
-	if got := ev.GetSupersedes(); got == nil {
-		t.Error("empty lineage decoded as nil rather than an empty list")
+	// And a gap that HAS lineage renders it, so the check above is not passing on an empty board.
+	if strings.Count(s, `"supersedes"`) != 1 {
+		t.Errorf("expected exactly one gap on the board, got %d supersedes keys", strings.Count(s, `"supersedes"`))
 	}
 }
 
@@ -1056,15 +1069,25 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 	}
 }
 
-// position is a SINGLETON: a seat has one position, so a re-run replaces rather
-// than appending a second.
+// position is a SINGLETON: a seat has one position, and a second is REFUSED rather than quietly
+// replacing it.
+//
+// The refusal is the change and it is the honest half. The shard record deduped on READ — two
+// events with one key, one silently discarded — so this test's own header said "replaces" while
+// its assertion said the FIRST survives, and a seat that stated its position twice learned
+// neither. `events.key` is UNIQUE now, so the second write fails and the seat is told why.
 func TestPositionIsASingletonPerSeat(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
-	for _, text := range []string{"first", "second"} {
-		if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", seatID, "--reason", text); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", seatID, "--reason", "first"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := run(t, "merge", "position", "--run", runDir, "--seat-id", seatID, "--reason", "second")
+	if err == nil {
+		t.Fatal("a second position was accepted — the record would carry two answers to a once-per-sitting question")
+	}
+	if !strings.Contains(err.Error(), "once-per-sitting") {
+		t.Errorf("the refusal does not teach what was wrong:\n%v", err)
 	}
 	positions := 0
 	for _, e := range events(t, runDir) {
