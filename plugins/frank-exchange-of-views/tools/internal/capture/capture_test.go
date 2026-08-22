@@ -1,6 +1,8 @@
 package capture
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -865,5 +867,77 @@ func TestLivenessReportsNotMeasuredRatherThanPassing(t *testing.T) {
 	a := LivenessAudit(writeRunForLiveness(t, 3, time.Minute, now, false), now.Add(3*time.Hour))
 	if a.Verdict != "SKIP" {
 		t.Errorf("a 3-event record audited %s — want SKIP:\n%s", a.Verdict, a.Detail)
+	}
+}
+
+// ---- record archive ----
+
+func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
+	repo := t.TempDir()
+	run := filepath.Join(repo, "research", "2026-08-22_x")
+	recs := filepath.Join(run, "records")
+	if err := os.MkdirAll(filepath.Join(run, "proofs", "abc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// AN EMPTY RECORD IS REFUSED, because an archive preserving nothing is indistinguishable
+	// from a preserved run once it is sitting in run-archive/.
+	if _, err := ArchiveRecord(run, repo); err == nil {
+		t.Fatal("ArchiveRecord wrote an archive for a run with no shards")
+	}
+
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-aaaaaaaa.jsonl"),
+		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run, "proofs", "abc", "script.py"), []byte("print(7)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := ArchiveRecord(run, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(out) != "2026-08-22_x.tar.gz" {
+		t.Errorf("archive named %q — it must be findable by the run slug", filepath.Base(out))
+	}
+	if filepath.Dir(out) != filepath.Join(repo, "run-archive") {
+		t.Errorf("archive landed in %q — it must sit OUTSIDE research/, which is gitignored and so "+
+			"does not survive the container", filepath.Dir(out))
+	}
+
+	// And it holds what the audits re-read.
+	f, err := os.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		names[h.Name] = true
+	}
+	for _, want := range []string{"records/events-red-lens-r1-L1-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
+		if !names[want] {
+			t.Errorf("archive is missing %q — it holds %v", want, names)
+		}
+	}
+	// The cache is deliberately absent: 7.3 MB for a real run, re-fetchable, and every source's
+	// sha256 is on the record so its integrity stays checkable without it.
+	for n := range names {
+		if strings.HasPrefix(n, "cache/") {
+			t.Errorf("the fetched-source cache was archived (%s) — it is re-fetchable and dwarfs the record", n)
+		}
 	}
 }

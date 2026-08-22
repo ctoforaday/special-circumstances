@@ -1407,6 +1407,22 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	} else {
 		lines = append(lines, fmt.Sprintf("tarball: %d transcript(s)", len(agentFiles)))
 	}
+	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
+	// archive that silently did not happen is a run whose evidence is gone the next time the
+	// container is reclaimed, and nothing would have said so.
+	if arc, aerr := ArchiveRecord(runDir, repoRootOf(runDir)); aerr != nil {
+		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
+	} else {
+		rel := arc
+		if r, rerr := filepath.Rel(repoRootOf(runDir), arc); rerr == nil {
+			rel = r
+		}
+		if st, serr := os.Stat(arc); serr == nil {
+			lines = append(lines, fmt.Sprintf("record archive: %s (%d KB) — the raw record, which research/ does not keep", rel, st.Size()/1024))
+		} else {
+			lines = append(lines, "record archive: "+rel)
+		}
+	}
 
 	costF, cerr := os.Create(filepath.Join(runDir, "cost.md"))
 	if cerr != nil {
@@ -1544,4 +1560,95 @@ func listAgentFiles(dir string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// ---- record archive ----
+
+// ArchiveRecord writes the run's RAW RECORD to run-archive/<slug>.tar.gz at the repository root,
+// which is the only part of a run that outlives the container.
+//
+// THE EVIDENCE WAS THE ONE THING NOT BEING KEPT. `research/*/` is gitignored — deliberately, and
+// with a commit behind it (ffc4bf4 deleted a tracked research corpus because seats were reading
+// test data as prior work). So a run directory survives a SIGTERM and a fast resume, because the
+// disk does, and does NOT survive the container being reclaimed. What survived that was only what
+// capture promoted: cost.md, the scorecards, the law harvest. Every one of those is a DERIVED
+// artifact. The record they were derived from — the thing each audit re-reads, and the only thing
+// that can answer a question nobody has thought of yet — was left behind.
+//
+// WHAT IS IN IT, AND WHAT IS NOT. records/ and proofs/: 49 KB gzipped for a fifteen-seat run, so
+// keeping every run costs about a megabyte per twenty. NOT cache/ — 7.3 MB of fetched source
+// bytes for the same run, re-fetchable, and content-addressed by a sha256 the citation events
+// already carry, so its integrity stays checkable without it. NOT the agent transcripts: they are
+// an order of magnitude larger than the record and answer a different question (what a seat DID
+// rather than what it RECORDED); keeping them is a separate decision and is named here rather
+// than made quietly.
+//
+// It does not reintroduce ffc4bf4's hazard: seats read their own run directory and the inputs
+// mirrored into it, never run-archive/, and a gzipped tar is not prose a glob can wander into.
+func ArchiveRecord(runDir, repoRoot string) (string, error) {
+	recs, err := record.RecordsDir(runDir)
+	if err != nil {
+		return "", err
+	}
+	var files []struct {
+		name string
+		path string
+	}
+	add := func(root, prefix string) error {
+		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil // a missing proofs/ is ordinary; a missing records/ is caught below
+			}
+			rel, rerr := filepath.Rel(root, p)
+			if rerr != nil {
+				return rerr
+			}
+			files = append(files, struct{ name, path string }{prefix + filepath.ToSlash(rel), p})
+			return nil
+		})
+	}
+	if err := add(recs, "records/"); err != nil {
+		return "", err
+	}
+	shards := len(files)
+	_ = add(filepath.Join(runDir, "proofs"), "proofs/")
+	// AN EMPTY ARCHIVE IS A REFUSAL, not a small file. A tarball with no shards in it is exactly
+	// what a run whose record never resolved would produce, and it would sit in run-archive/
+	// looking like a kept run forever.
+	if shards == 0 {
+		return "", fmt.Errorf("no event shards under %s — refusing to write an archive that would "+
+			"preserve nothing while looking like a preserved run", recs)
+	}
+	outDir := filepath.Join(repoRoot, "run-archive")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return "", err
+	}
+	out := filepath.Join(outDir, filepath.Base(filepath.Clean(runDir))+".tar.gz")
+	f, err := os.Create(out)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	gz := gzip.NewWriter(f)
+	tw := tar.NewWriter(gz)
+	sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
+	for _, fl := range files {
+		b, rerr := os.ReadFile(fl.path)
+		if rerr != nil {
+			return "", rerr
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: fl.name, Mode: 0o644, Size: int64(len(b))}); err != nil {
+			return "", err
+		}
+		if _, err := tw.Write(b); err != nil {
+			return "", err
+		}
+	}
+	if err := tw.Close(); err != nil {
+		return "", err
+	}
+	if err := gz.Close(); err != nil {
+		return "", err
+	}
+	return out, nil
 }
