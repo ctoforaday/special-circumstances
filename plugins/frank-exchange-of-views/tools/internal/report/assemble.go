@@ -674,6 +674,13 @@ func withdrawnClaims(evs []*record.Event) string {
 // grades and required fix, then the closure index. This is the ledger's content, drawn from
 // the replayed board rather than read back from the projection file.
 func redFindings(board *record.Board) string {
+	// Label -> the finding it names, so a gap can quote the evidence it was minted from.
+	findings := map[string]*recordpb.Finding{}
+	for _, e := range board.Events {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetLabel() != "" {
+			findings[f.GetLabel()] = f
+		}
+	}
 	var open, closed []string
 	for _, id := range board.GapOrder {
 		g := board.Gaps[id]
@@ -682,11 +689,34 @@ func redFindings(board *record.Board) string {
 		}
 		if g.Open {
 			regraded := regradeHistory(g)
-			// Provenance: which lens findings surfaced this gap. The findings are on the
-			// record now (not candidate files), so found_by names real, verifiable labels.
+			// Provenance: which lens findings surfaced this gap, IN THE FINDING'S OWN WORDS.
+			//
+			// This was `surfaced by: L2-F1, L5-F2` — labels and nothing else. Nothing in the
+			// report defines those labels: unmintedFindings renders a finding's text only when
+			// NO gap claims it, so the moment the merge acts on a finding, the leaf-level
+			// evidence that produced it leaves the document and the citation dangles. The fuzz
+			// found runs where EVERY finding was minted and red's words appeared nowhere at all.
+			//
+			// It is the wrong half to drop. A gap's `problem` is the merge's RESTATEMENT; the
+			// finding is what red actually observed at the leaf, and the two sitting together is
+			// what lets a reader see a restatement drift from its evidence. Unresolvable labels
+			// (a found_by naming no finding on the record) are kept as bare labels rather than
+			// silently dropped — an unresolvable citation is itself worth seeing.
 			foundBy := ""
 			if fb := g.Mint.GetFoundBy(); len(fb) > 0 {
-				foundBy = "\nsurfaced by: " + strings.Join(fb, ", ")
+				var lines []string
+				for _, lbl := range fb {
+					if f := findings[lbl]; f != nil {
+						loc := f.GetLocation()
+						if loc != "" {
+							loc = " (" + loc + ")"
+						}
+						lines = append(lines, fmt.Sprintf("- %s%s: %s", lbl, loc, f.GetText()))
+						continue
+					}
+					lines = append(lines, "- "+lbl+": (no finding with this label is on the record)")
+				}
+				foundBy = "\nsurfaced by:\n" + strings.Join(lines, "\n")
 			}
 			// `class` is a registry SLUG, not a grade — it goes through `grade` only for that
 			// helper's em-dash-when-empty arm, exactly as it did before.

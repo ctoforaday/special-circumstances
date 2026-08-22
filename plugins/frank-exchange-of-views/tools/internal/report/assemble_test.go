@@ -519,6 +519,55 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	}
 }
 
+// A MINTED FINDING'S EVIDENCE MUST BE REACHABLE FROM THE GAP THAT CLAIMED IT.
+//
+// The provenance line used to read `surfaced by: L5-F1, L6-F2` and nothing in the report defined
+// those labels — unmintedFindings renders a finding only when NO gap claims it, so the instant
+// the merge acted on a finding its leaf-level evidence left the document and the citation
+// dangled. A fuzz run where every finding was minted put red's words nowhere at all.
+//
+// It is the wrong half to drop: `problem` is the merge's RESTATEMENT, and a reader can only see
+// a restatement drift from its evidence with both in front of them.
+func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
+	board := &record.Board{
+		GapOrder: []string{"R1-1"},
+		Gaps: map[string]*record.Gap{
+			// OPEN, which is where a gap states itself in full. The closed index is one line per
+			// gap by design and carries no provenance — a deliberate scope, stated here so it is
+			// a decision rather than an omission: a closed gap's question is how it was settled,
+			// and the closure's own anchor and prose answer that.
+			"R1-1": {ID: "R1-1", Open: true, Mint: &recordpb.Mint{
+				Problem: proto.String("the merge's restatement"),
+				FoundBy: []string{"L5-F1", "L9-F9"},
+			}},
+		},
+		Events: []*record.Event{
+			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{
+				Label:    proto.String("L5-F1"),
+				Location: proto.String("§H2"),
+				Text:     proto.String("what red actually observed at the leaf"),
+			}),
+		},
+	}
+	got := redFindings(board)
+	if !strings.Contains(got, "what red actually observed at the leaf") {
+		t.Errorf("the minted finding's own words are absent — the gap cites L5-F1 and nothing defines it:\n%s", got)
+	}
+	if !strings.Contains(got, "§H2") {
+		t.Errorf("the finding's location is absent, so a reader cannot go and check it:\n%s", got)
+	}
+	// AND AN UNRESOLVABLE CITATION IS ITSELF WORTH SEEING. A found_by naming no finding on the
+	// record must not vanish into a shorter list — that reads exactly like a gap with less
+	// provenance, which is the plausible-zero shape.
+	if !strings.Contains(got, "L9-F9") || !strings.Contains(got, "no finding with this label") {
+		t.Errorf("a found_by label with no finding behind it was dropped silently:\n%s", got)
+	}
+	// It stays out of the un-minted section either way: the gap is where it is rendered.
+	if strings.Contains(got, "Lens findings not raised to a gap") {
+		t.Errorf("a claimed finding must not ALSO be listed as un-raised:\n%s", got)
+	}
+}
+
 func TestFrictionRendered(t *testing.T) {
 	evs := []*record.Event{
 		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Friction{Text: proto.String("the --cx flag is missing from help")}),
