@@ -766,37 +766,63 @@ func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleF
 		}
 	}
 	sampled := sampleClaims(claims, sampleFloor)
-	var unreconciled []Claim
+	var unreconciled, unmeasured []Claim
 	for _, c := range sampled {
-		needle := mostDistinctive(c.Target)
-		if needle == "" {
-			c.Why = "anchor target too vague to reconcile"
-			unreconciled = append(unreconciled, c)
+		needles, byID := needlesFor(c)
+		if len(needles) == 0 {
+			// NOT MEASURED IS NOT A FINDING, and folding it into one is how this audit came to
+			// accuse honest seats. See needlesFor.
+			c.Why = "no anchor id in the tool and no distinctive fragment in the target — nothing to reconcile AGAINST"
+			unmeasured = append(unmeasured, c)
 			continue
 		}
-		found := false
-		for _, k := range calls {
-			if strings.Contains(k, needle) {
-				found = true
+		missing := ""
+		for _, n := range needles {
+			found := false
+			for _, k := range calls {
+				if strings.Contains(k, n) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missing = n
 				break
 			}
 		}
-		if !found {
-			c.Why = "no tool call in any transcript touches " + needle
+		if missing != "" {
+			if byID {
+				c.Why = "the closure cites " + missing + " but no tool call in any transcript carries it"
+			} else {
+				c.Why = "no tool call in any transcript touches " + missing
+			}
 			unreconciled = append(unreconciled, c)
 		}
+	}
+	// THE UNMEASURED ARE COUNTED OUT LOUD, in every verdict, because the alternative is the
+	// failure this audit is for one level up: a sample of 3 where 2 could not be measured reads
+	// as "1/1 reconciled" unless the other 2 are on the page.
+	note := ""
+	if len(unmeasured) > 0 {
+		ml := make([]string, len(unmeasured))
+		for i, u := range unmeasured {
+			ml[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
+		}
+		note = fmt.Sprintf("\n    %d of the %d sampled could NOT BE MEASURED either way (not a finding against them):\n%s",
+			len(unmeasured), len(sampled), strings.Join(ml, "\n"))
 	}
 	if len(unreconciled) > 0 {
 		ul := make([]string, len(unreconciled))
 		for i, u := range unreconciled {
 			ul[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
 		}
-		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.",
-			len(unreconciled), len(sampled), strings.Join(ul, "\n"))
+		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.%s",
+			len(unreconciled), len(sampled), strings.Join(ul, "\n"), note)
 		return Audit{Check: "attestation-integrity", Verdict: "FAIL", Detail: detail, Unreconciled: unreconciled}
 	}
 	return Audit{Check: "attestation-integrity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls", len(sampled), len(claims))}
+		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls%s",
+			len(sampled)-len(unmeasured), len(claims), note)}
 }
 
 // sampleClaims mirrors JS: all when ≤ floor, else index i where i % ceil(n/floor) === 0.
@@ -817,6 +843,44 @@ func sampleClaims(claims []Claim, floor int) []Claim {
 func ceilDiv(a, b int) int { return (a + b - 1) / b }
 
 var reNonToken = regexp.MustCompile(`[\s|]+`)
+
+// anchorID matches the record's OWN identifiers — a citation, finding, proof or anchor id, each
+// unique by construction rather than assembled from words.
+//
+// MEASURED 2026-08-22, and it is the whole reason needlesFor exists. Two closures anchored
+// `report text at line 103` and `report text at line 62` — precise, human-meaningful, naming the
+// exact line. mostDistinctive found no fragment longer than six characters in either (`report` is
+// exactly six), returned "", and both were filed as claims with no matching tool call, under an
+// audit whose own message says "This rules on whether the RECORD IS HONEST". The third sampled
+// closure reconciled only because its target happened to contain the ten-letter word
+// `projection`. Honesty was being decided by word length.
+//
+// The record was carrying the answer the whole time: anchor_tool reads
+// `show report --anchor f-0dd40334`, and that id is exact. Prose is what a human reads; the id is
+// what a machine joins on — see [[facts-are-fields]] clause 5, "never re-derive from the assembled
+// form what the record could simply carry".
+var anchorID = regexp.MustCompile(`\b[a-z]{1,2}-[0-9a-f]{8}\b`)
+
+// needlesFor returns the tokens a claim can be reconciled by, and whether they came from the
+// record's identifiers or from prose.
+//
+// EVERY CITED ID MUST APPEAR, not merely one: a seat naming an id it never touched is exactly the
+// dishonesty this audit looks for, and ids are exact enough that requiring all of them cannot
+// produce the false accusations the prose path did.
+//
+// The prose fallback keeps its six-character floor deliberately. Lowering it to admit `report`
+// would make the needle match every `show report` call in the run — turning a false FAIL into a
+// false PASS, which is the worse direction for an honesty check. Prose that yields no needle is
+// reported as NOT MEASURED instead.
+func needlesFor(c Claim) (needles []string, fromID bool) {
+	if ids := anchorID.FindAllString(c.Tool, -1); len(ids) > 0 {
+		return ids, true
+	}
+	if n := mostDistinctive(c.Target); n != "" {
+		return []string{n}, false
+	}
+	return nil, false
+}
 
 // mostDistinctive mirrors JS: split target on /[\s|]+/, keep fragments longer than 6, longest first.
 func mostDistinctive(target string) string {
